@@ -1,0 +1,188 @@
+// @fileoverview Database schema definition for MRE application
+// 
+// @created 2025-01-27
+// @creator Jayson Brenton
+// @lastModified 2025-01-27
+// 
+// @description Prisma schema defining all database models and relationships
+// 
+// @purpose This schema defines the core data models for the MRE application,
+//          including User model with authentication fields and LiveRC ingestion
+//          models. It serves as the single source of truth for database structure
+//          and is used by Prisma to generate the database client and migrations.
+// 
+// @relatedFiles
+// - prisma/migrations/ (database migration files)
+// - prisma/seed.ts (database seeding script)
+// - src/lib/prisma.ts (Prisma client instance)
+// - src/core/users/repo.ts (database access functions)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  driverName   String
+  teamName     String?
+  isAdmin      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum IngestDepth {
+  none
+  summary_only
+  laps_full
+}
+
+model Track {
+  id                        String    @id @default(uuid())
+  source                    String    // Always "liverc" for this connector
+  sourceTrackSlug           String    @map("source_track_slug")
+  trackName                 String    @map("track_name")
+  trackUrl                  String    @map("track_url")
+  eventsUrl                 String    @map("events_url")
+  livercTrackLastUpdated    String?   @map("liverc_track_last_updated")
+  lastSeenAt                DateTime? @map("last_seen_at")
+  isActive                  Boolean   @default(true) @map("is_active")
+  isFollowed                Boolean   @default(false) @map("is_followed")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  events Event[]
+
+  @@unique([source, sourceTrackSlug])
+  @@index([source, sourceTrackSlug])
+  @@index([isActive, isFollowed])
+  @@map("tracks")
+}
+
+model Event {
+  id              String      @id @default(uuid())
+  source          String      // "liverc"
+  sourceEventId   String      @map("source_event_id")
+  trackId         String      @map("track_id")
+  eventName       String      @map("event_name")
+  eventDate       DateTime    @map("event_date")
+  eventEntries    Int         @map("event_entries")
+  eventDrivers    Int         @map("event_drivers")
+  eventUrl        String      @map("event_url")
+  ingestDepth     IngestDepth @default(none) @map("ingest_depth")
+  lastIngestedAt  DateTime?   @map("last_ingested_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  track  Track   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  races  Race[]
+
+  @@unique([source, sourceEventId])
+  @@index([source, sourceEventId])
+  @@index([trackId])
+  @@index([eventDate])
+  @@index([ingestDepth])
+  @@index([lastIngestedAt])
+  @@map("events")
+}
+
+model Race {
+  id              String    @id @default(uuid())
+  eventId         String    @map("event_id")
+  source          String    // "liverc"
+  sourceRaceId    String    @map("source_race_id")
+  className       String    @map("class_name")
+  raceLabel       String    @map("race_label")
+  raceOrder       Int?      @map("race_order")
+  raceUrl         String    @map("race_url")
+  startTime       DateTime? @map("start_time")
+  durationSeconds Int?      @map("duration_seconds")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  drivers      RaceDriver[]
+  results      RaceResult[]
+
+  @@unique([eventId, sourceRaceId])
+  @@index([eventId, sourceRaceId])
+  @@index([eventId])
+  @@index([raceOrder])
+  @@index([startTime])
+  @@map("races")
+}
+
+model RaceDriver {
+  id              String   @id @default(uuid())
+  raceId          String   @map("race_id")
+  source          String   // "liverc"
+  sourceDriverId  String   @map("source_driver_id")
+  displayName     String   @map("display_name")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  race    Race         @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  results RaceResult[]
+
+  @@unique([raceId, sourceDriverId])
+  @@index([raceId, sourceDriverId])
+  @@index([raceId])
+  @@map("race_drivers")
+}
+
+model RaceResult {
+  id                String    @id @default(uuid())
+  raceId            String    @map("race_id")
+  raceDriverId      String    @map("race_driver_id")
+  positionFinal      Int       @map("position_final")
+  lapsCompleted      Int       @map("laps_completed")
+  totalTimeRaw       String?   @map("total_time_raw")
+  totalTimeSeconds   Float?    @map("total_time_seconds")
+  fastLapTime        Float?     @map("fast_lap_time")
+  avgLapTime         Float?     @map("avg_lap_time")
+  consistency        Float?     // LiveRC % consistency (e.g. 92.82)
+  rawFieldsJson      Json?      @map("raw_fields_json")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  race       Race       @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  raceDriver RaceDriver @relation(fields: [raceDriverId], references: [id], onDelete: Cascade)
+  laps      Lap[]
+
+  @@unique([raceId, raceDriverId])
+  @@index([raceId, raceDriverId])
+  @@index([raceId])
+  @@index([raceDriverId])
+  @@index([positionFinal])
+  @@map("race_results")
+}
+
+model Lap {
+  id                String   @id @default(uuid())
+  raceResultId      String   @map("race_result_id")
+  lapNumber         Int      @map("lap_number")
+  positionOnLap     Int      @map("position_on_lap")
+  lapTimeRaw        String   @map("lap_time_raw")
+  lapTimeSeconds    Float    @map("lap_time_seconds")
+  paceString        String?  @map("pace_string")
+  elapsedRaceTime   Float    @map("elapsed_race_time")
+  segmentsJson      Json?     @map("segments_json")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  raceResult RaceResult @relation(fields: [raceResultId], references: [id], onDelete: Cascade)
+
+  @@unique([raceResultId, lapNumber])
+  @@index([raceResultId, lapNumber])
+  @@index([raceResultId])
+  @@index([lapNumber])
+  @@map("laps")
+}
