@@ -23,7 +23,6 @@ import EventSearchForm from "./EventSearchForm"
 import { type Track } from "./TrackRow"
 import EventTable from "./EventTable"
 import { type Event } from "./EventRow"
-import CheckLiveRCButton from "./CheckLiveRCButton"
 import ImportStatusToast, { type ImportStatus } from "./ImportStatusToast"
 import { parseApiResponse } from "@/lib/api-response-helper"
 
@@ -220,6 +219,7 @@ export default function EventSearchContainer() {
     }
 
     try {
+      setHasSearched(false) // Clear flag immediately to prevent flash of "No events found"
       setIsLoadingEvents(true)
       setErrors({})
 
@@ -430,13 +430,8 @@ export default function EventSearchContainer() {
           
           return [...filteredPrevEvents, ...uniqueNewEvents]
         })
-      } else {
-        // No new events found
-        setImportStatus({
-          status: "completed",
-          message: "No new events found on LiveRC for this search.",
-        })
       }
+      // No new events found - silently continue (no toast notification needed)
     } catch (error) {
       console.error("Error checking LiveRC:", error)
       setImportStatus({
@@ -656,13 +651,6 @@ export default function EventSearchContainer() {
         onSearch={handleSearch}
         onReset={handleReset}
       />
-
-      {/* Check LiveRC Button */}
-      {selectedTrack && (
-        <div className="flex justify-start">
-          <CheckLiveRCButton onClick={checkLiveRC} isLoading={isCheckingLiveRC} />
-        </div>
-      )}
 
       {/* Event Table */}
       <EventTable 
