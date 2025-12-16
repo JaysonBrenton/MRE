@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Theme Implementation - Semantic Color Tokens
+   ============================================================================
+   
+   Token naming convention:
+   - Tokens defined in :root as CSS custom properties (source of truth)
+   - Tailwind utilities map to these tokens via @theme directive
+   - Dark theme is the default (defined in :root)
+   - Light theme values are defined under .light class
+   
+   Theme Toggle:
+   - Theme toggle component adds/removes .light class on <html>
+   - Preference stored in localStorage as 'mre-theme'
+   ============================================================================ */
+
+:root {
+  /* Dark theme tokens (default) */
+  
+  /* Surface colors */
+  --token-surface: #0a0a0a;
+  --token-surface-elevated: #181818;
+  
+  /* Text colors */
+  --token-text-primary: #ededed;
+  --token-text-secondary: #a3a3a3;
+  --token-text-muted: #71717a;
+  
+  /* Border colors */
+  --token-border-default: #3f3f46;
+  --token-border-muted: #27272a;
+  
+  /* Interactive colors */
+  --token-interactive-focus: #71717a;
+  --token-interactive-focus-ring: #3f3f46;
+  
+  /* Accent colors */
+  --token-accent: #3a8eff;
+  --token-accent-hover: #5aa2ff;
+  
+  /* Form colors */
+  --token-form-background: #18181b;
+  --token-form-border: #3f3f46;
+  --token-form-border-focus: #71717a;
+  --token-form-placeholder: #71717a;
+  
+  /* Error colors */
+  --token-error-background: rgba(127, 29, 29, 0.2);
+  --token-error-text: #fca5a5;
+  
+  /* Button colors */
+  --token-button-primary-bg: #18181b;
+  --token-button-primary-bg-hover: #27272a;
+  --token-button-primary-text: #ededed;
+  
+  /* Legacy tokens for backward compatibility */
+  --background: var(--token-surface);
+  --foreground: var(--token-text-primary);
+  
+  /* MRE token aliases - map to existing token system */
+  --mre-bg: var(--token-surface);
+  --mre-text: var(--token-text-primary);
+  --mre-surface: var(--token-surface);
+  --mre-surface-alt: var(--token-surface-elevated);
+  --mre-border-subtle: var(--token-border-muted);
+  --mre-text-muted: var(--token-text-muted);
+  --mre-accent: var(--token-accent);
+  --mre-accent-soft: var(--token-accent-hover);
+}
+
+/* Light theme overrides */
+.light {
+  /* Surface colors */
+  --token-surface: #ffffff;
+  --token-surface-elevated: #f5f5f5;
+  
+  /* Text colors */
+  --token-text-primary: #171717;
+  --token-text-secondary: #525252;
+  --token-text-muted: #737373;
+  
+  /* Border colors */
+  --token-border-default: #d4d4d4;
+  --token-border-muted: #e5e5e5;
+  
+  /* Interactive colors */
+  --token-interactive-focus: #737373;
+  --token-interactive-focus-ring: #d4d4d4;
+  
+  /* Accent colors */
+  --token-accent: #3a8eff;
+  --token-accent-hover: #2563eb;
+  
+  /* Form colors */
+  --token-form-background: #ffffff;
+  --token-form-border: #d4d4d4;
+  --token-form-border-focus: #737373;
+  --token-form-placeholder: #737373;
+  
+  /* Error colors */
+  --token-error-background: rgba(239, 68, 68, 0.1);
+  --token-error-text: #dc2626;
+  
+  /* Button colors */
+  --token-button-primary-bg: #f5f5f5;
+  --token-button-primary-bg-hover: #e5e5e5;
+  --token-button-primary-text: #171717;
+  
+  /* Legacy tokens */
+  --background: var(--token-surface);
+  --foreground: var(--token-text-primary);
+  
+  /* MRE token aliases - automatically inherit from updated tokens */
+  --mre-bg: var(--token-surface);
+  --mre-text: var(--token-text-primary);
+  --mre-surface: var(--token-surface);
+  --mre-surface-alt: var(--token-surface-elevated);
+  --mre-border-subtle: var(--token-border-muted);
+  --mre-text-muted: var(--token-text-muted);
+  --mre-accent: var(--token-accent);
+  --mre-accent-soft: var(--token-accent-hover);
+}
+
+/* ============================================================================
+   Tailwind Theme Mapping
+   ============================================================================
+   
+   Maps semantic tokens to Tailwind utility classes.
+   CSS variables (--token-*) are the source of truth.
+   Tailwind utilities (--color-*) map onto them.
+   ============================================================================ */
+
+@theme inline {
+  /* Surface colors - use as bg-surface, bg-surface-elevated */
+  --color-surface: var(--token-surface);
+  --color-surface-elevated: var(--token-surface-elevated);
+  
+  /* Text colors - use as text-primary, text-secondary, text-muted */
+  --color-text-primary: var(--token-text-primary);
+  --color-text-secondary: var(--token-text-secondary);
+  --color-text-muted: var(--token-text-muted);
+  
+  /* Border colors - use as border-border-default, border-border-muted */
+  --color-border-default: var(--token-border-default);
+  --color-border-muted: var(--token-border-muted);
+  
+  /* Interactive colors */
+  --color-interactive-focus: var(--token-interactive-focus);
+  --color-interactive-focus-ring: var(--token-interactive-focus-ring);
+  
+  /* Form colors - use as bg-form-background, border-form-border, etc. */
+  --color-form-background: var(--token-form-background);
+  --color-form-border: var(--token-form-border);
+  --color-form-border-focus: var(--token-form-border-focus);
+  --color-form-placeholder: var(--token-form-placeholder);
+  
+  /* Error colors - use as bg-error-background, text-error-text */
+  --color-error-background: var(--token-error-background);
+  --color-error-text: var(--token-error-text);
+  
+  /* Button colors */
+  --color-button-primary-bg: var(--token-button-primary-bg);
+  --color-button-primary-bg-hover: var(--token-button-primary-bg-hover);
+  --color-button-primary-text: var(--token-button-primary-text);
+  
+  /* Legacy mappings */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--mre-bg);
+  color: var(--mre-text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ============================================================================
+   Mobile UX - Hit Targets and Spacing
+   ============================================================================
+   
+   Mobile-first utilities for touch-friendly interfaces.
+   Ensures buttons and interactive elements meet minimum size requirements
+   and have adequate spacing to prevent accidental touches.
+   ============================================================================ */
+
+/* Minimum tap target size: 44px (iOS/Android guidelines) */
+@theme inline {
+  /* Mobile spacing tokens */
+  --spacing-tap-target: 2.75rem; /* 44px - minimum tap target height */
+  --spacing-tap-gap: 0.75rem; /* 12px - minimum gap between tap targets */
+}
+
+/* Mobile-optimized button base styles */
+.mobile-button {
+  min-height: var(--spacing-tap-target);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  touch-action: manipulation; /* Prevents double-tap zoom on buttons */
+}
+
+/* Mobile-optimized form input spacing */
+.mobile-form-field {
+  margin-bottom: var(--spacing-tap-gap);
+}
+
+/* Mobile-optimized list item spacing */
+.mobile-list-item {
+  min-height: var(--spacing-tap-target);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}

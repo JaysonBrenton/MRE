@@ -36,6 +36,12 @@ router = APIRouter()
 class IngestRequest(BaseModel):
     """Request body for ingestion endpoint."""
     depth: str = "laps_full"
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Validate depth - reject summary_only (V1 only supports none and laps_full)
+        if self.depth == "summary_only":
+            raise ValueError("depth='summary_only' is not supported in V1. Use 'laps_full' for full ingestion or 'none' for discovery only.")
 
 
 class DiscoverEventsRequest(BaseModel):
@@ -50,6 +56,12 @@ class IngestBySourceIdRequest(BaseModel):
     source_event_id: str
     track_id: str
     depth: str = "laps_full"
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Validate depth - reject summary_only (V1 only supports none and laps_full)
+        if self.depth == "summary_only":
+            raise ValueError("depth='summary_only' is not supported in V1. Use 'laps_full' for full ingestion or 'none' for discovery only.")
 
 
 @router.post("/tracks/sync")
@@ -193,6 +205,8 @@ async def sync_events(
         from ingestion.db.models import Track
         try:
             track_uuid = UUID(track_id)
+            # Convert to string since tracks.id is TEXT in database
+            track_id_str = str(track_uuid)
         except ValueError:
             raise HTTPException(
                 status_code=400,
@@ -206,7 +220,7 @@ async def sync_events(
                 },
             )
         
-        track = db.query(Track).filter(Track.id == track_uuid).first()
+        track = db.query(Track).filter(Track.id == track_id_str).first()
         if not track:
             raise HTTPException(
                 status_code=404,
@@ -582,9 +596,11 @@ async def ingest_event_by_source_id(
     )
     
     try:
-        # Validate track_id format
+        # Validate track_id format (must be valid UUID string)
         try:
-            track_uuid = UUID(request.track_id)
+            UUID(request.track_id)
+            # Keep as string - tracks.id is TEXT in database, not UUID type
+            track_id_str = request.track_id
         except ValueError:
             return {
                 "success": False,
@@ -598,7 +614,8 @@ async def ingest_event_by_source_id(
         
         # Verify track exists
         from ingestion.db.models import Track
-        track = db.query(Track).filter(Track.id == track_uuid).first()
+        # Direct string comparison - tracks.id is TEXT column
+        track = db.query(Track).filter(Track.id == track_id_str).first()
         if not track:
             return {
                 "success": False,
@@ -611,9 +628,11 @@ async def ingest_event_by_source_id(
             }
         
         pipeline = IngestionPipeline()
+        # Pipeline expects UUID type - convert validated string back to UUID for pipeline
+        track_uuid = UUID(track_id_str)
         result = await pipeline.ingest_event_by_source_id(
             source_event_id=request.source_event_id,
-            track_id=track_uuid,
+            track_id=track_uuid,  # Pass UUID object (repository converts to string internally)
             depth=request.depth,
         )
         
@@ -662,15 +681,21 @@ async def ingest_event_by_source_id(
             source_event_id=request.source_event_id,
             track_id=request.track_id,
             error=str(e),
+            error_type=type(e).__name__,
             exc_info=True,
         )
+        # Return a more descriptive error message if available
+        error_message = "Internal server error"
+        if isinstance(e, (EventPageFormatError, ConnectorHTTPError)):
+            error_message = str(e)
+        
         return {
             "success": False,
             "error": {
                 "code": "INTERNAL_ERROR",
                 "source": "ingest_event_by_source_id",
-                "message": "Internal server error",
-                "details": {},
+                "message": error_message,
+                "details": {"error_type": type(e).__name__},
             },
         }
 

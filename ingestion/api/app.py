@@ -12,6 +12,7 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from ingestion.api.routes import router
 from ingestion.common.logging import get_logger
@@ -32,8 +33,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],  # Only required methods
+    allow_headers=["Content-Type", "Authorization"],  # Only required headers
 )
 
 # Register routes
@@ -59,6 +60,67 @@ async def ingestion_error_handler(request: Request, exc: IngestionError):
     return JSONResponse(
         status_code=400,
         content=exc.to_dict(),
+    )
+
+
+@app.exception_handler(ValidationError)
+async def validation_error_handler(request: Request, exc: ValidationError):
+    """Handle Pydantic validation errors."""
+    logger.error(
+        "validation_error",
+        errors=exc.errors(),
+        path=str(request.url.path),
+    )
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Request validation failed",
+                "details": exc.errors(),
+            }
+        },
+    )
+
+
+@app.exception_handler(TimeoutError)
+async def timeout_error_handler(request: Request, exc: TimeoutError):
+    """Handle timeout errors."""
+    logger.error(
+        "timeout_error",
+        error_message=str(exc),
+        path=str(request.url.path),
+    )
+    return JSONResponse(
+        status_code=504,
+        content={
+            "error": {
+                "code": "TIMEOUT_ERROR",
+                "message": "Request timed out",
+                "details": {"message": str(exc)},
+            }
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle unexpected errors."""
+    logger.error(
+        "unexpected_error",
+        error_type=type(exc).__name__,
+        error_message=str(exc),
+        path=str(request.url.path),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred",
+                "details": {},
+            }
+        },
     )
 
 

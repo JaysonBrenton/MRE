@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mre-ingestion"
+version = "0.1.0"
+description = "LiveRC ingestion microservice for MRE"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27.0",
+    "selectolax>=0.3.0",
+    "playwright>=1.40.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.9",
+    "pydantic>=2.5.0",
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "click>=8.1.7",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.12.0",
+    "httpx-mock>=0.10.0",
+    "faker>=20.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+

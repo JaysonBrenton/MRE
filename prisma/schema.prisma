@@ -41,7 +41,6 @@ model User {
 
 enum IngestDepth {
   none
-  summary_only
   laps_full
 }
 
@@ -120,21 +119,41 @@ model Race {
   @@map("races")
 }
 
-model RaceDriver {
+model Driver {
   id              String   @id @default(uuid())
-  raceId          String   @map("race_id")
   source          String   // "liverc"
   sourceDriverId  String   @map("source_driver_id")
   displayName     String   @map("display_name")
+  normalizedName  String?  @map("normalized_name") // For fuzzy matching
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  raceDrivers     RaceDriver[]
+
+  @@unique([source, sourceDriverId])
+  @@index([source, sourceDriverId])
+  @@index([displayName])
+  @@map("drivers")
+}
+
+model RaceDriver {
+  id              String   @id @default(uuid())
+  raceId          String   @map("race_id")
+  driverId        String   @map("driver_id")
+  source          String   // "liverc" (denormalized for query performance)
+  sourceDriverId  String   @map("source_driver_id") // Denormalized for query performance
+  displayName     String   @map("display_name") // Denormalized for query performance
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   race    Race         @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  driver  Driver       @relation(fields: [driverId], references: [id], onDelete: Restrict)
   results RaceResult[]
 
   @@unique([raceId, sourceDriverId])
   @@index([raceId, sourceDriverId])
   @@index([raceId])
+  @@index([driverId])
   @@map("race_drivers")
 }
 

@@ -167,7 +167,7 @@ describe("Event Import Integration", () => {
   })
 
   describe("response mapping", () => {
-    it("should map Python service response correctly", async () => {
+    it("should map Python service response correctly for already complete event", async () => {
       const mockEvent = {
         id: "event-123",
         source: "liverc",
@@ -178,16 +178,16 @@ describe("Event Import Integration", () => {
         eventEntries: 50,
         eventDrivers: 45,
         eventUrl: "https://liverc.com/event/12345",
-        ingestDepth: "none" as const,
-        lastIngestedAt: null,
+        ingestDepth: "laps_full" as const,
+        lastIngestedAt: new Date("2025-01-26"),
         createdAt: new Date(),
         updatedAt: new Date(),
       }
 
       const mockIngestionResult = {
         event_id: "event-123",
-        ingest_depth: "summary_only",
-        last_ingested_at: undefined,
+        ingest_depth: "laps_full",
+        last_ingested_at: "2025-01-26T12:00:00Z",
         races_ingested: 0,
         results_ingested: 0,
         laps_ingested: 0,
@@ -199,12 +199,12 @@ describe("Event Import Integration", () => {
 
       const result = await importEvent({
         eventId: "event-123",
-        depth: "summary_only",
+        depth: "laps_full",
       })
 
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.ingestDepth).toBe("summary_only")
+        expect(result.ingestDepth).toBe("laps_full")
         expect(result.racesIngested).toBe(0)
         expect(result.resultsIngested).toBe(0)
         expect(result.lapsIngested).toBe(0)

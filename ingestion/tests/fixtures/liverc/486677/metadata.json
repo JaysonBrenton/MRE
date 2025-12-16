@@ -1,0 +1,17 @@
+{
+  "event_id": "486677",
+  "source": "liverc",
+  "fixture_version": 1,
+  "tracks": {
+    "track_slug": "canberraoffroad",
+    "track_name": "Canberra Off Road Model Car Club"
+  },
+  "races_expected": [6304829, 6304822, 6304830],
+  "laps_expected": {
+    "346997": 47,
+    "298958": 47,
+    "152729": 46
+  },
+  "notes": "Event: Cormcc 2025 Rudi Wensing Memorial, Clay Cup. Contains A-Main, A3-Main, and B-Main races."
+}
+

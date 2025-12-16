@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/app/generated/prisma
+
+# reports (keep directory structure, ignore report files)
+/reports/*.md
+!/reports/.gitkeep

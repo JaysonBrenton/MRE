@@ -1,0 +1,4 @@
+# Track Catalogue Sync Cron Job
+# Runs daily at midnight UTC
+0 0 * * * /usr/local/bin/run-track-sync.sh >> /var/log/track-sync.log 2>&1
+

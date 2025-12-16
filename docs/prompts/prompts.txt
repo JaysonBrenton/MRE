@@ -1,0 +1,5 @@
+“Return the entire file as pure markdown, in a single code fence, with no embedded code blocks inside, no ‘Copy code’ artefacts, no syntax highlighting, and no multi-canvas output.”
+
+Never use nested code blocks. Never emit ‘text’ or ‘json’. Output only one top-level code fence containing the markdown file content.
+
+If the response would exceed a canvas boundary, fail instead and ask me to shorten the file.

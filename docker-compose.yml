@@ -1,0 +1,91 @@
+# Project: My Race Engineer
+# File: docker-compose.yml
+# Summary: Docker Compose configuration connecting to existing postgres container
+
+services:
+  # Next.js application service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: mre-app
+    env_file:
+      - .env.docker
+    environment:
+      # Database connection (connects to existing postgres container)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pacetracer}:${POSTGRES_PASSWORD:-change-me}@mre-postgres:5432/${POSTGRES_DB:-pacetracer}
+      # Node environment
+      NODE_ENV: ${NODE_ENV:-development}
+      # Application configuration
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${PORT:-3001}
+      TZ: ${TZ:-Australia/Sydney}
+      APP_URL: ${APP_URL:-http://localhost:3001}
+      # Ingestion service URL (internal Docker network)
+      INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://ingestion-service:8000}
+      # NextAuth configuration (loaded from .env.docker via env_file)
+      # In production, AUTH_SECRET must be a secure random value (min 32 characters)
+      # AUTH_SECRET is loaded from .env.docker - no need to specify here
+    ports:
+      - "${APP_PORT:-3001}:3001"
+    volumes:
+      # Mount source code for hot reload (development)
+      - .:/app
+      # Exclude node_modules and .next to use container versions
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - mre-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Python ingestion service
+  ingestion-service:
+    build:
+      context: ./ingestion
+      dockerfile: Dockerfile
+      target: ${INGESTION_BUILD_TARGET:-development}
+    container_name: mre-ingestion-service
+    env_file:
+      - .env.docker
+    environment:
+      # Database connection (connects to existing postgres container)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pacetracer}:${POSTGRES_PASSWORD:-change-me}@mre-postgres:5432/${POSTGRES_DB:-pacetracer}
+      # Python environment
+      PYTHONUNBUFFERED: 1
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TZ: ${TZ:-Australia/Sydney}
+      # Track sync report retention (days)
+      TRACK_SYNC_REPORT_RETENTION_DAYS: ${TRACK_SYNC_REPORT_RETENTION_DAYS:-30}
+    ports:
+      - "${INGESTION_PORT:-8000}:8000"
+    volumes:
+      # Mount source code for hot reload (development)
+      - ./ingestion:/app/ingestion
+      # Mount reports directory (persists reports on host)
+      - ./reports:/app/reports
+    networks:
+      - mre-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  # Development network (created automatically if doesn't exist)
+  # For production, this can be changed to external: true with name: my-race-engineer_mre-network
+  mre-network:
+    driver: bridge
+    name: my-race-engineer_mre-network
+

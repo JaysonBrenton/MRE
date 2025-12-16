@@ -21,7 +21,7 @@ import { getEventById } from "./repo"
 
 export interface ImportEventInput {
   eventId: string
-  depth?: "laps_full" | "summary_only" | "none"
+  depth?: "laps_full" | "none"
 }
 
 export interface ImportEventResult {
