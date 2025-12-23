@@ -17,7 +17,7 @@
 
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useId } from "react"
 import { Group } from "@visx/group"
 import { LinePath } from "@visx/shape"
 import { curveMonotoneX } from "@visx/curve"
@@ -84,6 +84,8 @@ export default function GapEvolutionLineChart({
   onPageChange,
   onDriverToggle,
 }: GapEvolutionLineChartProps) {
+  const chartTitleId = useId()
+  const chartDescId = useId()
   const {
     tooltipData,
     tooltipLeft,
@@ -176,7 +178,16 @@ export default function GapEvolutionLineChart({
           })
 
           return (
-            <svg width={width} height={height}>
+            <svg
+              width={width}
+              height={height}
+              aria-labelledby={`${chartTitleId} ${chartDescId}`}
+              role="img"
+            >
+              <title id={chartTitleId}>Gap to leader over race duration</title>
+              <desc id={chartDescId}>
+                Line chart showing how each selected driver's time gap to the leader evolves across laps.
+              </desc>
               <Group left={margin.left} top={margin.top}>
                 {/* Grid */}
                 <GridRows
@@ -396,4 +407,3 @@ export default function GapEvolutionLineChart({
     </ChartContainer>
   )
 }
-

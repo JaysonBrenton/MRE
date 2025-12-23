@@ -175,8 +175,14 @@ export default function LoginPage() {
     }
   }
 
+  const hasError = Boolean(error)
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--token-surface)] px-4 py-8">
+    <main
+      id="main-content"
+      className="flex min-h-screen items-center justify-center bg-[var(--token-surface)] px-4 py-8"
+      tabIndex={-1}
+    >
       <div className="w-full max-w-md space-y-6 rounded-lg bg-[var(--token-surface-elevated)] p-6 sm:p-8 shadow-lg">
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
@@ -187,9 +193,15 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="rounded-md bg-[var(--token-error-background)] p-3">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+          {hasError && (
+            <div
+              id="login-error"
+              className="rounded-md bg-[var(--token-error-background)] p-3"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+            >
               <p className="text-sm text-[var(--token-error-text)]">{error}</p>
             </div>
           )}
@@ -212,6 +224,8 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="block w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-3 text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
                 placeholder="you@example.com"
+                aria-invalid={hasError}
+                aria-describedby={hasError ? "login-error" : undefined}
               />
             </div>
 
@@ -232,6 +246,8 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="block w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-3 text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
                 placeholder="••••••••"
+                aria-invalid={hasError}
+                aria-describedby={hasError ? "login-error" : undefined}
               />
             </div>
           </div>
@@ -259,8 +275,7 @@ export default function LoginPage() {
           </div>
         </form>
       </div>
-    </div>
+    </main>
   )
 }
-
 

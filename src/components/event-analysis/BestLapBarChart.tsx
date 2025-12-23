@@ -17,7 +17,7 @@
 
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useId } from "react"
 import { Group } from "@visx/group"
 import { Bar } from "@visx/shape"
 import { scaleBand, scaleLinear } from "@visx/scale"
@@ -72,6 +72,8 @@ export default function BestLapBarChart({
   onPageChange,
   onDriverToggle,
 }: BestLapBarChartProps) {
+  const chartTitleId = useId()
+  const chartDescId = useId()
   const {
     tooltipData,
     tooltipLeft,
@@ -166,7 +168,16 @@ export default function BestLapBarChart({
           })
 
           return (
-            <svg width={width} height={height}>
+            <svg
+              width={width}
+              height={height}
+              aria-labelledby={`${chartTitleId} ${chartDescId}`}
+              role="img"
+            >
+              <title id={chartTitleId}>Best lap times per driver</title>
+              <desc id={chartDescId}>
+                Bar chart showing each driver's best lap time, sorted fastest to slowest.
+              </desc>
               <Group left={margin.left} top={margin.top}>
                 {/* Grid lines */}
                 {yScale.ticks(5).map((tick) => (
@@ -332,4 +343,3 @@ export default function BestLapBarChart({
     </ChartContainer>
   )
 }
-

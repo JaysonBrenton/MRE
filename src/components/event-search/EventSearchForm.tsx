@@ -64,6 +64,7 @@ export default function EventSearchForm({
   onReset,
 }: EventSearchFormProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const trackErrorId = errors?.track ? "track-selector-error" : undefined
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -103,11 +104,21 @@ export default function EventSearchForm({
             id="track-selector"
             onClick={() => setIsModalOpen(true)}
             className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-left text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface)]"
+            aria-haspopup="dialog"
+            aria-expanded={isModalOpen}
+            aria-invalid={Boolean(errors?.track)}
+            aria-describedby={trackErrorId}
           >
             {selectedTrack ? selectedTrack.trackName : "Select a track"}
           </button>
           {errors?.track && (
-            <p className="mt-1 text-sm text-[var(--token-error-text)]">{errors.track}</p>
+            <p
+              id={trackErrorId}
+              className="mt-1 text-sm text-[var(--token-error-text)]"
+              role="alert"
+            >
+              {errors.track}
+            </p>
           )}
         </div>
 
@@ -171,4 +182,3 @@ export default function EventSearchForm({
     </>
   )
 }
-

@@ -43,13 +43,13 @@ export default function AppShell({ children }: AppShellProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-[var(--mre-bg)]">
+    <div className="flex min-h-screen bg-[var(--token-surface)]">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-[220px] border-r border-[var(--mre-border-subtle)] bg-[var(--mre-surface)]">
+      <aside className="fixed left-0 top-0 h-full w-[220px] border-r border-[var(--token-border-muted)] bg-[var(--token-surface)]">
         <div className="flex h-full flex-col">
           {/* Logo/Brand */}
-          <div className="border-b border-[var(--mre-border-subtle)] p-4">
-            <h2 className="text-lg font-semibold text-[var(--mre-text)]">MRE</h2>
+          <div className="border-b border-[var(--token-border-muted)] p-4">
+            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">MRE</h2>
           </div>
 
           {/* Navigation */}
@@ -63,8 +63,8 @@ export default function AppShell({ children }: AppShellProps) {
                       <span
                         className={`block rounded-md px-3 py-2 text-sm font-medium ${
                           active
-                            ? "bg-[var(--mre-surface-alt)] text-[var(--mre-text)]"
-                            : "text-[var(--mre-text-muted)]"
+                            ? "bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)]"
+                            : "text-[var(--token-text-muted)]"
                         }`}
                       >
                         {item.label}
@@ -74,8 +74,8 @@ export default function AppShell({ children }: AppShellProps) {
                         href={item.href}
                         className={`block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                           active
-                            ? "bg-[var(--mre-surface-alt)] text-[var(--mre-text)]"
-                            : "text-[var(--mre-text-muted)] hover:text-[var(--mre-text)]"
+                            ? "bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)]"
+                            : "text-[var(--token-text-muted)] hover:text-[var(--token-text-primary)]"
                         }`}
                       >
                         {item.label}
@@ -88,8 +88,8 @@ export default function AppShell({ children }: AppShellProps) {
           </nav>
 
           {/* Footer */}
-          <div className="border-t border-[var(--mre-border-subtle)] p-4">
-            <p className="text-xs text-[var(--mre-text-muted)]">Alpha</p>
+          <div className="border-t border-[var(--token-border-muted)] p-4">
+            <p className="text-xs text-[var(--token-text-muted)]">Alpha</p>
           </div>
         </div>
       </aside>
@@ -97,16 +97,17 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col pl-[220px]">
         {/* Top Bar */}
-        <header className="sticky top-0 z-10 border-b border-[var(--mre-border-subtle)] bg-[var(--mre-surface-alt)] px-4 py-3">
+        <header className="sticky top-0 z-10 border-b border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-3">
           <div className="flex justify-end">
             <ThemeToggle />
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1">{children}</main>
+        <main id="main-content" className="flex-1" tabIndex={-1}>
+          {children}
+        </main>
       </div>
     </div>
   )
 }
-

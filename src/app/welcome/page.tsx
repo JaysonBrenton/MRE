@@ -37,7 +37,7 @@ export default async function WelcomePage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--token-surface)]">
       <AuthenticatedNav />
-      <main className="page-container flex-1 flex items-center justify-center px-4 py-8">
+      <main id="main-content" className="page-container flex-1 flex items-center justify-center px-4 py-8" tabIndex={-1}>
         <section className="content-wrapper w-full max-w-2xl text-center space-y-6">
           <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
             Welcome back {session.user.name}
@@ -47,4 +47,3 @@ export default async function WelcomePage() {
     </div>
   )
 }
-

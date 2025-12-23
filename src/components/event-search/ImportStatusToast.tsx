@@ -48,16 +48,22 @@ export default function ImportStatusToast({
   }, [autoDismiss, autoDismissDelay, onClose])
 
   const statusColors = {
-    started: "bg-blue-900/30 text-blue-400 border-blue-800",
-    completed: "bg-green-900/30 text-green-400 border-green-800",
-    failed: "bg-red-900/30 text-red-400 border-red-800",
+    started:
+      "bg-[var(--token-status-info-bg)] text-[var(--token-status-info-text)] border-[var(--token-status-info-text)]",
+    completed:
+      "bg-[var(--token-status-success-bg)] text-[var(--token-status-success-text)] border-[var(--token-status-success-text)]",
+    failed:
+      "bg-[var(--token-status-error-bg)] text-[var(--token-status-error-text)] border-[var(--token-status-error-text)]",
   }
+
+  const liveMode = status === "failed" ? "assertive" : "polite"
 
   return (
     <div
       className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-md border ${statusColors[status]} shadow-lg`}
       role="alert"
-      aria-live="polite"
+      aria-live={liveMode}
+      aria-atomic="true"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
@@ -83,4 +89,3 @@ export default function ImportStatusToast({
     </div>
   )
 }
-

@@ -67,13 +67,13 @@ const mockEvents = [
 const getStatusColor = (status: string) => {
   switch (status) {
     case "New":
-      return "bg-[var(--mre-accent)]"
+      return "bg-[var(--token-accent)]"
     case "Imported":
-      return "bg-[var(--mre-accent-soft)]"
+      return "bg-[var(--token-accent-hover)]"
     case "Needs Sync":
-      return "bg-[var(--mre-text-muted)]"
+      return "bg-[var(--token-text-muted)]"
     default:
-      return "bg-[var(--mre-text-muted)]"
+      return "bg-[var(--token-text-muted)]"
   }
 }
 
@@ -83,7 +83,7 @@ export default function EventsPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-[var(--mre-text)] sm:text-4xl">
+          <h1 className="text-3xl font-semibold text-[var(--token-text-primary)] sm:text-4xl">
             Events
           </h1>
         </div>
@@ -95,19 +95,19 @@ export default function EventsPage() {
               type="text"
               placeholder="Search events..."
               disabled
-              className="w-full rounded-md border border-[var(--mre-border-subtle)] bg-[var(--mre-surface)] px-4 py-2 text-sm text-[var(--mre-text-muted)] placeholder-[var(--mre-text-muted)] opacity-50"
+              className="w-full rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-2 text-sm text-[var(--token-text-muted)] placeholder-[var(--token-text-muted)] opacity-50"
             />
           </div>
           <div className="flex gap-4">
             <select
               disabled
-              className="rounded-md border border-[var(--mre-border-subtle)] bg-[var(--mre-surface)] px-4 py-2 text-sm text-[var(--mre-text-muted)] opacity-50"
+              className="rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-2 text-sm text-[var(--token-text-muted)] opacity-50"
             >
               <option>Track</option>
             </select>
             <select
               disabled
-              className="rounded-md border border-[var(--mre-border-subtle)] bg-[var(--mre-surface)] px-4 py-2 text-sm text-[var(--mre-text-muted)] opacity-50"
+              className="rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-2 text-sm text-[var(--token-text-muted)] opacity-50"
             >
               <option>Date Range</option>
             </select>
@@ -119,14 +119,14 @@ export default function EventsPage() {
           {mockEvents.map((event) => (
             <div
               key={event.id}
-              className="group rounded-lg border border-[var(--mre-border-subtle)] bg-[var(--mre-surface)] p-6 transition-all hover:scale-[1.02] hover:shadow-lg"
+              className="group rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)] p-6 transition-all hover:scale-[1.02] hover:shadow-lg"
             >
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="mb-1 text-lg font-semibold text-[var(--mre-text)]">
+                  <h3 className="mb-1 text-lg font-semibold text-[var(--token-text-primary)]">
                     {event.eventName}
                   </h3>
-                  <p className="text-sm text-[var(--mre-text-muted)]">
+                  <p className="text-sm text-[var(--token-text-muted)]">
                     {event.trackName}
                   </p>
                 </div>
@@ -139,12 +139,12 @@ export default function EventsPage() {
                 </span>
               </div>
 
-              <p className="mb-4 text-sm text-[var(--mre-text-muted)]">
+              <p className="mb-4 text-sm text-[var(--token-text-muted)]">
                 {event.dateRange}
               </p>
 
               <button
-                className="mobile-button w-full rounded-md border border-[var(--mre-border-subtle)] bg-[var(--mre-surface-alt)] px-4 py-2 text-sm font-medium text-[var(--mre-text)] transition-colors hover:bg-[var(--mre-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--mre-accent)]"
+                className="mobile-button w-full rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
                 onClick={() => {
                   // Placeholder - will link to event detail page
                 }}

@@ -74,7 +74,7 @@ export default function EventTable({ events, isLoading, hasSearched = false, onI
 
   if (isLoading) {
     return (
-      <div className="mt-8 text-center py-8">
+      <div className="mt-8 text-center py-8" role="status" aria-live="polite">
         <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
       </div>
     )
@@ -136,4 +136,3 @@ export default function EventTable({ events, isLoading, hasSearched = false, onI
     </div>
   )
 }
-

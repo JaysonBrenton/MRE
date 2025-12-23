@@ -77,6 +77,9 @@ export default function DateRangePicker({
     onEndDateChange(newEndDate)
   }
 
+  const startErrorId = errors?.startDate ? "start-date-error" : undefined
+  const endErrorId = errors?.endDate ? "end-date-error" : undefined
+
   return (
     <div className="space-y-4">
       {/* Start Date */}
@@ -95,9 +98,13 @@ export default function DateRangePicker({
           max={today}
           disabled={disabled}
           className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-invalid={Boolean(errors?.startDate)}
+          aria-describedby={startErrorId}
         />
         {errors?.startDate && (
-          <p className="mt-1 text-sm text-[var(--token-error-text)]">{errors.startDate}</p>
+          <p id={startErrorId} className="mt-1 text-sm text-[var(--token-error-text)]" role="alert">
+            {errors.startDate}
+          </p>
         )}
       </div>
 
@@ -118,12 +125,15 @@ export default function DateRangePicker({
           max={getMaxEndDate(localStartDate)}
           disabled={disabled}
           className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-invalid={Boolean(errors?.endDate)}
+          aria-describedby={endErrorId}
         />
         {errors?.endDate && (
-          <p className="mt-1 text-sm text-[var(--token-error-text)]">{errors.endDate}</p>
+          <p id={endErrorId} className="mt-1 text-sm text-[var(--token-error-text)]" role="alert">
+            {errors.endDate}
+          </p>
         )}
       </div>
     </div>
   )
 }
-

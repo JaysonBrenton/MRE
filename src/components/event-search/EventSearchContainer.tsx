@@ -680,7 +680,7 @@ export default function EventSearchContainer() {
 
   if (isLoadingTracks) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center py-8" role="status" aria-live="polite">
         <p className="text-[var(--token-text-secondary)]">Loading tracks...</p>
       </div>
     )
@@ -688,6 +688,13 @@ export default function EventSearchContainer() {
 
   return (
     <div className="space-y-8">
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {isLoadingEvents
+          ? "Loading events..."
+          : isCheckingLiveRC
+            ? "Checking LiveRC for additional events..."
+            : ""}
+      </div>
       <EventSearchForm
         selectedTrack={selectedTrack}
         startDate={startDate}
@@ -727,4 +734,3 @@ export default function EventSearchContainer() {
     </div>
   )
 }
-

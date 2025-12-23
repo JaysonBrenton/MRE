@@ -143,34 +143,99 @@ export default function DriverList({
                 />
               </th>
               <th
-                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)] cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
-                onClick={() => handleSort("driverName")}
+                scope="col"
+                aria-sort={
+                  sortField === "driverName"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
-                Driver Name <SortIcon field="driverName" />
+                <button
+                  type="button"
+                  onClick={() => handleSort("driverName")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Driver Name <SortIcon field="driverName" />
+                </button>
               </th>
               <th
-                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)] cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
-                onClick={() => handleSort("racesParticipated")}
+                scope="col"
+                aria-sort={
+                  sortField === "racesParticipated"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
-                Races <SortIcon field="racesParticipated" />
+                <button
+                  type="button"
+                  onClick={() => handleSort("racesParticipated")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Races <SortIcon field="racesParticipated" />
+                </button>
               </th>
               <th
-                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)] cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
-                onClick={() => handleSort("bestLapTime")}
+                scope="col"
+                aria-sort={
+                  sortField === "bestLapTime"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
-                Best Lap <SortIcon field="bestLapTime" />
+                <button
+                  type="button"
+                  onClick={() => handleSort("bestLapTime")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Best Lap <SortIcon field="bestLapTime" />
+                </button>
               </th>
               <th
-                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)] cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
-                onClick={() => handleSort("avgLapTime")}
+                scope="col"
+                aria-sort={
+                  sortField === "avgLapTime"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
-                Avg Lap <SortIcon field="avgLapTime" />
+                <button
+                  type="button"
+                  onClick={() => handleSort("avgLapTime")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Avg Lap <SortIcon field="avgLapTime" />
+                </button>
               </th>
               <th
-                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)] cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
-                onClick={() => handleSort("consistency")}
+                scope="col"
+                aria-sort={
+                  sortField === "consistency"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
-                Consistency <SortIcon field="consistency" />
+                <button
+                  type="button"
+                  onClick={() => handleSort("consistency")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Consistency <SortIcon field="consistency" />
+                </button>
               </th>
             </tr>
           </thead>
@@ -229,4 +294,3 @@ export default function DriverList({
     </div>
   )
 }
-

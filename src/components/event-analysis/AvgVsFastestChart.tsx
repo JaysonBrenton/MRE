@@ -17,7 +17,7 @@
 
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useId } from "react"
 import { Group } from "@visx/group"
 import { Bar } from "@visx/shape"
 import { scaleBand, scaleLinear } from "@visx/scale"
@@ -74,6 +74,8 @@ export default function AvgVsFastestChart({
   onPageChange,
   onDriverToggle,
 }: AvgVsFastestChartProps) {
+  const chartTitleId = useId()
+  const chartDescId = useId()
   const {
     tooltipData,
     tooltipLeft,
@@ -170,7 +172,16 @@ export default function AvgVsFastestChart({
           const barWidth = xScale.bandwidth() / 2
 
           return (
-            <svg width={width} height={height}>
+            <svg
+              width={width}
+              height={height}
+              aria-labelledby={`${chartTitleId} ${chartDescId}`}
+              role="img"
+            >
+              <title id={chartTitleId}>Average versus fastest lap times</title>
+              <desc id={chartDescId}>
+                Bar chart comparing each driver's average lap time against their fastest lap.
+              </desc>
               <Group left={margin.left} top={margin.top}>
                 {/* Grid lines */}
                 {yScale.ticks(5).map((tick) => (
@@ -406,4 +417,3 @@ export default function AvgVsFastestChart({
     </ChartContainer>
   )
 }
-

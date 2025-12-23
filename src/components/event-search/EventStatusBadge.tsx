@@ -23,28 +23,28 @@ export interface EventStatusBadgeProps {
 const statusConfig: Record<EventStatus, { label: string; bgColor: string; textColor: string }> = {
   stored: {
     label: "Stored",
-    bgColor: "bg-green-900/30",
-    textColor: "text-green-400",
+    bgColor: "bg-[var(--token-status-success-bg)]",
+    textColor: "text-[var(--token-status-success-text)]",
   },
   imported: {
     label: "Imported",
-    bgColor: "bg-green-900/30",
-    textColor: "text-green-400",
+    bgColor: "bg-[var(--token-status-success-bg)]",
+    textColor: "text-[var(--token-status-success-text)]",
   },
   new: {
     label: "New (LiveRC only)",
-    bgColor: "bg-blue-900/30",
-    textColor: "text-blue-400",
+    bgColor: "bg-[var(--token-status-info-bg)]",
+    textColor: "text-[var(--token-status-info-text)]",
   },
   importing: {
     label: "Importing",
-    bgColor: "bg-yellow-900/30",
-    textColor: "text-yellow-400",
+    bgColor: "bg-[var(--token-status-warning-bg)]",
+    textColor: "text-[var(--token-status-warning-text)]",
   },
   failed: {
     label: "Failed import",
-    bgColor: "bg-red-900/30",
-    textColor: "text-red-400",
+    bgColor: "bg-[var(--token-status-error-bg)]",
+    textColor: "text-[var(--token-status-error-text)]",
   },
 }
 
@@ -60,4 +60,3 @@ export default function EventStatusBadge({ status }: EventStatusBadgeProps) {
     </span>
   )
 }
-
