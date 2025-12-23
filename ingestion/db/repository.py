@@ -14,11 +14,12 @@ from datetime import datetime
 from typing import Optional, Dict, Any, Union, List
 from uuid import UUID
 
-from sqlalchemy import select, and_, func, text
+from sqlalchemy import select, and_, func, text, tuple_
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from ingestion.common.logging import get_logger
+from ingestion.common import metrics
 from ingestion.db.models import (
     Track,
     Event,
@@ -105,6 +106,7 @@ class Repository:
             track.last_seen_at = datetime.utcnow()
             track.is_active = is_active
             logger.debug("track_updated", track_id=str(track.id), slug=source_track_slug)
+            metrics.record_db_update("tracks")
         else:
             # Insert new
             now = datetime.utcnow()
@@ -123,7 +125,8 @@ class Repository:
             track.updated_at = now
             self.session.add(track)
             logger.debug("track_created", slug=source_track_slug)
-        
+            metrics.record_db_insert("tracks")
+
         return track
     
     def upsert_event(
@@ -171,6 +174,7 @@ class Repository:
             event.event_drivers = event_drivers
             event.event_url = event_url
             logger.debug("event_updated", event_id=str(event.id), source_event_id=source_event_id)
+            metrics.record_db_update("events")
         else:
             # Insert new
             now = datetime.utcnow()
@@ -190,7 +194,8 @@ class Repository:
             event.updated_at = now
             self.session.add(event)
             logger.debug("event_created", source_event_id=source_event_id)
-        
+            metrics.record_db_insert("events")
+
         return event
     
     def upsert_race(
@@ -239,6 +244,7 @@ class Repository:
             race.start_time = start_time
             race.duration_seconds = duration_seconds
             logger.debug("race_updated", race_id=str(race.id), source_race_id=source_race_id)
+            metrics.record_db_update("races")
         else:
             # Insert new
             now = datetime.utcnow()
@@ -260,7 +266,8 @@ class Repository:
             # Flush to ensure race.id is populated before it's used
             self.session.flush()
             logger.debug("race_created", source_race_id=source_race_id)
-        
+            metrics.record_db_insert("races")
+
         return race
     
     def upsert_driver(
@@ -294,6 +301,7 @@ class Repository:
                 driver.display_name = display_name
                 driver.updated_at = datetime.utcnow()
                 logger.debug("driver_updated", driver_id=str(driver.id), source_driver_id=source_driver_id, display_name=display_name)
+                metrics.record_db_update("drivers")
         else:
             # Insert new
             now = datetime.utcnow()
@@ -309,7 +317,8 @@ class Repository:
             # Flush to ensure driver.id is populated before it's used
             self.session.flush()
             logger.debug("driver_created", source_driver_id=source_driver_id, display_name=display_name)
-        
+            metrics.record_db_insert("drivers")
+
         return driver
     
     def upsert_race_driver(
@@ -350,6 +359,7 @@ class Repository:
             race_driver.display_name = display_name
             race_driver.updated_at = datetime.utcnow()
             logger.debug("race_driver_updated", race_driver_id=str(race_driver.id), source_driver_id=source_driver_id)
+            metrics.record_db_update("race_drivers")
         else:
             # Insert new
             now = datetime.utcnow()
@@ -367,7 +377,8 @@ class Repository:
             # Flush to ensure race_driver.id is populated before it's used
             self.session.flush()
             logger.debug("race_driver_created", source_driver_id=source_driver_id, driver_id=str(driver.id))
-        
+            metrics.record_db_insert("race_drivers")
+
         return race_driver
     
     def upsert_race_result(
@@ -420,6 +431,7 @@ class Repository:
             result.consistency = consistency
             result.raw_fields_json = raw_fields_json
             logger.debug("result_updated", result_id=str(result.id))
+            metrics.record_db_update("race_results")
         else:
             # Insert new
             now = datetime.utcnow()
@@ -442,7 +454,8 @@ class Repository:
             # Flush to ensure result.id is populated before it's used
             self.session.flush()
             logger.debug("result_created", race_id=str(race_id), driver_id=str(race_driver_id))
-        
+            metrics.record_db_insert("race_results")
+
         return result
     
     def upsert_lap(
@@ -489,6 +502,7 @@ class Repository:
             lap.elapsed_race_time = elapsed_race_time
             lap.segments_json = segments_json
             logger.debug("lap_updated", lap_id=str(lap.id), lap_number=lap_number)
+            metrics.record_db_update("laps")
         else:
             # Insert new
             now = datetime.utcnow()
@@ -507,7 +521,8 @@ class Repository:
             lap.updated_at = now
             self.session.add(lap)
             logger.debug("lap_created", race_result_id=str(race_result_id), lap_number=lap_number)
-        
+            metrics.record_db_insert("laps")
+
         return lap
     
     def bulk_upsert_laps(
@@ -551,11 +566,32 @@ class Repository:
         
         now = datetime.utcnow()
         
+        total_inserted = 0
+        total_updated = 0
+
         try:
             # Process laps in batches - all within the same transaction
             # If any batch fails, the entire transaction will rollback
             for i in range(0, len(laps), batch_size):
                 batch = laps[i:i + batch_size]
+                key_tuples = [
+                    (lap["race_result_id"], lap["lap_number"])
+                    for lap in batch
+                ]
+                existing_keys: set = set()
+                if key_tuples:
+                    stmt_existing = select(
+                        Lap.race_result_id,
+                        Lap.lap_number,
+                    ).where(
+                        tuple_(Lap.race_result_id, Lap.lap_number).in_(key_tuples)
+                    )
+                    existing_keys = {
+                        (row.race_result_id, row.lap_number)
+                        for row in self.session.execute(stmt_existing)
+                    }
+                batch_inserts = 0
+                batch_updates = 0
                 
                 # Prepare batch data with all required fields
                 batch_data = []
@@ -573,6 +609,11 @@ class Repository:
                         "updated_at": now,  # For new inserts
                     }
                     batch_data.append(lap_dict)
+                    key = (lap["race_result_id"], lap["lap_number"])
+                    if key in existing_keys:
+                        batch_updates += 1
+                    else:
+                        batch_inserts += 1
                 
                 # Use PostgreSQL dialect insert with ON CONFLICT
                 stmt = pg_insert(Lap).values(batch_data)
@@ -597,8 +638,12 @@ class Repository:
                     batch_number=(i // batch_size) + 1,
                     total_batches=(len(laps) + batch_size - 1) // batch_size,
                 )
+                total_inserted += batch_inserts
+                total_updated += batch_updates
             
             logger.info("bulk_upsert_laps_complete", total_laps=len(laps))
+            metrics.record_db_insert("laps", total_inserted)
+            metrics.record_db_update("laps", total_updated)
             return len(laps)
         
         except Exception as e:
@@ -675,6 +720,7 @@ class Repository:
             lap.elapsed_race_time = elapsed_race_time
             lap.segments_json = segments_json
             logger.debug("lap_updated", lap_id=str(lap.id), lap_number=lap_number)
+            metrics.record_db_update("laps")
         else:
             # Insert new
             now = datetime.utcnow()
@@ -693,7 +739,8 @@ class Repository:
             lap.updated_at = now
             self.session.add(lap)
             logger.debug("lap_created", race_result_id=str(race_result_id), lap_number=lap_number)
-        
+            metrics.record_db_insert("laps")
+
         return lap
     
     def acquire_event_lock(self, event_id: UUID) -> bool:
@@ -736,4 +783,3 @@ class Repository:
         self.session.execute(
             text("SELECT pg_advisory_unlock(:lock_id)").bindparams(lock_id=lock_id)
         )
-

@@ -172,6 +172,16 @@ Track refresh completed:
 
 **Note**: This command does not require any IDs.
 
+#### Automated Event Refresh for Followed Tracks
+
+Followed tracks are refreshed nightly via `run-followed-event-sync.sh`, which executes the `refresh-followed-events` CLI command with `--depth none`. This keeps event metadata up to date without manual CLI runs. You can run the same workflow locally:
+
+```bash
+docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth none
+```
+
+For ad-hoc deep ingests across all followed tracks, pass `--depth laps_full` (optionally `--quiet` to suppress per-event output). The command automatically iterates every `Track` marked `is_followed=true` and aggregates the ingestion results.
+
 ---
 
 #### 3. List Events
@@ -1264,4 +1274,3 @@ SELECT id, event_name, ingest_depth FROM events WHERE ingest_depth != 'laps_full
 ---
 
 **End of Document**
-

@@ -10,11 +10,14 @@
 #          database persistence with proper locking and transaction management.
 
 import asyncio
+import time
 from datetime import datetime
 from typing import Dict, Any, List, Tuple
 from uuid import UUID
 
 from ingestion.common.logging import get_logger
+from ingestion.common import metrics
+from ingestion.common.tracing import TraceSpan
 from ingestion.connectors.liverc.connector import LiveRCConnector
 from ingestion.connectors.liverc.models import (
     ConnectorEventSummary,
@@ -71,10 +74,23 @@ class IngestionPipeline:
         # Validate race first
         Validator.validate_race(race_summary, str(event_id))
         
-        # Fetch race page
-        logger.info("connector_fetch_start", event_id=str(event_id), race_id=race_summary.source_race_id, type="race_page")
-        race_package = await self.connector.fetch_race_page(race_summary)
-        logger.info("connector_fetch_end", event_id=str(event_id), race_id=race_summary.source_race_id, type="race_page")
+        race_id = race_summary.source_race_id
+        logger.info("connector_fetch_start", event_id=str(event_id), race_id=race_id, type="race_page")
+        start = time.perf_counter()
+        with TraceSpan(
+            "race_page_fetch",
+            event_id=str(event_id),
+            race_id=race_id,
+        ):
+            race_package = await self.connector.fetch_race_page(race_summary)
+        duration = time.perf_counter() - start
+        metrics.observe_race_fetch(
+            event_id=str(event_id),
+            race_id=race_id,
+            method=race_package.fetch_method,
+            duration_seconds=duration,
+        )
+        logger.info("connector_fetch_end", event_id=str(event_id), race_id=race_id, type="race_page")
         
         # Validate race results
         Validator.validate_race_results(
@@ -170,34 +186,39 @@ class IngestionPipeline:
                 # Collect all race laps for bulk upsert
                 race_laps = []
                 
-                # Process results sequentially
-                for result in race_package.results:
-                    # Validate result
-                    Validator.validate_result(result, str(event_id), race_summary.source_race_id)
-                    
-                    # Normalize result
-                    normalized_result = Normalizer.normalize_result(result)
-                    
-                    # Upsert driver
-                    driver = repo.upsert_race_driver(
-                        race_id=race.id,
-                        source="liverc",
-                        source_driver_id=normalized_result["source_driver_id"],
-                        display_name=normalized_result["display_name"],
-                    )
-                    
-                    # Upsert result
-                    race_result = repo.upsert_race_result(
-                        race_id=race.id,
-                        race_driver_id=driver.id,
-                        position_final=normalized_result["position_final"],
-                        laps_completed=normalized_result["laps_completed"],
-                        total_time_raw=normalized_result.get("total_time_raw"),
-                        total_time_seconds=normalized_result["total_time_seconds"],
-                        fast_lap_time=normalized_result["fast_lap_time"],
-                        avg_lap_time=normalized_result["avg_lap_time"],
-                        consistency=normalized_result["consistency"],
-                    )
+                lap_timer = metrics.start_lap_extraction_timer(
+                    event_id=str(event_id),
+                    race_id=race_summary.source_race_id,
+                )
+                try:
+                    # Process results sequentially
+                    for result in race_package.results:
+                        # Validate result
+                        Validator.validate_result(result, str(event_id), race_summary.source_race_id)
+                        
+                        # Normalize result
+                        normalized_result = Normalizer.normalize_result(result)
+                        
+                        # Upsert driver
+                        driver = repo.upsert_race_driver(
+                            race_id=race.id,
+                            source="liverc",
+                            source_driver_id=normalized_result["source_driver_id"],
+                            display_name=normalized_result["display_name"],
+                        )
+                        
+                        # Upsert result
+                        race_result = repo.upsert_race_result(
+                            race_id=race.id,
+                            race_driver_id=driver.id,
+                            position_final=normalized_result["position_final"],
+                            laps_completed=normalized_result["laps_completed"],
+                            total_time_raw=normalized_result.get("total_time_raw"),
+                            total_time_seconds=normalized_result["total_time_seconds"],
+                            fast_lap_time=normalized_result["fast_lap_time"],
+                            avg_lap_time=normalized_result["avg_lap_time"],
+                            consistency=normalized_result["consistency"],
+                        )
                     results_ingested += 1
                     
                     # Process laps
@@ -238,6 +259,9 @@ class IngestionPipeline:
                             message="Lap validation failed - skipping lap ingestion for this result but continuing with event import",
                         )
                 
+                finally:
+                    lap_timer.observe()
+
                 # Bulk upsert all laps for this race
                 if race_laps:
                     repo.bulk_upsert_laps(race_laps)
@@ -276,6 +300,7 @@ class IngestionPipeline:
                 # Lock acquisition failed - no rollback needed as no work was done
                 raise IngestionInProgressError(str(event_id))
             
+            ingestion_timer = None
             try:
                 # Get event
                 event = repo.get_event_by_id(event_id)
@@ -285,6 +310,11 @@ class IngestionPipeline:
                         event_id=str(event_id),
                     )
                 
+                ingestion_timer = metrics.IngestionDurationTracker(
+                    event_id=str(event_id),
+                    track_id=str(event.track_id),
+                )
+
                 # Validate state transition
                 IngestionStateMachine.validate_transition(
                     event.ingest_depth,
@@ -295,6 +325,7 @@ class IngestionPipeline:
                 # Check if already at requested depth
                 if event.ingest_depth == IngestDepth(depth) and depth == "laps_full":
                     logger.info("ingestion_already_complete", event_id=str(event_id))
+                    ingestion_timer.finish("already_complete")
                     return {
                         "event_id": str(event_id),
                         "ingest_depth": depth,
@@ -352,7 +383,7 @@ class IngestionPipeline:
                     laps_ingested=laps_ingested,
                 )
                 
-                return {
+                result_payload = {
                     "event_id": str(event_id),
                     "ingest_depth": depth,
                     "last_ingested_at": event.last_ingested_at.isoformat(),
@@ -361,7 +392,14 @@ class IngestionPipeline:
                     "laps_ingested": laps_ingested,
                     "status": "updated",
                 }
-            
+                ingestion_timer.finish("success")
+                return result_payload
+
+            except Exception:
+                if ingestion_timer:
+                    ingestion_timer.finish("error")
+                raise
+
             finally:
                 # Release lock - wrap in try-except to ensure we don't fail silently
                 try:
@@ -579,4 +617,3 @@ class IngestionPipeline:
                         error=str(e),
                         exc_info=True,
                     )
-

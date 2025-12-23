@@ -69,8 +69,8 @@ class ConnectorRacePackage(BaseModel):
         default_factory=dict,
         description="Dictionary keyed by source_driver_id -> list of ConnectorLap"
     )
+    fetch_method: str = "httpx"
 
 
 # Update forward references
 ConnectorEventSummary.model_rebuild()
-

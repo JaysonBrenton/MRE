@@ -70,12 +70,15 @@ USER root
 # Copy cron files
 COPY crontab /tmp/track-sync-crontab
 COPY scripts/run-track-sync.sh /usr/local/bin/run-track-sync.sh
+COPY scripts/run-followed-event-sync.sh /usr/local/bin/run-followed-event-sync.sh
 COPY scripts/cron-entrypoint.sh /usr/local/bin/cron-entrypoint.sh
 
 # Set up cron permissions and install crontab for ingestion user
 RUN chmod +x /usr/local/bin/run-track-sync.sh && \
+    chmod +x /usr/local/bin/run-followed-event-sync.sh && \
     chmod +x /usr/local/bin/cron-entrypoint.sh && \
     chown ingestion:ingestion /usr/local/bin/run-track-sync.sh && \
+    chown ingestion:ingestion /usr/local/bin/run-followed-event-sync.sh && \
     chown ingestion:ingestion /usr/local/bin/cron-entrypoint.sh && \
     chown ingestion:ingestion /tmp/track-sync-crontab && \
     su - ingestion -c "crontab /tmp/track-sync-crontab" || true && \
@@ -99,12 +102,15 @@ USER root
 # Copy cron files
 COPY crontab /tmp/track-sync-crontab
 COPY scripts/run-track-sync.sh /usr/local/bin/run-track-sync.sh
+COPY scripts/run-followed-event-sync.sh /usr/local/bin/run-followed-event-sync.sh
 COPY scripts/cron-entrypoint.sh /usr/local/bin/cron-entrypoint.sh
 
 # Set up cron permissions and install crontab for ingestion user
 RUN chmod +x /usr/local/bin/run-track-sync.sh && \
+    chmod +x /usr/local/bin/run-followed-event-sync.sh && \
     chmod +x /usr/local/bin/cron-entrypoint.sh && \
     chown ingestion:ingestion /usr/local/bin/run-track-sync.sh && \
+    chown ingestion:ingestion /usr/local/bin/run-followed-event-sync.sh && \
     chown ingestion:ingestion /usr/local/bin/cron-entrypoint.sh && \
     chown ingestion:ingestion /tmp/track-sync-crontab && \
     su - ingestion -c "crontab /tmp/track-sync-crontab" || true && \
@@ -118,4 +124,3 @@ EXPOSE 8000
 
 # Default command (can be overridden)
 CMD ["uvicorn", "ingestion.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
-

@@ -9,9 +9,11 @@
 # @purpose Provides the connector interface that orchestrates HTTPX/Playwright
 #          clients and parsers to extract structured data from LiveRC pages.
 
+import asyncio
 from typing import List, Optional
 
 from ingestion.common.logging import get_logger
+from ingestion.common import metrics
 from ingestion.connectors.liverc.client.httpx_client import HTTPXClient
 from ingestion.connectors.liverc.client.playwright_client import PlaywrightClient
 from ingestion.connectors.liverc.models import (
@@ -53,7 +55,7 @@ class LiveRCConnector:
     - Cache page type classification
     """
     
-    def __init__(self, page_type_cache_size: int = 1000):
+    def __init__(self, page_type_cache_size: int = 1000, playwright_concurrency: int = 1):
         """
         Initialize connector.
         
@@ -63,6 +65,11 @@ class LiveRCConnector:
         """
         self._page_type_cache: dict[str, bool] = {}  # URL -> requires_playwright
         self._page_type_cache_size = page_type_cache_size
+        self._playwright_lock = asyncio.Semaphore(max(playwright_concurrency, 1))
+
+    def _record_error(self, stage: str, error: Exception) -> None:
+        """Report connector errors to metrics."""
+        metrics.record_connector_error(stage, error.__class__.__name__)
     
     def _trim_page_type_cache(self) -> None:
         """
@@ -107,10 +114,12 @@ class LiveRCConnector:
                 logger.info("list_tracks_success", url=url, count=len(tracks))
                 return tracks
         
-        except (ConnectorHTTPError, EventPageFormatError):
+        except (ConnectorHTTPError, EventPageFormatError) as err:
+            self._record_error("list_tracks", err)
             raise
-        
+
         except Exception as e:
+            self._record_error("list_tracks", e)
             logger.error("list_tracks_error", url=url, error=str(e))
             raise EventPageFormatError(
                 f"Unexpected error listing tracks: {str(e)}",
@@ -161,7 +170,8 @@ class LiveRCConnector:
                         self._trim_page_type_cache()
                         html = None
             
-            except ConnectorHTTPError:
+            except ConnectorHTTPError as err:
+                self._record_error("fetch_race_page", err)
                 # If HTTPX fails, try Playwright
                 requires_playwright = True
                 self._page_type_cache[url] = True
@@ -190,10 +200,12 @@ class LiveRCConnector:
             logger.info("list_events_for_track_success", url=url, count=len(events))
             return events
         
-        except EventPageFormatError:
+        except EventPageFormatError as err:
+            self._record_error("list_events_for_track", err)
             raise
-        
+
         except Exception as e:
+            self._record_error("list_events_for_track", e)
             logger.error("list_events_for_track_error", url=url, error=str(e))
             raise EventPageFormatError(
                 f"Unexpected error listing events: {str(e)}",
@@ -226,6 +238,31 @@ class LiveRCConnector:
                 raise ValueError(f"Cannot determine track_slug for relative URL: {race_url}")
         
         return normalize_race_url(race_url, track_slug)
+
+    async def _fetch_with_playwright(
+        self,
+        url: str,
+        wait_for_selector: Optional[str] = None,
+    ) -> str:
+        """Fetch a page using Playwright with concurrency control."""
+        async with self._playwright_lock:
+            async with PlaywrightClient() as playwright:
+                return await playwright.fetch_page(url, wait_for_selector=wait_for_selector)
+
+    def _parse_event_page(self, html: str, url: str, source_event_id: str) -> ConnectorEventSummary:
+        """Parse metadata and race list from event HTML."""
+        metadata_parser = EventMetadataParser()
+        race_list_parser = RaceListParser()
+        metadata = metadata_parser.parse(html, url)
+        races = race_list_parser.parse(html, url)
+        return ConnectorEventSummary(
+            source_event_id=source_event_id,
+            event_name=metadata.event_name,
+            event_date=metadata.event_date,
+            event_entries=metadata.event_entries,
+            event_drivers=metadata.event_drivers,
+            races=races,
+        )
     
     async def fetch_event_page(
         self,
@@ -249,37 +286,49 @@ class LiveRCConnector:
         url = self._build_event_url(track_slug, source_event_id)
         logger.info("fetch_event_page_start", url=url, track_slug=track_slug, event_id=source_event_id)
         
-        # Try HTTPX first
-        try:
-            async with HTTPXClient() as client:
-                response = await client.get(url)
-                html = response.text
-                
-                # Parse event metadata and race list
-                metadata_parser = EventMetadataParser()
-                race_list_parser = RaceListParser()
-                
-                # For now, parsers will raise errors indicating they need implementation
-                # Once implemented, this will work correctly
-                metadata = metadata_parser.parse(html, url)
-                races = race_list_parser.parse(html, url)
-                
-                return ConnectorEventSummary(
-                    source_event_id=source_event_id,
-                    event_name=metadata.event_name,
-                    event_date=metadata.event_date,
-                    event_entries=metadata.event_entries,
-                    event_drivers=metadata.event_drivers,
-                    races=races,
+        requires_playwright = self._page_type_cache.get(url, False)
+        html: Optional[str] = None
+
+        if not requires_playwright:
+            try:
+                async with HTTPXClient() as client:
+                    response = await client.get(url)
+                    html = response.text
+                    return self._parse_event_page(html, url, source_event_id)
+            except ConnectorHTTPError as err:
+                self._record_error("fetch_event_page", err)
+                requires_playwright = True
+                self._page_type_cache[url] = True
+                self._trim_page_type_cache()
+            except EventPageFormatError as err:
+                # HTML likely requires JS execution. Escalate to Playwright.
+                requires_playwright = True
+                self._page_type_cache[url] = True
+                self._trim_page_type_cache()
+                self._record_error("fetch_event_page", err)
+            except Exception as e:
+                self._record_error("fetch_event_page", e)
+                logger.error("fetch_event_page_error", url=url, error=str(e))
+                raise EventPageFormatError(
+                    f"Unexpected error fetching event page: {str(e)}",
+                    url=url,
                 )
-        
-        except (ConnectorHTTPError, EventPageFormatError):
+
+        # Playwright fallback path
+        try:
+            html = await self._fetch_with_playwright(
+                url,
+                wait_for_selector="table.entry_list_data",
+            )
+            return self._parse_event_page(html, url, source_event_id)
+        except EventPageFormatError as err:
+            self._record_error("fetch_event_page", err)
             raise
-        
         except Exception as e:
-            logger.error("fetch_event_page_error", url=url, error=str(e))
+            self._record_error("fetch_event_page", e)
+            logger.error("fetch_event_page_playwright_error", url=url, error=str(e))
             raise EventPageFormatError(
-                f"Unexpected error fetching event page: {str(e)}",
+                f"Failed to fetch event page with Playwright: {str(e)}",
                 url=url,
             )
     
@@ -309,6 +358,7 @@ class LiveRCConnector:
         requires_playwright = self._page_type_cache.get(url, False)
         
         html = None
+        fetch_method = "httpx"
         
         # Try HTTPX first (unless we know it requires Playwright)
         if not requires_playwright:
@@ -335,12 +385,13 @@ class LiveRCConnector:
         # Use Playwright if needed
         if requires_playwright or html is None:
             try:
-                async with PlaywrightClient() as playwright:
-                    html = await playwright.fetch_page(
-                        url,
-                        wait_for_selector="table.table-striped",  # Common LiveRC table selector
-                    )
+                html = await self._fetch_with_playwright(
+                    url,
+                    wait_for_selector="table.table-striped",
+                )
+                fetch_method = "playwright"
             except Exception as e:
+                self._record_error("fetch_race_page", e)
                 logger.error("playwright_fetch_error", url=url, error=str(e))
                 raise RacePageFormatError(
                     f"Failed to fetch race page with Playwright: {str(e)}",
@@ -360,12 +411,15 @@ class LiveRCConnector:
                 race_summary=race_summary,
                 results=results,
                 laps_by_driver=all_laps,
+                fetch_method=fetch_method,
             )
         
-        except (RacePageFormatError, LapTableMissingError):
+        except (RacePageFormatError, LapTableMissingError) as err:
+            self._record_error("fetch_race_page", err)
             raise
         
         except Exception as e:
+            self._record_error("fetch_race_page", e)
             logger.error("parse_race_page_error", url=url, error=str(e))
             raise RacePageFormatError(
                 f"Failed to parse race page: {str(e)}",
@@ -412,14 +466,17 @@ class LiveRCConnector:
                     if "racerLaps" not in html:
                         requires_playwright = True
                         html = None
-            except ConnectorHTTPError:
+            except ConnectorHTTPError as err:
+                self._record_error("fetch_lap_series", err)
                 requires_playwright = True
         
         if requires_playwright or html is None:
-            async with PlaywrightClient() as playwright:
-                html = await playwright.fetch_page(url)
-        
+            html = await self._fetch_with_playwright(url)
+
         # Parse lap data for this driver
         lap_parser = RaceLapParser()
-        return lap_parser.parse(html, url, source_driver_id)
-
+        try:
+            return lap_parser.parse(html, url, source_driver_id)
+        except Exception as err:
+            self._record_error("fetch_lap_series", err)
+            raise

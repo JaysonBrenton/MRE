@@ -12,13 +12,13 @@ import asyncio
 import sys
 import os
 import glob
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Callable
 from uuid import UUID
 from pathlib import Path
 
 import click
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from ingestion.common.logging import configure_logging, get_logger
 from ingestion.connectors.liverc.connector import LiveRCConnector
@@ -195,6 +195,121 @@ def cleanup_old_reports() -> None:
     
     if deleted_count > 0:
         logger.info("old_reports_cleaned", deleted_count=deleted_count, retention_days=retention_days)
+
+
+def _refresh_events_for_track(
+    session,
+    connector: LiveRCConnector,
+    track: Track,
+    depth: str,
+    ingest_new_only: bool,
+    ingest_all: bool,
+    echo: Optional[Callable[[str], None]] = None,
+) -> Dict[str, Any]:
+    """Core logic shared by multiple commands for event refresh."""
+    repository = Repository(session)
+    events = asyncio.run(connector.list_events_for_track(track.source_track_slug))
+
+    events_added = 0
+    events_updated = 0
+    new_event_ids: List[UUID] = []
+
+    for event_summary in events:
+        existing = session.query(Event).filter(
+            Event.source == event_summary.source,
+            Event.source_event_id == event_summary.source_event_id
+        ).first()
+
+        event_date = event_summary.event_date
+        if not isinstance(event_date, datetime):
+            if isinstance(event_date, date):
+                event_date = datetime.combine(event_date, datetime.min.time())
+
+        event = repository.upsert_event(
+            source=event_summary.source,
+            source_event_id=event_summary.source_event_id,
+            track_id=track.id,
+            event_name=event_summary.event_name,
+            event_date=event_date,
+            event_entries=event_summary.event_entries,
+            event_drivers=event_summary.event_drivers,
+            event_url=event_summary.event_url,
+        )
+
+        if existing:
+            events_updated += 1
+        else:
+            events_added += 1
+            new_event_ids.append(event.id)
+
+    session.commit()
+
+    stats = {
+        "events_total": len(events),
+        "events_added": events_added,
+        "events_updated": events_updated,
+        "events_ingested": 0,
+        "events_failed": 0,
+        "races_ingested": 0,
+        "results_ingested": 0,
+        "laps_ingested": 0,
+    }
+
+    if depth == "laps_full":
+        pipeline = IngestionPipeline()
+        if ingest_all:
+            track_events = session.query(Event).filter(Event.track_id == track.id).all()
+            events_to_ingest = [e.id for e in track_events]
+            ingest_new_only = False
+        else:
+            events_to_ingest = new_event_ids
+
+        if echo:
+            echo(f"\nStarting full ingestion for {len(events_to_ingest)} event(s)...")
+
+        for event_id in events_to_ingest:
+            try:
+                event = session.get(Event, str(event_id))
+                if not event:
+                    logger.warning("event_not_found_for_ingestion", event_id=str(event_id))
+                    continue
+
+                if ingest_new_only and event.ingest_depth == IngestDepth.LAPS_FULL:
+                    logger.debug("event_already_ingested", event_id=str(event_id))
+                    continue
+
+                if echo:
+                    echo(f"  Ingesting event: {event.event_name} ({event.source_event_id})...")
+
+                result = asyncio.run(pipeline.ingest_event(event_id, depth="laps_full"))
+                stats["events_ingested"] += 1
+                stats["races_ingested"] += result.get("races_ingested", 0)
+                stats["results_ingested"] += result.get("results_ingested", 0)
+                stats["laps_ingested"] += result.get("laps_ingested", 0)
+                logger.info(
+                    "event_ingestion_success",
+                    event_id=str(event_id),
+                    races=result.get("races_ingested", 0),
+                    results=result.get("results_ingested", 0),
+                    laps=result.get("laps_ingested", 0)
+                )
+            except IngestionInProgressError:
+                logger.warning("event_ingestion_in_progress", event_id=str(event_id))
+                stats["events_failed"] += 1
+                if echo:
+                    echo("    ⚠ Skipped (ingestion already in progress)")
+            except (StateMachineError, ValidationError) as err:
+                logger.error("event_ingestion_error", event_id=str(event_id), error=str(err))
+                stats["events_failed"] += 1
+                if echo:
+                    echo(f"    ✗ Failed: {str(err)}")
+            except Exception as err:  # pragma: no cover - safety net
+                logger.error("event_ingestion_unexpected_error", event_id=str(event_id), error=str(err), exc_info=True)
+                stats["events_failed"] += 1
+                if echo:
+                    echo(f"    ✗ Failed: {str(err)}")
+
+    return stats
 
 
 @click.group()
@@ -433,170 +548,196 @@ def refresh_events(track_id: str, depth: str, ingest_new_only: bool, ingest_all:
         ingest_all=ingest_all,
         timestamp=start_time.isoformat()
     )
-    
+
     try:
-        # Validate track_id
-        try:
-            track_uuid = UUID(track_id)
-        except ValueError:
-            click.echo(f"Invalid track_id format: {track_id}", err=True)
-            sys.exit(1)
-        
-        # Validate flags - ingest_all takes precedence over ingest_new_only
-        if ingest_all:
-            ingest_new_only = False
-        
+        track_uuid = UUID(track_id)
+    except ValueError:
+        click.echo(f"Invalid track_id format: {track_id}", err=True)
+        sys.exit(1)
+
+    if ingest_all:
+        ingest_new_only = False
+
+    try:
+        connector = LiveRCConnector()
         with db_session() as session:
             track = session.get(Track, str(track_uuid))
             if not track:
                 click.echo(f"Track {track_id} not found.", err=True)
                 sys.exit(1)
-            
-            connector = LiveRCConnector()
-            repository = Repository(session)
-            
-            # Phase 1: Event Discovery
-            # Fetch events from LiveRC
-            events = asyncio.run(connector.list_events_for_track(track.source_track_slug))
-            
-            events_added = 0
-            events_updated = 0
-            new_event_ids: List[UUID] = []
-            
-            # Upsert each event
-            for event_summary in events:
-                # Check if event exists
-                existing = session.query(Event).filter(
-                    Event.source == event_summary.source,
-                    Event.source_event_id == event_summary.source_event_id
-                ).first()
-                
-                # Convert event_date if needed
-                event_date = event_summary.event_date
-                if not isinstance(event_date, datetime):
-                    from datetime import date
-                    if isinstance(event_date, date):
-                        event_date = datetime.combine(event_date, datetime.min.time())
-                
-                # Upsert event
-                event = repository.upsert_event(
-                    source=event_summary.source,
-                    source_event_id=event_summary.source_event_id,
-                    track_id=track.id,
-                    event_name=event_summary.event_name,
-                    event_date=event_date,
-                    event_entries=event_summary.event_entries,
-                    event_drivers=event_summary.event_drivers,
-                    event_url=event_summary.event_url,
-                )
-                
-                if existing:
-                    events_updated += 1
-                else:
-                    events_added += 1
-                    new_event_ids.append(event.id)
-            
-            session.commit()
-            
-            # Phase 2: Conditional Full Ingestion (if depth is laps_full)
-            events_ingested = 0
-            events_failed = 0
-            total_races_ingested = 0
-            total_results_ingested = 0
-            total_laps_ingested = 0
-            
-            if depth == "laps_full":
-                pipeline = IngestionPipeline()
-                
-                # Determine which events to ingest
-                if ingest_all:
-                    # Get all events for this track
-                    all_track_events = session.query(Event).filter(Event.track_id == track.id).all()
-                    events_to_ingest = [e.id for e in all_track_events]
-                else:
-                    # Only ingest new events (default behavior)
-                    events_to_ingest = new_event_ids
-                
-                click.echo(f"\nStarting full ingestion for {len(events_to_ingest)} event(s)...")
-                
-                for event_id in events_to_ingest:
-                    try:
-                        # Get event to check current state
-                        event = session.get(Event, str(event_id))
-                        if not event:
-                            logger.warning("event_not_found_for_ingestion", event_id=str(event_id))
-                            continue
-                        
-                        # Skip if already at laps_full and we're only ingesting new
-                        if ingest_new_only and event.ingest_depth == IngestDepth.LAPS_FULL:
-                            logger.debug("event_already_ingested", event_id=str(event_id))
-                            continue
-                        
-                        click.echo(f"  Ingesting event: {event.event_name} ({event.source_event_id})...")
-                        
-                        # Run ingestion
-                        result = asyncio.run(pipeline.ingest_event(event_id, depth="laps_full"))
-                        
-                        events_ingested += 1
-                        total_races_ingested += result.get("races_ingested", 0)
-                        total_results_ingested += result.get("results_ingested", 0)
-                        total_laps_ingested += result.get("laps_ingested", 0)
-                        
-                        logger.info(
-                            "event_ingestion_success",
-                            event_id=str(event_id),
-                            races=result.get("races_ingested", 0),
-                            results=result.get("results_ingested", 0),
-                            laps=result.get("laps_ingested", 0)
-                        )
-                    
-                    except IngestionInProgressError:
-                        logger.warning("event_ingestion_in_progress", event_id=str(event_id))
-                        events_failed += 1
-                        click.echo(f"    ⚠ Skipped (ingestion already in progress)")
-                    
-                    except (StateMachineError, ValidationError) as e:
-                        logger.error("event_ingestion_error", event_id=str(event_id), error=str(e))
-                        events_failed += 1
-                        click.echo(f"    ✗ Failed: {str(e)}")
-                    
-                    except Exception as e:
-                        logger.error("event_ingestion_unexpected_error", event_id=str(event_id), error=str(e), exc_info=True)
-                        events_failed += 1
-                        click.echo(f"    ✗ Failed: {str(e)}")
-        
+
+            summary = _refresh_events_for_track(
+                session=session,
+                connector=connector,
+                track=track,
+                depth=depth,
+                ingest_new_only=ingest_new_only,
+                ingest_all=ingest_all,
+                echo=click.echo,
+            )
+
         duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-        
+
         logger.info(
             "refresh_events_success",
             command="refresh-events",
             track_id=track_id,
             depth=depth,
-            events_added=events_added,
-            events_updated=events_updated,
-            events_ingested=events_ingested if depth == "laps_full" else 0,
-            events_failed=events_failed if depth == "laps_full" else 0,
+            events_added=summary["events_added"],
+            events_updated=summary["events_updated"],
+            events_ingested=summary["events_ingested"],
+            events_failed=summary["events_failed"],
             status="success",
             duration_ms=duration_ms,
         )
-        
-        click.echo(f"\nEvent refresh completed:")
-        click.echo(f"  Events discovered: {events_added} new, {events_updated} updated")
-        click.echo(f"  Total events: {len(events)}")
-        
+
+        click.echo(f"
+Event refresh completed:")
+        click.echo(
+            f"  Events discovered: {summary['events_added']} new, {summary['events_updated']} updated"
+        )
+        click.echo(f"  Total events: {summary['events_total']}")
+
         if depth == "laps_full":
-            click.echo(f"\nFull ingestion results:")
-            click.echo(f"  Events ingested: {events_ingested} successful, {events_failed} failed")
-            click.echo(f"  Races ingested: {total_races_ingested}")
-            click.echo(f"  Results ingested: {total_results_ingested}")
-            click.echo(f"  Laps ingested: {total_laps_ingested}")
-        
+            click.echo(f"
+Full ingestion results:")
+            click.echo(
+                f"  Events ingested: {summary['events_ingested']} successful, {summary['events_failed']} failed"
+            )
+            click.echo(f"  Races ingested: {summary['races_ingested']}")
+            click.echo(f"  Results ingested: {summary['results_ingested']}")
+            click.echo(f"  Laps ingested: {summary['laps_ingested']}")
+
         sys.exit(0)
-    
+
     except ConnectorHTTPError as e:
         logger.error("refresh_events_http_error", error=str(e))
         click.echo(f"HTTP error: {str(e)}", err=True)
         sys.exit(2)
+
+    except EventPageFormatError as e:
+        logger.error("refresh_events_parse_error", error=str(e))
+        click.echo(f"Parse error: {str(e)}", err=True)
+        sys.exit(1)
+
+    except Exception as e:
+        logger.error("refresh_events_error", error=str(e), exc_info=True)
+        click.echo(f"Event refresh failed: {str(e)}", err=True)
+        sys.exit(2)
+
+
+@liverc.command("refresh-followed-events")
+@click.option("--depth", default="none", show_default=True, type=click.Choice(["none", "laps_full"]), help="Ingestion depth for each track")
+@click.option("--ingest-new-only", is_flag=True, default=True, help="Only ingest newly discovered events")
+@click.option("--ingest-all", is_flag=True, default=False, help="Re-ingest all events for each track")
+@click.option("--quiet", is_flag=True, default=False, help="Suppress per-event console output")
+def refresh_followed_events(depth: str, ingest_new_only: bool, ingest_all: bool, quiet: bool):
+    """Refresh events for every followed track (automated workflow)."""
+    start_time = datetime.utcnow()
+    logger.info(
+        "refresh_followed_events_start",
+        depth=depth,
+        ingest_new_only=ingest_new_only,
+        ingest_all=ingest_all,
+        quiet=quiet,
+        timestamp=start_time.isoformat(),
+    )
+
+    if ingest_all:
+        ingest_new_only = False
+
+    connector = LiveRCConnector()
+
+    with db_session() as session:
+        track_rows = session.query(Track.id, Track.source_track_slug).filter(
+            Track.is_active.is_(True),
+            Track.is_followed.is_(True),
+        ).all()
+
+    if not track_rows:
+        click.echo("No followed tracks found. Nothing to refresh.")
+        sys.exit(0)
+
+    totals = {
+        "tracks": len(track_rows),
+        "events_total": 0,
+        "events_added": 0,
+        "events_updated": 0,
+        "events_ingested": 0,
+        "events_failed": 0,
+        "races_ingested": 0,
+        "results_ingested": 0,
+        "laps_ingested": 0,
+    }
+
+    for track_id, track_slug in track_rows:
+        with db_session() as session:
+            track = session.get(Track, str(track_id))
+            if not track:
+                logger.warning("followed_track_missing", track_id=str(track_id))
+                continue
+
+            echo_fn = None
+            if not quiet and depth == "laps_full":
+                def echo_with_slug(message: str, slug: str = track_slug) -> None:
+                    click.echo(f"[{slug}] {message}")
+
+                echo_fn = echo_with_slug
+
+            try:
+                summary = _refresh_events_for_track(
+                    session=session,
+                    connector=connector,
+                    track=track,
+                    depth=depth,
+                    ingest_new_only=ingest_new_only,
+                    ingest_all=ingest_all,
+                    echo=echo_fn,
+                )
+            except Exception as err:
+                logger.error(
+                    "refresh_followed_events_track_error",
+                    track_id=str(track_id),
+                    error=str(err),
+                    exc_info=True,
+                )
+                continue
+
+            totals["events_total"] += summary["events_total"]
+            totals["events_added"] += summary["events_added"]
+            totals["events_updated"] += summary["events_updated"]
+            totals["events_ingested"] += summary["events_ingested"]
+            totals["events_failed"] += summary["events_failed"]
+            totals["races_ingested"] += summary["races_ingested"]
+            totals["results_ingested"] += summary["results_ingested"]
+            totals["laps_ingested"] += summary["laps_ingested"]
+
+    duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+
+    logger.info(
+        "refresh_followed_events_complete",
+        depth=depth,
+        totals=totals,
+        duration_ms=duration_ms,
+    )
+
+    click.echo("Followed track refresh complete:")
+    click.echo(f"  Tracks processed: {totals['tracks']}")
+    click.echo(
+        f"  Events discovered: {totals['events_added']} new, {totals['events_updated']} updated"
+    )
+    click.echo(f"  Total events scanned: {totals['events_total']}")
+
+    if depth == "laps_full":
+        click.echo("\nFull ingestion rollup:")
+        click.echo(
+            f"  Events ingested: {totals['events_ingested']} successful, {totals['events_failed']} failed"
+        )
+        click.echo(f"  Races ingested: {totals['races_ingested']}")
+        click.echo(f"  Results ingested: {totals['results_ingested']}")
+        click.echo(f"  Laps ingested: {totals['laps_ingested']}")
+
+    sys.exit(0)
     
     except EventPageFormatError as e:
         logger.error("refresh_events_parse_error", error=str(e))
@@ -826,4 +967,3 @@ def verify_integrity():
 
 if __name__ == "__main__":
     cli()
-
