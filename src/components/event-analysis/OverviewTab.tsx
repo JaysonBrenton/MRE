@@ -38,36 +38,34 @@ const STORAGE_KEY_SELECTED_DRIVERS = "mre-overview-selected-drivers"
 const STORAGE_KEY_CHART_TYPE = "mre-overview-chart-type"
 
 export default function OverviewTab({ data }: OverviewTabProps) {
-  // Load persisted state from localStorage
-  const [chartType, setChartType] = useState<ChartType>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY_CHART_TYPE)
-      if (stored && ["best-lap", "gap-evolution", "avg-vs-fastest"].includes(stored)) {
-        return stored as ChartType
-      }
-    }
-    return "best-lap"
-  })
-
-  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY_SELECTED_DRIVERS)
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored)
-          if (Array.isArray(parsed)) {
-            return parsed
-          }
-        } catch {
-          // Invalid JSON, ignore
-        }
-      }
-    }
-    return []
-  })
+  // Initialize with default values for SSR consistency
+  const [chartType, setChartType] = useState<ChartType>("best-lap")
+  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
 
   const [currentPage, setCurrentPage] = useState(1)
   const driversPerPage = 25
+
+  // Load persisted state from localStorage after mount (prevents hydration mismatch)
+  useEffect(() => {
+    // Load chart type
+    const storedChartType = localStorage.getItem(STORAGE_KEY_CHART_TYPE)
+    if (storedChartType && ["best-lap", "gap-evolution", "avg-vs-fastest"].includes(storedChartType)) {
+      setChartType(storedChartType as ChartType)
+    }
+
+    // Load selected drivers
+    const storedDrivers = localStorage.getItem(STORAGE_KEY_SELECTED_DRIVERS)
+    if (storedDrivers) {
+      try {
+        const parsed = JSON.parse(storedDrivers)
+        if (Array.isArray(parsed)) {
+          setSelectedDriverIds(parsed)
+        }
+      } catch {
+        // Invalid JSON, ignore
+      }
+    }
+  }, [])
 
   // Persist chart type to localStorage
   useEffect(() => {
