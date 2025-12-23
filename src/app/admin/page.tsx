@@ -21,6 +21,7 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import AuthenticatedNav from "@/components/AuthenticatedNav"
+import Footer from "@/components/Footer"
 
 export default async function AdminPage() {
   const session = await auth()
@@ -37,8 +38,8 @@ export default async function AdminPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--token-surface)]">
       <AuthenticatedNav />
-      <main id="main-content" className="page-container flex-1 flex items-center justify-center px-4 py-8" tabIndex={-1}>
-        <section className="content-wrapper w-full max-w-2xl text-center space-y-6">
+      <main id="main-content" className="page-container flex-1 flex flex-col px-4 py-8" tabIndex={-1}>
+        <section className="content-wrapper flex-1 flex items-center justify-center w-full max-w-2xl mx-auto text-center space-y-6">
           <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
             Welcome back {session.user.name}
           </h1>
@@ -46,6 +47,7 @@ export default async function AdminPage() {
             Administrator Console
           </p>
         </section>
+        <Footer />
       </main>
     </div>
   )

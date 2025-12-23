@@ -9,6 +9,7 @@
 // @purpose Provides user-facing API for race data
 
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import { getRaceWithResults } from "@/core/races/repo";
 import { successResponse, errorResponse } from "@/lib/api-utils";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
@@ -20,6 +21,18 @@ export async function GET(
 ) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
+
+  // Check authentication
+  const session = await auth()
+  if (!session) {
+    requestLogger.warn("Unauthorized race detail request")
+    return errorResponse(
+      "UNAUTHORIZED",
+      "Authentication required",
+      {},
+      401
+    )
+  }
 
   try {
     const { raceId } = await params;

@@ -12,6 +12,7 @@
 //          that API routes should not contain business logic.
 
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import { ingestionClient } from "@/lib/ingestion-client";
 import { successResponse, errorResponse } from "@/lib/api-utils";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
@@ -23,6 +24,18 @@ export const maxDuration = 600; // 10 minutes in seconds
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
+  
+  // Check authentication
+  const session = await auth()
+  if (!session) {
+    requestLogger.warn("Unauthorized event ingestion request")
+    return errorResponse(
+      "UNAUTHORIZED",
+      "Authentication required",
+      {},
+      401
+    )
+  }
   
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:21',message:'API route POST started',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});

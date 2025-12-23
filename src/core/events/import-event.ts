@@ -24,7 +24,7 @@ export interface ImportEventInput {
   depth?: "laps_full" | "none"
 }
 
-export interface ImportEventResult {
+export type ImportEventResult = {
   success: true
   eventId: string
   status: "started" | "completed" | "failed"
@@ -91,4 +91,3 @@ export async function importEvent(input: ImportEventInput): Promise<ImportEventR
     }
   }
 }
-

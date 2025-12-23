@@ -165,9 +165,10 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
       }
       
       // Other Prisma errors
+      const prismaError = error as { code: string; message?: string }
       logger.error("Prisma error during registration", {
-        code: error.code,
-        error: error.message,
+        code: prismaError.code,
+        error: prismaError.message || "Unknown Prisma error",
       })
       return {
         success: false,
@@ -194,4 +195,3 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
     }
   }
 }
-

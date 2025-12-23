@@ -53,7 +53,8 @@ export function getClientIp(request: NextRequest): string {
   }
 
   // Fallback to request IP (may be undefined in some environments)
-  return request.ip || "unknown"
+  const requestIp = (request as { ip?: string }).ip
+  return requestIp || "unknown"
 }
 
 /**
@@ -100,4 +101,3 @@ export function createRequestLogger(
   const context = getRequestContext(request, requestId, userId)
   return createLoggerWithContext(context)
 }
-

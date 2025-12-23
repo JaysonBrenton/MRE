@@ -149,3 +149,61 @@ export async function getEventWithRaces(
   })
 }
 
+export interface ImportedEvent {
+  id: string
+  source: string
+  sourceEventId: string
+  eventName: string
+  eventDate: string | null // ISO string or null
+  eventEntries: number
+  eventDrivers: number
+  eventUrl: string
+  ingestDepth: string
+  lastIngestedAt: string | null // ISO string or null
+  track: {
+    id: string
+    trackName: string
+  }
+}
+
+/**
+ * Get all fully imported events (ingestDepth = 'laps_full')
+ * 
+ * @returns Array of imported events with track information, ordered by eventDate descending
+ */
+export async function getAllImportedEvents(): Promise<ImportedEvent[]> {
+  const events = await prisma.event.findMany({
+    where: {
+      ingestDepth: "laps_full",
+    },
+    include: {
+      track: {
+        select: {
+          id: true,
+          trackName: true,
+        },
+      },
+    },
+    orderBy: {
+      eventDate: "desc",
+    },
+  })
+
+  return events.map((event) => ({
+    id: event.id,
+    source: event.source,
+    sourceEventId: event.sourceEventId,
+    eventName: event.eventName,
+    eventDate: event.eventDate ? event.eventDate.toISOString() : null,
+    eventEntries: event.eventEntries,
+    eventDrivers: event.eventDrivers,
+    eventUrl: event.eventUrl,
+    ingestDepth: event.ingestDepth,
+    lastIngestedAt: event.lastIngestedAt?.toISOString() || null,
+    track: {
+      id: event.track.id,
+      trackName: event.track.trackName,
+    },
+  }))
+}
+

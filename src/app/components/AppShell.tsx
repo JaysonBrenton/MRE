@@ -19,7 +19,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import ThemeToggle from "./ThemeToggle"
+import Header from "@/components/Header"
+import Footer from "@/components/Footer"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -96,16 +97,15 @@ export default function AppShell({ children }: AppShellProps) {
 
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col pl-[220px]">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-10 border-b border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-3">
-          <div className="flex justify-end">
-            <ThemeToggle />
-          </div>
-        </header>
+        {/* Header */}
+        <Header />
 
         {/* Page Content */}
-        <main id="main-content" className="flex-1" tabIndex={-1}>
-          {children}
+        <main id="main-content" className="flex-1 flex flex-col" tabIndex={-1}>
+          <div className="flex-1">
+            {children}
+          </div>
+          <Footer />
         </main>
       </div>
     </div>

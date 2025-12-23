@@ -20,9 +20,9 @@
 
 import { NextRequest } from "next/server"
 import { authenticateUser } from "@/core/auth/login"
-import { successResponse, errorResponse, serverErrorResponse, parseRequestBody } from "@/lib/api-utils"
+import { successResponse, errorResponse, parseRequestBody } from "@/lib/api-utils"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter"
-import { createRequestLogger, generateRequestId, getClientIp } from "@/lib/request-context"
+import { generateRequestId, getClientIp, getRequestContext } from "@/lib/request-context"
 import { logFailedLogin, logSuccessfulLogin, logRateLimitHit } from "@/lib/security-logger"
 import { handleApiError } from "@/lib/server-error-handler"
 
@@ -55,7 +55,7 @@ import { handleApiError } from "@/lib/server-error-handler"
  */
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId()
-  const requestLogger = createRequestLogger(request, requestId)
+  const requestContext = getRequestContext(request, requestId)
   const ip = getClientIp(request)
   const userAgent = request.headers.get("user-agent") || undefined
 
@@ -63,7 +63,13 @@ export async function POST(request: NextRequest) {
     // Check rate limit
     const rateLimitResult = checkRateLimit(request, RATE_LIMITS.auth)
     if (!rateLimitResult.allowed) {
-      logRateLimitHit(ip, request.nextUrl.pathname, RATE_LIMITS.auth.maxRequests, rateLimitResult.retryAfterSeconds || 60, requestLogger)
+      logRateLimitHit(
+        ip,
+        request.nextUrl.pathname,
+        RATE_LIMITS.auth.maxRequests,
+        rateLimitResult.retryAfterSeconds || 60,
+        requestContext
+      )
       return errorResponse(
         "RATE_LIMIT_EXCEEDED",
         "Too many login attempts. Please try again later.",
@@ -99,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     if (result.success) {
       // Log successful login
-      logSuccessfulLogin(result.user.id, body.email, ip, userAgent, requestLogger)
+      logSuccessfulLogin(result.user.id, body.email, ip, userAgent, requestContext)
       
       return successResponse(
         { user: result.user },
@@ -108,7 +114,7 @@ export async function POST(request: NextRequest) {
       )
     } else {
       // Log failed login attempt
-      logFailedLogin(body.email, ip, userAgent, result.error.message, requestLogger)
+      logFailedLogin(body.email, ip, userAgent, result.error.message, requestContext)
       
       // Map core error codes to HTTP status codes
       const statusCode = result.error.code === "INVALID_CREDENTIALS" ? 401 : 400
@@ -130,4 +136,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

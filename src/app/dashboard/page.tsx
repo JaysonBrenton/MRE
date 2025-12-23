@@ -12,12 +12,21 @@
  * 
  * @relatedFiles
  * - app/components/AppShell.tsx (application shell wrapper)
+ * - src/lib/auth.ts (authentication check)
  */
 
+import { auth } from "@/lib/auth"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import AppShell from "../components/AppShell"
+import DashboardClient from "@/components/dashboard/DashboardClient"
 
-export default function Dashboard() {
+export default async function Dashboard() {
+  const session = await auth()
+
+  if (!session) {
+    redirect("/login")
+  }
   return (
     <AppShell>
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -92,14 +101,7 @@ export default function Dashboard() {
           <h2 className="mb-6 text-2xl font-semibold text-[var(--token-text-primary)]">
             Telemetry Preview
           </h2>
-          <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-8">
-            {/* Placeholder chart rectangle */}
-            <div className="flex h-64 items-center justify-center rounded border border-[var(--token-border-muted)] bg-[var(--token-surface)]">
-              <p className="text-sm text-[var(--token-text-muted)]">
-                Chart placeholder - Telemetry visualization will appear here
-              </p>
-            </div>
-          </div>
+          <DashboardClient />
         </section>
       </div>
     </AppShell>

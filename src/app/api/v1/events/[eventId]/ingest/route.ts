@@ -9,15 +9,16 @@
 // @purpose Proxies ingestion requests to Python service
 
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import { ingestionClient } from "@/lib/ingestion-client";
 import { successResponse, errorResponse } from "@/lib/api-utils";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
-import { API_TIMEOUTS } from "@/core/auth/constants"
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
 import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
 
 // Increase timeout for large event ingestion (up to 10 minutes)
-export const maxDuration = API_TIMEOUTS.INGESTION_MAX_DURATION
+// Keep in sync with API_TIMEOUTS.INGESTION_MAX_DURATION (docs/core auth constants)
+export const maxDuration = 600
 
 export async function POST(
   request: NextRequest,
@@ -25,6 +26,18 @@ export async function POST(
 ) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
+
+  // Check authentication
+  const session = await auth()
+  if (!session) {
+    requestLogger.warn("Unauthorized event ingestion request")
+    return errorResponse(
+      "UNAUTHORIZED",
+      "Authentication required",
+      {},
+      401
+    )
+  }
 
   try {
     // Check rate limit for ingestion endpoints
@@ -88,4 +101,3 @@ export async function POST(
     )
   }
 }
-

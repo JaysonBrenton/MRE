@@ -5,12 +5,12 @@
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
  * 
- * @description Navigation bar for authenticated users with Event Search and Welcome links
+ * @description Navigation bar for authenticated users with Dashboard and Event Search links
  * 
- * @purpose Provides top-level navigation for authenticated Drivers, including Event Search
- *          as a primary navigation item. Follows mobile-first design with single-column
- *          layout on mobile and horizontal layout on desktop. Meets 44px touch target
- *          requirements and uses semantic dark theme tokens.
+ * @purpose Provides top-level navigation for authenticated Drivers, including Dashboard
+ *          and Event Search as primary navigation items. Follows mobile-first design with
+ *          single-column layout on mobile and horizontal layout on desktop. Meets 44px
+ *          touch target requirements and uses semantic dark theme tokens.
  * 
  * @relatedFiles
  * - components/LogoutButton.tsx (logout functionality)
@@ -30,7 +30,7 @@ export default function AuthenticatedNav() {
           {/* Logo/Brand */}
           <div className="flex items-center py-4">
             <Link
-              href="/welcome"
+              href="/dashboard"
               className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
             >
               My Race Engineer
@@ -40,10 +40,10 @@ export default function AuthenticatedNav() {
           {/* Navigation Items */}
           <div className="flex flex-col gap-0 sm:flex-row sm:items-center sm:gap-1">
             <Link
-              href="/welcome"
+              href="/dashboard"
               className="mobile-list-item flex items-center px-4 py-3 text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-3 sm:py-2"
             >
-              Welcome
+              Dashboard
             </Link>
             <Link
               href="/event-search"

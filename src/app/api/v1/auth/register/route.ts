@@ -21,9 +21,9 @@
 
 import { NextRequest } from "next/server"
 import { registerUser } from "@/core/auth/register"
-import { successResponse, errorResponse, serverErrorResponse, parseRequestBody } from "@/lib/api-utils"
+import { successResponse, errorResponse, parseRequestBody } from "@/lib/api-utils"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter"
-import { createRequestLogger, generateRequestId, getClientIp } from "@/lib/request-context"
+import { createRequestLogger, generateRequestId, getClientIp, getRequestContext } from "@/lib/request-context"
 import { logRateLimitHit } from "@/lib/security-logger"
 import { handleApiError } from "@/lib/server-error-handler"
 
@@ -59,13 +59,20 @@ import { handleApiError } from "@/lib/server-error-handler"
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
+  const requestContext = getRequestContext(request, requestId)
   const ip = getClientIp(request)
 
   try {
     // Check rate limit
     const rateLimitResult = checkRateLimit(request, RATE_LIMITS.auth)
     if (!rateLimitResult.allowed) {
-      logRateLimitHit(ip, request.nextUrl.pathname, RATE_LIMITS.auth.maxRequests, rateLimitResult.retryAfterSeconds || 60, requestLogger)
+      logRateLimitHit(
+        ip,
+        request.nextUrl.pathname,
+        RATE_LIMITS.auth.maxRequests,
+        rateLimitResult.retryAfterSeconds || 60,
+        requestContext
+      )
       return errorResponse(
         "RATE_LIMIT_EXCEEDED",
         "Too many registration attempts. Please try again later.",
@@ -87,8 +94,23 @@ export async function POST(request: NextRequest) {
       email: body.email ? `${body.email.substring(0, 3)}***@${body.email.split("@")[1]}` : undefined,
     })
 
+    // Basic validation before delegating to core logic
+    if (!body.email || !body.password || !body.driverName) {
+      return errorResponse(
+        "VALIDATION_ERROR",
+        "Email, password, and driver name are required",
+        undefined,
+        400
+      )
+    }
+
     // Delegate all business logic to core function
-    const result = await registerUser(body)
+    const result = await registerUser({
+      email: body.email,
+      password: body.password,
+      driverName: body.driverName,
+      teamName: body.teamName,
+    })
 
     if (result.success) {
       requestLogger.info("Registration successful", {
@@ -126,4 +148,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

@@ -92,7 +92,11 @@ export class IngestionClient {
     const url = `${this.baseUrl}/api/v1/events/discover`;
     
     // Build request body - only include dates if provided
-    const requestBody: any = {
+    const requestBody: {
+      track_slug: string
+      start_date?: string
+      end_date?: string
+    } = {
       track_slug: trackSlug,
     }
     
@@ -161,7 +165,7 @@ export class IngestionClient {
 
   async ingestEvent(
     eventId: string,
-    depth: "laps_full" = "laps_full"
+    depth: "laps_full" | "none" = "laps_full"
   ): Promise<IngestEventResponse> {
     const url = `${this.baseUrl}/api/v1/events/${eventId}/ingest`;
     
@@ -224,7 +228,7 @@ export class IngestionClient {
   async ingestEventBySourceId(
     sourceEventId: string,
     trackId: string,
-    depth: "laps_full" = "laps_full"
+    depth: "laps_full" | "none" = "laps_full"
   ): Promise<IngestEventResponse> {
     const url = `${this.baseUrl}/api/v1/events/ingest`;
     
@@ -306,4 +310,3 @@ export class IngestionClient {
 }
 
 export const ingestionClient = new IngestionClient();
-

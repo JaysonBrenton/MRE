@@ -298,6 +298,8 @@ export interface CheckRateLimitResult {
   allowed: boolean
   /** Timestamp when the rate limit resets (for error response) */
   resetTime?: number
+  /** Seconds until the rate limit resets (for Retry-After header) */
+  retryAfterSeconds?: number
 }
 
 /**
@@ -357,6 +359,7 @@ export function checkRateLimit(
   return {
     allowed: result.allowed,
     resetTime: result.allowed ? undefined : result.resetAt,
+    retryAfterSeconds: result.allowed ? undefined : result.retryAfterSeconds,
   }
 }
 

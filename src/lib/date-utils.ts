@@ -36,15 +36,17 @@ export function formatDateDisplay(dateString: string | null | undefined): string
 
 /**
  * Format a date string for long display (e.g., "13 December 2025")
- * @param dateString - ISO date string or date object
+ * @param dateValue - ISO date string or Date object
  * @returns Formatted date string
  */
-export function formatDateLong(dateString: string | null | undefined): string {
-  if (!dateString) {
+export function formatDateLong(
+  dateValue: string | Date | null | undefined
+): string {
+  if (!dateValue) {
     return "Date not available"
   }
   
-  const date = new Date(dateString)
+  const date = new Date(dateValue)
   
   // Check if date is valid
   if (isNaN(date.getTime())) {
@@ -77,4 +79,3 @@ export function formatDateForInput(dateString: string | null | undefined): strin
   
   return date.toISOString().split("T")[0]
 }
-

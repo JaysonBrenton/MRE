@@ -7,7 +7,7 @@
  * 
  * @description Individual event row/card in the event table
  * 
- * @purpose Displays event information with status badge and "Analyse event" button.
+ * @purpose Displays event information with status badge and "Select" button.
  *          Mobile-friendly card layout that degrades from table format.
  * 
  * @relatedFiles
@@ -17,7 +17,7 @@
 
 "use client"
 
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import EventStatusBadge, { type EventStatus } from "./EventStatusBadge"
 import { formatDateDisplay } from "@/lib/date-utils"
 
@@ -63,12 +63,20 @@ function getStatusFromIngestDepth(ingestDepth: string | null | undefined, eventI
 }
 
 export default function EventRow({ event, onImport, isImporting = false }: EventRowProps) {
+  const router = useRouter()
   const status = getStatusFromIngestDepth(event.ingestDepth, event.id)
   const formattedDate = formatDateDisplay(event.eventDate)
   const isImported = status === "imported"
   const needsImport = status === "new" && (event.id.startsWith("liverc-") || (event.ingestDepth?.trim().toLowerCase() === "none"))
-  // Show analyse button if event is imported (isImporting only affects the import button, not analyse)
-  const canAnalyse = isImported
+  // Show select button if event is imported
+  const canSelect = isImported
+
+  const handleSelect = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("mre-selected-event-id", event.id)
+      router.push("/dashboard")
+    }
+  }
 
   return (
     <div className="flex flex-col sm:grid sm:grid-cols-3 sm:items-center gap-4 px-4 py-4 border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)] transition-colors">
@@ -102,15 +110,15 @@ export default function EventRow({ event, onImport, isImporting = false }: Event
             </button>
           )}
           
-          {/* Analyse Button - shown for imported events */}
-          {canAnalyse && (
-            <Link
-              href={`/events/analyse/${event.id}`}
+          {/* Select Button - shown for imported events */}
+          {canSelect && (
+            <button
+              type="button"
+              onClick={handleSelect}
               className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5 h-11"
-              prefetch={false}
             >
-              Analyse event
-            </Link>
+              Select
+            </button>
           )}
         </div>
       </div>

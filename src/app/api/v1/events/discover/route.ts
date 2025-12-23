@@ -11,6 +11,7 @@
 //          architecture requirement that API routes should not contain business logic.
 
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import { discoverLiveRCEvents } from "@/core/events/discover-liverc-events";
 import { getTrackById } from "@/core/tracks/repo";
 import { successResponse, errorResponse } from "@/lib/api-utils";
@@ -20,6 +21,18 @@ import { handleApiError, handleExternalServiceError } from "@/lib/server-error-h
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
+
+  // Check authentication
+  const session = await auth()
+  if (!session) {
+    requestLogger.warn("Unauthorized event discovery request")
+    return errorResponse(
+      "UNAUTHORIZED",
+      "Authentication required",
+      {},
+      401
+    )
+  }
 
   try {
     const body = await request.json();

@@ -12,6 +12,7 @@
 //          Prisma queries.
 
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import { searchEvents, type SearchEventsInput } from "@/core/events/search-events";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
@@ -46,6 +47,18 @@ function hasErrorCode(error: unknown): error is { code: string; message: string;
 export async function GET(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
+
+  // Check authentication
+  const session = await auth()
+  if (!session) {
+    requestLogger.warn("Unauthorized event search request")
+    return errorResponse(
+      "UNAUTHORIZED",
+      "Authentication required",
+      {},
+      401
+    )
+  }
 
   try {
     const searchParams = request.nextUrl.searchParams;

@@ -12,6 +12,7 @@
 //          not contain business logic or Prisma queries.
 
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import { getTracks } from "@/core/tracks/get-tracks";
 import { successResponse, errorResponse } from "@/lib/api-utils";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
@@ -32,6 +33,18 @@ function hasErrorMessage(error: unknown): error is { message: string } {
 export async function GET(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
+
+  // Check authentication
+  const session = await auth()
+  if (!session) {
+    requestLogger.warn("Unauthorized tracks request")
+    return errorResponse(
+      "UNAUTHORIZED",
+      "Authentication required",
+      {},
+      401
+    )
+  }
 
   try {
     const searchParams = request.nextUrl.searchParams;
