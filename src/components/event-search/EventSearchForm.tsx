@@ -5,11 +5,10 @@
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
  * 
- * @description Form for Event Search with track selection and date range
+ * @description Form for Event Search with track selection and optional date range
  * 
- * @purpose Provides the search form UI with two-column desktop layout and
- *          single-column mobile layout. Includes track selector, date range
- *          picker, search button, and reset button.
+ * @purpose Provides the search form UI with track selector and optional date filters.
+ *          Date filters are hidden by default and shown when "Filter by date range" is enabled.
  * 
  * @relatedFiles
  * - src/components/event-search/TrackSelectionModal.tsx (track modal)
@@ -28,7 +27,7 @@ export interface EventSearchFormProps {
   selectedTrack: Track | null
   startDate: string
   endDate: string
-  ignoreDates: boolean
+  useDateFilter: boolean
   favourites: string[]
   tracks: Track[]
   errors?: {
@@ -40,7 +39,7 @@ export interface EventSearchFormProps {
   onTrackSelect: (track: Track) => void
   onStartDateChange: (date: string) => void
   onEndDateChange: (date: string) => void
-  onIgnoreDatesChange: (checked: boolean) => void
+  onUseDateFilterChange: (checked: boolean) => void
   onToggleFavourite: (trackId: string) => void
   onSearch: () => void
   onReset: () => void
@@ -50,7 +49,7 @@ export default function EventSearchForm({
   selectedTrack,
   startDate,
   endDate,
-  ignoreDates,
+  useDateFilter,
   favourites,
   tracks,
   errors,
@@ -58,7 +57,7 @@ export default function EventSearchForm({
   onTrackSelect,
   onStartDateChange,
   onEndDateChange,
-  onIgnoreDatesChange,
+  onUseDateFilterChange,
   onToggleFavourite,
   onSearch,
   onReset,
@@ -83,57 +82,62 @@ export default function EventSearchForm({
     onReset()
   }
 
+  const handleUseDateFilterToggle = (checked: boolean) => {
+    onUseDateFilterChange(checked)
+  }
+
   return (
     <>
       <form onSubmit={handleSearch} className="space-y-6">
-        {/* Two-column layout on desktop, single-column on mobile */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {/* Track Selector */}
-          <div>
-            <label
-              htmlFor="track-selector"
-              className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
-            >
-              Track
-            </label>
-            <button
-              type="button"
-              id="track-selector"
-              onClick={() => setIsModalOpen(true)}
-              className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-left text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface)]"
-            >
-              {selectedTrack ? selectedTrack.trackName : "Select a track"}
-            </button>
-            {errors?.track && (
-              <p className="mt-1 text-sm text-[var(--token-error-text)]">{errors.track}</p>
-            )}
-          </div>
+        {/* Track Selector */}
+        <div>
+          <label
+            htmlFor="track-selector"
+            className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+          >
+            Track
+          </label>
+          <button
+            type="button"
+            id="track-selector"
+            onClick={() => setIsModalOpen(true)}
+            className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-left text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface)]"
+          >
+            {selectedTrack ? selectedTrack.trackName : "Select a track"}
+          </button>
+          {errors?.track && (
+            <p className="mt-1 text-sm text-[var(--token-error-text)]">{errors.track}</p>
+          )}
+        </div>
 
-          {/* Date Range Picker */}
-          <div>
-            <div className="mb-3">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={ignoreDates}
-                  onChange={(e) => onIgnoreDatesChange(e.target.checked)}
-                  className="w-4 h-4 rounded border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-interactive-focus-ring)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                />
-                <span className="text-sm text-[var(--token-text-primary)]">
-                  Show all events (ignore dates)
-                </span>
-              </label>
-            </div>
+        {/* Date Filter Toggle */}
+        <div>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useDateFilter}
+              onChange={(e) => handleUseDateFilterToggle(e.target.checked)}
+              className="w-4 h-4 rounded border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-interactive-focus-ring)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            />
+            <span className="text-sm text-[var(--token-text-primary)]">
+              Filter by date range
+            </span>
+          </label>
+        </div>
+
+        {/* Date Range Picker - Only shown when useDateFilter is true */}
+        {useDateFilter && (
+          <div className="transition-all duration-200">
             <DateRangePicker
               startDate={startDate}
               endDate={endDate}
               onStartDateChange={onStartDateChange}
               onEndDateChange={onEndDateChange}
               errors={errors}
-              disabled={ignoreDates}
+              disabled={false}
             />
           </div>
-        </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4">

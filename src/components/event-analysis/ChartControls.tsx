@@ -19,6 +19,8 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { FixedSizeList } from "react-window"
+import CollapsibleDriverPanel from "./CollapsibleDriverPanel"
+import DriverSelectionHeader from "./DriverSelectionHeader"
 
 export interface Driver {
   driverId: string
@@ -189,13 +191,21 @@ const DriverItem = React.memo<{
         <label
           className={`flex items-center ${compactClasses} rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface)] cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--token-interactive-focus-ring)]`}
           style={{ minHeight: "44px" }}
+          aria-label={`${item.data.driverName}, ${isSelected ? "selected" : "not selected"}`}
         >
         <span className="flex items-center justify-center" style={{ minWidth: "44px", minHeight: "44px" }}>
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggle(item.data.driverId!)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                onToggle(item.data.driverId!)
+              }
+            }}
             className={`${checkboxSize} rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]`}
+            aria-label={`Toggle selection for ${item.data.driverName}`}
           />
         </span>
         <span className="text-[var(--token-text-primary)]">
@@ -222,6 +232,13 @@ export default function ChartControls({
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
+  const [isPanelOpen, setIsPanelOpen] = useState(() => {
+    // Default to open on desktop, closed on mobile
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 640
+    }
+    return true
+  })
   const [containerHeight, setContainerHeight] = useState(300)
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -297,6 +314,11 @@ export default function ChartControls({
     onDriverSelectionChange([])
   }, [onDriverSelectionChange])
 
+  // Get total driver count
+  const totalDriverCount = useMemo(() => {
+    return drivers.length
+  }, [drivers])
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -313,6 +335,22 @@ export default function ChartControls({
       return () => document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [isClassDropdownOpen])
+
+  // Keyboard shortcut for search (Cmd/Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault()
+        const searchInput = document.getElementById("driver-search-input")
+        if (searchInput) {
+          searchInput.focus()
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
 
   // Item height based on compact mode (base height + margins: 4px top + 4px bottom = 8px)
   // Class headers need extra top margin (8px instead of 4px)
@@ -358,6 +396,8 @@ export default function ChartControls({
                 ? "bg-[var(--token-accent)] text-[var(--token-text-primary)] border-[var(--token-accent)]"
                 : "bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
             }`}
+            aria-label="Best Lap chart - shows fastest lap time per driver"
+            title="Best Lap: Shows the fastest lap time for each driver"
           >
             Best Lap
           </button>
@@ -369,6 +409,8 @@ export default function ChartControls({
                 ? "bg-[var(--token-accent)] text-[var(--token-text-primary)] border-[var(--token-accent)]"
                 : "bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
             }`}
+            aria-label="Gap Evolution chart - shows time gap to leader over race duration"
+            title="Gap Evolution: Shows how time gaps between drivers change over the race"
           >
             Gap Evolution
           </button>
@@ -380,35 +422,30 @@ export default function ChartControls({
                 ? "bg-[var(--token-accent)] text-[var(--token-text-primary)] border-[var(--token-accent)]"
                 : "bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
             }`}
+            aria-label="Average vs Fastest chart - compares average and fastest lap times"
+            title="Avg vs Fastest: Compares each driver's average lap time to their fastest lap"
           >
             Avg vs Fastest
           </button>
         </div>
       )}
 
-      {/* Driver selection */}
-      <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-          <label className="text-sm font-medium text-[var(--token-text-primary)]">
-            Select Drivers
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className="text-xs text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1 mobile-button"
-            >
-              Select All
-            </button>
-            <button
-              type="button"
-              onClick={handleClearSelection}
-              className="text-xs text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1 mobile-button"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
+      {/* Driver selection - wrapped in collapsible panel */}
+      <CollapsibleDriverPanel
+        isOpen={isPanelOpen}
+        onToggle={() => setIsPanelOpen(!isPanelOpen)}
+        selectedCount={selectedDriverIds.length}
+        totalCount={totalDriverCount}
+        header={
+          <DriverSelectionHeader
+            selectedCount={selectedDriverIds.length}
+            totalCount={totalDriverCount}
+            onSelectAll={handleSelectAll}
+            onClear={handleClearSelection}
+          />
+        }
+      >
+        <div className="space-y-2">
 
         {/* Controls Row */}
         <div className="flex flex-col sm:flex-row gap-2">
@@ -481,9 +518,10 @@ export default function ChartControls({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search drivers..."
+              placeholder="Search drivers... (Cmd/Ctrl+K)"
               className="mobile-button w-full px-3 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Search drivers"
+              id="driver-search-input"
             />
             {searchQuery && (
               <button
@@ -551,6 +589,9 @@ export default function ChartControls({
           ref={containerRef}
           className="border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)]"
           style={{ height: `${containerHeight}px` }}
+          role="listbox"
+          aria-label="Driver selection list"
+          aria-multiselectable="true"
         >
           {virtualizedItems.length > 0 ? (
             <FixedSizeList
@@ -569,6 +610,7 @@ export default function ChartControls({
           )}
         </div>
       </div>
+      </CollapsibleDriverPanel>
     </div>
   )
 }

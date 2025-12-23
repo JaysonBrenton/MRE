@@ -1,125 +1,374 @@
 /**
- * @fileoverview Rate limiting utility for API endpoints
+ * @fileoverview In-memory rate limiter using sliding window algorithm
  * 
  * @created 2025-01-27
- * @creator Auto (AI Code Reviewer)
+ * @creator Jayson Brenton
  * @lastModified 2025-01-27
  * 
- * @description In-memory rate limiter to prevent brute force and DoS attacks
+ * @description Provides rate limiting functionality for API endpoints
  * 
- * @purpose Provides rate limiting functionality for API routes. Uses in-memory
- *          storage for Alpha. For production, consider Redis-based rate limiting.
+ * @purpose Protects authentication and resource-intensive endpoints from abuse
+ *          by limiting the number of requests per time window. Uses an in-memory
+ *          sliding window algorithm with automatic cleanup of expired entries.
+ *          Note: In-memory storage resets on server restart - use Redis for
+ *          persistent rate limiting in production clusters.
  * 
  * @relatedFiles
- * - src/lib/api-utils.ts (error response helpers)
- * - middleware.ts (route protection)
+ * - middleware.ts (applies rate limiting to routes)
+ * - src/lib/api-utils.ts (rate limit error response helper)
+ * - docs/security/security-overview.md (security documentation)
  */
 
-import { NextRequest } from "next/server"
-
 /**
- * Rate limit configuration
+ * Rate limit configuration for a specific endpoint pattern
  */
 export interface RateLimitConfig {
-  windowMs: number // Time window in milliseconds
-  max: number // Maximum requests per window
+  /** Maximum number of requests allowed in the window */
+  maxRequests: number
+  /** Time window in milliseconds */
+  windowMs: number
 }
 
 /**
- * Rate limit entry stored in memory
+ * Result of a rate limit check
  */
-interface RateLimitEntry {
-  count: number
-  resetTime: number
+export interface RateLimitResult {
+  /** Whether the request is allowed */
+  allowed: boolean
+  /** Number of remaining requests in the current window */
+  remaining: number
+  /** Timestamp when the rate limit resets (milliseconds since epoch) */
+  resetAt: number
+  /** Seconds until the rate limit resets (for Retry-After header) */
+  retryAfterSeconds: number
 }
 
 /**
- * In-memory rate limit store
- * Note: For production, use Redis or similar distributed store
+ * Internal structure for tracking request timestamps
  */
-const rateLimitStore = new Map<string, RateLimitEntry>()
+interface RequestRecord {
+  /** Timestamps of requests within the current window */
+  timestamps: number[]
+}
 
 /**
- * Clean up expired entries periodically
+ * Pre-configured rate limit configurations for common endpoints
  */
-const CLEANUP_INTERVAL = 60 * 1000 // 1 minute
-setInterval(() => {
+export const RATE_LIMIT_CONFIGS = {
+  /** Login endpoint: 5 requests per 15 minutes */
+  LOGIN: {
+    maxRequests: 5,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+  },
+  /** Registration endpoint: 10 requests per hour */
+  REGISTER: {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000, // 1 hour
+  },
+  /** Event ingestion: 10 requests per minute */
+  INGEST: {
+    maxRequests: 10,
+    windowMs: 60 * 1000, // 1 minute
+  },
+  /** Event discovery: 20 requests per minute */
+  DISCOVER: {
+    maxRequests: 20,
+    windowMs: 60 * 1000, // 1 minute
+  },
+} as const satisfies Record<string, RateLimitConfig>
+
+/**
+ * In-memory rate limiter using sliding window algorithm
+ * 
+ * Uses a Map to store request timestamps per key (typically IP + route).
+ * Implements sliding window by keeping track of individual request timestamps
+ * and counting only those within the current window.
+ * 
+ * @example
+ * ```typescript
+ * const limiter = new RateLimiter()
+ * const result = limiter.check("192.168.1.1:/api/v1/auth/login", RATE_LIMIT_CONFIGS.LOGIN)
+ * if (!result.allowed) {
+ *   return new Response("Too many requests", {
+ *     status: 429,
+ *     headers: { "Retry-After": String(result.retryAfterSeconds) }
+ *   })
+ * }
+ * ```
+ */
+export class RateLimiter {
+  private store: Map<string, RequestRecord> = new Map()
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null
+
+  constructor() {
+    // Start automatic cleanup every 5 minutes
+    this.startCleanup()
+  }
+
+  /**
+   * Check if a request is allowed under the rate limit
+   * 
+   * @param key - Unique identifier for the rate limit bucket (e.g., IP + route)
+   * @param config - Rate limit configuration
+   * @returns Rate limit result with allowed status and metadata
+   */
+  check(key: string, config: RateLimitConfig): RateLimitResult {
   const now = Date.now()
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.resetTime < now) {
-      rateLimitStore.delete(key)
+    const windowStart = now - config.windowMs
+
+    // Get or create record for this key
+    let record = this.store.get(key)
+    if (!record) {
+      record = { timestamps: [] }
+      this.store.set(key, record)
+    }
+
+    // Filter out timestamps outside the current window (sliding window)
+    record.timestamps = record.timestamps.filter((ts) => ts > windowStart)
+
+    // Calculate remaining requests
+    const requestCount = record.timestamps.length
+    const remaining = Math.max(0, config.maxRequests - requestCount)
+
+    // Calculate reset time (when the oldest request in window expires)
+    const oldestTimestamp = record.timestamps[0] || now
+    const resetAt = oldestTimestamp + config.windowMs
+    const retryAfterSeconds = Math.ceil((resetAt - now) / 1000)
+
+    // Check if request is allowed
+    if (requestCount >= config.maxRequests) {
+      return {
+        allowed: false,
+        remaining: 0,
+        resetAt,
+        retryAfterSeconds: Math.max(1, retryAfterSeconds),
+      }
+    }
+
+    // Record this request
+    record.timestamps.push(now)
+
+    return {
+      allowed: true,
+      remaining: remaining - 1, // Subtract 1 for the current request
+      resetAt,
+      retryAfterSeconds: Math.max(0, retryAfterSeconds),
     }
   }
-}, CLEANUP_INTERVAL)
+
+  /**
+   * Reset rate limit for a specific key
+   * Useful for testing or manual intervention
+   * 
+   * @param key - Key to reset
+   */
+  reset(key: string): void {
+    this.store.delete(key)
+  }
+
+  /**
+   * Clear all rate limit records
+   * Useful for testing
+   */
+  clear(): void {
+    this.store.clear()
+  }
+
+  /**
+   * Start automatic cleanup of expired entries
+   * Runs every 5 minutes to prevent memory leaks
+   */
+  private startCleanup(): void {
+    // Cleanup every 5 minutes
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup()
+    }, 5 * 60 * 1000)
+
+    // Ensure interval doesn't prevent process exit
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref()
+    }
+  }
+
+  /**
+   * Remove expired entries from the store
+   * An entry is expired if all its timestamps are older than the longest window
+   */
+  private cleanup(): void {
+    const now = Date.now()
+    // Use the longest window (1 hour for registration) as the cleanup threshold
+    const maxWindowMs = RATE_LIMIT_CONFIGS.REGISTER.windowMs
+    const cleanupThreshold = now - maxWindowMs
+
+    for (const [key, record] of this.store.entries()) {
+      // Remove entries where all timestamps are expired
+      const hasValidTimestamps = record.timestamps.some(
+        (ts) => ts > cleanupThreshold
+      )
+      if (!hasValidTimestamps) {
+        this.store.delete(key)
+      }
+    }
+  }
+
+  /**
+   * Stop the cleanup interval
+   * Call this when shutting down the application
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval)
+      this.cleanupInterval = null
+    }
+  }
+
+  /**
+   * Get the current size of the store (for monitoring)
+   */
+  get size(): number {
+    return this.store.size
+  }
+}
+
+// Singleton instance for use across the application
+// Note: In Next.js, this may be recreated on hot reload in development
+let rateLimiterInstance: RateLimiter | null = null
 
 /**
- * Get client identifier from request
- * Uses IP address for identification
+ * Get the singleton rate limiter instance
+ * Creates the instance on first call
  */
-function getClientId(request: NextRequest): string {
-  // Try to get IP from various headers (for proxies/load balancers)
-  const forwarded = request.headers.get("x-forwarded-for")
-  const realIp = request.headers.get("x-real-ip")
-  const ip = forwarded?.split(",")[0] || realIp || request.ip || "unknown"
-  return ip
+export function getRateLimiter(): RateLimiter {
+  if (!rateLimiterInstance) {
+    rateLimiterInstance = new RateLimiter()
+  }
+  return rateLimiterInstance
 }
 
 /**
- * Check if request should be rate limited
+ * Generate a rate limit key from IP and path
+ * 
+ * @param ip - Client IP address
+ * @param path - Request path
+ * @returns Combined key for rate limiting
+ */
+export function generateRateLimitKey(ip: string, path: string): string {
+  return `${ip}:${path}`
+}
+
+/**
+ * Get rate limit config for a given path
+ * Returns null if the path should not be rate limited
+ * 
+ * @param pathname - Request pathname
+ * @returns Rate limit config or null
+ */
+export function getRateLimitConfigForPath(
+  pathname: string
+): RateLimitConfig | null {
+  // Auth endpoints
+  if (pathname === "/api/v1/auth/login") {
+    return RATE_LIMIT_CONFIGS.LOGIN
+  }
+  if (pathname === "/api/v1/auth/register") {
+    return RATE_LIMIT_CONFIGS.REGISTER
+  }
+
+  // Ingestion endpoints (match pattern /api/v1/events/*/ingest)
+  if (pathname.match(/^\/api\/v1\/events\/[^/]+\/ingest$/)) {
+    return RATE_LIMIT_CONFIGS.INGEST
+  }
+  if (pathname === "/api/v1/events/ingest") {
+    return RATE_LIMIT_CONFIGS.INGEST
+  }
+
+  // Discovery endpoint
+  if (pathname === "/api/v1/events/discover") {
+    return RATE_LIMIT_CONFIGS.DISCOVER
+  }
+
+  return null
+}
+
+/**
+ * Result type for checkRateLimit function used by API routes
+ */
+export interface CheckRateLimitResult {
+  /** Whether the request is allowed */
+  allowed: boolean
+  /** Timestamp when the rate limit resets (for error response) */
+  resetTime?: number
+}
+
+/**
+ * Get client IP address from request headers
+ * Handles various proxy configurations (X-Forwarded-For, X-Real-IP)
+ */
+function getClientIpFromRequest(request: Request): string {
+  const headers = request.headers
+  
+  // Check X-Forwarded-For header (may contain multiple IPs)
+  const forwardedFor = headers.get("x-forwarded-for")
+  if (forwardedFor) {
+    // Take the first IP (original client)
+    const ips = forwardedFor.split(",").map((ip) => ip.trim())
+    if (ips[0]) {
+      return ips[0]
+    }
+  }
+
+  // Check X-Real-IP header
+  const realIp = headers.get("x-real-ip")
+  if (realIp) {
+    return realIp
+  }
+
+  // Fallback
+  return "unknown"
+}
+
+/**
+ * Check rate limit for an API request
+ * Used by API route handlers for inline rate limiting
  * 
  * @param request - Next.js request object
  * @param config - Rate limit configuration
- * @returns Object with allowed status and rate limit info
+ * @returns Rate limit check result with allowed status
+ * 
+ * @example
+ * ```typescript
+ * const rateLimitResult = checkRateLimit(request, RATE_LIMITS.auth)
+ * if (!rateLimitResult.allowed) {
+ *   return errorResponse("RATE_LIMIT_EXCEEDED", "Too many requests", { resetTime: rateLimitResult.resetTime }, 429)
+ * }
+ * ```
  */
 export function checkRateLimit(
-  request: NextRequest,
+  request: Request,
   config: RateLimitConfig
-): { allowed: boolean; remaining: number; resetTime: number } {
-  const clientId = getClientId(request)
-  const now = Date.now()
+): CheckRateLimitResult {
+  const ip = getClientIpFromRequest(request)
+  const url = new URL(request.url)
+  const key = generateRateLimitKey(ip, url.pathname)
   
-  let entry = rateLimitStore.get(clientId)
-  
-  // Create new entry or reset if window expired
-  if (!entry || entry.resetTime < now) {
-    entry = {
-      count: 0,
-      resetTime: now + config.windowMs,
-    }
-  }
-  
-  // Increment count
-  entry.count++
-  rateLimitStore.set(clientId, entry)
-  
-  const allowed = entry.count <= config.max
-  const remaining = Math.max(0, config.max - entry.count)
+  const limiter = getRateLimiter()
+  const result = limiter.check(key, config)
   
   return {
-    allowed,
-    remaining,
-    resetTime: entry.resetTime,
+    allowed: result.allowed,
+    resetTime: result.allowed ? undefined : result.resetAt,
   }
 }
 
 /**
- * Rate limit configurations for different endpoint types
+ * Alias for RATE_LIMIT_CONFIGS for API route usage
+ * Provides semantic naming for different endpoint categories
  */
 export const RATE_LIMITS = {
-  // Authentication endpoints - strict limits
-  auth: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 requests per 15 minutes
-  },
-  // Ingestion endpoints - moderate limits
-  ingestion: {
-    windowMs: 60 * 1000, // 1 minute
-    max: 10, // 10 requests per minute
-  },
-  // General API endpoints - lenient limits
-  general: {
-    windowMs: 60 * 1000, // 1 minute
-    max: 60, // 60 requests per minute
-  },
+  /** Rate limit for authentication endpoints (login, register) */
+  auth: RATE_LIMIT_CONFIGS.LOGIN,
+  /** Rate limit for ingestion endpoints */
+  ingestion: RATE_LIMIT_CONFIGS.INGEST,
+  /** Rate limit for discovery endpoints */
+  discovery: RATE_LIMIT_CONFIGS.DISCOVER,
 } as const
-

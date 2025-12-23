@@ -251,8 +251,40 @@ const isValid = await argon2.verify(passwordHash, password)
 - Will be configured for production domains
 
 **Rate Limiting:**
-- **Placeholder:** Rate limiting not yet implemented
-- Will be implemented per user/IP address
+Rate limiting is implemented to protect authentication and resource-intensive endpoints from abuse.
+
+**Implementation:** `src/lib/rate-limiter.ts`, `middleware.ts`
+
+**Protected Endpoints:**
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| `/api/v1/auth/login` | 5 requests | 15 minutes |
+| `/api/v1/auth/register` | 10 requests | 1 hour |
+| `/api/v1/events/*/ingest` | 10 requests | 1 minute |
+| `/api/v1/events/discover` | 20 requests | 1 minute |
+
+**Response Headers:**
+- `Retry-After` - Seconds until rate limit resets
+- `X-RateLimit-Limit` - Maximum requests allowed
+- `X-RateLimit-Remaining` - Remaining requests in window
+- `X-RateLimit-Reset` - Unix timestamp when limit resets
+
+**Rate Limit Response (429):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests. Please try again later.",
+    "details": {
+      "retryAfterSeconds": 60
+    }
+  }
+}
+```
+
+**Note:** Current implementation uses in-memory storage. For production clusters, consider Redis-based rate limiting for persistence across server restarts and distributed environments.
 
 ### API Security Best Practices
 

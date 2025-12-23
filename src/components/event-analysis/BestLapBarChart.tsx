@@ -26,6 +26,7 @@ import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip"
 import { localPoint } from "@visx/event"
 import { ParentSize } from "@visx/responsive"
 import ChartContainer from "./ChartContainer"
+import ChartPagination from "./ChartPagination"
 
 export interface DriverBestLap {
   driverId: string
@@ -38,6 +39,10 @@ export interface BestLapBarChartProps {
   selectedDriverIds?: string[]
   height?: number
   className?: string
+  currentPage?: number
+  driversPerPage?: number
+  onPageChange?: (page: number) => void
+  onDriverToggle?: (driverId: string) => void
 }
 
 const defaultMargin = { top: 20, right: 20, bottom: 60, left: 80 }
@@ -62,6 +67,10 @@ export default function BestLapBarChart({
   selectedDriverIds = [],
   height = 400,
   className = "",
+  currentPage = 1,
+  driversPerPage = 25,
+  onPageChange,
+  onDriverToggle,
 }: BestLapBarChartProps) {
   const {
     tooltipData,
@@ -72,13 +81,30 @@ export default function BestLapBarChart({
     hideTooltip,
   } = useTooltip<DriverBestLap>()
 
+  // Filter and validate data
+  const validData = useMemo(() => {
+    return data.filter((d) => d.bestLapTime > 0 && isFinite(d.bestLapTime))
+  }, [data])
+
   // Filter data if drivers are selected
   const displayData = useMemo(() => {
-    if (selectedDriverIds.length === 0) {
-      return data
+    let filtered = validData
+    if (selectedDriverIds.length > 0) {
+      filtered = validData.filter((d) => selectedDriverIds.includes(d.driverId))
     }
-    return data.filter((d) => selectedDriverIds.includes(d.driverId))
-  }, [data, selectedDriverIds])
+    return filtered
+  }, [validData, selectedDriverIds])
+
+  // Sort by best lap time (fastest first)
+  const sortedData = useMemo(() => {
+    return [...displayData].sort((a, b) => a.bestLapTime - b.bestLapTime)
+  }, [displayData])
+
+  // Calculate pagination
+  const totalPages = Math.ceil(sortedData.length / driversPerPage)
+  const startIndex = (currentPage - 1) * driversPerPage
+  const endIndex = startIndex + driversPerPage
+  const paginatedData = sortedData.slice(startIndex, endIndex)
 
   if (displayData.length === 0) {
     return (
@@ -89,16 +115,13 @@ export default function BestLapBarChart({
         aria-label="Best lap times chart - no data available"
       >
         <div className="flex items-center justify-center h-full text-[var(--token-text-secondary)]">
-          No data available
+          {validData.length === 0
+            ? "No data available"
+            : "Select drivers to compare"}
         </div>
       </ChartContainer>
     )
   }
-
-  // Sort by best lap time (fastest first)
-  const sortedData = [...displayData].sort(
-    (a, b) => a.bestLapTime - b.bestLapTime
-  )
 
   const margin = defaultMargin
 
@@ -126,17 +149,18 @@ export default function BestLapBarChart({
           // Scales
           const xScale = scaleBand({
             range: [0, innerWidth],
-            domain: sortedData.map((d) => d.driverName),
+            domain: paginatedData.map((d) => d.driverName),
             padding: 0.3,
           })
 
-          const maxLapTime = Math.max(...sortedData.map((d) => d.bestLapTime))
-          const minLapTime = Math.min(...sortedData.map((d) => d.bestLapTime))
+          const maxLapTime = Math.max(...paginatedData.map((d) => d.bestLapTime))
+          const minLapTime = Math.min(...paginatedData.map((d) => d.bestLapTime))
+          const padding = (maxLapTime - minLapTime) * 0.1
           const yScale = scaleLinear({
             range: [innerHeight, 0],
             domain: [
-              minLapTime - (maxLapTime - minLapTime) * 0.1,
-              maxLapTime + (maxLapTime - minLapTime) * 0.1,
+              Math.max(0, minLapTime - padding), // Clamp to 0 to prevent negative values
+              maxLapTime + padding,
             ],
             nice: true,
           })
@@ -160,7 +184,7 @@ export default function BestLapBarChart({
                 ))}
 
                 {/* Bars */}
-                {sortedData.map((d, i) => {
+                {paginatedData.map((d, i) => {
                   const barWidth = xScale.bandwidth()
                   const barHeight = innerHeight - yScale(d.bestLapTime)
                   const x = xScale(d.driverName) || 0
@@ -170,6 +194,12 @@ export default function BestLapBarChart({
                     selectedDriverIds.length === 0 ||
                     selectedDriverIds.includes(d.driverId)
 
+                  const handleClick = () => {
+                    if (onDriverToggle) {
+                      onDriverToggle(d.driverId)
+                    }
+                  }
+
                   return (
                     <Group key={d.driverId}>
                       <Bar
@@ -178,7 +208,10 @@ export default function BestLapBarChart({
                         width={barWidth}
                         height={barHeight}
                         fill={isSelected ? accentColor : "var(--token-text-muted)"}
-                        opacity={isSelected ? 1 : 0.5}
+                        opacity={isSelected ? 1 : 0.3}
+                        stroke={isSelected && selectedDriverIds.length > 0 ? accentColor : "none"}
+                        strokeWidth={isSelected && selectedDriverIds.length > 0 ? 2 : 0}
+                        onClick={handleClick}
                         onMouseMove={(event) => {
                           const svgElement = (event.target as SVGElement).ownerSVGElement
                           if (!svgElement) return
@@ -204,8 +237,22 @@ export default function BestLapBarChart({
                             })
                           }
                         }}
-                        onTouchEnd={() => hideTooltip()}
+                        onTouchEnd={() => {
+                          hideTooltip()
+                          if (onDriverToggle) {
+                            onDriverToggle(d.driverId)
+                          }
+                        }}
                         style={{ cursor: "pointer" }}
+                        aria-label={`${d.driverName}: ${formatLapTime(d.bestLapTime)}`}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            handleClick()
+                          }
+                        }}
                       />
                     </Group>
                   )
@@ -233,8 +280,10 @@ export default function BestLapBarChart({
                   tickStroke={borderColor}
                   tickLabelProps={() => ({
                     fill: textSecondaryColor,
-                    fontSize: 12,
-                    textAnchor: "middle",
+                    fontSize: 11,
+                    textAnchor: "end",
+                    angle: -45,
+                    dx: -5,
                     dy: 8,
                   })}
                 />
@@ -267,6 +316,18 @@ export default function BestLapBarChart({
             </div>
           </div>
         </TooltipWithBounds>
+      )}
+
+      {/* Pagination */}
+      {onPageChange && totalPages > 1 && (
+        <ChartPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          itemsPerPage={driversPerPage}
+          totalItems={sortedData.length}
+          itemLabel="drivers"
+        />
       )}
     </ChartContainer>
   )

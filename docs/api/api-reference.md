@@ -113,6 +113,7 @@ Registers a new user account.
 **Error Codes:**
 - `EMAIL_ALREADY_EXISTS` (409) - Email is already registered
 - `VALIDATION_ERROR` (400) - Invalid input data
+- `RATE_LIMIT_EXCEEDED` (429) - Too many requests (10 per hour)
 - `INTERNAL_ERROR` (500) - Server error
 
 **Example:**
@@ -163,6 +164,7 @@ Authenticates a user and creates a session.
 **Error Codes:**
 - `INVALID_CREDENTIALS` (401) - Invalid email or password
 - `VALIDATION_ERROR` (400) - Missing required fields
+- `RATE_LIMIT_EXCEEDED` (429) - Too many requests (5 per 15 minutes)
 - `INTERNAL_ERROR` (500) - Server error
 
 **Note:** This endpoint returns user data but session management is handled by NextAuth. For web clients, cookies are set automatically. Future mobile clients will receive tokens.
@@ -376,6 +378,7 @@ Discovers events from LiveRC for a track and date range. This endpoint compares 
 **Error Codes:**
 - `VALIDATION_ERROR` (400) - Missing or invalid request body
 - `NOT_FOUND` (404) - Track not found
+- `RATE_LIMIT_EXCEEDED` (429) - Too many requests (20 per minute)
 - `DISCOVERY_FAILED` (500) - Failed to discover events from LiveRC
 - `INTERNAL_ERROR` (500) - Server error
 
@@ -434,6 +437,7 @@ Ingests a newly discovered LiveRC event by `source_event_id` and `track_id`. Thi
 - `VALIDATION_ERROR` (400) - Missing or invalid request body
 - `NOT_FOUND` (404) - Track not found
 - `INGESTION_IN_PROGRESS` (409) - Ingestion already running for this event
+- `RATE_LIMIT_EXCEEDED` (429) - Too many requests (10 per minute)
 - `INGESTION_FAILED` (500) - Ingestion failed
 - `INTERNAL_ERROR` (500) - Server error
 
@@ -486,8 +490,9 @@ Triggers on-demand ingestion of an existing event by event ID.
 
 **Error Codes:**
 - `NOT_FOUND` (404) - Event not found
-- `INGESTION_FAILED` (500) - Ingestion process failed
 - `INGESTION_IN_PROGRESS` (409) - Ingestion already running for this event
+- `RATE_LIMIT_EXCEEDED` (429) - Too many requests (10 per minute)
+- `INGESTION_FAILED` (500) - Ingestion process failed
 - `INTERNAL_ERROR` (500) - Server error
 
 **Example:**
@@ -723,16 +728,58 @@ All errors follow this structure:
 
 ## Rate Limiting
 
-**Status:** Not yet implemented
+**Status:** Implemented
 
-Rate limiting will be implemented in future releases to prevent abuse and ensure fair usage. Limits will be applied per:
-- IP address (for unauthenticated requests)
-- User/session (for authenticated requests)
+Rate limiting is applied to authentication and resource-intensive endpoints to prevent abuse and ensure fair usage.
 
-**Placeholder for future documentation:**
-- Rate limit thresholds
-- Rate limit headers
-- Rate limit error responses
+### Rate Limits
+
+| Endpoint | Limit | Window | Purpose |
+|----------|-------|--------|---------|
+| `POST /api/v1/auth/login` | 5 requests | 15 minutes | Prevent brute force attacks |
+| `POST /api/v1/auth/register` | 10 requests | 1 hour | Prevent account spam |
+| `POST /api/v1/events/{id}/ingest` | 10 requests | 1 minute | Prevent resource exhaustion |
+| `POST /api/v1/events/ingest` | 10 requests | 1 minute | Prevent resource exhaustion |
+| `POST /api/v1/events/discover` | 20 requests | 1 minute | Prevent excessive external calls |
+
+### Rate Limit Headers
+
+Successful responses include rate limit information in headers:
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Maximum requests allowed in window |
+| `X-RateLimit-Remaining` | Remaining requests in current window |
+| `X-RateLimit-Reset` | Unix timestamp when window resets |
+
+### Rate Limit Exceeded (429)
+
+When rate limit is exceeded, the API returns:
+
+**Response Headers:**
+- `Retry-After` - Seconds until rate limit resets
+
+**Response Body:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests. Please try again later.",
+    "details": {
+      "retryAfterSeconds": 60
+    }
+  }
+}
+```
+
+### Rate Limiting Implementation
+
+- **Algorithm:** Sliding window (in-memory)
+- **Key:** IP address + endpoint path
+- **Location:** `middleware.ts`, `src/lib/rate-limiter.ts`
+
+**Note:** Current implementation uses in-memory storage. Rate limits reset on server restart. For production clusters, consider Redis-based rate limiting.
 
 ---
 

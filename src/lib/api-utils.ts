@@ -130,3 +130,35 @@ export async function parseRequestBody<T>(
   }
 }
 
+/**
+ * Creates a standardized rate limit exceeded response
+ * 
+ * @param retryAfterSeconds - Seconds until the rate limit resets
+ * @param message - Optional custom message
+ * @returns NextResponse with 429 status and Retry-After header
+ */
+export function rateLimitResponse(
+  retryAfterSeconds: number,
+  message = "Too many requests. Please try again later."
+): NextResponse<ApiErrorResponse> {
+  return NextResponse.json(
+    {
+      success: false,
+      error: {
+        code: "RATE_LIMIT_EXCEEDED",
+        message,
+        details: {
+          retryAfterSeconds,
+        },
+      },
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(retryAfterSeconds),
+        "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + retryAfterSeconds),
+      },
+    }
+  )
+}
+

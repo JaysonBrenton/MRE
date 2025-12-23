@@ -21,6 +21,10 @@
 
 import type { NextConfig } from "next";
 
+// Import env to trigger build-time validation
+// This ensures all required environment variables are set before the app starts
+import "./src/lib/env";
+
 const nextConfig: NextConfig = {
   // Exclude argon2 from Edge Runtime bundling
   // argon2 is a native Node.js module that cannot run in Edge Runtime

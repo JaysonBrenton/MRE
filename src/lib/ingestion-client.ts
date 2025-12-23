@@ -227,9 +227,6 @@ export class IngestionClient {
     depth: "laps_full" = "laps_full"
   ): Promise<IngestEventResponse> {
     const url = `${this.baseUrl}/api/v1/events/ingest`;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingestion-client.ts:191',message:'Ingestion client - starting fetch',data:{url,sourceEventId,trackId,depth},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     
     // Use AbortController for timeout (10 minutes for large events)
     const controller = new AbortController();
@@ -250,9 +247,6 @@ export class IngestionClient {
       });
 
       clearTimeout(timeoutId);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingestion-client.ts:214',message:'Ingestion service response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       
       // Check if response is OK before parsing
       if (!response.ok) {
@@ -260,9 +254,6 @@ export class IngestionClient {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         try {
           const errorJson = await response.json();
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingestion-client.ts:222',message:'Ingestion service error response',data:{status:response.status,errorJson},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           if (errorJson.error && errorJson.error.message) {
             errorMessage = errorJson.error.message;
           } else if (errorJson.message) {
@@ -270,32 +261,20 @@ export class IngestionClient {
           }
         } catch {
           // If JSON parsing fails, use status text
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingestion-client.ts:230',message:'Failed to parse error JSON',data:{status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
         }
         throw new Error(`Ingestion failed: ${errorMessage}`);
       }
       
       const json: IngestionSuccessResponse | IngestionErrorResponse = await response.json();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingestion-client.ts:236',message:'Ingestion service JSON parsed',data:{success:json.success,hasError:!json.success,errorMessage:!json.success?json.error?.message:undefined,responseData:json.success?json.data:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
 
       if (!json.success) {
         const error = json.error;
         throw new Error(`Ingestion failed: ${error.message}`);
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingestion-client.ts:245',message:'Ingestion client - success',data:{eventId:json.data.event_id,ingestDepth:json.data.ingest_depth,racesIngested:json.data.races_ingested},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C,D'})}).catch(()=>{});
-      // #endregion
       return json.data;
     } catch (error: unknown) {
       clearTimeout(timeoutId);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingestion-client.ts:250',message:'Ingestion client - error caught',data:{errorMessage:error instanceof Error?error.message:String(error),errorName:error instanceof Error?error.name:undefined,isAbortError:error instanceof Error&&error.name==='AbortError',isNetworkError:error instanceof Error&&(error.message.includes('fetch failed')||error.message.includes('ECONNREFUSED')||error.message.includes('ENOTFOUND'))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       if (error instanceof Error) {
         if (error.name === "AbortError") {
           throw new Error("Ingestion timeout: The import is taking longer than expected. Please check back later - the import may still be processing in the background.");

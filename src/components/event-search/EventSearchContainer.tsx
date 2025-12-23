@@ -26,9 +26,37 @@ import { type Event } from "./EventRow"
 import ImportStatusToast, { type ImportStatus } from "./ImportStatusToast"
 import { parseApiResponse } from "@/lib/api-response-helper"
 
+/** API response type for track data */
+interface ApiTrack {
+  id: string
+  trackName: string
+  sourceTrackSlug: string
+}
+
+/** API response type for event data */
+interface ApiEvent {
+  id: string
+  eventName: string
+  eventDate?: string
+  event_date?: string
+  ingestDepth?: string
+  ingest_depth?: string
+  sourceEventId?: string
+  source_event_id?: string
+}
+
+/** API response type for discovered event */
+interface ApiDiscoveredEvent {
+  id?: string
+  sourceEventId: string
+  eventName: string
+  eventDate: string
+}
+
 const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
 const LAST_DATE_RANGE_STORAGE_KEY = "mre_last_date_range"
 const LAST_TRACK_STORAGE_KEY = "mre_last_track"
+const USE_DATE_FILTER_STORAGE_KEY = "mre_use_date_filter"
 
 // Get default date range (last 30 days)
 function getDefaultDateRange(): { startDate: string; endDate: string } {
@@ -46,7 +74,7 @@ export default function EventSearchContainer() {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
-  const [ignoreDates, setIgnoreDates] = useState<boolean>(false)
+  const [useDateFilter, setUseDateFilter] = useState<boolean>(false)
   const [favourites, setFavourites] = useState<string[]>([])
   const [tracks, setTracks] = useState<Track[]>([])
   const [events, setEvents] = useState<Event[]>([])
@@ -109,6 +137,16 @@ export default function EventSearchContainer() {
       console.error("Failed to load track from localStorage:", error)
     }
 
+    // Load persisted date filter toggle state from localStorage
+    try {
+      const storedUseDateFilter = localStorage.getItem(USE_DATE_FILTER_STORAGE_KEY)
+      if (storedUseDateFilter) {
+        setUseDateFilter(JSON.parse(storedUseDateFilter))
+      }
+    } catch (error) {
+      console.error("Failed to load date filter toggle from localStorage:", error)
+    }
+
     // Load tracks from API
     loadTracks()
   }, [])
@@ -117,7 +155,7 @@ export default function EventSearchContainer() {
     try {
       setIsLoadingTracks(true)
       const response = await fetch("/api/v1/tracks?followed=false&active=true")
-      const result = await parseApiResponse<{ tracks: any[] }>(response)
+      const result = await parseApiResponse<{ tracks: ApiTrack[] }>(response)
       
       if (!result.success) {
         console.error("Error loading tracks:", result.error)
@@ -126,7 +164,7 @@ export default function EventSearchContainer() {
       }
       
       setTracks(
-        result.data.tracks.map((track: any) => ({
+        result.data.tracks.map((track) => ({
           id: track.id,
           trackName: track.trackName,
           sourceTrackSlug: track.sourceTrackSlug,
@@ -147,8 +185,8 @@ export default function EventSearchContainer() {
       newErrors.track = "Please select a track"
     }
 
-    // Skip date validation if "ignore dates" is checked
-    if (!ignoreDates) {
+    // Only validate dates if date filter is enabled
+    if (useDateFilter) {
       // Dates are optional - only validate if provided
       const hasStartDate = startDate && startDate.trim() !== ""
       const hasEndDate = endDate && endDate.trim() !== ""
@@ -187,8 +225,12 @@ export default function EventSearchContainer() {
             newErrors.startDate = "Start date must be before or equal to end date"
           }
 
-          if (start > today || end > today) {
-            newErrors.endDate = "Cannot select future dates. Please select today or earlier."
+          // Check each date individually for future date validation
+          if (start > today) {
+            newErrors.startDate = "Start date cannot be in the future. Please select today or earlier."
+          }
+          if (end > today) {
+            newErrors.endDate = "End date cannot be in the future. Please select today or earlier."
           }
 
           const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))
@@ -208,7 +250,7 @@ export default function EventSearchContainer() {
       selectedTrack, 
       startDate, 
       endDate, 
-      ignoreDates 
+      useDateFilter 
     })
     if (!validateForm() || !selectedTrack) {
       console.log("EventSearchContainer: Validation failed or no track selected", {
@@ -230,16 +272,17 @@ export default function EventSearchContainer() {
           JSON.stringify({ startDate, endDate })
         )
         localStorage.setItem(LAST_TRACK_STORAGE_KEY, JSON.stringify(selectedTrack))
+        localStorage.setItem(USE_DATE_FILTER_STORAGE_KEY, JSON.stringify(useDateFilter))
       } catch (error) {
         console.error("Failed to persist form values:", error)
       }
 
-      // Build query string - only include dates if not ignoring dates and dates are provided
+      // Build query string - only include dates if date filter is enabled and dates are provided
       const params = new URLSearchParams({
         track_id: selectedTrack.id,
       })
       
-      if (!ignoreDates) {
+      if (useDateFilter) {
         if (startDate && startDate.trim() !== "") {
           params.append("start_date", startDate)
         }
@@ -253,14 +296,14 @@ export default function EventSearchContainer() {
       const response = await fetch(`/api/v1/events/search?${params.toString()}`)
 
       const result = await parseApiResponse<{
-        track: any
-        events: any[]
+        track: { id: string; source: string; source_track_slug: string; track_name: string }
+        events: ApiEvent[]
       }>(response)
 
       if (!result.success) {
         // Handle validation errors
         if (result.error.code === "VALIDATION_ERROR") {
-          const field = (result.error.details as any)?.field
+          const field = (result.error.details as { field?: string })?.field
           if (field === "start_date") {
             setErrors({ startDate: result.error.message })
           } else if (field === "end_date") {
@@ -275,17 +318,13 @@ export default function EventSearchContainer() {
         return
       }
 
-      const dbEvents = result.data.events.map((event: any) => ({
+      const dbEvents = result.data.events.map((event) => ({
         id: event.id,
         eventName: event.eventName,
-        eventDate: event.eventDate || event.event_date,
-        ingestDepth: event.ingestDepth || event.ingest_depth,
+        eventDate: event.eventDate || event.event_date || "",
+        ingestDepth: (event.ingestDepth || event.ingest_depth || "").trim(),
         sourceEventId: event.sourceEventId || event.source_event_id, // Include for matching
       }))
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:276',message:'Search returned events',data:{eventCount:dbEvents.length,events:dbEvents.map((e:any)=>({id:e.id,eventName:e.eventName,sourceEventId:e.sourceEventId,ingestDepth:e.ingestDepth}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E,F'})}).catch(()=>{});
-      // #endregion
 
       setEvents(dbEvents)
 
@@ -323,12 +362,12 @@ export default function EventSearchContainer() {
       setIsCheckingLiveRC(true)
       setErrors({})
 
-      // Build request body - only include dates if not ignoring dates and dates are provided
-      const requestBody: any = {
+      // Build request body - only include dates if date filter is enabled and dates are provided
+      const requestBody: { track_id: string; start_date?: string; end_date?: string } = {
         track_id: selectedTrack.id,
       }
       
-      if (!ignoreDates) {
+      if (useDateFilter) {
         if (startDate && startDate.trim() !== "") {
           requestBody.start_date = startDate
         }
@@ -347,8 +386,8 @@ export default function EventSearchContainer() {
       })
 
       const result = await parseApiResponse<{
-        new_events: any[]
-        existing_events: any[]
+        new_events: ApiDiscoveredEvent[]
+        existing_events: ApiDiscoveredEvent[]
       }>(response)
 
       if (!result.success) {
@@ -366,7 +405,7 @@ export default function EventSearchContainer() {
       if (result.data.new_events && result.data.new_events.length > 0) {
         // Convert discovered events to Event format
         // Store sourceEventId for import later
-        const newEvents = result.data.new_events.map((event: any) => ({
+        const newEvents = result.data.new_events.map((event) => ({
           id: event.id || `liverc-${event.sourceEventId}`,
           eventName: event.eventName,
           eventDate: event.eventDate,
@@ -452,13 +491,7 @@ export default function EventSearchContainer() {
   }
 
   const handleImportSingle = async (event: Event) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:420',message:'Import started',data:{eventId:event.id,eventName:event.eventName,sourceEventId:event.sourceEventId,ingestDepth:event.ingestDepth,hasSelectedTrack:!!selectedTrack,selectedTrackId:selectedTrack?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (!selectedTrack) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:423',message:'Import aborted - no selected track',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return
     }
 
@@ -467,9 +500,6 @@ export default function EventSearchContainer() {
     try {
       // Check if event has an id (edge case - should not happen for new events)
       if (event.id && !event.id.startsWith("liverc-")) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:429',message:'Using event ID endpoint',data:{eventId:event.id,endpoint:`/api/v1/events/${event.id}/ingest`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         // Event already exists in DB, use event ID endpoint
         const response = await fetch(`/api/v1/events/${event.id}/ingest`, {
           method: "POST",
@@ -478,13 +508,7 @@ export default function EventSearchContainer() {
           },
           body: JSON.stringify({ depth: "laps_full" }),
         })
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:437',message:'API response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         const result = await parseApiResponse(response)
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:440',message:'API response parsed',data:{success:result.success,hasError:!result.success,errorCode:!result.success?result.error?.code:undefined,errorMessage:!result.success?result.error?.message:undefined,hasData:result.success?!!result.data:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         if (!result.success) {
           throw new Error(result.error.message)
         }
@@ -492,13 +516,7 @@ export default function EventSearchContainer() {
         // New event - use source ID endpoint
         // Extract sourceEventId from event (stored during discovery)
         const sourceEventId = event.sourceEventId
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:445',message:'Using source ID endpoint',data:{hasSourceEventId:!!sourceEventId,sourceEventId:sourceEventId,trackId:selectedTrack.id,endpoint:'/api/v1/events/ingest'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         if (!sourceEventId) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:448',message:'Missing sourceEventId error',data:{eventName:event.eventName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           throw new Error(`Missing sourceEventId for event: ${event.eventName}`)
         }
         
@@ -507,9 +525,6 @@ export default function EventSearchContainer() {
           track_id: selectedTrack.id,
           depth: "laps_full",
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:455',message:'Sending API request',data:{requestBody},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         const response = await fetch("/api/v1/events/ingest", {
           method: "POST",
           headers: {
@@ -517,19 +532,10 @@ export default function EventSearchContainer() {
           },
           body: JSON.stringify(requestBody),
         })
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:465',message:'API response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         const result = await parseApiResponse(response)
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:468',message:'API response parsed',data:{success:result.success,hasError:!result.success,errorCode:!result.success?result.error?.code:undefined,errorMessage:!result.success?result.error?.message:undefined,responseData:result.success?result.data:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
-        // #endregion
         if (!result.success) {
           throw new Error(result.error.message)
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:471',message:'Import API succeeded',data:{responseData:result.success?result.data:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
       }
 
       // Show success message
@@ -540,26 +546,14 @@ export default function EventSearchContainer() {
 
       // Refresh search to update event status
       // Wait a moment to ensure the database transaction has committed
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:478',message:'Waiting before refresh',data:{waitMs:1000},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       await new Promise(resolve => setTimeout(resolve, 1000))
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:481',message:'Starting search refresh',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       // Re-run search to get updated event list with imported event
       await handleSearch()
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:484',message:'Search refresh completed',data:{eventCount:events.length,eventsSnapshot:events.map((e:Event)=>({id:e.id,eventName:e.eventName,sourceEventId:e.sourceEventId,ingestDepth:e.ingestDepth}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E,F'})}).catch(()=>{});
-      // #endregion
       
       // Don't auto-check LiveRC immediately after import - the imported event should now be in DB
       // and will be found by the search. If user wants to check for new events, they can manually trigger it.
     } catch (error) {
       console.error("Error importing event:", error)
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EventSearchContainer.tsx:491',message:'Import error caught',data:{errorMessage:error instanceof Error?error.message:String(error),errorName:error instanceof Error?error.name:undefined,errorStack:error instanceof Error?error.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
-      // #endregion
       
       // Extract error message from the error
       let errorMessage = `Import failed for "${event.eventName}".`;
@@ -583,7 +577,7 @@ export default function EventSearchContainer() {
     const defaultRange = getDefaultDateRange()
     setStartDate(defaultRange.startDate)
     setEndDate(defaultRange.endDate)
-    setIgnoreDates(false)
+    setUseDateFilter(false)
     setEvents([])
     setHasSearched(false)
     setErrors({})
@@ -595,13 +589,14 @@ export default function EventSearchContainer() {
     try {
       localStorage.removeItem(LAST_DATE_RANGE_STORAGE_KEY)
       localStorage.removeItem(LAST_TRACK_STORAGE_KEY)
+      localStorage.removeItem(USE_DATE_FILTER_STORAGE_KEY)
     } catch (error) {
       console.error("Failed to clear localStorage:", error)
     }
   }
 
-  const handleIgnoreDatesToggle = (checked: boolean) => {
-    setIgnoreDates(checked)
+  const handleUseDateFilterToggle = (checked: boolean) => {
+    setUseDateFilter(checked)
     // Clear date errors when toggling
     setErrors((prev) => ({
       ...prev,
@@ -638,7 +633,7 @@ export default function EventSearchContainer() {
         selectedTrack={selectedTrack}
         startDate={startDate}
         endDate={endDate}
-        ignoreDates={ignoreDates}
+        useDateFilter={useDateFilter}
         favourites={favourites}
         tracks={tracks}
         errors={errors}
@@ -646,7 +641,7 @@ export default function EventSearchContainer() {
         onTrackSelect={setSelectedTrack}
         onStartDateChange={setStartDate}
         onEndDateChange={setEndDate}
-        onIgnoreDatesChange={handleIgnoreDatesToggle}
+        onUseDateFilterChange={handleUseDateFilterToggle}
         onToggleFavourite={handleToggleFavourite}
         onSearch={handleSearch}
         onReset={handleReset}

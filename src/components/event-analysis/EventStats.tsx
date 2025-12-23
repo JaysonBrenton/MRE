@@ -16,6 +16,8 @@
 
 "use client"
 
+import { formatDateLong } from "@/lib/date-utils"
+
 export interface EventStatsProps {
   totalRaces: number
   totalDrivers: number
@@ -24,15 +26,6 @@ export interface EventStatsProps {
     earliest: Date | string | null
     latest: Date | string | null
   }
-}
-
-function formatDate(date: Date | string): string {
-  const dateObj = typeof date === "string" ? new Date(date) : date
-  return dateObj.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
 }
 
 export default function EventStats({
@@ -73,9 +66,9 @@ export default function EventStats({
             Date Range
           </div>
           <div className="text-sm font-medium text-[var(--token-text-primary)]">
-            {dateRange.earliest && formatDate(dateRange.earliest)}
+            {dateRange.earliest && formatDateLong(dateRange.earliest)}
             {dateRange.earliest && dateRange.latest && " - "}
-            {dateRange.latest && formatDate(dateRange.latest)}
+            {dateRange.latest && formatDateLong(dateRange.latest)}
           </div>
         </div>
       )}

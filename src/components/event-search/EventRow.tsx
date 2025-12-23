@@ -19,6 +19,7 @@
 
 import Link from "next/link"
 import EventStatusBadge, { type EventStatus } from "./EventStatusBadge"
+import { formatDateDisplay } from "@/lib/date-utils"
 
 export interface Event {
   id: string
@@ -34,47 +35,40 @@ export interface EventRowProps {
   isImporting?: boolean
 }
 
-function getStatusFromIngestDepth(ingestDepth: string, eventId?: string): EventStatus {
+function getStatusFromIngestDepth(ingestDepth: string | null | undefined, eventId?: string): EventStatus {
   // Check if this is a LiveRC-only event (ID starts with "liverc-")
   if (eventId?.startsWith("liverc-")) {
     return "new"
   }
 
-  switch (ingestDepth) {
+  // Normalize ingestDepth: trim whitespace and convert to lowercase
+  const normalizedDepth = ingestDepth?.trim().toLowerCase() || ""
+
+  switch (normalizedDepth) {
     case "laps_full":
+    case "lapsfull": // Handle potential variations
       return "imported"
     case "none":
+    case "": // Empty or null means not imported
       return "new"
     default:
+      // For any other value, check if it contains "full" or "laps" as a hint
+      // This handles edge cases where API might return variations
+      if (normalizedDepth.includes("full") || normalizedDepth.includes("laps")) {
+        return "imported"
+      }
+      // Default to new for unknown values
       return "new"
   }
-}
-
-function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) {
-    return "Date not available"
-  }
-  
-  const date = new Date(dateString)
-  
-  // Check if date is valid
-  if (isNaN(date.getTime())) {
-    return "Invalid date"
-  }
-  
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  })
 }
 
 export default function EventRow({ event, onImport, isImporting = false }: EventRowProps) {
   const status = getStatusFromIngestDepth(event.ingestDepth, event.id)
-  const formattedDate = formatDate(event.eventDate)
+  const formattedDate = formatDateDisplay(event.eventDate)
   const isImported = status === "imported"
-  const needsImport = status === "new" && (event.id.startsWith("liverc-") || event.ingestDepth === "none")
-  const canAnalyse = isImported && !isImporting
+  const needsImport = status === "new" && (event.id.startsWith("liverc-") || (event.ingestDepth?.trim().toLowerCase() === "none"))
+  // Show analyse button if event is imported (isImporting only affects the import button, not analyse)
+  const canAnalyse = isImported
 
   return (
     <div className="flex flex-col sm:grid sm:grid-cols-3 sm:items-center gap-4 px-4 py-4 border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)] transition-colors">
@@ -113,6 +107,7 @@ export default function EventRow({ event, onImport, isImporting = false }: Event
             <Link
               href={`/events/analyse/${event.id}`}
               className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5 h-11"
+              prefetch={false}
             >
               Analyse event
             </Link>

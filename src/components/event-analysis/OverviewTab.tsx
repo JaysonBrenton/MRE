@@ -18,12 +18,13 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import EventStats from "./EventStats"
 import ChartControls from "./ChartControls"
 import BestLapBarChart from "./BestLapBarChart"
 import GapEvolutionLineChart from "./GapEvolutionLineChart"
 import AvgVsFastestChart from "./AvgVsFastestChart"
+import ChartSection from "./ChartSection"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { calculateTopNGapEvolution } from "@/core/events/calculate-gap-evolution"
 
@@ -33,9 +34,54 @@ export interface OverviewTabProps {
 
 type ChartType = "best-lap" | "gap-evolution" | "avg-vs-fastest"
 
+const STORAGE_KEY_SELECTED_DRIVERS = "mre-overview-selected-drivers"
+const STORAGE_KEY_CHART_TYPE = "mre-overview-chart-type"
+
 export default function OverviewTab({ data }: OverviewTabProps) {
-  const [chartType, setChartType] = useState<ChartType>("best-lap")
-  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
+  // Load persisted state from localStorage
+  const [chartType, setChartType] = useState<ChartType>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEY_CHART_TYPE)
+      if (stored && ["best-lap", "gap-evolution", "avg-vs-fastest"].includes(stored)) {
+        return stored as ChartType
+      }
+    }
+    return "best-lap"
+  })
+
+  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEY_SELECTED_DRIVERS)
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            return parsed
+          }
+        } catch {
+          // Invalid JSON, ignore
+        }
+      }
+    }
+    return []
+  })
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const driversPerPage = 25
+
+  // Persist chart type to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_CHART_TYPE, chartType)
+    }
+  }, [chartType])
+
+  // Persist selected drivers to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_SELECTED_DRIVERS, JSON.stringify(selectedDriverIds))
+    }
+  }, [selectedDriverIds])
 
   // Prepare chart data
   const bestLapData = useMemo(() => {
@@ -114,6 +160,25 @@ export default function OverviewTab({ data }: OverviewTabProps) {
     }))
   }, [data.drivers])
 
+  // Handle driver toggle from chart click
+  const handleDriverToggle = useCallback(
+    (driverId: string) => {
+      setSelectedDriverIds((prev) => {
+        if (prev.includes(driverId)) {
+          return prev.filter((id) => id !== driverId)
+        } else {
+          return [...prev, driverId]
+        }
+      })
+    },
+    []
+  )
+
+  // Reset page when selection changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedDriverIds])
+
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-overview" aria-labelledby="tab-overview">
       {/* Event Statistics */}
@@ -134,33 +199,47 @@ export default function OverviewTab({ data }: OverviewTabProps) {
         onChartTypeChange={setChartType}
       />
 
-      {/* Chart */}
-      {chartType === "best-lap" && (
-        <BestLapBarChart
-          data={bestLapData}
-          selectedDriverIds={
-            selectedDriverIds.length > 0 ? selectedDriverIds : undefined
-          }
-        />
-      )}
+      {/* Chart Section */}
+      <ChartSection>
+        {chartType === "best-lap" && (
+          <BestLapBarChart
+            data={bestLapData}
+            selectedDriverIds={
+              selectedDriverIds.length > 0 ? selectedDriverIds : undefined
+            }
+            currentPage={currentPage}
+            driversPerPage={driversPerPage}
+            onPageChange={setCurrentPage}
+            onDriverToggle={handleDriverToggle}
+          />
+        )}
 
-      {chartType === "gap-evolution" && (
-        <GapEvolutionLineChart
-          data={gapEvolutionData}
-          selectedDriverIds={
-            selectedDriverIds.length > 0 ? selectedDriverIds : undefined
-          }
-        />
-      )}
+        {chartType === "gap-evolution" && (
+          <GapEvolutionLineChart
+            data={gapEvolutionData}
+            selectedDriverIds={
+              selectedDriverIds.length > 0 ? selectedDriverIds : undefined
+            }
+            currentPage={currentPage}
+            driversPerPage={driversPerPage}
+            onPageChange={setCurrentPage}
+            onDriverToggle={handleDriverToggle}
+          />
+        )}
 
-      {chartType === "avg-vs-fastest" && (
-        <AvgVsFastestChart
-          data={avgVsFastestData}
-          selectedDriverIds={
-            selectedDriverIds.length > 0 ? selectedDriverIds : undefined
-          }
-        />
-      )}
+        {chartType === "avg-vs-fastest" && (
+          <AvgVsFastestChart
+            data={avgVsFastestData}
+            selectedDriverIds={
+              selectedDriverIds.length > 0 ? selectedDriverIds : undefined
+            }
+            currentPage={currentPage}
+            driversPerPage={driversPerPage}
+            onPageChange={setCurrentPage}
+            onDriverToggle={handleDriverToggle}
+          />
+        )}
+      </ChartSection>
     </div>
   )
 }

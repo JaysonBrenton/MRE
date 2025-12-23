@@ -1,6 +1,14 @@
 # Project: My Race Engineer
 # File: docker-compose.yml
 # Summary: Docker Compose configuration connecting to existing postgres container
+#
+# SECURITY REQUIREMENTS:
+# =====================
+# AUTH_SECRET must be set in .env.docker with at least 32 characters.
+# Generate a secure secret with: openssl rand -base64 32
+#
+# Copy .env.docker.example to .env.docker and configure before starting.
+# The application will fail to start if AUTH_SECRET is missing or invalid.
 
 services:
   # Next.js application service
@@ -24,9 +32,9 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3001}
       # Ingestion service URL (internal Docker network)
       INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://ingestion-service:8000}
-      # NextAuth configuration (loaded from .env.docker via env_file)
-      # In production, AUTH_SECRET must be a secure random value (min 32 characters)
-      # AUTH_SECRET is loaded from .env.docker - no need to specify here
+      # AUTH_SECRET is loaded from .env.docker via env_file directive
+      # REQUIRED: Must be at least 32 characters. Generate with: openssl rand -base64 32
+      # The application validates AUTH_SECRET at build time and will fail if invalid
     ports:
       - "${APP_PORT:-3001}:3001"
     volumes:

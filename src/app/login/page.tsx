@@ -78,7 +78,9 @@ export default function LoginPage() {
       
       if (result) {
         // result is a string error message from the server action
-        console.error("Authentication failed:", result)
+        // This is an expected validation error, not a system error
+        // Use console.warn instead of console.error to avoid triggering Next.js error overlay
+        console.warn("Authentication failed:", result)
         setError(result)
         setLoading(false)
         return

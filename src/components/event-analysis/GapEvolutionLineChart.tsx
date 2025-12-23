@@ -26,7 +26,9 @@ import { AxisBottom, AxisLeft } from "@visx/axis"
 import { GridRows, GridColumns } from "@visx/grid"
 import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip"
 import { localPoint } from "@visx/event"
+import { ParentSize } from "@visx/responsive"
 import ChartContainer from "./ChartContainer"
+import ChartPagination from "./ChartPagination"
 
 export interface GapDataPoint {
   lapNumber: number
@@ -45,6 +47,10 @@ export interface GapEvolutionLineChartProps {
   selectedDriverIds?: string[]
   height?: number
   className?: string
+  currentPage?: number
+  driversPerPage?: number
+  onPageChange?: (page: number) => void
+  onDriverToggle?: (driverId: string) => void
 }
 
 const defaultMargin = { top: 20, right: 80, bottom: 60, left: 80 }
@@ -73,6 +79,10 @@ export default function GapEvolutionLineChart({
   selectedDriverIds = [],
   height = 400,
   className = "",
+  currentPage = 1,
+  driversPerPage = 25,
+  onPageChange,
+  onDriverToggle,
 }: GapEvolutionLineChartProps) {
   const {
     tooltipData,
@@ -91,6 +101,17 @@ export default function GapEvolutionLineChart({
     return data.filter((d) => selectedDriverIds.includes(d.driverId))
   }, [data, selectedDriverIds])
 
+  // Sort by driver name for consistent pagination
+  const sortedData = useMemo(() => {
+    return [...displayData].sort((a, b) => a.driverName.localeCompare(b.driverName))
+  }, [displayData])
+
+  // Calculate pagination
+  const totalPages = Math.ceil(sortedData.length / driversPerPage)
+  const startIndex = (currentPage - 1) * driversPerPage
+  const endIndex = startIndex + driversPerPage
+  const paginatedData = sortedData.slice(startIndex, endIndex)
+
   if (displayData.length === 0) {
     return (
       <ChartContainer
@@ -107,34 +128,6 @@ export default function GapEvolutionLineChart({
   }
 
   const margin = defaultMargin
-  const width = typeof window !== "undefined" ? window.innerWidth - 64 : 800
-  const innerWidth = width - margin.left - margin.right
-  const innerHeight = height - margin.top - margin.bottom
-
-  // Find max lap number and max gap
-  const maxLap = Math.max(
-    ...displayData.flatMap((series) =>
-      series.gaps.map((gap) => gap.lapNumber)
-    ),
-    1
-  )
-  const maxGap = Math.max(
-    ...displayData.flatMap((series) => series.gaps.map((gap) => gap.gapToLeader)),
-    0
-  )
-
-  // Scales
-  const xScale = scaleLinear({
-    range: [0, innerWidth],
-    domain: [1, maxLap],
-    nice: true,
-  })
-
-  const yScale = scaleLinear({
-    range: [innerHeight, 0],
-    domain: [0, maxGap * 1.1],
-    nice: true,
-  })
 
   return (
     <ChartContainer
@@ -143,32 +136,70 @@ export default function GapEvolutionLineChart({
       className={className}
       aria-label="Gap to leader evolution line chart"
     >
-      <svg width={width} height={height}>
-        <Group left={margin.left} top={margin.top}>
-          {/* Grid */}
-          <GridRows
-            scale={yScale}
-            width={innerWidth}
-            stroke={borderColor}
-            strokeDasharray="2,2"
-            opacity={0.3}
-          />
-          <GridColumns
-            scale={xScale}
-            height={innerHeight}
-            stroke={borderColor}
-            strokeDasharray="2,2"
-            opacity={0.3}
-          />
+      <ParentSize>
+        {({ width: parentWidth }) => {
+          // Use parentWidth if available, otherwise fallback to 800 for SSR
+          // ParentSize will return 0 or undefined during SSR, which is fine
+          const width = parentWidth || 800
+          
+          // Don't render chart if width is 0 (during initial SSR)
+          if (width === 0) {
+            return null
+          }
 
-          {/* Lines */}
-          {displayData.map((series, index) => {
+          const innerWidth = width - margin.left - margin.right
+          const innerHeight = height - margin.top - margin.bottom
+
+          // Find max lap number and max gap
+          const maxLap = Math.max(
+            ...paginatedData.flatMap((series) =>
+              series.gaps.map((gap) => gap.lapNumber)
+            ),
+            1
+          )
+          const maxGap = Math.max(
+            ...paginatedData.flatMap((series) => series.gaps.map((gap) => gap.gapToLeader)),
+            0
+          )
+
+          // Scales
+          const xScale = scaleLinear({
+            range: [0, innerWidth],
+            domain: [1, maxLap],
+            nice: true,
+          })
+
+          const yScale = scaleLinear({
+            range: [innerHeight, 0],
+            domain: [0, maxGap * 1.1],
+            nice: true,
+          })
+
+          return (
+            <svg width={width} height={height}>
+              <Group left={margin.left} top={margin.top}>
+                {/* Grid */}
+                <GridRows
+                  scale={yScale}
+                  width={innerWidth}
+                  stroke={borderColor}
+                  strokeDasharray="2,2"
+                  opacity={0.3}
+                />
+                <GridColumns
+                  scale={xScale}
+                  height={innerHeight}
+                  stroke={borderColor}
+                  strokeDasharray="2,2"
+                  opacity={0.3}
+                />
+
+                {/* Lines */}
+                {paginatedData.map((series, index) => {
             const color = accentColors[index % accentColors.length]
             const isSelected =
               selectedDriverIds.length === 0 ||
               selectedDriverIds.includes(series.driverId)
-
-            if (!isSelected) return null
 
             const pathData = series.gaps.map((gap) => ({
               x: xScale(gap.lapNumber),
@@ -177,6 +208,12 @@ export default function GapEvolutionLineChart({
               gap: gap.gapToLeader,
             }))
 
+            const handleClick = () => {
+              if (onDriverToggle) {
+                onDriverToggle(series.driverId)
+              }
+            }
+
             return (
               <LinePath
                 key={series.driverId}
@@ -184,8 +221,10 @@ export default function GapEvolutionLineChart({
                 x={(d) => d.x}
                 y={(d) => d.y}
                 stroke={color}
-                strokeWidth={2}
+                strokeWidth={isSelected ? 2 : 1.5}
+                strokeOpacity={isSelected ? 1 : 0.4}
                 curve={curveMonotoneX}
+                onClick={handleClick}
                 onMouseMove={(event) => {
                   const svgElement = (event.target as SVGElement).ownerSVGElement
                   if (!svgElement) return
@@ -232,8 +271,22 @@ export default function GapEvolutionLineChart({
                     })
                   }
                 }}
-                onTouchEnd={() => hideTooltip()}
+                onTouchEnd={() => {
+                  hideTooltip()
+                  if (onDriverToggle) {
+                    onDriverToggle(series.driverId)
+                  }
+                }}
                 style={{ cursor: "pointer" }}
+                aria-label={`${series.driverName}: Gap evolution`}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleClick()
+                  }
+                }}
               />
             )
           })}
@@ -266,25 +319,23 @@ export default function GapEvolutionLineChart({
             })}
           />
 
-          {/* Legend */}
-          <Group top={-10} left={innerWidth + 20}>
-            {displayData.map((series, index) => {
+                {/* Legend */}
+                <Group top={-10} left={innerWidth + 20}>
+                  {paginatedData.map((series, index) => {
               const color = accentColors[index % accentColors.length]
               const isSelected =
                 selectedDriverIds.length === 0 ||
                 selectedDriverIds.includes(series.driverId)
 
-              if (!isSelected) return null
-
               return (
-                <Group key={series.driverId} top={index * 20}>
+                <Group key={series.driverId} top={index * 20} opacity={isSelected ? 1 : 0.4}>
                   <line
                     x1={0}
                     y1={0}
                     x2={20}
                     y2={0}
                     stroke={color}
-                    strokeWidth={2}
+                    strokeWidth={isSelected ? 2 : 1.5}
                   />
                   <text
                     x={25}
@@ -292,15 +343,19 @@ export default function GapEvolutionLineChart({
                     fill={textColor}
                     fontSize={12}
                     style={{ pointerEvents: "none" }}
+                    opacity={isSelected ? 1 : 0.6}
                   >
                     {series.driverName}
                   </text>
                 </Group>
-              )
-            })}
-          </Group>
-        </Group>
-      </svg>
+                  )
+                })}
+              </Group>
+            </Group>
+          </svg>
+        )
+      }}
+      </ParentSize>
 
       {/* Tooltip */}
       {tooltipOpen && tooltipData && (
@@ -325,6 +380,18 @@ export default function GapEvolutionLineChart({
             </div>
           </div>
         </TooltipWithBounds>
+      )}
+
+      {/* Pagination */}
+      {onPageChange && totalPages > 1 && (
+        <ChartPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          itemsPerPage={driversPerPage}
+          totalItems={sortedData.length}
+          itemLabel="drivers"
+        />
       )}
     </ChartContainer>
   )

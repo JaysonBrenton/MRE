@@ -230,21 +230,36 @@ POSTGRES_DB=pacetracer
 ### AUTH_SECRET
 
 **Type:** String  
-**Required:** Yes (for production)  
-**Default:** `development-secret-change-in-production`  
-**Environment:** Docker Compose
+**Required:** Yes  
+**Default:** None (must be explicitly set)  
+**Minimum Length:** 32 characters  
+**Environment:** Docker Compose (via .env.docker)
 
 Secret key used by NextAuth for:
 - JWT token signing
 - Session encryption
 - CSRF protection
 
+**Build-Time Validation:**  
+The application validates AUTH_SECRET at build time via `src/lib/env.ts`. The build will fail with a clear error message if:
+- AUTH_SECRET is not set
+- AUTH_SECRET is less than 32 characters
+- AUTH_SECRET uses the default development value in production (`NODE_ENV=production`)
+
 **Example:**
 ```bash
-AUTH_SECRET=development-secret-change-in-production
+# Generate a secure secret
+openssl rand -base64 32
+
+# Set in .env.docker
+AUTH_SECRET=your-generated-secret-here-at-least-32-chars
 ```
 
-**Security:** MUST be changed in production. Use a strong, randomly generated secret (minimum 32 characters).
+**Security:** 
+- MUST be at least 32 characters
+- MUST be randomly generated
+- MUST be unique per environment
+- MUST NOT be committed to version control
 
 **Generation:**
 ```bash
@@ -539,10 +554,14 @@ The following variables contain sensitive information and MUST be protected:
 **File:** `.env.docker` (minimum required variables)
 
 ```bash
+# Generate AUTH_SECRET with: openssl rand -base64 32
 DATABASE_URL=postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?schema=public
-AUTH_SECRET=development-secret-change-in-production
+AUTH_SECRET=your-generated-secret-here-minimum-32-characters
 NODE_ENV=development
+APP_URL=http://localhost:3001
 ```
+
+**Note:** AUTH_SECRET must be at least 32 characters. The build will fail if this requirement is not met.
 
 ### Complete Development Setup
 
@@ -563,7 +582,7 @@ See [Development](#development) section above for complete example.
 | `APP_PORT` | No | `3001` | Application | No |
 | `APP_URL` | No | `http://localhost:3001` | Application | No |
 | `HOST` | No | `0.0.0.0` | Application | No |
-| `AUTH_SECRET` | Yes (prod) | `development-secret-change-in-production` | Authentication | Yes |
+| `AUTH_SECRET` | Yes | None (min 32 chars) | Authentication | Yes |
 | `NEXTAUTH_SECRET` | No | Falls back to `AUTH_SECRET` | Authentication | Yes |
 | `INGESTION_SERVICE_URL` | No | `http://ingestion-service:8000` | Ingestion | No |
 | `INGESTION_PORT` | No | `8000` | Ingestion | No |

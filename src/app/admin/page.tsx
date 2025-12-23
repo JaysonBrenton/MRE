@@ -15,11 +15,12 @@
  * @relatedFiles
  * - src/app/welcome/page.tsx (user welcome page)
  * - src/lib/auth.ts (session check)
- * - components/LogoutButton.tsx (logout functionality)
+ * - src/components/AuthenticatedNav.tsx (navigation component)
  */
 
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
+import AuthenticatedNav from "@/components/AuthenticatedNav"
 
 export default async function AdminPage() {
   const session = await auth()
@@ -34,12 +35,18 @@ export default async function AdminPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--token-surface)] px-4 py-8">
-      <div className="w-full max-w-2xl text-center">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
-          Welcome back {session.user.name}
-        </h1>
-      </div>
+    <div className="flex min-h-screen flex-col bg-[var(--token-surface)]">
+      <AuthenticatedNav />
+      <main className="page-container flex-1 flex items-center justify-center px-4 py-8">
+        <section className="content-wrapper w-full max-w-2xl text-center space-y-6">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
+            Welcome back {session.user.name}
+          </h1>
+          <p className="text-[var(--token-text-secondary)]">
+            Administrator Console
+          </p>
+        </section>
+      </main>
     </div>
   )
 }

@@ -12,7 +12,7 @@
 //          Prisma queries.
 
 import { NextRequest } from "next/server";
-import { searchEvents } from "@/core/events/search-events";
+import { searchEvents, type SearchEventsInput } from "@/core/events/search-events";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 
 /**
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     // Call core business logic function (will validate and throw if invalid)
     // Only include dates if they are provided (not empty strings)
-    const searchInput: any = {
+    const searchInput: SearchEventsInput = {
       trackId: trackId || "",
     }
     

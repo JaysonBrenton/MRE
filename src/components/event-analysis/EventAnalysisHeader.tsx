@@ -17,20 +17,12 @@
 "use client"
 
 import Link from "next/link"
+import { formatDateLong } from "@/lib/date-utils"
 
 export interface EventAnalysisHeaderProps {
   eventName: string
   eventDate: Date | string
   trackName: string
-}
-
-function formatDate(date: Date | string): string {
-  const dateObj = typeof date === "string" ? new Date(date) : date
-  return dateObj.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  })
 }
 
 export default function EventAnalysisHeader({
@@ -53,7 +45,7 @@ export default function EventAnalysisHeader({
           {eventName}
         </h1>
         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-sm text-[var(--token-text-secondary)]">
-          <span>{formatDate(eventDate)}</span>
+          <span>{formatDateLong(eventDate)}</span>
           <span className="hidden sm:inline">•</span>
           <span>{trackName}</span>
         </div>
