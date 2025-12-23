@@ -16,7 +16,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import TabNavigation, { type TabId } from "@/components/event-analysis/TabNavigation"
 import OverviewTab from "@/components/event-analysis/OverviewTab"
 import DriversTab from "@/components/event-analysis/DriversTab"
@@ -26,11 +26,35 @@ export interface EventAnalysisClientProps {
   initialData: EventAnalysisData
 }
 
+const STORAGE_KEY_SELECTED_DRIVERS = "mre-overview-selected-drivers"
+
 export default function EventAnalysisClient({
   initialData,
 }: EventAnalysisClientProps) {
   const [activeTab, setActiveTab] = useState<TabId>("overview")
-  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
+  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") {
+      return []
+    }
+    try {
+      const storedDrivers = window.localStorage.getItem(
+        STORAGE_KEY_SELECTED_DRIVERS
+      )
+      const parsed = storedDrivers ? JSON.parse(storedDrivers) : []
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  })
+
+  // Persist driver selections for subsequent visits
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem(
+      STORAGE_KEY_SELECTED_DRIVERS,
+      JSON.stringify(selectedDriverIds)
+    )
+  }, [selectedDriverIds])
 
   // Only show Overview and Drivers tabs for now (Sessions and Comparisons deferred)
   const availableTabs = [
@@ -46,7 +70,13 @@ export default function EventAnalysisClient({
         onTabChange={setActiveTab}
       />
 
-      {activeTab === "overview" && <OverviewTab data={initialData} />}
+      {activeTab === "overview" && (
+        <OverviewTab
+          data={initialData}
+          selectedDriverIds={selectedDriverIds}
+          onDriverSelectionChange={setSelectedDriverIds}
+        />
+      )}
 
       {activeTab === "drivers" && (
         <DriversTab
@@ -74,4 +104,3 @@ export default function EventAnalysisClient({
     </div>
   )
 }
-

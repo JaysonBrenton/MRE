@@ -30,42 +30,45 @@ import { calculateTopNGapEvolution } from "@/core/events/calculate-gap-evolution
 
 export interface OverviewTabProps {
   data: EventAnalysisData
+  selectedDriverIds: string[]
+  onDriverSelectionChange: (driverIds: string[]) => void
 }
 
 type ChartType = "best-lap" | "gap-evolution" | "avg-vs-fastest"
 
-const STORAGE_KEY_SELECTED_DRIVERS = "mre-overview-selected-drivers"
 const STORAGE_KEY_CHART_TYPE = "mre-overview-chart-type"
 
-export default function OverviewTab({ data }: OverviewTabProps) {
+export default function OverviewTab({
+  data,
+  selectedDriverIds,
+  onDriverSelectionChange,
+}: OverviewTabProps) {
   // Initialize with default values for SSR consistency
-  const [chartType, setChartType] = useState<ChartType>("best-lap")
-  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
+  const [chartType, setChartType] = useState<ChartType>(() => {
+    if (typeof window === "undefined") {
+      return "best-lap"
+    }
+    const storedChartType = window.localStorage.getItem(
+      STORAGE_KEY_CHART_TYPE
+    )
+    return storedChartType &&
+      ["best-lap", "gap-evolution", "avg-vs-fastest"].includes(
+        storedChartType
+      )
+      ? (storedChartType as ChartType)
+      : "best-lap"
+  })
 
-  const [currentPage, setCurrentPage] = useState(1)
+  const [paginationState, setPaginationState] = useState({
+    page: 1,
+    selectionKey: "",
+  })
+  const selectionKey = selectedDriverIds.join("|")
+  const currentPage =
+    paginationState.selectionKey === selectionKey
+      ? paginationState.page
+      : 1
   const driversPerPage = 25
-
-  // Load persisted state from localStorage after mount (prevents hydration mismatch)
-  useEffect(() => {
-    // Load chart type
-    const storedChartType = localStorage.getItem(STORAGE_KEY_CHART_TYPE)
-    if (storedChartType && ["best-lap", "gap-evolution", "avg-vs-fastest"].includes(storedChartType)) {
-      setChartType(storedChartType as ChartType)
-    }
-
-    // Load selected drivers
-    const storedDrivers = localStorage.getItem(STORAGE_KEY_SELECTED_DRIVERS)
-    if (storedDrivers) {
-      try {
-        const parsed = JSON.parse(storedDrivers)
-        if (Array.isArray(parsed)) {
-          setSelectedDriverIds(parsed)
-        }
-      } catch {
-        // Invalid JSON, ignore
-      }
-    }
-  }, [])
 
   // Persist chart type to localStorage
   useEffect(() => {
@@ -73,13 +76,6 @@ export default function OverviewTab({ data }: OverviewTabProps) {
       localStorage.setItem(STORAGE_KEY_CHART_TYPE, chartType)
     }
   }, [chartType])
-
-  // Persist selected drivers to localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY_SELECTED_DRIVERS, JSON.stringify(selectedDriverIds))
-    }
-  }, [selectedDriverIds])
 
   // Prepare chart data
   const bestLapData = useMemo(() => {
@@ -159,23 +155,34 @@ export default function OverviewTab({ data }: OverviewTabProps) {
   }, [data.drivers])
 
   // Handle driver toggle from chart click
-  const handleDriverToggle = useCallback(
-    (driverId: string) => {
-      setSelectedDriverIds((prev) => {
-        if (prev.includes(driverId)) {
-          return prev.filter((id) => id !== driverId)
-        } else {
-          return [...prev, driverId]
-        }
+  const handleSelectionChange = useCallback(
+    (driverIds: string[]) => {
+      setPaginationState({
+        page: 1,
+        selectionKey: driverIds.join("|"),
       })
+      onDriverSelectionChange(driverIds)
     },
-    []
+    [onDriverSelectionChange]
   )
 
-  // Reset page when selection changes
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [selectedDriverIds])
+  const handleDriverToggle = useCallback(
+    (driverId: string) => {
+      if (selectedDriverIds.includes(driverId)) {
+        handleSelectionChange(selectedDriverIds.filter((id) => id !== driverId))
+      } else {
+        handleSelectionChange([...selectedDriverIds, driverId])
+      }
+    },
+    [selectedDriverIds, handleSelectionChange]
+  )
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setPaginationState({ page, selectionKey })
+    },
+    [selectionKey]
+  )
 
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-overview" aria-labelledby="tab-overview">
@@ -192,7 +199,7 @@ export default function OverviewTab({ data }: OverviewTabProps) {
         drivers={driverOptions}
         races={data.races}
         selectedDriverIds={selectedDriverIds}
-        onDriverSelectionChange={setSelectedDriverIds}
+        onDriverSelectionChange={handleSelectionChange}
         chartType={chartType}
         onChartTypeChange={setChartType}
       />
@@ -207,7 +214,7 @@ export default function OverviewTab({ data }: OverviewTabProps) {
             }
             currentPage={currentPage}
             driversPerPage={driversPerPage}
-            onPageChange={setCurrentPage}
+            onPageChange={handlePageChange}
             onDriverToggle={handleDriverToggle}
           />
         )}
@@ -220,7 +227,7 @@ export default function OverviewTab({ data }: OverviewTabProps) {
             }
             currentPage={currentPage}
             driversPerPage={driversPerPage}
-            onPageChange={setCurrentPage}
+            onPageChange={handlePageChange}
             onDriverToggle={handleDriverToggle}
           />
         )}
@@ -233,7 +240,7 @@ export default function OverviewTab({ data }: OverviewTabProps) {
             }
             currentPage={currentPage}
             driversPerPage={driversPerPage}
-            onPageChange={setCurrentPage}
+            onPageChange={handlePageChange}
             onDriverToggle={handleDriverToggle}
           />
         )}
@@ -241,4 +248,3 @@ export default function OverviewTab({ data }: OverviewTabProps) {
     </div>
   )
 }
-

@@ -29,6 +29,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Repo-specific: skip large Python virtualenv + reports folders that break ESLint
+    "ingestion/.venv/**",
+    "ingestion/venv/**",
+    "reports/**",
   ]),
 ]);
 
