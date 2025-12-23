@@ -22,6 +22,7 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import type { NextAuthConfig } from "next-auth"
 import type { User } from "next-auth"
+import { NextResponse } from "next/server"
 
 // Lazy-load the authorize function to prevent Edge Runtime from analyzing argon2 imports
 // This function is only called during actual authentication (Node.js runtime)
@@ -83,44 +84,55 @@ export const config = {
       }
     },
     authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user
-      const isOnLogin = nextUrl.pathname.startsWith("/login")
-      const isOnRegister = nextUrl.pathname.startsWith("/register")
-      const isOnWelcome = nextUrl.pathname.startsWith("/welcome")
-      const isOnAdmin = nextUrl.pathname.startsWith("/admin")
-      const isOnDashboard = nextUrl.pathname.startsWith("/dashboard")
-      const isOnEventSearch = nextUrl.pathname.startsWith("/event-search")
-      const isOnEvents = nextUrl.pathname.startsWith("/events")
-      const isOnRoot = nextUrl.pathname === "/"
+      const pathname = nextUrl.pathname
+      const isLoggedIn = Boolean(auth?.user)
+      const isApiRoute = pathname.startsWith("/api/")
+      const isAdminRoute = pathname.startsWith("/admin")
+      const isRoot = pathname === "/"
+      const isLogin = pathname.startsWith("/login")
+      const isRegister = pathname.startsWith("/register")
+      const isApiAuthRoute = pathname.startsWith("/api/auth")
+      const publicApiPrefixes = ["/api/v1/auth/login", "/api/v1/auth/register"]
+      const isPublicApi = publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))
+      const isPublicPage = isLogin || isRegister
 
-      // Redirect authenticated users from root to welcome
-      if (isLoggedIn && isOnRoot) {
-        return Response.redirect(new URL("/welcome", nextUrl))
+      if (!isLoggedIn) {
+          if (isPublicPage || isApiAuthRoute || isPublicApi) {
+            return true
+          }
+
+          if (isApiRoute) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: {
+                  code: "UNAUTHORIZED",
+                  message: "Authentication required",
+                },
+              },
+              { status: 401 }
+            )
+          }
+
+          return NextResponse.redirect(new URL("/login", nextUrl))
       }
 
-      // Allow public pages
-      if (!isOnLogin && !isOnRegister && !isOnWelcome && !isOnAdmin && !isOnDashboard && !isOnEventSearch && !isOnEvents) {
+      if (isRoot) {
+        return NextResponse.redirect(new URL("/welcome", nextUrl))
+      }
+
+      if (isPublicPage || isApiAuthRoute || isPublicApi) {
+        if (isLogin || isRegister) {
+          if (auth?.user?.isAdmin) {
+            return NextResponse.redirect(new URL("/admin", nextUrl))
+          }
+          return NextResponse.redirect(new URL("/welcome", nextUrl))
+        }
         return true
       }
 
-      // Redirect authenticated users away from login/register
-      if (isLoggedIn && (isOnLogin || isOnRegister)) {
-        // Type assertion is safe because Session.user is typed with isAdmin in types/next-auth.d.ts
-        if (auth?.user?.isAdmin) {
-          return Response.redirect(new URL("/admin", nextUrl))
-        }
-        return Response.redirect(new URL("/welcome", nextUrl))
-      }
-
-      // Redirect non-authenticated users from protected pages
-      if (!isLoggedIn && (isOnWelcome || isOnAdmin || isOnDashboard || isOnEventSearch || isOnEvents)) {
-        return Response.redirect(new URL("/login", nextUrl))
-      }
-
-      // Redirect non-admin users from admin pages
-      // Type assertion is safe because Session.user is typed with isAdmin in types/next-auth.d.ts
-      if (isOnAdmin && isLoggedIn && !auth?.user?.isAdmin) {
-        return Response.redirect(new URL("/welcome", nextUrl))
+      if (isAdminRoute && !auth?.user?.isAdmin) {
+        return NextResponse.redirect(new URL("/welcome", nextUrl))
       }
 
       return true
@@ -132,4 +144,3 @@ export const config = {
 } satisfies NextAuthConfig
 
 export const { handlers, auth, signIn, signOut } = NextAuth(config)
-

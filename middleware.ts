@@ -144,19 +144,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Protected pages (for auth redirects)
-    "/login",
-    "/register",
-    "/welcome",
-    "/admin/:path*",
-    "/dashboard",
-    "/event-search",
-    "/events/:path*",
-    // Rate-limited API endpoints
-    "/api/v1/auth/login",
-    "/api/v1/auth/register",
-    "/api/v1/events/:path*/ingest",
-    "/api/v1/events/ingest",
-    "/api/v1/events/discover",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico).*)",
   ],
 }
