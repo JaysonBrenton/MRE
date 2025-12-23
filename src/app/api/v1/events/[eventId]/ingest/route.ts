@@ -13,6 +13,8 @@ import { ingestionClient } from "@/lib/ingestion-client";
 import { successResponse, errorResponse } from "@/lib/api-utils";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 import { API_TIMEOUTS } from "@/core/auth/constants"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context";
+import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
 
 // Increase timeout for large event ingestion (up to 10 minutes)
 export const maxDuration = API_TIMEOUTS.INGESTION_MAX_DURATION
@@ -21,10 +23,16 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+
   try {
     // Check rate limit for ingestion endpoints
     const rateLimitResult = checkRateLimit(request, RATE_LIMITS.ingestion)
     if (!rateLimitResult.allowed) {
+      requestLogger.warn("Rate limit exceeded for ingestion", {
+        resetTime: rateLimitResult.resetTime,
+      })
       return errorResponse(
         "RATE_LIMIT_EXCEEDED",
         "Too many ingestion requests. Please try again later.",
@@ -39,45 +47,45 @@ export async function POST(
     const body = await request.json();
     const depth = body.depth || "laps_full";
 
+    requestLogger.debug("Event ingestion request", {
+      eventId,
+      depth,
+    })
+
     const result = await ingestionClient.ingestEvent(eventId, depth);
+
+    requestLogger.info("Event ingestion completed", {
+      eventId,
+      depth,
+      racesIngested: result?.races_ingested,
+    })
 
     return successResponse(result);
   } catch (error: unknown) {
-    console.error("Error triggering ingestion:", error);
-    
-    if (error instanceof Error) {
-      // Log full error details for debugging
-      console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-        eventId,
-      });
-      
-      if (error.message.includes("Ingestion failed")) {
-        return errorResponse(
-          "INGESTION_FAILED",
-          error.message,
-          { originalError: error.message },
-          500
-        );
-      }
-      
-      // Return the actual error message if available
+    // Handle external service errors (ingestion service)
+    if (error instanceof Error && error.message.includes("Ingestion")) {
+      const errorInfo = handleExternalServiceError(
+        error,
+        "Ingestion Service",
+        "ingestEvent",
+        requestLogger
+      )
       return errorResponse(
-        "INGESTION_FAILED",
-        error.message || "Failed to ingest event",
+        errorInfo.code,
+        errorInfo.message,
         { originalError: error.message },
-        500
-      );
+        errorInfo.statusCode
+      )
     }
     
+    // Handle other errors
+    const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(
-      "INTERNAL_ERROR",
-      "Failed to ingest event",
-      { error: String(error) },
-      500
-    );
+      errorInfo.code,
+      errorInfo.message,
+      { originalError: error instanceof Error ? error.message : String(error) },
+      errorInfo.statusCode
+    )
   }
 }
 

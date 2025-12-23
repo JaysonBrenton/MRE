@@ -23,6 +23,9 @@ import { NextRequest } from "next/server"
 import { registerUser } from "@/core/auth/register"
 import { successResponse, errorResponse, serverErrorResponse, parseRequestBody } from "@/lib/api-utils"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter"
+import { createRequestLogger, generateRequestId, getClientIp } from "@/lib/request-context"
+import { logRateLimitHit } from "@/lib/security-logger"
+import { handleApiError } from "@/lib/server-error-handler"
 
 /**
  * POST /api/v1/auth/register
@@ -54,10 +57,15 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter"
  * }
  */
 export async function POST(request: NextRequest) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+  const ip = getClientIp(request)
+
   try {
     // Check rate limit
     const rateLimitResult = checkRateLimit(request, RATE_LIMITS.auth)
     if (!rateLimitResult.allowed) {
+      logRateLimitHit(ip, request.nextUrl.pathname, RATE_LIMITS.auth.maxRequests, rateLimitResult.retryAfterSeconds || 60, requestLogger)
       return errorResponse(
         "RATE_LIMIT_EXCEEDED",
         "Too many registration attempts. Please try again later.",
@@ -75,16 +83,29 @@ export async function POST(request: NextRequest) {
     }
     const body = bodyResult.data
 
+    requestLogger.info("Registration attempt", {
+      email: body.email ? `${body.email.substring(0, 3)}***@${body.email.split("@")[1]}` : undefined,
+    })
+
     // Delegate all business logic to core function
     const result = await registerUser(body)
 
     if (result.success) {
+      requestLogger.info("Registration successful", {
+        userId: result.user.id,
+      })
+      
       return successResponse(
         { user: result.user },
         201,
         "Registration successful"
       )
     } else {
+      requestLogger.warn("Registration failed", {
+        code: result.error.code,
+        message: result.error.message,
+      })
+      
       // Map core error codes to HTTP status codes
       const statusCode = result.error.code === "EMAIL_ALREADY_EXISTS" ? 409 : 400
       return errorResponse(
@@ -95,8 +116,14 @@ export async function POST(request: NextRequest) {
       )
     }
   } catch (error: unknown) {
-    // Handle unexpected errors (e.g., database connection errors)
-    return serverErrorResponse("Failed to process registration request")
+    // Handle unexpected errors
+    const errorInfo = handleApiError(error, request, requestId)
+    return errorResponse(
+      errorInfo.code,
+      errorInfo.message,
+      undefined,
+      errorInfo.statusCode
+    )
   }
 }
 

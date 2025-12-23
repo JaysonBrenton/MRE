@@ -22,6 +22,7 @@ import { useState } from "react"
 import TrackSelectionModal from "./TrackSelectionModal"
 import { type Track } from "./TrackRow"
 import DateRangePicker from "./DateRangePicker"
+import { logger } from "@/lib/logger"
 
 export interface EventSearchFormProps {
   selectedTrack: Track | null
@@ -66,7 +67,7 @@ export default function EventSearchForm({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("EventSearchForm: handleSearch called", { 
+    logger.debug("EventSearchForm: handleSearch called", { 
       hasOnSearch: !!onSearch, 
       selectedTrack, 
       isLoading 
@@ -74,7 +75,7 @@ export default function EventSearchForm({
     if (onSearch) {
       onSearch()
     } else {
-      console.error("EventSearchForm: onSearch prop is missing!")
+      logger.error("EventSearchForm: onSearch prop is missing")
     }
   }
 

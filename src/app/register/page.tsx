@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
 import { signIn } from "@/lib/auth-client"
+import { logger } from "@/lib/logger"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -56,7 +57,14 @@ export default function RegisterPage() {
         })
       } catch (fetchError) {
         // Network error or fetch failed
-        console.error("Registration fetch error:", fetchError)
+        logger.error("Registration fetch error", {
+          error: fetchError instanceof Error
+            ? {
+                name: fetchError.name,
+                message: fetchError.message,
+              }
+            : String(fetchError),
+        })
         if (fetchError instanceof TypeError && fetchError.message.includes("fetch")) {
           setError("Network error. Please check your connection and try again.")
         } else {
@@ -74,7 +82,7 @@ export default function RegisterPage() {
         
         if (isHTML) {
           // Server returned HTML error page (likely unhandled error)
-          console.error("Registration API returned HTML error page instead of JSON:", {
+          logger.error("Registration API returned HTML error page instead of JSON", {
             status: response.status,
             statusText: response.statusText,
             contentType
@@ -91,10 +99,20 @@ export default function RegisterPage() {
           errorMessage = errorData.error?.message || errorData.error || `Registration failed (${response.status})`
         } catch (jsonError) {
           // Response is not JSON, use status text
-          console.error("Failed to parse error response as JSON:", jsonError)
+          logger.error("Failed to parse error response as JSON", {
+            error: jsonError instanceof Error
+              ? {
+                  name: jsonError.name,
+                  message: jsonError.message,
+                }
+              : String(jsonError),
+          })
           errorMessage = `Registration failed: ${response.statusText || `HTTP ${response.status}`}`
         }
-        console.error("Registration API error:", { status: response.status, message: errorMessage })
+        logger.error("Registration API error", {
+          status: response.status,
+          message: errorMessage
+        })
         setError(errorMessage)
         setLoading(false)
         return
@@ -105,7 +123,10 @@ export default function RegisterPage() {
       const isJSON = contentType?.includes("application/json")
       
       if (!isJSON) {
-        console.error("Registration API returned non-JSON response:", { contentType, status: response.status })
+        logger.error("Registration API returned non-JSON response", {
+          contentType,
+          status: response.status
+        })
         setError("Server returned invalid response format. Please try again.")
         setLoading(false)
         return
@@ -115,7 +136,14 @@ export default function RegisterPage() {
       try {
         data = await response.json()
       } catch (jsonError) {
-        console.error("Failed to parse success response as JSON:", jsonError)
+        logger.error("Failed to parse success response as JSON", {
+          error: jsonError instanceof Error
+            ? {
+                name: jsonError.name,
+                message: jsonError.message,
+              }
+            : String(jsonError),
+        })
         setError("Server returned invalid response. Please try again.")
         setLoading(false)
         return
@@ -132,12 +160,27 @@ export default function RegisterPage() {
         router.refresh()
       } catch (signInError) {
         // Registration succeeded but auto-login failed, redirect to login
-        console.warn("Registration succeeded but auto-login failed:", signInError)
+        logger.warn("Registration succeeded but auto-login failed", {
+          error: signInError instanceof Error
+            ? {
+                name: signInError.name,
+                message: signInError.message,
+              }
+            : String(signInError),
+        })
         router.push("/login?registered=true")
       }
     } catch (err) {
       // Unexpected error
-      console.error("Unexpected registration error:", err)
+      logger.error("Unexpected registration error", {
+        error: err instanceof Error
+          ? {
+              name: err.name,
+              message: err.message,
+              stack: err.stack,
+            }
+          : String(err),
+      })
       if (err instanceof Error) {
         setError(`An error occurred: ${err.message}`)
       } else {

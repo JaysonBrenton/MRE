@@ -13,15 +13,27 @@
 import { NextRequest } from "next/server";
 import { discoverLiveRCEvents } from "@/core/events/discover-liverc-events";
 import { getTrackById } from "@/core/tracks/repo";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse } from "@/lib/api-utils";
+import { createRequestLogger, generateRequestId } from "@/lib/request-context";
+import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
 
 export async function POST(request: NextRequest) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+
   try {
     const body = await request.json();
     const { track_id, start_date, end_date } = body;
 
+    requestLogger.debug("Event discovery request", {
+      trackId: track_id,
+      startDate: start_date,
+      endDate: end_date,
+    })
+
     // Validate required fields
     if (!track_id) {
+      requestLogger.warn("Validation failed - missing track_id")
       return errorResponse(
         "VALIDATION_ERROR",
         "track_id is required",
@@ -34,6 +46,7 @@ export async function POST(request: NextRequest) {
     const track = await getTrackById(track_id);
 
     if (!track) {
+      requestLogger.warn("Track not found", { trackId: track_id })
       return errorResponse(
         "NOT_FOUND",
         "Track not found",
@@ -51,26 +64,41 @@ export async function POST(request: NextRequest) {
       endDate: end_date,
     });
 
+    requestLogger.info("Event discovery completed", {
+      trackId: track.id,
+      newEventsCount: result.newEvents.length,
+      existingEventsCount: result.existingEvents.length,
+    })
+
     return successResponse({
       new_events: result.newEvents,
       existing_events: result.existingEvents,
     });
   } catch (error: unknown) {
-    console.error("Error discovering LiveRC events:", error);
-    
-    // Handle known error types
-    if (error instanceof Error) {
-      if (error.message.includes("Discovery failed")) {
-        return errorResponse(
-          "DISCOVERY_FAILED",
-          error.message,
-          {},
-          500
-        );
-      }
+    // Handle external service errors (LiveRC)
+    if (error instanceof Error && error.message.includes("Discovery")) {
+      const errorInfo = handleExternalServiceError(
+        error,
+        "LiveRC",
+        "discoverLiveRCEvents",
+        requestLogger
+      )
+      return errorResponse(
+        errorInfo.code,
+        errorInfo.message,
+        {},
+        errorInfo.statusCode
+      )
     }
     
-    return serverErrorResponse("Failed to discover events from LiveRC");
+    // Handle other errors
+    const errorInfo = handleApiError(error, request, requestId)
+    return errorResponse(
+      errorInfo.code,
+      errorInfo.message,
+      undefined,
+      errorInfo.statusCode
+    )
   }
 }
 

@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
 import { authenticate } from "../actions/auth"
+import { logger } from "@/lib/logger"
 
 /**
  * Type guard to check if error is a NextAuth redirect error
@@ -54,37 +55,44 @@ export default function LoginPage() {
     formData.append("email", email)
     formData.append("password", password)
     
-    try {
-      let result: string | undefined
       try {
-        result = await authenticate(undefined, formData)
-      } catch (authError) {
-        // Handle server action errors
-        console.error("Authentication server action error:", authError)
-        
-        // Check if it's a network/connection error
-        if (authError instanceof Error) {
-          if (authError.message.includes("fetch") || authError.message.includes("network")) {
-            setError("Network error. Please check your connection and try again.")
+        let result: string | undefined
+        try {
+          result = await authenticate(undefined, formData)
+        } catch (authError) {
+          // Handle server action errors
+          logger.error("Authentication server action error", {
+            error: authError instanceof Error
+              ? {
+                  name: authError.name,
+                  message: authError.message,
+                  stack: authError.stack,
+                }
+              : String(authError),
+          })
+          
+          // Check if it's a network/connection error
+          if (authError instanceof Error) {
+            if (authError.message.includes("fetch") || authError.message.includes("network")) {
+              setError("Network error. Please check your connection and try again.")
+            } else {
+              setError(`Authentication error: ${authError.message}`)
+            }
           } else {
-            setError(`Authentication error: ${authError.message}`)
+            setError("Failed to connect to authentication server. Please try again.")
           }
-        } else {
-          setError("Failed to connect to authentication server. Please try again.")
+          setLoading(false)
+          return
         }
-        setLoading(false)
-        return
-      }
-      
-      if (result) {
-        // result is a string error message from the server action
-        // This is an expected validation error, not a system error
-        // Use console.warn instead of console.error to avoid triggering Next.js error overlay
-        console.warn("Authentication failed:", result)
-        setError(result)
-        setLoading(false)
-        return
-      }
+        
+        if (result) {
+          // result is a string error message from the server action
+          // This is an expected validation error, not a system error
+          logger.warn("Authentication failed", { reason: result })
+          setError(result)
+          setLoading(false)
+          return
+        }
 
       // Success - NextAuth's signIn will handle redirect via middleware
       // But we'll also manually redirect to ensure it happens
@@ -97,7 +105,7 @@ export default function LoginPage() {
         
         if (!response.ok) {
           // If session endpoint fails, just redirect to welcome page
-          console.warn("Session endpoint returned error, redirecting to welcome:", {
+          logger.warn("Session endpoint returned error, redirecting to welcome", {
             status: response.status,
             statusText: response.statusText
           })
@@ -109,7 +117,14 @@ export default function LoginPage() {
         try {
           session = await response.json()
         } catch (jsonError) {
-          console.error("Failed to parse session response:", jsonError)
+          logger.error("Failed to parse session response", {
+            error: jsonError instanceof Error
+              ? {
+                  name: jsonError.name,
+                  message: jsonError.message,
+                }
+              : String(jsonError),
+          })
           router.push("/welcome")
           return
         }
@@ -121,7 +136,14 @@ export default function LoginPage() {
         }
       } catch (sessionError) {
         // If session check fails, just redirect to welcome page
-        console.warn("Failed to check session, redirecting to welcome:", sessionError)
+        logger.warn("Failed to check session, redirecting to welcome", {
+          error: sessionError instanceof Error
+            ? {
+                name: sessionError.name,
+                message: sessionError.message,
+              }
+            : String(sessionError),
+        })
         router.push("/welcome")
       }
     } catch (err: unknown) {
@@ -135,7 +157,15 @@ export default function LoginPage() {
       }
       
       // Real error occurred
-      console.error("Unexpected login error:", err)
+      logger.error("Unexpected login error", {
+        error: err instanceof Error
+          ? {
+              name: err.name,
+              message: err.message,
+              stack: err.stack,
+            }
+          : String(err),
+      })
       if (err instanceof Error) {
         setError(`An error occurred: ${err.message}`)
       } else {

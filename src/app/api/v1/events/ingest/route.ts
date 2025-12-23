@@ -14,11 +14,16 @@
 import { NextRequest } from "next/server";
 import { ingestionClient } from "@/lib/ingestion-client";
 import { successResponse, errorResponse } from "@/lib/api-utils";
+import { createRequestLogger, generateRequestId } from "@/lib/request-context";
+import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
 
 // Increase timeout for large event ingestion (up to 10 minutes)
 export const maxDuration = 600; // 10 minutes in seconds
 
 export async function POST(request: NextRequest) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+  
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:21',message:'API route POST started',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
   // #endregion
@@ -34,6 +39,7 @@ export async function POST(request: NextRequest) {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:30',message:'Validation failed - missing source_event_id',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
+      requestLogger.warn("Validation failed - missing source_event_id")
       return errorResponse(
         "VALIDATION_ERROR",
         "source_event_id is required",
@@ -46,6 +52,7 @@ export async function POST(request: NextRequest) {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:38',message:'Validation failed - missing track_id',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
+      requestLogger.warn("Validation failed - missing track_id")
       return errorResponse(
         "VALIDATION_ERROR",
         "track_id is required",
@@ -67,45 +74,43 @@ export async function POST(request: NextRequest) {
     fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:54',message:'Ingestion client returned',data:{hasResult:!!result,eventId:result?.event_id,ingestDepth:result?.ingest_depth,racesIngested:result?.races_ingested,status:result?.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C,D'})}).catch(()=>{});
     // #endregion
 
+    requestLogger.info("Event ingestion completed", {
+      sourceEventId: source_event_id,
+      trackId: track_id,
+      eventId: result?.event_id,
+      racesIngested: result?.races_ingested,
+    })
+
     return successResponse(result);
   } catch (error: unknown) {
-    console.error("Error ingesting event by source ID:", error);
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:56',message:'API route error caught',data:{errorMessage:error instanceof Error?error.message:String(error),errorName:error instanceof Error?error.name:undefined,errorStack:error instanceof Error?error.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     
-    if (error instanceof Error) {
-      // Log full error details for debugging
-      console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      });
-      
-      if (error.message.includes("Ingestion failed")) {
-        return errorResponse(
-          "INGESTION_FAILED",
-          error.message,
-          { originalError: error.message },
-          500
-        );
-      }
-      
-      // Return the actual error message if available
+    // Handle external service errors (ingestion service)
+    if (error instanceof Error && error.message.includes("Ingestion")) {
+      const errorInfo = handleExternalServiceError(
+        error,
+        "Ingestion Service",
+        "ingestEventBySourceId",
+        requestLogger
+      )
       return errorResponse(
-        "INGESTION_FAILED",
-        error.message || "Failed to ingest event",
+        errorInfo.code,
+        errorInfo.message,
         { originalError: error.message },
-        500
-      );
+        errorInfo.statusCode
+      )
     }
     
+    // Handle other errors
+    const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(
-      "INTERNAL_ERROR",
-      "Failed to ingest event",
-      { error: String(error) },
-      500
-    );
+      errorInfo.code,
+      errorInfo.message,
+      { originalError: error instanceof Error ? error.message : String(error) },
+      errorInfo.statusCode
+    )
   }
 }
 

@@ -10,17 +10,23 @@
 
 import { NextRequest } from "next/server";
 import { getEventWithRaces } from "@/core/events/repo";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse } from "@/lib/api-utils";
+import { createRequestLogger, generateRequestId } from "@/lib/request-context";
+import { handleApiError } from "@/lib/server-error-handler";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+
   try {
     const { eventId } = await params;
     const event = await getEventWithRaces(eventId);
 
     if (!event) {
+      requestLogger.warn("Event not found", { eventId })
       return errorResponse(
         "NOT_FOUND",
         "Event not found",
@@ -28,6 +34,11 @@ export async function GET(
         404
       );
     }
+
+    requestLogger.info("Event fetched successfully", {
+      eventId,
+      racesCount: event.races.length,
+    })
 
     return successResponse({
       id: event.id,
@@ -52,8 +63,13 @@ export async function GET(
       })),
     });
   } catch (error) {
-    console.error("Error fetching event:", error);
-    return serverErrorResponse("Failed to fetch event");
+    const errorInfo = handleApiError(error, request, requestId)
+    return errorResponse(
+      errorInfo.code,
+      errorInfo.message,
+      undefined,
+      errorInfo.statusCode
+    )
   }
 }
 

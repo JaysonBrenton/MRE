@@ -25,6 +25,7 @@ import EventTable from "./EventTable"
 import { type Event } from "./EventRow"
 import ImportStatusToast, { type ImportStatus } from "./ImportStatusToast"
 import { parseApiResponse } from "@/lib/api-response-helper"
+import { logger } from "@/lib/logger"
 
 /** API response type for track data */
 interface ApiTrack {
@@ -105,7 +106,9 @@ export default function EventSearchContainer() {
         setFavourites(JSON.parse(storedFavourites))
       }
     } catch (error) {
-      console.error("Failed to load favourites from localStorage:", error)
+      logger.error("Failed to load favourites from localStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
 
     // Load last date range from localStorage
@@ -121,7 +124,9 @@ export default function EventSearchContainer() {
         setEndDate(defaultRange.endDate)
       }
     } catch (error) {
-      console.error("Failed to load date range from localStorage:", error)
+      logger.error("Failed to load date range from localStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
       const defaultRange = getDefaultDateRange()
       setStartDate(defaultRange.startDate)
       setEndDate(defaultRange.endDate)
@@ -134,7 +139,9 @@ export default function EventSearchContainer() {
         setSelectedTrack(JSON.parse(storedTrack))
       }
     } catch (error) {
-      console.error("Failed to load track from localStorage:", error)
+      logger.error("Failed to load track from localStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
 
     // Load persisted date filter toggle state from localStorage
@@ -144,7 +151,9 @@ export default function EventSearchContainer() {
         setUseDateFilter(JSON.parse(storedUseDateFilter))
       }
     } catch (error) {
-      console.error("Failed to load date filter toggle from localStorage:", error)
+      logger.error("Failed to load date filter toggle from localStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
 
     // Load tracks from API
@@ -158,7 +167,9 @@ export default function EventSearchContainer() {
       const result = await parseApiResponse<{ tracks: ApiTrack[] }>(response)
       
       if (!result.success) {
-        console.error("Error loading tracks:", result.error)
+        logger.error("Error loading tracks", {
+          error: result.error.message || String(result.error),
+        })
         setErrors({ track: result.error.message })
         return
       }
@@ -171,7 +182,14 @@ export default function EventSearchContainer() {
         }))
       )
     } catch (error) {
-      console.error("Error loading tracks:", error)
+      logger.error("Error loading tracks", {
+        error: error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+            }
+          : String(error),
+      })
       setErrors({ track: "Unable to load tracks. Please try again." })
     } finally {
       setIsLoadingTracks(false)
@@ -246,14 +264,14 @@ export default function EventSearchContainer() {
   }
 
   const handleSearch = async () => {
-    console.log("EventSearchContainer: handleSearch called", { 
+    logger.debug("EventSearchContainer: handleSearch called", { 
       selectedTrack, 
       startDate, 
       endDate, 
       useDateFilter 
     })
     if (!validateForm() || !selectedTrack) {
-      console.log("EventSearchContainer: Validation failed or no track selected", {
+      logger.debug("EventSearchContainer: Validation failed or no track selected", {
         validationPassed: validateForm(),
         hasSelectedTrack: !!selectedTrack
       })
@@ -274,7 +292,9 @@ export default function EventSearchContainer() {
         localStorage.setItem(LAST_TRACK_STORAGE_KEY, JSON.stringify(selectedTrack))
         localStorage.setItem(USE_DATE_FILTER_STORAGE_KEY, JSON.stringify(useDateFilter))
       } catch (error) {
-        console.error("Failed to persist form values:", error)
+        logger.error("Failed to persist form values", {
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
 
       // Build query string - only include dates if date filter is enabled and dates are provided
@@ -334,7 +354,14 @@ export default function EventSearchContainer() {
         // Keep loading state true, immediately check LiveRC (no setTimeout)
         keptLoadingForEmptyDB.current = true
         checkLiveRC().catch((error) => {
-          console.error("Error in auto-check LiveRC:", error)
+          logger.error("Error in auto-check LiveRC", {
+            error: error instanceof Error
+              ? {
+                  name: error.name,
+                  message: error.message,
+                }
+              : String(error),
+          })
           setIsLoadingEvents(false) // Only clear loading on error
           keptLoadingForEmptyDB.current = false
         })
@@ -344,12 +371,26 @@ export default function EventSearchContainer() {
         setHasSearched(true)
         setTimeout(() => {
           checkLiveRC().catch((error) => {
-            console.error("Error in auto-check LiveRC:", error)
+            logger.error("Error in auto-check LiveRC", {
+            error: error instanceof Error
+              ? {
+                  name: error.name,
+                  message: error.message,
+                }
+              : String(error),
+          })
           })
         }, 100)
       }
     } catch (error) {
-      console.error("Error searching events:", error)
+      logger.error("Error searching events", {
+        error: error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+            }
+          : String(error),
+      })
       setErrors({ track: "Unable to search events. Please try again." })
       setIsLoadingEvents(false)
     }
@@ -472,7 +513,14 @@ export default function EventSearchContainer() {
       }
       // No new events found - silently continue (no toast notification needed)
     } catch (error) {
-      console.error("Error checking LiveRC:", error)
+      logger.error("Error checking LiveRC", {
+        error: error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+            }
+          : String(error),
+      })
       setImportStatus({
         status: "failed",
         message: "Unable to check LiveRC. Please try again later.",
@@ -553,7 +601,14 @@ export default function EventSearchContainer() {
       // Don't auto-check LiveRC immediately after import - the imported event should now be in DB
       // and will be found by the search. If user wants to check for new events, they can manually trigger it.
     } catch (error) {
-      console.error("Error importing event:", error)
+      logger.error("Error importing event", {
+        error: error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+            }
+          : String(error),
+      })
       
       // Extract error message from the error
       let errorMessage = `Import failed for "${event.eventName}".`;
@@ -591,7 +646,9 @@ export default function EventSearchContainer() {
       localStorage.removeItem(LAST_TRACK_STORAGE_KEY)
       localStorage.removeItem(USE_DATE_FILTER_STORAGE_KEY)
     } catch (error) {
-      console.error("Failed to clear localStorage:", error)
+      logger.error("Failed to clear localStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -615,7 +672,9 @@ export default function EventSearchContainer() {
     try {
       localStorage.setItem(FAVOURITES_STORAGE_KEY, JSON.stringify(newFavourites))
     } catch (error) {
-      console.error("Failed to save favourites:", error)
+      logger.error("Failed to save favourites", {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 

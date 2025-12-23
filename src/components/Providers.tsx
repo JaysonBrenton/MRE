@@ -20,9 +20,15 @@
 "use client"
 
 import { ReactNode } from "react"
+import GlobalErrorHandler from "./GlobalErrorHandler"
 
 export default function Providers({ children }: { children: ReactNode }) {
   // NextAuth v5 doesn't require SessionProvider
-  return <>{children}</>
+  return (
+    <>
+      <GlobalErrorHandler />
+      {children}
+    </>
+  )
 }
 

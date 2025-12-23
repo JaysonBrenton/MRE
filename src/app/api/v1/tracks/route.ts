@@ -13,7 +13,9 @@
 
 import { NextRequest } from "next/server";
 import { getTracks } from "@/core/tracks/get-tracks";
-import { successResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse } from "@/lib/api-utils";
+import { createRequestLogger, generateRequestId } from "@/lib/request-context";
+import { handleApiError } from "@/lib/server-error-handler";
 
 /**
  * Type guard to check if error has a message property
@@ -28,6 +30,9 @@ function hasErrorMessage(error: unknown): error is { message: string } {
 }
 
 export async function GET(request: NextRequest) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const followedParam = searchParams.get("followed");
@@ -37,24 +42,31 @@ export async function GET(request: NextRequest) {
     const followed = followedParam !== "false";
     const active = activeParam !== "false";
 
+    requestLogger.debug("Tracks request", {
+      followed,
+      active,
+    })
+
     // Call core business logic function
     const tracks = await getTracks({
       followed,
       active,
     });
 
+    requestLogger.info("Tracks fetched successfully", {
+      trackCount: tracks.length,
+    })
+
     return successResponse({ tracks });
   } catch (error: unknown) {
-    // Handle unexpected errors (e.g., database connection errors)
-    if (hasErrorMessage(error)) {
-      console.error("Tracks API unexpected error:", {
-        message: error.message,
-        stack: error instanceof Error ? error.stack : undefined
-      })
-    } else {
-      console.error("Tracks API unexpected error:", error)
-    }
-    return serverErrorResponse("Failed to fetch tracks")
+    // Handle unexpected errors using server error handler
+    const errorInfo = handleApiError(error, request, requestId)
+    return errorResponse(
+      errorInfo.code,
+      errorInfo.message,
+      undefined,
+      errorInfo.statusCode
+    )
   }
 }
 

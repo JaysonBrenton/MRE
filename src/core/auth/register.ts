@@ -24,6 +24,7 @@ import { z } from "zod"
 import { validateRegisterInput, type RegisterInput } from "./validate-register"
 import { findUserByEmail, createUser } from "../users/repo"
 import type { User } from "@prisma/client"
+import { logger } from "@/lib/logger"
 
 /**
  * Type guard to check if error is a ZodError
@@ -146,7 +147,14 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
       
       // Database connection errors
       if (error.code === "P1001" || error.code === "P1000") {
-        console.error("Database connection error during registration:", error)
+        logger.error("Database connection error during registration", {
+          error: error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+              }
+            : String(error),
+        })
         return {
           success: false,
           error: {
@@ -157,7 +165,10 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
       }
       
       // Other Prisma errors
-      console.error("Prisma error during registration:", { code: error.code, error })
+      logger.error("Prisma error during registration", {
+        code: error.code,
+        error: error.message,
+      })
       return {
         success: false,
         error: {
@@ -168,7 +179,7 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
     }
 
     // Log unexpected errors with full details
-    console.error("Registration error:", {
+    logger.error("Registration error", {
       error,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined

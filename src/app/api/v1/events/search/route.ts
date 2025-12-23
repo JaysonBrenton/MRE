@@ -14,6 +14,8 @@
 import { NextRequest } from "next/server";
 import { searchEvents, type SearchEventsInput } from "@/core/events/search-events";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { createRequestLogger, generateRequestId } from "@/lib/request-context";
+import { handleApiError } from "@/lib/server-error-handler";
 
 /**
  * Type guard to check if error has a message property
@@ -42,11 +44,20 @@ function hasErrorCode(error: unknown): error is { code: string; message: string;
 }
 
 export async function GET(request: NextRequest) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const trackId = searchParams.get("track_id");
     const startDate = searchParams.get("start_date");
     const endDate = searchParams.get("end_date");
+
+    requestLogger.debug("Event search request", {
+      trackId,
+      startDate,
+      endDate,
+    })
 
     // Call core business logic function (will validate and throw if invalid)
     // Only include dates if they are provided (not empty strings)
@@ -64,6 +75,11 @@ export async function GET(request: NextRequest) {
     
     const result = await searchEvents(searchInput);
 
+    requestLogger.info("Event search successful", {
+      trackId: result.track.id,
+      eventCount: result.events.length,
+    })
+
     return successResponse({
       track: {
         id: result.track.id,
@@ -77,6 +93,11 @@ export async function GET(request: NextRequest) {
     // Handle validation errors
     if (hasErrorCode(error)) {
       if (error.code === "VALIDATION_ERROR") {
+        requestLogger.warn("Event search validation error", {
+          code: error.code,
+          message: error.message,
+          field: error.field,
+        })
         return errorResponse(
           error.code,
           error.message,
@@ -88,6 +109,9 @@ export async function GET(request: NextRequest) {
 
     // Handle "Track not found" error from repo
     if (error instanceof Error && error.message === "Track not found") {
+      requestLogger.warn("Track not found", {
+        trackId: request.nextUrl.searchParams.get("track_id"),
+      })
       return errorResponse(
         "NOT_FOUND",
         "Track not found",
@@ -96,16 +120,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Handle unexpected errors (e.g., database connection errors)
-    if (hasErrorMessage(error)) {
-      console.error("Event search API unexpected error:", {
-        message: error.message,
-        stack: error instanceof Error ? error.stack : undefined
-      })
-    } else {
-      console.error("Event search API unexpected error:", error)
-    }
-    return serverErrorResponse("Failed to search events")
+    // Handle unexpected errors using server error handler
+    const errorInfo = handleApiError(error, request, requestId)
+    return errorResponse(
+      errorInfo.code,
+      errorInfo.message,
+      undefined,
+      errorInfo.statusCode
+    )
   }
 }
 

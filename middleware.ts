@@ -29,31 +29,8 @@ import {
   generateRateLimitKey,
   getRateLimitConfigForPath,
 } from "@/lib/rate-limiter"
-
-/**
- * Get client IP address from request headers
- * Handles various proxy configurations (X-Forwarded-For, X-Real-IP)
- */
-function getClientIp(request: NextRequest): string {
-  // Check X-Forwarded-For header (may contain multiple IPs)
-  const forwardedFor = request.headers.get("x-forwarded-for")
-  if (forwardedFor) {
-    // Take the first IP (original client)
-    const ips = forwardedFor.split(",").map((ip) => ip.trim())
-    if (ips[0]) {
-      return ips[0]
-    }
-  }
-
-  // Check X-Real-IP header
-  const realIp = request.headers.get("x-real-ip")
-  if (realIp) {
-    return realIp
-  }
-
-  // Fallback to request IP (may be undefined in some environments)
-  return request.ip || "unknown"
-}
+import { logger, createLoggerWithContext } from "@/lib/logger"
+import { getRequestContext, getClientIp } from "@/lib/request-context"
 
 /**
  * Check rate limit for API endpoints
@@ -78,7 +55,21 @@ function checkRateLimit(request: NextRequest): NextResponse | null {
   const result = limiter.check(key, config)
 
   if (!result.allowed) {
-    // Rate limit exceeded - return 429 response
+    // Rate limit exceeded - log and return 429 response
+    const context = getRequestContext(request)
+    const requestLogger = createLoggerWithContext(context)
+    
+    requestLogger.warn("Rate limit exceeded", {
+      ip,
+      path: pathname,
+      rateLimitConfig: {
+        maxRequests: config.maxRequests,
+        windowMs: config.windowMs,
+      },
+      retryAfterSeconds: result.retryAfterSeconds,
+      remaining: result.remaining,
+    })
+
     return NextResponse.json(
       {
         success: false,
@@ -114,21 +105,41 @@ function checkRateLimit(request: NextRequest): NextResponse | null {
  */
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+  const context = getRequestContext(request)
+  const requestLogger = createLoggerWithContext(context)
 
-  // Apply rate limiting to API endpoints
-  if (pathname.startsWith("/api/")) {
-    const rateLimitResponse = checkRateLimit(request)
-    if (rateLimitResponse) {
-      return rateLimitResponse
+  try {
+    // Apply rate limiting to API endpoints
+    if (pathname.startsWith("/api/")) {
+      const rateLimitResponse = checkRateLimit(request)
+      if (rateLimitResponse) {
+        return rateLimitResponse
+      }
     }
-  }
 
-  // Delegate to NextAuth for authentication on protected routes
-  // The auth() function handles:
-  // - Session validation
-  // - Redirects for unauthenticated users
-  // - Admin role checks
-  return auth(request as any)
+    // Delegate to NextAuth for authentication on protected routes
+    // The auth() function handles:
+    // - Session validation
+    // - Redirects for unauthenticated users
+    // - Admin role checks
+    const authResponse = await auth(request as any)
+    return authResponse
+  } catch (error) {
+    // Log middleware errors
+    requestLogger.error("Middleware error", {
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : String(error),
+    })
+
+    // Re-throw to let Next.js handle it
+    throw error
+  }
 }
 
 export const config = {

@@ -22,6 +22,9 @@ import { NextRequest } from "next/server"
 import { authenticateUser } from "@/core/auth/login"
 import { successResponse, errorResponse, serverErrorResponse, parseRequestBody } from "@/lib/api-utils"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter"
+import { createRequestLogger, generateRequestId, getClientIp } from "@/lib/request-context"
+import { logFailedLogin, logSuccessfulLogin, logRateLimitHit } from "@/lib/security-logger"
+import { handleApiError } from "@/lib/server-error-handler"
 
 /**
  * POST /api/v1/auth/login
@@ -51,10 +54,16 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter"
  * }
  */
 export async function POST(request: NextRequest) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+  const ip = getClientIp(request)
+  const userAgent = request.headers.get("user-agent") || undefined
+
   try {
     // Check rate limit
     const rateLimitResult = checkRateLimit(request, RATE_LIMITS.auth)
     if (!rateLimitResult.allowed) {
+      logRateLimitHit(ip, request.nextUrl.pathname, RATE_LIMITS.auth.maxRequests, rateLimitResult.retryAfterSeconds || 60, requestLogger)
       return errorResponse(
         "RATE_LIMIT_EXCEEDED",
         "Too many login attempts. Please try again later.",
@@ -89,12 +98,18 @@ export async function POST(request: NextRequest) {
     })
 
     if (result.success) {
+      // Log successful login
+      logSuccessfulLogin(result.user.id, body.email, ip, userAgent, requestLogger)
+      
       return successResponse(
         { user: result.user },
         200,
         "Login successful"
       )
     } else {
+      // Log failed login attempt
+      logFailedLogin(body.email, ip, userAgent, result.error.message, requestLogger)
+      
       // Map core error codes to HTTP status codes
       const statusCode = result.error.code === "INVALID_CREDENTIALS" ? 401 : 400
       return errorResponse(
@@ -105,8 +120,14 @@ export async function POST(request: NextRequest) {
       )
     }
   } catch (error: unknown) {
-    // Handle unexpected errors (e.g., database connection errors)
-    return serverErrorResponse("Failed to process login request")
+    // Handle unexpected errors
+    const errorInfo = handleApiError(error, request, requestId)
+    return errorResponse(
+      errorInfo.code,
+      errorInfo.message,
+      undefined,
+      errorInfo.statusCode
+    )
   }
 }
 

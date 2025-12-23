@@ -21,6 +21,7 @@
 import { signIn, signOut } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { AuthError } from "next-auth"
+import { logger } from "@/lib/logger"
 
 /**
  * Type guard to check if error is a NextAuth redirect error
@@ -59,7 +60,15 @@ export async function authenticate(
       return undefined
     }
     // For other unexpected errors, log and return a generic message
-    console.error("Unexpected authentication error:", error)
+    logger.error("Unexpected authentication error in server action", {
+      error: error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : String(error),
+    })
     return "An error occurred. Please try again."
   }
 }

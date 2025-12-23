@@ -10,17 +10,23 @@
 
 import { NextRequest } from "next/server";
 import { getRaceResultWithLaps } from "@/core/race-results/repo";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse } from "@/lib/api-utils";
+import { createRequestLogger, generateRequestId } from "@/lib/request-context";
+import { handleApiError } from "@/lib/server-error-handler";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ raceResultId: string }> }
 ) {
+  const requestId = generateRequestId()
+  const requestLogger = createRequestLogger(request, requestId)
+
   try {
     const { raceResultId } = await params;
     const result = await getRaceResultWithLaps(raceResultId);
 
     if (!result) {
+      requestLogger.warn("Race result not found", { raceResultId })
       return errorResponse(
         "NOT_FOUND",
         "Race result not found",
@@ -28,6 +34,11 @@ export async function GET(
         404
       );
     }
+
+    requestLogger.info("Race result laps fetched successfully", {
+      raceResultId,
+      lapsCount: result.laps.length,
+    })
 
     return successResponse({
       race_result_id: result.id,
@@ -42,8 +53,13 @@ export async function GET(
       })),
     });
   } catch (error) {
-    console.error("Error fetching laps:", error);
-    return serverErrorResponse("Failed to fetch laps");
+    const errorInfo = handleApiError(error, request, requestId)
+    return errorResponse(
+      errorInfo.code,
+      errorInfo.message,
+      undefined,
+      errorInfo.statusCode
+    )
   }
 }
 
