@@ -19,8 +19,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import EventOverview from "./EventOverview"
 import EventEmptyState from "./EventEmptyState"
+import { formatDateLong } from "@/lib/date-utils"
 
 const STORAGE_KEY_SELECTED_EVENT = "mre-selected-event-id"
 
@@ -42,11 +44,23 @@ interface EventAnalysisData {
   }
 }
 
+interface ImportedEventSummary {
+  id: string
+  eventName: string
+  eventDate: string | null
+  track: {
+    trackName: string
+  }
+}
+
 export default function DashboardClient() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const [eventData, setEventData] = useState<EventAnalysisData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [recentEvents, setRecentEvents] = useState<ImportedEventSummary[]>([])
+  const [isLoadingRecent, setIsLoadingRecent] = useState(true)
+  const [recentError, setRecentError] = useState<string | null>(null)
 
   useEffect(() => {
     // Check sessionStorage for selected event
@@ -60,6 +74,7 @@ export default function DashboardClient() {
         setIsLoading(false)
       }
     }
+    fetchRecentEvents()
   }, [])
 
   const fetchEventData = async (eventId: string) => {
@@ -97,37 +112,45 @@ export default function DashboardClient() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-8">
+  const fetchRecentEvents = async () => {
+    setIsLoadingRecent(true)
+    setRecentError(null)
+    try {
+      const response = await fetch("/api/v1/events?limit=5", { cache: "no-store" })
+      if (!response.ok) {
+        throw new Error("Failed to load recent events")
+      }
+      const data = await response.json()
+      if (data.success && Array.isArray(data.data.events)) {
+        setRecentEvents(data.data.events.slice(0, 5))
+      } else {
+        setRecentError("Unable to load recent events")
+      }
+    } catch (err) {
+      setRecentError(err instanceof Error ? err.message : "Unable to load recent events")
+    } finally {
+      setIsLoadingRecent(false)
+    }
+  }
+
+  const renderSelectedEvent = () => {
+    if (isLoading) {
+      return (
         <div className="flex h-64 items-center justify-center">
-          <p className="text-sm text-[var(--token-text-muted)]">
-            Loading event data...
-          </p>
+          <p className="text-sm text-[var(--token-text-muted)]">Loading event data...</p>
         </div>
-      </div>
-    )
-  }
+      )
+    }
 
-  if (error && !selectedEventId) {
-    // Show empty state if there was an error and no event selected
+    if (error && !selectedEventId) {
+      return <EventEmptyState />
+    }
+
+    if (!selectedEventId || !eventData) {
+      return <EventEmptyState />
+    }
+
     return (
-      <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-8">
-        <EventEmptyState />
-      </div>
-    )
-  }
-
-  if (!selectedEventId || !eventData) {
-    return (
-      <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-8">
-        <EventEmptyState />
-      </div>
-    )
-  }
-
-  return (
-    <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-8">
       <EventOverview
         eventId={eventData.event.id}
         eventName={eventData.event.eventName}
@@ -137,7 +160,69 @@ export default function DashboardClient() {
         totalDrivers={eventData.summary.totalDrivers}
         totalLaps={eventData.summary.totalLaps}
       />
+    )
+  }
+
+  const renderRecentEvents = () => {
+    if (isLoadingRecent) {
+      return (
+        <p className="text-sm text-[var(--token-text-muted)]">Loading recent events...</p>
+      )
+    }
+
+    if (recentError) {
+      return (
+        <p className="text-sm text-[var(--token-error-text)]">{recentError}</p>
+      )
+    }
+
+    if (recentEvents.length === 0) {
+      return (
+        <div className="space-y-3 text-sm text-[var(--token-text-secondary)]">
+          <p>Import an event to see it appear here for quick access.</p>
+          <Link
+            href="/event-search"
+            className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          >
+            Search for events
+          </Link>
+        </div>
+      )
+    }
+
+    return (
+      <ul className="space-y-3">
+        {recentEvents.map((event) => (
+          <li key={event.id} className="flex flex-col gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-[var(--token-text-primary)]">{event.eventName}</p>
+              <p className="text-xs text-[var(--token-text-secondary)]">
+                {event.track.trackName} • {event.eventDate ? formatDateLong(event.eventDate) : "Date TBD"}
+              </p>
+            </div>
+            <Link
+              href={`/events/analyse/${event.id}`}
+              className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            >
+              View analysis
+            </Link>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-8">
+        {renderSelectedEvent()}
+      </div>
+      <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-[var(--token-text-primary)]">Recent events</h3>
+        </div>
+        {renderRecentEvents()}
+      </div>
     </div>
   )
 }
-

@@ -10,7 +10,7 @@ purpose: Defines the standards, prompts, and visual identity for generating hero
          future-facing) but not implemented in Alpha UI.
 relatedFiles:
   - docs/design/mre-dark-theme-guidelines.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # MRE Hero Image Generation Guidelines

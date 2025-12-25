@@ -12,7 +12,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/05-api-contracts.md
   - docs/architecture/liverc-ingestion/11-ingestion-error-handling.md
   - docs/architecture/liverc-ingestion/24-ingestion-security-hardening.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 17. Ingestion Security (LiveRC Ingestion Subsystem)

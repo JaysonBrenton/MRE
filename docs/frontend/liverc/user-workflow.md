@@ -3,12 +3,12 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Complete end-to-end user workflow for Event Search and Event Analysis features
-purpose: Defines the complete Driver workflow from login → Event Search → search/filter → LiveRC discovery/import → select event → Event Analysis. This document serves as the authoritative UX specification for the Event Search and Event Analysis features in the MRE Alpha release.
+purpose: Defines the complete Driver workflow from login → Event Search → search/filter → LiveRC discovery/import → select event → Event Analysis. This document serves as the authoritative UX specification for the Event Search and Event Analysis features in the MRE version 0.1.0 release.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/05-api-contracts.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/design/mre-ux-principles.md
   - docs/design/mre-mobile-ux-guidelines.md
   - docs/design/mre-dark-theme-guidelines.md
@@ -18,7 +18,7 @@ relatedFiles:
 # LiveRC Event Search and Event Analysis User Workflow
 
 **Status:** Complete  
-**Note:** This feature is in scope for Alpha release. See [MRE Alpha Feature Scope](../specs/mre-alpha-feature-scope.md) for Alpha feature specifications.
+**Note:** This feature is in scope for version 0.1.0 release. See [MRE Version 0.1.0 Feature Scope](../specs/mre-v0.1-feature-scope.md) for version 0.1.0 feature specifications.
 
 ## Purpose
 
@@ -323,12 +323,9 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 - Events already in DB are not duplicated in discovery results
 
 **When New Events Are Discovered:**
-- Show message: **"We found X new events on LiveRC that are not yet imported. Import all now?"**
-- **Import Options (Alpha UX):**
-  - User can **only "import all"** newly discovered events for that search
-  - No selective import (cannot choose subset) in Alpha
-  - "Import All" button triggers import for all discovered events
-  - "Cancel" or "Skip" button dismisses import prompt
+- New events are displayed in event table with status "New (LiveRC only)"
+- User can select one or more events for import using checkboxes
+- Checkboxes appear only for importable events (not for already imported events)
 
 **Discovery Error Handling:**
 - Network errors: Display "Unable to check LiveRC. Please try again later."
@@ -340,38 +337,83 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 
 ### 2.3 Import Behavior and Statuses
 
+#### 2.3.1 Multi-Select Import
+
+**Selection Mechanism:**
+- Checkboxes appear on the right side of each event row (before action buttons)
+- Checkboxes are visible only for importable events (status "New (LiveRC only)")
+- Already imported events do not show checkboxes
+- Checkboxes meet 44px minimum touch target requirement for mobile
+
+**Visual Selection Indicators:**
+- Selected events show:
+  - Row highlight: `bg-[var(--token-surface-elevated)]` background
+  - Border: `border-2 border-[var(--token-accent)]` accent border
+  - Smooth transitions for selection state changes
+
+**Bulk Import Action Bar:**
+- Appears above event table when events are selected
+- Shows count: "X events selected"
+- Includes "Select All Importable" button (selects all importable events)
+- Includes "Clear Selection" button
+- Includes "Import X selected events" button (primary action)
+- Action bar is mobile-friendly (full-width on mobile, auto-width on desktop)
+- Action bar shows import progress during bulk operations: "Importing X of Y..."
+
+**Selection Persistence:**
+- Selected event IDs persist in sessionStorage
+- Selection survives page refreshes
+- Selection clears automatically after successful bulk import
+- Persisted IDs that no longer exist in current results are filtered out
+
 **Import Trigger:**
-- Import triggered when user clicks "Import All" after discovery
+- Import triggered when user clicks "Import X selected events" button
+- Import runs **sequentially** (one event at a time) for selected events
 - Import runs **asynchronously** using existing ingestion job pipeline
 - See [Ingestion Pipeline](../../architecture/liverc-ingestion/03-ingestion-pipeline.md#3-deep-event-ingestion-on-demand) for technical details
+
+**Sequential Import Behavior:**
+- Events are imported one at a time in the order they appear in the list
+- Each event's status updates individually as import progresses
+- If one event fails, import continues with remaining events
+- Failed events can be retried individually
+
+#### 2.3.2 Import Status Flow
 
 **Atomic Unit of Import:**
 - For UX purposes, treat the **entire event** as the atomic unit
 - Either the whole event is successfully imported or it is considered a failure
 - No partial import states visible to end-user
 
-**Import Status Flow:**
+**Per-Event Status Updates:**
 
-1. **Import Started:**
-   - Show toast notification: "Import started for X event(s). We'll update statuses when finished."
-   - In event table, affected events show status: `Importing`
+1. **Import Started (per event):**
+   - Status column shows: `Importing` for the event being imported
    - Status tag uses loading/spinner indicator (optional)
+   - Other selected events remain in "New" status until their turn
 
-2. **Import Success:**
-   - Toast notification: "Import completed for X event(s)."
+2. **Import Success (per event):**
    - Status in table updates to: `Stored` or `Imported`
    - Event becomes available for analysis
+   - "Analyse event" button becomes enabled
 
-3. **Import Failure:**
-   - Toast notification: **"Import failed for [Event Name]. Please try again later."**
+3. **Import Failure (per event):**
    - Status in table: `Failed import` (with red tag/indicator)
    - Failed events remain in table with failed status
-   - User can retry import for failed events (future: "Retry Import" button)
+   - User can retry import for failed events individually
+
+**Bulk Import Completion:**
+- After all selected events complete (success or failure):
+  - Toast notification shows summary: "Imported X of Y events. Z failed. Please retry failed imports."
+  - Event list refreshes to show updated statuses
+  - Selection clears automatically
+  - Failed events remain visible for retry
 
 **Status Updates:**
-- Status updates occur via polling or WebSocket (implementation detail)
-- UI must refresh event table to show updated statuses
-- Status changes must be visible without page reload
+- Status updates occur in real-time during sequential import
+- Each event's status updates individually as its import completes
+- Status changes are visible without page reload
+- Final refresh after bulk import completes shows all updated statuses
 
 **Partial Imports:**
 - UX and docs assume **atomicity** (no partial state visible to end-user)
@@ -434,15 +476,17 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 - Table must degrade to list format on mobile per [Mobile UX Guidelines](../../design/mre-mobile-ux-guidelines.md) Section 10
 
 **Columns:**
-1. **Event Name** (primary column, left-aligned)
-2. **Event Date** (formatted user-friendly, e.g., "November 16, 2025")
-3. **Status** (status tag/badge, right-aligned)
+1. **Checkbox** (for importable events only, desktop: leftmost column, mobile: inline with row)
+2. **Event Name** (primary column, left-aligned)
+3. **Event Date** (formatted user-friendly, e.g., "November 16, 2025")
+4. **Status** (status tag/badge, right-aligned)
 
 **Table Headers:**
 - Headers visible on desktop only
 - Headers use `--token-text-secondary`
 - Headers are keyboard accessible
 - Screen reader support: Proper `<th>` elements with scope
+- Checkbox column header includes "Select All Importable" checkbox (only selects importable events)
 
 **Row Display:**
 - Each row represents one event
@@ -534,10 +578,18 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 
 ### 3.4 Selecting an Event
 
-**Selection Method:**
-- User must select **exactly one** event to analyze at a time
-- Each row includes a clear **"Analyse event"** button
-- Button located in rightmost column (or bottom of card on mobile)
+**Two Types of Selection:**
+
+1. **Checkbox Selection (for Import):**
+   - Checkboxes appear on importable events (status "New (LiveRC only)")
+   - Used to select multiple events for bulk import
+   - Checkboxes are disabled during bulk import operations
+   - See Section 2.3.1 for multi-select import workflow
+
+2. **"Analyse event" Button (for Navigation):**
+   - Button appears on imported events (status "Stored" or "Imported")
+   - Used to navigate to Event Analysis page for a single event
+   - Button located in rightmost column (or bottom of card on mobile)
 
 **"Analyse event" Button:**
 - Button text: "Analyse event" (action-oriented, British spelling per project conventions)
@@ -555,7 +607,7 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 - **Enabled:** Events with status "Stored" or "Imported"
 - **Disabled:** Events with status "Importing" (show tooltip: "Import in progress")
 - **Disabled:** Events with status "Failed import" (show tooltip: "Import failed. Please retry import.")
-- **Enabled:** Events with status "New (LiveRC only)" (triggers import first, then navigates)
+- **Not Shown:** Events with status "New (LiveRC only)" (use checkbox to import first)
 
 **No Internal IDs:**
 - Table must **never display internal MRE IDs or raw LiveRC IDs** to the user
@@ -956,7 +1008,7 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 - **[LiveRC Ingestion Overview](../../architecture/liverc-ingestion/01-overview.md)** - Technical architecture and system overview
 - **[Ingestion Pipeline](../../architecture/liverc-ingestion/03-ingestion-pipeline.md)** - Backend ingestion logic and flow
 - **[API Contracts](../../architecture/liverc-ingestion/05-api-contracts.md)** - API endpoints used by frontend
-- **[MRE Alpha Feature Scope](../../specs/mre-alpha-feature-scope.md)** - Alpha feature specifications and constraints
+- **[MRE Version 0.1.0 Feature Scope](../../specs/mre-v0.1-feature-scope.md)** - version 0.1.0 feature specifications and constraints
 - **[MRE UX Principles](../../design/mre-ux-principles.md)** - Core UX principles and patterns
 - **[MRE Mobile UX Guidelines](../../design/mre-mobile-ux-guidelines.md)** - Mobile-first design requirements
 - **[MRE Dark Theme Guidelines](../../design/mre-dark-theme-guidelines.md)** - Visual design standards
@@ -989,7 +1041,7 @@ All UI/UX specifications in this document must comply with:
 ## Alpha Scope Considerations
 
 **Note on Tables and Charts:**
-While [MRE Alpha Feature Scope](../../specs/mre-alpha-feature-scope.md) Section 3 explicitly forbids "Tables or charts" in Alpha UI, Event Search and Event Analysis are core features of the LiveRC ingestion subsystem, which **is** in Alpha scope. Therefore:
+While [MRE Version 0.1.0 Feature Scope](../../specs/mre-v0.1-feature-scope.md) Section 3 explicitly forbids "Tables or charts" in version 0.1.0 UI, Event Search and Event Analysis are core features of the LiveRC ingestion subsystem, which **is** in version 0.1.0 scope. Therefore:
 
 - **Event Search table** is required for displaying search results (simplified list format acceptable on mobile)
 - **Event Analysis charts** are required for core functionality (basic interactive charts acceptable)

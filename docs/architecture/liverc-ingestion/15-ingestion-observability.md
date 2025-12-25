@@ -11,7 +11,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/20-ingestion-replay-and-debugging.md
   - docs/roles/observability-incident-response-lead.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 15. Ingestion Observability (LiveRC Ingestion Subsystem)

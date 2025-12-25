@@ -21,12 +21,18 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import Header from "@/components/Header"
 import Footer from "@/components/Footer"
+import LogoutButton from "@/components/LogoutButton"
 
 interface AppShellProps {
   children: React.ReactNode
+  session: {
+    user: {
+      name: string
+    }
+  }
 }
 
-export default function AppShell({ children }: AppShellProps) {
+export default function AppShell({ children, session }: AppShellProps) {
   const pathname = usePathname()
 
   const navItems = [
@@ -89,8 +95,17 @@ export default function AppShell({ children }: AppShellProps) {
           </nav>
 
           {/* Footer */}
-          <div className="border-t border-[var(--token-border-muted)] p-4">
-            <p className="text-xs text-[var(--token-text-muted)]">Alpha</p>
+          <div className="border-t border-[var(--token-border-muted)] p-4 space-y-3">
+            {/* User Name */}
+            <p className="text-sm text-[var(--token-text-muted)] truncate">
+              {session.user.name}
+            </p>
+            
+            {/* Logout Button */}
+            <LogoutButton variant="compact" />
+            
+            {/* Version Badge */}
+            <p className="text-xs text-[var(--token-text-muted)]">v0.1.0</p>
           </div>
         </div>
       </aside>

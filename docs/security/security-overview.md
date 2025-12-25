@@ -224,7 +224,7 @@ const isValid = await argon2.verify(passwordHash, password)
 
 ### Authentication Requirements
 
-**Current State (Alpha):**
+**Current State (version 0.1.0):**
 - Most endpoints do not require authentication
 - Authentication endpoints are public
 - Admin endpoints may require authentication in future
@@ -301,8 +301,16 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 ### Encryption
 
 **In Transit:**
-- **Placeholder:** HTTPS configuration for production
-- All API traffic encrypted via HTTPS
+- **Development:** Self-signed SSL certificates available in `certs/` directory for local HTTPS testing
+- **Production:** HTTPS configuration required (use certificates from trusted CA)
+- All API traffic should be encrypted via HTTPS in production
+- HSTS header enforces HTTPS in production (see Security Headers section)
+
+**SSL Certificates:**
+- Development certificates: `certs/localhost-cert.pem` and `certs/localhost-key.pem`
+- Self-signed certificates for localhost development
+- Valid for 365 days, includes SAN for localhost and 127.0.0.1
+- See `certs/README.md` for certificate trust instructions
 
 **At Rest:**
 - **Placeholder:** Database encryption configuration
@@ -319,7 +327,7 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 **Protection:**
 - Email addresses used for authentication
 - Driver names displayed in UI
-- No additional PII collected in Alpha
+- No additional PII collected in version 0.1.0
 
 **Placeholder for future documentation:**
 - PII retention policies
@@ -331,7 +339,8 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 **Connection Security:**
 - Database credentials in environment variables
 - Connection strings not committed to repository
-- **Placeholder:** SSL/TLS for production database connections
+- **Production:** SSL/TLS should be enabled for database connections (configure in DATABASE_URL)
+- **Development:** Database connections typically use private Docker network (lower risk)
 
 **Access Control:**
 - Database user has minimal required permissions
@@ -342,19 +351,56 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 
 ## Security Headers
 
-**Placeholder:** Security headers configuration not yet implemented
+**Status:** ✅ **Implemented** (Version 0.1.0)
 
-**Recommended Headers:**
-- `Content-Security-Policy` - Prevent XSS attacks
-- `X-Frame-Options` - Prevent clickjacking
-- `X-Content-Type-Options` - Prevent MIME sniffing
-- `Strict-Transport-Security` - Force HTTPS
-- `Referrer-Policy` - Control referrer information
+Security headers are implemented in `middleware.ts` with environment-aware configuration. All responses include security headers to protect against common web vulnerabilities.
 
-**Future Implementation:**
-- Configure headers in Next.js middleware
-- Test headers with security scanner
-- Document header configuration
+**Implemented Headers:**
+
+| Header | Value | Environment |
+|--------|-------|-------------|
+| `X-Content-Type-Options` | `nosniff` | All |
+| `X-Frame-Options` | `DENY` | All |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | All |
+| `Permissions-Policy` | `geolocation=(), microphone=(), camera=(), payment=()` | All |
+| `Content-Security-Policy` | See below | Environment-aware |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Production only |
+
+**Content-Security-Policy (CSP):**
+
+**Production:**
+```
+default-src 'self';
+script-src 'self';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https:;
+font-src 'self' data:;
+connect-src 'self';
+frame-ancestors 'none';
+```
+
+**Development:**
+```
+default-src 'self' 'unsafe-inline' 'unsafe-eval';
+script-src 'self' 'unsafe-inline' 'unsafe-eval';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https:;
+font-src 'self' data:;
+connect-src 'self' ws: wss: http://localhost:* https://localhost:*;
+frame-ancestors 'none';
+```
+
+**Implementation Details:**
+- Headers are added in `middleware.ts` via `addSecurityHeaders()` function
+- Development CSP is relaxed to allow hot reload and development tools
+- Production CSP is strict to maximize security
+- HSTS header is only added in production to prevent issues in development
+
+**Testing:**
+- Verify headers are present in responses using browser DevTools or `curl -I`
+- Test CSP with browser console (should not block legitimate resources)
+- Test X-Frame-Options prevents iframe embedding
+- Verify HSTS only appears in production responses
 
 ---
 

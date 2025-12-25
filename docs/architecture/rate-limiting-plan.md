@@ -2,118 +2,101 @@
 created: 2025-01-27
 creator: Auto (AI Assistant)
 lastModified: 2025-01-27
-description: Plan for implementing rate limiting in MRE API
-purpose: Documents the approach for implementing rate limiting to protect API endpoints from abuse. Implementation planned for Beta release.
+description: Rate limiting implementation documentation for MRE API
+purpose: Documents the rate limiting implementation that protects API endpoints from abuse. Rate limiting is currently implemented using an in-memory sliding window algorithm.
 relatedFiles:
   - middleware.ts
   - src/app/api/v1/**/*.ts
 ---
 
-# Rate Limiting Implementation Plan
+# Rate Limiting Implementation
 
 ## Overview
 
-Rate limiting will be implemented to protect API endpoints from abuse and ensure fair resource usage. This is planned for Beta release per Sonnet.4 review recommendations.
+Rate limiting is **implemented** to protect API endpoints from abuse and ensure fair resource usage. The implementation uses an in-memory sliding window algorithm and is applied via Next.js middleware and inline checks in API routes.
 
-## Requirements
+## Implementation Status
 
-1. **Per-IP Rate Limiting**: Limit requests per IP address
-2. **Per-User Rate Limiting**: Limit requests per authenticated user (higher limits)
-3. **Endpoint-Specific Limits**: Different limits for different endpoint types
-4. **Rate Limit Headers**: Include rate limit information in responses
-5. **Graceful Error Messages**: Clear messages when limits are exceeded
+**Status:** ✅ **Implemented** (Alpha Release)
 
-## Recommended Implementation
+Rate limiting is currently implemented and active. The implementation includes:
 
-### Option 1: Upstash Rate Limit (Recommended)
+1. ✅ **Per-IP Rate Limiting**: Requests are limited per IP address
+2. ⏳ **Per-User Rate Limiting**: Not yet implemented (planned for future)
+3. ✅ **Endpoint-Specific Limits**: Different limits configured per endpoint type
+4. ✅ **Rate Limit Headers**: Headers included in all responses
+5. ✅ **Graceful Error Messages**: Standardized error format with retry information
 
-**Library:** `@upstash/ratelimit` with `@upstash/redis`
+## Current Implementation
 
-**Pros:**
-- Redis-backed (distributed, works across instances)
-- Simple API
-- Good TypeScript support
-- Works with serverless
+The current implementation uses an **in-memory sliding window algorithm** (`src/lib/rate-limiter.ts`):
 
-**Implementation:**
-```typescript
-// src/lib/rate-limit.ts
-import { Ratelimit } from "@upstash/ratelimit"
-import { Redis } from "@upstash/redis"
+- **Algorithm**: Sliding window with automatic cleanup
+- **Storage**: In-memory Map (resets on server restart)
+- **Key Format**: `{ip}:{pathname}` (e.g., `192.168.1.1:/api/v1/auth/login`)
+- **Cleanup**: Automatic cleanup of expired entries every 5 minutes
+- **Location**: Applied via Next.js middleware (`middleware.ts`) and inline checks in API routes
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-})
+**Implementation Files:**
+- `src/lib/rate-limiter.ts` - Rate limiter class and utilities
+- `middleware.ts` - Applies rate limiting to API routes
+- `src/app/api/v1/events/[eventId]/ingest/route.ts` - Inline rate limit check example
 
-// Per-IP rate limiter (unauthenticated)
-export const ipRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(100, "1 m"), // 100 requests per minute
-  analytics: true,
-})
+**Limitations:**
+- Rate limits reset on server restart (in-memory storage)
+- Not suitable for multi-instance deployments (each instance has separate limits)
+- For production clusters, consider migrating to Redis-based rate limiting (see Future section)
 
-// Per-user rate limiter (authenticated)
-export const userRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(500, "1 m"), // 500 requests per minute
-  analytics: true,
-})
-```
+## Current Rate Limit Configuration
 
-### Option 2: In-Memory Rate Limiting (Simple, Alpha-Safe)
+Rate limits are configured in `src/lib/rate-limiter.ts`:
 
-**Library:** Custom implementation or `express-rate-limit` adapted for Next.js
+**Authentication Endpoints** (`/api/v1/auth/login`, `/api/v1/auth/register`):
+- 5 requests per 15 minutes per IP
 
-**Pros:**
-- No external dependencies
-- Simple to implement
-- Works for single-instance deployments
+**Registration Endpoint** (`/api/v1/auth/register`):
+- 10 requests per hour per IP
 
-**Cons:**
-- Doesn't work across multiple instances
-- Not suitable for production scaling
+**Ingestion Endpoints** (`/api/v1/events/{id}/ingest`, `/api/v1/events/ingest`):
+- 10 requests per minute per IP
+- Applied inline in route handlers
 
-## Implementation Steps
+**Discovery Endpoint** (`/api/v1/events/discover`):
+- 20 requests per minute per IP
+
+**Rate Limit Headers:**
+- `X-RateLimit-Limit`: Maximum requests allowed
+- `X-RateLimit-Remaining`: Remaining requests
+- `X-RateLimit-Reset`: Unix timestamp when limit resets
+- `Retry-After`: Seconds until rate limit resets (on 429 responses)
+
+**Error Responses:**
+- Returns 429 Too Many Requests status code
+- Uses standardized error format with `RATE_LIMIT_EXCEEDED` code
+- Includes retry-after information in error details
+
+## Migration to Redis-Based Rate Limiting (Future)
+
+For production deployments with multiple instances, consider migrating to Redis-based rate limiting:
 
 1. **Choose Rate Limiting Library**
-   - Evaluate Upstash vs. in-memory solution
+   - Evaluate Upstash vs. Redis solution
    - Consider deployment architecture (single instance vs. distributed)
 
-2. **Create Rate Limiting Middleware**
-   - File: `src/lib/rate-limit.ts`
-   - Implement per-IP and per-user limiters
-   - Configure limits per endpoint type
+2. **Migrate Rate Limiter Implementation**
+   - Replace in-memory RateLimiter with Redis-backed implementation
+   - Maintain same API surface for route handlers
+   - Update middleware to use new implementation
 
-3. **Apply to API Routes**
-   - Add rate limiting to authentication endpoints (stricter limits)
-   - Add rate limiting to data endpoints (moderate limits)
-   - Health endpoint can have higher limits or be exempt
+3. **Add Per-User Rate Limiting**
+   - Implement authenticated user rate limiting (higher limits)
+   - Use user ID instead of IP for authenticated requests
+   - Configure different limits for authenticated vs unauthenticated users
 
-4. **Add Rate Limit Headers**
-   - `X-RateLimit-Limit`: Maximum requests allowed
-   - `X-RateLimit-Remaining`: Remaining requests
-   - `X-RateLimit-Reset`: Time when limit resets
-
-5. **Error Responses**
-   - Return 429 Too Many Requests
-   - Include retry-after header
-   - Use standardized error format
-
-## Rate Limit Configuration
-
-### Recommended Limits
-
-**Authentication Endpoints** (`/api/v1/auth/*`):
-- Unauthenticated: 10 requests per 15 minutes per IP
-- Authenticated: 50 requests per 15 minutes per user
-
-**Data Endpoints** (`/api/v1/events/*`, `/api/v1/tracks/*`, etc.):
-- Unauthenticated: 100 requests per minute per IP
-- Authenticated: 500 requests per minute per user
-
-**Health Endpoint** (`/api/health`):
-- Exempt from rate limiting (or very high limit)
+4. **Update Configuration**
+   - Add Redis connection environment variables
+   - Configure per-user limits
+   - Update rate limit headers to reflect user-based limits
 
 ## Environment Variables
 

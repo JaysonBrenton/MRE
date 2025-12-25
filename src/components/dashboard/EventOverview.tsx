@@ -57,14 +57,21 @@ export default function EventOverview({
               <span className="truncate">{trackName}</span>
             </div>
           </div>
-          {/* Chart Icon Link */}
-          <Link
-            href={`/events/analyse/${eventId}`}
-            className="flex-shrink-0 p-2 rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-            aria-label="View full event analysis"
-          >
-            <ChartIcon size={20} />
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href={`/events/analyse/${eventId}`}
+              className="mobile-button hidden sm:inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            >
+              View full analysis
+            </Link>
+            <Link
+              href={`/events/analyse/${eventId}`}
+              className="flex-shrink-0 p-2 rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:hidden"
+              aria-label="View full event analysis"
+            >
+              <ChartIcon size={20} />
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -98,4 +105,3 @@ export default function EventOverview({
     </div>
   )
 }
-

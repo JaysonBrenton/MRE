@@ -12,13 +12,13 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/02-connector-architecture.md
   - docs/architecture/liverc-ingestion/07-ingestion-state-machine.md
   - docs/architecture/liverc-ingestion/08-ingestion-pipeline-internals.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
 ---
 
 # Ingestion Pipeline Specification
 
-**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-alpha-feature-scope.md) for Alpha feature specifications.
+**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-v0.1-feature-scope.md) for Alpha feature specifications.
 
 **Related Documentation:**
 - [LiveRC Ingestion Overview](01-overview.md) - System overview
@@ -144,23 +144,35 @@ search results.
 ### Data Sources
 Via the LiveRCConnector:
 - Event details page  
+- Entry list page (REQUIRED - ingestion fails if missing)
 - Race list page  
 - Individual race result pages  
 - `racerLaps[...]` JS data blocks for lap series  
 
-### Behaviour
+### Behaviour (Entry-List-First Architecture)
 1. Validate event exists in DB.
 2. Check `ingest_depth`:
    - If `"laps_full"`: return immediately (cached).
 3. Fetch event-level summary if needed.
-4. Fetch list of races (heats, qualifiers, mains).
-5. For each race:
+4. **Fetch entry list (REQUIRED)**:
+   - Entry list is fetched and parsed BEFORE race results
+   - If entry list is missing or empty, ingestion fails with ValidationError
+   - Entry list provides definitive driver list and transponder numbers
+5. **Process entry list**:
+   - Create/update Driver records from entry list
+   - Create EventEntry records for each driver-class combination
+   - Store transponder numbers from entry list
+6. Fetch list of races (heats, qualifiers, mains).
+7. For each race:
    - Fetch driver results.
+   - Match race result drivers to EventEntry records (by driver ID or name)
+   - Update Driver `sourceDriverId` from temporary to real ID if matched
    - Upsert Race, RaceDriver, RaceResult.
-6. For each race result:
+   - Note: Transponder numbers are stored in EventEntry (source of truth), not RaceDriver.
+8. For each race result:
    - Fetch lap data using connector.
    - Upsert Lap rows (with safe dedupe by race_result_id + lap_number).
-7. Update event:
+9. Update event:
    - `ingest_depth = "laps_full"`
    - `last_ingested_at = now()`
 
@@ -177,8 +189,10 @@ The ingestion service must enforce predictable behaviour:
 ### Upsert Keys
 - Track: `source = "liverc"`, `source_track_slug`
 - Event: `source = "liverc"`, `source_event_id`
+- Driver: `source = "liverc"`, `source_driver_id` (may be temporary "entry_*" ID initially)
+- EventEntry: `(event_id, driver_id, class_name)`
 - Race: `(event_id, source_race_id)` if available, else synthetic hash
-- RaceDriver: `(race_id, driver_name)` or numeric ID if available
+- RaceDriver: `(race_id, source_driver_id)`
 - RaceResult: `(race_id, race_driver_id)`
 - Lap: `(race_result_id, lap_number)`
 

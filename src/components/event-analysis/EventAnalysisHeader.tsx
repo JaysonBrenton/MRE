@@ -32,14 +32,31 @@ export default function EventAnalysisHeader({
 }: EventAnalysisHeaderProps) {
   return (
     <div className="space-y-4 mb-8">
-      <div>
-        <Link
-          href="/event-search"
-          className="text-sm text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] inline-block mb-4"
-        >
-          ← Back to Event Search
-        </Link>
-      </div>
+      <nav aria-label="Breadcrumb" className="text-sm text-[var(--token-text-secondary)]">
+        <ol className="flex flex-wrap items-center gap-2">
+          <li>
+            <Link
+              href="/dashboard"
+              className="hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+            >
+              Dashboard
+            </Link>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li>
+            <Link
+              href="/events"
+              className="hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+            >
+              Events
+            </Link>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li className="text-[var(--token-text-primary)]" aria-current="page">
+            {eventName}
+          </li>
+        </ol>
+      </nav>
       <div className="space-y-2">
         <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
           {eventName}
@@ -53,4 +70,3 @@ export default function EventAnalysisHeader({
     </div>
   )
 }
-

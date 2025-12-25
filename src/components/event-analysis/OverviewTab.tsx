@@ -43,21 +43,26 @@ export default function OverviewTab({
   selectedDriverIds,
   onDriverSelectionChange,
 }: OverviewTabProps) {
-  // Initialize with default values for SSR consistency
-  const [chartType, setChartType] = useState<ChartType>(() => {
+  // Initialize with deterministic default and hydrate from localStorage on client
+  const [chartType, setChartType] = useState<ChartType>("best-lap")
+  const [selectedClass, setSelectedClass] = useState<string | null>(null)
+
+  useEffect(() => {
     if (typeof window === "undefined") {
-      return "best-lap"
+      return
     }
     const storedChartType = window.localStorage.getItem(
       STORAGE_KEY_CHART_TYPE
     )
-    return storedChartType &&
+    if (
+      storedChartType &&
       ["best-lap", "gap-evolution", "avg-vs-fastest"].includes(
         storedChartType
       )
-      ? (storedChartType as ChartType)
-      : "best-lap"
-  })
+    ) {
+      setChartType(storedChartType as ChartType)
+    }
+  }, [])
 
   const [paginationState, setPaginationState] = useState({
     page: 1,
@@ -77,9 +82,80 @@ export default function OverviewTab({
     }
   }, [chartType])
 
+  // Filter races by selected class
+  const filteredRaces = useMemo(() => {
+    if (selectedClass === null) {
+      return data.races
+    }
+    return data.races.filter((race) => race.className === selectedClass)
+  }, [data.races, selectedClass])
+
+  // Calculate driver stats from filtered races only
+  const driverStatsByClass = useMemo(() => {
+    const driverMap = new Map<
+      string,
+      {
+        driverId: string
+        driverName: string
+        bestLapTime: number | null
+        avgLapTimes: number[]
+      }
+    >()
+
+    // Process each race in filtered races
+    filteredRaces.forEach((race) => {
+      race.results.forEach((result) => {
+        const driverId = result.driverId
+        const driverName = result.driverName
+
+        if (!driverMap.has(driverId)) {
+          driverMap.set(driverId, {
+            driverId,
+            driverName,
+            bestLapTime: null,
+            avgLapTimes: [],
+          })
+        }
+
+        const driverData = driverMap.get(driverId)!
+
+        // Update best lap time
+        if (result.fastLapTime !== null) {
+          if (
+            driverData.bestLapTime === null ||
+            result.fastLapTime < driverData.bestLapTime
+          ) {
+            driverData.bestLapTime = result.fastLapTime
+          }
+        }
+
+        // Collect average lap times
+        if (result.avgLapTime !== null) {
+          driverData.avgLapTimes.push(result.avgLapTime)
+        }
+      })
+    })
+
+    // Calculate final averages
+    return Array.from(driverMap.values()).map((driver) => {
+      const avgLapTime =
+        driver.avgLapTimes.length > 0
+          ? driver.avgLapTimes.reduce((a, b) => a + b, 0) /
+            driver.avgLapTimes.length
+          : null
+
+      return {
+        driverId: driver.driverId,
+        driverName: driver.driverName,
+        bestLapTime: driver.bestLapTime,
+        avgLapTime,
+      }
+    })
+  }, [filteredRaces])
+
   // Prepare chart data
   const bestLapData = useMemo(() => {
-    return data.drivers
+    return driverStatsByClass
       .filter((d) => d.bestLapTime !== null)
       .map((d) => ({
         driverId: d.driverId,
@@ -87,11 +163,11 @@ export default function OverviewTab({
         bestLapTime: d.bestLapTime!,
       }))
       .sort((a, b) => a.bestLapTime - b.bestLapTime)
-  }, [data.drivers])
+  }, [driverStatsByClass])
 
   const gapEvolutionData = useMemo(() => {
-    // Get lap data for gap calculation
-    const driverSeries = data.races.flatMap((race) =>
+    // Get lap data for gap calculation from filtered races only
+    const driverSeries = filteredRaces.flatMap((race) =>
       race.results.map((result) => ({
         driverId: result.driverId,
         driverName: result.driverName,
@@ -133,10 +209,10 @@ export default function OverviewTab({
 
     const allDriverSeries = Array.from(driverMap.values())
     return calculateTopNGapEvolution(allDriverSeries, 3)
-  }, [data.races])
+  }, [filteredRaces])
 
   const avgVsFastestData = useMemo(() => {
-    return data.drivers
+    return driverStatsByClass
       .filter((d) => d.bestLapTime !== null && d.avgLapTime !== null)
       .map((d) => ({
         driverId: d.driverId,
@@ -145,7 +221,7 @@ export default function OverviewTab({
         averageLap: d.avgLapTime!,
       }))
       .sort((a, b) => a.fastestLap - b.fastestLap)
-  }, [data.drivers])
+  }, [driverStatsByClass])
 
   const driverOptions = useMemo(() => {
     return data.drivers.map((d) => ({
@@ -184,6 +260,35 @@ export default function OverviewTab({
     [selectionKey]
   )
 
+  const handleClassChange = useCallback((className: string | null) => {
+    setSelectedClass(className)
+    // Reset pagination when class changes
+    setPaginationState({
+      page: 1,
+      selectionKey: "",
+    })
+    
+    // Auto-select all drivers in the selected class
+    if (className !== null) {
+      // Get all drivers who raced in this class
+      const driversInClass = new Set<string>()
+      data.races
+        .filter((race) => race.className === className)
+        .forEach((race) => {
+          race.results.forEach((result) => {
+            driversInClass.add(result.driverId)
+          })
+        })
+      
+      // Select all drivers in this class
+      const driverIdsArray = Array.from(driversInClass)
+      handleSelectionChange(driverIdsArray)
+    } else {
+      // When "All Classes" is selected, clear selection
+      handleSelectionChange([])
+    }
+  }, [data.races, handleSelectionChange])
+
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-overview" aria-labelledby="tab-overview">
       {/* Event Statistics */}
@@ -202,6 +307,7 @@ export default function OverviewTab({
         onDriverSelectionChange={handleSelectionChange}
         chartType={chartType}
         onChartTypeChange={setChartType}
+        onClassChange={handleClassChange}
       />
 
       {/* Chart Section */}

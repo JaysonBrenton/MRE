@@ -395,6 +395,7 @@ racerLaps[346997] = {
 1. **RaceResultsParser**: `td:nth-child(13)` for consistency (column position may change)
 2. **EventMetadataParser**: Text matching for "Entries:" and "Drivers:" (format may change)
 3. **RaceListParser**: Regex parsing of race labels (format may vary)
+4. **EntryListParser**: Text parsing of class name from header (format: "{class_name} Entries: {count}")
 
 ### Stable Selectors (Less Likely to Break)
 
@@ -416,6 +417,73 @@ Test files:
 - `test_race_list_parser.py`
 - `test_race_results_parser.py`
 - `test_race_lap_parser.py`
+- `test_entry_list_parser.py`
+
+---
+
+---
+
+## EntryListParser
+
+**File**: `ingestion/connectors/liverc/parsers/entry_list_parser.py`
+
+**Page**: `https://{track_slug}.liverc.com/results/?p=view_entry_list&id={event_id}` (Entry list page)
+
+### CSS Selectors
+
+| Element | Selector | Purpose |
+|---------|----------|---------|
+| Entry tables | `table` | All tables on the page (one per racing class) |
+| Class header | `thead tr:first-child th` | Header row containing class name and entry count |
+| Entry rows | `tbody tr` | All driver entry rows within a table |
+| Car number | `td:first-child` | Car number (first column) |
+| Driver name | `td:nth-child(2)` | Driver name (second column, may contain multiple lines) |
+| Transponder number | `td:nth-child(3)` | Transponder number (third column, may be empty) |
+
+### Data Extraction
+
+- **Class name**: Extracted from header text before "Entries:" (e.g., "1/8 Electric Buggy Entries: 14" → "1/8 Electric Buggy")
+- **Car number**: Text from first column (may be None)
+- **Driver name**: Text from second column, cleaned (takes first line if multiple lines)
+- **Transponder number**: Text from third column (may be None if empty)
+
+### HTML Structure
+
+```html
+<table>
+  <thead>
+    <tr>
+      <th colspan="3">1/8 Electric Buggy Entries: 14</th>
+    </tr>
+    <tr>
+      <th>#</th>
+      <th>Driver</th>
+      <th>Transponder #</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>BRIGUGLIO, MICHAEL<br>MICHAEL BRIGUGLIO</td>
+      <td>3071066</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>BROWN, ALEX<br>ALEX BROWN</td>
+      <td>3373998</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+### Edge Cases
+
+- **Missing entry list pages**: Some events may not have entry lists - parser returns empty entry list (not an error)
+- **Missing transponder numbers**: Some drivers may not have transponder numbers (empty cell) - stored as None
+- **Multiple racing classes**: Each class has its own table - entries grouped by class_name
+- **Driver ID availability**: Driver IDs are not typically available in entry list HTML (set to None)
+- **Malformed tables**: Logged as warning, skipped
+- **Empty entry lists**: Returns empty ConnectorEntryList (not an error)
 
 ---
 

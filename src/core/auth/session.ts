@@ -11,7 +11,7 @@
  * @purpose This file centralizes session management per the architecture
  *          requirement that sessions must be created only inside
  *          src/core/auth/session.ts. This ensures consistent session handling
- *          across web and mobile clients. During Alpha, web uses cookies,
+ *          across web and mobile clients. In version 0.1.0, web uses cookies,
  *          but the architecture is ready for token-based mobile sessions.
  * 
  * @relatedFiles

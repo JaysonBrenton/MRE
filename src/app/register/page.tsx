@@ -156,7 +156,7 @@ export default function RegisterPage() {
           password,
           redirect: false,
         })
-        router.push("/welcome")
+        router.push("/dashboard")
         router.refresh()
       } catch (signInError) {
         // Registration succeeded but auto-login failed, redirect to login

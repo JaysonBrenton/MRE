@@ -28,7 +28,6 @@ export default function Header() {
 
   const navItems = [
     { label: "Overview", href: "/dashboard", exact: true },
-    { label: "Events", href: "/events", exact: false },
     { label: "Telemetry", href: "#", exact: false },
     { label: "Setups", href: "#", exact: false },
   ]
@@ -47,7 +46,7 @@ export default function Header() {
           {/* Logo/Brand */}
           <div className="flex items-center">
             <Link
-              href="/dashboard"
+              href="/welcome"
               className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
             >
               MRE

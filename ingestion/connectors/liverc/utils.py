@@ -67,6 +67,20 @@ def build_race_url(track_slug: str, source_race_id: str) -> str:
     return f"https://{track_slug}.liverc.com/results/?p=view_race_result&id={source_race_id}"
 
 
+def build_entry_list_url(track_slug: str, source_event_id: str) -> str:
+    """
+    Build entry list page URL.
+    
+    Args:
+        track_slug: Track subdomain slug
+        source_event_id: Event ID from LiveRC
+    
+    Returns:
+        Full entry list URL (e.g., "https://canberraoffroad.liverc.com/results/?p=view_entry_list&id=489289")
+    """
+    return f"https://{track_slug}.liverc.com/results/?p=view_entry_list&id={source_event_id}"
+
+
 def parse_track_slug_from_url(url: str) -> Optional[str]:
     """
     Extract track slug from URL.

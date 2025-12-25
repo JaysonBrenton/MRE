@@ -11,7 +11,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/05-api-contracts.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 06. Admin CLI Specification (LiveRC Ingestion Subsystem)
@@ -92,6 +92,7 @@ The CLI provides the following top-level commands:
 2. Events
    - list-events
    - refresh-events
+   - refresh-followed-events
    - ingest-event
 
 3. Diagnostics
@@ -173,6 +174,9 @@ Populate or refresh events for a specific track.
 
 Arguments:
 - --track-id (required)
+- --depth (required) - Ingestion depth: `none` (metadata only) or `laps_full` (full ingestion)
+- --ingest-new-only (optional) - Only ingest newly discovered events (default when depth is laps_full)
+- --ingest-all (optional) - Ingest all events, including re-ingestion of existing events
 
 Behaviour:
 - Calls LiveRC events page for that track.
@@ -183,6 +187,7 @@ Behaviour:
   - drivers
   - event URL
 - Updates existing events or inserts new ones.
+- If `--depth laps_full` is specified, triggers full ingestion for events (new only by default, or all if `--ingest-all` is specified).
 - Must be idempotent.
 
 Cron usage:
@@ -190,7 +195,30 @@ Cron usage:
 
 ---
 
-### 4.3 ingest-event
+### 4.3 refresh-followed-events
+
+Description:
+Refresh events for all tracks marked as `is_followed=true`. This command iterates through all followed tracks and refreshes their events.
+
+Arguments:
+- --depth (required) - Ingestion depth: `none` (metadata only) or `laps_full` (full ingestion)
+- --ingest-new-only (optional) - Only ingest newly discovered events (default when depth is laps_full)
+- --ingest-all (optional) - Ingest all events, including re-ingestion of existing events
+- --quiet (optional) - Suppress per-track output, only show summary
+
+Behaviour:
+- Queries database for all tracks where `is_followed=true`.
+- For each followed track, calls `refresh-events` with the specified depth and ingestion options.
+- Aggregates results across all tracks.
+- Must be idempotent.
+
+Cron usage:
+- Recommended nightly job to keep followed tracks up to date.
+- Typically run with `--depth none` to update metadata without full ingestion.
+
+---
+
+### 4.4 ingest-event
 
 Description:
 Perform ingestion for a specific event, including races, results, and lap data.
@@ -277,6 +305,7 @@ Examples of required metadata:
 
 Administrators may use cron for:
 - refresh-tracks (nightly)
+- refresh-followed-events (nightly, typically with `--depth none`)
 - refresh-events (weekly or per-track)
 - periodic ingestion for selected tracks (optional)
 

@@ -28,7 +28,7 @@ export default async function Dashboard() {
     redirect("/login")
   }
   return (
-    <AppShell>
+    <AppShell session={session}>
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Page Header */}
         <div className="mb-12">
@@ -55,10 +55,10 @@ export default async function Dashboard() {
                 Discover and import race events from LiveRC to analyze lap times, driver performance, and race data.
               </p>
               <Link
-                href="/events"
+                href="/event-search"
                 className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
               >
-                View events
+                Search events
               </Link>
             </div>
 
@@ -107,4 +107,3 @@ export default async function Dashboard() {
     </AppShell>
   )
 }
-

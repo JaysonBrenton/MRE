@@ -42,6 +42,7 @@ export interface ChartControlsProps {
   onDriverSelectionChange: (driverIds: string[]) => void
   chartType?: "best-lap" | "gap-evolution" | "avg-vs-fastest"
   onChartTypeChange?: (type: "best-lap" | "gap-evolution" | "avg-vs-fastest") => void
+  onClassChange?: (className: string | null) => void
 }
 
 interface VirtualizedItem {
@@ -226,19 +227,24 @@ export default function ChartControls({
   onDriverSelectionChange,
   chartType,
   onChartTypeChange,
+  onClassChange,
 }: ChartControlsProps) {
   const [isCompact, setIsCompact] = useState(false)
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
-  const [isPanelOpen, setIsPanelOpen] = useState(() => {
-    // Default to open on desktop, closed on mobile
-    if (typeof window !== "undefined") {
-      return window.innerWidth >= 640
+  const [isPanelOpen, setIsPanelOpen] = useState(true)
+  // Hydrate mobile vs desktop default once the client is available
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
     }
-    return true
-  })
+    if (window.innerWidth < 640) {
+      setIsPanelOpen(false)
+    }
+  }, [])
+
   const [containerHeight, setContainerHeight] = useState(300)
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -482,6 +488,7 @@ export default function ChartControls({
                   onClick={() => {
                     setSelectedClass(null)
                     setIsClassDropdownOpen(false)
+                    onClassChange?.(null)
                   }}
                   className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
                     selectedClass === null
@@ -498,6 +505,7 @@ export default function ChartControls({
                     onClick={() => {
                       setSelectedClass(classInfo.className)
                       setIsClassDropdownOpen(false)
+                      onClassChange?.(classInfo.className)
                     }}
                     className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
                       selectedClass === classInfo.className

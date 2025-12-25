@@ -10,13 +10,13 @@ purpose: Defines the complete connector layer architecture that provides a unifo
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
 ---
 
 # Connector Architecture Specification
 
-**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-alpha-feature-scope.md) for Alpha feature specifications.
+**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-v0.1-feature-scope.md) for Alpha feature specifications.
 
 **Related Documentation:**
 - [LiveRC Ingestion Overview](01-overview.md) - System overview

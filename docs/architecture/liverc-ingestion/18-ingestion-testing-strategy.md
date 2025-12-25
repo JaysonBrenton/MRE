@@ -12,7 +12,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/19-ingestion-fixture-management.md
   - docs/architecture/liverc-ingestion/20-ingestion-replay-and-debugging.md
   - docs/roles/quality-automation-engineer.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 18. Ingestion Testing Strategy (LiveRC Ingestion Subsystem)

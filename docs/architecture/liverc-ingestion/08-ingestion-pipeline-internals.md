@@ -12,7 +12,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/07-ingestion-state-machine.md
   - docs/architecture/liverc-ingestion/16-ingestion-concurrency-and-locking.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 08. Ingestion Pipeline Internals (LiveRC Ingestion Subsystem)

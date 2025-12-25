@@ -12,7 +12,7 @@
 import asyncio
 import time
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from uuid import UUID
 
 from ingestion.common.logging import get_logger
@@ -23,6 +23,7 @@ from ingestion.connectors.liverc.models import (
     ConnectorEventSummary,
     ConnectorRacePackage,
     ConnectorRaceSummary,
+    ConnectorEntryList,
 )
 from ingestion.connectors.liverc.utils import build_event_url
 from ingestion.db.models import IngestDepth
@@ -36,6 +37,8 @@ from ingestion.ingestion.errors import (
 from ingestion.ingestion.normalizer import Normalizer
 from ingestion.ingestion.state_machine import IngestionStateMachine
 from ingestion.ingestion.validator import Validator
+from ingestion.ingestion.driver_matcher import DriverMatcher
+from ingestion.db.models import EventEntry
 
 logger = get_logger(__name__)
 
@@ -148,6 +151,7 @@ class IngestionPipeline:
             event_id: Event ID
             repo: Repository instance for database operations
             depth: Ingestion depth
+            entry_list: Optional entry list for transponder number matching
         
         Returns:
             Tuple of (races_ingested, results_ingested, laps_ingested)
@@ -199,18 +203,96 @@ class IngestionPipeline:
                         # Normalize result
                         normalized_result = Normalizer.normalize_result(result)
                         
-                        # Upsert driver
-                        driver = repo.upsert_race_driver(
+                        # Match race result driver to EventEntry record
+                        class_name = normalized_race["class_name"]
+                        event_entries = repo.get_event_entries_by_class(
+                            event_id=event_id,
+                            class_name=class_name,
+                        )
+                        
+                        matched_event_entry = None
+                        
+                        if event_entries:
+                            matched_event_entry = DriverMatcher.match_race_result_to_event_entry(
+                                event_entries=event_entries,
+                                race_result=result,
+                                class_name=class_name,
+                            )
+                            
+                            if matched_event_entry:
+                                # Update driver's source_driver_id if it's still a temporary one
+                                driver = matched_event_entry.driver
+                                if driver.source_driver_id.startswith("entry_"):
+                                    # Check if a driver with the real source_driver_id already exists
+                                    from ingestion.db.models import Driver as DriverModel
+                                    existing_driver = repo.session.query(DriverModel).filter(
+                                        DriverModel.source == "liverc",
+                                        DriverModel.source_driver_id == normalized_result["source_driver_id"],
+                                    ).first()
+                                    
+                                    if existing_driver and existing_driver.id != driver.id:
+                                        # Driver with real ID already exists - use that one and update EventEntry
+                                        logger.debug(
+                                            "driver_merged",
+                                            old_driver_id=str(driver.id),
+                                            new_driver_id=str(existing_driver.id),
+                                            source_driver_id=normalized_result["source_driver_id"],
+                                        )
+                                        matched_event_entry.driver_id = existing_driver.id
+                                        matched_event_entry.updated_at = datetime.utcnow()
+                                        driver = existing_driver
+                                    else:
+                                        # Update driver with actual source_driver_id from race result
+                                        old_id = driver.source_driver_id
+                                        driver.source_driver_id = normalized_result["source_driver_id"]
+                                        driver.updated_at = datetime.utcnow()
+                                        logger.debug(
+                                            "driver_source_id_updated",
+                                            driver_id=str(driver.id),
+                                            old_id=old_id,
+                                            new_id=normalized_result["source_driver_id"],
+                                        )
+                        else:
+                            logger.warning(
+                                "no_event_entries_for_class",
+                                event_id=str(event_id),
+                                class_name=class_name,
+                                race_id=race_summary.source_race_id,
+                            )
+                        
+                        # If no match found, create driver from race result (fallback)
+                        if not matched_event_entry:
+                            driver = repo.upsert_driver(
+                                source="liverc",
+                                source_driver_id=normalized_result["source_driver_id"],
+                                display_name=normalized_result["display_name"],
+                                transponder_number=None,  # No transponder from race results
+                            )
+                            logger.warning(
+                                "driver_not_matched_to_entry",
+                                event_id=str(event_id),
+                                race_id=race_summary.source_race_id,
+                                driver_id=normalized_result["source_driver_id"],
+                                driver_name=normalized_result["display_name"],
+                                class_name=class_name,
+                            )
+                        else:
+                            driver = matched_event_entry.driver
+                        
+                        # Upsert race driver
+                        # Note: Transponder numbers are stored in EventEntry (source of truth), not RaceDriver
+                        race_driver = repo.upsert_race_driver(
                             race_id=race.id,
                             source="liverc",
                             source_driver_id=normalized_result["source_driver_id"],
                             display_name=normalized_result["display_name"],
+                            transponder_number=None,  # Transponders come from EventEntry, not race results
                         )
                         
                         # Upsert result
                         race_result = repo.upsert_race_result(
                             race_id=race.id,
-                            race_driver_id=driver.id,
+                            race_driver_id=race_driver.id,
                             position_final=normalized_result["position_final"],
                             laps_completed=normalized_result["laps_completed"],
                             total_time_raw=normalized_result.get("total_time_raw"),
@@ -268,6 +350,83 @@ class IngestionPipeline:
                     laps_ingested += len(race_laps)
         
         return races_ingested, results_ingested, laps_ingested
+    
+    def _process_entry_list(
+        self,
+        entry_list: ConnectorEntryList,
+        event_id: UUID,
+        repo: Repository,
+    ) -> Dict[str, Any]:
+        """
+        Process entry list to create drivers and EventEntry records.
+        
+        This method:
+        1. Creates/updates Driver records from entry list
+        2. Creates EventEntry records linking drivers to classes
+        
+        Args:
+            entry_list: Entry list from connector
+            event_id: Event ID
+            repo: Repository instance
+        
+        Returns:
+            Dictionary with processing statistics
+        """
+        drivers_created = 0
+        drivers_updated = 0
+        entries_created = 0
+        
+        # Generate a temporary source_driver_id for entry list drivers
+        # We'll use a hash of the driver name + class as a temporary ID
+        # This will be updated when we match race results
+        import hashlib
+        
+        for class_name, entry_drivers in entry_list.entries_by_class.items():
+            for entry_driver in entry_drivers:
+                # Generate temporary source_driver_id from driver name
+                # Format: "entry_{hash_of_name}" - this will be updated when we match race results
+                temp_id_source = f"{entry_driver.driver_name.lower().strip()}"
+                temp_id_hash = hashlib.md5(temp_id_source.encode()).hexdigest()[:16]
+                temp_source_driver_id = f"entry_{temp_id_hash}"
+                
+                # Create/update driver from entry list
+                # Note: We'll update source_driver_id later when we match race results
+                driver = repo.upsert_driver(
+                    source="liverc",
+                    source_driver_id=temp_source_driver_id,
+                    display_name=entry_driver.driver_name,
+                    transponder_number=entry_driver.transponder_number,
+                )
+                
+                if driver.transponder_number != entry_driver.transponder_number:
+                    drivers_updated += 1
+                else:
+                    drivers_created += 1
+                
+                # Create EventEntry record
+                repo.upsert_event_entry(
+                    event_id=event_id,
+                    driver_id=driver.id,
+                    class_name=class_name,
+                    transponder_number=entry_driver.transponder_number,
+                    car_number=entry_driver.car_number,
+                )
+                entries_created += 1
+        
+        logger.info(
+            "entry_list_processed",
+            event_id=str(event_id),
+            drivers_created=drivers_created,
+            drivers_updated=drivers_updated,
+            entries_created=entries_created,
+            class_count=len(entry_list.entries_by_class),
+        )
+        
+        return {
+            "drivers_created": drivers_created,
+            "drivers_updated": drivers_updated,
+            "entries_created": entries_created,
+        }
     
     async def ingest_event(
         self,
@@ -343,6 +502,20 @@ class IngestionPipeline:
                 )
                 logger.info("connector_fetch_end", event_id=str(event_id), type="event_page")
                 
+                # Fetch entry list (REQUIRED - fail if missing)
+                logger.info("connector_fetch_start", event_id=str(event_id), type="entry_list")
+                entry_list = await self.connector.fetch_entry_list(
+                    track_slug=event.track.source_track_slug,
+                    source_event_id=event.source_event_id,
+                )
+                logger.info("entry_list_fetched", event_id=str(event_id), class_count=len(entry_list.entries_by_class))
+                
+                if not entry_list.entries_by_class:
+                    raise ValidationError(
+                        f"Entry list is empty for event {event.source_event_id}",
+                        event_id=str(event_id),
+                    )
+                
                 # Sort races by race_order before validation
                 # Sorting logic:
                 # - Races with race_order=None are sorted to the end (treated as highest priority for "None" group)
@@ -362,6 +535,13 @@ class IngestionPipeline:
                 event.event_date = normalized_event["event_date"]
                 event.event_entries = normalized_event["event_entries"]
                 event.event_drivers = normalized_event["event_drivers"]
+                
+                # Process entry list FIRST - create drivers and EventEntry records
+                entry_stats = self._process_entry_list(
+                    entry_list=entry_list,
+                    event_id=event_id,
+                    repo=repo,
+                )
                 
                 # Process races in parallel batches
                 races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(
@@ -564,6 +744,20 @@ class IngestionPipeline:
                 )
                 logger.info("connector_fetch_end", event_id=str(event_id), type="event_page")
                 
+                # Fetch entry list (REQUIRED - fail if missing)
+                logger.info("connector_fetch_start", event_id=str(event_id), type="entry_list")
+                entry_list = await self.connector.fetch_entry_list(
+                    track_slug=track.source_track_slug,
+                    source_event_id=source_event_id,
+                )
+                logger.info("entry_list_fetched", event_id=str(event_id), class_count=len(entry_list.entries_by_class))
+                
+                if not entry_list.entries_by_class:
+                    raise ValidationError(
+                        f"Entry list is empty for event {source_event_id}",
+                        event_id=str(event_id),
+                    )
+                
                 # Sort races by race_order before validation
                 event_data.races.sort(key=lambda r: (r.race_order is None, r.race_order or 0))
                 
@@ -575,6 +769,13 @@ class IngestionPipeline:
                 event.event_date = normalized_event["event_date"]
                 event.event_entries = normalized_event["event_entries"]
                 event.event_drivers = normalized_event["event_drivers"]
+                
+                # Process entry list FIRST - create drivers and EventEntry records
+                entry_stats = self._process_entry_list(
+                    entry_list=entry_list,
+                    event_id=event_id,
+                    repo=repo,
+                )
                 
                 # Process races in parallel batches (same logic as ingest_event)
                 races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(

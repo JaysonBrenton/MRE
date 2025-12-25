@@ -9,7 +9,7 @@ purpose: Documents the architectural decision to adopt the Mobile-Safe Architect
          browser-independent core, mobile-first UI, and dual authentication support.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/standards/file-headers-and-commenting-guidelines.md
 ---
 
@@ -117,6 +117,6 @@ The implementation will be completed as part of the documentation and codebase a
 ## References
 
 - `docs/architecture/mobile-safe-architecture-guidelines.md` - Authoritative architecture document
-- `docs/specs/mre-alpha-feature-scope.md` - Alpha feature requirements
+- `docs/specs/mre-v0.1-feature-scope.md` - version 0.1.0 feature requirements
 - `docs/standards/file-headers-and-commenting-guidelines.md` - Code documentation standards
 

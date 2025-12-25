@@ -138,75 +138,76 @@ export default function GapEvolutionLineChart({
       className={className}
       aria-label="Gap to leader evolution line chart"
     >
-      <ParentSize>
-        {({ width: parentWidth }) => {
-          // Use parentWidth if available, otherwise fallback to 800 for SSR
-          // ParentSize will return 0 or undefined during SSR, which is fine
-          const width = parentWidth || 800
-          
-          // Don't render chart if width is 0 (during initial SSR)
-          if (width === 0) {
-            return null
-          }
+      <div className="relative w-full" style={{ height: `${height}px` }}>
+        <ParentSize>
+          {({ width: parentWidth }) => {
+            // Use parentWidth if available, otherwise fallback to 800 for SSR
+            // ParentSize will return 0 or undefined during SSR, which is fine
+            const width = parentWidth || 800
+            
+            // Don't render chart if width is 0 (during initial SSR)
+            if (width === 0) {
+              return null
+            }
 
-          const innerWidth = width - margin.left - margin.right
-          const innerHeight = height - margin.top - margin.bottom
+            const innerWidth = width - margin.left - margin.right
+            const innerHeight = height - margin.top - margin.bottom
 
-          // Find max lap number and max gap
-          const maxLap = Math.max(
-            ...paginatedData.flatMap((series) =>
-              series.gaps.map((gap) => gap.lapNumber)
-            ),
-            1
-          )
-          const maxGap = Math.max(
-            ...paginatedData.flatMap((series) => series.gaps.map((gap) => gap.gapToLeader)),
-            0
-          )
+            // Find max lap number and max gap
+            const maxLap = Math.max(
+              ...paginatedData.flatMap((series) =>
+                series.gaps.map((gap) => gap.lapNumber)
+              ),
+              1
+            )
+            const maxGap = Math.max(
+              ...paginatedData.flatMap((series) => series.gaps.map((gap) => gap.gapToLeader)),
+              0
+            )
 
-          // Scales
-          const xScale = scaleLinear({
-            range: [0, innerWidth],
-            domain: [1, maxLap],
-            nice: true,
-          })
+            // Scales
+            const xScale = scaleLinear({
+              range: [0, innerWidth],
+              domain: [1, maxLap],
+              nice: true,
+            })
 
-          const yScale = scaleLinear({
-            range: [innerHeight, 0],
-            domain: [0, maxGap * 1.1],
-            nice: true,
-          })
+            const yScale = scaleLinear({
+              range: [innerHeight, 0],
+              domain: [0, maxGap * 1.1],
+              nice: true,
+            })
 
-          return (
-            <svg
-              width={width}
-              height={height}
-              aria-labelledby={`${chartTitleId} ${chartDescId}`}
-              role="img"
-            >
-              <title id={chartTitleId}>Gap to leader over race duration</title>
-              <desc id={chartDescId}>
-                Line chart showing how each selected driver's time gap to the leader evolves across laps.
-              </desc>
-              <Group left={margin.left} top={margin.top}>
-                {/* Grid */}
-                <GridRows
-                  scale={yScale}
-                  width={innerWidth}
-                  stroke={borderColor}
-                  strokeDasharray="2,2"
-                  opacity={0.3}
-                />
-                <GridColumns
-                  scale={xScale}
-                  height={innerHeight}
-                  stroke={borderColor}
-                  strokeDasharray="2,2"
-                  opacity={0.3}
-                />
+            return (
+              <svg
+                width={width}
+                height={height}
+                aria-labelledby={`${chartTitleId} ${chartDescId}`}
+                role="img"
+              >
+                <title id={chartTitleId}>Gap to leader over race duration</title>
+                <desc id={chartDescId}>
+                  Line chart showing how each selected driver's time gap to the leader evolves across laps.
+                </desc>
+                <Group left={margin.left} top={margin.top}>
+                  {/* Grid */}
+                  <GridRows
+                    scale={yScale}
+                    width={innerWidth}
+                    stroke={borderColor}
+                    strokeDasharray="2,2"
+                    opacity={0.3}
+                  />
+                  <GridColumns
+                    scale={xScale}
+                    height={innerHeight}
+                    stroke={borderColor}
+                    strokeDasharray="2,2"
+                    opacity={0.3}
+                  />
 
-                {/* Lines */}
-                {paginatedData.map((series, index) => {
+                  {/* Lines */}
+                  {paginatedData.map((series, index) => {
             const color = accentColors[index % accentColors.length]
             const isSelected =
               selectedDriverIds.length === 0 ||
@@ -392,6 +393,7 @@ export default function GapEvolutionLineChart({
           </div>
         </TooltipWithBounds>
       )}
+      </div>
 
       {/* Pagination */}
       {onPageChange && totalPages > 1 && (

@@ -6,10 +6,10 @@ description: Authoritative architecture guidelines for mobile-safe, API-first ap
 purpose: Defines the complete architectural framework for the My Race Engineer (MRE) application.
          Ensures the system is fully mobile-safe, API-first, future-native for iOS/Android clients,
          and compliant with enterprise-grade structure and maintainability requirements. These
-         rules are binding, not advisory. Alpha implementation must follow these guidelines exactly.
+         rules are binding, not advisory. Version 0.1.0 implementation must follow these guidelines exactly.
 relatedFiles:
   - docs/adr/ADR-20250127-adopt-mobile-safe-architecture.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/design/mre-dark-theme-guidelines.md
   - docs/design/mre-mobile-ux-guidelines.md
   - docs/design/mre-ux-principles.md
@@ -25,14 +25,14 @@ relatedFiles:
 
 # Mobile-Safe Architecture Guidelines for My Race Engineer (MRE)
 
-**Version:** Alpha
+**Version:** 0.1.0
 **Status:** Authoritative Architecture Standard
 **Scope:** Governs all backend, API, client, UI, and LLM-generated code
 **Applicability:** ALL contributors, including Cursor, Copilot, and ChatGPT Coding Mode
 
 This document defines the complete architectural framework for the **My Race Engineer (MRE)** application. It ensures the system is fully mobile-safe, API-first, future-native for iOS/Android clients, and compliant with enterprise-grade structure and maintainability requirements.
 
-These rules are **binding**, not advisory. Alpha implementation must follow these guidelines exactly.
+These rules are **binding**, not advisory. Version 0.1.0 implementation must follow these guidelines exactly.
 
 ---
 
@@ -127,7 +127,7 @@ Tables must degrade into:
 * lists, or
 * cards
 
-Complex multicolumn layouts are prohibited in Alpha.
+Complex multicolumn layouts are prohibited in version 0.1.0.
 
 **Why this matters:**
 
@@ -144,7 +144,7 @@ Authentication system must:
 * be architecturally ready for token-based mobile login
 * expose token-based session endpoints (even if stubbed)
 
-During Alpha, UI may use cookies only—but backend must be structured for mobile.
+In version 0.1.0, UI may use cookies only—but backend must be structured for mobile.
 
 **Why this matters:**
 
@@ -258,10 +258,10 @@ API routes must:
 ## 4.1 Required Behaviours
 
 * Sessions must be created only inside `src/core/auth/session.ts`
-* Cookies used for Alpha UI
+* Cookies used for version 0.1.0 UI
 * Token model scaffolded for future mobile use
 
-## 4.2 Forbidden in Alpha
+## 4.2 Forbidden in Version 0.1.0
 
 * OAuth providers
 * External identity management
@@ -269,7 +269,7 @@ API routes must:
 * Magic links
 * Social login
 
-All authentication must remain minimalistic for Alpha.
+All authentication must remain minimalistic for version 0.1.0.
 
 ---
 
@@ -285,7 +285,7 @@ src/core/<domain>/repo.ts
 
 ## 5.2 Entities
 
-Alpha entities include:
+Version 0.1.0 entities include:
 
 * **User**
 
@@ -297,7 +297,7 @@ Alpha entities include:
   * isAdmin
   * timestamps
 
-* **LiveRC Ingestion Entities** (in scope for Alpha)
+* **LiveRC Ingestion Entities** (in scope for version 0.1.0)
 
   * Track (track catalogue)
   * Event (race events)
@@ -306,7 +306,7 @@ Alpha entities include:
   * RaceResult (race results per driver)
   * Lap (lap-by-lap data)
 
-  These entities support the LiveRC ingestion subsystem, which is an Alpha feature. See `docs/architecture/liverc-ingestion/` for complete architecture specification.
+  These entities support the LiveRC ingestion subsystem, which is a version 0.1.0 feature. See `docs/architecture/liverc-ingestion/` for complete architecture specification.
 
 ## 5.3 Forbidden
 
@@ -338,7 +338,7 @@ All UI must follow:
 
 # 7. Logging & Telemetry
 
-During Alpha:
+In version 0.1.0:
 
 * Logging must be console-based
 * Errors must be structured and human-readable
@@ -353,13 +353,13 @@ All LLMs must:
 * Obey this document
 * Quote this document when making decisions
 * Refuse to generate code violating any rule here
-* Refuse to create non-Alpha features
+* Refuse to create features outside version 0.1.0 scope
 * Use core folder structure
 * Use `/docs/` as authoritative source
 
 Cursor validation steps must include:
 
-1. Scope check against Alpha spec
+1. Scope check against version 0.1.0 spec
 2. Architecture check against this document
 3. UX/Dark theme check
 4. Error format check
@@ -369,7 +369,7 @@ Cursor validation steps must include:
 
 # 9. Testing Requirements
 
-Minimum Alpha test coverage:
+Minimum version 0.1.0 test coverage:
 
 * registration core logic
 * login core logic
@@ -383,7 +383,7 @@ Future phases will introduce full unit/integration/e2e coverage.
 
 # 10. Performance Requirements
 
-Alpha must:
+Version 0.1.0 must:
 
 * render all screens < 200ms on local
 * API responses < 300ms for simple requests
@@ -404,7 +404,7 @@ Alpha must:
 
 ---
 
-# 12. Future Architecture Hooks (Not Implemented in Alpha)
+# 12. Future Architecture Hooks (Not Implemented in Version 0.1.0)
 
 These items may be referenced but **must not** be implemented:
 
@@ -448,4 +448,4 @@ All roles must coordinate to ensure architecture compliance. Violations should b
 
 # 14. License
 
-Internal use only. This document governs architecture for the Alpha release of MRE.
+Internal use only. This document governs architecture for the version 0.1.0 release of MRE.

@@ -9,7 +9,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/05-api-contracts.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # Event Search and Event Analysis User Stories
@@ -145,16 +145,23 @@ This document provides user stories and acceptance criteria for the Event Search
 
 ### Acceptance Criteria
 
-- [ ] When new events discovered, message shown: "We found X new events on LiveRC that are not yet imported. Import all now?"
-- [ ] "Import All" button triggers import for all discovered events
-- [ ] User can only "import all" (no selective import in Alpha)
-- [ ] Toast notification shown: "Import started for X event(s). We'll update statuses when finished."
+- [ ] User can select one or more events for import using checkboxes
+- [ ] Checkboxes appear only for importable events (status "New (LiveRC only)")
+- [ ] Checkboxes are disabled for already imported events
+- [ ] Bulk import action bar appears when events are selected, showing "Import X selected events"
+- [ ] "Select All Importable" button selects all importable events at once
+- [ ] "Clear Selection" button clears all selections
+- [ ] Import runs sequentially for selected events (one at a time)
+- [ ] Status column shows real-time progress (importing → imported/failed) for each event
+- [ ] Toast notification shown: "Import started for X event(s)." (for bulk import)
 - [ ] Events show status "Importing" during import
 - [ ] Import runs asynchronously (does not block UI)
-- [ ] Status updates when import completes or fails
-- [ ] Success toast: "Import completed for X event(s)."
-- [ ] Failure toast: "Import failed for [Event Name]. Please try again later."
+- [ ] Status updates when import completes or fails for each event
+- [ ] Success toast: "Import completed for X event(s)." (for bulk import)
+- [ ] Failure toast shows summary: "Imported X of Y events. Z failed. Please retry failed imports."
 - [ ] Failed events show status "Failed import" with red tag
+- [ ] Selection persists in sessionStorage across page refreshes
+- [ ] Selection clears automatically after successful bulk import
 
 ---
 

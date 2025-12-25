@@ -2,13 +2,13 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Mandatory UX principles for all MRE Alpha features
+description: Mandatory UX principles for all MRE version 0.1.0 features
 purpose: Defines the mandatory User Experience principles for My Race Engineer (MRE).
-         These rules apply to all Alpha features and will remain the baseline foundation
+         These rules apply to all version 0.1.0 features and will remain the baseline foundation
          for Beta and Production. Ensures every screen behaves consistently, LLM
-         contributors follow predictable UX patterns, and Alpha UI remains simple,
+         contributors follow predictable UX patterns, and version 0.1.0 UI remains simple,
          mobile-first, and enterprise-grade. This document is fully authoritative.
-         No UX deviations are allowed during Alpha.
+         No UX deviations are allowed in version 0.1.0.
 relatedFiles:
   - docs/design/mre-dark-theme-guidelines.md
   - docs/design/mre-mobile-ux-guidelines.md
@@ -21,15 +21,15 @@ relatedFiles:
 
 # MRE UX Principles (Authoritative Guide)
 
-This document defines the mandatory User Experience principles for **My Race Engineer (MRE)**. These rules apply to **all Alpha features** and will remain the baseline foundation for Beta and Production.
+This document defines the mandatory User Experience principles for **My Race Engineer (MRE)**. These rules apply to **all version 0.1.0 features** and will remain the baseline foundation for Beta and Production.
 
 The purpose of this document is to ensure that:
 
 * Every screen behaves consistently
 * Cursor and other LLM contributors follow predictable UX patterns
-* Alpha UI remains simple, mobile-first, and enterprise‑grade
+* Version 0.1.0 UI remains simple, mobile-first, and enterprise‑grade
 
-This document is fully authoritative. No UX deviations are allowed during Alpha.
+This document is fully authoritative. No UX deviations are allowed in version 0.1.0.
 
 ---
 
@@ -75,7 +75,7 @@ Touch targets must be easy to tap.
 
 Reduce choices.
 
-* Alpha screens must contain only a single primary action
+* Version 0.1.0 screens must contain only a single primary action
 
 ### 2.4 Miller’s Law
 
@@ -109,7 +109,7 @@ Clean design must reinforce trust.
 
 ### 3.1 Single Column Layout (Mobile First)
 
-All Alpha screens must use a **single-column layout**.
+All version 0.1.0 screens must use a **single-column layout**.
 
 * No sidebars
 * No multi-column grids
@@ -286,9 +286,9 @@ Microcopy must:
 * Avoid jargon
 * Explain exactly what the user needs to do
 
-### 5.3 No Marketing Copy in Alpha
+### 5.3 No Marketing Copy in Version 0.1.0
 
-The Alpha experience must stay strictly functional.
+The version 0.1.0 experience must stay strictly functional.
 
 ---
 
@@ -309,7 +309,7 @@ Welcome back <Driver Name>
 
 ### 6.3 No Additional Navigation
 
-Alpha must not have:
+Version 0.1.0 must not have:
 
 * Dashboard
 * Profile pages
@@ -354,7 +354,7 @@ These rules are mandatory:
 
 # 9. What Not To Do (Critical Section)
 
-The following must **never** appear in Alpha:
+The following must **never** appear in version 0.1.0:
 
 * Multi-step forms
 * Carousels
@@ -364,7 +364,7 @@ The following must **never** appear in Alpha:
 * Accordions
 * Tabs
 * Side navigation
-* Additional pages beyond Alpha scope
+* Additional pages beyond version 0.1.0 scope
 
 If a feature is not listed as required, it is **not allowed**.
 
@@ -384,7 +384,7 @@ UX tests must validate:
 
 # 11. Future Expansion Notes (Beta+)
 
-These rules remain strict in Alpha but may expand later to include:
+These rules remain strict in version 0.1.0 but may expand later to include:
 
 * Additional form screens
 * Multi-step onboarding
@@ -392,7 +392,7 @@ These rules remain strict in Alpha but may expand later to include:
 * Tables and analytics components
 * Interactive widgets
 
-No Beta features may be added during Alpha.
+No Beta features may be added in version 0.1.0.
 
 ---
 

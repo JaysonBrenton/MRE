@@ -65,6 +65,39 @@ export default function TrackSelectionModal({
     return () => document.removeEventListener("keydown", handleEscape)
   }, [isOpen, onClose])
 
+  // Trap focus within the modal while it is open
+  useEffect(() => {
+    if (!isOpen) return
+    const modalElement = modalRef.current
+    if (!modalElement) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return
+      const focusableElements = modalElement.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusableElements.length === 0) {
+        return
+      }
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+      if (event.shiftKey) {
+        if (document.activeElement === firstElement) {
+          event.preventDefault()
+          lastElement.focus()
+        }
+      } else if (document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
+      }
+    }
+
+    modalElement.addEventListener("keydown", handleKeyDown)
+    return () => {
+      modalElement.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isOpen])
+
   // Filter tracks based on search query
   const filteredTracks = tracks.filter((track) =>
     track.trackName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -223,4 +256,3 @@ export default function TrackSelectionModal({
     </div>
   )
 }
-

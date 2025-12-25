@@ -12,7 +12,7 @@ import asyncio
 import sys
 import os
 import glob
-from typing import Optional, List, Dict, Callable
+from typing import Optional, List, Dict, Callable, Any
 from uuid import UUID
 from pathlib import Path
 
@@ -591,16 +591,14 @@ def refresh_events(track_id: str, depth: str, ingest_new_only: bool, ingest_all:
             duration_ms=duration_ms,
         )
 
-        click.echo(f"
-Event refresh completed:")
+        click.echo("Event refresh completed:")
         click.echo(
             f"  Events discovered: {summary['events_added']} new, {summary['events_updated']} updated"
         )
         click.echo(f"  Total events: {summary['events_total']}")
 
         if depth == "laps_full":
-            click.echo(f"
-Full ingestion results:")
+            click.echo("Full ingestion results:")
             click.echo(
                 f"  Events ingested: {summary['events_ingested']} successful, {summary['events_failed']} failed"
             )
@@ -738,16 +736,6 @@ def refresh_followed_events(depth: str, ingest_new_only: bool, ingest_all: bool,
         click.echo(f"  Laps ingested: {totals['laps_ingested']}")
 
     sys.exit(0)
-    
-    except EventPageFormatError as e:
-        logger.error("refresh_events_parse_error", error=str(e))
-        click.echo(f"Parse error: {str(e)}", err=True)
-        sys.exit(1)
-    
-    except Exception as e:
-        logger.error("refresh_events_error", error=str(e), exc_info=True)
-        click.echo(f"Event refresh failed: {str(e)}", err=True)
-        sys.exit(2)
 
 
 @liverc.command("ingest-event")

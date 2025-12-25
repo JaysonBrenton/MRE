@@ -16,7 +16,7 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2025-01-27 (Updated with missing endpoints and authentication requirements)  
 **API Version:** v1  
 **Base URL:** `/api/v1/` (relative to application root)
 
@@ -29,10 +29,12 @@ This document provides a complete reference for all API endpoints in the My Race
 1. [API Overview](#api-overview)
 2. [Authentication Endpoints](#authentication-endpoints)
 3. [LiveRC Ingestion Endpoints](#liverc-ingestion-endpoints)
-4. [Health Check](#health-check)
-5. [Error Handling](#error-handling)
-6. [Authentication Requirements](#authentication-requirements)
-7. [Rate Limiting](#rate-limiting)
+4. [Driver Endpoints](#driver-endpoints)
+5. [Transponder Override Endpoints](#transponder-override-endpoints)
+6. [Health Check](#health-check)
+7. [Error Handling](#error-handling)
+8. [Authentication Requirements](#authentication-requirements)
+9. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -187,7 +189,7 @@ curl -X POST http://localhost:3001/api/v1/auth/login \
 
 Returns the list of known tracks from the database.
 
-**Authentication:** Not required (may change in future)
+**Authentication:** Required
 
 **Query Parameters:**
 - `followed` (boolean, optional, default: `true`) - If true, return only tracks where `is_followed = true` AND `is_active = true`
@@ -229,12 +231,12 @@ curl "http://localhost:3001/api/v1/tracks?followed=true&active=true"
 
 Searches for events by track and date range.
 
-**Authentication:** Not required (may change in future)
+**Authentication:** Required
 
 **Query Parameters:**
 - `track_id` (string, required) - Track UUID
-- `start_date` (string, required) - Start date in ISO 8601 format (YYYY-MM-DD)
-- `end_date` (string, required) - End date in ISO 8601 format (YYYY-MM-DD)
+- `start_date` (string, optional) - Start date in ISO 8601 format (YYYY-MM-DD)
+- `end_date` (string, optional) - End date in ISO 8601 format (YYYY-MM-DD)
 
 **Response (200 OK):**
 ```json
@@ -278,7 +280,7 @@ curl "http://localhost:3001/api/v1/events/search?track_id=uuid&start_date=2025-0
 
 Gets detailed information about a specific event.
 
-**Authentication:** Not required (may change in future)
+**Authentication:** Required
 
 **Path Parameters:**
 - `eventId` (string, required) - Event UUID
@@ -326,7 +328,7 @@ curl "http://localhost:3001/api/v1/events/uuid"
 
 Discovers events from LiveRC for a track and date range. This endpoint compares LiveRC events with existing database events and returns which events are new vs already in the database.
 
-**Authentication:** Not required (may change in future)
+**Authentication:** Required
 
 **Request Body:**
 ```json
@@ -395,7 +397,7 @@ curl -X POST "http://localhost:3001/api/v1/events/discover" \
 
 Ingests a newly discovered LiveRC event by `source_event_id` and `track_id`. This endpoint creates the Event row if it doesn't exist, then proceeds with full ingestion.
 
-**Authentication:** Not required (may require admin in future)
+**Authentication:** Required
 
 **Request Body:**
 ```json
@@ -454,7 +456,7 @@ curl -X POST "http://localhost:3001/api/v1/events/ingest" \
 
 Triggers on-demand ingestion of an existing event by event ID.
 
-**Authentication:** Not required (may require admin in future)
+**Authentication:** Required
 
 **Path Parameters:**
 - `eventId` (string, required) - Event UUID
@@ -510,7 +512,7 @@ curl -X POST http://localhost:3001/api/v1/events/uuid/ingest \
 
 Gets detailed race results for a specific race.
 
-**Authentication:** Not required (may change in future)
+**Authentication:** Required
 
 **Path Parameters:**
 - `raceId` (string, required) - Race UUID
@@ -561,7 +563,7 @@ curl "http://localhost:3001/api/v1/races/uuid"
 
 Gets lap data for all drivers in a race.
 
-**Authentication:** Not required (may change in future)
+**Authentication:** Required
 
 **Path Parameters:**
 - `raceId` (string, required) - Race UUID
@@ -605,7 +607,7 @@ curl "http://localhost:3001/api/v1/races/uuid/laps"
 
 Gets detailed lap data for a specific race result.
 
-**Authentication:** Not required (may change in future)
+**Authentication:** Required
 
 **Path Parameters:**
 - `raceResultId` (string, required) - Race Result UUID
@@ -639,6 +641,362 @@ Gets detailed lap data for a specific race result.
 **Example:**
 ```bash
 curl "http://localhost:3001/api/v1/race-results/uuid/laps"
+```
+
+---
+
+### GET /api/v1/events
+
+Gets a list of all fully imported events (events with `ingest_depth` = `laps_full`).
+
+**Authentication:** Required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "events": [
+      {
+        "id": "uuid",
+        "source": "liverc",
+        "source_event_id": "event-id",
+        "track_id": "uuid",
+        "event_name": "Event Name",
+        "event_date": "2025-01-27T00:00:00.000Z",
+        "event_entries": 50,
+        "event_drivers": 45,
+        "event_url": "https://liverc.com/event/...",
+        "ingest_depth": "laps_full",
+        "last_ingested_at": "2025-01-27T00:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events"
+```
+
+---
+
+### GET /api/v1/events/[eventId]/analysis
+
+Gets analysis data for a specific event including summary statistics.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `eventId` (string, required) - Event UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "event": {
+      "id": "uuid",
+      "eventName": "Event Name",
+      "eventDate": "2025-01-27T00:00:00.000Z",
+      "trackName": "Track Name"
+    },
+    "summary": {
+      "totalRaces": 12,
+      "totalDrivers": 87,
+      "totalLaps": 2400,
+      "dateRange": {
+        "earliest": "2025-01-27T10:00:00.000Z",
+        "latest": "2025-01-27T18:00:00.000Z"
+      }
+    }
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `NOT_FOUND` (404) - Event not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events/uuid/analysis"
+```
+
+---
+
+### GET /api/v1/drivers/[driverId]
+
+Gets detailed information about a specific driver including transponder numbers and event entries.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `driverId` (string, required) - Driver UUID
+
+**Query Parameters:**
+- `eventId` (string, optional) - Filter event entries to a specific event
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "display_name": "Driver Name",
+    "source_driver_id": "driver-id",
+    "transponder_number": "12345",
+    "event_entries": [
+      {
+        "event_id": "uuid",
+        "event_name": "Event Name",
+        "class_name": "1.8 Nitro Buggy",
+        "transponder_number": "12345",
+        "car_number": "5",
+        "override": {
+          "transponder_number": "67890",
+          "effective_from_race_id": "uuid",
+          "effective_from_race_label": "A-Main (Race 1)",
+          "created_at": "2025-01-27T00:00:00.000Z"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `NOT_FOUND` (404) - Driver not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/drivers/uuid?eventId=uuid"
+```
+
+---
+
+### POST /api/v1/transponder-overrides
+
+Creates a new transponder override for a driver in an event.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "eventId": "uuid", // required - Event UUID
+  "driverId": "uuid", // required - Driver UUID
+  "transponderNumber": "12345", // required - Transponder number
+  "effectiveFromRaceId": "uuid" // optional - Race ID where override takes effect (null = from first race)
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "event_id": "uuid",
+    "driver_id": "uuid",
+    "effective_from_race_id": "uuid",
+    "transponder_number": "12345",
+    "created_at": "2025-01-27T00:00:00.000Z",
+    "updated_at": "2025-01-27T00:00:00.000Z",
+    "created_by": "uuid"
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing required fields or invalid transponder number
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X POST "http://localhost:3001/api/v1/transponder-overrides" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{
+    "eventId": "uuid",
+    "driverId": "uuid",
+    "transponderNumber": "12345"
+  }'
+```
+
+---
+
+### GET /api/v1/transponder-overrides
+
+Lists transponder overrides, optionally filtered by event or driver.
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `eventId` (string, optional) - Filter by event UUID
+- `driverId` (string, optional) - Filter by driver UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "overrides": [
+      {
+        "id": "uuid",
+        "event_id": "uuid",
+        "driver_id": "uuid",
+        "effective_from_race_id": "uuid",
+        "effective_from_race_label": "A-Main (Race 1)",
+        "transponder_number": "12345",
+        "created_at": "2025-01-27T00:00:00.000Z",
+        "updated_at": "2025-01-27T00:00:00.000Z",
+        "created_by": "uuid"
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/transponder-overrides?eventId=uuid"
+```
+
+---
+
+### GET /api/v1/transponder-overrides/[overrideId]
+
+Gets a specific transponder override by ID.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `overrideId` (string, required) - Transponder override UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "event_id": "uuid",
+    "driver_id": "uuid",
+    "effective_from_race_id": "uuid",
+    "effective_from_race_label": "A-Main (Race 1)",
+    "transponder_number": "12345",
+    "created_at": "2025-01-27T00:00:00.000Z",
+    "updated_at": "2025-01-27T00:00:00.000Z",
+    "created_by": "uuid"
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `NOT_FOUND` (404) - Transponder override not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/transponder-overrides/uuid"
+```
+
+---
+
+### PATCH /api/v1/transponder-overrides/[overrideId]
+
+Updates a transponder override.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `overrideId` (string, required) - Transponder override UUID
+
+**Request Body:**
+```json
+{
+  "transponderNumber": "67890", // optional - New transponder number
+  "effectiveFromRaceId": "uuid" // optional - New effective race ID (null = from first race)
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "event_id": "uuid",
+    "driver_id": "uuid",
+    "effective_from_race_id": "uuid",
+    "transponder_number": "67890",
+    "created_at": "2025-01-27T00:00:00.000Z",
+    "updated_at": "2025-01-27T00:00:00.000Z",
+    "created_by": "uuid"
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Invalid transponder number or already in use
+- `NOT_FOUND` (404) - Transponder override not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X PATCH "http://localhost:3001/api/v1/transponder-overrides/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{
+    "transponderNumber": "67890"
+  }'
+```
+
+---
+
+### DELETE /api/v1/transponder-overrides/[overrideId]
+
+Deletes a transponder override.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `overrideId` (string, required) - Transponder override UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "message": "Transponder override deleted successfully"
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `NOT_FOUND` (404) - Transponder override not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/transponder-overrides/uuid"
 ```
 
 ---
@@ -708,10 +1066,10 @@ All errors follow this structure:
 
 ## Authentication Requirements
 
-### Current State (Alpha)
+### Current State (Version 0.1.0)
 
 - Authentication endpoints (`/api/v1/auth/*`) do not require authentication
-- Most data endpoints do not require authentication (may change in future)
+- All data endpoints require authentication (session-based via NextAuth cookies)
 - Web sessions are managed via NextAuth cookies
 - Mobile token-based authentication is architecturally supported but not yet implemented
 
@@ -741,6 +1099,8 @@ Rate limiting is applied to authentication and resource-intensive endpoints to p
 | `POST /api/v1/events/{id}/ingest` | 10 requests | 1 minute | Prevent resource exhaustion |
 | `POST /api/v1/events/ingest` | 10 requests | 1 minute | Prevent resource exhaustion |
 | `POST /api/v1/events/discover` | 20 requests | 1 minute | Prevent excessive external calls |
+
+**Note:** Rate limits are applied per IP address and endpoint path. The current implementation uses in-memory storage, so limits reset on server restart.
 
 ### Rate Limit Headers
 

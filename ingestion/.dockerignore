@@ -64,6 +64,6 @@ build/
 # HTML fixtures (test data)
 tests/fixtures/
 
-# Scripts (if not needed in production)
-scripts/
+# Scripts are needed for cron jobs, so don't exclude them
+# scripts/
 

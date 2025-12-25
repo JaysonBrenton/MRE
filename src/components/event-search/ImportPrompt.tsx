@@ -8,7 +8,7 @@
  * @description Modal dialog prompting user to import newly discovered events
  * 
  * @purpose Shows a prompt when new events are discovered from LiveRC, asking
- *          the user if they want to import all events. In Alpha, only "import all"
+ *          the user if they want to import all events. In version 0.1.0, only "import all"
  *          is supported (no selective import).
  * 
  * @relatedFiles

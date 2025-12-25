@@ -10,7 +10,7 @@
 #          connector, forming the contract between connector and ingestion layers.
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from pydantic import BaseModel, Field
 
@@ -70,6 +70,24 @@ class ConnectorRacePackage(BaseModel):
         description="Dictionary keyed by source_driver_id -> list of ConnectorLap"
     )
     fetch_method: str = "httpx"
+
+
+class ConnectorEntryDriver(BaseModel):
+    """Driver entry from entry list."""
+    driver_name: str
+    car_number: Optional[str] = None
+    transponder_number: Optional[str] = None
+    source_driver_id: Optional[str] = None  # If available in entry list
+    class_name: str  # Racing class this entry belongs to
+
+
+class ConnectorEntryList(BaseModel):
+    """Complete entry list for an event."""
+    source_event_id: str
+    entries_by_class: Dict[str, List[ConnectorEntryDriver]] = Field(
+        default_factory=dict,
+        description="Dictionary keyed by class_name -> list of ConnectorEntryDriver"
+    )
 
 
 # Update forward references

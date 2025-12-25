@@ -7,7 +7,7 @@
  * 
  * @description Admin console for authenticated administrators
  * 
- * @purpose Displays the administrator console. Per Alpha scope, this page shows
+ * @purpose Displays the administrator console. Per version 0.1.0 scope, this page shows
  *          "Welcome back <administrator-name>" and includes a logout button.
  *          Only users with isAdmin=true can access this page. Non-admin users are
  *          automatically redirected to the welcome page.

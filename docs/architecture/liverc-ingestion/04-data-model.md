@@ -11,7 +11,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/14-ingestion-idempotency-design.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # Data Model Specification (Finalised Draft)
@@ -183,6 +183,27 @@ See [Racing Classes Domain Model](../../domain/racing-classes.md) for complete t
 
 ---
 
+# TABLE: Driver
+
+Represents normalized driver identity across all races/events.
+
+### Fields
+
+| Field | Type | Description |
+|-------|-------|-------------|
+| `id` | PK | Internal primary key |
+| `source` | text | `"liverc"` |
+| `source_driver_id` | text or int | From the key of `racerLaps[...]` (e.g. `346997`) |
+| `display_name` | text | Driver display name |
+| `normalized_name` | text (nullable) | Normalized name for fuzzy matching |
+| `transponder_number` | text (nullable) | Default transponder number for this driver across all races |
+
+### Natural Key
+
+`(source = "liverc", source_driver_id)`
+
+---
+
 # TABLE: RaceDriver
 
 Represents the driver identity *within a specific race*.  
@@ -194,9 +215,11 @@ This is not a global driver profile.
 |-------|-------|-------------|
 | `id` | PK | Internal primary key |
 | `race_id` | FK → Race | Race they belong to |
+| `driver_id` | FK → Driver | Reference to normalized Driver |
 | `source` | text | `"liverc"` |
 | `source_driver_id` | text or int | From the key of `racerLaps[...]` (e.g. `346997`) |
 | `display_name` | text | Exact driver name string from results |
+| `transponder_number` | text (nullable) | Race-specific transponder number (overrides Driver default) |
 
 ### Natural Key
 

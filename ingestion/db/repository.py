@@ -23,6 +23,7 @@ from ingestion.common import metrics
 from ingestion.db.models import (
     Track,
     Event,
+    EventEntry,
     Race,
     Driver,
     RaceDriver,
@@ -275,6 +276,7 @@ class Repository:
         source: str,
         source_driver_id: str,
         display_name: str,
+        transponder_number: Optional[str] = None,
     ) -> Driver:
         """
         Upsert normalized driver by natural key (source, source_driver_id).
@@ -283,6 +285,7 @@ class Repository:
             source: Driver source (e.g., "liverc")
             source_driver_id: Driver ID from LiveRC
             display_name: Driver display name
+            transponder_number: Optional transponder number (set if not already set, or if new value provided)
         
         Returns:
             Driver model instance
@@ -297,6 +300,11 @@ class Repository:
         
         if driver:
             # Update existing (update display_name if it changed)
+            # Update transponder_number if provided and not already set, or if new value provided
+            if transponder_number is not None:
+                if driver.transponder_number is None or driver.transponder_number != transponder_number:
+                    driver.transponder_number = transponder_number
+                    logger.debug("driver_transponder_updated", driver_id=str(driver.id), transponder=transponder_number)
             if driver.display_name != display_name:
                 driver.display_name = display_name
                 driver.updated_at = datetime.utcnow()
@@ -309,6 +317,7 @@ class Repository:
                 source=source,
                 source_driver_id=source_driver_id,
                 display_name=display_name,
+                transponder_number=transponder_number,
             )
             # Set timestamps explicitly for new records
             driver.created_at = now
@@ -327,6 +336,7 @@ class Repository:
         source: str,
         source_driver_id: str,
         display_name: str,
+        transponder_number: Optional[str] = None,
     ) -> RaceDriver:
         """
         Upsert race driver by natural key (race_id, source_driver_id).
@@ -338,6 +348,7 @@ class Repository:
             source: Driver source (e.g., "liverc")
             source_driver_id: Driver ID from LiveRC
             display_name: Driver display name
+            transponder_number: Optional transponder number (race-specific override)
         
         Returns:
             RaceDriver model instance
@@ -357,6 +368,10 @@ class Repository:
         if race_driver:
             # Update existing (denormalized fields)
             race_driver.display_name = display_name
+            # Update transponder_number if provided (race-specific override always takes precedence)
+            if transponder_number is not None:
+                race_driver.transponder_number = transponder_number
+                logger.debug("race_driver_transponder_updated", race_driver_id=str(race_driver.id), transponder=transponder_number)
             race_driver.updated_at = datetime.utcnow()
             logger.debug("race_driver_updated", race_driver_id=str(race_driver.id), source_driver_id=source_driver_id)
             metrics.record_db_update("race_drivers")
@@ -369,6 +384,7 @@ class Repository:
                 source=source,  # Denormalized for query performance
                 source_driver_id=source_driver_id,  # Denormalized for query performance
                 display_name=display_name,  # Denormalized for query performance
+                transponder_number=transponder_number,
             )
             # Set timestamps explicitly for new records
             race_driver.created_at = now
@@ -380,6 +396,113 @@ class Repository:
             metrics.record_db_insert("race_drivers")
 
         return race_driver
+    
+    def upsert_event_entry(
+        self,
+        event_id: UUID,
+        driver_id: UUID,
+        class_name: str,
+        transponder_number: Optional[str] = None,
+        car_number: Optional[str] = None,
+    ) -> EventEntry:
+        """
+        Upsert event entry by natural key (event_id, driver_id, class_name).
+        
+        Args:
+            event_id: Event ID
+            driver_id: Driver ID
+            class_name: Racing class name
+            transponder_number: Optional transponder number
+            car_number: Optional car number
+        
+        Returns:
+            EventEntry model instance
+        """
+        stmt = select(EventEntry).where(
+            and_(
+                EventEntry.event_id == _uuid_to_str(event_id),
+                EventEntry.driver_id == _uuid_to_str(driver_id),
+                EventEntry.class_name == class_name,
+            )
+        )
+        event_entry = self.session.scalar(stmt)
+        
+        if event_entry:
+            # Update existing
+            if transponder_number is not None:
+                event_entry.transponder_number = transponder_number
+            if car_number is not None:
+                event_entry.car_number = car_number
+            event_entry.updated_at = datetime.utcnow()
+            logger.debug("event_entry_updated", event_entry_id=str(event_entry.id), event_id=str(event_id), driver_id=str(driver_id), class_name=class_name)
+            metrics.record_db_update("event_entries")
+        else:
+            # Insert new
+            now = datetime.utcnow()
+            event_entry = EventEntry(
+                event_id=_uuid_to_str(event_id),
+                driver_id=_uuid_to_str(driver_id),
+                class_name=class_name,
+                transponder_number=transponder_number,
+                car_number=car_number,
+            )
+            event_entry.created_at = now
+            event_entry.updated_at = now
+            self.session.add(event_entry)
+            self.session.flush()
+            logger.debug("event_entry_created", event_id=str(event_id), driver_id=str(driver_id), class_name=class_name)
+            metrics.record_db_insert("event_entries")
+        
+        return event_entry
+    
+    def get_event_entries_by_class(
+        self,
+        event_id: UUID,
+        class_name: str,
+    ) -> List[EventEntry]:
+        """
+        Get all event entries for a specific class in an event.
+        
+        Args:
+            event_id: Event ID
+            class_name: Racing class name
+        
+        Returns:
+            List of EventEntry instances with driver relationship loaded
+        """
+        from sqlalchemy.orm import joinedload
+        stmt = select(EventEntry).options(
+            joinedload(EventEntry.driver)
+        ).where(
+            and_(
+                EventEntry.event_id == _uuid_to_str(event_id),
+                EventEntry.class_name == class_name,
+            )
+        )
+        return list(self.session.scalars(stmt).unique().all())
+    
+    def get_event_entries_by_driver(
+        self,
+        event_id: UUID,
+        driver_id: UUID,
+    ) -> List[EventEntry]:
+        """
+        Get all event entries for a specific driver in an event.
+        
+        Args:
+            event_id: Event ID
+            driver_id: Driver ID
+        
+        Returns:
+            List of EventEntry instances
+        """
+        stmt = select(EventEntry).where(
+            and_(
+                EventEntry.event_id == _uuid_to_str(event_id),
+                EventEntry.driver_id == _uuid_to_str(driver_id),
+            )
+        )
+        return list(self.session.scalars(stmt).all())
     
     def upsert_race_result(
         self,

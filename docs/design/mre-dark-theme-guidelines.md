@@ -14,9 +14,9 @@ relatedFiles:
 
 # MRE Dark Theme Guidelines
 
-**Document Status:** Updated and aligned with MRE Alpha directives
-**Authoritative Scope:** Applies to all UI in Alpha
-**Purpose:** Define the visual standards, token system, and rules for implementing the MRE dark theme across all screens, ensuring consistency, legibility, and brand identity.
+**Document Status:** Updated and aligned with MRE version 0.1.0 directives
+**Authoritative Scope:** Applies to all UI in version 0.1.0
+**Purpose:** Define the visual standards, token system, and rules for implementing the MRE dark theme (default) and light theme (optional) across all screens, ensuring consistency, legibility, and brand identity. Both themes are implemented and accessible via theme toggle component.
 
 ---
 
@@ -254,20 +254,35 @@ Screenshots should be taken in:
 
 ---
 
-# 10. Future Expansion
+# 10. Theme Toggle and Light Theme Support
+
+**Status:** ✅ **Implemented** in version 0.1.0
+
+Light theme support and theme switching are implemented:
+
+* **Theme Toggle Component:** `src/app/components/ThemeToggle.tsx` provides a button to switch between dark and light themes
+* **Light Theme Values:** Defined in `.light` class override in `src/app/globals.css`
+* **Theme Persistence:** Theme preference is stored in localStorage as `mre-theme` (values: "dark" or "light")
+* **Default Theme:** Dark theme is the default (defined in `:root`)
+* **Theme Application:** Theme toggle adds/removes `.light` class on `<html>` element
+
+**Implementation Details:**
+- All semantic tokens (`--token-*`) have both dark and light theme values
+- Dark theme values are defined in `:root`
+- Light theme values override dark theme values when `.light` class is present
+- Theme toggle is accessible from the header/navigation on authenticated pages
+
+# 11. Future Expansion
 
 Future versions may include:
 
-* Light theme support
-* Theme switching
 * High-contrast accessibility mode
 * Expanded accent palette
 * Adaptive colour tokens for hardware telemetry displays
-
-These are explicitly **not allowed** during Alpha.
+* System theme detection (respect OS preference)
 
 ---
 
 # 11. License
 
-Internal use only. This document defines the required dark theme standards for all Alpha screens.
+Internal use only. This document defines the required dark theme standards for all version 0.1.0 screens.

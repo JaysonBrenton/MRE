@@ -10,7 +10,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/02-connector-architecture.md
   - docs/architecture/liverc-ingestion/09-connector-contracts.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 23. Ingestion Cross-Connector Abstractions

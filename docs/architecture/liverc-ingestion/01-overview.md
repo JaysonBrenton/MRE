@@ -8,17 +8,17 @@ purpose: Provides the conceptual foundation for the LiveRC ingestion subsystem, 
          vision. This document serves as the entry point for understanding the ingestion
          pipeline architecture.
 relatedFiles:
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
 ---
 
 # LiveRC Ingestion – Overview & Goals
 
-**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-alpha-feature-scope.md) for Alpha feature specifications.
+**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-v0.1-feature-scope.md) for Alpha feature specifications.
 
 **Related Documentation:**
 - [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) - Overall MRE architecture principles
-- [MRE Alpha Feature Scope](../../specs/mre-alpha-feature-scope.md) - Alpha release feature specifications
+- [MRE Alpha Feature Scope](../../specs/mre-v0.1-feature-scope.md) - Alpha release feature specifications
 
 ## Purpose
 

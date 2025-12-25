@@ -64,7 +64,7 @@ This document provides guidelines for contributing to the MRE project. Please re
 1. **Read the Documentation**
    - [Quick Start Guide](./quick-start.md) - Setup instructions
    - [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Architecture rules
-   - [Alpha Feature Scope](../specs/mre-alpha-feature-scope.md) - Feature scope
+   - [Version 0.1.0 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature scope
 
 2. **Set Up Development Environment**
    - Follow [Quick Start Guide](./quick-start.md)
@@ -398,7 +398,7 @@ npm test
 ### Must Follow
 
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
-- [Alpha Feature Scope](../specs/mre-alpha-feature-scope.md)
+- [Version 0.1.0 Feature Scope](../specs/mre-v0.1-feature-scope.md)
 - [File Headers Standards](../standards/file-headers-and-commenting-guidelines.md)
 
 ### Architecture Violations

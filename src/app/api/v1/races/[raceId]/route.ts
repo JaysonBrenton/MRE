@@ -75,6 +75,8 @@ export async function GET(
           race_driver_id: result.raceDriver.id,
           display_name: result.raceDriver.displayName,
           source_driver_id: result.raceDriver.sourceDriverId,
+          transponder_number: result.raceDriver.transponderNumber,
+          transponder_source: result.raceDriver.transponderSource,
         },
       })),
     });

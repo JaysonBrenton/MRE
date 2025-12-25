@@ -8,7 +8,7 @@ purpose: Defines the complete, strict specification for the Under Development Pa
          across all placeholder navigation items and prevents LLM or developer feature
          drift during the Alpha phase. Status: Authoritative (Alpha).
 relatedFiles:
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/design/mre-ux-principles.md
 ---
 

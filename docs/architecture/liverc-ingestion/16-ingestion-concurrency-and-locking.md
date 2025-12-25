@@ -12,7 +12,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/08-ingestion-pipeline-internals.md
   - docs/architecture/liverc-ingestion/14-ingestion-idempotency-design.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 16. Ingestion Concurrency and Locking

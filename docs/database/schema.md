@@ -16,7 +16,7 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2025-01-27 (Added TransponderOverride model documentation)  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -44,7 +44,7 @@ This document provides a comprehensive overview of the MRE database schema. The 
 The MRE database schema consists of:
 
 - **1 User model** - User accounts and authentication
-- **6 Ingestion models** - LiveRC data ingestion (Track, Event, Race, RaceDriver, RaceResult, Lap)
+- **8 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry, Race, Driver, RaceDriver, RaceResult, Lap, TransponderOverride)
 - **1 Enum type** - IngestDepth
 
 All models use UUID primary keys and include `createdAt` and `updatedAt` timestamps.
@@ -70,9 +70,11 @@ Track (1) ─┼──< (many) Event ──< (many) Race ──< (many) RaceDriv
 
 - **User** - Standalone, no foreign keys
 - **Track** - Has many Events
-- **Event** - Belongs to Track, has many Races
+- **Event** - Belongs to Track, has many EventEntries and Races
+- **EventEntry** - Belongs to Event and Driver, links drivers to classes
+- **Driver** - Has many EventEntries and RaceDrivers
 - **Race** - Belongs to Event, has many RaceDrivers and RaceResults
-- **RaceDriver** - Belongs to Race, has many RaceResults
+- **RaceDriver** - Belongs to Race and Driver, has many RaceResults
 - **RaceResult** - Belongs to Race and RaceDriver, has many Laps
 - **Lap** - Belongs to RaceResult
 
@@ -186,7 +188,80 @@ Race events associated with tracks.
 
 **Relationships:**
 - Belongs to `Track` (cascade delete)
+- Has many `EventEntry` records (cascade delete)
 - Has many `Race` records (cascade delete)
+
+---
+
+### EventEntry
+
+Driver entries in classes for an event. Links drivers to racing classes and stores transponder numbers from entry lists.
+
+**Table:** `event_entries`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique event entry identifier |
+| `eventId` | String (UUID) | Foreign Key, Required | Reference to Event |
+| `driverId` | String (UUID) | Foreign Key, Required | Reference to Driver |
+| `className` | String | Required | Racing class name |
+| `transponderNumber` | String | Optional | Transponder number from entry list |
+| `carNumber` | String | Optional | Car number from entry list |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `eventId` + `driverId` + `className` must be unique (one entry per driver per class per event)
+- Created from entry list during event ingestion
+- Deleted when parent Event or Driver is deleted (cascade delete)
+- Supports drivers participating in multiple classes within the same event
+- Transponder numbers are captured from entry lists, not race results
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `[eventId, driverId, className]`
+- Index on `eventId` (for filtering by event)
+- Index on `driverId` (for filtering by driver)
+- Index on `className` (for filtering by class)
+
+**Relationships:**
+- Belongs to `Event` (cascade delete)
+- Belongs to `Driver` (cascade delete)
+
+---
+
+### Driver
+
+Normalized driver identity across all races/events.
+
+**Table:** `drivers`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique driver identifier |
+| `source` | String | Required | Data source (always "liverc") |
+| `sourceDriverId` | String | Required | LiveRC driver identifier |
+| `displayName` | String | Required | Driver display name |
+| `normalizedName` | String | Optional | Normalized name for fuzzy matching |
+| `transponderNumber` | String | Optional | Default transponder number (from entry list) |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `source` + `sourceDriverId` must be unique (composite unique constraint)
+- Drivers are created from entry lists during event ingestion
+- `sourceDriverId` may be temporary (starts with "entry_") until matched to race results
+- Transponder number is set from entry list and updated when matched to race results
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `[source, sourceDriverId]`
+- Index on `[source, sourceDriverId]` (for lookups)
+- Index on `displayName` (for name-based queries)
+
+**Relationships:**
+- Has many `EventEntry` records (cascade delete)
+- Has many `RaceDriver` records (cascade delete)
 
 ---
 
@@ -246,6 +321,7 @@ Drivers participating in a race.
 | `source` | String | Required | Data source (always "liverc") |
 | `sourceDriverId` | String | Required | LiveRC driver identifier |
 | `displayName` | String | Required | Driver display name |
+| `transponderNumber` | String | Optional | Race-specific transponder number (overrides Driver default) |
 | `createdAt` | DateTime | Auto-generated | Record creation timestamp |
 | `updatedAt` | DateTime | Auto-updated | Last update timestamp |
 
@@ -262,6 +338,7 @@ Drivers participating in a race.
 
 **Relationships:**
 - Belongs to `Race` (cascade delete)
+- Belongs to `Driver` (restrict delete - prevents deletion if driver has race results)
 - Has many `RaceResult` records (cascade delete)
 
 ---
@@ -345,6 +422,43 @@ Individual lap times for a race result.
 
 ---
 
+### TransponderOverride
+
+Manual transponder number overrides for drivers in events. Allows administrators to correct or override transponder numbers when the ingested data is incorrect.
+
+**Table:** `transponder_overrides`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique transponder override identifier |
+| `eventId` | String (UUID) | Foreign Key, Required | Reference to Event |
+| `driverId` | String (UUID) | Foreign Key, Required | Reference to Driver |
+| `effectiveFromRaceId` | String (UUID) | Foreign Key, Optional | Reference to Race where override takes effect (null = from first race) |
+| `transponderNumber` | String | Required | Override transponder number |
+| `createdBy` | String (UUID) | Optional | User ID who created the override (for audit) |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `eventId` + `driverId` + `effectiveFromRaceId` must be unique (composite unique constraint)
+- `effectiveFromRaceId` can be null, meaning the override applies from the first race
+- Overrides take precedence over ingested transponder numbers
+- Deleted when parent Event is deleted (cascade delete)
+- Driver deletion is restricted if overrides exist (onDelete: Restrict)
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `[eventId, driverId, effectiveFromRaceId]`
+- Index on `[eventId, driverId]` (for filtering by event and driver)
+- Index on `effectiveFromRaceId` (for filtering by race)
+
+**Relationships:**
+- Belongs to `Event` (cascade delete)
+- Belongs to `Driver` (cascade delete - overrides deleted when driver deleted)
+- Belongs to `Race` (set null on delete - if race is deleted, override applies from first race)
+
+---
+
 ## Enums
 
 ### IngestDepth
@@ -393,11 +507,25 @@ Controls the depth of data ingestion for events.
 - Index: `eventId`
 - Index: `raceOrder`
 
+**EventEntry:**
+- Primary key: `id`
+- Unique: `[eventId, driverId, className]`
+- Index: `eventId`
+- Index: `driverId`
+- Index: `className`
+
+**Driver:**
+- Primary key: `id`
+- Unique: `[source, sourceDriverId]`
+- Index: `[source, sourceDriverId]`
+- Index: `displayName`
+
 **RaceDriver:**
 - Primary key: `id`
 - Unique: `[raceId, sourceDriverId]`
 - Index: `[raceId, sourceDriverId]`
 - Index: `raceId`
+- Index: `driverId`
 
 **RaceResult:**
 - Primary key: `id`
@@ -414,6 +542,12 @@ Controls the depth of data ingestion for events.
 - Index: `raceResultId`
 - Index: `lapNumber`
 
+**TransponderOverride:**
+- Primary key: `id`
+- Unique: `[eventId, driverId, effectiveFromRaceId]`
+- Index: `[eventId, driverId]`
+- Index: `effectiveFromRaceId`
+
 ---
 
 ## Relationships
@@ -424,34 +558,70 @@ Controls the depth of data ingestion for events.
    - Foreign key: `Event.trackId`
    - Cascade delete: Events deleted when Track deleted
 
-2. **Event → Race** (One-to-Many)
+2. **Event → EventEntry** (One-to-Many)
+   - Foreign key: `EventEntry.eventId`
+   - Cascade delete: EventEntries deleted when Event deleted
+
+3. **Driver → EventEntry** (One-to-Many)
+   - Foreign key: `EventEntry.driverId`
+   - Cascade delete: EventEntries deleted when Driver deleted
+
+4. **Event → Race** (One-to-Many)
    - Foreign key: `Race.eventId`
    - Cascade delete: Races deleted when Event deleted
 
-3. **Race → RaceDriver** (One-to-Many)
+5. **Driver → RaceDriver** (One-to-Many)
+   - Foreign key: `RaceDriver.driverId`
+   - Restrict delete: RaceDrivers prevent Driver deletion
+
+6. **Race → RaceDriver** (One-to-Many)
    - Foreign key: `RaceDriver.raceId`
    - Cascade delete: RaceDrivers deleted when Race deleted
 
-4. **Race → RaceResult** (One-to-Many)
+7. **Race → RaceResult** (One-to-Many)
    - Foreign key: `RaceResult.raceId`
    - Cascade delete: RaceResults deleted when Race deleted
 
-5. **RaceDriver → RaceResult** (One-to-Many)
+8. **RaceDriver → RaceResult** (One-to-Many)
    - Foreign key: `RaceResult.raceDriverId`
    - Cascade delete: RaceResults deleted when RaceDriver deleted
 
-6. **RaceResult → Lap** (One-to-Many)
+9. **RaceResult → Lap** (One-to-Many)
    - Foreign key: `Lap.raceResultId`
    - Cascade delete: Laps deleted when RaceResult deleted
 
+10. **Event → TransponderOverride** (One-to-Many)
+    - Foreign key: `TransponderOverride.eventId`
+    - Cascade delete: TransponderOverrides deleted when Event deleted
+
+11. **Driver → TransponderOverride** (One-to-Many)
+    - Foreign key: `TransponderOverride.driverId`
+    - Restrict delete: TransponderOverrides prevent Driver deletion
+
+12. **Race → TransponderOverride** (One-to-Many)
+    - Foreign key: `TransponderOverride.effectiveFromRaceId`
+    - Set null on delete: If race is deleted, override applies from first race
+
 ### Cascade Delete Behavior
 
-All relationships use cascade delete to maintain referential integrity:
+Most relationships use cascade delete to maintain referential integrity:
 - Deleting a Track deletes all associated Events
-- Deleting an Event deletes all associated Races
+- Deleting an Event deletes all associated EventEntries and Races
+- Deleting a Driver deletes all associated EventEntries (but RaceDrivers prevent Driver deletion)
 - Deleting a Race deletes all associated RaceDrivers and RaceResults
 - Deleting a RaceDriver deletes all associated RaceResults
 - Deleting a RaceResult deletes all associated Laps
+- Deleting an Event deletes all associated TransponderOverrides
+- Deleting a Driver deletes all associated TransponderOverrides
+
+**Restrict Delete:**
+- RaceDrivers prevent Driver deletion (onDelete: Restrict) to maintain referential integrity
+
+**Cascade Delete:**
+- TransponderOverrides are deleted when Driver is deleted (onDelete: Cascade)
+
+**Set Null on Delete:**
+- If a Race is deleted, TransponderOverride.effectiveFromRaceId is set to null (override applies from first race)
 
 **Note:** User records are standalone and have no cascade relationships.
 
@@ -474,9 +644,25 @@ All relationships use cascade delete to maintain referential integrity:
 - Created via LiveRC event listing ingestion
 - Associated with Track during ingestion
 
+**EventEntry:**
+- Created from entry list during event ingestion
+- Links drivers to racing classes within an event
+- Stores transponder numbers from entry lists
+
+**Driver:**
+- Created from entry list during event ingestion
+- Initially created with temporary `sourceDriverId` (starts with "entry_")
+- Updated with real `sourceDriverId` when matched to race results
+
 **Race, RaceDriver, RaceResult, Lap:**
 - Created during event ingestion process
 - Depth controlled by `Event.ingestDepth` field
+- RaceDrivers are matched to EventEntry records to get transponder numbers
+
+**TransponderOverride:**
+- Created via API endpoint (`POST /api/v1/transponder-overrides`)
+- Allows manual correction of transponder numbers when ingested data is incorrect
+- Can be effective from a specific race or from the first race (if `effectiveFromRaceId` is null)
 
 ### Updates
 
@@ -608,6 +794,82 @@ const laps = await prisma.lap.findMany({
 - [Racing Classes Domain Model](../domain/racing-classes.md) - Complete taxonomy of racing classes, vehicle types, and skill groupings
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Database rules and architecture requirements
 - [Prisma/PostgreSQL Backend Engineer Role](../roles/prisma-postgresql-backend-engineer.md) - Role responsibilities for database management
+
+---
+
+---
+
+## Transponder Number Storage Strategy
+
+Transponder numbers are stored at three levels to support different use cases:
+
+### EventEntry-Level Storage
+
+The `EventEntry.transponder_number` field stores transponder numbers from entry lists, linked to specific driver-class combinations within an event. This is the primary source of transponder numbers.
+
+**Business Rules:**
+- Set during entry list ingestion when EventEntry is created
+- Updated if new value is provided during re-ingestion
+- Supports drivers using different transponders in different classes
+
+### Driver-Level Storage
+
+The `Driver.transponder_number` field stores the default transponder number for a driver across all races. This is set from EventEntry records and can be updated on re-ingestion.
+
+**Business Rules:**
+- Set from EventEntry during entry list ingestion
+- Updated if not already set, or if new value is provided during re-ingestion
+- Used as fallback when race-specific transponder is not available
+
+### RaceDriver-Level Storage
+
+The `RaceDriver.transponder_number` field is **not populated** in the entry-list-first architecture. Transponder numbers are retrieved from EventEntry records (the source of truth) via the driver relationship when needed.
+
+**Business Rules:**
+- Transponder numbers are not stored in RaceDriver records
+- Look up transponder numbers via: RaceDriver → Driver → EventEntry (filtered by event and class)
+- EventEntry is the definitive source for transponder numbers per driver-class-event combination
+
+### Entry-List-First Architecture
+
+The ingestion pipeline uses an entry-list-first approach:
+
+1. **Entry List Processing**: Entry list is fetched and processed BEFORE race results
+   - Drivers are created from entry list (with temporary IDs if needed)
+   - EventEntry records are created for each driver-class combination
+   - Transponder numbers are captured from entry lists
+
+2. **Race Result Processing**: Race results are processed AFTER entry list
+   - Race result drivers are matched to EventEntry records
+   - Transponder numbers are retrieved from EventEntry records
+   - Driver `sourceDriverId` is updated from temporary to real ID when matched
+
+### Matching Strategy
+
+Race result drivers are matched to EventEntry records using a multi-field strategy (in order of preference):
+
+1. **Driver ID**: Match by `source_driver_id` if available
+2. **Driver Name**: Match by normalized driver name (exact match, case-insensitive)
+
+Matching is performed within the same racing class to avoid false matches.
+
+### Data Flow
+
+1. Entry list page is fetched during event ingestion (REQUIRED)
+2. Entry list is parsed to extract drivers grouped by racing class
+3. Drivers are created from entry list (with temporary IDs if needed)
+4. EventEntry records are created for each driver-class combination
+5. During race result processing, each driver is matched to EventEntry records
+6. If match found, transponder number is retrieved from EventEntry:
+   - Stored on `RaceDriver` model (race-specific override)
+   - Driver `sourceDriverId` is updated from temporary to real ID
+
+### Idempotency
+
+- Re-ingestion updates transponder numbers if new values are found
+- EventEntry transponder numbers are updated if new values provided
+- Driver-level transponder is only updated if not already set, or if new value provided
+- RaceDriver records do not store transponder numbers (retrieved from EventEntry when needed)
 
 ---
 

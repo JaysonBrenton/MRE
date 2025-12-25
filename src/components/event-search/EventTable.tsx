@@ -20,6 +20,7 @@
 
 import { useState } from "react"
 import EventRow, { type Event } from "./EventRow"
+import type { EventStatus } from "./EventStatusBadge"
 
 export type SortField = "date" | "name"
 export type SortDirection = "asc" | "desc"
@@ -29,12 +30,46 @@ export interface EventTableProps {
   isLoading?: boolean
   hasSearched?: boolean
   onImportEvent?: (event: Event) => void
-  importingEventId?: string | null
+  statusOverrides?: Record<string, EventStatus>
+  selectedEventIds?: Set<string>
+  onEventSelect?: (event: Event, selected: boolean) => void
+  isBulkImporting?: boolean
+  onSelectAll?: () => void
 }
 
-export default function EventTable({ events, isLoading, hasSearched = false, onImportEvent, importingEventId }: EventTableProps) {
+export default function EventTable({ 
+  events, 
+  isLoading, 
+  hasSearched = false, 
+  onImportEvent, 
+  statusOverrides,
+  selectedEventIds = new Set(),
+  onEventSelect,
+  isBulkImporting = false,
+  onSelectAll,
+}: EventTableProps) {
   const [sortField, setSortField] = useState<SortField>("date")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+
+  // Helper to check if event is importable
+  const isEventImportable = (event: Event): boolean => {
+    const overrideStatus = statusOverrides?.[event.id]
+    if (overrideStatus) {
+      return overrideStatus === "new"
+    }
+    // Check if LiveRC-only event
+    if (event.id.startsWith("liverc-")) {
+      return true
+    }
+    // Check ingest depth
+    const normalizedDepth = event.ingestDepth?.trim().toLowerCase() || ""
+    return normalizedDepth !== "laps_full" && normalizedDepth !== "lapsfull"
+  }
+
+  // Check if all importable events are selected
+  const importableEvents = events.filter(isEventImportable)
+  const allImportableSelected = importableEvents.length > 0 && 
+    importableEvents.every((e) => selectedEventIds.has(e.id))
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -98,7 +133,11 @@ export default function EventTable({ events, isLoading, hasSearched = false, onI
   return (
     <div className="mt-8">
       {/* Desktop: Table Header (hidden on mobile) */}
-      <div className="hidden sm:grid sm:grid-cols-3 gap-4 px-4 py-3 border-b border-[var(--token-border-default)]">
+      <div className="hidden sm:grid sm:grid-cols-4 gap-4 px-4 py-3 border-b border-[var(--token-border-default)]">
+        {/* Checkbox column header */}
+        <div className="flex items-center justify-center">
+          <div className="text-sm font-medium text-[var(--token-text-secondary)]">Analyse Event</div>
+        </div>
         <button
           type="button"
           onClick={() => handleSort("name")}
@@ -124,14 +163,20 @@ export default function EventTable({ events, isLoading, hasSearched = false, onI
 
       {/* Event List */}
       <div className="divide-y divide-[var(--token-border-default)]">
-        {sortedEvents.map((event) => (
-          <EventRow 
-            key={event.id} 
-            event={event} 
-            onImport={onImportEvent}
-            isImporting={importingEventId === event.id}
-          />
-        ))}
+        {sortedEvents.map((event) => {
+          const isImportable = isEventImportable(event)
+          return (
+            <EventRow 
+              key={event.id} 
+              event={event} 
+              onImport={onImportEvent}
+              statusOverride={statusOverrides?.[event.id]}
+              isSelected={selectedEventIds.has(event.id)}
+              onSelect={isImportable ? onEventSelect : undefined}
+              isBulkImporting={isBulkImporting}
+            />
+          )
+        })}
       </div>
     </div>
   )

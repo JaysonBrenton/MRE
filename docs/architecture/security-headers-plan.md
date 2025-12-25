@@ -2,18 +2,18 @@
 created: 2025-01-27
 creator: Auto (AI Assistant)
 lastModified: 2025-01-27
-description: Plan for implementing security headers in MRE application
-purpose: Documents the approach for implementing security headers to protect against common web vulnerabilities. Implementation planned for Beta release.
+description: Security headers implementation documentation for MRE application
+purpose: Documents the security headers implementation that protects against common web vulnerabilities. Security headers are implemented in version 0.1.0 with environment-aware configuration.
 relatedFiles:
-  - next.config.ts
-  - middleware.ts
+  - middleware.ts (security headers implementation)
+  - docs/security/security-overview.md (security documentation)
 ---
 
-# Security Headers Implementation Plan
+# Security Headers Implementation
 
 ## Overview
 
-Security headers will be implemented to protect the application against common web vulnerabilities. This is planned for Beta release per Sonnet.4 review recommendations.
+Security headers are **implemented** in version 0.1.0 to protect the application against common web vulnerabilities. The implementation uses environment-aware configuration to balance security and development experience.
 
 ## Required Security Headers
 
@@ -117,14 +117,14 @@ npm install next-safe
 ## Configuration by Environment
 
 ### Development
-- Relaxed CSP to allow hot reload
-- HSTS disabled
-- More permissive headers for debugging
+- ✅ Relaxed CSP to allow hot reload (`unsafe-inline`, `unsafe-eval`, WebSocket support)
+- ✅ HSTS disabled (prevents issues with self-signed certificates)
+- ✅ Permissive headers for debugging (allows dev tools and hot reload)
 
 ### Production
-- Strict CSP
-- HSTS enabled
-- All security headers enforced
+- ✅ Strict CSP (no `unsafe-inline` or `unsafe-eval` for scripts)
+- ✅ HSTS enabled (`max-age=31536000; includeSubDomains`)
+- ✅ All security headers enforced
 
 ## Testing
 

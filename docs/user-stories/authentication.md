@@ -6,7 +6,7 @@ description: User stories for authentication features (registration and login)
 purpose: Defines user stories for user registration and login functionality with detailed
          acceptance criteria, dependencies, and Definition of Done checklists.
 relatedFiles:
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/mre-ux-principles.md
   - docs/design/mre-mobile-ux-guidelines.md
@@ -127,7 +127,7 @@ None (foundational feature)
 
 ### Related Documentation
 
-- [MRE Alpha Feature Scope - Registration](../specs/mre-alpha-feature-scope.md#21-account-registration)
+- [MRE Alpha Feature Scope - Registration](../specs/mre-v0.1-feature-scope.md#21-account-registration)
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
 - [MRE UX Principles - Forms](../design/mre-ux-principles.md#4-forms-login-and-registration)
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)
@@ -251,7 +251,7 @@ High
 
 ### Related Documentation
 
-- [MRE Alpha Feature Scope - Login](../specs/mre-alpha-feature-scope.md#22-login)
+- [MRE Alpha Feature Scope - Login](../specs/mre-v0.1-feature-scope.md#22-login)
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
 - [MRE UX Principles - Forms](../design/mre-ux-principles.md#4-forms-login-and-registration)
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)

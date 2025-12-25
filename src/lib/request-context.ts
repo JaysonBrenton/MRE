@@ -22,7 +22,7 @@ import { createLoggerWithContext, type LogContext } from "./logger"
  * Generate a unique request ID (UUID v4)
  */
 export function generateRequestId(): string {
-  // Simple UUID v4 implementation (for Alpha, console-based logging)
+  // Simple UUID v4 implementation (for version 0.1.0, console-based logging)
   // In production, consider using crypto.randomUUID() if available
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0

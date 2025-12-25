@@ -10,13 +10,13 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/06-admin-cli-spec.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
 ---
 
 # 05. API Contracts (LiveRC Ingestion Subsystem)
 
-**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-alpha-feature-scope.md) for Alpha feature specifications.
+**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-v0.1-feature-scope.md) for Alpha feature specifications.
 
 **Related Documentation:**
 - [LiveRC Ingestion Overview](01-overview.md) - System overview
@@ -125,8 +125,10 @@ Returns events for a given track, optionally filtered by a Held-Between date ran
 
 Required query parameters:
 - track_id
-- start_date (ISO date)
-- end_date (ISO date)
+
+Optional query parameters:
+- start_date (ISO date) - If provided, filters events on or after this date
+- end_date (ISO date) - If provided, filters events on or before this date
 
 Example response:
 

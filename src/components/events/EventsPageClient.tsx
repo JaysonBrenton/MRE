@@ -14,6 +14,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 interface ImportedEvent {
   id: string
@@ -120,8 +121,16 @@ export default function EventsPageClient() {
 
       {/* Empty State */}
       {!loading && !error && events.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-[var(--token-text-muted)]">No imported events found.</p>
+        <div className="text-center py-12 space-y-4">
+          <p className="text-[var(--token-text-muted)]">
+            No imported events found yet. Use Event Search to discover LiveRC races and import them into your workspace.
+          </p>
+          <Link
+            href="/event-search"
+            className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
+          >
+            Search for events
+          </Link>
         </div>
       )}
 
@@ -166,4 +175,3 @@ export default function EventsPageClient() {
     </div>
   )
 }
-

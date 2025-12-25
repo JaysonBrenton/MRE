@@ -1,5 +1,5 @@
 /**
- * @fileoverview Footer component with copyright and Alpha badge
+ * @fileoverview Footer component with copyright and version badge
  * 
  * @created 2025-01-27
  * @creator Jayson Brenton
@@ -7,7 +7,7 @@
  * 
  * @description Reusable footer component for authenticated pages
  * 
- * @purpose Provides consistent footer with copyright and Alpha badge
+ * @purpose Provides consistent footer with copyright and version badge
  *          across all authenticated pages. Scrolls with content (not sticky).
  * 
  * @relatedFiles
@@ -23,7 +23,7 @@ export default function Footer() {
           <p className="text-xs text-[var(--token-text-muted)]">
             © 2025 My Race Engineer
           </p>
-          <p className="text-xs text-[var(--token-text-muted)]">Alpha</p>
+          <p className="text-xs text-[var(--token-text-muted)]">v0.1.0</p>
         </div>
       </div>
     </footer>

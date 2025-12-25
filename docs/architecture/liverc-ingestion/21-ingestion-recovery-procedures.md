@@ -13,7 +13,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/11-ingestion-error-handling.md
   - docs/architecture/liverc-ingestion/14-ingestion-idempotency-design.md
   - docs/architecture/liverc-ingestion/20-ingestion-replay-and-debugging.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 21. Ingestion Recovery Procedures (LiveRC Ingestion Subsystem)

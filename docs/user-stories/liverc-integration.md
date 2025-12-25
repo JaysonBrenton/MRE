@@ -9,7 +9,7 @@ relatedFiles:
   - docs/frontend/liverc/user-workflow.md
   - docs/architecture/liverc-ingestion/05-api-contracts.md
   - docs/architecture/liverc-ingestion/11-ingestion-error-handling.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # LiveRC Integration Epic

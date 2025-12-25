@@ -45,18 +45,18 @@ enum IngestDepth {
 }
 
 model Track {
-  id                        String    @id @default(uuid())
-  source                    String    // Always "liverc" for this connector
-  sourceTrackSlug           String    @map("source_track_slug")
-  trackName                 String    @map("track_name")
-  trackUrl                  String    @map("track_url")
-  eventsUrl                 String    @map("events_url")
-  livercTrackLastUpdated    String?   @map("liverc_track_last_updated")
-  lastSeenAt                DateTime? @map("last_seen_at")
-  isActive                  Boolean   @default(true) @map("is_active")
-  isFollowed                Boolean   @default(false) @map("is_followed")
-  createdAt                 DateTime  @default(now()) @map("created_at")
-  updatedAt                 DateTime  @updatedAt @map("updated_at")
+  id                     String    @id @default(uuid())
+  source                 String // Always "liverc" for this connector
+  sourceTrackSlug        String    @map("source_track_slug")
+  trackName              String    @map("track_name")
+  trackUrl               String    @map("track_url")
+  eventsUrl              String    @map("events_url")
+  livercTrackLastUpdated String?   @map("liverc_track_last_updated")
+  lastSeenAt             DateTime? @map("last_seen_at")
+  isActive               Boolean   @default(true) @map("is_active")
+  isFollowed             Boolean   @default(false) @map("is_followed")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
 
   events Event[]
 
@@ -67,22 +67,24 @@ model Track {
 }
 
 model Event {
-  id              String      @id @default(uuid())
-  source          String      // "liverc"
-  sourceEventId   String      @map("source_event_id")
-  trackId         String      @map("track_id")
-  eventName       String      @map("event_name")
-  eventDate       DateTime    @map("event_date")
-  eventEntries    Int         @map("event_entries")
-  eventDrivers    Int         @map("event_drivers")
-  eventUrl        String      @map("event_url")
-  ingestDepth     IngestDepth @default(none) @map("ingest_depth")
-  lastIngestedAt  DateTime?   @map("last_ingested_at")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  id             String      @id @default(uuid())
+  source         String // "liverc"
+  sourceEventId  String      @map("source_event_id")
+  trackId        String      @map("track_id")
+  eventName      String      @map("event_name")
+  eventDate      DateTime    @map("event_date")
+  eventEntries   Int         @map("event_entries")
+  eventDrivers   Int         @map("event_drivers")
+  eventUrl       String      @map("event_url")
+  ingestDepth    IngestDepth @default(none) @map("ingest_depth")
+  lastIngestedAt DateTime?   @map("last_ingested_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
 
-  track  Track   @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  races  Race[]
+  track                Track                 @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  races                Race[]
+  entries              EventEntry[]
+  transponderOverrides TransponderOverride[]
 
   @@unique([source, sourceEventId])
   @@index([source, sourceEventId])
@@ -93,10 +95,30 @@ model Event {
   @@map("events")
 }
 
+model EventEntry {
+  id                String   @id @default(uuid())
+  eventId           String   @map("event_id")
+  driverId          String   @map("driver_id")
+  className         String   @map("class_name")
+  transponderNumber String?  @map("transponder_number")
+  carNumber         String?  @map("car_number")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, driverId, className])
+  @@index([eventId])
+  @@index([driverId])
+  @@index([className])
+  @@map("event_entries")
+}
+
 model Race {
   id              String    @id @default(uuid())
   eventId         String    @map("event_id")
-  source          String    // "liverc"
+  source          String // "liverc"
   sourceRaceId    String    @map("source_race_id")
   className       String    @map("class_name")
   raceLabel       String    @map("race_label")
@@ -107,9 +129,10 @@ model Race {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  drivers      RaceDriver[]
-  results      RaceResult[]
+  event                    Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  drivers                  RaceDriver[]
+  results                  RaceResult[]
+  transponderOverridesFrom TransponderOverride[]
 
   @@unique([eventId, sourceRaceId])
   @@index([eventId, sourceRaceId])
@@ -120,15 +143,18 @@ model Race {
 }
 
 model Driver {
-  id              String   @id @default(uuid())
-  source          String   // "liverc"
-  sourceDriverId  String   @map("source_driver_id")
-  displayName     String   @map("display_name")
-  normalizedName  String?  @map("normalized_name") // For fuzzy matching
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(uuid())
+  source            String // "liverc"
+  sourceDriverId    String   @map("source_driver_id")
+  displayName       String   @map("display_name")
+  normalizedName    String?  @map("normalized_name") // For fuzzy matching
+  transponderNumber String?  @map("transponder_number")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  raceDrivers     RaceDriver[]
+  raceDrivers          RaceDriver[]
+  eventEntries         EventEntry[]
+  transponderOverrides TransponderOverride[]
 
   @@unique([source, sourceDriverId])
   @@index([source, sourceDriverId])
@@ -137,14 +163,15 @@ model Driver {
 }
 
 model RaceDriver {
-  id              String   @id @default(uuid())
-  raceId          String   @map("race_id")
-  driverId        String   @map("driver_id")
-  source          String   // "liverc" (denormalized for query performance)
-  sourceDriverId  String   @map("source_driver_id") // Denormalized for query performance
-  displayName     String   @map("display_name") // Denormalized for query performance
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(uuid())
+  raceId            String   @map("race_id")
+  driverId          String   @map("driver_id")
+  source            String // "liverc" (denormalized for query performance)
+  sourceDriverId    String   @map("source_driver_id") // Denormalized for query performance
+  displayName       String   @map("display_name") // Denormalized for query performance
+  transponderNumber String?  @map("transponder_number")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   race    Race         @relation(fields: [raceId], references: [id], onDelete: Cascade)
   driver  Driver       @relation(fields: [driverId], references: [id], onDelete: Restrict)
@@ -158,23 +185,23 @@ model RaceDriver {
 }
 
 model RaceResult {
-  id                String    @id @default(uuid())
-  raceId            String    @map("race_id")
-  raceDriverId      String    @map("race_driver_id")
-  positionFinal      Int       @map("position_final")
-  lapsCompleted      Int       @map("laps_completed")
-  totalTimeRaw       String?   @map("total_time_raw")
-  totalTimeSeconds   Float?    @map("total_time_seconds")
-  fastLapTime        Float?     @map("fast_lap_time")
-  avgLapTime         Float?     @map("avg_lap_time")
-  consistency        Float?     // LiveRC % consistency (e.g. 92.82)
-  rawFieldsJson      Json?      @map("raw_fields_json")
-  createdAt          DateTime   @default(now()) @map("created_at")
-  updatedAt          DateTime   @updatedAt @map("updated_at")
+  id               String   @id @default(uuid())
+  raceId           String   @map("race_id")
+  raceDriverId     String   @map("race_driver_id")
+  positionFinal    Int      @map("position_final")
+  lapsCompleted    Int      @map("laps_completed")
+  totalTimeRaw     String?  @map("total_time_raw")
+  totalTimeSeconds Float?   @map("total_time_seconds")
+  fastLapTime      Float?   @map("fast_lap_time")
+  avgLapTime       Float?   @map("avg_lap_time")
+  consistency      Float? // LiveRC % consistency (e.g. 92.82)
+  rawFieldsJson    Json?    @map("raw_fields_json")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   race       Race       @relation(fields: [raceId], references: [id], onDelete: Cascade)
   raceDriver RaceDriver @relation(fields: [raceDriverId], references: [id], onDelete: Cascade)
-  laps      Lap[]
+  laps       Lap[]
 
   @@unique([raceId, raceDriverId])
   @@index([raceId, raceDriverId])
@@ -185,17 +212,17 @@ model RaceResult {
 }
 
 model Lap {
-  id                String   @id @default(uuid())
-  raceResultId      String   @map("race_result_id")
-  lapNumber         Int      @map("lap_number")
-  positionOnLap     Int      @map("position_on_lap")
-  lapTimeRaw        String   @map("lap_time_raw")
-  lapTimeSeconds    Float    @map("lap_time_seconds")
-  paceString        String?  @map("pace_string")
-  elapsedRaceTime   Float    @map("elapsed_race_time")
-  segmentsJson      Json?     @map("segments_json")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  raceResultId    String   @map("race_result_id")
+  lapNumber       Int      @map("lap_number")
+  positionOnLap   Int      @map("position_on_lap")
+  lapTimeRaw      String   @map("lap_time_raw")
+  lapTimeSeconds  Float    @map("lap_time_seconds")
+  paceString      String?  @map("pace_string")
+  elapsedRaceTime Float    @map("elapsed_race_time")
+  segmentsJson    Json?    @map("segments_json")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   raceResult RaceResult @relation(fields: [raceResultId], references: [id], onDelete: Cascade)
 
@@ -204,4 +231,24 @@ model Lap {
   @@index([raceResultId])
   @@index([lapNumber])
   @@map("laps")
+}
+
+model TransponderOverride {
+  id                  String   @id @default(uuid())
+  eventId             String   @map("event_id")
+  driverId            String   @map("driver_id")
+  effectiveFromRaceId String?  @map("effective_from_race_id") // NULL = from first race
+  transponderNumber   String   @map("transponder_number")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  createdBy           String?  @map("created_by") // User ID for audit
+
+  event             Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  driver            Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  effectiveFromRace Race?  @relation(fields: [effectiveFromRaceId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, driverId, effectiveFromRaceId])
+  @@index([eventId, driverId])
+  @@index([effectiveFromRaceId])
+  @@map("transponder_overrides")
 }

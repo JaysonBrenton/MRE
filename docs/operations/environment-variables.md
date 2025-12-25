@@ -17,7 +17,7 @@ relatedFiles:
 
 # Environment Variables Reference
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2025-01-27 (Added missing ingestion and performance variables)  
 **Environment File:** `.env.docker` (for Docker Compose)
 
 This document provides a complete reference for all environment variables used in the MRE application. All variables are configured via Docker Compose environment files or can be set directly in the environment.
@@ -356,6 +356,90 @@ PYTHONUNBUFFERED=1
 
 ---
 
+### TRACK_SYNC_REPORT_RETENTION_DAYS
+
+**Type:** Number  
+**Required:** No  
+**Default:** `30`  
+**Environment:** Python ingestion service
+
+Number of days to retain track sync reports before automatic cleanup. Reports older than this value are automatically deleted.
+
+**Example:**
+```bash
+TRACK_SYNC_REPORT_RETENTION_DAYS=30
+```
+
+---
+
+### INGESTION_BUILD_TARGET
+
+**Type:** String  
+**Required:** No  
+**Default:** `development`  
+**Environment:** Docker Compose
+
+Docker build target for the ingestion service. Controls which stage of the multi-stage Dockerfile is used.
+
+**Values:** `development` | `production`
+
+**Example:**
+```bash
+INGESTION_BUILD_TARGET=development
+```
+
+---
+
+## Performance Monitoring Variables
+
+### PERF_THRESHOLD_API
+
+**Type:** Number (milliseconds)  
+**Required:** No  
+**Default:** `300`  
+**Environment:** Next.js application
+
+Performance threshold for API requests. Requests exceeding this duration are logged as slow operations.
+
+**Example:**
+```bash
+PERF_THRESHOLD_API=300
+```
+
+---
+
+### PERF_THRESHOLD_DB
+
+**Type:** Number (milliseconds)  
+**Required:** No  
+**Default:** `100`  
+**Environment:** Next.js application
+
+Performance threshold for database queries. Queries exceeding this duration are logged as slow operations.
+
+**Example:**
+```bash
+PERF_THRESHOLD_DB=100
+```
+
+---
+
+### PERF_THRESHOLD_EXTERNAL
+
+**Type:** Number (milliseconds)  
+**Required:** No  
+**Default:** `500`  
+**Environment:** Next.js application
+
+Performance threshold for external service calls (e.g., ingestion service). Calls exceeding this duration are logged as slow operations.
+
+**Example:**
+```bash
+PERF_THRESHOLD_EXTERNAL=500
+```
+
+---
+
 ## System Variables
 
 ### TZ
@@ -587,6 +671,11 @@ See [Development](#development) section above for complete example.
 | `INGESTION_SERVICE_URL` | No | `http://ingestion-service:8000` | Ingestion | No |
 | `INGESTION_PORT` | No | `8000` | Ingestion | No |
 | `LOG_LEVEL` | No | `INFO` | Ingestion | No |
+| `TRACK_SYNC_REPORT_RETENTION_DAYS` | No | `30` | Ingestion | No |
+| `INGESTION_BUILD_TARGET` | No | `development` | Docker | No |
+| `PERF_THRESHOLD_API` | No | `300` | Performance | No |
+| `PERF_THRESHOLD_DB` | No | `100` | Performance | No |
+| `PERF_THRESHOLD_EXTERNAL` | No | `500` | Performance | No |
 | `PYTHONUNBUFFERED` | No | `1` | Ingestion | No |
 | `TZ` | No | `Australia/Sydney` | System | No |
 

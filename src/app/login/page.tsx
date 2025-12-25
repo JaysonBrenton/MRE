@@ -19,32 +19,20 @@
 
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
 import { authenticate } from "../actions/auth"
 import { logger } from "@/lib/logger"
 
-/**
- * Type guard to check if error is a NextAuth redirect error
- * NextAuth throws redirect errors with a digest property starting with "NEXT_REDIRECT"
- */
-function isNextRedirectError(error: unknown): error is { digest: string } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "digest" in error &&
-    typeof (error as { digest: unknown }).digest === "string" &&
-    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
-  )
-}
-
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const registrationSuccess = searchParams.get("registered") === "true"
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -54,123 +42,27 @@ export default function LoginPage() {
     const formData = new FormData()
     formData.append("email", email)
     formData.append("password", password)
-    
-      try {
-        let result: string | undefined
-        try {
-          result = await authenticate(undefined, formData)
-        } catch (authError) {
-          // Handle server action errors
-          logger.error("Authentication server action error", {
-            error: authError instanceof Error
-              ? {
-                  name: authError.name,
-                  message: authError.message,
-                  stack: authError.stack,
-                }
-              : String(authError),
-          })
-          
-          // Check if it's a network/connection error
-          if (authError instanceof Error) {
-            if (authError.message.includes("fetch") || authError.message.includes("network")) {
-              setError("Network error. Please check your connection and try again.")
-            } else {
-              setError(`Authentication error: ${authError.message}`)
-            }
-          } else {
-            setError("Failed to connect to authentication server. Please try again.")
-          }
-          setLoading(false)
-          return
-        }
-        
-        if (result) {
-          // result is a string error message from the server action
-          // This is an expected validation error, not a system error
-          logger.warn("Authentication failed", { reason: result })
-          setError(result)
-          setLoading(false)
-          return
-        }
-
-      // Success - NextAuth's signIn will handle redirect via middleware
-      // But we'll also manually redirect to ensure it happens
-      router.refresh()
-      
-      // Check session and redirect to appropriate page
-      // Add error handling for session endpoint
-      try {
-        const response = await fetch("/api/auth/session", { cache: "no-store" })
-        
-        if (!response.ok) {
-          // If session endpoint fails, just redirect to welcome page
-          logger.warn("Session endpoint returned error, redirecting to welcome", {
-            status: response.status,
-            statusText: response.statusText
-          })
-          router.push("/welcome")
-          return
-        }
-        
-        let session
-        try {
-          session = await response.json()
-        } catch (jsonError) {
-          logger.error("Failed to parse session response", {
-            error: jsonError instanceof Error
-              ? {
-                  name: jsonError.name,
-                  message: jsonError.message,
-                }
-              : String(jsonError),
-          })
-          router.push("/welcome")
-          return
-        }
-
-        if (session?.user?.isAdmin) {
-          router.push("/admin")
-        } else {
-          router.push("/welcome")
-        }
-      } catch (sessionError) {
-        // If session check fails, just redirect to welcome page
-        logger.warn("Failed to check session, redirecting to welcome", {
-          error: sessionError instanceof Error
-            ? {
-                name: sessionError.name,
-                message: sessionError.message,
-              }
-            : String(sessionError),
-        })
-        router.push("/welcome")
-      }
-    } catch (err: unknown) {
-      // NextAuth's signIn throws a redirect error on success (expected)
-      // Use type guard to safely check for redirect errors
-      if (isNextRedirectError(err)) {
-        // This is a redirect, which means login succeeded
-        // Let NextAuth handle the redirect
-        router.refresh()
+    try {
+      const result = await authenticate(undefined, formData)
+      if (result) {
+        logger.warn("Authentication failed", { reason: result })
+        setError(result)
+        setLoading(false)
         return
       }
-      
-      // Real error occurred
+      router.push("/dashboard")
+      router.refresh()
+    } catch (authError) {
       logger.error("Unexpected login error", {
-        error: err instanceof Error
+        error: authError instanceof Error
           ? {
-              name: err.name,
-              message: err.message,
-              stack: err.stack,
+              name: authError.name,
+              message: authError.message,
+              stack: authError.stack,
             }
-          : String(err),
+          : String(authError),
       })
-      if (err instanceof Error) {
-        setError(`An error occurred: ${err.message}`)
-      } else {
-        setError("An unexpected error occurred. Please try again.")
-      }
+      setError("An unexpected error occurred. Please try again.")
       setLoading(false)
     }
   }
@@ -192,6 +84,18 @@ export default function LoginPage() {
             Sign in to your account
           </p>
         </div>
+
+        {registrationSuccess && !hasError && (
+          <div
+            className="rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-bg)] p-3"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-sm text-[var(--token-status-success-text)]">
+              Registration successful. Sign in to start analysing events.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           {hasError && (
@@ -278,4 +182,3 @@ export default function LoginPage() {
     </main>
   )
 }
-

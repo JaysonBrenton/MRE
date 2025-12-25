@@ -5,15 +5,15 @@
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
  * 
- * @description Placeholder page for features not yet implemented in Alpha
+ * @description Placeholder page for features not yet implemented in version 0.1.0
  * 
  * @purpose This page displays a message indicating that a feature is under
- *          development. Per Alpha scope requirements, features that are out
+ *          development. Per version 0.1.0 scope requirements, features that are out
  *          of scope must redirect to this page. The page uses dark theme tokens
  *          and mobile-first layout as required by the architecture guidelines.
  * 
  * @relatedFiles
- * - docs/specs/mre-alpha-feature-scope.md (Alpha feature requirements)
+ * - docs/specs/mre-v0.1-feature-scope.md (Version 0.1.0 feature requirements)
  * - docs/design/mre-dark-theme-guidelines.md (theme guidelines)
  */
 

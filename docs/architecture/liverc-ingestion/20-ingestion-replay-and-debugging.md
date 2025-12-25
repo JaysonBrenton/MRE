@@ -13,7 +13,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/15-ingestion-observability.md
   - docs/architecture/liverc-ingestion/19-ingestion-fixture-management.md
   - docs/architecture/liverc-ingestion/21-ingestion-recovery-procedures.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 20. Ingestion Replay and Debugging (LiveRC Ingestion Subsystem)

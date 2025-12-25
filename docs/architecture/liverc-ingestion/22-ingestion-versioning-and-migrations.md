@@ -12,7 +12,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/04-data-model.md
   - docs/architecture/liverc-ingestion/07-ingestion-state-machine.md
   - docs/architecture/liverc-ingestion/14-ingestion-idempotency-design.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 22. Ingestion Versioning and Migrations (LiveRC Ingestion Subsystem)

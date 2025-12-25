@@ -21,6 +21,7 @@
 
 import Link from "next/link"
 import LogoutButton from "./LogoutButton"
+import AuthenticatedNavLinks from "./AuthenticatedNavLinks"
 
 export default function AuthenticatedNav() {
   return (
@@ -38,22 +39,9 @@ export default function AuthenticatedNav() {
           </div>
 
           {/* Navigation Items */}
-          <div className="flex flex-col gap-0 sm:flex-row sm:items-center sm:gap-1">
-            <Link
-              href="/dashboard"
-              className="mobile-list-item flex items-center px-4 py-3 text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-3 sm:py-2"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/event-search"
-              className="mobile-list-item flex items-center px-4 py-3 text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-3 sm:py-2"
-            >
-              Event Search
-            </Link>
-            
-            {/* Logout Button */}
-            <div className="flex flex-col gap-0 border-t border-[var(--token-border-muted)] py-2 sm:flex-row sm:border-t-0 sm:gap-2 sm:py-0 sm:pl-4">
+          <div className="flex flex-col gap-0 sm:flex-row sm:items-center sm:gap-2">
+            <AuthenticatedNavLinks />
+            <div className="flex flex-col gap-0 border-t border-[var(--token-border-muted)] py-2 sm:flex-row sm:border-t-0 sm:py-0 sm:pl-4">
               <LogoutButton />
             </div>
           </div>
@@ -62,4 +50,3 @@ export default function AuthenticatedNav() {
     </nav>
   )
 }
-

@@ -20,6 +20,7 @@
 
 import { prisma } from "@/lib/prisma"
 import type { Race, Event, RaceResult, RaceDriver, Lap } from "@prisma/client"
+import { getTransponderForRace } from "@/core/drivers/repo"
 
 /**
  * Get a race by ID with event
@@ -49,19 +50,26 @@ export async function getRaceWithResults(
       event: Event
       results: Array<
         RaceResult & {
-          raceDriver: RaceDriver
+          raceDriver: RaceDriver & {
+            transponderNumber: string | null
+            transponderSource: "entry_list" | "override" | "driver" | null
+          }
         }
       >
     })
   | null
 > {
-  return prisma.race.findUnique({
+  const race = await prisma.race.findUnique({
     where: { id: raceId },
     include: {
       event: true,
       results: {
         include: {
-          raceDriver: true,
+          raceDriver: {
+            include: {
+              driver: true,
+            },
+          },
         },
         orderBy: {
           positionFinal: "asc",
@@ -69,6 +77,49 @@ export async function getRaceWithResults(
       },
     },
   })
+
+  if (!race) {
+    return null
+  }
+
+  // Enhance results with transponder numbers
+  const resultsWithTransponders = await Promise.all(
+    race.results.map(async (result) => {
+      const transponderInfo = await getTransponderForRace(
+        result.raceDriver.driverId,
+        race.eventId,
+        raceId,
+        race.className
+      )
+
+      return {
+        ...result,
+        raceDriver: {
+          ...result.raceDriver,
+          transponderNumber: transponderInfo.transponderNumber,
+          transponderSource: transponderInfo.source,
+        } as RaceDriver & {
+          transponderNumber: string | null
+          transponderSource: "entry_list" | "override" | "driver" | null
+        },
+      }
+    })
+  )
+
+  return {
+    ...race,
+    results: resultsWithTransponders,
+  } as Race & {
+    event: Event
+    results: Array<
+      RaceResult & {
+        raceDriver: RaceDriver & {
+          transponderNumber: string | null
+          transponderSource: "entry_list" | "override" | "driver" | null
+        }
+      }
+    >
+  }
 }
 
 /**

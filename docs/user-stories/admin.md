@@ -6,7 +6,7 @@ description: User stories for administrator features (admin login and console)
 purpose: Defines user stories for administrator login and console functionality with detailed
          acceptance criteria, dependencies, and Definition of Done checklists.
 relatedFiles:
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/mre-ux-principles.md
 ---
@@ -133,7 +133,7 @@ High
 
 ### Related Documentation
 
-- [MRE Alpha Feature Scope - Administrator Login](../specs/mre-alpha-feature-scope.md#24-administrator-login-backend-only-creation)
+- [MRE Alpha Feature Scope - Administrator Login](../specs/mre-v0.1-feature-scope.md#24-administrator-login-backend-only-creation)
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
 - [MRE UX Principles - Forms](../design/mre-ux-principles.md#4-forms-login-and-registration)
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)
@@ -247,7 +247,7 @@ Medium
 
 ### Related Documentation
 
-- [MRE Alpha Feature Scope - Administrator Login](../specs/mre-alpha-feature-scope.md#24-administrator-login-backend-only-creation)
+- [MRE Alpha Feature Scope - Administrator Login](../specs/mre-v0.1-feature-scope.md#24-administrator-login-backend-only-creation)
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
 - [MRE UX Principles](../design/mre-ux-principles.md)
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)

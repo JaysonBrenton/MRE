@@ -65,6 +65,9 @@ export default function EventSearchForm({
 }: EventSearchFormProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const trackErrorId = errors?.track ? "track-selector-error" : undefined
+  const favouriteTrackOptions = favourites
+    .map((trackId) => tracks.find((track) => track.id === trackId))
+    .filter((track): track is Track => Boolean(track))
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -119,6 +122,20 @@ export default function EventSearchForm({
             >
               {errors.track}
             </p>
+          )}
+          {favouriteTrackOptions.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2" aria-label="Favourite tracks">
+              {favouriteTrackOptions.map((track) => (
+                <button
+                  key={track.id}
+                  type="button"
+                  onClick={() => onTrackSelect(track)}
+                  className="mobile-button rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1 text-xs font-medium text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  {track.trackName}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 

@@ -4,7 +4,7 @@ creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Mobile UX guidelines ensuring all screens are touch-friendly and mobile-compliant
 purpose: Ensures all MRE screens are fully mobile-compliant, touch-friendly, and aligned
-         with enterprise UX standards. These guidelines are mandatory for all Alpha screens:
+         with enterprise UX standards. These guidelines are mandatory for all version 0.1.0 screens:
          Registration, Login, User Welcome, Admin Console Welcome, and Under Development Page.
 relatedFiles:
   - docs/design/mre-dark-theme-guidelines.md
@@ -14,11 +14,11 @@ relatedFiles:
 
 # MRE Mobile UX Guidelines
 
-**Document Status:** Updated and aligned with MRE Alpha directives
-**Authoritative Scope:** Applies to all UI in Alpha
+**Document Status:** Updated and aligned with MRE version 0.1.0 directives
+**Authoritative Scope:** Applies to all UI in version 0.1.0
 **Purpose:** Ensure all MRE screens are fully mobile-compliant, touch-friendly, and aligned with enterprise UX standards.
 
-These guidelines are mandatory for all Alpha screens:
+These guidelines are mandatory for all version 0.1.0 screens:
 
 * Registration
 * Login
@@ -26,7 +26,7 @@ These guidelines are mandatory for all Alpha screens:
 * Admin Console Welcome
 * Under Development Page
 
-Future features (e.g., Analytics, Telemetry, Setup Sheets) use this file for early planning but must NOT be implemented during Alpha.
+Future features (e.g., Analytics, Telemetry, Setup Sheets) use this file for early planning but must NOT be implemented in version 0.1.0.
 
 ---
 
@@ -46,13 +46,13 @@ Key principles:
 
 # 2. Viewport and Breakpoints
 
-MRE uses a simple breakpoint strategy aligned with Alpha needs:
+MRE uses a simple breakpoint strategy aligned with version 0.1.0 needs:
 
 * **Mobile:** 0–599px
 * **Tablet:** 600–899px
 * **Desktop:** 900px+
 
-All Alpha screens must function perfectly within **Mobile**.
+All version 0.1.0 screens must function perfectly within **Mobile**.
 
 Tablet and desktop adaptations are optional but recommended.
 
@@ -72,7 +72,7 @@ Applies to:
 * Form fields
 * Toggles, checkboxes (if present in future phases)
 
-Alpha note: No checkboxes or toggles exist yet.
+Version 0.1.0 note: No checkboxes or toggles exist yet.
 
 ---
 
@@ -98,11 +98,11 @@ Rules:
 
 # 5. Forms on Mobile
 
-All Alpha forms (registration and login) must follow these rules:
+All version 0.1.0 forms (registration and login) must follow these rules:
 
 ## 5.1 Single-Column Only
 
-* Multi-column layouts are **not allowed** in Alpha
+* Multi-column layouts are **not allowed** in version 0.1.0
 * Inputs must stack vertically
 * No side-by-side fields
 
@@ -129,11 +129,11 @@ Mobile keyboards must not obstruct fields:
 
 # 6. Navigation on Mobile
 
-For Alpha, navigation is minimal.
+For version 0.1.0, navigation is minimal.
 
 Rules:
 
-* Avoid hamburger menus during Alpha
+* Avoid hamburger menus in version 0.1.0
 * Use simple top-aligned navigation
 * Avoid sticky nav bars unless necessary
 
@@ -143,7 +143,7 @@ In Beta and beyond, this section will expand to support:
 * Collapsible menus
 * Tab bars
 
-**Alpha Restriction:** Future navigation items must all route to `/under-development` until implemented.
+**Version 0.1.0 Restriction:** Future navigation items must all route to `/under-development` until implemented.
 
 ---
 
@@ -195,7 +195,7 @@ System-level errors must appear at the top of the form on mobile.
 
 Responsive adjustments must not break layout.
 
-For Alpha forms:
+For version 0.1.0 forms:
 
 * Avoid multi-column patterns
 * Avoid complex flex arrangements
@@ -211,13 +211,13 @@ These must be tagged as **future-phase** below.
 
 ---
 
-# 11. Future Features (Not Allowed in Alpha)
+# 11. Future Features (Not Allowed in Version 0.1.0)
 
-Some mobile patterns are documented here for future readiness but must NOT be implemented during Alpha.
+Some mobile patterns are documented here for future readiness but must NOT be implemented in version 0.1.0.
 
 These include:
 
-* Data tables (Alpha has none)
+* Data tables (version 0.1.0 has none)
 * Multi-column dashboards
 * Tab-based navigation
 * Metrics cards
@@ -226,7 +226,7 @@ These include:
 * Setup-sheet editors
 
 These sections are included only for planning and consistency.
-Alpha must ignore them.
+Version 0.1.0 must ignore them.
 
 ---
 
@@ -266,4 +266,4 @@ If any conflict arises, the Architecture document takes precedence.
 
 # 14. License
 
-Internal use only. This document defines mandatory mobile UX rules for all Alpha screens.
+Internal use only. This document defines mandatory mobile UX rules for all version 0.1.0 screens.

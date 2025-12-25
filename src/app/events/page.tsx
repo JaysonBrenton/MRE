@@ -29,7 +29,7 @@ export default async function EventsPage() {
   }
 
   return (
-    <AppShell>
+    <AppShell session={session}>
       <EventsPageClient />
     </AppShell>
   )

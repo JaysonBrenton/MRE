@@ -11,7 +11,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/04-data-model.md
   - docs/architecture/liverc-ingestion/07-ingestion-state-machine.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
 # 14. Ingestion Idempotency Design (LiveRC Ingestion Subsystem)

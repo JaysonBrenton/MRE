@@ -10,7 +10,7 @@
 #          clients and parsers to extract structured data from LiveRC pages.
 
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from ingestion.common.logging import get_logger
 from ingestion.common import metrics
@@ -21,6 +21,7 @@ from ingestion.connectors.liverc.models import (
     ConnectorRacePackage,
     ConnectorRaceSummary,
     ConnectorLap,
+    ConnectorEntryList,
 )
 from ingestion.connectors.liverc.parsers.track_list_parser import TrackListParser, TrackSummary
 from ingestion.connectors.liverc.parsers.event_list_parser import EventListParser, EventSummary
@@ -28,10 +29,12 @@ from ingestion.connectors.liverc.parsers.event_metadata_parser import EventMetad
 from ingestion.connectors.liverc.parsers.race_list_parser import RaceListParser
 from ingestion.connectors.liverc.parsers.race_results_parser import RaceResultsParser
 from ingestion.connectors.liverc.parsers.race_lap_parser import RaceLapParser
+from ingestion.connectors.liverc.parsers.entry_list_parser import EntryListParser
 from ingestion.connectors.liverc.utils import (
     build_event_url,
     build_events_url,
     build_race_url,
+    build_entry_list_url,
     normalize_race_url,
     parse_track_slug_from_url,
 )
@@ -480,3 +483,92 @@ class LiveRCConnector:
         except Exception as err:
             self._record_error("fetch_lap_series", err)
             raise
+    
+    async def fetch_entry_list(
+        self,
+        track_slug: str,
+        source_event_id: str,
+    ) -> ConnectorEntryList:
+        """
+        Fetch and parse entry list page.
+        
+        Args:
+            track_slug: Track subdomain slug
+            source_event_id: Event ID from LiveRC
+        
+        Returns:
+            ConnectorEntryList with all entries grouped by class
+        
+        Raises:
+            ConnectorHTTPError: On network errors
+            EventPageFormatError: On parsing errors
+        """
+        url = build_entry_list_url(track_slug, source_event_id)
+        logger.info("fetch_entry_list_start", url=url, track_slug=track_slug, event_id=source_event_id)
+        
+        # Check cache for page type
+        requires_playwright = self._page_type_cache.get(url, False)
+        html: Optional[str] = None
+        
+        # Try HTTPX first (unless we know it requires Playwright)
+        if not requires_playwright:
+            try:
+                async with HTTPXClient() as client:
+                    response = await client.get(url)
+                    html = response.text
+                    
+                    # Try parsing to see if we have valid content
+                    parser = EntryListParser()
+                    try:
+                        entry_list = parser.parse(html, url, source_event_id)
+                        # If we got an entry list, HTTPX worked
+                        logger.info("fetch_entry_list_success", url=url, class_count=len(entry_list.entries_by_class))
+                        return entry_list
+                    except EventPageFormatError as parse_error:
+                        # Parsing failed - likely needs JavaScript execution
+                        logger.debug("entry_list_page_requires_playwright", url=url, error=str(parse_error))
+                        requires_playwright = True
+                        self._page_type_cache[url] = True
+                        self._trim_page_type_cache()
+                        html = None
+            
+            except ConnectorHTTPError as err:
+                self._record_error("fetch_entry_list", err)
+                # If HTTPX fails, try Playwright
+                requires_playwright = True
+                self._page_type_cache[url] = True
+                self._trim_page_type_cache()
+        
+        # Use Playwright if needed (for dynamic content)
+        if requires_playwright or html is None:
+            try:
+                html = await self._fetch_with_playwright(
+                    url,
+                    wait_for_selector="div.tab-pane table.table-striped",  # Wait for tab content and entry tables to load
+                )
+            except Exception as e:
+                logger.error("playwright_fetch_error", url=url, error=str(e))
+                raise EventPageFormatError(
+                    f"Failed to fetch entry list page with Playwright: {str(e)}",
+                    url=url,
+                )
+        
+        # Parse the HTML (from either HTTPX or Playwright)
+        try:
+            parser = EntryListParser()
+            entry_list = parser.parse(html, url, source_event_id)
+            
+            logger.info("fetch_entry_list_success", url=url, class_count=len(entry_list.entries_by_class))
+            return entry_list
+        
+        except EventPageFormatError as err:
+            self._record_error("fetch_entry_list", err)
+            raise
+        
+        except Exception as e:
+            self._record_error("fetch_entry_list", e)
+            logger.error("fetch_entry_list_error", url=url, error=str(e))
+            raise EventPageFormatError(
+                f"Unexpected error fetching entry list: {str(e)}",
+                url=url,
+            )

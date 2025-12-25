@@ -4,7 +4,7 @@ owner: Architecture & Enablement
 purpose: Describe all autonomous / semi-autonomous contributors (human or LLM) that operate inside the MRE repo and the guardrails they must obey.
 relatedDocs:
   - README.md
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/
   - docs/operations/
   - docs/roles/
@@ -12,10 +12,10 @@ relatedDocs:
 
 # MRE Agents Handbook
 
-This repository is intentionally built for multi-agent collaboration (human specialists + LLM assistants). Every contributor must understand the agents in play, their domains, and the guardrails defined by the Alpha program.
+This repository is intentionally built for multi-agent collaboration (human specialists + LLM assistants). Every contributor must understand the agents in play, their domains, and the guardrails defined by the version 0.1.0 program.
 
 ## 1. Global Guardrails (Apply to All Agents)
-- **Alpha Scope Only** – Follow the feature list in `README.md` and `docs/specs/mre-alpha-feature-scope.md#6-llm-guardrails`. Reject any change outside registration, login, welcome/admin pages, and LiveRC ingestion.
+- **Version 0.1.0 Scope Only** – Follow the feature list in `README.md` and `docs/specs/mre-v0.1-feature-scope.md#6-llm-guardrails`. Reject any change outside registration, login, welcome/admin pages, and LiveRC ingestion.
 - **Docs Are Canon** – Architecture, ops, security, and UX documents under `docs/` outrank code comments. Quote them when defending design decisions.
 - **Folder Contracts** – Next.js logic lives under `src/`, Python ingestion under `ingestion/`, and all knowledge artifacts under `docs/`. Do not cross-contaminate.
 - **Structured Logging + Metrics** – The ingestion service must emit structlog JSON plus Prometheus metrics (`ingestion/common/logging.py`, `ingestion/common/metrics.py`). Never add plain `print` debugging in production code.
@@ -78,10 +78,10 @@ This repository is intentionally built for multi-agent collaboration (human spec
 5. **Publish Artefacts** – Log outputs, Prometheus metrics, and CLI reports must remain intact to support operations.
 
 ## 4. Onboarding Checklist for New Agents
-- [ ] Read `README.md` end-to-end for Alpha scope and guardrails.
+- [ ] Read `README.md` end-to-end for version 0.1.0 scope and guardrails.
 - [ ] Review architecture documents under `docs/architecture/` relevant to your domain.
 - [ ] Verify Docker/CLI workflows by running the commands in `docs/operations/liverc-operations-guide.md`.
 - [ ] Study the role profile closest to your responsibilities (`docs/roles/*.md`).
 - [ ] Run `npm test` / `pytest` (see `package.json` and `ingestion/README.md`) to ensure a green baseline.
 
-Adhering to this handbook keeps multi-agent work predictable, auditable, and aligned with the Alpha release objectives.
+Adhering to this handbook keeps multi-agent work predictable, auditable, and aligned with the version 0.1.0 release objectives.

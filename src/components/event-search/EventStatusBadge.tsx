@@ -27,7 +27,7 @@ const statusConfig: Record<EventStatus, { label: string; bgColor: string; textCo
     textColor: "text-[var(--token-status-success-text)]",
   },
   imported: {
-    label: "Imported",
+    label: "Ready",
     bgColor: "bg-[var(--token-status-success-bg)]",
     textColor: "text-[var(--token-status-success-text)]",
   },

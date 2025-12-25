@@ -132,230 +132,260 @@ export default function AvgVsFastestChart({
       className={className}
       aria-label="Average vs fastest lap comparison bar chart"
     >
-      <ParentSize>
-        {({ width: parentWidth }) => {
-          // Use parentWidth if available, otherwise fallback to 800 for SSR
-          // ParentSize will return 0 or undefined during SSR, which is fine
-          const width = parentWidth || 800
-          
-          // Don't render chart if width is 0 (during initial SSR)
-          if (width === 0) {
-            return null
-          }
+      <div className="relative w-full" style={{ height: `${height}px` }}>
+        <ParentSize>
+          {({ width: parentWidth }) => {
+            // Use parentWidth if available, otherwise fallback to 800 for SSR
+            // ParentSize will return 0 or undefined during SSR, which is fine
+            const width = parentWidth || 800
+            
+            // Don't render chart if width is 0 (during initial SSR)
+            if (width === 0) {
+              return null
+            }
 
-          const innerWidth = width - margin.left - margin.right
-          const innerHeight = height - margin.top - margin.bottom
+            const innerWidth = width - margin.left - margin.right
+            const innerHeight = height - margin.top - margin.bottom
 
-          // Scales
-          const xScale = scaleBand({
-            range: [0, innerWidth],
-            domain: paginatedData.map((d) => d.driverName),
-            padding: 0.3,
-          })
+            // Scales
+            const xScale = scaleBand({
+              range: [0, innerWidth],
+              domain: paginatedData.map((d) => d.driverName),
+              padding: 0.3,
+            })
 
-          const maxLapTime = Math.max(
-            ...paginatedData.flatMap((d) => [d.fastestLap, d.averageLap])
-          )
-          const minLapTime = Math.min(
-            ...paginatedData.flatMap((d) => [d.fastestLap, d.averageLap])
-          )
-          const padding = (maxLapTime - minLapTime) * 0.1
-          const yScale = scaleLinear({
-            range: [innerHeight, 0],
-            domain: [
-              Math.max(0, minLapTime - padding), // Clamp to 0 to prevent negative values
-              maxLapTime + padding,
-            ],
-            nice: true,
-          })
+            const maxLapTime = Math.max(
+              ...paginatedData.flatMap((d) => [d.fastestLap, d.averageLap])
+            )
+            const minLapTime = Math.min(
+              ...paginatedData.flatMap((d) => [d.fastestLap, d.averageLap])
+            )
+            const padding = (maxLapTime - minLapTime) * 0.1
+            const yScale = scaleLinear({
+              range: [innerHeight, 0],
+              domain: [
+                Math.max(0, minLapTime - padding), // Clamp to 0 to prevent negative values
+                maxLapTime + padding,
+              ],
+              nice: true,
+            })
 
-          const barWidth = xScale.bandwidth() / 2
+            const barWidth = xScale.bandwidth() / 2
 
-          return (
-            <svg
-              width={width}
-              height={height}
-              aria-labelledby={`${chartTitleId} ${chartDescId}`}
-              role="img"
-            >
-              <title id={chartTitleId}>Average versus fastest lap times</title>
-              <desc id={chartDescId}>
-                Bar chart comparing each driver's average lap time against their fastest lap.
-              </desc>
-              <Group left={margin.left} top={margin.top}>
-                {/* Grid lines */}
-                {yScale.ticks(5).map((tick) => (
-                  <line
-                    key={tick}
-                    x1={0}
-                    x2={innerWidth}
-                    y1={yScale(tick)}
-                    y2={yScale(tick)}
-                    stroke={borderColor}
-                    strokeWidth={1}
-                    strokeDasharray="2,2"
-                    opacity={0.3}
-                  />
-                ))}
+            return (
+              <svg
+                width={width}
+                height={height}
+                aria-labelledby={`${chartTitleId} ${chartDescId}`}
+                role="img"
+              >
+                <title id={chartTitleId}>Average versus fastest lap times</title>
+                <desc id={chartDescId}>
+                  Bar chart comparing each driver's average lap time against their fastest lap.
+                </desc>
+                <Group left={margin.left} top={margin.top}>
+                  {/* Grid lines */}
+                  {yScale.ticks(5).map((tick) => (
+                    <line
+                      key={tick}
+                      x1={0}
+                      x2={innerWidth}
+                      y1={yScale(tick)}
+                      y2={yScale(tick)}
+                      stroke={borderColor}
+                      strokeWidth={1}
+                      strokeDasharray="2,2"
+                      opacity={0.3}
+                    />
+                  ))}
 
-                {/* Bars */}
-                {paginatedData.map((d) => {
-                  const x = xScale(d.driverName) || 0
-                  const isSelected =
-                    selectedDriverIds.length === 0 ||
-                    selectedDriverIds.includes(d.driverId)
+                  {/* Bars */}
+                  {paginatedData.map((d) => {
+                    const x = xScale(d.driverName) || 0
+                    const isSelected =
+                      selectedDriverIds.length === 0 ||
+                      selectedDriverIds.includes(d.driverId)
 
-                  const handleClick = () => {
-                    if (onDriverToggle) {
-                      onDriverToggle(d.driverId)
+                    const handleClick = () => {
+                      if (onDriverToggle) {
+                        onDriverToggle(d.driverId)
+                      }
                     }
-                  }
 
-                  return (
-                    <Group key={d.driverId}>
-                      {/* Fastest lap bar */}
-                      <Bar
-                        x={x}
-                        y={yScale(d.fastestLap)}
-                        width={barWidth}
-                        height={innerHeight - yScale(d.fastestLap)}
-                        fill={fastestColor}
-                        opacity={isSelected ? 1 : 0.3}
-                        stroke={isSelected && selectedDriverIds.length > 0 ? fastestColor : "none"}
-                        strokeWidth={isSelected && selectedDriverIds.length > 0 ? 1.5 : 0}
-                        onClick={handleClick}
-                        onMouseMove={(event) => {
-                          const svgElement = (event.target as SVGElement).ownerSVGElement
-                          if (!svgElement) return
-                          const coords = localPoint(svgElement, event)
-                          if (coords) {
-                            showTooltip({
-                              tooltipLeft: coords.x,
-                              tooltipTop: coords.y,
-                              tooltipData: d,
-                            })
-                          }
-                        }}
-                        onMouseLeave={() => hideTooltip()}
-                        onTouchStart={(event) => {
-                          const svgElement = (event.target as SVGElement).ownerSVGElement
-                          if (!svgElement) return
-                          const coords = localPoint(svgElement, event)
-                          if (coords) {
-                            showTooltip({
-                              tooltipLeft: coords.x,
-                              tooltipTop: coords.y,
-                              tooltipData: d,
-                            })
-                          }
-                        }}
-                        onTouchEnd={() => {
-                          hideTooltip()
-                          if (onDriverToggle) {
-                            onDriverToggle(d.driverId)
-                          }
-                        }}
-                        style={{ cursor: "pointer" }}
-                        aria-label={`${d.driverName}: Fastest lap ${formatLapTime(d.fastestLap)}`}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault()
-                            handleClick()
-                          }
-                        }}
-                      />
+                    return (
+                      <Group key={d.driverId}>
+                        {/* Fastest lap bar */}
+                        <Bar
+                          x={x}
+                          y={yScale(d.fastestLap)}
+                          width={barWidth}
+                          height={innerHeight - yScale(d.fastestLap)}
+                          fill={fastestColor}
+                          opacity={isSelected ? 1 : 0.3}
+                          stroke={isSelected && selectedDriverIds.length > 0 ? fastestColor : "none"}
+                          strokeWidth={isSelected && selectedDriverIds.length > 0 ? 1.5 : 0}
+                          onClick={handleClick}
+                          onMouseMove={(event) => {
+                            const svgElement = (event.target as SVGElement).ownerSVGElement
+                            if (!svgElement) return
+                            const coords = localPoint(svgElement, event)
+                            if (coords) {
+                              showTooltip({
+                                tooltipLeft: coords.x,
+                                tooltipTop: coords.y,
+                                tooltipData: d,
+                              })
+                            }
+                          }}
+                          onMouseLeave={() => hideTooltip()}
+                          onTouchStart={(event) => {
+                            const svgElement = (event.target as SVGElement).ownerSVGElement
+                            if (!svgElement) return
+                            const coords = localPoint(svgElement, event)
+                            if (coords) {
+                              showTooltip({
+                                tooltipLeft: coords.x,
+                                tooltipTop: coords.y,
+                                tooltipData: d,
+                              })
+                            }
+                          }}
+                          onTouchEnd={() => {
+                            hideTooltip()
+                            if (onDriverToggle) {
+                              onDriverToggle(d.driverId)
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                          aria-label={`${d.driverName}: Fastest lap ${formatLapTime(d.fastestLap)}`}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault()
+                              handleClick()
+                            }
+                          }}
+                        />
 
-                      {/* Average lap bar */}
-                      <Bar
-                        x={x + barWidth}
-                        y={yScale(d.averageLap)}
-                        width={barWidth}
-                        height={innerHeight - yScale(d.averageLap)}
-                        fill={averageColor}
-                        opacity={isSelected ? 1 : 0.3}
-                        stroke={isSelected && selectedDriverIds.length > 0 ? averageColor : "none"}
-                        strokeWidth={isSelected && selectedDriverIds.length > 0 ? 1.5 : 0}
-                        onClick={handleClick}
-                        onMouseMove={(event) => {
-                          const svgElement = (event.target as SVGElement).ownerSVGElement
-                          if (!svgElement) return
-                          const coords = localPoint(svgElement, event)
-                          if (coords) {
-                            showTooltip({
-                              tooltipLeft: coords.x,
-                              tooltipTop: coords.y,
-                              tooltipData: d,
-                            })
-                          }
-                        }}
-                        onMouseLeave={() => hideTooltip()}
-                        onTouchStart={(event) => {
-                          const svgElement = (event.target as SVGElement).ownerSVGElement
-                          if (!svgElement) return
-                          const coords = localPoint(svgElement, event)
-                          if (coords) {
-                            showTooltip({
-                              tooltipLeft: coords.x,
-                              tooltipTop: coords.y,
-                              tooltipData: d,
-                            })
-                          }
-                        }}
-                        onTouchEnd={() => {
-                          hideTooltip()
-                          if (onDriverToggle) {
-                            onDriverToggle(d.driverId)
-                          }
-                        }}
-                        style={{ cursor: "pointer" }}
-                        aria-label={`${d.driverName}: Average lap ${formatLapTime(d.averageLap)}`}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault()
-                            handleClick()
-                          }
-                        }}
-                      />
-                    </Group>
-                  )
-                })}
-
-                {/* Y-axis */}
-                <AxisLeft
-                  scale={yScale}
-                  tickFormat={(value) => formatLapTime(Number(value))}
-                  stroke={borderColor}
-                  tickStroke={borderColor}
-                  tickLabelProps={() => ({
-                    fill: textSecondaryColor,
-                    fontSize: 12,
-                    textAnchor: "end",
-                    dx: -8,
+                        {/* Average lap bar */}
+                        <Bar
+                          x={x + barWidth}
+                          y={yScale(d.averageLap)}
+                          width={barWidth}
+                          height={innerHeight - yScale(d.averageLap)}
+                          fill={averageColor}
+                          opacity={isSelected ? 1 : 0.3}
+                          stroke={isSelected && selectedDriverIds.length > 0 ? averageColor : "none"}
+                          strokeWidth={isSelected && selectedDriverIds.length > 0 ? 1.5 : 0}
+                          onClick={handleClick}
+                          onMouseMove={(event) => {
+                            const svgElement = (event.target as SVGElement).ownerSVGElement
+                            if (!svgElement) return
+                            const coords = localPoint(svgElement, event)
+                            if (coords) {
+                              showTooltip({
+                                tooltipLeft: coords.x,
+                                tooltipTop: coords.y,
+                                tooltipData: d,
+                              })
+                            }
+                          }}
+                          onMouseLeave={() => hideTooltip()}
+                          onTouchStart={(event) => {
+                            const svgElement = (event.target as SVGElement).ownerSVGElement
+                            if (!svgElement) return
+                            const coords = localPoint(svgElement, event)
+                            if (coords) {
+                              showTooltip({
+                                tooltipLeft: coords.x,
+                                tooltipTop: coords.y,
+                                tooltipData: d,
+                              })
+                            }
+                          }}
+                          onTouchEnd={() => {
+                            hideTooltip()
+                            if (onDriverToggle) {
+                              onDriverToggle(d.driverId)
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                          aria-label={`${d.driverName}: Average lap ${formatLapTime(d.averageLap)}`}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault()
+                              handleClick()
+                            }
+                          }}
+                        />
+                      </Group>
+                    )
                   })}
-                />
 
-                {/* X-axis */}
-                <AxisBottom
-                  top={innerHeight}
-                  scale={xScale}
-                  stroke={borderColor}
-                  tickStroke={borderColor}
-                  tickLabelProps={() => ({
-                    fill: textSecondaryColor,
-                    fontSize: 12,
-                    textAnchor: "middle",
-                    dy: 8,
-                  })}
-                />
-              </Group>
-            </svg>
-          )
-        }}
-      </ParentSize>
+                  {/* Y-axis */}
+                  <AxisLeft
+                    scale={yScale}
+                    tickFormat={(value) => formatLapTime(Number(value))}
+                    stroke={borderColor}
+                    tickStroke={borderColor}
+                    tickLabelProps={() => ({
+                      fill: textSecondaryColor,
+                      fontSize: 12,
+                      textAnchor: "end",
+                      dx: -8,
+                    })}
+                  />
+
+                  {/* X-axis */}
+                  <AxisBottom
+                    top={innerHeight}
+                    scale={xScale}
+                    stroke={borderColor}
+                    tickStroke={borderColor}
+                    tickLabelProps={() => ({
+                      fill: textSecondaryColor,
+                      fontSize: 12,
+                      textAnchor: "middle",
+                      dy: 8,
+                    })}
+                  />
+                </Group>
+              </svg>
+            )
+          }}
+        </ParentSize>
+
+        {/* Tooltip */}
+        {tooltipOpen && tooltipData && (
+          <TooltipWithBounds
+            top={tooltipTop}
+            left={tooltipLeft}
+            style={{
+              ...defaultStyles,
+              backgroundColor: "var(--token-surface-elevated)",
+              border: `1px solid ${borderColor}`,
+              color: textColor,
+              padding: "8px 12px",
+              borderRadius: "4px",
+            }}
+          >
+            <div className="space-y-1">
+              <div className="font-semibold text-[var(--token-text-primary)]">
+                {tooltipData.driverName}
+              </div>
+              <div className="text-sm text-[var(--token-text-secondary)]">
+                Fastest: {formatLapTime(tooltipData.fastestLap)}
+              </div>
+              <div className="text-sm text-[var(--token-text-secondary)]">
+                Average: {formatLapTime(tooltipData.averageLap)}
+              </div>
+            </div>
+          </TooltipWithBounds>
+        )}
+      </div>
 
       {/* Legend */}
       <div className="flex items-center gap-4 mt-4 text-sm">
@@ -374,34 +404,6 @@ export default function AvgVsFastestChart({
           <span className="text-[var(--token-text-secondary)]">Average Lap</span>
         </div>
       </div>
-
-      {/* Tooltip */}
-      {tooltipOpen && tooltipData && (
-        <TooltipWithBounds
-          top={tooltipTop}
-          left={tooltipLeft}
-          style={{
-            ...defaultStyles,
-            backgroundColor: "var(--token-surface-elevated)",
-            border: `1px solid ${borderColor}`,
-            color: textColor,
-            padding: "8px 12px",
-            borderRadius: "4px",
-          }}
-        >
-          <div className="space-y-1">
-            <div className="font-semibold text-[var(--token-text-primary)]">
-              {tooltipData.driverName}
-            </div>
-            <div className="text-sm text-[var(--token-text-secondary)]">
-              Fastest: {formatLapTime(tooltipData.fastestLap)}
-            </div>
-            <div className="text-sm text-[var(--token-text-secondary)]">
-              Average: {formatLapTime(tooltipData.averageLap)}
-            </div>
-          </div>
-        </TooltipWithBounds>
-      )}
 
       {/* Pagination */}
       {onPageChange && totalPages > 1 && (

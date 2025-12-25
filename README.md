@@ -1,11 +1,11 @@
-My Race Engineer (MRE) — Alpha Version (Enterprise Architecture)
+My Race Engineer (MRE) — Version 0.1.0 (Enterprise Architecture)
 
 A Next.js application running in Docker, connected to PostgreSQL.
 
 1. Purpose of This Repository
 
 My Race Engineer (MRE) is an enterprise-grade RC racing telemetry platform.
-This version is the Alpha release, with a strict, locked-down feature set to ensure architectural correctness before adding new functionality.
+This version is version 0.1.0, with a strict, locked-down feature set to ensure architectural correctness before adding new functionality.
 
 This README is the single source of truth for:
 
@@ -15,11 +15,11 @@ LLM contributors
 
 Architects and reviewers
 
-It defines the Alpha feature scope, required documentation, architecture rules, operational setup, and LLM guardrails.
+It defines the version 0.1.0 feature scope, required documentation, architecture rules, operational setup, and LLM guardrails.
 
-2. Alpha Feature Scope (Strict)
+2. Version 0.1.0 Feature Scope (Strict)
 
-Only the following features are allowed in Alpha.
+Only the following features are allowed in version 0.1.0.
 Anything not listed is out of scope.
 
 ✔ 2.1 Registration
@@ -71,7 +71,7 @@ Data storage for race events, drivers, results, and laps
 
 See docs/architecture/liverc-ingestion/ for complete architecture specification.
 
-✔ 2.6 Out of Scope (Not Allowed in Alpha)
+✔ 2.6 Out of Scope (Not Allowed in Version 0.1.0)
 
 Telemetry ingestion
 
@@ -162,7 +162,7 @@ See:
 
 docs/design/mre-mobile-ux-guidelines.md
 
-Alpha screens must:
+Version 0.1.0 screens must:
 
 Function fully on mobile
 
@@ -214,7 +214,7 @@ See individual role documents in `docs/roles/` for detailed responsibilities, ha
 ├── README.md
 ├── docs/
 │   ├── specs/
-│   │   ├── mre-alpha-feature-scope.md
+│   │   ├── mre-v0.1-feature-scope.md
 │   │   └── mre-under-development-page.md
 │   ├── architecture/
 │   │   ├── mobile-safe-architecture-guidelines.md
@@ -314,7 +314,7 @@ docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' s
 
 LLMs must:
 
-Enforce Alpha scope
+Enforce version 0.1.0 scope
 
 Follow architecture + design docs
 
@@ -433,39 +433,47 @@ See docs/operations/liverc-operations-guide.md for complete CLI command referenc
 
 The MRE application exposes the following API endpoints:
 
-Authentication Endpoints
+**Authentication Endpoints:**
+- POST /api/v1/auth/register - Register a new user account
+- POST /api/v1/auth/login - Authenticate and create session
 
-POST /api/v1/auth/register - Register a new user account
+**LiveRC Ingestion Endpoints:**
+- GET /api/v1/tracks - Get track catalogue
+- GET /api/v1/events - Get list of all fully imported events
+- GET /api/v1/events/search - Search events by track and date range
+- POST /api/v1/events/discover - Discover events from LiveRC for a track
+- GET /api/v1/events/[eventId] - Get event details
+- GET /api/v1/events/[eventId]/analysis - Get event analysis data
+- POST /api/v1/events/[eventId]/ingest - Trigger on-demand event ingestion
+- POST /api/v1/events/ingest - Ingest event by source_event_id and track_id
 
-POST /api/v1/auth/login - Authenticate and create session
+**Race Data Endpoints:**
+- GET /api/v1/races/[raceId] - Get race details with results
+- GET /api/v1/races/[raceId]/laps - Get lap data for all drivers in a race
+- GET /api/v1/race-results/[raceResultId]/laps - Get lap data for a specific race result
 
-LiveRC Ingestion Endpoints
+**Driver Endpoints:**
+- GET /api/v1/drivers/[driverId] - Get driver details with transponder numbers and event entries
 
-GET /api/v1/tracks - Get track catalogue
+**Transponder Override Endpoints:**
+- POST /api/v1/transponder-overrides - Create transponder override
+- GET /api/v1/transponder-overrides - List transponder overrides
+- GET /api/v1/transponder-overrides/[overrideId] - Get transponder override
+- PATCH /api/v1/transponder-overrides/[overrideId] - Update transponder override
+- DELETE /api/v1/transponder-overrides/[overrideId] - Delete transponder override
 
-GET /api/v1/events/search - Search events by track and date range
+**Health Check:**
+- GET /api/health - Application health check
 
-GET /api/v1/events/[eventId] - Get event details
+**Note:** All data endpoints require authentication. Rate limiting is applied to authentication and ingestion endpoints.
 
-POST /api/v1/events/[eventId]/ingest - Trigger on-demand event ingestion
-
-GET /api/v1/races/[raceId] - Get race details
-
-GET /api/v1/races/[raceId]/laps - Get lap data for a race
-
-GET /api/v1/race-results/[raceResultId]/laps - Get lap data for a specific race result
-
-Health Check
-
-GET /api/health - Application health check
-
-All API endpoints follow the standard response format defined in docs/architecture/mobile-safe-architecture-guidelines.md Section 3.2.
+All API endpoints follow the standard response format defined in docs/architecture/mobile-safe-architecture-guidelines.md Section 3.2. See docs/api/api-reference.md for complete API documentation.
 
 14. Contributing
 
 Before contributing:
 
-Read the Alpha scope
+Read the version 0.1.0 scope
 
 Follow architecture guidelines
 
@@ -498,7 +506,7 @@ Blog
 
 Login / Register
 
-All non-Alpha links must route to:
+All out-of-scope links must route to:
 
 /under-development
 

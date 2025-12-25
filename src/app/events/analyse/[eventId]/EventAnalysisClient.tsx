@@ -20,6 +20,8 @@ import { useState, useEffect } from "react"
 import TabNavigation, { type TabId } from "@/components/event-analysis/TabNavigation"
 import OverviewTab from "@/components/event-analysis/OverviewTab"
 import DriversTab from "@/components/event-analysis/DriversTab"
+import SessionsTab from "@/components/event-analysis/SessionsTab"
+import ComparisonsTab from "@/components/event-analysis/ComparisonsTab"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface EventAnalysisClientProps {
@@ -32,20 +34,24 @@ export default function EventAnalysisClient({
   initialData,
 }: EventAnalysisClientProps) {
   const [activeTab, setActiveTab] = useState<TabId>("overview")
-  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(() => {
+  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
+
+  useEffect(() => {
     if (typeof window === "undefined") {
-      return []
+      return
     }
     try {
       const storedDrivers = window.localStorage.getItem(
         STORAGE_KEY_SELECTED_DRIVERS
       )
       const parsed = storedDrivers ? JSON.parse(storedDrivers) : []
-      return Array.isArray(parsed) ? parsed : []
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setSelectedDriverIds(parsed)
+      }
     } catch {
-      return []
+      // Ignore malformed localStorage data and fall back to defaults
     }
-  })
+  }, [])
 
   // Persist driver selections for subsequent visits
   useEffect(() => {
@@ -56,10 +62,11 @@ export default function EventAnalysisClient({
     )
   }, [selectedDriverIds])
 
-  // Only show Overview and Drivers tabs for now (Sessions and Comparisons deferred)
   const availableTabs = [
     { id: "overview" as TabId, label: "Overview" },
     { id: "drivers" as TabId, label: "Drivers" },
+    { id: "sessions" as TabId, label: "Sessions / Heats" },
+    { id: "comparisons" as TabId, label: "Comparisons" },
   ]
 
   return (
@@ -86,21 +93,9 @@ export default function EventAnalysisClient({
         />
       )}
 
-      {activeTab === "sessions" && (
-        <div className="text-center py-12">
-          <p className="text-[var(--token-text-secondary)]">
-            Sessions / Heats tab coming soon
-          </p>
-        </div>
-      )}
+      {activeTab === "sessions" && <SessionsTab />}
 
-      {activeTab === "comparisons" && (
-        <div className="text-center py-12">
-          <p className="text-[var(--token-text-secondary)]">
-            Comparisons tab coming soon
-          </p>
-        </div>
-      )}
+      {activeTab === "comparisons" && <ComparisonsTab />}
     </div>
   )
 }

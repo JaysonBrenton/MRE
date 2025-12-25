@@ -24,6 +24,8 @@ import { type Track } from "./TrackRow"
 import EventTable from "./EventTable"
 import { type Event } from "./EventRow"
 import ImportStatusToast, { type ImportStatus } from "./ImportStatusToast"
+import { type EventStatus } from "./EventStatusBadge"
+import BulkImportBar from "./BulkImportBar"
 import { parseApiResponse } from "@/lib/api-response-helper"
 import { logger } from "@/lib/logger"
 
@@ -58,6 +60,7 @@ const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
 const LAST_DATE_RANGE_STORAGE_KEY = "mre_last_date_range"
 const LAST_TRACK_STORAGE_KEY = "mre_last_track"
 const USE_DATE_FILTER_STORAGE_KEY = "mre_use_date_filter"
+const SELECTED_EVENT_IDS_STORAGE_KEY = "mre_selected_event_ids"
 
 // Get default date range (last 30 days)
 function getDefaultDateRange(): { startDate: string; endDate: string } {
@@ -84,18 +87,31 @@ export default function EventSearchContainer() {
   const [isCheckingLiveRC, setIsCheckingLiveRC] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [newEventsFromLiveRC, setNewEventsFromLiveRC] = useState<Event[]>([])
-  const [importingEventId, setImportingEventId] = useState<string | null>(null)
   const keptLoadingForEmptyDB = useRef(false)
   const [importStatus, setImportStatus] = useState<{
     status: ImportStatus
     message: string
     eventName?: string
   } | null>(null)
+  const [eventStatusOverrides, setEventStatusOverrides] = useState<Record<string, EventStatus>>({})
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set())
+  const [isImportingBulk, setIsImportingBulk] = useState(false)
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
   const [errors, setErrors] = useState<{
     track?: string
     startDate?: string
     endDate?: string
   }>({})
+
+  const updateEventStatusOverride = (eventId: string, status?: EventStatus) => {
+    setEventStatusOverrides((prev) => {
+      if (!status) {
+        const { [eventId]: _removed, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [eventId]: status }
+    })
+  }
 
   // Load persisted data and tracks on mount
   useEffect(() => {
@@ -156,9 +172,46 @@ export default function EventSearchContainer() {
       })
     }
 
+    // Load persisted selected event IDs from sessionStorage
+    // Note: We'll filter out invalid IDs after events are loaded
+    try {
+      const storedSelectedIds = sessionStorage.getItem(SELECTED_EVENT_IDS_STORAGE_KEY)
+      if (storedSelectedIds) {
+        const ids = JSON.parse(storedSelectedIds) as string[]
+        setSelectedEventIds(new Set(ids))
+      }
+    } catch (error) {
+      logger.error("Failed to load selected event IDs from sessionStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+
     // Load tracks from API
     loadTracks()
   }, [])
+
+  // Filter out persisted event IDs that no longer exist in current results
+  useEffect(() => {
+    if (events.length > 0 && selectedEventIds.size > 0) {
+      const validEventIds = new Set(events.map((e) => e.id))
+      const filteredIds = Array.from(selectedEventIds).filter((id) => validEventIds.has(id))
+      
+      if (filteredIds.length !== selectedEventIds.size) {
+        setSelectedEventIds(new Set(filteredIds))
+        try {
+          if (filteredIds.length > 0) {
+            sessionStorage.setItem(SELECTED_EVENT_IDS_STORAGE_KEY, JSON.stringify(filteredIds))
+          } else {
+            sessionStorage.removeItem(SELECTED_EVENT_IDS_STORAGE_KEY)
+          }
+        } catch (error) {
+          logger.error("Failed to update selected event IDs in sessionStorage", {
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
+      }
+    }
+  }, [events, selectedEventIds])
 
   const loadTracks = async () => {
     try {
@@ -510,6 +563,8 @@ export default function EventSearchContainer() {
           
           return [...filteredPrevEvents, ...uniqueNewEvents]
         })
+      } else {
+        setNewEventsFromLiveRC([])
       }
       // No new events found - silently continue (no toast notification needed)
     } catch (error) {
@@ -538,17 +593,24 @@ export default function EventSearchContainer() {
     }
   }
 
-  const handleImportSingle = async (event: Event) => {
+  const importEvent = async (
+    event: Event,
+    { refreshAfter = true, silentStart = false }: { refreshAfter?: boolean; silentStart?: boolean } = {}
+  ) => {
     if (!selectedTrack) {
-      return
+      return false
     }
 
-    setImportingEventId(event.id)
+    updateEventStatusOverride(event.id, "importing")
+    if (!silentStart) {
+      setImportStatus({
+        status: "started",
+        message: `Import started for "${event.eventName}".`,
+      })
+    }
 
     try {
-      // Check if event has an id (edge case - should not happen for new events)
       if (event.id && !event.id.startsWith("liverc-")) {
-        // Event already exists in DB, use event ID endpoint
         const response = await fetch(`/api/v1/events/${event.id}/ingest`, {
           method: "POST",
           headers: {
@@ -561,13 +623,11 @@ export default function EventSearchContainer() {
           throw new Error(result.error.message)
         }
       } else {
-        // New event - use source ID endpoint
-        // Extract sourceEventId from event (stored during discovery)
         const sourceEventId = event.sourceEventId
         if (!sourceEventId) {
           throw new Error(`Missing sourceEventId for event: ${event.eventName}`)
         }
-        
+
         const requestBody = {
           source_event_id: sourceEventId,
           track_id: selectedTrack.id,
@@ -586,20 +646,24 @@ export default function EventSearchContainer() {
         }
       }
 
-      // Show success message
-      setImportStatus({
-        status: "completed",
-        message: `Import completed for "${event.eventName}".`,
-      })
+      if (!silentStart) {
+        setImportStatus({
+          status: "completed",
+          message: `Import completed for "${event.eventName}".`,
+        })
+      }
 
-      // Refresh search to update event status
-      // Wait a moment to ensure the database transaction has committed
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      // Re-run search to get updated event list with imported event
-      await handleSearch()
-      
-      // Don't auto-check LiveRC immediately after import - the imported event should now be in DB
-      // and will be found by the search. If user wants to check for new events, they can manually trigger it.
+      updateEventStatusOverride(event.id)
+      setNewEventsFromLiveRC((prev) =>
+        prev.filter((newEvent) => newEvent.sourceEventId !== event.sourceEventId)
+      )
+
+      if (refreshAfter) {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await handleSearch()
+      }
+
+      return true
     } catch (error) {
       logger.error("Error importing event", {
         error: error instanceof Error
@@ -609,22 +673,63 @@ export default function EventSearchContainer() {
             }
           : String(error),
       })
-      
-      // Extract error message from the error
-      let errorMessage = `Import failed for "${event.eventName}".`;
+
+      let errorMessage = `Import failed for "${event.eventName}".`
       if (error instanceof Error) {
-        errorMessage = error.message || errorMessage;
+        errorMessage = error.message || errorMessage
       } else if (typeof error === "string") {
-        errorMessage = error;
+        errorMessage = error
       }
-      
+
+      updateEventStatusOverride(event.id, "failed")
+      if (!silentStart) {
+        setImportStatus({
+          status: "failed",
+          message: errorMessage,
+        })
+      }
+      return false
+    }
+  }
+
+  const handleImportSingle = (event: Event) => {
+    void importEvent(event)
+  }
+
+  const handleImportAll = async () => {
+    if (newEventsFromLiveRC.length === 0) return
+    if (!selectedTrack) return
+
+    const totalEvents = newEventsFromLiveRC.length
+    setImportStatus({
+      status: "started",
+      message: `Import started for ${totalEvents} event${totalEvents === 1 ? "" : "s"}.`,
+    })
+
+    let successfulImports = 0
+    for (const event of newEventsFromLiveRC) {
+      const success = await importEvent(event, { refreshAfter: false, silentStart: true })
+      if (success) {
+        successfulImports += 1
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await handleSearch()
+
+    if (successfulImports === totalEvents) {
+      setImportStatus({
+        status: "completed",
+        message: `Import completed for ${totalEvents} event${totalEvents === 1 ? "" : "s"}.`,
+      })
+    } else {
       setImportStatus({
         status: "failed",
-        message: errorMessage,
+        message: `Imported ${successfulImports} of ${totalEvents} event${totalEvents === 1 ? "" : "s"}. Please retry failed imports.`,
       })
-    } finally {
-      setImportingEventId(null)
     }
+
+    setNewEventsFromLiveRC([])
   }
 
   const handleReset = () => {
@@ -637,8 +742,9 @@ export default function EventSearchContainer() {
     setHasSearched(false)
     setErrors({})
     setNewEventsFromLiveRC([])
-    setImportingEventId(null)
     setImportStatus(null)
+    setEventStatusOverrides({})
+    handleClearSelection()
 
     // Clear localStorage
     try {
@@ -678,6 +784,132 @@ export default function EventSearchContainer() {
     }
   }
 
+  // Helper function to check if an event is importable
+  const isEventImportable = (event: Event): boolean => {
+    const overrideStatus = eventStatusOverrides[event.id]
+    if (overrideStatus) {
+      return overrideStatus === "new"
+    }
+    // Check if LiveRC-only event
+    if (event.id.startsWith("liverc-")) {
+      return true
+    }
+    // Check ingest depth
+    const normalizedDepth = event.ingestDepth?.trim().toLowerCase() || ""
+    return normalizedDepth !== "laps_full" && normalizedDepth !== "lapsfull"
+  }
+
+  // Handle event selection toggle
+  const handleEventSelect = (event: Event, selected: boolean) => {
+    setSelectedEventIds((prev) => {
+      const newSet = new Set(prev)
+      if (selected) {
+        newSet.add(event.id)
+      } else {
+        newSet.delete(event.id)
+      }
+      
+      // Persist to sessionStorage
+      try {
+        sessionStorage.setItem(SELECTED_EVENT_IDS_STORAGE_KEY, JSON.stringify(Array.from(newSet)))
+      } catch (error) {
+        logger.error("Failed to save selected event IDs to sessionStorage", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+      
+      return newSet
+    })
+  }
+
+  // Handle select all importable events
+  const handleSelectAllImportable = () => {
+    const importableEvents = events.filter(isEventImportable)
+    const newSet = new Set(importableEvents.map((e) => e.id))
+    setSelectedEventIds(newSet)
+    
+    // Persist to sessionStorage
+    try {
+      sessionStorage.setItem(SELECTED_EVENT_IDS_STORAGE_KEY, JSON.stringify(Array.from(newSet)))
+    } catch (error) {
+      logger.error("Failed to save selected event IDs to sessionStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  // Handle clear selection
+  const handleClearSelection = () => {
+    setSelectedEventIds(new Set())
+    try {
+      sessionStorage.removeItem(SELECTED_EVENT_IDS_STORAGE_KEY)
+    } catch (error) {
+      logger.error("Failed to clear selected event IDs from sessionStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  // Handle bulk import
+  const handleBulkImport = async () => {
+    if (selectedEventIds.size === 0) return
+    if (!selectedTrack) return
+
+    // Filter to only importable events
+    const eventsToImport = events.filter(
+      (e) => selectedEventIds.has(e.id) && isEventImportable(e)
+    )
+
+    if (eventsToImport.length === 0) return
+
+    setIsImportingBulk(true)
+    setImportProgress({ current: 0, total: eventsToImport.length })
+
+    let successfulImports = 0
+    let failedImports = 0
+
+    for (let i = 0; i < eventsToImport.length; i++) {
+      const event = eventsToImport[i]
+      setImportProgress({ current: i + 1, total: eventsToImport.length })
+      
+      // Set status to importing
+      updateEventStatusOverride(event.id, "importing")
+
+      const success = await importEvent(event, { refreshAfter: false, silentStart: true })
+      
+      if (success) {
+        successfulImports++
+        updateEventStatusOverride(event.id, "imported")
+      } else {
+        failedImports++
+        updateEventStatusOverride(event.id, "failed")
+      }
+    }
+
+    // Refresh event list after all imports complete
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await handleSearch()
+
+    // Clear selection
+    handleClearSelection()
+
+    // Show completion toast
+    if (failedImports === 0) {
+      setImportStatus({
+        status: "completed",
+        message: `Import completed for ${successfulImports} event${successfulImports === 1 ? "" : "s"}.`,
+      })
+    } else {
+      setImportStatus({
+        status: "failed",
+        message: `Imported ${successfulImports} of ${eventsToImport.length} event${eventsToImport.length === 1 ? "" : "s"}. ${failedImports} failed. Please retry failed imports.`,
+      })
+    }
+
+    setIsImportingBulk(false)
+    setImportProgress(null)
+  }
+
   if (isLoadingTracks) {
     return (
       <div className="text-center py-8" role="status" aria-live="polite">
@@ -713,13 +945,28 @@ export default function EventSearchContainer() {
         onReset={handleReset}
       />
 
+      {/* Bulk Import Bar */}
+      <BulkImportBar
+        selectedCount={selectedEventIds.size}
+        importableCount={events.filter(isEventImportable).length}
+        isImporting={isImportingBulk}
+        importProgress={importProgress}
+        onImport={handleBulkImport}
+        onSelectAll={handleSelectAllImportable}
+        onClearSelection={handleClearSelection}
+      />
+
       {/* Event Table */}
       <EventTable 
         events={events} 
         isLoading={isLoadingEvents || isCheckingLiveRC}
         hasSearched={hasSearched}
         onImportEvent={handleImportSingle}
-        importingEventId={importingEventId}
+        statusOverrides={eventStatusOverrides}
+        selectedEventIds={selectedEventIds}
+        onEventSelect={handleEventSelect}
+        isBulkImporting={isImportingBulk}
+        onSelectAll={handleSelectAllImportable}
       />
 
       {/* Import Status Toast */}

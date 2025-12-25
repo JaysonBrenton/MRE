@@ -6,7 +6,7 @@ description: User stories for user management features (welcome page)
 purpose: Defines user stories for user welcome page functionality with detailed
          acceptance criteria, dependencies, and Definition of Done checklists.
 relatedFiles:
-  - docs/specs/mre-alpha-feature-scope.md
+  - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/mre-ux-principles.md
   - docs/design/mre-mobile-ux-guidelines.md
@@ -119,7 +119,7 @@ Medium
 
 ### Related Documentation
 
-- [MRE Alpha Feature Scope - User Welcome Page](../specs/mre-alpha-feature-scope.md#23-user-welcome-page)
+- [MRE Alpha Feature Scope - User Welcome Page](../specs/mre-v0.1-feature-scope.md#23-user-welcome-page)
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
 - [MRE UX Principles](../design/mre-ux-principles.md)
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)
