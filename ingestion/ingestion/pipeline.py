@@ -29,6 +29,7 @@ from ingestion.connectors.liverc.utils import build_event_url
 from ingestion.db.models import IngestDepth
 from ingestion.db.repository import Repository
 from ingestion.db.session import db_session
+from sqlalchemy import select, and_, func
 from ingestion.ingestion.errors import (
     IngestionInProgressError,
     StateMachineError,
@@ -38,7 +39,8 @@ from ingestion.ingestion.normalizer import Normalizer
 from ingestion.ingestion.state_machine import IngestionStateMachine
 from ingestion.ingestion.validator import Validator
 from ingestion.ingestion.driver_matcher import DriverMatcher
-from ingestion.db.models import EventEntry
+from ingestion.ingestion.auto_confirm import check_and_confirm_links
+from ingestion.db.models import EventEntry, UserDriverLinkStatus, EventDriverLinkMatchType
 
 logger = get_logger(__name__)
 
@@ -125,11 +127,26 @@ class IngestionPipeline:
             for race_summary in race_summaries
         ]
         
-        # Fetch all races in parallel
-        race_packages = await asyncio.gather(*tasks)
+        # Fetch all races in parallel with exception handling
+        # Use return_exceptions=True to handle individual race failures gracefully
+        race_packages = await asyncio.gather(*tasks, return_exceptions=True)
         
-        # Return as tuples maintaining order
-        return list(zip(race_summaries, race_packages))
+        # Filter out exceptions and log them, but continue processing valid races
+        valid_pairs = []
+        for race_summary, race_package in zip(race_summaries, race_packages):
+            if isinstance(race_package, Exception):
+                logger.warning(
+                    "race_fetch_failed",
+                    event_id=str(event_id),
+                    race_id=race_summary.source_race_id,
+                    error_type=type(race_package).__name__,
+                    error_message=str(race_package),
+                    message="Skipping failed race and continuing with others",
+                )
+                continue
+            valid_pairs.append((race_summary, race_package))
+        
+        return valid_pairs
     
     async def _process_races_parallel(
         self,
@@ -160,6 +177,23 @@ class IngestionPipeline:
         results_ingested = 0
         laps_ingested = 0
         
+        # Preload all event entries for this event and cache by class name
+        # This eliminates redundant database queries inside the race processing loop
+        all_event_entries = repo.get_event_entries_by_event(event_id=event_id)
+        event_entries_cache: Dict[str, List[EventEntry]] = {}
+        for entry in all_event_entries:
+            class_name = entry.class_name
+            if class_name not in event_entries_cache:
+                event_entries_cache[class_name] = []
+            event_entries_cache[class_name].append(entry)
+        
+        logger.debug(
+            "event_entries_cached",
+            event_id=str(event_id),
+            total_entries=len(all_event_entries),
+            classes=len(event_entries_cache),
+        )
+        
         # Process races in batches to limit concurrent requests
         batch_size = self.RACE_FETCH_CONCURRENCY
         for batch_start in range(0, len(race_summaries), batch_size):
@@ -170,6 +204,30 @@ class IngestionPipeline:
             
             # Process fetched races sequentially for database consistency
             for race_summary, race_package in race_data_pairs:
+                # Skip races with no results (empty races that haven't been run yet)
+                if not race_package.results or len(race_package.results) == 0:
+                    logger.info(
+                        "skipping_empty_race",
+                        event_id=str(event_id),
+                        race_id=race_summary.source_race_id,
+                        message="Race has no results - skipping ingestion",
+                    )
+                    # Still create the race record so it's tracked, but mark it as having no results
+                    normalized_race = Normalizer.normalize_race(race_package.race_summary)
+                    race = repo.upsert_race(
+                        event_id=event_id,
+                        source="liverc",
+                        source_race_id=normalized_race["source_race_id"],
+                        class_name=normalized_race["class_name"],
+                        race_label=normalized_race["race_label"],
+                        race_order=normalized_race["race_order"],
+                        race_url=normalized_race["race_url"],
+                        start_time=normalized_race["start_time"],
+                        duration_seconds=normalized_race["duration_seconds"],
+                    )
+                    races_ingested += 1
+                    continue
+                
                 # Normalize race data
                 normalized_race = Normalizer.normalize_race(race_package.race_summary)
                 
@@ -204,11 +262,14 @@ class IngestionPipeline:
                         normalized_result = Normalizer.normalize_result(result)
                         
                         # Match race result driver to EventEntry record
+                        # Use cached event entries instead of querying database for each result
                         class_name = normalized_race["class_name"]
-                        event_entries = repo.get_event_entries_by_class(
-                            event_id=event_id,
-                            class_name=class_name,
-                        )
+                        event_entries = event_entries_cache.get(class_name, [])
+                        
+                        # Track cache usage
+                        metrics.record_event_entry_cache_lookup(str(event_id))
+                        if event_entries:
+                            metrics.record_event_entry_cache_hit(str(event_id))
                         
                         matched_event_entry = None
                         
@@ -428,6 +489,154 @@ class IngestionPipeline:
             "entries_created": entries_created,
         }
     
+    def _match_users_to_drivers_for_event(
+        self,
+        event_id: UUID,
+        repo: Repository,
+    ) -> None:
+        """
+        Match users to drivers for an event.
+        
+        Preloads all users once, then matches all drivers in the event to users.
+        Creates UserDriverLink and EventDriverLink records.
+        
+        Args:
+            event_id: Event ID
+            repo: Repository instance
+        """
+        # Preload all users once (performance optimization)
+        users = repo.get_all_users()
+        if not users:
+            logger.debug("no_users_to_match", event_id=str(event_id))
+            return
+        
+        # Preload existing links
+        existing_links = repo.get_existing_user_driver_links()
+        
+        # Get all drivers for this event (via EventEntry)
+        from ingestion.db.models import EventEntry, Driver
+        event_entries_stmt = select(EventEntry).where(EventEntry.event_id == str(event_id))
+        event_entries = list(repo.session.scalars(event_entries_stmt).all())
+        driver_ids = {entry.driver_id for entry in event_entries}
+        
+        # Get drivers
+        drivers = []
+        for driver_id in driver_ids:
+            driver_stmt = select(Driver).where(Driver.id == driver_id)
+            driver = repo.session.scalar(driver_stmt)
+            if driver:
+                drivers.append(driver)
+        
+        if not drivers:
+            logger.debug("no_drivers_to_match", event_id=str(event_id))
+            return
+        
+        matched_at = datetime.utcnow()
+        links_created = 0
+        links_updated = 0
+        event_links_created = 0
+        
+        for driver in drivers:
+            match_result = DriverMatcher.find_user_matches_for_driver(
+                driver=driver,
+                users=users,
+                existing_links=existing_links,
+            )
+            
+            if not match_result:
+                continue
+            
+            user, match_type, similarity_score, status = match_result
+            
+            # Determine status enum
+            if status == 'confirmed':
+                status_enum = UserDriverLinkStatus.CONFIRMED
+                confirmed_at = matched_at
+                rejected_at = None
+            elif status == 'suggested':
+                status_enum = UserDriverLinkStatus.SUGGESTED
+                confirmed_at = None
+                rejected_at = None
+            else:
+                status_enum = UserDriverLinkStatus.SUGGESTED
+                confirmed_at = None
+                rejected_at = None
+            
+            # Check for conflicts
+            conflict_reason = None
+            # Check if another user already linked to this driver
+            if driver.id in existing_links:
+                existing_link = existing_links[driver.id]
+                if existing_link.user_id != user.id:
+                    conflict_reason = f"Another user ({existing_link.user_id}) already linked to this driver"
+                    status_enum = UserDriverLinkStatus.CONFLICT
+                    rejected_at = matched_at
+            
+            # Upsert UserDriverLink
+            user_driver_link = repo.upsert_user_driver_link(
+                user_id=user.id,
+                driver_id=driver.id,
+                status=status_enum,
+                similarity_score=similarity_score,
+                match_type=match_type,
+                matched_at=matched_at,
+                confirmed_at=confirmed_at,
+                rejected_at=rejected_at,
+                conflict_reason=conflict_reason,
+            )
+            
+            if driver.id in existing_links:
+                links_updated += 1
+            else:
+                links_created += 1
+                existing_links[driver.id] = user_driver_link
+            
+            # Determine match type enum
+            if match_type == 'transponder':
+                match_type_enum = EventDriverLinkMatchType.TRANSPONDER
+            elif match_type == 'exact':
+                match_type_enum = EventDriverLinkMatchType.EXACT
+            else:
+                match_type_enum = EventDriverLinkMatchType.FUZZY
+            
+            # Get transponder number with fallback: EventEntry -> Driver -> User
+            transponder_number = None
+            event_entry_stmt = select(EventEntry).where(
+                and_(
+                    EventEntry.event_id == str(event_id),
+                    EventEntry.driver_id == driver.id,
+                )
+            ).limit(1)
+            event_entry = repo.session.scalar(event_entry_stmt)
+            if event_entry and event_entry.transponder_number:
+                transponder_number = event_entry.transponder_number
+            elif driver.transponder_number:
+                transponder_number = driver.transponder_number
+            elif user.transponder_number:
+                transponder_number = user.transponder_number
+            
+            # Upsert EventDriverLink
+            repo.upsert_event_driver_link(
+                user_id=user.id,
+                event_id=str(event_id),
+                driver_id=driver.id,
+                match_type=match_type_enum,
+                similarity_score=similarity_score,
+                transponder_number=transponder_number,
+                matched_at=matched_at,
+                user_driver_link_id=user_driver_link.id,
+            )
+            event_links_created += 1
+        
+        logger.info(
+            "user_driver_matching_complete",
+            event_id=str(event_id),
+            links_created=links_created,
+            links_updated=links_updated,
+            event_links_created=event_links_created,
+            drivers_processed=len(drivers),
+        )
+    
     async def ingest_event(
         self,
         event_id: UUID,
@@ -482,17 +691,37 @@ class IngestionPipeline:
                 )
                 
                 # Check if already at requested depth
+                # BUT: Always process entry list if EventEntry records are missing
+                # (needed for fuzzy matching even if races are already ingested)
                 if event.ingest_depth == IngestDepth(depth) and depth == "laps_full":
-                    logger.info("ingestion_already_complete", event_id=str(event_id))
-                    ingestion_timer.finish("already_complete")
-                    return {
-                        "event_id": str(event_id),
-                        "ingest_depth": depth,
-                        "status": "already_complete",
-                        "races_ingested": 0,
-                        "results_ingested": 0,
-                        "laps_ingested": 0,
-                    }
+                    # Check if EventEntry records exist - if not, we need to process entry list
+                    from ingestion.db.models import EventEntry
+                    event_entry_count = repo.session.scalar(
+                        select(func.count(EventEntry.id)).where(
+                            EventEntry.event_id == str(event_id)
+                        )
+                    ) or 0
+                    
+                    if event_entry_count > 0:
+                        # Event is fully ingested and has EventEntry records - skip
+                        logger.info("ingestion_already_complete", event_id=str(event_id))
+                        ingestion_timer.finish("already_complete")
+                        return {
+                            "event_id": str(event_id),
+                            "ingest_depth": depth,
+                            "status": "already_complete",
+                            "races_ingested": 0,
+                            "results_ingested": 0,
+                            "laps_ingested": 0,
+                        }
+                    else:
+                        # Event is marked as ingested but missing EventEntry records
+                        # Continue with entry list processing (but skip race processing)
+                        logger.warning(
+                            "ingestion_missing_event_entries",
+                            event_id=str(event_id),
+                            message="Event marked as ingested but missing EventEntry records - will process entry list only"
+                        )
             
                 # Fetch event page
                 logger.info("connector_fetch_start", event_id=str(event_id), type="event_page")
@@ -544,12 +773,36 @@ class IngestionPipeline:
                 )
                 
                 # Process races in parallel batches
-                races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(
-                    race_summaries=event_data.races,
+                # Skip if event is already at laps_full (races already ingested)
+                # We only process entry list to create EventEntry records for fuzzy matching
+                races_ingested = 0
+                results_ingested = 0
+                laps_ingested = 0
+                
+                if event.ingest_depth != IngestDepth.LAPS_FULL:
+                    races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(
+                        race_summaries=event_data.races,
+                        event_id=event_id,
+                        repo=repo,
+                        depth=depth,
+                    )
+                else:
+                    logger.info(
+                        "skipping_race_processing",
+                        event_id=str(event_id),
+                        message="Event already at laps_full - only processing entry list for EventEntry records"
+                    )
+                
+                # Match users to drivers for this event
+                self._match_users_to_drivers_for_event(
                     event_id=event_id,
                     repo=repo,
-                    depth=depth,
                 )
+                
+                # Run auto-confirmation after initial matching
+                # This checks for transponder matches across multiple events
+                # and auto-confirms links when strong evidence is found
+                check_and_confirm_links(repo)
                 
                 # Update event ingest_depth and timestamp
                 event.ingest_depth = IngestDepth(depth)
@@ -575,9 +828,48 @@ class IngestionPipeline:
                 ingestion_timer.finish("success")
                 return result_payload
 
-            except Exception:
+            except Exception as e:
                 if ingestion_timer:
                     ingestion_timer.finish("error")
+                # Check if this is a retryable constraint violation (race condition)
+                # Use a thread-safe retry tracking mechanism
+                from ingestion.ingestion.errors import ConstraintViolationError
+                if isinstance(e, ConstraintViolationError) and "race condition" in str(e).lower():
+                    # Check if we've already retried for this event in this session
+                    if not hasattr(self, '_retry_events'):
+                        self._retry_events = set()
+                    
+                    if str(event_id) not in self._retry_events:
+                        self._retry_events.add(str(event_id))
+                        logger.warning(
+                            "ingestion_race_condition_retry",
+                            event_id=str(event_id),
+                            error=str(e),
+                            message="Retrying ingestion once due to driver race condition"
+                        )
+                        # Release lock before retry
+                        try:
+                            repo.release_event_lock(event_id)
+                        except Exception:
+                            pass  # Ignore errors releasing lock
+                        
+                        # Wait a moment for the transaction to fully commit
+                        import asyncio
+                        await asyncio.sleep(1.0)
+                        
+                        # Retry once by calling ingest_event again
+                        try:
+                            result = await self.ingest_event(event_id, depth=depth)
+                            self._retry_events.discard(str(event_id))  # Clear retry flag on success
+                            return result
+                        except Exception as retry_error:
+                            self._retry_events.discard(str(event_id))  # Clear retry flag on failure
+                            logger.error(
+                                "ingestion_retry_failed",
+                                event_id=str(event_id),
+                                error=str(retry_error),
+                            )
+                            raise
                 raise
 
             finally:

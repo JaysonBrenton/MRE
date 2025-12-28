@@ -22,10 +22,8 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import AuthenticatedNav from "@/components/AuthenticatedNav"
+import Breadcrumbs from "@/components/Breadcrumbs"
 import EventAnalysisHeader from "@/components/event-analysis/EventAnalysisHeader"
-import TabNavigation, { type TabId } from "@/components/event-analysis/TabNavigation"
-import OverviewTab from "@/components/event-analysis/OverviewTab"
-import DriversTab from "@/components/event-analysis/DriversTab"
 import { getEventAnalysisData } from "@/core/events/get-event-analysis-data"
 import EventAnalysisClient from "./EventAnalysisClient"
 
@@ -49,16 +47,16 @@ export default async function EventAnalysisPage({ params }: EventAnalysisPagePro
 
   if (!analysisData) {
     return (
-      <div className="flex min-h-screen flex-col bg-[var(--token-surface)]">
+      <div className="flex min-h-screen w-full flex-col bg-[var(--token-surface)]">
         <AuthenticatedNav />
-        <main className="page-container flex-1 px-4 py-8 sm:px-6 lg:px-8">
-          <section className="content-wrapper mx-auto max-w-4xl">
+        <main className="page-container flex-1 w-full min-w-0 px-4 py-8 sm:px-6 lg:px-8">
+          <section className="content-wrapper mx-auto w-full min-w-0 max-w-4xl">
             <div className="text-center space-y-4">
               <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
                 Event Not Found
               </h1>
               <p className="text-[var(--token-text-secondary)]">
-                The event you're looking for doesn't exist or has been removed.
+                The event you&apos;re looking for doesn&rsquo;t exist or has been removed.
               </p>
             </div>
           </section>
@@ -68,10 +66,17 @@ export default async function EventAnalysisPage({ params }: EventAnalysisPagePro
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--token-surface)]">
+    <div className="flex min-h-screen w-full flex-col bg-[var(--token-surface)]">
       <AuthenticatedNav />
-      <main className="page-container flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <section className="content-wrapper mx-auto max-w-6xl">
+      <main className="page-container flex-1 w-full min-w-0 px-4 py-8 sm:px-6 lg:px-8">
+        <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl">
+          <Breadcrumbs
+            items={[
+              { label: "Welcome", href: "/welcome" },
+              { label: "Event Search", href: "/event-search" },
+              { label: analysisData.event.eventName },
+            ]}
+          />
           <EventAnalysisHeader
             eventName={analysisData.event.eventName}
             eventDate={analysisData.event.eventDate}

@@ -33,7 +33,7 @@ import {
   generateRateLimitKey,
   getRateLimitConfigForPath,
 } from "@/lib/rate-limiter"
-import { logger, createLoggerWithContext } from "@/lib/logger"
+import { createLoggerWithContext } from "@/lib/logger"
 import { getRequestContext, getClientIp } from "@/lib/request-context"
 import { env } from "@/lib/env"
 
@@ -184,7 +184,8 @@ export async function middleware(request: NextRequest) {
     // - Session validation
     // - Redirects for unauthenticated users
     // - Admin role checks
-    const authResponse = await auth(request as any)
+    // Note: NextAuth's auth() expects a Request, but NextRequest extends Request
+    const authResponse = await auth(request as unknown as Request)
     
     // Add security headers to auth response
     // auth() returns NextResponse or Response, so we need to handle both

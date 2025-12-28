@@ -17,6 +17,7 @@
 
 import { NextRequest } from "next/server"
 import { createLoggerWithContext, type LogContext } from "./logger"
+import { getQueryCount, getSlowQueries } from "./prisma"
 
 /**
  * Generate a unique request ID (UUID v4)
@@ -99,5 +100,27 @@ export function createRequestLogger(
   userId?: string
 ) {
   const context = getRequestContext(request, requestId, userId)
-  return createLoggerWithContext(context)
+  const logger = createLoggerWithContext(context)
+  
+  // Add query count tracking wrapper
+  const originalInfo = logger.info.bind(logger)
+  logger.info = (message: string, meta?: Record<string, unknown>) => {
+    const queryCount = getQueryCount()
+    const slowQueries = getSlowQueries()
+    
+    const enhancedMeta = {
+      ...meta,
+      prismaQueryCount: queryCount,
+      ...(slowQueries.length > 0 && {
+        slowQueries: slowQueries.map(q => ({
+          duration: q.duration,
+          query: q.query.substring(0, 200), // Truncate long queries
+        })),
+      }),
+    }
+    
+    return originalInfo(message, enhancedMeta)
+  }
+  
+  return logger
 }

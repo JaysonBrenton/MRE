@@ -17,7 +17,6 @@
  */
 
 import { searchEvents as searchEventsFromRepo } from "./repo"
-import type { SearchEventsResult } from "./repo"
 import { ingestionClient } from "@/lib/ingestion-client"
 
 export interface DiscoverLiveRCEventsInput {
@@ -101,4 +100,3 @@ export async function discoverLiveRCEvents(
     existingEvents,
   }
 }
-

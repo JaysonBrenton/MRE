@@ -8,16 +8,15 @@
 // 
 // @purpose Provides user-facing API for updating and deleting transponder overrides
 
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
 import {
   updateTransponderOverride,
   deleteTransponderOverride,
-  getTransponderOverride,
-} from "@/core/transponder-overrides/repo";
-import { successResponse, errorResponse } from "@/lib/api-utils";
-import { createRequestLogger, generateRequestId } from "@/lib/request-context";
-import { handleApiError } from "@/lib/server-error-handler";
+} from "@/core/transponder-overrides/repo"
+import { successResponse, errorResponse } from "@/lib/api-utils"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context"
+import { handleApiError } from "@/lib/server-error-handler"
 
 export async function PATCH(
   request: NextRequest,
@@ -39,7 +38,7 @@ export async function PATCH(
   }
 
   try {
-    const { overrideId } = await params;
+    const { overrideId } = await params
     const body = await request.json()
     const { effectiveFromRaceId, transponderNumber } = body
 
@@ -62,15 +61,28 @@ export async function PATCH(
       updated_at: override.updatedAt.toISOString(),
       created_by: override.createdBy,
     })
-  } catch (error: any) {
-    // Handle validation errors
-    if (error.message.includes("Invalid transponder") || error.message.includes("already in use") || error.message.includes("not found")) {
-      return errorResponse(
-        error.message.includes("not found") ? "NOT_FOUND" : "VALIDATION_ERROR",
-        error.message,
-        {},
-        error.message.includes("not found") ? 404 : 400
-      )
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.message.includes("not found")) {
+        return errorResponse(
+          "NOT_FOUND",
+          error.message,
+          {},
+          404
+        )
+      }
+
+      if (
+        error.message.includes("Invalid transponder") ||
+        error.message.includes("already in use")
+      ) {
+        return errorResponse(
+          "VALIDATION_ERROR",
+          error.message,
+          {},
+          400
+        )
+      }
     }
 
     const errorInfo = handleApiError(error, request, requestId)
@@ -103,7 +115,7 @@ export async function DELETE(
   }
 
   try {
-    const { overrideId } = await params;
+    const { overrideId } = await params
 
     const override = await deleteTransponderOverride(overrideId)
 
@@ -115,9 +127,11 @@ export async function DELETE(
       id: override.id,
       message: "Transponder override deleted successfully",
     })
-  } catch (error: any) {
-    // Handle not found errors
-    if (error.message?.includes("not found") || error.code === "P2025") {
+  } catch (error: unknown) {
+    if (
+      (error instanceof Error && error.message.includes("not found")) ||
+      (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025")
+    ) {
       return errorResponse(
         "NOT_FOUND",
         "Transponder override not found",
@@ -156,7 +170,7 @@ export async function GET(
   }
 
   try {
-    const { overrideId } = await params;
+    const { overrideId } = await params
 
     // Note: getTransponderOverride requires driverId and eventId, so we'll use Prisma directly
     const { prisma } = await import("@/lib/prisma")
@@ -210,4 +224,3 @@ export async function GET(
     )
   }
 }
-

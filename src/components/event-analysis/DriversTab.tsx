@@ -16,7 +16,6 @@
 
 "use client"
 
-import { useState } from "react"
 import DriverList from "./DriverList"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
@@ -58,4 +57,3 @@ export default function DriversTab({
     </div>
   )
 }
-

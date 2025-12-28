@@ -14,6 +14,7 @@
 4. [Retrieving IDs from Database](#retrieving-ids-from-database)
 5. [Complete Workflows](#complete-workflows)
 6. [Troubleshooting](#troubleshooting)
+7. [Quick Reference](#quick-reference)
 
 ---
 
@@ -66,6 +67,22 @@ If you prefer to run CLI commands locally without Docker:
 **For Docker execution:** Database connection is automatically configured via Docker network. The container connects to `mre-postgres` using the connection string from `.env.docker`.
 
 **For local execution:** Ensure your `DATABASE_URL` environment variable is set correctly and points to your PostgreSQL database.
+
+### Scraping Kill Switch
+
+Operations can pause all LiveRC scraping (cron + manual CLI + admin UI) by setting the shared env flag:
+
+```bash
+export MRE_SCRAPE_ENABLED=false
+```
+
+When disabled:
+
+- Cron wrappers (`run-track-sync.sh`, `run-followed-event-sync.sh`) log a skip message and exit before any HTTP calls.
+- CLI commands (`refresh-tracks`, `refresh-events`, `refresh-followed-events`, `ingest-event`) fail fast with a helpful error.
+- Next.js clients surface the same message before hitting the ingestion API.
+
+Re-enable scraping with `MRE_SCRAPE_ENABLED=true`. This flag is part of `policies/site_policy/policy.json` so Python and TypeScript stay in sync.
 
 ---
 
@@ -181,6 +198,8 @@ docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refr
 ```
 
 For ad-hoc deep ingests across all followed tracks, pass `--depth laps_full` (optionally `--quiet` to suppress per-event output). The command automatically iterates every `Track` marked `is_followed=true` and aggregates the ingestion results.
+
+**Scheduling courtesy:** both cron wrappers add a small random jitter (0-120 seconds) before firing to avoid hammering LiveRC right at the top of the minute. Leave this in place when copying scripts into other schedulers.
 
 ---
 
@@ -368,7 +387,93 @@ Ingestion completed successfully:
 
 ---
 
-#### 6. Status
+#### 6. Refresh Followed Events
+
+**Command**: `refresh-followed-events`
+
+**Description**: Refreshes events for all tracks marked as `is_followed=true`. This command automatically iterates through all followed tracks and refreshes their events. Useful for keeping event metadata up to date for tracks of interest.
+
+**Usage**:
+
+Docker (Recommended):
+```bash
+docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth {none|laps_full} [--quiet]
+```
+
+Local (Alternative):
+```bash
+python -m ingestion.cli ingest liverc refresh-followed-events --depth {none|laps_full} [--quiet]
+```
+
+**Required Parameters**:
+- `--depth`: Ingestion depth - `none` (metadata only) or `laps_full` (full ingestion)
+
+**Optional Parameters**:
+- `--quiet`: Suppress per-event output (useful for bulk operations)
+
+**Examples** (Docker):
+
+1. **Metadata only** (discover events, no race data):
+```bash
+docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth none
+```
+
+2. **Full ingestion for all followed tracks**:
+```bash
+docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth laps_full
+```
+
+3. **Full ingestion with quiet mode**:
+```bash
+docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth laps_full --quiet
+```
+
+**Output** (with `--depth none`):
+```
+Refreshing events for 12 followed tracks...
+Track: Canberra Off Road Model Car Club
+  Events discovered: 2 new, 5 updated
+Track: Sydney RC Racing
+  Events discovered: 1 new, 3 updated
+...
+Refresh completed:
+  Tracks processed: 12
+  Events discovered: 15 new, 45 updated
+  Total events: 180
+```
+
+**Output** (with `--depth laps_full`):
+```
+Refreshing events for 12 followed tracks...
+Track: Canberra Off Road Model Car Club
+  Events discovered: 2 new, 5 updated
+  Full ingestion results:
+    Events ingested: 2 successful, 0 failed
+    Races ingested: 24
+    Results ingested: 180
+    Laps ingested: 7200
+...
+Refresh completed:
+  Tracks processed: 12
+  Events discovered: 15 new, 45 updated
+  Events ingested: 15 successful, 0 failed
+  Total races ingested: 180
+  Total results ingested: 1350
+  Total laps ingested: 54000
+```
+
+**Use Case**: 
+- Use `--depth none` for regular maintenance to keep event metadata up to date
+- Use `--depth laps_full` to perform full ingestion across all followed tracks
+- Automated cron job runs this command nightly with `--depth none` (see "Automated Event Refresh for Followed Tracks" section below)
+
+**Automated Execution**: A cron job runs this command automatically every night at midnight UTC via `run-followed-event-sync.sh` with `--depth none`. This keeps event metadata synchronized for all followed tracks without manual intervention.
+
+**Note**: This command does not require any IDs - it automatically processes all tracks where `is_followed=true`.
+
+---
+
+#### 7. Status
 
 **Command**: `status`
 

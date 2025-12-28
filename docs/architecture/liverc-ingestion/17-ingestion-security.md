@@ -189,6 +189,8 @@ User-Agent MUST be honest and non-deceptive, for example:
 
 This avoids hostile anti-bot detection behaviours and maintains trust.
 
+**See [Web Scraping Best Practices](27-web-scraping-best-practices.md) for comprehensive documentation of User-Agent policy, robots.txt compliance, rate limiting, HTTP caching, and all other web scraping best practices.**
+
 ---
 
 ## 7. Connector Sandbox Requirements

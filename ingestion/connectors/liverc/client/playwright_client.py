@@ -23,6 +23,7 @@ from playwright.async_api import (
 
 from ingestion.common.logging import get_logger
 from ingestion.ingestion.errors import ConnectorHTTPError, RacePageFormatError
+from ingestion.common.site_policy import SitePolicy
 
 logger = get_logger(__name__)
 
@@ -41,10 +42,11 @@ class PlaywrightClient:
     - Close browser context after scraping one page
     """
     
-    def __init__(self):
+    def __init__(self, site_policy: Optional[SitePolicy] = None):
         """Initialize Playwright client."""
         self._playwright: Optional[Playwright] = None
         self._browser: Optional[Browser] = None
+        self._site_policy = site_policy or SitePolicy.shared()
     
     async def __aenter__(self):
         """Async context manager entry."""
@@ -103,9 +105,14 @@ class PlaywrightClient:
             page = await context.new_page()
             
             logger.debug("playwright_navigate", url=url)
-            
-            # Navigate to page
-            await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+
+            if self._site_policy:
+                self._site_policy.ensure_enabled("liverc")
+                self._site_policy.ensure_allowed(url)
+                async with self._site_policy.throttle(url):
+                    await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+            else:
+                await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
             
             # Wait for specific selector if provided
             if wait_for_selector:
@@ -145,4 +152,3 @@ class PlaywrightClient:
             # Clean up context (closes all pages)
             if context:
                 await context.close()
-

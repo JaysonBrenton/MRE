@@ -7,6 +7,9 @@ to ensure stable, predictable, anti-bot-friendly operation.
 This file is authoritative. Connector implementations must comply exactly with the
 rules and guarantees defined here.
 
+**Related Documentation:**
+- [Web Scraping Best Practices](27-web-scraping-best-practices.md) - Comprehensive guide to all web scraping best practices, including robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, retry logic, and kill switch mechanism.
+
 ---
 
 ## 1. Design Goals

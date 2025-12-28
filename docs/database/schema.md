@@ -30,12 +30,13 @@ This document provides a comprehensive overview of the MRE database schema. The 
 1. [Schema Overview](#schema-overview)
 2. [Entity Relationship Diagram](#entity-relationship-diagram)
 3. [Models](#models)
-4. [Enums](#enums)
-5. [Indexes](#indexes)
-6. [Relationships](#relationships)
-7. [Data Lifecycle](#data-lifecycle)
-8. [Common Query Patterns](#common-query-patterns)
-9. [Performance Considerations](#performance-considerations)
+4. [Transponder Number Storage Strategy](#transponder-number-storage-strategy)
+5. [Enums](#enums)
+6. [Indexes](#indexes)
+7. [Relationships](#relationships)
+8. [Data Lifecycle](#data-lifecycle)
+9. [Common Query Patterns](#common-query-patterns)
+10. [Performance Considerations](#performance-considerations)
 
 ---
 
@@ -216,6 +217,7 @@ Driver entries in classes for an event. Links drivers to racing classes and stor
 - Deleted when parent Event or Driver is deleted (cascade delete)
 - Supports drivers participating in multiple classes within the same event
 - Transponder numbers are captured from entry lists, not race results
+- **Transponder Number Storage:** EventEntry is the primary source of truth for transponder numbers per driver-class-event combination. See [Transponder Number Storage Strategy](#transponder-number-storage-strategy) for complete architecture details.
 
 **Indexes:**
 - Primary key on `id`
@@ -252,6 +254,7 @@ Normalized driver identity across all races/events.
 - Drivers are created from entry lists during event ingestion
 - `sourceDriverId` may be temporary (starts with "entry_") until matched to race results
 - Transponder number is set from entry list and updated when matched to race results
+- **Transponder Number Storage:** Driver-level transponder number is a fallback/default value. EventEntry is the primary source. See [Transponder Number Storage Strategy](#transponder-number-storage-strategy) for complete architecture details.
 
 **Indexes:**
 - Primary key on `id`
@@ -329,6 +332,7 @@ Drivers participating in a race.
 - `raceId` + `sourceDriverId` must be unique (composite unique constraint)
 - Drivers are created during race ingestion
 - Deleted when parent Race is deleted (cascade delete)
+- **Transponder Number Storage:** RaceDriver does not store transponder numbers in the entry-list-first architecture. Transponder numbers are retrieved from EventEntry records via the driver relationship. See [Transponder Number Storage Strategy](#transponder-number-storage-strategy) for complete architecture details.
 
 **Indexes:**
 - Primary key on `id`
@@ -456,6 +460,87 @@ Manual transponder number overrides for drivers in events. Allows administrators
 - Belongs to `Event` (cascade delete)
 - Belongs to `Driver` (cascade delete - overrides deleted when driver deleted)
 - Belongs to `Race` (set null on delete - if race is deleted, override applies from first race)
+
+---
+
+## Transponder Number Storage Strategy
+
+Transponder numbers are stored at multiple levels in the MRE database to support different use cases and ensure data accuracy. This section explains the architecture and data flow.
+
+### Overview
+
+The MRE ingestion system uses an **entry-list-first architecture** where transponder numbers are captured from event entry lists before race results are processed. This ensures accurate transponder assignment even when race results have incomplete or incorrect transponder data.
+
+### Storage Levels
+
+Transponder numbers are stored at three levels:
+
+1. **EventEntry-Level** (Primary Source of Truth)
+   - Stored in `EventEntry.transponderNumber`
+   - Captured from entry lists during event ingestion
+   - One transponder per driver-class-event combination
+   - Supports drivers using different transponders in different classes
+
+2. **Driver-Level** (Default/Fallback)
+   - Stored in `Driver.transponderNumber`
+   - Set from EventEntry records during ingestion
+   - Used as fallback when event-specific transponder is not available
+   - Updated when new values are provided during re-ingestion
+
+3. **RaceDriver-Level** (Not Used)
+   - `RaceDriver.transponderNumber` field exists but is **not populated** in the entry-list-first architecture
+   - Transponder numbers are retrieved from EventEntry records via the driver relationship when needed
+
+### Entry-List-First Architecture
+
+The ingestion pipeline processes entry lists **before** race results:
+
+1. **Entry List Processing** (First)
+   - Entry list is fetched and parsed
+   - Drivers are created from entry list (with temporary IDs if needed)
+   - EventEntry records are created for each driver-class combination
+   - Transponder numbers are captured from entry lists
+
+2. **Race Result Processing** (Second)
+   - Race results are processed after entry list
+   - Race result drivers are matched to EventEntry records
+   - Transponder numbers are retrieved from EventEntry records
+   - Driver `sourceDriverId` is updated from temporary to real ID when matched
+
+### Matching Strategy
+
+Race result drivers are matched to EventEntry records using a multi-field strategy (in order of preference):
+
+1. **Driver ID**: Match by `source_driver_id` if available
+2. **Driver Name**: Match by normalized driver name (exact match, case-insensitive)
+
+Matching is performed within the same racing class to avoid false matches.
+
+### Data Flow
+
+```
+Entry List → EventEntry (transponderNumber) → Driver (transponderNumber)
+                                              ↓
+Race Results → RaceDriver → Lookup EventEntry → Get transponderNumber
+```
+
+### Idempotency
+
+- Re-ingestion updates transponder numbers if new values are found
+- EventEntry transponder numbers are updated if new values provided
+- Driver-level transponder is only updated if not already set, or if new value provided
+- RaceDriver records do not store transponder numbers (retrieved from EventEntry when needed)
+
+### Transponder Overrides
+
+Manual transponder overrides can be created via the `TransponderOverride` model to correct or override transponder numbers when ingested data is incorrect. Overrides take precedence over EventEntry transponder numbers.
+
+See the [TransponderOverride model](#transponderoverride) section for details on manual overrides.
+
+### Related Documentation
+
+- [Racing Classes Domain Model](../domain/racing-classes.md) - Complete taxonomy of racing classes
+- [LiveRC Ingestion Architecture](../architecture/liverc-ingestion/04-data-model.md) - Ingestion-specific data model documentation
 
 ---
 
@@ -796,80 +881,6 @@ const laps = await prisma.lap.findMany({
 - [Prisma/PostgreSQL Backend Engineer Role](../roles/prisma-postgresql-backend-engineer.md) - Role responsibilities for database management
 
 ---
-
----
-
-## Transponder Number Storage Strategy
-
-Transponder numbers are stored at three levels to support different use cases:
-
-### EventEntry-Level Storage
-
-The `EventEntry.transponder_number` field stores transponder numbers from entry lists, linked to specific driver-class combinations within an event. This is the primary source of transponder numbers.
-
-**Business Rules:**
-- Set during entry list ingestion when EventEntry is created
-- Updated if new value is provided during re-ingestion
-- Supports drivers using different transponders in different classes
-
-### Driver-Level Storage
-
-The `Driver.transponder_number` field stores the default transponder number for a driver across all races. This is set from EventEntry records and can be updated on re-ingestion.
-
-**Business Rules:**
-- Set from EventEntry during entry list ingestion
-- Updated if not already set, or if new value is provided during re-ingestion
-- Used as fallback when race-specific transponder is not available
-
-### RaceDriver-Level Storage
-
-The `RaceDriver.transponder_number` field is **not populated** in the entry-list-first architecture. Transponder numbers are retrieved from EventEntry records (the source of truth) via the driver relationship when needed.
-
-**Business Rules:**
-- Transponder numbers are not stored in RaceDriver records
-- Look up transponder numbers via: RaceDriver → Driver → EventEntry (filtered by event and class)
-- EventEntry is the definitive source for transponder numbers per driver-class-event combination
-
-### Entry-List-First Architecture
-
-The ingestion pipeline uses an entry-list-first approach:
-
-1. **Entry List Processing**: Entry list is fetched and processed BEFORE race results
-   - Drivers are created from entry list (with temporary IDs if needed)
-   - EventEntry records are created for each driver-class combination
-   - Transponder numbers are captured from entry lists
-
-2. **Race Result Processing**: Race results are processed AFTER entry list
-   - Race result drivers are matched to EventEntry records
-   - Transponder numbers are retrieved from EventEntry records
-   - Driver `sourceDriverId` is updated from temporary to real ID when matched
-
-### Matching Strategy
-
-Race result drivers are matched to EventEntry records using a multi-field strategy (in order of preference):
-
-1. **Driver ID**: Match by `source_driver_id` if available
-2. **Driver Name**: Match by normalized driver name (exact match, case-insensitive)
-
-Matching is performed within the same racing class to avoid false matches.
-
-### Data Flow
-
-1. Entry list page is fetched during event ingestion (REQUIRED)
-2. Entry list is parsed to extract drivers grouped by racing class
-3. Drivers are created from entry list (with temporary IDs if needed)
-4. EventEntry records are created for each driver-class combination
-5. During race result processing, each driver is matched to EventEntry records
-6. If match found, transponder number is retrieved from EventEntry:
-   - Stored on `RaceDriver` model (race-specific override)
-   - Driver `sourceDriverId` is updated from temporary to real ID
-
-### Idempotency
-
-- Re-ingestion updates transponder numbers if new values are found
-- EventEntry transponder numbers are updated if new values provided
-- Driver-level transponder is only updated if not already set, or if new value provided
-- RaceDriver records do not store transponder numbers (retrieved from EventEntry when needed)
 
 ---
 

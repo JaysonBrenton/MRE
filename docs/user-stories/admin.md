@@ -253,3 +253,167 @@ Medium
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)
 - [MRE Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md)
 
+---
+
+## Admin Dashboard Overview
+
+**As an** Administrator  
+**I want** to see a dashboard overview with system statistics and quick actions  
+**So that** I can quickly understand system status and access common tasks
+
+### Priority
+High
+
+### Acceptance Criteria
+- Dashboard displays system statistics cards (users, events, tracks, database size)
+- Health status widget shows overall system health
+- Quick action cards for common tasks (trigger ingestion, view recent events)
+- Recent activity feed shows latest admin actions
+- All data updates in real-time or with refresh button
+- Mobile-responsive card layout
+
+---
+
+## User Management
+
+**As an** Administrator  
+**I want** to manage users (view, edit, delete, promote/demote admins)  
+**So that** I can maintain user accounts and control access
+
+### Priority
+High
+
+### Acceptance Criteria
+- View all users in sortable, filterable, paginated table
+- Edit user details (driverName, teamName, email) via modal/form
+- Delete users with confirmation dialog
+- Promote/demote administrators (toggle isAdmin flag)
+- Search and filter by email, driver name, admin status
+- All actions logged to audit log
+
+---
+
+## System Statistics
+
+**As an** Administrator  
+**I want** to view system statistics and database metrics  
+**So that** I can monitor system health and performance
+
+### Priority
+Medium
+
+### Acceptance Criteria
+- Dashboard cards showing user count, event count, track count, database size
+- Database statistics (connection pool status, query performance, table sizes)
+- Real-time updates with refresh button
+- Mobile-responsive card layout
+
+---
+
+## Event Management
+
+**As an** Administrator  
+**I want** to manage ingested events (view, re-ingest, delete)  
+**So that** I can maintain event data quality and troubleshoot ingestion issues
+
+### Priority
+Medium
+
+### Acceptance Criteria
+- View all events in sortable, filterable table with event details
+- Re-ingest events (trigger re-ingestion for selected events)
+- Delete events with confirmation and cascade delete handling
+- Filter and sort by track, date range, ingestion status
+- All actions logged to audit log
+
+---
+
+## Track Management
+
+**As an** Administrator  
+**I want** to manage tracks (view, follow/unfollow)  
+**So that** I can control which tracks are monitored for events
+
+### Priority
+Medium
+
+### Acceptance Criteria
+- View all tracks with details and event counts
+- Follow/unfollow tracks (toggle isFollowed flag)
+- View events for specific tracks
+- Filter and sort by name, source, follow status
+- All actions logged to audit log
+
+---
+
+## LiveRC Ingestion Controls
+
+**As an** Administrator  
+**I want** to control LiveRC ingestion (trigger jobs, view status, view logs)  
+**So that** I can manage data ingestion and troubleshoot issues
+
+### Priority
+Medium
+
+### Acceptance Criteria
+- Manual trigger for track sync or event ingestion
+- View ingestion jobs (recent/active jobs list)
+- View ingestion logs for specific operations
+- Real-time status updates for running jobs
+- All actions logged to audit log
+
+---
+
+## Audit Logs
+
+**As an** Administrator  
+**I want** to view audit logs of all admin actions and system events  
+**So that** I can track changes and investigate issues
+
+### Priority
+High
+
+### Acceptance Criteria
+- View all audit log entries in sortable, filterable table
+- Filter by user, action type, resource type, date range
+- Expandable rows showing full audit log details (JSON)
+- Export filtered logs (optional: CSV/JSON)
+- Mobile-responsive table layout
+
+---
+
+## Health Checks
+
+**As an** Administrator  
+**I want** to view detailed system health checks  
+**So that** I can monitor system status and identify issues
+
+### Priority
+High
+
+### Acceptance Criteria
+- Detailed health checks for database connectivity, ingestion service status, disk space, memory usage
+- Color-coded status indicators (green/yellow/red)
+- Individual component health status
+- Manual refresh button
+- Mobile-responsive layout
+
+---
+
+## Log Viewing
+
+**As an** Administrator  
+**I want** to view application logs (real-time and historical)  
+**So that** I can troubleshoot issues and monitor system activity
+
+### Priority
+High
+
+### Acceptance Criteria
+- Real-time log streaming (tail -f style) using Server-Sent Events or WebSocket
+- Paginated log viewing for browsing historical logs
+- Search and filter by log level, service, date range, search term
+- Support for multiple log sources (Next.js, ingestion service, database)
+- Pretty-print JSON logs with syntax highlighting
+- Mobile-responsive log viewer
+

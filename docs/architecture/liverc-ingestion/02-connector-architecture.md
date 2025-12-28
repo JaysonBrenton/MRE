@@ -66,7 +66,25 @@ The connector must respect anti-bot constraints:
 - No repeated scraping of the same event in short succession.
 - Avoid JavaScript browser automation except as a last resort.
 
-### 4. One Connector Per Data Source
+### 4. Shared Site Policy Enforcement
+
+All outbound HTTP/Playwright calls flow through `policies/site_policy/policy.json` via:
+
+- `ingestion/common/site_policy.py` (Python runtime)
+- `src/lib/site-policy.ts` (Next.js runtime)
+
+This policy enforces:
+
+- Global kill switch (`MRE_SCRAPE_ENABLED`) honored by cron, CLI, the ingestion API, and the Next.js admin UI.
+- robots.txt allow/disallow checks + crawl-delay parsing.
+- Host-level throttling (semaphores + crawl-delay) with jitter.
+- Conditional requests (ETag/Last-Modified caching) and `Retry-After` handling inside the HTTPX client.
+
+Connectors **must not** bypass the site policy helper. If a new data source is added, update `policy.json` and both helper modules to describe its host rules.
+
+**See [Web Scraping Best Practices](27-web-scraping-best-practices.md) for comprehensive documentation of all web scraping practices, including robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, and more.**
+
+### 5. One Connector Per Data Source
 Each external system receives its own module:
 
 connectors/
@@ -593,6 +611,8 @@ The connector MUST adhere to these safety rules:
    No automation headers. No odd request patterns. No manipulating cookies.
 
 This strategy is not about *evading protections*, but ensuring *cooperative polite scraping*.
+
+**For comprehensive web scraping best practices, including detailed implementation of robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, retry logic, and kill switch mechanism, see [Web Scraping Best Practices](27-web-scraping-best-practices.md).**
 
 ### Page-Type-to-Tool Matrix
 

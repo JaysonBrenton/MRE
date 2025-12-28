@@ -18,7 +18,7 @@
 
 import { useEffect } from "react"
 
-export type ImportStatus = "started" | "completed" | "failed"
+export type ImportStatus = "started" | "pending" | "completed" | "failed"
 
 export interface ImportStatusToastProps {
   status: ImportStatus
@@ -49,6 +49,8 @@ export default function ImportStatusToast({
 
   const statusColors = {
     started:
+      "bg-[var(--token-status-info-bg)] text-[var(--token-status-info-text)] border-[var(--token-status-info-text)]",
+    pending:
       "bg-[var(--token-status-info-bg)] text-[var(--token-status-info-text)] border-[var(--token-status-info-text)]",
     completed:
       "bg-[var(--token-status-success-bg)] text-[var(--token-status-success-text)] border-[var(--token-status-success-text)]",

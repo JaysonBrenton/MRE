@@ -1,11 +1,11 @@
-My Race Engineer (MRE) — Version 0.1.0 (Enterprise Architecture)
+My Race Engineer (MRE) — Version 0.1.1 (Enterprise Architecture)
 
 A Next.js application running in Docker, connected to PostgreSQL.
 
 1. Purpose of This Repository
 
 My Race Engineer (MRE) is an enterprise-grade RC racing telemetry platform.
-This version is version 0.1.0, with a strict, locked-down feature set to ensure architectural correctness before adding new functionality.
+This version is version 0.1.1, with an expanded feature set building on the architectural foundation established in version 0.1.0.
 
 This README is the single source of truth for:
 
@@ -15,11 +15,11 @@ LLM contributors
 
 Architects and reviewers
 
-It defines the version 0.1.0 feature scope, required documentation, architecture rules, operational setup, and LLM guardrails.
+It defines the version 0.1.1 feature scope, required documentation, architecture rules, operational setup, and LLM guardrails.
 
-2. Version 0.1.0 Feature Scope (Strict)
+2. Version 0.1.1 Feature Scope (Strict)
 
-Only the following features are allowed in version 0.1.0.
+Only the following features are allowed in version 0.1.1.
 Anything not listed is out of scope.
 
 ✔ 2.1 Registration
@@ -71,29 +71,69 @@ Data storage for race events, drivers, results, and laps
 
 See docs/architecture/liverc-ingestion/ for complete architecture specification.
 
-✔ 2.6 Out of Scope (Not Allowed in Version 0.1.0)
+✔ 2.6 Navigation, Tables, Dashboards, and Telemetry Visualizations
 
-Telemetry ingestion
+Version 0.1.1 includes expanded UI features:
+
+**Navigation Features:**
+- Breadcrumb navigation (primary pattern)
+- Simplified hamburger menus (basic toggle functionality)
+- Multi-level dropdown menus (secondary pattern)
+- Tab-based navigation (secondary pattern)
+
+**Table Components:**
+- Tables in admin console (users, events, tracks lists)
+- Tables in event lists page
+- Tables in driver management
+- Tables in race results display
+- Full sorting, filtering, and pagination support
+
+**Dashboard System:**
+- User dashboard (personal stats, recent events)
+- Driver dashboard (performance metrics, lap times)
+- Team dashboard (team statistics, member performance)
+- Track dashboard (track-specific statistics)
+- Customizable widgets (drag-and-drop, resize, rearrange)
+
+**Telemetry Visualizations:**
+- Lap time charts (line graphs, comparisons)
+- Speed graphs (over time, by sector)
+- GPS track visualization (maps, track layouts)
+- Sensor data visualization (throttle, brake, steering)
+- Sector analysis (heatmaps, comparisons)
+
+See docs/specs/mre-v0.1-feature-scope.md for complete feature specifications.
+
+✔ 2.7 Out of Scope (Not Allowed in Version 0.1.1)
+
+Telemetry data ingestion (sensor data collection)
 
 RC setup sheets
 
-Race/session parsing
-
-Track selection
-
-Dashboards
+Race/session parsing (beyond existing LiveRC ingestion)
 
 User profile editing
 
-Import tools
+Import tools (beyond LiveRC ingestion)
 
 Notifications, jobs, emails
 
 Settings beyond dark mode
 
-Any UI beyond registration, login, welcome pages, admin console
+Any UI beyond registration, login, welcome pages, admin console, dashboards, events, drivers
 
 Python-based admin tools (future)
+
+✔ 2.7 Dashboard and Event Pages
+
+The following pages are in scope for version 0.1.1:
+- Dashboard page (overview with navigation to event search)
+- Events list page (browse imported events)
+- Event Search page (search and import events from LiveRC)
+- Event Analysis page (view and analyze event data with charts)
+- Driver detail pages (view driver information and transponder overrides)
+
+See docs/specs/mre-v0.1-feature-scope.md for complete feature specifications.
 
 3. System Architecture Requirements
 
@@ -162,7 +202,7 @@ See:
 
 docs/design/mre-mobile-ux-guidelines.md
 
-Version 0.1.0 screens must:
+Version 0.1.1 screens must:
 
 Function fully on mobile
 
@@ -314,7 +354,7 @@ docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' s
 
 LLMs must:
 
-Enforce version 0.1.0 scope
+Enforce version 0.1.1 scope
 
 Follow architecture + design docs
 
@@ -473,7 +513,7 @@ All API endpoints follow the standard response format defined in docs/architectu
 
 Before contributing:
 
-Read the version 0.1.0 scope
+Read the version 0.1.1 scope
 
 Follow architecture guidelines
 

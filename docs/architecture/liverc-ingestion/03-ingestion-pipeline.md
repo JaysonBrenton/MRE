@@ -172,13 +172,37 @@ Via the LiveRCConnector:
 8. For each race result:
    - Fetch lap data using connector.
    - Upsert Lap rows (with safe dedupe by race_result_id + lap_number).
-9. Update event:
+9. Match users to drivers:
+   - Preload all users and existing user-driver links.
+   - For each driver in the event, find matching users using fuzzy matching:
+     - Transponder match (primary strategy)
+     - Exact normalized name match
+     - Fuzzy name match (Jaro-Winkler similarity >= 0.85)
+   - Create/update UserDriverLink records (status: confirmed, suggested, or conflict).
+   - Create EventDriverLink records to track event-specific matches.
+   - Run auto-confirmation: Check for transponder matches across 2+ events and auto-confirm links when name compatibility is verified.
+10. Update event:
    - `ingest_depth = "laps_full"`
    - `last_ingested_at = now()`
 
 ### Notes
 - This action can be long-running but must provide progress updates to the UI.
 - Ingestion must be idempotent: running twice should not create duplicates.
+
+### Timeout & Pending Responses
+
+LiveRC imports can exceed the 10-minute HTTP budget enforced by Next.js API
+routes. When a timeout or transient connection drop occurs, the ingestion API
+now polls the database for a few seconds before responding:
+
+- If the Python pipeline finished despite the timeout, the API replies with a
+  normal success payload (`status: "already_complete"`).
+- If the pipeline is still running, the API returns `202 Accepted` with
+  `status: "in_progress"`. The UI keeps the event row in an “Importing…” state
+  and retries the search automatically.
+
+This ensures users are never told an import failed when the data is still being
+processed in the background.
 
 ---
 

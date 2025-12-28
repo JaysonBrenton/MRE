@@ -36,10 +36,10 @@ export default function EventAnalysisHeader({
         <ol className="flex flex-wrap items-center gap-2">
           <li>
             <Link
-              href="/dashboard"
+              href="/welcome"
               className="hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
             >
-              Dashboard
+              Welcome
             </Link>
           </li>
           <li aria-hidden="true">/</li>

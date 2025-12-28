@@ -25,6 +25,7 @@ import { validateRegisterInput, type RegisterInput } from "./validate-register"
 import { findUserByEmail, createUser } from "../users/repo"
 import type { User } from "@prisma/client"
 import { logger } from "@/lib/logger"
+import { assignDriverPersona } from "../personas/assign"
 
 /**
  * Type guard to check if error is a ZodError
@@ -114,7 +115,20 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
       driverName: validatedData.driverName,
       teamName: validatedData.teamName || null,
       isAdmin: false, // Security requirement: admin accounts cannot be created via registration
+      transponderNumber: null, // Users can add this later if needed
     })
+
+    // Auto-assign Driver persona to new user
+    try {
+      await assignDriverPersona(user.id)
+    } catch (error) {
+      logger.error("Failed to assign Driver persona during registration", {
+        userId: user.id,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      // Continue with registration even if persona assignment fails
+      // Persona can be assigned later if needed
+    }
 
     return {
       success: true,

@@ -21,9 +21,10 @@
 // Use NextAuth v5's client-side API directly
 // This avoids importing from @/lib/auth which would pull in the authorize function
 // and argon2 dependencies during client-side bundling
-import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "next-auth/react"
+import { signIn as nextAuthSignIn, signOut as nextAuthSignOut, getSession as nextAuthGetSession } from "next-auth/react"
 
 // Re-export with the same API as the server-side version
 export const signIn = nextAuthSignIn
 export const signOut = nextAuthSignOut
+export const getSession = nextAuthGetSession
 

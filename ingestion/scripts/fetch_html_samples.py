@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 
 from ingestion.common.logging import configure_logging, get_logger
 from ingestion.connectors.liverc.client.httpx_client import HTTPXClient
+from ingestion.common.site_policy import SitePolicy
 from ingestion.ingestion.errors import ConnectorHTTPError
 
 logger = get_logger(__name__)
@@ -79,6 +80,9 @@ def create_metadata(
     return metadata
 
 
+SITE_POLICY = SitePolicy.shared()
+
+
 async def fetch_and_save(
     url: str,
     output_path: Path,
@@ -97,7 +101,8 @@ async def fetch_and_save(
     logger.info("fetch_start", url=url, output_path=str(output_path))
     
     try:
-        async with HTTPXClient() as client:
+        SITE_POLICY.ensure_enabled("liverc-fixture")
+        async with HTTPXClient(SITE_POLICY) as client:
             response = await client.get(url)
             html = response.text
             
@@ -368,4 +373,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

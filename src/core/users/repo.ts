@@ -20,6 +20,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { normalizeEmail } from "../common/email"
+import { normalizeDriverName } from "./name-normalizer"
 import type { User } from "@prisma/client"
 
 /**
@@ -63,15 +64,21 @@ export async function createUser(data: {
   driverName: string
   teamName: string | null
   isAdmin: boolean
+  transponderNumber?: string | null
 }): Promise<Omit<User, "passwordHash">> {
   // Normalize email to lowercase before storing
   // Emails should be case-insensitive per RFC 5321
   const normalizedEmail = normalizeEmail(data.email)
+  // Compute normalized driver name for fuzzy matching
+  const normalizedName = normalizeDriverName(data.driverName)
+  
   const user = await prisma.user.create({
     data: {
       email: normalizedEmail,
       passwordHash: data.passwordHash,
       driverName: data.driverName,
+      normalizedName,
+      transponderNumber: data.transponderNumber || null,
       teamName: data.teamName,
       isAdmin: data.isAdmin,
     },
@@ -79,8 +86,12 @@ export async function createUser(data: {
       id: true,
       email: true,
       driverName: true,
+      normalizedName: true,
+      transponderNumber: true,
       teamName: true,
       isAdmin: true,
+      isTeamManager: true,
+      personaId: true,
       createdAt: true,
       updatedAt: true,
     }

@@ -82,7 +82,7 @@ export default function DashboardClient() {
     setError(null)
     
     try {
-      const response = await fetch(`/api/v1/events/${eventId}/analysis`)
+      const response = await fetch(`/api/v1/events/${eventId}/summary`)
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -122,7 +122,7 @@ export default function DashboardClient() {
       }
       const data = await response.json()
       if (data.success && Array.isArray(data.data.events)) {
-        setRecentEvents(data.data.events.slice(0, 5))
+        setRecentEvents(data.data.events)
       } else {
         setRecentError("Unable to load recent events")
       }
@@ -136,7 +136,7 @@ export default function DashboardClient() {
   const renderSelectedEvent = () => {
     if (isLoading) {
       return (
-        <div className="flex h-64 items-center justify-center">
+        <div className="flex h-64 w-full min-w-0 items-center justify-center" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
           <p className="text-sm text-[var(--token-text-muted)]">Loading event data...</p>
         </div>
       )
@@ -213,8 +213,8 @@ export default function DashboardClient() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-8">
+    <div className="space-y-6 w-full min-w-0" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+      <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-8 w-full min-w-0" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
         {renderSelectedEvent()}
       </div>
       <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-6">

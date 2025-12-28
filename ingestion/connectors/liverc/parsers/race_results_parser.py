@@ -238,10 +238,13 @@ class RaceResultsParser:
                     logger.warning("result_row_parse_error", error=str(e), url=url)
                     continue
             
+            # If no valid results were extracted, return empty list (race may not have been run yet)
+            # Don't raise an error - let validation handle empty results gracefully
             if not results:
-                raise RacePageFormatError(
-                    "No valid results extracted from race results table",
+                logger.warning(
+                    "parse_race_results_no_valid_results",
                     url=url,
+                    message="No valid results extracted from race results table (race may not have been run yet)",
                 )
             
             logger.debug("parse_race_results_success", result_count=len(results), url=url)

@@ -17,20 +17,23 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { startTransition, useEffect, useState } from "react"
 
 export default function ThemeToggle() {
   const [isLight, setIsLight] = useState(false)
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-    // Check localStorage for saved theme preference
-    const savedTheme = localStorage.getItem("mre-theme")
+    if (typeof window === "undefined") {
+      return
+    }
+
+    // Read saved preference
+    const savedTheme = window.localStorage.getItem("mre-theme")
     const prefersLight = savedTheme === "light"
-    setIsLight(prefersLight)
-    
-    // Apply theme immediately
+    startTransition(() => {
+      setIsLight(prefersLight)
+    })
+
     if (prefersLight) {
       document.documentElement.classList.add("light")
     } else {
@@ -51,18 +54,6 @@ export default function ThemeToggle() {
     }
   }
 
-  // Prevent hydration mismatch by not rendering until mounted
-  if (!mounted) {
-    return (
-      <button
-        className="mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-        aria-label="Toggle theme"
-      >
-        <span className="sr-only">Toggle theme</span>
-      </button>
-    )
-  }
-
   return (
     <button
       onClick={toggleTheme}
@@ -77,4 +68,3 @@ export default function ThemeToggle() {
     </button>
   )
 }
-

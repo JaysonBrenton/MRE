@@ -25,9 +25,95 @@ from ingestion.ingestion.errors import NormalisationError
 
 logger = get_logger(__name__)
 
+# Global constants for fuzzy matching
+AUTO_CONFIRM_MIN = 0.95
+SUGGEST_MIN = 0.85
+MIN_EVENTS_FOR_AUTO_CONFIRM = 2
+NAME_COMPATIBILITY_MIN = 0.85
+MATCHER_ID = "jaro-winkler"
+MATCHER_VERSION = "1.0.0"
+
 
 class Normalizer:
     """Normalizes connector data to ingestion format."""
+    
+    @staticmethod
+    def normalize_driver_name(name: str) -> str:
+        """
+        Strong normalization for driver names (for fuzzy matching).
+        
+        Normalization steps:
+        1. Lowercase
+        2. Trim whitespace
+        3. Collapse multiple whitespace to single space
+        4. Strip punctuation (except spaces)
+        5. Replace & with and
+        6. Remove common suffix noise tokens: rc, raceway, club, inc, team
+        7. Token sorting for multi-word names (handle "Smith John" vs "John Smith")
+        
+        Args:
+            name: Driver name to normalize
+            
+        Returns:
+            Normalized name string
+        """
+        if not name:
+            return ""
+        
+        # Step 1: Lowercase
+        normalized = name.lower()
+        
+        # Step 2 & 3: Trim and collapse whitespace
+        normalized = " ".join(normalized.split())
+        
+        # Step 4: Replace & with and (before stripping punctuation)
+        normalized = normalized.replace('&', 'and')
+        
+        # Step 5: Strip punctuation (except spaces)
+        normalized = re.sub(r'[^\w\s]', '', normalized)
+        
+        # Step 6: Remove common suffix noise tokens
+        noise_tokens = ['rc', 'raceway', 'club', 'inc', 'team']
+        tokens = normalized.split()
+        # Remove noise tokens from end of name
+        while tokens and tokens[-1] in noise_tokens:
+            tokens.pop()
+        normalized = " ".join(tokens)
+        
+        # Step 7: Remove duplicate tokens and handle concatenated duplicates
+        # First, split concatenated duplicates (e.g., "jaysonjayson" -> "jayson jayson")
+        tokens = normalized.split()
+        expanded_tokens = []
+        for token in tokens:
+            # Check if token is a concatenated duplicate (e.g., "jaysonjayson", "brentonbrenton")
+            # Split if token length is even and first half equals second half
+            if len(token) >= 4 and len(token) % 2 == 0:
+                half_len = len(token) // 2
+                first_half = token[:half_len]
+                second_half = token[half_len:]
+                if first_half == second_half:
+                    # It's a concatenated duplicate, add just one instance
+                    expanded_tokens.append(first_half)
+                    continue
+            expanded_tokens.append(token)
+        
+        # Now remove duplicate tokens
+        seen = set()
+        unique_tokens = []
+        for token in expanded_tokens:
+            if token not in seen:
+                seen.add(token)
+                unique_tokens.append(token)
+        tokens = unique_tokens
+        
+        # Step 8: Token sorting for multi-word names
+        if len(tokens) > 1:
+            # Sort tokens alphabetically to handle "Smith John" vs "John Smith"
+            tokens.sort()
+            normalized = " ".join(tokens)
+        
+        # Final trim
+        return normalized.strip()
     
     @staticmethod
     def normalize_string(value: str) -> str:

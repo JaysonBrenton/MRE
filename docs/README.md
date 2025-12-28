@@ -59,13 +59,14 @@ Comprehensive architecture documentation for the LiveRC ingestion subsystem. Thi
 
 **Key Topics:** Connector architecture, ingestion pipeline, data model, API contracts, admin CLI, state machine, error handling, validation, performance, idempotency, observability, security, testing, fixture management, replay/debugging, recovery procedures, versioning, cross-connector abstractions.
 
-**Document Series:** This is a 26-document series covering all aspects of the ingestion system:
+**Document Series:** This is a 27-document series covering all aspects of the ingestion system:
 - [01 - Overview](architecture/liverc-ingestion/01-overview.md)
 - [02 - Connector Architecture](architecture/liverc-ingestion/02-connector-architecture.md)
 - [03 - Ingestion Pipeline](architecture/liverc-ingestion/03-ingestion-pipeline.md)
 - [04 - Data Model](architecture/liverc-ingestion/04-data-model.md)
 - [05 - API Contracts](architecture/liverc-ingestion/05-api-contracts.md)
 - [06 - Admin CLI Specification](architecture/liverc-ingestion/06-admin-cli-spec.md)
+- [27 - Web Scraping Best Practices](architecture/liverc-ingestion/27-web-scraping-best-practices.md) - Comprehensive guide to robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, retry logic, and kill switch mechanism
 - [07-26 - Additional technical specifications](architecture/liverc-ingestion/)
 
 **Related:** See [MRE Version 0.1.0 Feature Scope](specs/mre-v0.1-feature-scope.md) for version 0.1.0 feature specifications. See [Mobile-Safe Architecture Guidelines](architecture/mobile-safe-architecture-guidelines.md) for overall architecture principles.

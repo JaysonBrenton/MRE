@@ -17,12 +17,14 @@ import {
   type DriverLapSeries,
 } from "@/core/events/calculate-gap-evolution"
 
+// Note: The implementation uses driverId, not raceDriverId
+
 describe("calculateGapEvolution", () => {
   describe("basic gap calculation", () => {
     it("should calculate gaps correctly for two drivers", () => {
       const driverSeries: DriverLapSeries[] = [
         {
-          raceDriverId: "driver-1",
+          driverId: "driver-1",
           driverName: "Driver 1",
           laps: [
             {
@@ -40,7 +42,7 @@ describe("calculateGapEvolution", () => {
           ],
         },
         {
-          raceDriverId: "driver-2",
+          driverId: "driver-2",
           driverName: "Driver 2",
           laps: [
             {
@@ -64,14 +66,14 @@ describe("calculateGapEvolution", () => {
       expect(result).toHaveLength(2)
 
       // Driver 1 (leader) should have 0 gap
-      const driver1Result = result.find((r) => r.raceDriverId === "driver-1")
+      const driver1Result = result.find((r) => r.driverId === "driver-1")
       expect(driver1Result).toBeDefined()
       expect(driver1Result?.gaps).toHaveLength(2)
       expect(driver1Result?.gaps[0].gapToLeader).toBe(0)
       expect(driver1Result?.gaps[1].gapToLeader).toBe(0)
 
       // Driver 2 should have gaps
-      const driver2Result = result.find((r) => r.raceDriverId === "driver-2")
+      const driver2Result = result.find((r) => r.driverId === "driver-2")
       expect(driver2Result).toBeDefined()
       expect(driver2Result?.gaps).toHaveLength(2)
       expect(driver2Result?.gaps[0].gapToLeader).toBe(1.0) // 31.0 - 30.0
@@ -88,7 +90,7 @@ describe("calculateGapEvolution", () => {
     it("should handle single driver", () => {
       const driverSeries: DriverLapSeries[] = [
         {
-          raceDriverId: "driver-1",
+          driverId: "driver-1",
           driverName: "Driver 1",
           laps: [
             {
@@ -111,7 +113,7 @@ describe("calculateGapEvolution", () => {
     it("should handle drivers with different lap counts", () => {
       const driverSeries: DriverLapSeries[] = [
         {
-          raceDriverId: "driver-1",
+          driverId: "driver-1",
           driverName: "Driver 1",
           laps: [
             {
@@ -129,7 +131,7 @@ describe("calculateGapEvolution", () => {
           ],
         },
         {
-          raceDriverId: "driver-2",
+          driverId: "driver-2",
           driverName: "Driver 2",
           laps: [
             {
@@ -148,11 +150,11 @@ describe("calculateGapEvolution", () => {
       expect(result).toHaveLength(2)
 
       // Driver 1 should have gaps for both laps
-      const driver1Result = result.find((r) => r.raceDriverId === "driver-1")
+      const driver1Result = result.find((r) => r.driverId === "driver-1")
       expect(driver1Result?.gaps).toHaveLength(2)
 
       // Driver 2 should only have gap for lap 1
-      const driver2Result = result.find((r) => r.raceDriverId === "driver-2")
+      const driver2Result = result.find((r) => r.driverId === "driver-2")
       expect(driver2Result?.gaps).toHaveLength(1)
       expect(driver2Result?.gaps[0].gapToLeader).toBe(1.0)
     })
@@ -161,7 +163,7 @@ describe("calculateGapEvolution", () => {
       // Edge case: if calculation somehow results in negative, should be clamped to 0
       const driverSeries: DriverLapSeries[] = [
         {
-          raceDriverId: "driver-1",
+          driverId: "driver-1",
           driverName: "Driver 1",
           laps: [
             {
@@ -184,7 +186,7 @@ describe("calculateGapEvolution", () => {
     it("should calculate gaps for three drivers correctly", () => {
       const driverSeries: DriverLapSeries[] = [
         {
-          raceDriverId: "driver-1",
+          driverId: "driver-1",
           driverName: "Driver 1",
           laps: [
             {
@@ -196,7 +198,7 @@ describe("calculateGapEvolution", () => {
           ],
         },
         {
-          raceDriverId: "driver-2",
+          driverId: "driver-2",
           driverName: "Driver 2",
           laps: [
             {
@@ -208,7 +210,7 @@ describe("calculateGapEvolution", () => {
           ],
         },
         {
-          raceDriverId: "driver-3",
+          driverId: "driver-3",
           driverName: "Driver 3",
           laps: [
             {
@@ -232,15 +234,15 @@ describe("calculateGapEvolution", () => {
       })
 
       // Driver 1 (leader) should have 0 gap
-      const driver1Result = result.find((r) => r.raceDriverId === "driver-1")
+      const driver1Result = result.find((r) => r.driverId === "driver-1")
       expect(driver1Result?.gaps[0].gapToLeader).toBe(0)
 
       // Driver 2 should have 1.0 gap
-      const driver2Result = result.find((r) => r.raceDriverId === "driver-2")
+      const driver2Result = result.find((r) => r.driverId === "driver-2")
       expect(driver2Result?.gaps[0].gapToLeader).toBe(1.0)
 
       // Driver 3 should have 2.0 gap
-      const driver3Result = result.find((r) => r.raceDriverId === "driver-3")
+      const driver3Result = result.find((r) => r.driverId === "driver-3")
       expect(driver3Result?.gaps[0].gapToLeader).toBe(2.0)
     })
   })
@@ -250,7 +252,7 @@ describe("calculateTopNGapEvolution", () => {
   it("should return top N drivers by best lap time", () => {
     const driverSeries: DriverLapSeries[] = [
       {
-        raceDriverId: "driver-1",
+        driverId: "driver-1",
         driverName: "Driver 1",
         laps: [
           {
@@ -262,7 +264,7 @@ describe("calculateTopNGapEvolution", () => {
         ],
       },
       {
-        raceDriverId: "driver-2",
+        driverId: "driver-2",
         driverName: "Driver 2",
         laps: [
           {
@@ -274,7 +276,7 @@ describe("calculateTopNGapEvolution", () => {
         ],
       },
       {
-        raceDriverId: "driver-3",
+          driverId: "driver-3",
         driverName: "Driver 3",
         laps: [
           {
@@ -286,7 +288,7 @@ describe("calculateTopNGapEvolution", () => {
         ],
       },
       {
-        raceDriverId: "driver-4",
+          driverId: "driver-4",
         driverName: "Driver 4",
         laps: [
           {
@@ -302,14 +304,14 @@ describe("calculateTopNGapEvolution", () => {
     const result = calculateTopNGapEvolution(driverSeries, 2)
 
     expect(result).toHaveLength(2)
-    expect(result[0].raceDriverId).toBe("driver-1")
-    expect(result[1].raceDriverId).toBe("driver-2")
+    expect(result[0].driverId).toBe("driver-1")
+    expect(result[1].driverId).toBe("driver-2")
   })
 
   it("should default to top 3 drivers", () => {
     const driverSeries: DriverLapSeries[] = [
       {
-        raceDriverId: "driver-1",
+        driverId: "driver-1",
         driverName: "Driver 1",
         laps: [
           {
@@ -321,7 +323,7 @@ describe("calculateTopNGapEvolution", () => {
         ],
       },
       {
-        raceDriverId: "driver-2",
+        driverId: "driver-2",
         driverName: "Driver 2",
         laps: [
           {
@@ -333,7 +335,7 @@ describe("calculateTopNGapEvolution", () => {
         ],
       },
       {
-        raceDriverId: "driver-3",
+          driverId: "driver-3",
         driverName: "Driver 3",
         laps: [
           {
@@ -345,7 +347,7 @@ describe("calculateTopNGapEvolution", () => {
         ],
       },
       {
-        raceDriverId: "driver-4",
+          driverId: "driver-4",
         driverName: "Driver 4",
         laps: [
           {

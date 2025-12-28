@@ -23,8 +23,15 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
-import { signIn } from "@/lib/auth-client"
+import Footer from "@/components/Footer"
+import { signIn, getSession } from "@/lib/auth-client"
 import { logger } from "@/lib/logger"
+
+type RegisterFieldErrors = {
+  email?: string
+  password?: string
+  driverName?: string
+}
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -34,10 +41,41 @@ export default function RegisterPage() {
   const [teamName, setTeamName] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({})
+
+  const clearFieldError = (field: keyof RegisterFieldErrors) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  const validateForm = () => {
+    const nextErrors: RegisterFieldErrors = {}
+    if (!email.trim()) {
+      nextErrors.email = "Email is required"
+    }
+    if (!password.trim()) {
+      nextErrors.password = "Password is required"
+    } else if (password.trim().length < 8) {
+      nextErrors.password = "Password must be at least 8 characters"
+    }
+    if (!driverName.trim()) {
+      nextErrors.driverName = "Driver name is required"
+    }
+    setFieldErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError("")
+    const isValid = validateForm()
+    if (!isValid) {
+      return
+    }
     setLoading(true)
 
     try {
@@ -132,9 +170,8 @@ export default function RegisterPage() {
         return
       }
       
-      let data
       try {
-        data = await response.json()
+        await response.json()
       } catch (jsonError) {
         logger.error("Failed to parse success response as JSON", {
           error: jsonError instanceof Error
@@ -156,7 +193,13 @@ export default function RegisterPage() {
           password,
           redirect: false,
         })
-        router.push("/dashboard")
+        // Fetch session to check admin status and redirect appropriately
+        const session = await getSession()
+        if (session?.user?.isAdmin) {
+          router.push("/admin")
+        } else {
+          router.push("/welcome")
+        }
         router.refresh()
       } catch (signInError) {
         // Registration succeeded but auto-login failed, redirect to login
@@ -190,149 +233,182 @@ export default function RegisterPage() {
     }
   }
 
-  const hasError = Boolean(error)
+  const hasServerError = Boolean(error)
+  const emailErrorId = fieldErrors.email ? "register-email-error" : undefined
+  const passwordErrorId = fieldErrors.password ? "register-password-error" : undefined
+  const driverNameErrorId = fieldErrors.driverName ? "register-drivername-error" : undefined
 
   return (
-    <main
-      id="main-content"
-      className="flex min-h-screen items-center justify-center bg-[var(--token-surface)] px-4 py-8"
-      tabIndex={-1}
-    >
-      <div className="w-full max-w-md space-y-6 rounded-lg bg-[var(--token-surface-elevated)] p-6 sm:p-8 shadow-lg">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
-            Create an account
-          </h1>
-          <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
-            Sign up to get started
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-          {hasError && (
-            <div
-              id="register-error"
-              className="rounded-md bg-[var(--token-error-background)] p-3"
-              role="alert"
-              aria-live="assertive"
-              aria-atomic="true"
-            >
-              <p className="text-sm text-[var(--token-error-text)]">{error}</p>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div className="mobile-form-field">
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-[var(--token-text-secondary)] mb-1"
-              >
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="block w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-3 text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
-                placeholder="you@example.com"
-                aria-invalid={hasError}
-                aria-describedby={hasError ? "register-error" : undefined}
-              />
-            </div>
-
-            <div className="mobile-form-field">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-[var(--token-text-secondary)] mb-1"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-3 text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
-                placeholder="••••••••"
-                aria-invalid={hasError}
-                aria-describedby={hasError ? "register-error" : undefined}
-              />
-              <p className="mt-1 text-xs text-[var(--token-text-muted)]">
-                Must be at least 8 characters
+    <div className="flex min-h-screen w-full flex-col bg-[var(--token-surface)] overflow-x-hidden" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+      <main
+        id="main-content"
+        className="page-container flex-1 w-full min-w-0 px-4 py-8 sm:px-6 sm:py-12"
+        tabIndex={-1}
+        style={{ width: '100%', minWidth: 0, flexBasis: '100%', boxSizing: 'border-box', flexShrink: 1 }}
+      >
+        <section className="content-wrapper w-full min-w-0 max-w-2xl" style={{ width: '100%', minWidth: 0, marginLeft: 'auto', marginRight: 'auto', maxWidth: '672px', boxSizing: 'border-box' }}>
+          <div className="w-full min-w-0 space-y-8 rounded-lg bg-[var(--token-surface-elevated)] p-6 sm:p-8 shadow-lg" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
+                Create an account
+              </h1>
+              <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
+                Sign up to get started
               </p>
             </div>
 
-            <div className="mobile-form-field">
-              <label
-                htmlFor="driverName"
-                className="block text-sm font-medium text-[var(--token-text-secondary)] mb-1"
-              >
-                Driver Name
-              </label>
-              <input
-                id="driverName"
-                name="driverName"
-                type="text"
-                required
-                value={driverName}
-                onChange={(e) => setDriverName(e.target.value)}
-                className="block w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-3 text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
-                placeholder="Your display name"
-                aria-invalid={hasError}
-                aria-describedby={hasError ? "register-error" : undefined}
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-6 w-full min-w-0" noValidate style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+              {hasServerError && (
+                <div
+                  id="register-error"
+                  className="rounded-md bg-[var(--token-error-background)] p-3"
+                  role="alert"
+                  aria-live="assertive"
+                  aria-atomic="true"
+                >
+                  <p className="text-sm text-[var(--token-error-text)]">{error}</p>
+                </div>
+              )}
 
-            <div className="mobile-form-field">
-              <label
-                htmlFor="teamName"
-                className="block text-sm font-medium text-[var(--token-text-secondary)] mb-1"
-              >
-                Team Name <span className="text-[var(--token-text-muted)]">(optional)</span>
-              </label>
-              <input
-                id="teamName"
-                name="teamName"
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                className="block w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-3 text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
-                placeholder="Your team name"
-              />
-            </div>
-          </div>
+              <div className="space-y-6 w-full min-w-0" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                <div className="mobile-form-field">
+                  <label
+                    htmlFor="email"
+                    className="block text-base font-medium text-[var(--token-text-secondary)] mb-2"
+                  >
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      clearFieldError("email")
+                    }}
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    placeholder="you@example.com"
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    aria-describedby={emailErrorId}
+                  />
+                  {fieldErrors.email && (
+                    <p id={emailErrorId} className="mt-2 text-sm text-[var(--token-error-text)]">
+                      {fieldErrors.email}
+                    </p>
+                  )}
+                </div>
 
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="mobile-button w-full flex justify-center items-center px-4 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] active:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Creating account..." : "Create account"}
-            </button>
-          </div>
+                <div className="mobile-form-field">
+                  <label
+                    htmlFor="password"
+                    className="block text-base font-medium text-[var(--token-text-secondary)] mb-2"
+                  >
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      clearFieldError("password")
+                    }}
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    placeholder="••••••••"
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={passwordErrorId}
+                  />
+                  <p className="mt-2 text-sm text-[var(--token-text-muted)]">
+                    Must be at least 8 characters
+                  </p>
+                  {fieldErrors.password && (
+                    <p id={passwordErrorId} className="mt-2 text-sm text-[var(--token-error-text)]">
+                      {fieldErrors.password}
+                    </p>
+                  )}
+                </div>
 
-          <div className="text-center text-sm pt-2">
-            <span className="text-[var(--token-text-secondary)]">
-              Already have an account?{" "}
-            </span>
-            <Link
-              href="/login"
-              className="font-medium text-[var(--token-text-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
-            >
-              Sign in
-            </Link>
+                <div className="mobile-form-field">
+                  <label
+                    htmlFor="driverName"
+                    className="block text-base font-medium text-[var(--token-text-secondary)] mb-2"
+                  >
+                    Driver Name
+                  </label>
+                  <input
+                    id="driverName"
+                    name="driverName"
+                    type="text"
+                    required
+                    value={driverName}
+                    onChange={(e) => {
+                      setDriverName(e.target.value)
+                      clearFieldError("driverName")
+                    }}
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    placeholder="Your display name"
+                    aria-invalid={Boolean(fieldErrors.driverName)}
+                    aria-describedby={driverNameErrorId}
+                  />
+                  {fieldErrors.driverName && (
+                    <p id={driverNameErrorId} className="mt-2 text-sm text-[var(--token-error-text)]">
+                      {fieldErrors.driverName}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mobile-form-field">
+                  <label
+                    htmlFor="teamName"
+                    className="block text-base font-medium text-[var(--token-text-secondary)] mb-2"
+                  >
+                    Team Name <span className="text-[var(--token-text-muted)]">(optional)</span>
+                  </label>
+                  <input
+                    id="teamName"
+                    name="teamName"
+                    type="text"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    placeholder="Your team name"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mobile-button w-full flex justify-center items-center px-6 py-3 rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] active:opacity-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Creating account..." : "Create account"}
+                </button>
+              </div>
+
+              <div className="text-center text-base pt-4">
+                <span className="text-[var(--token-text-secondary)]">
+                  Already have an account?{" "}
+                </span>
+                <Link
+                  href="/login"
+                  className="font-medium text-[var(--token-text-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                >
+                  Sign in
+                </Link>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
-    </main>
+        </section>
+      </main>
+      <Footer />
+    </div>
   )
 }

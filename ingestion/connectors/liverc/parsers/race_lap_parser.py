@@ -254,10 +254,11 @@ class RaceLapParser:
             url: Source URL for error reporting
         
         Returns:
-            Dictionary keyed by source_driver_id -> list of ConnectorLap
+            Dictionary keyed by source_driver_id -> list of ConnectorLap.
+            Returns empty dict if no lap data found (e.g., race not run yet).
         
         Raises:
-            RacePageFormatError: If page structure is unexpected
+            RacePageFormatError: If page structure is unexpected or parsing fails
         """
         logger.debug("parse_all_lap_data_start", url=url)
         
@@ -387,10 +388,13 @@ class RaceLapParser:
                     logger.warning("driver_laps_parse_error", error=str(e), driver_id=driver_id, url=url)
                     continue
             
+            # If no lap data was extracted, return empty dict (race may not have been run yet)
+            # Don't raise an error - let validation handle empty lap data gracefully
             if not all_laps:
-                raise RacePageFormatError(
-                    "No driver lap data found in racerLaps",
+                logger.warning(
+                    "parse_all_lap_data_no_laps",
                     url=url,
+                    message="No driver lap data found in racerLaps (race may not have been run yet)",
                 )
             
             logger.debug("parse_all_lap_data_success", driver_count=len(all_laps))

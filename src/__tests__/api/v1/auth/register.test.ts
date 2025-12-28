@@ -30,8 +30,12 @@ describe("POST /api/v1/auth/register", () => {
         id: "user-123",
         email: "test@example.com",
         driverName: "Test Driver",
+        normalizedName: null,
         teamName: "Test Team",
         isAdmin: false,
+        isTeamManager: false,
+        personaId: null,
+        transponderNumber: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -59,7 +63,11 @@ describe("POST /api/v1/auth/register", () => {
       expect(body).toHaveProperty("data")
       expect(body).toHaveProperty("message", "Registration successful")
       expect(body.data).toHaveProperty("user")
-      expect(body.data.user).toEqual(mockUser)
+      expect(body.data.user).toEqual({
+        ...mockUser,
+        createdAt: mockUser.createdAt.toISOString(),
+        updatedAt: mockUser.updatedAt.toISOString(),
+      })
     })
 
     it("should return error response in standardized format", async () => {
@@ -128,4 +136,3 @@ describe("POST /api/v1/auth/register", () => {
     })
   })
 })
-

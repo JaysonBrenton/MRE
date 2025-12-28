@@ -21,7 +21,6 @@
 import argon2 from "argon2"
 import { findUserByEmail } from "../users/repo"
 import { normalizeEmail } from "../common/email"
-import type { User } from "@prisma/client"
 
 /**
  * Login input type
@@ -135,4 +134,3 @@ export async function authenticateUser(input: LoginInput): Promise<LoginResult> 
     }
   }
 }
-

@@ -18,7 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
-import type { Event, Track, Race } from "@prisma/client"
+import type { Event, Track, Race, Prisma } from "@prisma/client"
 
 export interface SearchEventsParams {
   trackId: string
@@ -67,8 +67,8 @@ export async function searchEvents(params: SearchEventsParams): Promise<SearchEv
   }
 
   // Build where clause conditionally based on whether dates are provided
-  const whereClause: any = {
-    trackId: trackId,
+  const whereClause: Prisma.EventWhereInput = {
+    trackId,
   }
 
   // Only apply date filters if both dates are provided
@@ -122,6 +122,25 @@ export async function getEventById(id: string): Promise<Event | null> {
 }
 
 /**
+ * Get an event by source and source_event_id
+ * 
+ * @param source - Event source (e.g., "liverc")
+ * @param sourceEventId - Source event ID (e.g., LiveRC event ID)
+ * @returns Event object or null if not found
+ */
+export async function getEventBySourceId(
+  source: string,
+  sourceEventId: string
+): Promise<Event | null> {
+  return prisma.event.findFirst({
+    where: {
+      source,
+      sourceEventId,
+    },
+  })
+}
+
+/**
  * Get an event by ID with track and races
  * 
  * @param eventId - Event's unique identifier
@@ -166,17 +185,43 @@ export interface ImportedEvent {
   }
 }
 
+export interface GetAllImportedEventsParams {
+  limit?: number
+  offset?: number
+}
+
+export interface GetAllImportedEventsResult {
+  events: ImportedEvent[]
+  total: number
+}
+
 /**
  * Get all fully imported events (ingestDepth = 'laps_full')
  * 
- * @returns Array of imported events with track information, ordered by eventDate descending
+ * @param params - Optional pagination parameters (limit, offset)
+ * @returns Paginated array of imported events with track information, ordered by eventDate descending
  */
-export async function getAllImportedEvents(): Promise<ImportedEvent[]> {
+export async function getAllImportedEvents(
+  params?: GetAllImportedEventsParams
+): Promise<GetAllImportedEventsResult> {
+  const { limit = 20, offset = 0 } = params || {}
+
+  // Get total count for pagination metadata
+  const total = await prisma.event.count({
+    where: {
+      ingestDepth: "laps_full",
+    },
+  })
+
+  // Fetch paginated events with only required fields
   const events = await prisma.event.findMany({
     where: {
       ingestDepth: "laps_full",
     },
-    include: {
+    select: {
+      id: true,
+      eventName: true,
+      eventDate: true,
       track: {
         select: {
           id: true,
@@ -187,23 +232,27 @@ export async function getAllImportedEvents(): Promise<ImportedEvent[]> {
     orderBy: {
       eventDate: "desc",
     },
+    take: limit,
+    skip: offset,
   })
 
-  return events.map((event) => ({
-    id: event.id,
-    source: event.source,
-    sourceEventId: event.sourceEventId,
-    eventName: event.eventName,
-    eventDate: event.eventDate ? event.eventDate.toISOString() : null,
-    eventEntries: event.eventEntries,
-    eventDrivers: event.eventDrivers,
-    eventUrl: event.eventUrl,
-    ingestDepth: event.ingestDepth,
-    lastIngestedAt: event.lastIngestedAt?.toISOString() || null,
-    track: {
-      id: event.track.id,
-      trackName: event.track.trackName,
-    },
-  }))
+  return {
+    events: events.map((event) => ({
+      id: event.id,
+      source: "liverc", // All events are from LiveRC in v0.1
+      sourceEventId: "", // Not needed for list view
+      eventName: event.eventName,
+      eventDate: event.eventDate ? event.eventDate.toISOString() : null,
+      eventEntries: 0, // Not needed for list view
+      eventDrivers: 0, // Not needed for list view
+      eventUrl: "", // Not needed for list view
+      ingestDepth: "laps_full",
+      lastIngestedAt: null, // Not needed for list view
+      track: {
+        id: event.track.id,
+        trackName: event.track.trackName,
+      },
+    })),
+    total,
+  }
 }
-

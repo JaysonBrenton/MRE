@@ -31,10 +31,13 @@ This document provides a complete reference for all API endpoints in the My Race
 3. [LiveRC Ingestion Endpoints](#liverc-ingestion-endpoints)
 4. [Driver Endpoints](#driver-endpoints)
 5. [Transponder Override Endpoints](#transponder-override-endpoints)
-6. [Health Check](#health-check)
-7. [Error Handling](#error-handling)
-8. [Authentication Requirements](#authentication-requirements)
-9. [Rate Limiting](#rate-limiting)
+6. [Personas Endpoints](#personas-endpoints)
+7. [User Endpoints](#user-endpoints)
+8. [Admin Endpoints](#admin-endpoints)
+9. [Health Check](#health-check)
+10. [Error Handling](#error-handling)
+11. [Authentication Requirements](#authentication-requirements)
+12. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -1001,6 +1004,486 @@ curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/a
 
 ---
 
+## Personas Endpoints
+
+**Note:** Personas endpoints provide user-specific views of data (driver persona, team manager persona). These endpoints are in scope for version 0.1.0 but may be expanded in future releases. See [MRE Version 0.1.0 Feature Scope](../specs/mre-v0.1-feature-scope.md) for complete feature specifications.
+
+### GET /api/v1/personas
+
+Gets available personas for the current user.
+
+**Authentication:** Required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "personas": [
+      {
+        "id": "driver",
+        "name": "Driver",
+        "description": "View events and race data as a driver"
+      },
+      {
+        "id": "team-manager",
+        "name": "Team Manager",
+        "description": "Manage team data and view team statistics"
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/personas"
+```
+
+---
+
+### GET /api/v1/personas/driver/events
+
+Gets events for the driver persona view.
+
+**Authentication:** Required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "events": [
+      {
+        "id": "uuid",
+        "event_name": "Event Name",
+        "event_date": "2025-01-27T00:00:00.000Z",
+        "track_name": "Track Name"
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/personas/driver/events"
+```
+
+---
+
+### GET /api/v1/personas/team-manager/team
+
+Gets team data for the team manager persona view.
+
+**Authentication:** Required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "team": {
+      "name": "Team Name",
+      "members": [],
+      "statistics": {}
+    }
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/personas/team-manager/team"
+```
+
+---
+
+## User Endpoints
+
+### GET /api/v1/users/me/persona
+
+Gets the current user's active persona.
+
+**Authentication:** Required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "persona": {
+      "id": "driver",
+      "name": "Driver"
+    }
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/users/me/persona"
+```
+
+---
+
+### GET /api/v1/users/[userId]/driver-links
+
+Gets driver links for a specific user.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId` (string, required) - User UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "driver_links": [
+      {
+        "driver_id": "uuid",
+        "driver_name": "Driver Name",
+        "linked_at": "2025-01-27T00:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `NOT_FOUND` (404) - User not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/users/uuid/driver-links"
+```
+
+---
+
+## Admin Endpoints
+
+All admin endpoints require authentication and admin privileges (`isAdmin: true`).
+
+### GET /api/v1/admin/stats
+
+Gets system statistics for the admin dashboard.
+
+**Authentication:** Required (Admin only)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "users": {
+      "total": 150,
+      "admins": 5
+    },
+    "events": {
+      "total": 1245,
+      "fully_ingested": 245
+    },
+    "tracks": {
+      "total": 150,
+      "followed": 12
+    },
+    "database": {
+      "size_mb": 1024
+    }
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/stats"
+```
+
+---
+
+### GET /api/v1/admin/health
+
+Gets detailed health check information for admin monitoring.
+
+**Authentication:** Required (Admin only)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "database": {
+      "status": "healthy",
+      "response_time_ms": 5
+    },
+    "ingestion_service": {
+      "status": "healthy",
+      "response_time_ms": 10
+    },
+    "disk_space": {
+      "status": "healthy",
+      "usage_percent": 45
+    },
+    "memory": {
+      "status": "healthy",
+      "usage_percent": 60
+    }
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/health"
+```
+
+---
+
+### GET /api/v1/admin/ingestion
+
+Gets ingestion service status and statistics.
+
+**Authentication:** Required (Admin only)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "status": "running",
+    "active_jobs": 2,
+    "recent_jobs": [
+      {
+        "id": "uuid",
+        "type": "event_ingestion",
+        "status": "completed",
+        "started_at": "2025-01-27T10:00:00.000Z",
+        "completed_at": "2025-01-27T10:05:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/ingestion"
+```
+
+---
+
+### POST /api/v1/admin/events/[eventId]/reingest
+
+Triggers re-ingestion of an event (admin-only endpoint).
+
+**Authentication:** Required (Admin only)
+
+**Path Parameters:**
+- `eventId` (string, required) - Event UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "event_id": "uuid",
+    "ingest_depth": "laps_full",
+    "last_ingested_at": "2025-01-27T14:22:00Z",
+    "races_ingested": 12,
+    "results_ingested": 120,
+    "laps_ingested": 2400,
+    "status": "updated"
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `NOT_FOUND` (404) - Event not found
+- `INGESTION_IN_PROGRESS` (409) - Ingestion already running for this event
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X POST -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/events/uuid/reingest"
+```
+
+---
+
+### GET /api/v1/admin/logs
+
+Gets application logs for admin viewing.
+
+**Authentication:** Required (Admin only)
+
+**Query Parameters:**
+- `level` (string, optional) - Filter by log level (debug, info, warn, error)
+- `service` (string, optional) - Filter by service (nextjs, ingestion)
+- `start_date` (string, optional) - Start date in ISO format
+- `end_date` (string, optional) - End date in ISO format
+- `search` (string, optional) - Search term
+- `limit` (number, optional) - Maximum number of logs to return (default: 100)
+- `offset` (number, optional) - Offset for pagination (default: 0)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "logs": [
+      {
+        "timestamp": "2025-01-27T10:00:00.000Z",
+        "level": "info",
+        "service": "nextjs",
+        "message": "User logged in",
+        "metadata": {}
+      }
+    ],
+    "total": 1000,
+    "limit": 100,
+    "offset": 0
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/logs?level=error&limit=50"
+```
+
+---
+
+### GET /api/v1/admin/logs/sources
+
+Gets available log sources.
+
+**Authentication:** Required (Admin only)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "sources": [
+      {
+        "id": "nextjs",
+        "name": "Next.js Application",
+        "description": "Application logs from Next.js server"
+      },
+      {
+        "id": "ingestion",
+        "name": "Ingestion Service",
+        "description": "Logs from Python ingestion service"
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/logs/sources"
+```
+
+---
+
+### GET /api/v1/admin/audit
+
+Gets audit log entries for admin review.
+
+**Authentication:** Required (Admin only)
+
+**Query Parameters:**
+- `user_id` (string, optional) - Filter by user UUID
+- `action_type` (string, optional) - Filter by action type
+- `resource_type` (string, optional) - Filter by resource type
+- `start_date` (string, optional) - Start date in ISO format
+- `end_date` (string, optional) - End date in ISO format
+- `limit` (number, optional) - Maximum number of entries to return (default: 100)
+- `offset` (number, optional) - Offset for pagination (default: 0)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "audit_logs": [
+      {
+        "id": "uuid",
+        "user_id": "uuid",
+        "user_email": "admin@example.com",
+        "action_type": "user_updated",
+        "resource_type": "user",
+        "resource_id": "uuid",
+        "details": {},
+        "created_at": "2025-01-27T10:00:00.000Z"
+      }
+    ],
+    "total": 500,
+    "limit": 100,
+    "offset": 0
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/audit?action_type=user_updated&limit=50"
+```
+
+---
+
 ## Health Check
 
 ### GET /api/health
@@ -1028,6 +1511,8 @@ curl "http://localhost:3001/api/health"
 
 ## Error Handling
 
+**Related Documentation:** See [Error Handling Guide](../architecture/error-handling.md) for comprehensive error handling documentation, error code catalog, and error handling patterns.
+
 ### Standard Error Response Format
 
 All errors follow this structure:
@@ -1042,6 +1527,8 @@ All errors follow this structure:
   }
 }
 ```
+
+**Note:** This format is defined in [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md#32-api-format). See [Error Handling Guide](../architecture/error-handling.md) for complete error code catalog and error handling patterns.
 
 ### Error Code Catalog
 

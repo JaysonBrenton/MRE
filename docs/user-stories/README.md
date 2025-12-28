@@ -23,11 +23,13 @@ This directory contains comprehensive user stories for the My Race Engineer (MRE
 
 ## User Types
 
-The following user types are used throughout the user stories:
+The following user types are used throughout the user stories. For detailed persona descriptions, see [MRE Personas](../design/mre-personas.md).
 
 - **User**: Regular end-user who registers and uses MRE features. Users can create accounts, log in, access LiveRC data, and view race information.
 
 - **Administrator**: Backend-created admin user with elevated privileges. Administrators can log in to access administrative features and manage system data.
+
+See [MRE Personas](../design/mre-personas.md) for comprehensive persona documentation including goals, pain points, user journeys, and technical specifications.
 
 ---
 
@@ -203,6 +205,7 @@ User stories reference and link to:
 - [System Epic](system.md)
 - [Future Features](future-features.md)
 - [Non-Functional Requirements](non-functional-requirements.md)
+- [User Journeys](user-journeys.md) - Comprehensive end-to-end user journey documentation
 
 ---
 

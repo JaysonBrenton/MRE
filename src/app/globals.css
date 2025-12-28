@@ -67,6 +67,25 @@
   --token-status-warning-text: #fbbf24;
   --token-status-error-bg: rgba(239, 68, 68, 0.2);
   --token-status-error-text: #f87171;
+  
+  /* Spacing tokens */
+  --token-spacing-xs: 0.25rem;   /* 4px */
+  --token-spacing-sm: 0.5rem;    /* 8px */
+  --token-spacing-md: 0.75rem;   /* 12px */
+  --token-spacing-lg: 1rem;      /* 16px */
+  --token-spacing-xl: 1.25rem;   /* 20px */
+  --token-spacing-2xl: 1.5rem;   /* 24px */
+  
+  /* Typography scale tokens */
+  --token-font-size-xs: 0.75rem;    /* 12px */
+  --token-font-size-sm: 0.875rem;   /* 14px */
+  --token-font-size-base: 1rem;     /* 16px */
+  --token-font-size-lg: 1.125rem;   /* 18px */
+  --token-font-size-xl: 1.25rem;    /* 20px */
+  --token-font-size-2xl: 1.5rem;    /* 24px */
+  --token-font-size-3xl: 1.875rem;  /* 30px */
+  --token-font-size-4xl: 2.25rem;   /* 36px */
+  --token-font-size-5xl: 3rem;      /* 48px */
 }
 
 /* Light theme overrides */
@@ -164,6 +183,25 @@
   --color-button-primary-bg-hover: var(--token-button-primary-bg-hover);
   --color-button-primary-text: var(--token-button-primary-text);
   
+  /* Spacing tokens - use as spacing-xs, spacing-sm, etc. */
+  --spacing-xs: var(--token-spacing-xs);
+  --spacing-sm: var(--token-spacing-sm);
+  --spacing-md: var(--token-spacing-md);
+  --spacing-lg: var(--token-spacing-lg);
+  --spacing-xl: var(--token-spacing-xl);
+  --spacing-2xl: var(--token-spacing-2xl);
+  
+  /* Typography scale tokens - use as text-xs, text-sm, etc. */
+  --font-size-xs: var(--token-font-size-xs);
+  --font-size-sm: var(--token-font-size-sm);
+  --font-size-base: var(--token-font-size-base);
+  --font-size-lg: var(--token-font-size-lg);
+  --font-size-xl: var(--token-font-size-xl);
+  --font-size-2xl: var(--token-font-size-2xl);
+  --font-size-3xl: var(--token-font-size-3xl);
+  --font-size-4xl: var(--token-font-size-4xl);
+  --font-size-5xl: var(--token-font-size-5xl);
+  
   /* Legacy mappings */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -171,10 +209,35 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box; /* Ensure consistent box-sizing */
+}
+
 body {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden; /* Prevent horizontal scroll */
   background: var(--token-surface);
   color: var(--token-text-primary);
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure portal content can expand properly */
+nextjs-portal > *,
+[nextjs-portal] > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* ============================================================================
@@ -211,4 +274,59 @@ body {
   min-height: var(--spacing-tap-target);
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
+}
+
+/* ============================================================================
+   Layout Utilities - Prevent Flexbox Shrink Issues
+   ============================================================================
+   
+   Utility classes to ensure proper width constraints in flex layouts.
+   These classes prevent the common flexbox issue where containers collapse
+   to minimal width when used in flex column layouts.
+   
+   See docs/design/mre-mobile-ux-guidelines.md for usage guidelines.
+   ============================================================================ */
+
+/* Page container base - ensures proper flex behavior */
+.page-container {
+  min-width: 0 !important; /* Allow flex shrinking - important to override any conflicting styles */
+  width: 100% !important; /* Force full width - important to override any conflicting styles */
+  flex-basis: 100%; /* Set flex basis to full width */
+  flex-shrink: 1; /* Allow shrinking but with min-width constraint */
+  max-width: 100%; /* Ensure it doesn't exceed viewport */
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+/* Content wrapper base - ensures proper width constraints */
+.content-wrapper {
+  min-width: 0 !important; /* Allow flex shrinking - important to override any conflicting styles */
+  width: 100% !important; /* Force full width - important to override any conflicting styles */
+  flex-basis: 100%; /* Set flex basis to full width */
+  flex-shrink: 1; /* Allow shrinking but with min-width constraint */
+  max-width: 100%; /* Ensure it respects max-w-* classes */
+  box-sizing: border-box; /* Include padding/border in width calculation */
+}
+
+/* Form inputs - prevent width expansion issues */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+  min-width: 0 !important; /* Prevent inputs from forcing container width */
+  max-width: 100%; /* Ensure inputs don't exceed container */
+  box-sizing: border-box; /* Include padding/border in width calculation */
+}
+
+/* Ensure all flex containers allow proper shrinking */
+.flex {
+  min-width: 0; /* Allow flex children to shrink */
+}
+
+.flex-col {
+  min-width: 0; /* Allow flex column containers to shrink */
 }

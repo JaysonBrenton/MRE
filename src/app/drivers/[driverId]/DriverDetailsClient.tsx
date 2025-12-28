@@ -10,8 +10,8 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import type { DriverWithEventEntries } from "@/core/drivers/repo"
 import TransponderOverrideForm from "./TransponderOverrideForm"
 
@@ -20,38 +20,51 @@ export interface DriverDetailsClientProps {
   eventId?: string
 }
 
+type DriverApiResponse = {
+  id: string
+  display_name: string
+  source_driver_id: string
+  transponder_number: string | null
+  event_entries: Array<{
+    event_id: string
+    event_name: string
+    class_name: string
+    transponder_number: string | null
+    car_number: string | null
+    override?: {
+      transponder_number: string
+      effective_from_race_id: string | null
+      effective_from_race_label: string | null
+      created_at: string
+    }
+  }>
+}
+
 export default function DriverDetailsClient({ driver, eventId }: DriverDetailsClientProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [showOverrideForm, setShowOverrideForm] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId)
   const [driverData, setDriverData] = useState(driver)
-
-  // Sync selectedEventId with URL search params
-  useEffect(() => {
-    const eventIdFromUrl = searchParams.get("eventId") || undefined
-    setSelectedEventId(eventIdFromUrl)
-  }, [searchParams])
 
   // Refresh driver data after override operations
   const refreshDriverData = async () => {
     try {
       const response = await fetch(`/api/v1/drivers/${driver.id}${selectedEventId ? `?eventId=${selectedEventId}` : ""}`)
       if (response.ok) {
-        const data = await response.json()
-        if (data.success && data.data) {
-          // Transform API response to match DriverWithEventEntries structure
-          setDriverData({
-            id: data.data.id,
-            displayName: data.data.display_name,
-            sourceDriverId: data.data.source_driver_id,
-            transponderNumber: data.data.transponder_number,
-            eventEntries: data.data.event_entries.map((entry: any) => ({
-              eventId: entry.event_id,
-              eventName: entry.event_name,
-              className: entry.class_name,
-              transponderNumber: entry.transponder_number,
-              carNumber: entry.car_number,
+          const data: { success: boolean; data?: DriverApiResponse } = await response.json()
+          if (data.success && data.data) {
+            // Transform API response to match DriverWithEventEntries structure
+            setDriverData({
+              id: data.data.id,
+              displayName: data.data.display_name,
+              sourceDriverId: data.data.source_driver_id,
+              transponderNumber: data.data.transponder_number,
+              eventEntries: data.data.event_entries.map((entry) => ({
+                eventId: entry.event_id,
+                eventName: entry.event_name,
+                className: entry.class_name,
+                transponderNumber: entry.transponder_number,
+                carNumber: entry.car_number,
               override: entry.override
                 ? {
                     transponderNumber: entry.override.transponder_number,
@@ -250,4 +263,3 @@ export default function DriverDetailsClient({ driver, eventId }: DriverDetailsCl
     </div>
   )
 }
-

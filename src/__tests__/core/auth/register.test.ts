@@ -16,6 +16,7 @@ import { registerUser } from "@/core/auth/register"
 import { findUserByEmail, createUser } from "@/core/users/repo"
 import { validateRegisterInput } from "@/core/auth/validate-register"
 import argon2 from "argon2"
+import { z } from "zod"
 
 // Mock dependencies
 vi.mock("@/core/users/repo")
@@ -40,8 +41,12 @@ describe("registerUser", () => {
         id: "user-123",
         email: "test@example.com",
         driverName: "Test Driver",
+        normalizedName: null,
         teamName: "Test Team",
         isAdmin: false,
+        isTeamManager: false,
+        personaId: null,
+        transponderNumber: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -67,6 +72,7 @@ describe("registerUser", () => {
         driverName: mockInput.driverName,
         teamName: mockInput.teamName,
         isAdmin: false,
+        transponderNumber: null,
       })
     })
 
@@ -81,8 +87,12 @@ describe("registerUser", () => {
         id: "user-123",
         email: "test@example.com",
         driverName: "Test Driver",
+        normalizedName: null,
         teamName: null,
         isAdmin: false,
+        isTeamManager: false,
+        personaId: null,
+        transponderNumber: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -109,10 +119,9 @@ describe("registerUser", () => {
         driverName: "",
       }
 
-      const zodError = {
-        name: "ZodError",
-        issues: [{ message: "Invalid email address" }],
-      } as any
+      const zodError = new z.ZodError([
+        { code: "custom", message: "Invalid email address", path: ["email"] },
+      ])
 
       vi.mocked(validateRegisterInput).mockImplementation(() => {
         throw zodError
@@ -141,12 +150,16 @@ describe("registerUser", () => {
       const existingUser = {
         id: "existing-user",
         email: "existing@example.com",
+        passwordHash: "existing-hash",
         driverName: "Existing User",
+        normalizedName: null,
         teamName: null,
         isAdmin: false,
+        isTeamManager: false,
+        personaId: null,
+        transponderNumber: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-        passwordHash: "existing-hash",
       }
 
       vi.mocked(validateRegisterInput).mockReturnValue(mockInput)
@@ -250,4 +263,3 @@ describe("registerUser", () => {
     })
   })
 })
-

@@ -45,7 +45,7 @@ export interface BestLapBarChartProps {
   onDriverToggle?: (driverId: string) => void
 }
 
-const defaultMargin = { top: 20, right: 20, bottom: 60, left: 80 }
+const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
 const accentColor = "var(--token-accent)"
 const textColor = "var(--token-text-primary)"
 const textSecondaryColor = "var(--token-text-secondary)"
@@ -64,7 +64,7 @@ function formatLapTime(seconds: number): string {
 
 export default function BestLapBarChart({
   data,
-  selectedDriverIds = [],
+  selectedDriverIds,
   height = 400,
   className = "",
   currentPage = 1,
@@ -89,12 +89,18 @@ export default function BestLapBarChart({
   }, [data])
 
   // Filter data if drivers are selected
+  // undefined = show all (initial state), [] = show nothing (cleared), [ids] = show selected
   const displayData = useMemo(() => {
-    let filtered = validData
-    if (selectedDriverIds.length > 0) {
-      filtered = validData.filter((d) => selectedDriverIds.includes(d.driverId))
+    if (selectedDriverIds === undefined) {
+      // Initial state: show all data
+      return validData
     }
-    return filtered
+    if (selectedDriverIds.length === 0) {
+      // Cleared state: show nothing
+      return []
+    }
+    // Filter to selected drivers only
+    return validData.filter((d) => selectedDriverIds.includes(d.driverId))
   }, [validData, selectedDriverIds])
 
   // Sort by best lap time (fastest first)
@@ -177,7 +183,7 @@ export default function BestLapBarChart({
               >
                 <title id={chartTitleId}>Best lap times per driver</title>
                 <desc id={chartDescId}>
-                  Bar chart showing each driver's best lap time, sorted fastest to slowest.
+                  Bar chart showing each driver&apos;s best lap time, sorted fastest to slowest.
                 </desc>
                 <Group left={margin.left} top={margin.top}>
                   {/* Grid lines */}
@@ -196,13 +202,14 @@ export default function BestLapBarChart({
                   ))}
 
                   {/* Bars */}
-                  {paginatedData.map((d, i) => {
+                  {paginatedData.map((d) => {
                     const barWidth = xScale.bandwidth()
                     const barHeight = innerHeight - yScale(d.bestLapTime)
                     const x = xScale(d.driverName) || 0
                     const y = yScale(d.bestLapTime)
 
                     const isSelected =
+                      selectedDriverIds === undefined ||
                       selectedDriverIds.length === 0 ||
                       selectedDriverIds.includes(d.driverId)
 
@@ -221,8 +228,8 @@ export default function BestLapBarChart({
                           height={barHeight}
                           fill={isSelected ? accentColor : "var(--token-text-muted)"}
                           opacity={isSelected ? 1 : 0.3}
-                          stroke={isSelected && selectedDriverIds.length > 0 ? accentColor : "none"}
-                          strokeWidth={isSelected && selectedDriverIds.length > 0 ? 2 : 0}
+                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? accentColor : "none"}
+                          strokeWidth={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? 2 : 0}
                           onClick={handleClick}
                           onMouseMove={(event) => {
                             const svgElement = (event.target as SVGElement).ownerSVGElement

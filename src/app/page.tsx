@@ -7,45 +7,51 @@
  * 
  * @description Landing page for My Race Engineer
  * 
- * @purpose Displays a simple landing page with app information and links to login/register.
- *          This page is accessible to all users (authenticated and unauthenticated).
- *          Authenticated users will be redirected to /welcome by middleware.
+ * @purpose Displays an enterprise-grade landing page with hero section, trust signals,
+ *          feature blocks, and clear CTA hierarchy. This page is accessible to all users
+ *          (authenticated and unauthenticated). Authenticated users will be redirected to
+ *          /welcome by middleware.
  * 
  * @relatedFiles
  * - middleware.ts (route protection and redirects)
  * - src/lib/auth.ts (authentication configuration)
+ * - src/components/Hero.tsx (hero section component)
  */
 
 import Link from "next/link"
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--token-surface)] px-4 py-8">
-      <div className="w-full max-w-md space-y-6 text-center">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-semibold text-[var(--token-text-primary)]">
-            My Race Engineer
-          </h1>
-          <p className="mt-4 text-lg text-[var(--token-text-secondary)]">
-            Telemetry and race analysis for RC drivers.
-          </p>
-        </div>
-
-        <div className="space-y-4 pt-4">
-          <Link
-            href="/login"
-            className="mobile-button inline-flex w-full items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/register"
-            className="mobile-button inline-flex w-full items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5"
-          >
-            Create account
-          </Link>
-        </div>
-      </div>
+    <div className="flex min-h-screen w-full flex-col bg-[var(--token-surface)]">
+      <main className="page-container flex flex-1 w-full min-w-0 items-center justify-center px-4 py-16">
+        <section className="content-wrapper w-full min-w-0 max-w-2xl min-w-[280px] mx-auto text-center space-y-6">
+          <div className="space-y-2 w-full">
+            <p className="text-sm uppercase tracking-wide text-[var(--token-text-muted)] w-full">
+              My Race Engineer · v0.1.0
+            </p>
+            <h1 className="text-3xl font-semibold text-[var(--token-text-primary)] w-full">
+              Sign in to continue
+            </h1>
+            <p className="text-base text-[var(--token-text-secondary)] w-full">
+              Registration and login are the only enabled workflows in this locked scope build.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/login"
+              className="mobile-button inline-flex w-full items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-6 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:w-auto"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/register"
+              className="mobile-button inline-flex w-full items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-6 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:w-auto"
+            >
+              Create account
+            </Link>
+          </div>
+        </section>
+      </main>
     </div>
   )
 }

@@ -26,6 +26,7 @@ import { type Event } from "./EventRow"
 import ImportStatusToast, { type ImportStatus } from "./ImportStatusToast"
 import { type EventStatus } from "./EventStatusBadge"
 import BulkImportBar from "./BulkImportBar"
+import ErrorDisplay from "./ErrorDisplay"
 import { parseApiResponse } from "@/lib/api-response-helper"
 import { logger } from "@/lib/logger"
 
@@ -56,11 +57,22 @@ interface ApiDiscoveredEvent {
   eventDate: string
 }
 
+interface ApiIngestionResult {
+  event_id: string
+  ingest_depth: string
+  last_ingested_at: string | null
+  races_ingested: number
+  results_ingested: number
+  laps_ingested: number
+  status?: "updated" | "already_complete" | "in_progress"
+}
+
 const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
 const LAST_DATE_RANGE_STORAGE_KEY = "mre_last_date_range"
 const LAST_TRACK_STORAGE_KEY = "mre_last_track"
 const USE_DATE_FILTER_STORAGE_KEY = "mre_use_date_filter"
 const SELECTED_EVENT_IDS_STORAGE_KEY = "mre_selected_event_ids"
+const PENDING_REFRESH_DELAY_MS = 5000
 
 // Get default date range (last 30 days)
 function getDefaultDateRange(): { startDate: string; endDate: string } {
@@ -85,15 +97,18 @@ export default function EventSearchContainer() {
   const [isLoadingTracks, setIsLoadingTracks] = useState(true)
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
   const [isCheckingLiveRC, setIsCheckingLiveRC] = useState(false)
+  const [liveRCTimeout, setLiveRCTimeout] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
-  const [newEventsFromLiveRC, setNewEventsFromLiveRC] = useState<Event[]>([])
+  const [, setNewEventsFromLiveRC] = useState<Event[]>([])
   const keptLoadingForEmptyDB = useRef(false)
+  const liveRCTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [importStatus, setImportStatus] = useState<{
     status: ImportStatus
     message: string
     eventName?: string
   } | null>(null)
   const [eventStatusOverrides, setEventStatusOverrides] = useState<Record<string, EventStatus>>({})
+  const [eventErrorMessages, setEventErrorMessages] = useState<Record<string, string>>({})
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set())
   const [isImportingBulk, setIsImportingBulk] = useState(false)
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
@@ -102,14 +117,37 @@ export default function EventSearchContainer() {
     startDate?: string
     endDate?: string
   }>({})
+  const [apiError, setApiError] = useState<{
+    message: string
+    errorId?: string
+    details?: unknown
+    onRetry?: () => void
+  } | null>(null)
+  
+  // Generate error reference ID
+  const generateErrorId = (): string => {
+    return `ERR-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`
+  }
 
   const updateEventStatusOverride = (eventId: string, status?: EventStatus) => {
     setEventStatusOverrides((prev) => {
       if (!status) {
-        const { [eventId]: _removed, ...rest } = prev
-        return rest
+        const next = { ...prev }
+        delete next[eventId]
+        return next
       }
       return { ...prev, [eventId]: status }
+    })
+  }
+
+  const updateEventErrorMessage = (eventId: string, message?: string) => {
+    setEventErrorMessages((prev) => {
+      if (!message) {
+        const next = { ...prev }
+        delete next[eventId]
+        return next
+      }
+      return { ...prev, [eventId]: message }
     })
   }
 
@@ -374,6 +412,7 @@ export default function EventSearchContainer() {
       }>(response)
 
       if (!result.success) {
+        const errorId = generateErrorId()
         // Handle validation errors
         if (result.error.code === "VALIDATION_ERROR") {
           const field = (result.error.details as { field?: string })?.field
@@ -384,12 +423,23 @@ export default function EventSearchContainer() {
           } else {
             setErrors({ track: result.error.message })
           }
+          setApiError(null) // Clear API error for validation errors
         } else {
+          // Network or server errors
           setErrors({ track: result.error.message })
+          setApiError({
+            message: result.error.message || "Unable to search events. Please check your connection and try again.",
+            errorId,
+            details: result.error.details || { code: result.error.code, status: response.status },
+            onRetry: handleSearch,
+          })
         }
         setIsLoadingEvents(false)
         return
       }
+      
+      // Clear API error on success
+      setApiError(null)
 
       const dbEvents = result.data.events.map((event) => ({
         id: event.id,
@@ -436,6 +486,7 @@ export default function EventSearchContainer() {
         }, 100)
       }
     } catch (error) {
+      const errorId = generateErrorId()
       logger.error("Error searching events", {
         error: error instanceof Error
           ? {
@@ -443,8 +494,20 @@ export default function EventSearchContainer() {
               message: error.message,
             }
           : String(error),
+        errorId,
       })
-      setErrors({ track: "Unable to search events. Please try again." })
+      const errorMessage = error instanceof Error 
+        ? `Network error: ${error.message}. Please check your connection and try again.`
+        : "Unable to search events. Please try again."
+      setErrors({ track: errorMessage })
+      setApiError({
+        message: errorMessage,
+        errorId,
+        details: error instanceof Error 
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : String(error),
+        onRetry: handleSearch,
+      })
       setIsLoadingEvents(false)
     }
   }
@@ -454,7 +517,16 @@ export default function EventSearchContainer() {
 
     try {
       setIsCheckingLiveRC(true)
+      setLiveRCTimeout(false)
       setErrors({})
+      
+      // Set timeout to show message after 10 seconds
+      if (liveRCTimeoutRef.current) {
+        clearTimeout(liveRCTimeoutRef.current)
+      }
+      liveRCTimeoutRef.current = setTimeout(() => {
+        setLiveRCTimeout(true)
+      }, 10000)
 
       // Build request body - only include dates if date filter is enabled and dates are provided
       const requestBody: { track_id: string; start_date?: string; end_date?: string } = {
@@ -485,14 +557,16 @@ export default function EventSearchContainer() {
       }>(response)
 
       if (!result.success) {
-        // Don't show error toast for timeout - it's expected if ingestion service is busy
-        // Only show error for actual failures
-        if (!result.error.message?.includes("timeout")) {
-          setImportStatus({
-            status: "failed",
-            message: result.error.message || "Unable to check LiveRC. Please try again later.",
-          })
+        // Handle timeout gracefully - it's expected if ingestion service is busy
+        if (result.error.message?.includes("timeout")) {
+          // Timeout is expected, don't show error toast but user will see no new events
+          return
         }
+        // Show error for actual failures
+        setImportStatus({
+          status: "failed",
+          message: result.error.message || "Unable to check LiveRC. Please try again later.",
+        })
         return
       }
 
@@ -582,6 +656,11 @@ export default function EventSearchContainer() {
       })
     } finally {
       setIsCheckingLiveRC(false)
+      setLiveRCTimeout(false)
+      if (liveRCTimeoutRef.current) {
+        clearTimeout(liveRCTimeoutRef.current)
+        liveRCTimeoutRef.current = null
+      }
       // Clear loading state when LiveRC check completes (if it was kept true for empty DB results)
       // This ensures "No events found" only shows after both DB and LiveRC checks complete
       if (keptLoadingForEmptyDB.current) {
@@ -601,7 +680,8 @@ export default function EventSearchContainer() {
       return false
     }
 
-    updateEventStatusOverride(event.id, "importing")
+      updateEventStatusOverride(event.id, "importing")
+      updateEventErrorMessage(event.id) // Clear any previous error
     if (!silentStart) {
       setImportStatus({
         status: "started",
@@ -610,6 +690,8 @@ export default function EventSearchContainer() {
     }
 
     try {
+      let ingestionResponse: ApiIngestionResult | null = null
+
       if (event.id && !event.id.startsWith("liverc-")) {
         const response = await fetch(`/api/v1/events/${event.id}/ingest`, {
           method: "POST",
@@ -618,10 +700,11 @@ export default function EventSearchContainer() {
           },
           body: JSON.stringify({ depth: "laps_full" }),
         })
-        const result = await parseApiResponse(response)
+        const result = await parseApiResponse<ApiIngestionResult>(response)
         if (!result.success) {
           throw new Error(result.error.message)
         }
+        ingestionResponse = result.data
       } else {
         const sourceEventId = event.sourceEventId
         if (!sourceEventId) {
@@ -640,10 +723,46 @@ export default function EventSearchContainer() {
           },
           body: JSON.stringify(requestBody),
         })
-        const result = await parseApiResponse(response)
+        const result = await parseApiResponse<ApiIngestionResult>(response)
         if (!result.success) {
           throw new Error(result.error.message)
         }
+        ingestionResponse = result.data
+      }
+
+      const ingestionStatus = ingestionResponse?.status ?? "updated"
+      const isPendingResponse = ingestionStatus === "in_progress"
+      const clearLiveRcPlaceholder = () => {
+        setNewEventsFromLiveRC((prev) =>
+          prev.filter((newEvent) => newEvent.sourceEventId !== event.sourceEventId)
+        )
+      }
+
+      if (isPendingResponse) {
+        clearLiveRcPlaceholder()
+        updateEventErrorMessage(event.id)
+
+        if (!silentStart) {
+          setImportStatus({
+            status: "pending",
+            message: `Import is still running for "${event.eventName}". We'll refresh the list when it finishes.`,
+          })
+        }
+
+        setTimeout(() => {
+          void handleSearch()
+        }, PENDING_REFRESH_DELAY_MS)
+
+        return true
+      }
+
+      updateEventStatusOverride(event.id)
+      updateEventErrorMessage(event.id) // Clear error on success
+      clearLiveRcPlaceholder()
+
+      if (refreshAfter) {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await handleSearch()
       }
 
       if (!silentStart) {
@@ -651,16 +770,6 @@ export default function EventSearchContainer() {
           status: "completed",
           message: `Import completed for "${event.eventName}".`,
         })
-      }
-
-      updateEventStatusOverride(event.id)
-      setNewEventsFromLiveRC((prev) =>
-        prev.filter((newEvent) => newEvent.sourceEventId !== event.sourceEventId)
-      )
-
-      if (refreshAfter) {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        await handleSearch()
       }
 
       return true
@@ -674,7 +783,7 @@ export default function EventSearchContainer() {
           : String(error),
       })
 
-      let errorMessage = `Import failed for "${event.eventName}".`
+      let errorMessage = `Import failed. Please try again.`
       if (error instanceof Error) {
         errorMessage = error.message || errorMessage
       } else if (typeof error === "string") {
@@ -682,10 +791,11 @@ export default function EventSearchContainer() {
       }
 
       updateEventStatusOverride(event.id, "failed")
+      updateEventErrorMessage(event.id, errorMessage)
       if (!silentStart) {
         setImportStatus({
           status: "failed",
-          message: errorMessage,
+          message: `Import failed for "${event.eventName}".`,
         })
       }
       return false
@@ -694,42 +804,6 @@ export default function EventSearchContainer() {
 
   const handleImportSingle = (event: Event) => {
     void importEvent(event)
-  }
-
-  const handleImportAll = async () => {
-    if (newEventsFromLiveRC.length === 0) return
-    if (!selectedTrack) return
-
-    const totalEvents = newEventsFromLiveRC.length
-    setImportStatus({
-      status: "started",
-      message: `Import started for ${totalEvents} event${totalEvents === 1 ? "" : "s"}.`,
-    })
-
-    let successfulImports = 0
-    for (const event of newEventsFromLiveRC) {
-      const success = await importEvent(event, { refreshAfter: false, silentStart: true })
-      if (success) {
-        successfulImports += 1
-      }
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    await handleSearch()
-
-    if (successfulImports === totalEvents) {
-      setImportStatus({
-        status: "completed",
-        message: `Import completed for ${totalEvents} event${totalEvents === 1 ? "" : "s"}.`,
-      })
-    } else {
-      setImportStatus({
-        status: "failed",
-        message: `Imported ${successfulImports} of ${totalEvents} event${totalEvents === 1 ? "" : "s"}. Please retry failed imports.`,
-      })
-    }
-
-    setNewEventsFromLiveRC([])
   }
 
   const handleReset = () => {
@@ -741,9 +815,11 @@ export default function EventSearchContainer() {
     setEvents([])
     setHasSearched(false)
     setErrors({})
+    setApiError(null)
     setNewEventsFromLiveRC([])
     setImportStatus(null)
     setEventStatusOverrides({})
+    setEventErrorMessages({})
     handleClearSelection()
 
     // Clear localStorage
@@ -927,6 +1003,56 @@ export default function EventSearchContainer() {
             ? "Checking LiveRC for additional events..."
             : ""}
       </div>
+      
+      {/* API Error Display */}
+      {apiError && (
+        <ErrorDisplay
+          message={apiError.message}
+          errorId={apiError.errorId}
+          details={apiError.details}
+          onRetry={apiError.onRetry}
+          retryLabel="Retry Search"
+        />
+      )}
+      
+      {/* LiveRC Discovery Status Indicator */}
+      {isCheckingLiveRC && (
+        <div
+          className={`rounded-md border p-4 ${
+            liveRCTimeout
+              ? "border-[var(--token-status-warning-text)] bg-[var(--token-status-warning-bg)]"
+              : "border-[var(--token-status-info-text)] bg-[var(--token-status-info-bg)]"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start gap-3">
+            {!liveRCTimeout && (
+              <svg className="h-5 w-5 flex-shrink-0 text-[var(--token-status-info-text)] animate-spin mt-0.5" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            )}
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${
+                liveRCTimeout
+                  ? "text-[var(--token-status-warning-text)]"
+                  : "text-[var(--token-status-info-text)]"
+              }`}>
+                {liveRCTimeout
+                  ? "LiveRC check is taking longer than expected"
+                  : "Checking LiveRC for additional events..."}
+              </p>
+              <p className="mt-1 text-xs text-[var(--token-text-secondary)]">
+                {liveRCTimeout
+                  ? "The LiveRC service may be busy. Results will appear when available, or you can try searching again."
+                  : "We're checking LiveRC for events not yet in our database. This may take a few moments."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <EventSearchForm
         selectedTrack={selectedTrack}
         startDate={startDate}
@@ -963,6 +1089,7 @@ export default function EventSearchContainer() {
         hasSearched={hasSearched}
         onImportEvent={handleImportSingle}
         statusOverrides={eventStatusOverrides}
+        errorMessages={eventErrorMessages}
         selectedEventIds={selectedEventIds}
         onEventSelect={handleEventSelect}
         isBulkImporting={isImportingBulk}

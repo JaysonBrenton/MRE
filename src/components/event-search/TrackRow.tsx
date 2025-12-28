@@ -3,7 +3,7 @@
  * 
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-27
+ * @lastModified 2025-01-28
  * 
  * @description Individual track row in the track selection modal
  * 
@@ -15,8 +15,6 @@
  */
 
 "use client"
-
-import { useState } from "react"
 
 export interface Track {
   id: string
@@ -32,7 +30,6 @@ export interface TrackRowProps {
 }
 
 export default function TrackRow({ track, isFavourite, onSelect, onToggleFavourite }: TrackRowProps) {
-  const [isHovered, setIsHovered] = useState(false)
 
   const handleRowClick = () => {
     onSelect(track)
@@ -47,8 +44,6 @@ export default function TrackRow({ track, isFavourite, onSelect, onToggleFavouri
     <div
       className="flex items-center justify-between px-4 py-3 min-h-[44px] cursor-pointer hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
       onClick={handleRowClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -58,14 +53,22 @@ export default function TrackRow({ track, isFavourite, onSelect, onToggleFavouri
         }
       }}
       aria-label={`Select track ${track.trackName}`}
+      style={{ minWidth: 0, width: '100%', boxSizing: 'border-box' }}
     >
-      <span className="text-[var(--token-text-primary)] flex-1">{track.trackName}</span>
+      <span 
+        className="text-[var(--token-text-primary)] flex-1 truncate" 
+        title={track.trackName}
+        style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {track.trackName}
+      </span>
       <button
         type="button"
         onClick={handleStarClick}
-        className="ml-4 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+        className="ml-4 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
         aria-label={isFavourite ? `Remove ${track.trackName} from favourites` : `Add ${track.trackName} to favourites`}
         aria-pressed={isFavourite}
+        style={{ flexShrink: 0 }}
       >
         <svg
           className={`w-5 h-5 ${isFavourite ? "fill-yellow-400" : "fill-none"} stroke-[var(--token-text-secondary)] ${isFavourite ? "stroke-yellow-400" : ""}`}
@@ -80,4 +83,3 @@ export default function TrackRow({ track, isFavourite, onSelect, onToggleFavouri
     </div>
   )
 }
-

@@ -21,7 +21,6 @@
 
 import Link from "next/link"
 import LogoutButton from "./LogoutButton"
-import AuthenticatedNavLinks from "./AuthenticatedNavLinks"
 
 export default function AuthenticatedNav() {
   return (
@@ -31,19 +30,22 @@ export default function AuthenticatedNav() {
           {/* Logo/Brand */}
           <div className="flex items-center py-4">
             <Link
-              href="/dashboard"
+              href="/welcome"
               className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
             >
               My Race Engineer
             </Link>
           </div>
 
-          {/* Navigation Items */}
-          <div className="flex flex-col gap-0 sm:flex-row sm:items-center sm:gap-2">
-            <AuthenticatedNavLinks />
-            <div className="flex flex-col gap-0 border-t border-[var(--token-border-muted)] py-2 sm:flex-row sm:border-t-0 sm:py-0 sm:pl-4">
-              <LogoutButton />
-            </div>
+          {/* Navigation Links */}
+          <div className="flex flex-col gap-0 border-t border-[var(--token-border-muted)] py-2 sm:flex-row sm:items-center sm:border-t-0 sm:py-0 sm:gap-4">
+            <Link
+              href="/dashboard"
+              className="text-base font-medium text-[var(--token-text-primary)] hover:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+            >
+              Dashboard
+            </Link>
+            <LogoutButton />
           </div>
         </div>
       </div>

@@ -14,6 +14,7 @@ from typing import List, Optional, Dict
 
 from ingestion.common.logging import get_logger
 from ingestion.common import metrics
+from ingestion.common.site_policy import SitePolicy
 from ingestion.connectors.liverc.client.httpx_client import HTTPXClient
 from ingestion.connectors.liverc.client.playwright_client import PlaywrightClient
 from ingestion.connectors.liverc.models import (
@@ -58,7 +59,12 @@ class LiveRCConnector:
     - Cache page type classification
     """
     
-    def __init__(self, page_type_cache_size: int = 1000, playwright_concurrency: int = 1):
+    def __init__(
+        self,
+        page_type_cache_size: int = 1000,
+        playwright_concurrency: int = 1,
+        site_policy: Optional[SitePolicy] = None,
+    ):
         """
         Initialize connector.
         
@@ -69,6 +75,11 @@ class LiveRCConnector:
         self._page_type_cache: dict[str, bool] = {}  # URL -> requires_playwright
         self._page_type_cache_size = page_type_cache_size
         self._playwright_lock = asyncio.Semaphore(max(playwright_concurrency, 1))
+        self._site_policy = site_policy or SitePolicy.shared()
+
+    def _ensure_enabled(self) -> None:
+        """Ensure scraping is allowed before issuing any requests."""
+        self._site_policy.ensure_enabled("liverc")
 
     def _record_error(self, stage: str, error: Exception) -> None:
         """Report connector errors to metrics."""
@@ -103,11 +114,12 @@ class LiveRCConnector:
             ConnectorHTTPError: On network/HTTP errors
             EventPageFormatError: On parsing errors
         """
+        self._ensure_enabled()
         url = "https://live.liverc.com"
         logger.info("list_tracks_start", url=url)
         
         try:
-            async with HTTPXClient() as client:
+            async with HTTPXClient(self._site_policy) as client:
                 response = await client.get(url)
                 html = response.text
                 
@@ -143,6 +155,7 @@ class LiveRCConnector:
             ConnectorHTTPError: On network/HTTP errors
             EventPageFormatError: On parsing errors
         """
+        self._ensure_enabled()
         url = build_events_url(track_slug)
         logger.info("list_events_for_track_start", url=url, track_slug=track_slug)
         
@@ -154,7 +167,7 @@ class LiveRCConnector:
         # Try HTTPX first (unless we know it requires Playwright)
         if not requires_playwright:
             try:
-                async with HTTPXClient() as client:
+                async with HTTPXClient(self._site_policy) as client:
                     response = await client.get(url)
                     html = response.text
                     
@@ -183,7 +196,7 @@ class LiveRCConnector:
         # Use Playwright if needed (for DataTables that load via JavaScript)
         if requires_playwright or html is None:
             try:
-                async with PlaywrightClient() as playwright:
+                async with PlaywrightClient(self._site_policy) as playwright:
                     html = await playwright.fetch_page(
                         url,
                         wait_for_selector="table#events tbody tr",  # Wait for event rows to load
@@ -249,7 +262,7 @@ class LiveRCConnector:
     ) -> str:
         """Fetch a page using Playwright with concurrency control."""
         async with self._playwright_lock:
-            async with PlaywrightClient() as playwright:
+            async with PlaywrightClient(self._site_policy) as playwright:
                 return await playwright.fetch_page(url, wait_for_selector=wait_for_selector)
 
     def _parse_event_page(self, html: str, url: str, source_event_id: str) -> ConnectorEventSummary:
@@ -286,6 +299,7 @@ class LiveRCConnector:
             ConnectorHTTPError: On network/HTTP errors
             EventPageFormatError: On parsing errors
         """
+        self._ensure_enabled()
         url = self._build_event_url(track_slug, source_event_id)
         logger.info("fetch_event_page_start", url=url, track_slug=track_slug, event_id=source_event_id)
         
@@ -294,7 +308,7 @@ class LiveRCConnector:
 
         if not requires_playwright:
             try:
-                async with HTTPXClient() as client:
+                async with HTTPXClient(self._site_policy) as client:
                     response = await client.get(url)
                     html = response.text
                     return self._parse_event_page(html, url, source_event_id)
@@ -352,6 +366,8 @@ class LiveRCConnector:
             ConnectorHTTPError: On network/HTTP errors
             RacePageFormatError: On parsing errors
         """
+        self._ensure_enabled()
+        self._ensure_enabled()
         # Extract track_slug from race_url if needed
         track_slug = parse_track_slug_from_url(race_summary.race_url)
         url = self._build_race_url(race_summary.race_url, track_slug)
@@ -366,7 +382,7 @@ class LiveRCConnector:
         # Try HTTPX first (unless we know it requires Playwright)
         if not requires_playwright:
             try:
-                async with HTTPXClient() as client:
+                async with HTTPXClient(self._site_policy) as client:
                     response = await client.get(url)
                     html = response.text
                     
@@ -463,7 +479,7 @@ class LiveRCConnector:
         
         if not requires_playwright:
             try:
-                async with HTTPXClient() as client:
+                async with HTTPXClient(self._site_policy) as client:
                     response = await client.get(url)
                     html = response.text
                     if "racerLaps" not in html:
@@ -503,6 +519,7 @@ class LiveRCConnector:
             ConnectorHTTPError: On network errors
             EventPageFormatError: On parsing errors
         """
+        self._ensure_enabled()
         url = build_entry_list_url(track_slug, source_event_id)
         logger.info("fetch_entry_list_start", url=url, track_slug=track_slug, event_id=source_event_id)
         
@@ -513,7 +530,7 @@ class LiveRCConnector:
         # Try HTTPX first (unless we know it requires Playwright)
         if not requires_playwright:
             try:
-                async with HTTPXClient() as client:
+                async with HTTPXClient(self._site_policy) as client:
                     response = await client.get(url)
                     html = response.text
                     

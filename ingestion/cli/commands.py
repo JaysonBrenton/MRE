@@ -33,8 +33,19 @@ from ingestion.ingestion.errors import (
     ValidationError,
 )
 from ingestion.ingestion.pipeline import IngestionPipeline
+from ingestion.ingestion.auto_confirm import check_and_confirm_links
+from ingestion.common.site_policy import SitePolicy, ScrapingDisabledError
 
 logger = get_logger(__name__)
+
+
+def _ensure_scraping_enabled(command: str) -> None:
+    """Prevent commands from running when scraping is disabled."""
+    try:
+        SITE_POLICY.ensure_enabled(command)
+    except ScrapingDisabledError as exc:
+        logger.warning("scraping_disabled", command=command)
+        raise click.ClickException(str(exc))
 
 
 def get_reports_directory() -> Path:
@@ -355,6 +366,7 @@ def list_tracks():
 @liverc.command("refresh-tracks")
 def refresh_tracks():
     """Re-scrape the global LiveRC track list."""
+    _ensure_scraping_enabled("refresh-tracks")
     start_time = datetime.utcnow()
     logger.info("refresh_tracks_start", timestamp=start_time.isoformat())
     
@@ -539,6 +551,7 @@ def list_events(track_id: str, start_date: Optional[str], end_date: Optional[str
 @click.option("--ingest-all", is_flag=True, default=False, help="Ingest all events regardless of current state")
 def refresh_events(track_id: str, depth: str, ingest_new_only: bool, ingest_all: bool):
     """Populate or refresh events for a track, optionally with full ingestion."""
+    _ensure_scraping_enabled("refresh-events")
     start_time = datetime.utcnow()
     logger.info(
         "refresh_events_start",
@@ -631,6 +644,7 @@ def refresh_events(track_id: str, depth: str, ingest_new_only: bool, ingest_all:
 @click.option("--quiet", is_flag=True, default=False, help="Suppress per-event console output")
 def refresh_followed_events(depth: str, ingest_new_only: bool, ingest_all: bool, quiet: bool):
     """Refresh events for every followed track (automated workflow)."""
+    _ensure_scraping_enabled("refresh-followed-events")
     start_time = datetime.utcnow()
     logger.info(
         "refresh_followed_events_start",
@@ -743,6 +757,7 @@ def refresh_followed_events(depth: str, ingest_new_only: bool, ingest_all: bool,
 @click.option("--depth", default="laps_full", help="Ingestion depth")
 def ingest_event(event_id: str, depth: str):
     """Perform ingestion for a specific event."""
+    _ensure_scraping_enabled("ingest-event")
     click.echo(f"Ingesting event {event_id} with depth {depth}...")
     
     try:
@@ -824,6 +839,24 @@ def status():
         click.echo("\nEvents by Ingestion Depth:")
         for depth, count in events_by_depth.items():
             click.echo(f"  {depth}: {count}")
+
+
+@cli.command("auto-confirm-links")
+def auto_confirm_links():
+    """Auto-confirm user-driver links based on multi-event transponder matches."""
+    logger.info("auto_confirm_links_start")
+    
+    with db_session() as session:
+        repo = Repository(session)
+        stats = check_and_confirm_links(repo)
+        session.commit()
+    
+    click.echo(f"\nAuto-confirmation complete:")
+    click.echo(f"  Links confirmed: {stats['links_confirmed']}")
+    click.echo(f"  Links rejected: {stats['links_rejected']}")
+    click.echo(f"  Links conflicted: {stats['links_conflicted']}")
+    
+    logger.info("auto_confirm_links_complete", **stats)
 
 
 @liverc.command("verify-integrity")
@@ -955,3 +988,4 @@ def verify_integrity():
 
 if __name__ == "__main__":
     cli()
+SITE_POLICY = SitePolicy.shared()

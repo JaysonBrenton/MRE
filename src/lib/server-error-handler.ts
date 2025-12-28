@@ -17,7 +17,7 @@
 
 import { NextRequest } from "next/server"
 import { Prisma } from "@prisma/client"
-import { logger, createLoggerWithContext } from "./logger"
+import { createLoggerWithContext } from "./logger"
 import { getRequestContext } from "./request-context"
 
 /**
@@ -266,4 +266,3 @@ export function handleExternalServiceError(
     statusCode: 502,
   }
 }
-

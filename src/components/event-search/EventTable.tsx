@@ -31,6 +31,7 @@ export interface EventTableProps {
   hasSearched?: boolean
   onImportEvent?: (event: Event) => void
   statusOverrides?: Record<string, EventStatus>
+  errorMessages?: Record<string, string>
   selectedEventIds?: Set<string>
   onEventSelect?: (event: Event, selected: boolean) => void
   isBulkImporting?: boolean
@@ -43,6 +44,7 @@ export default function EventTable({
   hasSearched = false, 
   onImportEvent, 
   statusOverrides,
+  errorMessages = {},
   selectedEventIds = new Set(),
   onEventSelect,
   isBulkImporting = false,
@@ -68,7 +70,8 @@ export default function EventTable({
 
   // Check if all importable events are selected
   const importableEvents = events.filter(isEventImportable)
-  const allImportableSelected = importableEvents.length > 0 && 
+  const allImportableSelected =
+    importableEvents.length > 0 &&
     importableEvents.every((e) => selectedEventIds.has(e.id))
 
   const handleSort = (field: SortField) => {
@@ -123,9 +126,19 @@ export default function EventTable({
   if (events.length === 0) {
     return (
       <div className="mt-8 text-center py-8">
-        <p className="text-[var(--token-text-secondary)]">
-          No events found for this track and date range. Try changing your dates or selecting a different track.
-        </p>
+        <div className="mx-auto max-w-md space-y-3">
+          <p className="text-[var(--token-text-primary)] font-medium">
+            No events found
+          </p>
+          <p className="text-sm text-[var(--token-text-secondary)]">
+            No events were found for this track and date range. Try:
+          </p>
+          <ul className="text-sm text-[var(--token-text-secondary)] text-left space-y-1 list-disc list-inside">
+            <li>Expanding your date range</li>
+            <li>Selecting a different track</li>
+            <li>Checking if events exist on LiveRC for this track</li>
+          </ul>
+        </div>
       </div>
     )
   }
@@ -136,29 +149,48 @@ export default function EventTable({
       <div className="hidden sm:grid sm:grid-cols-4 gap-4 px-4 py-3 border-b border-[var(--token-border-default)]">
         {/* Checkbox column header */}
         <div className="flex items-center justify-center">
-          <div className="text-sm font-medium text-[var(--token-text-secondary)]">Analyse Event</div>
+          {onSelectAll ? (
+            <button
+              type="button"
+              onClick={onSelectAll}
+              disabled={importableEvents.length === 0 || allImportableSelected}
+              className="text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50"
+            >
+              Select All
+            </button>
+          ) : (
+            <div className="text-sm font-medium text-[var(--token-text-secondary)]">
+              Analyse Event
+            </div>
+          )}
         </div>
         <button
           type="button"
           onClick={() => handleSort("name")}
           className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+          aria-label={`Sort by event name ${sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
+          aria-sort={sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
         >
           Event Name
           {sortField === "name" && (
-            <span className="ml-2">{sortDirection === "asc" ? "↑" : "↓"}</span>
+            <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
           )}
         </button>
         <button
           type="button"
           onClick={() => handleSort("date")}
           className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+          aria-label={`Sort by event date ${sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
+          aria-sort={sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
         >
           Event Date
           {sortField === "date" && (
-            <span className="ml-2">{sortDirection === "asc" ? "↑" : "↓"}</span>
+            <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
           )}
         </button>
-        <div className="text-sm font-medium text-[var(--token-text-secondary)]">Status</div>
+        <div className="text-sm font-medium text-[var(--token-text-secondary)]">
+          <span aria-label="Event status column">Status</span>
+        </div>
       </div>
 
       {/* Event List */}
@@ -171,6 +203,7 @@ export default function EventTable({
               event={event} 
               onImport={onImportEvent}
               statusOverride={statusOverrides?.[event.id]}
+              errorMessage={errorMessages[event.id]}
               isSelected={selectedEventIds.has(event.id)}
               onSelect={isImportable ? onEventSelect : undefined}
               isBulkImporting={isBulkImporting}

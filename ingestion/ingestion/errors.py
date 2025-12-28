@@ -209,6 +209,11 @@ class ConstraintViolationError(PersistenceError):
         details = {}
         if constraint:
             details["constraint"] = constraint
-        super().__init__(message, "CONSTRAINT_VIOLATION_ERROR", "persistence", details)
+        # Call PersistenceError.__init__ which will then call IngestionError.__init__
+        # Pass operation as None since we're using details for constraint info
+        super().__init__(message, operation=None)
+        # Update details with constraint
+        if constraint:
+            self.details["constraint"] = constraint
         self.code = "CONSTRAINT_VIOLATION_ERROR"
 

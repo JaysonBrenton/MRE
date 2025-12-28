@@ -14,11 +14,12 @@ relatedFiles:
 
 # LiveRC Ingestion – Overview & Goals
 
-**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-v0.1-feature-scope.md) for Alpha feature specifications.
+**Status:** This ingestion subsystem is **in scope for version 0.1.0 release**. See [MRE Version 0.1.0 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for version 0.1.0 feature specifications.
 
 **Related Documentation:**
 - [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) - Overall MRE architecture principles
-- [MRE Alpha Feature Scope](../../specs/mre-v0.1-feature-scope.md) - Alpha release feature specifications
+- [MRE Version 0.1.0 Feature Scope](../../specs/mre-v0.1-feature-scope.md) - Version 0.1.0 feature specifications
+- [Web Scraping Best Practices](27-web-scraping-best-practices.md) - Comprehensive guide to web scraping practices and ethical guidelines
 
 ## Purpose
 
@@ -84,6 +85,8 @@ The system must avoid aggressive scraping. Therefore:
 - **Full event ingestion (laps, results) occurs only when a user selects an event.**
 
 This minimises requests to LiveRC and mirrors natural user behaviour.
+
+**See [Web Scraping Best Practices](27-web-scraping-best-practices.md) for comprehensive documentation of all web scraping practices, including robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, retry logic, kill switch mechanism, and browser automation best practices.**
 
 ### On-Demand Ingestion
 MRE never downloads event data unless a user explicitly expresses interest in an

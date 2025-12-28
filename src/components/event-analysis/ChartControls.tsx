@@ -17,7 +17,7 @@
 
 "use client"
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react"
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FixedSizeList } from "react-window"
 import CollapsibleDriverPanel from "./CollapsibleDriverPanel"
 import DriverSelectionHeader from "./DriverSelectionHeader"
@@ -234,6 +234,7 @@ export default function ChartControls({
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
+  const [isChartTypeDropdownOpen, setIsChartTypeDropdownOpen] = useState(false)
   const [isPanelOpen, setIsPanelOpen] = useState(true)
   // Hydrate mobile vs desktop default once the client is available
   useEffect(() => {
@@ -241,13 +242,16 @@ export default function ChartControls({
       return
     }
     if (window.innerWidth < 640) {
-      setIsPanelOpen(false)
+      startTransition(() => {
+        setIsPanelOpen(false)
+      })
     }
   }, [])
 
   const [containerHeight, setContainerHeight] = useState(300)
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const chartTypeDropdownRef = useRef<HTMLDivElement>(null)
 
   // Debounce search query
   useEffect(() => {
@@ -334,13 +338,19 @@ export default function ChartControls({
       ) {
         setIsClassDropdownOpen(false)
       }
+      if (
+        chartTypeDropdownRef.current &&
+        !chartTypeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsChartTypeDropdownOpen(false)
+      }
     }
 
-    if (isClassDropdownOpen) {
+    if (isClassDropdownOpen || isChartTypeDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside)
       return () => document.removeEventListener("mousedown", handleClickOutside)
     }
-  }, [isClassDropdownOpen])
+  }, [isClassDropdownOpen, isChartTypeDropdownOpen])
 
   // Keyboard shortcut for search (Cmd/Ctrl+K)
   useEffect(() => {
@@ -389,53 +399,14 @@ export default function ChartControls({
     ? `${selectedClassInfo.className} (${selectedClassInfo.driverCount})`
     : "All Classes"
 
+  const chartTypeLabels: Record<"best-lap" | "gap-evolution" | "avg-vs-fastest", string> = {
+    "best-lap": "Best Lap",
+    "gap-evolution": "Gap Evolution",
+    "avg-vs-fastest": "Avg vs Fastest",
+  }
+
   return (
     <div className="space-y-4 mb-6">
-      {/* Chart type selector (if provided) */}
-      {chartType && onChartTypeChange && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onChartTypeChange("best-lap")}
-            className={`mobile-button px-4 py-2 rounded-md border text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] ${
-              chartType === "best-lap"
-                ? "bg-[var(--token-accent)] text-[var(--token-text-primary)] border-[var(--token-accent)]"
-                : "bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
-            }`}
-            aria-label="Best Lap chart - shows fastest lap time per driver"
-            title="Best Lap: Shows the fastest lap time for each driver"
-          >
-            Best Lap
-          </button>
-          <button
-            type="button"
-            onClick={() => onChartTypeChange("gap-evolution")}
-            className={`mobile-button px-4 py-2 rounded-md border text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] ${
-              chartType === "gap-evolution"
-                ? "bg-[var(--token-accent)] text-[var(--token-text-primary)] border-[var(--token-accent)]"
-                : "bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
-            }`}
-            aria-label="Gap Evolution chart - shows time gap to leader over race duration"
-            title="Gap Evolution: Shows how time gaps between drivers change over the race"
-          >
-            Gap Evolution
-          </button>
-          <button
-            type="button"
-            onClick={() => onChartTypeChange("avg-vs-fastest")}
-            className={`mobile-button px-4 py-2 rounded-md border text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] ${
-              chartType === "avg-vs-fastest"
-                ? "bg-[var(--token-accent)] text-[var(--token-text-primary)] border-[var(--token-accent)]"
-                : "bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
-            }`}
-            aria-label="Average vs Fastest chart - compares average and fastest lap times"
-            title="Avg vs Fastest: Compares each driver's average lap time to their fastest lap"
-          >
-            Avg vs Fastest
-          </button>
-        </div>
-      )}
-
       {/* Driver selection - wrapped in collapsible panel */}
       <CollapsibleDriverPanel
         isOpen={isPanelOpen}
@@ -619,6 +590,103 @@ export default function ChartControls({
         </div>
       </div>
       </CollapsibleDriverPanel>
+
+      {/* Chart type selector (if provided) */}
+      {chartType && onChartTypeChange && (
+        <div className="relative inline-block" ref={chartTypeDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsChartTypeDropdownOpen(!isChartTypeDropdownOpen)}
+            className="mobile-button w-full sm:w-auto inline-flex items-center gap-2 px-2.5 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] whitespace-nowrap"
+            aria-label="Select chart type"
+            aria-expanded={isChartTypeDropdownOpen}
+            style={{ minHeight: "44px" }}
+          >
+            <span>
+              {chartTypeLabels[chartType]}
+            </span>
+            <svg
+              className={`w-4 h-4 transition-transform flex-shrink-0 ${
+                isChartTypeDropdownOpen ? "rotate-180" : ""
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+          {isChartTypeDropdownOpen && (
+            <div className="absolute z-10 left-0 w-full sm:w-auto sm:min-w-[200px] sm:max-w-[280px] mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg overflow-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  onChartTypeChange("best-lap")
+                  setIsChartTypeDropdownOpen(false)
+                }}
+                className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
+                  chartType === "best-lap"
+                    ? "bg-[var(--token-surface)] border-l-2 border-l-[var(--token-accent)]"
+                    : ""
+                }`}
+                aria-label="Best Lap chart - shows fastest lap time per driver"
+                title="Best Lap: Shows the fastest lap time for each driver"
+                style={{ minHeight: "44px" }}
+              >
+                <div className="font-medium">Best Lap</div>
+                <div className="text-xs text-[var(--token-text-secondary)] mt-0.5">
+                  Shows the fastest lap time for each driver
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onChartTypeChange("gap-evolution")
+                  setIsChartTypeDropdownOpen(false)
+                }}
+                className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
+                  chartType === "gap-evolution"
+                    ? "bg-[var(--token-surface)] border-l-2 border-l-[var(--token-accent)]"
+                    : ""
+                }`}
+                aria-label="Gap Evolution chart - shows time gap to leader over race duration"
+                title="Gap Evolution: Shows how time gaps between drivers change over the race"
+                style={{ minHeight: "44px" }}
+              >
+                <div className="font-medium">Gap Evolution</div>
+                <div className="text-xs text-[var(--token-text-secondary)] mt-0.5">
+                  Shows how time gaps between drivers change over the race
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onChartTypeChange("avg-vs-fastest")
+                  setIsChartTypeDropdownOpen(false)
+                }}
+                className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
+                  chartType === "avg-vs-fastest"
+                    ? "bg-[var(--token-surface)] border-l-2 border-l-[var(--token-accent)]"
+                    : ""
+                }`}
+                aria-label="Average vs Fastest chart - compares average and fastest lap times"
+                title="Avg vs Fastest: Compares each driver's average lap time to their fastest lap"
+                style={{ minHeight: "44px" }}
+              >
+                <div className="font-medium">Avg vs Fastest</div>
+                <div className="text-xs text-[var(--token-text-secondary)] mt-0.5">
+                  Compares each driver's average lap time to their fastest lap
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

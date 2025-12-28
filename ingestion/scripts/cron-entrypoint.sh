@@ -54,18 +54,22 @@ fi
 
 # Start uvicorn API server
 # If we're root, switch to ingestion user for security
-echo "Starting uvicorn API server..."
+# Use multiple workers for concurrent request handling
+# Workers = (2 * CPU cores) + 1, but cap at reasonable number for memory
+# Default to 4 workers if UVICORN_WORKERS not set
+UVICORN_WORKERS=${UVICORN_WORKERS:-4}
+echo "Starting uvicorn API server with ${UVICORN_WORKERS} workers..."
 if [ "$IS_ROOT" = "true" ]; then
     # Switch to ingestion user and start uvicorn
     # Use 'su ingestion' (not 'su - ingestion') to preserve environment
     # Ensure PYTHONPATH is set for the ingestion user
-    su ingestion -c "export PYTHONPATH=${PYTHONPATH:-/app} && cd /app && uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000" &
+    su ingestion -c "export PYTHONPATH=${PYTHONPATH:-/app} && cd /app && uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS}" &
     uvicorn_pid=$!
 else
     # Already running as ingestion user
     cd /app
     export PYTHONPATH=${PYTHONPATH:-/app}
-    uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 &
+    uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS} &
     uvicorn_pid=$!
 fi
 

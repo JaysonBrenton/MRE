@@ -20,13 +20,12 @@ export default function Footer() {
     <footer className="border-t border-[var(--token-border-muted)] bg-[var(--token-surface)] py-6">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-center gap-2 text-center sm:flex-row sm:justify-between">
-          <p className="text-xs text-[var(--token-text-muted)]">
+          <p className="text-sm text-[var(--token-text-muted)]">
             © 2025 My Race Engineer
           </p>
-          <p className="text-xs text-[var(--token-text-muted)]">v0.1.0</p>
+          <p className="text-sm text-[var(--token-text-muted)]">Alpha build · v0.1.0</p>
         </div>
       </div>
     </footer>
   )
 }
-

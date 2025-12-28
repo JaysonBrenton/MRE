@@ -7,18 +7,19 @@
  * 
  * @description Dashboard/Overview page for My Race Engineer
  * 
- * @purpose Displays the main overview page with Get Started cards and Telemetry Preview.
+ * @purpose Displays the main overview page with event overview and recent events.
  *          This page is protected and requires authentication.
  * 
  * @relatedFiles
- * - app/components/AppShell.tsx (application shell wrapper)
+ * - src/components/AuthenticatedNav.tsx (navigation)
+ * - src/components/dashboard/DashboardClient.tsx (dashboard content)
  * - src/lib/auth.ts (authentication check)
  */
 
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import Link from "next/link"
-import AppShell from "../components/AppShell"
+import AuthenticatedNav from "@/components/AuthenticatedNav"
+import Footer from "@/components/Footer"
 import DashboardClient from "@/components/dashboard/DashboardClient"
 
 export default async function Dashboard() {
@@ -27,83 +28,28 @@ export default async function Dashboard() {
   if (!session) {
     redirect("/login")
   }
+
   return (
-    <AppShell session={session}>
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Page Header */}
-        <div className="mb-12">
-          <h1 className="text-3xl font-semibold text-[var(--token-text-primary)] sm:text-4xl lg:text-5xl">
-            My Race Engineer
-          </h1>
-          <p className="mt-4 text-lg text-[var(--token-text-muted)] sm:text-xl">
-            Telemetry and race analysis for RC drivers.
-          </p>
-        </div>
-
-        {/* Get Started Section */}
-        <section className="mb-16">
-          <h2 className="mb-6 text-2xl font-semibold text-[var(--token-text-primary)]">
-            Get Started
-          </h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Import Event Card */}
-            <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)] p-6">
-              <h3 className="mb-2 text-xl font-semibold text-[var(--token-text-primary)]">
-                Import an event from LiveRC
-              </h3>
-              <p className="mb-4 text-sm text-[var(--token-text-muted)]">
-                Discover and import race events from LiveRC to analyze lap times, driver performance, and race data.
-              </p>
-              <Link
-                href="/event-search"
-                className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
-              >
-                Search events
-              </Link>
-            </div>
-
-            {/* Upload Telemetry Card */}
-            <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)] p-6">
-              <h3 className="mb-2 text-xl font-semibold text-[var(--token-text-primary)]">
-                Upload a telemetry file
-              </h3>
-              <p className="mb-4 text-sm text-[var(--token-text-muted)]">
-                Upload your telemetry data files to analyze performance metrics, lap times, and racing data.
-              </p>
-              <button
-                disabled
-                className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-muted)] opacity-50 cursor-not-allowed"
-              >
-                Coming soon
-              </button>
-            </div>
-
-            {/* Setup Notebook Card */}
-            <div className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)] p-6">
-              <h3 className="mb-2 text-xl font-semibold text-[var(--token-text-primary)]">
-                Create a setup notebook
-              </h3>
-              <p className="mb-4 text-sm text-[var(--token-text-muted)]">
-                Document your car setups, track conditions, and racing notes to improve your performance over time.
-              </p>
-              <button
-                disabled
-                className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-muted)] opacity-50 cursor-not-allowed"
-              >
-                Coming soon
-              </button>
-            </div>
+    <div className="flex min-h-screen w-full flex-col bg-[var(--token-surface)]">
+      <AuthenticatedNav />
+      <main
+        id="main-content"
+        className="page-container flex-1 w-full min-w-0 px-4 py-8 sm:px-6 sm:py-12"
+        tabIndex={-1}
+      >
+        <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl">
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
+              Overview of your selected event and recent events
+            </p>
           </div>
-        </section>
-
-        {/* Telemetry Preview Section */}
-        <section>
-          <h2 className="mb-6 text-2xl font-semibold text-[var(--token-text-primary)]">
-            Telemetry Preview
-          </h2>
           <DashboardClient />
         </section>
-      </div>
-    </AppShell>
+      </main>
+      <Footer />
+    </div>
   )
 }

@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-28
 description: Authoritative architecture guidelines for mobile-safe, API-first application structure
 purpose: Defines the complete architectural framework for the My Race Engineer (MRE) application.
          Ensures the system is fully mobile-safe, API-first, future-native for iOS/Android clients,
@@ -25,14 +25,14 @@ relatedFiles:
 
 # Mobile-Safe Architecture Guidelines for My Race Engineer (MRE)
 
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Status:** Authoritative Architecture Standard
 **Scope:** Governs all backend, API, client, UI, and LLM-generated code
 **Applicability:** ALL contributors, including Cursor, Copilot, and ChatGPT Coding Mode
 
 This document defines the complete architectural framework for the **My Race Engineer (MRE)** application. It ensures the system is fully mobile-safe, API-first, future-native for iOS/Android clients, and compliant with enterprise-grade structure and maintainability requirements.
 
-These rules are **binding**, not advisory. Version 0.1.0 implementation must follow these guidelines exactly.
+These rules are **binding**, not advisory. Version 0.1.1 implementation must follow these guidelines exactly.
 
 ---
 
@@ -92,14 +92,16 @@ src/core/users/get-user.ts
 
 ## **Rule 3 — Avoid Browser-Specific Dependencies**
 
-Core logic must not depend on:
+**Core business logic** must not depend on:
 
-* DOM APIs (`document`, `window`, `localStorage`, etc.)
+* DOM APIs (`document`, `window`, etc.)
 * Browser events
-* URLSearchParams in UI
-* FormData inside React components
+* URLSearchParams in business logic
+* FormData inside business logic functions
 
-All essential logic must function:
+**Exception:** UI-only features like theme preferences may use browser APIs such as `localStorage` for client-side state management, as long as they do not affect business logic or data persistence.
+
+All essential business logic must function:
 
 * in Node
 * in serverless runtimes
@@ -109,6 +111,7 @@ All essential logic must function:
 
 * Guarantees the business logic works for mobile apps
 * Prevents hidden UI-only assumptions
+* Allows UI enhancements while maintaining mobile compatibility
 
 ---
 
@@ -122,12 +125,13 @@ All UI must be:
 * free of hover-only interactions
 * adaptive to small screens by default
 
-Tables must degrade into:
+Tables in version 0.1.1 may use:
 
-* lists, or
-* cards
+* Horizontal scroll on mobile (preferred for data tables)
+* Degradation to lists or cards (alternative approach)
+* Responsive column visibility (hide less important columns on small screens)
 
-Complex multicolumn layouts are prohibited in version 0.1.0.
+Complex multicolumn layouts are allowed in version 0.1.1, but must follow mobile-first principles with appropriate degradation strategies for small screens.
 
 **Why this matters:**
 
@@ -144,7 +148,7 @@ Authentication system must:
 * be architecturally ready for token-based mobile login
 * expose token-based session endpoints (even if stubbed)
 
-In version 0.1.0, UI may use cookies only—but backend must be structured for mobile.
+In version 0.1.1, UI may use cookies only—but backend must be structured for mobile.
 
 **Why this matters:**
 
@@ -258,10 +262,10 @@ API routes must:
 ## 4.1 Required Behaviours
 
 * Sessions must be created only inside `src/core/auth/session.ts`
-* Cookies used for version 0.1.0 UI
+* Cookies used for version 0.1.1 UI
 * Token model scaffolded for future mobile use
 
-## 4.2 Forbidden in Version 0.1.0
+## 4.2 Forbidden in Version 0.1.1
 
 * OAuth providers
 * External identity management
@@ -269,7 +273,7 @@ API routes must:
 * Magic links
 * Social login
 
-All authentication must remain minimalistic for version 0.1.0.
+All authentication must remain minimalistic for version 0.1.1.
 
 ---
 
@@ -285,7 +289,7 @@ src/core/<domain>/repo.ts
 
 ## 5.2 Entities
 
-Version 0.1.0 entities include:
+Version 0.1.1 entities include:
 
 * **User**
 
@@ -297,7 +301,7 @@ Version 0.1.0 entities include:
   * isAdmin
   * timestamps
 
-* **LiveRC Ingestion Entities** (in scope for version 0.1.0)
+* **LiveRC Ingestion Entities** (in scope for version 0.1.1)
 
   * Track (track catalogue)
   * Event (race events)
@@ -306,7 +310,7 @@ Version 0.1.0 entities include:
   * RaceResult (race results per driver)
   * Lap (lap-by-lap data)
 
-  These entities support the LiveRC ingestion subsystem, which is a version 0.1.0 feature. See `docs/architecture/liverc-ingestion/` for complete architecture specification.
+  These entities support the LiveRC ingestion subsystem, which is a version 0.1.1 feature. See `docs/architecture/liverc-ingestion/` for complete architecture specification.
 
 ## 5.3 Forbidden
 
@@ -321,28 +325,51 @@ Version 0.1.0 entities include:
 UI must:
 
 * use semantic tokens for colors
-* use dark mode only
+* use dark mode only (light theme optional)
 * avoid hover interactions
 * support small screens
 * follow tap target guidelines
 * load fast
 * avoid complex state machines
 
+**Version 0.1.1 Additions (All Required):**
+
+* Table components with horizontal scroll support on mobile (fully in-scope, used in admin console, event lists, driver management, race results)
+* Dashboard systems with customizable widgets (user, driver, team, track dashboards with drag-and-drop, resize, rearrange)
+* Telemetry visualizations (all visualization types: lap time charts, speed graphs, GPS tracks, sensor data, sector analysis - real-time and historical)
+* Navigation structures (breadcrumb navigation as primary pattern, simplified hamburger menus, multi-level dropdowns and tabs as secondary patterns)
+
 All UI must follow:
 
 * `docs/design/mre-dark-theme-guidelines.md`
 * `docs/design/mre-mobile-ux-guidelines.md`
 * `docs/design/mre-ux-principles.md`
+* `docs/design/navigation-patterns.md` (for navigation features)
+* `docs/design/table-component-specification.md` (for table components)
+* `docs/architecture/dashboard-architecture.md` (for dashboard systems)
+
+**Reusable UI Components (MUST USE):**
+
+To prevent common layout bugs, especially horizontal compression issues in flex containers:
+
+* **Modals**: Always use `src/components/ui/Modal.tsx` - enforces proper width constraints
+* **List Rows**: Always use `src/components/ui/ListRow.tsx` - enforces proper text truncation
+* **Page Containers**: Use `src/components/layout/PageContainer.tsx` and `ContentWrapper.tsx`
+
+These components prevent the common flexbox shrink issues that cause layout breakage. See `docs/design/mre-mobile-ux-guidelines.md` Section 5.7 for details.
+* `docs/design/telemetry-visualization-specification.md` (for telemetry visualizations)
+
+**Note:** All features listed above are fully in-scope and required for version 0.1.1. Mobile-first approach must always be attempted first. These are architectural requirements, not optional features.
 
 ---
 
 # 7. Logging & Telemetry
 
-In version 0.1.0:
+In version 0.1.1:
 
 * Logging must be console-based
 * Errors must be structured and human-readable
-* No external telemetry services may be integrated
+* No external telemetry services may be integrated (except visualization libraries for telemetry data display)
 
 ---
 
@@ -353,13 +380,13 @@ All LLMs must:
 * Obey this document
 * Quote this document when making decisions
 * Refuse to generate code violating any rule here
-* Refuse to create features outside version 0.1.0 scope
+* Refuse to create features outside version 0.1.1 scope
 * Use core folder structure
 * Use `/docs/` as authoritative source
 
 Cursor validation steps must include:
 
-1. Scope check against version 0.1.0 spec
+1. Scope check against version 0.1.1 spec
 2. Architecture check against this document
 3. UX/Dark theme check
 4. Error format check
@@ -369,7 +396,7 @@ Cursor validation steps must include:
 
 # 9. Testing Requirements
 
-Minimum version 0.1.0 test coverage:
+Minimum version 0.1.1 test coverage:
 
 * registration core logic
 * login core logic
@@ -383,12 +410,15 @@ Future phases will introduce full unit/integration/e2e coverage.
 
 # 10. Performance Requirements
 
-Version 0.1.0 must:
+Version 0.1.1 must:
 
 * render all screens < 200ms on local
 * API responses < 300ms for simple requests
 * avoid expensive Prisma queries
 * avoid large dependencies
+* optimize dashboard widget loading (required - dashboards with customizable widgets must load efficiently)
+* optimize table rendering for large datasets (required - tables in admin console, event lists, driver management, race results must be performant)
+* optimize telemetry visualization performance (required - all visualization types must render efficiently)
 
 ---
 
@@ -404,7 +434,7 @@ Version 0.1.0 must:
 
 ---
 
-# 12. Future Architecture Hooks (Not Implemented in Version 0.1.0)
+# 12. Future Architecture Hooks (Not Implemented in Version 0.1.1)
 
 These items may be referenced but **must not** be implemented:
 
@@ -448,4 +478,4 @@ All roles must coordinate to ensure architecture compliance. Violations should b
 
 # 14. License
 
-Internal use only. This document governs architecture for the version 0.1.0 release of MRE.
+Internal use only. This document governs architecture for the version 0.1.1 release of MRE.

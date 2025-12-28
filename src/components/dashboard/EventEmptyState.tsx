@@ -21,12 +21,12 @@ import Link from "next/link"
 
 export default function EventEmptyState() {
   return (
-    <div className="flex h-64 flex-col items-center justify-center">
-      <div className="text-center space-y-4">
+    <div className="flex h-64 w-full min-w-0 flex-col justify-center" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+      <div className="text-center space-y-4 w-full min-w-0 max-w-md mx-auto px-4" style={{ width: '100%', minWidth: 0, maxWidth: '448px', marginLeft: 'auto', marginRight: 'auto', boxSizing: 'border-box' }}>
         <p className="text-sm text-[var(--token-text-muted)]">
           No event selected
         </p>
-        <p className="text-sm text-[var(--token-text-secondary)] max-w-md">
+        <p className="text-sm text-[var(--token-text-secondary)]">
           Select an event from the event search to view telemetry visualization and analysis.
         </p>
         <Link

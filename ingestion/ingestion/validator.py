@@ -227,14 +227,16 @@ class Validator:
         Raises:
             ValidationError: If validation fails
         """
-        # Must have at least one result
+        # Allow empty results - some races may not have been run yet or have no valid data
+        # Log a warning but don't fail validation (race will be skipped during processing)
         if not results or len(results) == 0:
-            raise ValidationError(
-                "Race must have at least one result",
-                field="results",
+            logger.warning(
+                "race_has_no_results",
                 event_id=event_id,
                 race_id=race_id,
+                message="Race has no valid results (may not have been run yet or has empty data)",
             )
+            return
         
         # Check for unique source_driver_id
         driver_ids: Set[str] = set()

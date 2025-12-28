@@ -16,6 +16,21 @@ import { GET } from "@/app/api/v1/tracks/route"
 import { getTracks } from "@/core/tracks/get-tracks"
 import { NextRequest } from "next/server"
 
+vi.mock("@/lib/auth", () => ({
+  auth: vi.fn(async () => ({ user: { id: "user-123" } })),
+}))
+
+vi.mock("@/lib/request-context", () => ({
+  createRequestLogger: () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  }),
+  generateRequestId: () => "test-request-id",
+  getClientIp: () => "test",
+  getRequestContext: () => ({}),
+}))
+
 // Mock the core function
 vi.mock("@/core/tracks/get-tracks")
 
@@ -42,6 +57,12 @@ describe("GET /api/v1/tracks", () => {
           updatedAt: new Date(),
         },
       ]
+      const serializedTracks = mockTracks.map((track) => ({
+        ...track,
+        createdAt: track.createdAt.toISOString(),
+        updatedAt: track.updatedAt.toISOString(),
+        lastSeenAt: track.lastSeenAt.toISOString(),
+      }))
 
       vi.mocked(getTracks).mockResolvedValue(mockTracks)
 
@@ -53,11 +74,11 @@ describe("GET /api/v1/tracks", () => {
       expect(body).toHaveProperty("success", true)
       expect(body).toHaveProperty("data")
       expect(body.data).toHaveProperty("tracks")
-      expect(body.data.tracks).toEqual(mockTracks)
+      expect(body.data.tracks).toEqual(serializedTracks)
     })
 
     it("should handle query parameters correctly", async () => {
-      const mockTracks: any[] = []
+      const mockTracks: Awaited<ReturnType<typeof getTracks>> = []
 
       vi.mocked(getTracks).mockResolvedValue(mockTracks)
 
@@ -76,7 +97,7 @@ describe("GET /api/v1/tracks", () => {
     })
 
     it("should default query parameters to true when not specified", async () => {
-      const mockTracks: any[] = []
+      const mockTracks: Awaited<ReturnType<typeof getTracks>> = []
 
       vi.mocked(getTracks).mockResolvedValue(mockTracks)
 
@@ -90,7 +111,7 @@ describe("GET /api/v1/tracks", () => {
     })
 
     it("should handle false query parameters", async () => {
-      const mockTracks: any[] = []
+      const mockTracks: Awaited<ReturnType<typeof getTracks>> = []
 
       vi.mocked(getTracks).mockResolvedValue(mockTracks)
 
@@ -118,7 +139,7 @@ describe("GET /api/v1/tracks", () => {
       expect(body).toHaveProperty("success", false)
       expect(body).toHaveProperty("error")
       expect(body.error).toHaveProperty("code", "INTERNAL_ERROR")
-      expect(body.error).toHaveProperty("message", "Failed to fetch tracks")
+      expect(body.error).toHaveProperty("message", "Database error")
     })
   })
 })

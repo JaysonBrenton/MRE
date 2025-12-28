@@ -19,7 +19,6 @@
 "use server"
 
 import { signIn, signOut } from "@/lib/auth"
-import { redirect } from "next/navigation"
 import { AuthError } from "next-auth"
 import { logger } from "@/lib/logger"
 

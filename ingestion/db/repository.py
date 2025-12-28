@@ -17,6 +17,8 @@ from uuid import UUID
 from sqlalchemy import select, and_, func, text, tuple_
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
+import psycopg2.errors
 
 from ingestion.common.logging import get_logger
 from ingestion.common import metrics
@@ -30,8 +32,14 @@ from ingestion.db.models import (
     RaceResult,
     Lap,
     IngestDepth,
+    User,
+    UserDriverLink,
+    EventDriverLink,
+    UserDriverLinkStatus,
+    EventDriverLinkMatchType,
 )
-from ingestion.ingestion.errors import PersistenceError
+from ingestion.ingestion.errors import PersistenceError, ConstraintViolationError
+from ingestion.ingestion.normalizer import Normalizer, MATCHER_ID, MATCHER_VERSION
 
 logger = get_logger(__name__)
 
@@ -290,6 +298,10 @@ class Repository:
         Returns:
             Driver model instance
         """
+        # Compute normalized name for fuzzy matching
+        normalized_name = Normalizer.normalize_driver_name(display_name)
+        
+        # Check if driver exists - use WITH (NOWAIT) to avoid blocking
         stmt = select(Driver).where(
             and_(
                 Driver.source == source,
@@ -299,7 +311,7 @@ class Repository:
         driver = self.session.scalar(stmt)
         
         if driver:
-            # Update existing (update display_name if it changed)
+            # Update existing (update display_name and normalized_name if it changed)
             # Update transponder_number if provided and not already set, or if new value provided
             if transponder_number is not None:
                 if driver.transponder_number is None or driver.transponder_number != transponder_number:
@@ -307,26 +319,97 @@ class Repository:
                     logger.debug("driver_transponder_updated", driver_id=str(driver.id), transponder=transponder_number)
             if driver.display_name != display_name:
                 driver.display_name = display_name
+                driver.normalized_name = normalized_name
                 driver.updated_at = datetime.utcnow()
                 logger.debug("driver_updated", driver_id=str(driver.id), source_driver_id=source_driver_id, display_name=display_name)
                 metrics.record_db_update("drivers")
+            elif driver.normalized_name != normalized_name or driver.normalized_name is None:
+                # Update normalized_name even if display_name hasn't changed (normalization logic may have changed)
+                # Also update if normalized_name is None (backfill for existing drivers)
+                driver.normalized_name = normalized_name
+                driver.updated_at = datetime.utcnow()
+                if driver.normalized_name is None:
+                    logger.debug("driver_normalized_name_backfilled", driver_id=str(driver.id), normalized_name=normalized_name)
+                metrics.record_db_update("drivers")
         else:
-            # Insert new
-            now = datetime.utcnow()
-            driver = Driver(
-                source=source,
-                source_driver_id=source_driver_id,
-                display_name=display_name,
-                transponder_number=transponder_number,
-            )
-            # Set timestamps explicitly for new records
-            driver.created_at = now
-            driver.updated_at = now
-            self.session.add(driver)
-            # Flush to ensure driver.id is populated before it's used
-            self.session.flush()
-            logger.debug("driver_created", source_driver_id=source_driver_id, display_name=display_name)
-            metrics.record_db_insert("drivers")
+            # Insert new - handle race condition by catching IntegrityError
+            # Use a savepoint to allow partial rollback without affecting the entire transaction
+            from sqlalchemy import event
+            savepoint = None
+            try:
+                # Create a savepoint before attempting insert
+                savepoint = self.session.begin_nested()
+                
+                now = datetime.utcnow()
+                driver = Driver(
+                    source=source,
+                    source_driver_id=source_driver_id,
+                    display_name=display_name,
+                    normalized_name=normalized_name,
+                    transponder_number=transponder_number,
+                )
+                # Set timestamps explicitly for new records
+                driver.created_at = now
+                driver.updated_at = now
+                self.session.add(driver)
+                
+                # Flush to ensure driver.id is populated before it's used
+                self.session.flush()
+                savepoint.commit()  # Commit the savepoint
+                logger.debug("driver_created", source_driver_id=source_driver_id, display_name=display_name)
+                metrics.record_db_insert("drivers")
+            except IntegrityError as e:
+                # Race condition: another part of the transaction inserted the same driver
+                # Check if this is actually a unique violation for drivers
+                error_str = str(e)
+                is_driver_unique_violation = (
+                    'drivers_source_source_driver_id_key' in error_str or 
+                    ('duplicate key value violates unique constraint' in error_str and 'drivers' in error_str.lower())
+                )
+                
+                if not is_driver_unique_violation:
+                    # Not the error we're handling, rollback savepoint and re-raise
+                    if savepoint:
+                        savepoint.rollback()
+                    raise
+                
+                # Rollback only the savepoint (not the entire transaction)
+                if savepoint:
+                    savepoint.rollback()
+                
+                logger.debug(
+                    "driver_insert_race_condition",
+                    source_driver_id=source_driver_id,
+                    display_name=display_name,
+                )
+                
+                # Query for the driver that was inserted by another part of the transaction
+                # Since we're in the same transaction, we should be able to see it
+                self.session.expire_all()
+                driver = self.session.scalar(stmt)
+                
+                # If driver still not found, it means it was inserted in a different transaction
+                # This shouldn't happen with sequential processing, but handle it gracefully
+                if not driver:
+                    logger.warning(
+                        "driver_not_found_after_race_condition",
+                        source_driver_id=source_driver_id,
+                        display_name=display_name,
+                        message="Driver not found after IntegrityError - may need retry"
+                    )
+                    # Raise retryable exception
+                    error_msg = f"Driver {source_driver_id} race condition - driver not visible after savepoint rollback. Operation should be retried."
+                    raise ConstraintViolationError(error_msg, constraint="drivers_source_source_driver_id_key")
+                
+                # Driver found - update with any new information
+                if transponder_number is not None and (driver.transponder_number is None or driver.transponder_number != transponder_number):
+                    driver.transponder_number = transponder_number
+                    driver.updated_at = datetime.utcnow()
+                    logger.debug("driver_transponder_updated", driver_id=str(driver.id), transponder=transponder_number)
+                if driver.normalized_name != normalized_name or driver.normalized_name is None:
+                    driver.normalized_name = normalized_name
+                    driver.updated_at = datetime.utcnow()
+                    metrics.record_db_update("drivers")
 
         return driver
     
@@ -454,6 +537,27 @@ class Repository:
             metrics.record_db_insert("event_entries")
         
         return event_entry
+    
+    def get_event_entries_by_event(
+        self,
+        event_id: UUID,
+    ) -> List[EventEntry]:
+        """
+        Get all event entries for an event (all classes).
+        
+        Args:
+            event_id: Event ID
+        
+        Returns:
+            List of EventEntry instances with driver relationship loaded
+        """
+        from sqlalchemy.orm import joinedload
+        stmt = select(EventEntry).options(
+            joinedload(EventEntry.driver)
+        ).where(
+            EventEntry.event_id == _uuid_to_str(event_id)
+        )
+        return list(self.session.scalars(stmt).unique().all())
     
     def get_event_entries_by_class(
         self,
@@ -906,3 +1010,166 @@ class Repository:
         self.session.execute(
             text("SELECT pg_advisory_unlock(:lock_id)").bindparams(lock_id=lock_id)
         )
+    
+    def get_all_users(self) -> List[User]:
+        """
+        Get all users (for user-driver matching).
+        
+        Returns:
+            List of User model instances
+        """
+        stmt = select(User)
+        return list(self.session.scalars(stmt).all())
+    
+    def get_existing_user_driver_links(self) -> Dict[str, UserDriverLink]:
+        """
+        Get all existing UserDriverLink records, indexed by driver_id.
+        
+        Returns:
+            Dict mapping driver_id to UserDriverLink
+        """
+        stmt = select(UserDriverLink)
+        links = self.session.scalars(stmt).all()
+        return {link.driver_id: link for link in links}
+    
+    def upsert_user_driver_link(
+        self,
+        user_id: str,
+        driver_id: str,
+        status: UserDriverLinkStatus,
+        similarity_score: float,
+        match_type: str,
+        matched_at: datetime,
+        confirmed_at: Optional[datetime] = None,
+        rejected_at: Optional[datetime] = None,
+        conflict_reason: Optional[str] = None,
+    ) -> UserDriverLink:
+        """
+        Upsert UserDriverLink record.
+        
+        Args:
+            user_id: User ID
+            driver_id: Driver ID
+            status: Link status
+            similarity_score: Similarity score (0.0-1.0)
+            match_type: Match type ('transponder', 'exact', 'fuzzy')
+            matched_at: When match was found
+            confirmed_at: When confirmed (nullable)
+            rejected_at: When rejected (nullable)
+            conflict_reason: Reason for conflict/rejection (nullable)
+            
+        Returns:
+            UserDriverLink model instance
+        """
+        stmt = select(UserDriverLink).where(
+            and_(
+                UserDriverLink.user_id == user_id,
+                UserDriverLink.driver_id == driver_id,
+            )
+        )
+        link = self.session.scalar(stmt)
+        
+        if link:
+            # Update existing
+            link.status = status
+            link.similarity_score = similarity_score
+            if confirmed_at:
+                link.confirmed_at = confirmed_at
+            if rejected_at:
+                link.rejected_at = rejected_at
+            if conflict_reason:
+                link.conflict_reason = conflict_reason
+            link.updated_at = datetime.utcnow()
+            logger.debug("user_driver_link_updated", user_id=user_id, driver_id=driver_id, status=status.value)
+            metrics.record_db_update("user_driver_links")
+        else:
+            # Insert new
+            now = datetime.utcnow()
+            link = UserDriverLink(
+                user_id=user_id,
+                driver_id=driver_id,
+                status=status,
+                similarity_score=similarity_score,
+                matched_at=matched_at,
+                confirmed_at=confirmed_at,
+                rejected_at=rejected_at,
+                matcher_id=MATCHER_ID,
+                matcher_version=MATCHER_VERSION,
+                conflict_reason=conflict_reason,
+            )
+            link.created_at = now
+            link.updated_at = now
+            self.session.add(link)
+            self.session.flush()
+            logger.debug("user_driver_link_created", user_id=user_id, driver_id=driver_id, status=status.value)
+            metrics.record_db_insert("user_driver_links")
+        
+        return link
+    
+    def upsert_event_driver_link(
+        self,
+        user_id: str,
+        event_id: str,
+        driver_id: str,
+        match_type: EventDriverLinkMatchType,
+        similarity_score: float,
+        transponder_number: Optional[str],
+        matched_at: datetime,
+        user_driver_link_id: Optional[str] = None,
+    ) -> EventDriverLink:
+        """
+        Upsert EventDriverLink record.
+        
+        Args:
+            user_id: User ID
+            event_id: Event ID
+            driver_id: Driver ID
+            match_type: Match type
+            similarity_score: Similarity score (0.0-1.0)
+            transponder_number: Transponder number used for match (nullable)
+            matched_at: When match was found
+            user_driver_link_id: Associated UserDriverLink ID (nullable)
+            
+        Returns:
+            EventDriverLink model instance
+        """
+        stmt = select(EventDriverLink).where(
+            and_(
+                EventDriverLink.user_id == user_id,
+                EventDriverLink.event_id == event_id,
+                EventDriverLink.driver_id == driver_id,
+            )
+        )
+        link = self.session.scalar(stmt)
+        
+        if link:
+            # Update existing
+            link.match_type = match_type
+            link.similarity_score = similarity_score
+            link.transponder_number = transponder_number
+            if user_driver_link_id:
+                link.user_driver_link_id = user_driver_link_id
+            link.updated_at = datetime.utcnow()
+            logger.debug("event_driver_link_updated", user_id=user_id, event_id=event_id, driver_id=driver_id)
+            metrics.record_db_update("event_driver_links")
+        else:
+            # Insert new
+            now = datetime.utcnow()
+            link = EventDriverLink(
+                user_id=user_id,
+                event_id=event_id,
+                driver_id=driver_id,
+                match_type=match_type,
+                similarity_score=similarity_score,
+                transponder_number=transponder_number,
+                matched_at=matched_at,
+                user_driver_link_id=user_driver_link_id,
+            )
+            link.created_at = now
+            link.updated_at = now
+            self.session.add(link)
+            self.session.flush()
+            logger.debug("event_driver_link_created", user_id=user_id, event_id=event_id, driver_id=driver_id)
+            metrics.record_db_insert("event_driver_links")
+        
+        return link

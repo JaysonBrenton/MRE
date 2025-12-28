@@ -18,7 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
-import type { Driver, EventEntry, TransponderOverride, Event, Race } from "@prisma/client"
+import type { Driver, TransponderOverride, Race } from "@prisma/client"
 
 export interface DriverWithEventEntries {
   id: string
@@ -221,18 +221,6 @@ export async function getTransponderForRace(
     },
   })
 
-  // Get all races in the event to compare race orders
-  const allRaces = await prisma.race.findMany({
-    where: { eventId },
-    select: {
-      id: true,
-      raceOrder: true,
-    },
-    orderBy: {
-      raceOrder: "asc",
-    },
-  })
-
   // Get all overrides for this driver/event (we'll filter by race order in code)
   const overrides = await prisma.transponderOverride.findMany({
     where: {
@@ -304,3 +292,144 @@ export async function getTransponderForRace(
   }
 }
 
+/**
+ * Batch load transponder numbers for multiple drivers in a race
+ * 
+ * This function efficiently loads all transponder data in a few queries
+ * instead of making per-driver queries. It returns a map keyed by driverId.
+ * 
+ * Priority:
+ * 1. TransponderOverride (if exists and applies to race)
+ * 2. EventEntry.transponderNumber (original from entry list)
+ * 3. Driver.transponderNumber (fallback default)
+ * 
+ * @param driverIds - Array of driver IDs to look up
+ * @param eventId - Event ID
+ * @param raceId - Race ID to check override applicability
+ * @param raceOrder - Race order number (for override filtering)
+ * @param className - Class name to match EventEntry
+ * @returns Map of driverId -> {transponderNumber, source}
+ */
+export async function getTranspondersForRaceBatch(
+  driverIds: string[],
+  eventId: string,
+  raceId: string,
+  raceOrder: number | null,
+  className: string
+): Promise<Map<string, { transponderNumber: string | null; source: "entry_list" | "override" | "driver" | null }>> {
+  const resultMap = new Map<string, { transponderNumber: string | null; source: "entry_list" | "override" | "driver" | null }>()
+
+  if (driverIds.length === 0) {
+    return resultMap
+  }
+
+  // Initialize all drivers with null values
+  for (const driverId of driverIds) {
+    resultMap.set(driverId, { transponderNumber: null, source: null })
+  }
+
+  // Batch load EventEntry records for all drivers
+  const eventEntries = await prisma.eventEntry.findMany({
+    where: {
+      driverId: { in: driverIds },
+      eventId,
+      className,
+    },
+    select: {
+      driverId: true,
+      transponderNumber: true,
+    },
+  })
+
+  // Batch load all TransponderOverride records for these drivers/event
+  const allOverrides = await prisma.transponderOverride.findMany({
+    where: {
+      driverId: { in: driverIds },
+      eventId,
+    },
+    include: {
+      effectiveFromRace: {
+        select: {
+          id: true,
+          raceOrder: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc", // Most recent first
+    },
+  })
+
+  // Group overrides by driverId, keeping only the most recent applicable one per driver
+  const overrideMap = new Map<string, typeof allOverrides[0]>()
+  for (const override of allOverrides) {
+    const driverId = override.driverId
+    if (!overrideMap.has(driverId)) {
+      // Check if this override applies to this race
+      let applies = false
+      if (override.effectiveFromRaceId === null) {
+        // Applies to all races
+        applies = true
+      } else if (override.effectiveFromRaceId === raceId) {
+        // Exact match
+        applies = true
+      } else if (override.effectiveFromRace && raceOrder !== null) {
+        // Check if override's race order <= current race order
+        if (override.effectiveFromRace.raceOrder !== null && override.effectiveFromRace.raceOrder <= raceOrder) {
+          applies = true
+        }
+      }
+      
+      if (applies) {
+        overrideMap.set(driverId, override)
+      }
+    }
+  }
+
+  // Batch load driver fallback transponders
+  const drivers = await prisma.driver.findMany({
+    where: {
+      id: { in: driverIds },
+    },
+    select: {
+      id: true,
+      transponderNumber: true,
+    },
+  })
+
+  const driverTransponderMap = new Map<string, string | null>()
+  for (const driver of drivers) {
+    driverTransponderMap.set(driver.id, driver.transponderNumber)
+  }
+
+  // Build result map with priority: override > entry > driver
+  for (const driverId of driverIds) {
+    const override = overrideMap.get(driverId)
+    if (override) {
+      resultMap.set(driverId, {
+        transponderNumber: override.transponderNumber,
+        source: "override",
+      })
+      continue
+    }
+
+    const entry = eventEntries.find(e => e.driverId === driverId)
+    if (entry?.transponderNumber) {
+      resultMap.set(driverId, {
+        transponderNumber: entry.transponderNumber,
+        source: "entry_list",
+      })
+      continue
+    }
+
+    const driverTransponder = driverTransponderMap.get(driverId)
+    if (driverTransponder) {
+      resultMap.set(driverId, {
+        transponderNumber: driverTransponder,
+        source: "driver",
+      })
+    }
+  }
+
+  return resultMap
+}

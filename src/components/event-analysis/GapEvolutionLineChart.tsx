@@ -76,7 +76,7 @@ function formatGapTime(seconds: number): string {
 
 export default function GapEvolutionLineChart({
   data,
-  selectedDriverIds = [],
+  selectedDriverIds,
   height = 400,
   className = "",
   currentPage = 1,
@@ -96,10 +96,17 @@ export default function GapEvolutionLineChart({
   } = useTooltip<{ driverName: string; lapNumber: number; gap: number }>()
 
   // Filter data if drivers are selected
+  // undefined = show default (top 3), [] = show nothing (cleared), [ids] = show selected
   const displayData = useMemo(() => {
-    if (selectedDriverIds.length === 0) {
-      return data.slice(0, 3) // Default to top 3
+    if (selectedDriverIds === undefined) {
+      // Initial state: show top 3
+      return data.slice(0, 3)
     }
+    if (selectedDriverIds.length === 0) {
+      // Cleared state: show nothing
+      return []
+    }
+    // Filter to selected drivers only
     return data.filter((d) => selectedDriverIds.includes(d.driverId))
   }, [data, selectedDriverIds])
 
@@ -187,7 +194,7 @@ export default function GapEvolutionLineChart({
               >
                 <title id={chartTitleId}>Gap to leader over race duration</title>
                 <desc id={chartDescId}>
-                  Line chart showing how each selected driver's time gap to the leader evolves across laps.
+                  Line chart showing how each selected driver&apos;s time gap to the leader evolves across laps.
                 </desc>
                 <Group left={margin.left} top={margin.top}>
                   {/* Grid */}
@@ -210,6 +217,7 @@ export default function GapEvolutionLineChart({
                   {paginatedData.map((series, index) => {
             const color = accentColors[index % accentColors.length]
             const isSelected =
+              selectedDriverIds === undefined ||
               selectedDriverIds.length === 0 ||
               selectedDriverIds.includes(series.driverId)
 

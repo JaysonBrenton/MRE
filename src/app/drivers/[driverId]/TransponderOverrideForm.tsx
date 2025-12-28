@@ -10,8 +10,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
 export interface TransponderOverrideFormProps {
   driverId: string
@@ -20,13 +19,18 @@ export interface TransponderOverrideFormProps {
   onCancel: () => void
 }
 
+interface EventRaceResponse {
+  id: string
+  race_label: string
+  race_order: number | null
+}
+
 export default function TransponderOverrideForm({
   driverId,
   eventId,
   onSuccess,
   onCancel,
 }: TransponderOverrideFormProps) {
-  const router = useRouter()
   const [transponderNumber, setTransponderNumber] = useState("")
   const [effectiveFromRaceId, setEffectiveFromRaceId] = useState<string | null>(null)
   const [scope, setScope] = useState<"all" | "race">("all")
@@ -42,9 +46,9 @@ export default function TransponderOverrideForm({
         const response = await fetch(`/api/v1/events/${eventId}`)
         if (response.ok) {
           const data = await response.json()
-          if (data.success && data.data.races) {
+          if (data.success && Array.isArray(data.data.races)) {
             setRaces(
-              data.data.races.map((race: any) => ({
+              (data.data.races as EventRaceResponse[]).map((race) => ({
                 id: race.id,
                 label: `${race.race_label} (Race ${race.race_order || "?"})`,
                 order: race.race_order,
@@ -52,8 +56,8 @@ export default function TransponderOverrideForm({
             )
           }
         }
-      } catch (err) {
-        console.error("Failed to fetch races:", err)
+      } catch {
+        setError("Unable to load race list. Please try again.")
       }
     }
 
@@ -104,11 +108,18 @@ export default function TransponderOverrideForm({
 
       // Success
       onSuccess()
-    } catch (err) {
+    } catch {
       setError("An error occurred while creating the override")
       setLoading(false)
     }
   }
+
+  const scopeOptionClass = (currentScope: "all" | "race") =>
+    `flex items-center gap-3 rounded-md border ${
+      scope === currentScope
+        ? "border-[var(--token-accent)]"
+        : "border-[var(--token-border-default)]"
+    } bg-[var(--token-surface-elevated)] px-3 py-3 min-h-[44px] transition-colors focus-within:ring-2 focus-within:ring-[var(--token-interactive-focus-ring)]`
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 p-4 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface)]">
@@ -117,7 +128,7 @@ export default function TransponderOverrideForm({
       </h3>
 
       {error && (
-        <div className="p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-md text-sm text-red-800 dark:text-red-200">
+        <div className="p-3 rounded-md border border-[var(--token-error-text)] bg-[var(--token-error-background)] text-sm text-[var(--token-error-text)]">
           {error}
         </div>
       )}
@@ -141,7 +152,7 @@ export default function TransponderOverrideForm({
           required
         />
         {validationError && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationError}</p>
+          <p className="mt-1 text-sm text-[var(--token-error-text)]">{validationError}</p>
         )}
       </div>
 
@@ -150,7 +161,7 @@ export default function TransponderOverrideForm({
           Scope *
         </label>
         <div className="space-y-2">
-          <label className="flex items-center">
+          <label className={scopeOptionClass("all")}>
             <input
               type="radio"
               name="scope"
@@ -160,20 +171,20 @@ export default function TransponderOverrideForm({
                 setScope("all")
                 setEffectiveFromRaceId(null)
               }}
-              className="mr-2"
+              className="h-4 w-4 text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
             />
             <span className="text-sm text-[var(--token-text-primary)]">
               All remaining races (from first race onwards)
             </span>
           </label>
-          <label className="flex items-center">
+          <label className={scopeOptionClass("race")}>
             <input
               type="radio"
               name="scope"
               value="race"
               checked={scope === "race"}
               onChange={() => setScope("race")}
-              className="mr-2"
+              className="h-4 w-4 text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
             />
             <span className="text-sm text-[var(--token-text-primary)]">
               From specific race onwards
@@ -209,14 +220,14 @@ export default function TransponderOverrideForm({
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-[var(--token-accent)] text-white rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] transition-opacity disabled:opacity-50"
+          className="mobile-button inline-flex flex-1 items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? "Creating..." : "Create Override"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
+          className="mobile-button inline-flex flex-1 items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
         >
           Cancel
         </button>
@@ -224,4 +235,3 @@ export default function TransponderOverrideForm({
     </form>
   )
 }
-

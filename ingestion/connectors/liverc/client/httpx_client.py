@@ -18,6 +18,7 @@ import httpx
 
 from ingestion.common.logging import get_logger
 from ingestion.ingestion.errors import ConnectorHTTPError
+from ingestion.common.site_policy import SitePolicy
 
 logger = get_logger(__name__)
 
@@ -47,9 +48,10 @@ class HTTPXClient:
     - Never retry 4xx errors except 429
     """
     
-    def __init__(self):
+    def __init__(self, site_policy: Optional[SitePolicy] = None):
         """Initialize HTTPX client with proper configuration."""
         self._client: Optional[httpx.AsyncClient] = None
+        self._site_policy = site_policy or SitePolicy.shared()
     
     async def __aenter__(self):
         """Async context manager entry."""
@@ -126,16 +128,39 @@ class HTTPXClient:
             try:
                 logger.debug("httpx_request", url=url, attempt=attempt + 1, max_retries=max_retries + 1)
                 
-                response = await self._client.get(url)
+                if self._site_policy:
+                    self._site_policy.ensure_enabled("liverc")
+                    self._site_policy.ensure_allowed(url)
+                conditional_headers = {}
+                if self._site_policy:
+                    conditional_headers = self._site_policy.build_conditional_headers(url)
+
+                async def _perform_request() -> httpx.Response:
+                    if not self._client:
+                        raise RuntimeError("HTTPXClient must be used as async context manager")
+                    if self._site_policy:
+                        async with self._site_policy.throttle(url):
+                            return await self._client.get(url, headers=conditional_headers or None)
+                    return await self._client.get(url, headers=conditional_headers or None)
+
+                response = await _perform_request()
+                if self._site_policy:
+                    response = self._site_policy.maybe_use_cached(url, response)
                 last_status = response.status_code
                 
                 # Check if we should retry
                 if response.is_success or not self._is_retryable(response.status_code, None):
+                    if response.is_success and self._site_policy:
+                        self._site_policy.record_success(url, response)
                     return response
                 
                 # Retryable error - log and wait
                 if attempt < max_retries:
-                    delay = base_delay * (2 ** attempt) + random.uniform(0, 0.1)  # Jitter
+                    retry_after = self._site_policy.retry_after_seconds(response) if self._site_policy else None
+                    delay = (
+                        retry_after if retry_after is not None
+                        else base_delay * (2 ** attempt) + random.uniform(0, 0.1)
+                    )
                     logger.warning(
                         "httpx_retry",
                         url=url,
@@ -194,4 +219,3 @@ class HTTPXClient:
             status_code=last_status,
             url=url,
         )
-

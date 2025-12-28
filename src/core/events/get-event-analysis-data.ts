@@ -17,7 +17,24 @@
  */
 
 import { prisma } from "@/lib/prisma"
-import type { Event, Race, RaceResult, RaceDriver, Lap } from "@prisma/client"
+
+export interface EventSummary {
+  event: {
+    id: string
+    eventName: string
+    eventDate: Date
+    trackName: string
+  }
+  summary: {
+    totalRaces: number
+    totalDrivers: number
+    totalLaps: number
+    dateRange: {
+      earliest: Date | null
+      latest: Date | null
+    }
+  }
+}
 
 export interface EventAnalysisData {
   event: {
@@ -69,6 +86,94 @@ export interface EventAnalysisData {
       earliest: Date | null
       latest: Date | null
     }
+  }
+}
+
+/**
+ * Get lightweight event summary using database aggregations
+ * 
+ * This function uses Prisma aggregations to compute summary statistics
+ * without loading the full event graph (races, results, laps).
+ * 
+ * @param eventId - Event's unique identifier
+ * @returns Event summary with aggregated statistics or null if event not found
+ */
+export async function getEventSummary(
+  eventId: string
+): Promise<EventSummary | null> {
+  // Fetch event metadata only
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: {
+      id: true,
+      eventName: true,
+      eventDate: true,
+      track: {
+        select: {
+          trackName: true,
+        },
+      },
+    },
+  })
+
+  if (!event) {
+    return null
+  }
+
+  // Get race count and date range using aggregations
+  const raceStats = await prisma.race.aggregate({
+    where: { eventId },
+    _count: {
+      id: true,
+    },
+    _min: {
+      startTime: true,
+    },
+    _max: {
+      startTime: true,
+    },
+  })
+
+  // Get distinct driver count (using raceDriver.driverId)
+  const distinctDrivers = await prisma.raceDriver.groupBy({
+    by: ["driverId"],
+    where: {
+      race: {
+        eventId,
+      },
+    },
+  })
+
+  // Get total lap count using aggregation
+  const lapStats = await prisma.lap.aggregate({
+    where: {
+      raceResult: {
+        race: {
+          eventId,
+        },
+      },
+    },
+    _count: {
+      id: true,
+    },
+  })
+
+  return {
+    event: {
+      id: event.id,
+      eventName: event.eventName,
+      eventDate: event.eventDate,
+      trackName: event.track.trackName,
+    },
+    summary: {
+      totalRaces: raceStats._count.id,
+      totalDrivers: distinctDrivers.length,
+      totalLaps: lapStats._count.id,
+      dateRange: {
+        earliest: raceStats._min.startTime,
+        latest: raceStats._max.startTime,
+      },
+    },
   }
 }
 
@@ -254,4 +359,3 @@ export async function getEventAnalysisData(
     },
   }
 }
-

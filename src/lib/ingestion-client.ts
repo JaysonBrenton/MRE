@@ -9,6 +9,8 @@
 // @purpose Provides typed HTTP client to interact with Python ingestion
 //          microservice API endpoints
 
+import { assertScrapingEnabled } from "./site-policy"
+
 const INGESTION_SERVICE_URL = process.env.INGESTION_SERVICE_URL || "http://ingestion-service:8000";
 
 export interface IngestEventRequest {
@@ -22,7 +24,7 @@ export interface IngestEventResponse {
   races_ingested: number;
   results_ingested: number;
   laps_ingested: number;
-  status: "updated" | "already_complete";
+  status: "updated" | "already_complete" | "in_progress";
 }
 
 export interface IngestionError {
@@ -89,6 +91,7 @@ export class IngestionClient {
     startDate?: string,
     endDate?: string
   ): Promise<DiscoveredEvent[]> {
+    assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/discover`;
     
     // Build request body - only include dates if provided
@@ -167,6 +170,7 @@ export class IngestionClient {
     eventId: string,
     depth: "laps_full" | "none" = "laps_full"
   ): Promise<IngestEventResponse> {
+    assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/${eventId}/ingest`;
     
     // Use AbortController for timeout (10 minutes for large events)

@@ -52,6 +52,27 @@ _CONNECTOR_ERRORS = Counter(
     registry=REGISTRY,
 )
 
+_SITE_POLICY_EVENTS = Counter(
+    "site_policy_events_total",
+    "Counts site policy decisions (cache hits, robots blocks, disabled, etc.)",
+    labelnames=("event", "host"),
+    registry=REGISTRY,
+)
+
+_EVENT_ENTRY_CACHE_HITS = Counter(
+    "event_entry_cache_hits_total",
+    "Total event entry cache lookups (hits when entry found in cache)",
+    labelnames=("event_id",),
+    registry=REGISTRY,
+)
+
+_EVENT_ENTRY_CACHE_LOOKUPS = Counter(
+    "event_entry_cache_lookups_total",
+    "Total event entry cache lookups (both hits and misses)",
+    labelnames=("event_id",),
+    registry=REGISTRY,
+)
+
 
 def record_db_insert(table: str, count: int = 1) -> None:
     """Increment the DB insert counter."""
@@ -68,6 +89,22 @@ def record_db_update(table: str, count: int = 1) -> None:
 def record_connector_error(stage: str, error_code: str) -> None:
     """Record a connector error for monitoring."""
     _CONNECTOR_ERRORS.labels(stage=stage, error_code=error_code).inc()
+
+
+def record_site_policy_event(event: str, host: str) -> None:
+    """Record a site policy decision (throttle, cache hit, block)."""
+    _SITE_POLICY_EVENTS.labels(event=event, host=host).inc()
+
+
+def record_event_entry_cache_hit(event_id: str) -> None:
+    """Record an event entry cache hit."""
+    _EVENT_ENTRY_CACHE_HITS.labels(event_id=event_id).inc()
+    _EVENT_ENTRY_CACHE_LOOKUPS.labels(event_id=event_id).inc()
+
+
+def record_event_entry_cache_lookup(event_id: str) -> None:
+    """Record an event entry cache lookup (hit or miss)."""
+    _EVENT_ENTRY_CACHE_LOOKUPS.labels(event_id=event_id).inc()
 
 
 class _DurationTracker:
@@ -138,6 +175,9 @@ __all__ = [
     "record_db_insert",
     "record_db_update",
     "record_connector_error",
+    "record_site_policy_event",
+    "record_event_entry_cache_hit",
+    "record_event_entry_cache_lookup",
     "start_race_fetch_timer",
     "start_lap_extraction_timer",
     "observe_race_fetch",

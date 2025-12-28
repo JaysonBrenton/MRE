@@ -16,7 +16,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { startTransition, useEffect, useState } from "react"
 import TabNavigation, { type TabId } from "@/components/event-analysis/TabNavigation"
 import OverviewTab from "@/components/event-analysis/OverviewTab"
 import DriversTab from "@/components/event-analysis/DriversTab"
@@ -46,7 +46,9 @@ export default function EventAnalysisClient({
       )
       const parsed = storedDrivers ? JSON.parse(storedDrivers) : []
       if (Array.isArray(parsed) && parsed.length > 0) {
-        setSelectedDriverIds(parsed)
+        startTransition(() => {
+          setSelectedDriverIds(parsed)
+        })
       }
     } catch {
       // Ignore malformed localStorage data and fall back to defaults

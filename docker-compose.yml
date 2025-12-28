@@ -71,6 +71,10 @@ services:
       PYTHONUNBUFFERED: 1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       TZ: ${TZ:-Australia/Sydney}
+      # Uvicorn workers for concurrent request handling
+      # Default: 4 workers (handles ~4 concurrent long-running ingestions)
+      # Increase for higher concurrency (each worker uses ~100-200MB memory)
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
       # Track sync report retention (days)
       TRACK_SYNC_REPORT_RETENTION_DAYS: ${TRACK_SYNC_REPORT_RETENTION_DAYS:-30}
     ports:

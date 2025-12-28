@@ -17,7 +17,8 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { FixedSizeList as List } from "react-window"
 import DriverCard from "./DriverCard"
 
 export interface Driver {
@@ -38,6 +39,36 @@ export interface DriverListProps {
 type SortField = "driverName" | "bestLapTime" | "avgLapTime" | "consistency" | "racesParticipated"
 type SortDirection = "asc" | "desc"
 
+interface SortIconProps {
+  field: SortField
+  activeField: SortField
+  direction: SortDirection
+}
+
+function SortIcon({ field, activeField, direction }: SortIconProps) {
+  if (activeField !== field) {
+    return null
+  }
+  return <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
+}
+
+// Hook to detect if screen is mobile (sm breakpoint = 640px)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(true)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640)
+    }
+    
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
+  return isMobile
+}
+
 export default function DriverList({
   drivers,
   selectedDriverIds,
@@ -45,6 +76,10 @@ export default function DriverList({
 }: DriverListProps) {
   const [sortField, setSortField] = useState<SortField>("bestLapTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const isMobile = useIsMobile()
+
+  // Stabilize drivers reference to prevent unnecessary re-sorts
+  const driversKey = useMemo(() => drivers.map(d => d.driverId).join(","), [drivers.length, drivers.map(d => d.driverId).join(",")])
 
   const sortedDrivers = useMemo(() => {
     const sorted = [...drivers].sort((a, b) => {
@@ -82,7 +117,7 @@ export default function DriverList({
     })
 
     return sorted
-  }, [drivers, sortField, sortDirection])
+  }, [driversKey, sortField, sortDirection, drivers])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -101,31 +136,97 @@ export default function DriverList({
     }
   }
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null
-    return sortDirection === "asc" ? "↑" : "↓"
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Mobile: Card layout */}
-      <div className="block sm:hidden space-y-3">
-        {sortedDrivers.map((driver) => (
+  // Mobile card row renderer for react-window
+  const CardRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const driver = sortedDrivers[index]
+    return (
+      <div style={style}>
+        <div className="px-0 pb-3">
           <DriverCard
             key={driver.driverId}
             {...driver}
             isSelected={selectedDriverIds.includes(driver.driverId)}
             onSelectionChange={handleDriverSelectionChange}
           />
-        ))}
+        </div>
       </div>
+    )
+  }
 
-      {/* Desktop: Table layout */}
-      <div className="hidden sm:block overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-[var(--token-border-default)]">
-              <th className="text-left py-3 px-4">
+  // Desktop table row renderer for react-window
+  const TableRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const driver = sortedDrivers[index]
+    const isSelected = selectedDriverIds.includes(driver.driverId)
+    return (
+      <div
+        style={style}
+        className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)] transition-colors items-center"
+      >
+        <div className="py-3 px-4">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) =>
+              handleDriverSelectionChange(
+                driver.driverId,
+                e.target.checked
+              )
+            }
+            className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          />
+        </div>
+        <div className="py-3 px-4 text-[var(--token-text-primary)] font-medium">
+          {driver.driverName}
+        </div>
+        <div className="py-3 px-4 text-[var(--token-text-secondary)]">
+          {driver.racesParticipated}
+        </div>
+        <div className="py-3 px-4 text-[var(--token-text-secondary)]">
+          {driver.bestLapTime
+            ? `${Math.floor(driver.bestLapTime / 60)}:${(
+                (driver.bestLapTime % 60).toFixed(3).padStart(6, "0")
+              )}`
+            : "N/A"}
+        </div>
+        <div className="py-3 px-4 text-[var(--token-text-secondary)]">
+          {driver.avgLapTime
+            ? `${Math.floor(driver.avgLapTime / 60)}:${(
+                (driver.avgLapTime % 60).toFixed(3).padStart(6, "0")
+              )}`
+            : "N/A"}
+        </div>
+        <div className="py-3 px-4 text-[var(--token-text-secondary)]">
+          {driver.consistency !== null
+            ? `${driver.consistency.toFixed(1)}%`
+            : "N/A"}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Mobile: Virtualized card layout */}
+      {isMobile && (
+        <div className="block sm:hidden">
+          <List
+            height={600}
+            itemCount={sortedDrivers.length}
+            itemSize={140}
+            width="100%"
+          >
+            {CardRow}
+          </List>
+        </div>
+      )}
+
+      {/* Desktop: Virtualized table layout */}
+      {!isMobile && (
+        <div className="hidden sm:block overflow-x-auto">
+          <div className="w-full">
+            {/* Table header */}
+            <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] border-b border-[var(--token-border-default)]">
+              <div className="text-left py-3 px-4">
                 <input
                   type="checkbox"
                   checked={
@@ -141,16 +242,8 @@ export default function DriverList({
                   }}
                   className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
                 />
-              </th>
-              <th
-                scope="col"
-                aria-sort={
-                  sortField === "driverName"
-                    ? sortDirection === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : "none"
-                }
+              </div>
+              <div
                 className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
                 <button
@@ -158,18 +251,15 @@ export default function DriverList({
                   onClick={() => handleSort("driverName")}
                   className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                 >
-                  Driver Name <SortIcon field="driverName" />
+                  Driver Name
+                  <SortIcon
+                    field="driverName"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
                 </button>
-              </th>
-              <th
-                scope="col"
-                aria-sort={
-                  sortField === "racesParticipated"
-                    ? sortDirection === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : "none"
-                }
+              </div>
+              <div
                 className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
                 <button
@@ -177,18 +267,15 @@ export default function DriverList({
                   onClick={() => handleSort("racesParticipated")}
                   className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                 >
-                  Races <SortIcon field="racesParticipated" />
+                  Races
+                  <SortIcon
+                    field="racesParticipated"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
                 </button>
-              </th>
-              <th
-                scope="col"
-                aria-sort={
-                  sortField === "bestLapTime"
-                    ? sortDirection === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : "none"
-                }
+              </div>
+              <div
                 className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
                 <button
@@ -196,18 +283,15 @@ export default function DriverList({
                   onClick={() => handleSort("bestLapTime")}
                   className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                 >
-                  Best Lap <SortIcon field="bestLapTime" />
+                  Best Lap
+                  <SortIcon
+                    field="bestLapTime"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
                 </button>
-              </th>
-              <th
-                scope="col"
-                aria-sort={
-                  sortField === "avgLapTime"
-                    ? sortDirection === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : "none"
-                }
+              </div>
+              <div
                 className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
                 <button
@@ -215,18 +299,15 @@ export default function DriverList({
                   onClick={() => handleSort("avgLapTime")}
                   className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                 >
-                  Avg Lap <SortIcon field="avgLapTime" />
+                  Avg Lap
+                  <SortIcon
+                    field="avgLapTime"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
                 </button>
-              </th>
-              <th
-                scope="col"
-                aria-sort={
-                  sortField === "consistency"
-                    ? sortDirection === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : "none"
-                }
+              </div>
+              <div
                 className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]"
               >
                 <button
@@ -234,63 +315,27 @@ export default function DriverList({
                   onClick={() => handleSort("consistency")}
                   className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                 >
-                  Consistency <SortIcon field="consistency" />
+                  Consistency
+                  <SortIcon
+                    field="consistency"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
                 </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedDrivers.map((driver) => {
-              const isSelected = selectedDriverIds.includes(driver.driverId)
-              return (
-                <tr
-                  key={driver.driverId}
-                  className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)] transition-colors"
-                >
-                  <td className="py-3 px-4">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(e) =>
-                        handleDriverSelectionChange(
-                          driver.driverId,
-                          e.target.checked
-                        )
-                      }
-                      className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                    />
-                  </td>
-                  <td className="py-3 px-4 text-[var(--token-text-primary)] font-medium">
-                    {driver.driverName}
-                  </td>
-                  <td className="py-3 px-4 text-[var(--token-text-secondary)]">
-                    {driver.racesParticipated}
-                  </td>
-                  <td className="py-3 px-4 text-[var(--token-text-secondary)]">
-                    {driver.bestLapTime
-                      ? `${Math.floor(driver.bestLapTime / 60)}:${(
-                          (driver.bestLapTime % 60).toFixed(3).padStart(6, "0")
-                        )}`
-                      : "N/A"}
-                  </td>
-                  <td className="py-3 px-4 text-[var(--token-text-secondary)]">
-                    {driver.avgLapTime
-                      ? `${Math.floor(driver.avgLapTime / 60)}:${(
-                          (driver.avgLapTime % 60).toFixed(3).padStart(6, "0")
-                        )}`
-                      : "N/A"}
-                  </td>
-                  <td className="py-3 px-4 text-[var(--token-text-secondary)]">
-                    {driver.consistency !== null
-                      ? `${driver.consistency.toFixed(1)}%`
-                      : "N/A"}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+              </div>
+            </div>
+            {/* Virtualized table body */}
+            <List
+              height={600}
+              itemCount={sortedDrivers.length}
+              itemSize={60}
+              width="100%"
+            >
+              {TableRow}
+            </List>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -11,24 +11,12 @@
 //          requirement that API routes should not contain business logic or
 //          Prisma queries.
 
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { searchEvents, type SearchEventsInput } from "@/core/events/search-events";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
-import { createRequestLogger, generateRequestId } from "@/lib/request-context";
-import { handleApiError } from "@/lib/server-error-handler";
-
-/**
- * Type guard to check if error has a message property
- */
-function hasErrorMessage(error: unknown): error is { message: string } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof (error as { message: unknown }).message === "string"
-  )
-}
+import { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
+import { searchEvents, type SearchEventsInput } from "@/core/events/search-events"
+import { successResponse, errorResponse } from "@/lib/api-utils"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context"
+import { handleApiError } from "@/lib/server-error-handler"
 
 /**
  * Type guard to check if error has code and message properties
@@ -143,4 +131,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-

@@ -8,21 +8,28 @@
 // 
 // @purpose Provides user-facing API for creating and listing transponder overrides
 
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
 import {
   createTransponderOverride,
   listTransponderOverrides,
-} from "@/core/transponder-overrides/repo";
-import { successResponse, errorResponse } from "@/lib/api-utils";
-import { createRequestLogger, generateRequestId } from "@/lib/request-context";
-import { handleApiError } from "@/lib/server-error-handler";
+} from "@/core/transponder-overrides/repo"
+import { successResponse, errorResponse } from "@/lib/api-utils"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context"
+import { handleApiError } from "@/lib/server-error-handler"
+
+function isKnownValidationError(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    (error.message.includes("Invalid transponder") ||
+      error.message.includes("already in use"))
+  )
+}
 
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
 
-  // Check authentication
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized transponder override creation request")
@@ -38,7 +45,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { eventId, driverId, effectiveFromRaceId, transponderNumber } = body
 
-    // Validate required fields
     if (!eventId || !driverId || !transponderNumber) {
       return errorResponse(
         "VALIDATION_ERROR",
@@ -72,9 +78,8 @@ export async function POST(request: NextRequest) {
       updated_at: override.updatedAt.toISOString(),
       created_by: override.createdBy,
     })
-  } catch (error: any) {
-    // Handle validation errors
-    if (error.message.includes("Invalid transponder") || error.message.includes("already in use")) {
+  } catch (error: unknown) {
+    if (isKnownValidationError(error)) {
       return errorResponse(
         "VALIDATION_ERROR",
         error.message,
@@ -97,7 +102,6 @@ export async function GET(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
 
-  // Check authentication
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized transponder override list request")
@@ -110,11 +114,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { searchParams } = new URL(request.url);
-    const eventId = searchParams.get("eventId") || undefined;
-    const driverId = searchParams.get("driverId") || undefined;
+    const { searchParams } = new URL(request.url)
+    const eventId = searchParams.get("eventId") || undefined
+    const driverId = searchParams.get("driverId") || undefined
 
-    const overrides = await listTransponderOverrides(eventId, driverId);
+    const overrides = await listTransponderOverrides(eventId, driverId)
 
     requestLogger.info("Transponder overrides fetched", {
       count: overrides.length,
@@ -137,7 +141,7 @@ export async function GET(request: NextRequest) {
         created_by: override.createdBy,
       })),
     })
-  } catch (error) {
+  } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(
       errorInfo.code,
@@ -147,4 +151,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-

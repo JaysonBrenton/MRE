@@ -29,7 +29,10 @@ export default function DriverSelectionHeader({
   onClear,
 }: DriverSelectionHeaderProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3" aria-live="polite">
+      <span className="text-xs text-[var(--token-text-secondary)]">
+        {selectedCount} / {totalCount} selected
+      </span>
       <button
         type="button"
         onClick={(e) => {
@@ -57,4 +60,3 @@ export default function DriverSelectionHeader({
     </div>
   )
 }
-

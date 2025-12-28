@@ -20,7 +20,7 @@
 
 import { prisma } from "@/lib/prisma"
 import type { Race, Event, RaceResult, RaceDriver, Lap } from "@prisma/client"
-import { getTransponderForRace } from "@/core/drivers/repo"
+import { getTranspondersForRaceBatch } from "@/core/drivers/repo"
 
 /**
  * Get a race by ID with event
@@ -82,29 +82,35 @@ export async function getRaceWithResults(
     return null
   }
 
-  // Enhance results with transponder numbers
-  const resultsWithTransponders = await Promise.all(
-    race.results.map(async (result) => {
-      const transponderInfo = await getTransponderForRace(
-        result.raceDriver.driverId,
-        race.eventId,
-        raceId,
-        race.className
-      )
-
-      return {
-        ...result,
-        raceDriver: {
-          ...result.raceDriver,
-          transponderNumber: transponderInfo.transponderNumber,
-          transponderSource: transponderInfo.source,
-        } as RaceDriver & {
-          transponderNumber: string | null
-          transponderSource: "entry_list" | "override" | "driver" | null
-        },
-      }
-    })
+  // Batch load transponder numbers for all drivers in this race
+  const driverIds = race.results.map(result => result.raceDriver.driverId)
+  const transponderMap = await getTranspondersForRaceBatch(
+    driverIds,
+    race.eventId,
+    raceId,
+    race.raceOrder,
+    race.className
   )
+
+  // Enhance results with transponder numbers from the batch lookup
+  const resultsWithTransponders = race.results.map((result) => {
+    const transponderInfo = transponderMap.get(result.raceDriver.driverId) || {
+      transponderNumber: null,
+      source: null,
+    }
+
+    return {
+      ...result,
+      raceDriver: {
+        ...result.raceDriver,
+        transponderNumber: transponderInfo.transponderNumber,
+        transponderSource: transponderInfo.source,
+      } as RaceDriver & {
+        transponderNumber: string | null
+        transponderSource: "entry_list" | "override" | "driver" | null
+      },
+    }
+  })
 
   return {
     ...race,

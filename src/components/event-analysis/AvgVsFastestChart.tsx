@@ -66,7 +66,7 @@ function formatLapTime(seconds: number): string {
 
 export default function AvgVsFastestChart({
   data,
-  selectedDriverIds = [],
+  selectedDriverIds,
   height = 400,
   className = "",
   currentPage = 1,
@@ -90,12 +90,24 @@ export default function AvgVsFastestChart({
   }>()
 
   // Filter data if drivers are selected
+  // undefined = show all (initial state), [] = show nothing (cleared), [ids] = show selected
   const displayData = useMemo(() => {
-    if (selectedDriverIds.length === 0) {
+    if (selectedDriverIds === undefined) {
+      // Initial state: show all data
       return data
     }
+    if (selectedDriverIds.length === 0) {
+      // Cleared state: show nothing
+      return []
+    }
+    // Filter to selected drivers only
     return data.filter((d) => selectedDriverIds.includes(d.driverId))
   }, [data, selectedDriverIds])
+
+  // Sort by fastest lap (fastest first)
+  const sortedData = useMemo(() => {
+    return [...displayData].sort((a, b) => a.fastestLap - b.fastestLap)
+  }, [displayData])
 
   if (displayData.length === 0) {
     return (
@@ -111,11 +123,6 @@ export default function AvgVsFastestChart({
       </ChartContainer>
     )
   }
-
-  // Sort by fastest lap (fastest first)
-  const sortedData = useMemo(() => {
-    return [...displayData].sort((a, b) => a.fastestLap - b.fastestLap)
-  }, [displayData])
 
   // Calculate pagination
   const totalPages = Math.ceil(sortedData.length / driversPerPage)
@@ -181,7 +188,7 @@ export default function AvgVsFastestChart({
               >
                 <title id={chartTitleId}>Average versus fastest lap times</title>
                 <desc id={chartDescId}>
-                  Bar chart comparing each driver's average lap time against their fastest lap.
+                  Bar chart comparing each driver&apos;s average lap time against their fastest lap.
                 </desc>
                 <Group left={margin.left} top={margin.top}>
                   {/* Grid lines */}
@@ -203,6 +210,7 @@ export default function AvgVsFastestChart({
                   {paginatedData.map((d) => {
                     const x = xScale(d.driverName) || 0
                     const isSelected =
+                      selectedDriverIds === undefined ||
                       selectedDriverIds.length === 0 ||
                       selectedDriverIds.includes(d.driverId)
 
@@ -222,8 +230,8 @@ export default function AvgVsFastestChart({
                           height={innerHeight - yScale(d.fastestLap)}
                           fill={fastestColor}
                           opacity={isSelected ? 1 : 0.3}
-                          stroke={isSelected && selectedDriverIds.length > 0 ? fastestColor : "none"}
-                          strokeWidth={isSelected && selectedDriverIds.length > 0 ? 1.5 : 0}
+                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? fastestColor : "none"}
+                          strokeWidth={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? 1.5 : 0}
                           onClick={handleClick}
                           onMouseMove={(event) => {
                             const svgElement = (event.target as SVGElement).ownerSVGElement
@@ -276,8 +284,8 @@ export default function AvgVsFastestChart({
                           height={innerHeight - yScale(d.averageLap)}
                           fill={averageColor}
                           opacity={isSelected ? 1 : 0.3}
-                          stroke={isSelected && selectedDriverIds.length > 0 ? averageColor : "none"}
-                          strokeWidth={isSelected && selectedDriverIds.length > 0 ? 1.5 : 0}
+                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? averageColor : "none"}
+                          strokeWidth={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? 1.5 : 0}
                           onClick={handleClick}
                           onMouseMove={(event) => {
                             const svgElement = (event.target as SVGElement).ownerSVGElement

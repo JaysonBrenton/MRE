@@ -36,6 +36,7 @@ export interface EventRowProps {
   isSelected?: boolean
   onSelect?: (event: Event, selected: boolean) => void
   isBulkImporting?: boolean
+  errorMessage?: string // Optional error message for failed imports
 }
 
 function getStatusFromIngestDepth(ingestDepth: string | null | undefined, eventId?: string): EventStatus {
@@ -72,6 +73,7 @@ export default function EventRow({
   isSelected = false,
   onSelect,
   isBulkImporting = false,
+  errorMessage,
 }: EventRowProps) {
   const router = useRouter()
   const derivedStatus = getStatusFromIngestDepth(event.ingestDepth, event.id)
@@ -81,6 +83,7 @@ export default function EventRow({
   const isImported = status === "imported" || status === "stored"
   const needsImport = status === "new" && !isLiveRCOnly
   const isImporting = status === "importing"
+  const hasFailed = status === "failed"
   const canSelect = isImported
   const isImportable = status === "new"
   
@@ -94,6 +97,12 @@ export default function EventRow({
     if (typeof window !== "undefined") {
       sessionStorage.setItem("mre-selected-event-id", event.id)
       router.push(`/events/analyse/${event.id}`)
+    }
+  }
+
+  const handleRetry = () => {
+    if (onImport && !isImporting) {
+      onImport(event)
     }
   }
 
@@ -137,21 +146,52 @@ export default function EventRow({
 
       {/* Mobile: Status and Buttons, Desktop: Column 4 - Status and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-        <div className="flex items-center gap-2">
-          <EventStatusBadge status={status} />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <EventStatusBadge status={status} />
+            {/* Import Progress Indicator */}
+            {isImporting && (
+              <div className="flex items-center gap-2" role="status" aria-live="polite">
+                <svg className="h-4 w-4 animate-spin text-[var(--token-status-warning-text)]" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span className="text-xs text-[var(--token-text-muted)]">Importing...</span>
+              </div>
+            )}
+          </div>
+          {/* Error Message */}
+          {hasFailed && errorMessage && (
+            <p className="text-xs text-[var(--token-status-error-text)] mt-1" role="alert">
+              {errorMessage}
+            </p>
+          )}
         </div>
         
         {/* Action Buttons */}
         <div className="flex gap-2 sm:ml-auto">
+          {/* Retry Button - shown for failed imports */}
+          {hasFailed && onImport && (
+            <button
+              type="button"
+              onClick={handleRetry}
+              disabled={isImporting || isBulkImporting}
+              className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-4 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed sm:px-5 h-11"
+              aria-label={`Retry import for ${event.eventName}`}
+            >
+              Retry
+            </button>
+          )}
+          
           {/* Import Button - shown for unimported events */}
-          {needsImport && onImport && (
+          {needsImport && onImport && !hasFailed && (
             <button
               type="button"
               onClick={() => onImport(event)}
               disabled={isImporting || isBulkImporting}
               className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed sm:px-5 h-11"
             >
-              {isImporting ? "Importing..." : "Import"}
+              Import
             </button>
           )}
           

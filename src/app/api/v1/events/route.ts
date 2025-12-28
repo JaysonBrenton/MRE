@@ -18,6 +18,9 @@ import { successResponse, errorResponse } from "@/lib/api-utils";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
 import { handleApiError } from "@/lib/server-error-handler";
 
+// Cache events list for 30 minutes (1800 seconds)
+export const revalidate = 1800
+
 export async function GET(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
@@ -35,14 +38,30 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const events = await getAllImportedEvents()
+    // Parse pagination parameters from query string
+    const searchParams = request.nextUrl.searchParams
+    const limitParam = searchParams.get("limit")
+    const offsetParam = searchParams.get("offset")
+    
+    const limit = limitParam ? Math.max(1, Math.min(100, parseInt(limitParam, 10))) : 20
+    const offset = offsetParam ? Math.max(0, parseInt(offsetParam, 10)) : 0
+
+    const result = await getAllImportedEvents({ limit, offset })
 
     requestLogger.info("Events list retrieved successfully", {
-      eventCount: events.length,
+      eventCount: result.events.length,
+      total: result.total,
+      limit,
+      offset,
     })
 
     return successResponse({
-      events,
+      events: result.events,
+      pagination: {
+        total: result.total,
+        limit,
+        offset,
+      },
     })
   } catch (error: unknown) {
     // Handle unexpected errors using server error handler

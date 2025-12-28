@@ -109,7 +109,6 @@ export default function EventSearchForm({
             className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-left text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface)]"
             aria-haspopup="dialog"
             aria-expanded={isModalOpen}
-            aria-invalid={Boolean(errors?.track)}
             aria-describedby={trackErrorId}
           >
             {selectedTrack ? selectedTrack.trackName : "Select a track"}
@@ -173,7 +172,7 @@ export default function EventSearchForm({
           <button
             type="submit"
             disabled={isLoading || !selectedTrack}
-            className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed sm:px-5 h-11"
+            className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed sm:px-5 h-11"
           >
             {isLoading ? "Searching..." : "Search"}
           </button>

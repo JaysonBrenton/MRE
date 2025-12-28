@@ -18,7 +18,14 @@
 
 "use client"
 
-import { useState, useMemo, useEffect, useCallback } from "react"
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  startTransition,
+  useRef,
+} from "react"
 import EventStats from "./EventStats"
 import ChartControls from "./ChartControls"
 import BestLapBarChart from "./BestLapBarChart"
@@ -26,7 +33,15 @@ import GapEvolutionLineChart from "./GapEvolutionLineChart"
 import AvgVsFastestChart from "./AvgVsFastestChart"
 import ChartSection from "./ChartSection"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-import { calculateTopNGapEvolution } from "@/core/events/calculate-gap-evolution"
+import { calculateGapEvolution } from "@/core/events/calculate-gap-evolution"
+import { normalizeDriverName } from "@/core/users/name-normalizer"
+import ChartDataNotice from "./ChartDataNotice"
+import {
+  getDriversMissingAvgVsFastest,
+  getDriversMissingBestLap,
+  getDriversMissingGapSeries,
+} from "@/core/events/event-analysis-notices"
+import { logger } from "@/lib/logger"
 
 export interface OverviewTabProps {
   data: EventAnalysisData
@@ -46,6 +61,7 @@ export default function OverviewTab({
   // Initialize with deterministic default and hydrate from localStorage on client
   const [chartType, setChartType] = useState<ChartType>("best-lap")
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
+  const lastLoggedMissingState = useRef<string | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -60,7 +76,9 @@ export default function OverviewTab({
         storedChartType
       )
     ) {
-      setChartType(storedChartType as ChartType)
+      startTransition(() => {
+        setChartType(storedChartType as ChartType)
+      })
     }
   }, [])
 
@@ -156,7 +174,7 @@ export default function OverviewTab({
   // Prepare chart data
   const bestLapData = useMemo(() => {
     return driverStatsByClass
-      .filter((d) => d.bestLapTime !== null)
+      .filter((d) => d.bestLapTime !== null && d.bestLapTime > 0 && isFinite(d.bestLapTime))
       .map((d) => ({
         driverId: d.driverId,
         driverName: d.driverName,
@@ -166,21 +184,6 @@ export default function OverviewTab({
   }, [driverStatsByClass])
 
   const gapEvolutionData = useMemo(() => {
-    // Get lap data for gap calculation from filtered races only
-    const driverSeries = filteredRaces.flatMap((race) =>
-      race.results.map((result) => ({
-        driverId: result.driverId,
-        driverName: result.driverName,
-        laps: result.laps.map((lap) => ({
-          lapNumber: lap.lapNumber,
-          lapTimeSeconds: lap.lapTimeSeconds,
-          elapsedRaceTime: lap.elapsedRaceTime,
-          positionOnLap: lap.positionOnLap,
-        })),
-      }))
-    )
-
-    // Group by driver using normalized driverId
     const driverMap = new Map<
       string,
       {
@@ -195,20 +198,42 @@ export default function OverviewTab({
       }
     >()
 
-    for (const series of driverSeries) {
-      if (!driverMap.has(series.driverId)) {
-        driverMap.set(series.driverId, {
-          driverId: series.driverId,
-          driverName: series.driverName,
-          laps: [],
-        })
-      }
-      const driver = driverMap.get(series.driverId)!
-      driver.laps.push(...series.laps)
-    }
+    filteredRaces.forEach((race) => {
+      race.results.forEach((result) => {
+        if (!driverMap.has(result.driverId)) {
+          driverMap.set(result.driverId, {
+            driverId: result.driverId,
+            driverName: result.driverName,
+            laps: [],
+          })
+        }
+        const driverSeries = driverMap.get(result.driverId)!
+        driverSeries.laps.push(
+          ...result.laps.map((lap) => ({
+            lapNumber: lap.lapNumber,
+            lapTimeSeconds: lap.lapTimeSeconds,
+            elapsedRaceTime: lap.elapsedRaceTime,
+            positionOnLap: lap.positionOnLap,
+          }))
+        )
+      })
+    })
 
-    const allDriverSeries = Array.from(driverMap.values())
-    return calculateTopNGapEvolution(allDriverSeries, 3)
+    const seriesArray = Array.from(driverMap.values())
+    const bestLapLookup = new Map<string, number>()
+    seriesArray.forEach((series) => {
+      const fastestLap = series.laps.reduce((best, lap) => {
+        return Math.min(best, lap.lapTimeSeconds)
+      }, Infinity)
+      bestLapLookup.set(series.driverId, fastestLap)
+    })
+
+    const gapSeries = calculateGapEvolution(seriesArray)
+    return gapSeries.sort((a, b) => {
+      const aLap = bestLapLookup.get(a.driverId) ?? Infinity
+      const bLap = bestLapLookup.get(b.driverId) ?? Infinity
+      return aLap - bLap
+    })
   }, [filteredRaces])
 
   const avgVsFastestData = useMemo(() => {
@@ -229,6 +254,136 @@ export default function OverviewTab({
       driverName: d.driverName,
     }))
   }, [data.drivers])
+
+  const driverNameLookup = useMemo(() => {
+    const map = new Map<string, string>()
+    data.drivers.forEach((driver) => {
+      map.set(driver.driverId, driver.driverName)
+    })
+    data.races.forEach((race) => {
+      race.results.forEach((result) => {
+        if (!map.has(result.driverId)) {
+          map.set(result.driverId, result.driverName)
+        }
+      })
+    })
+    return map
+  }, [data.drivers, data.races])
+
+  // Expand selectedDriverIds to include all driverIds that match by normalized name
+  // This handles cases where there are multiple Driver records with the same/similar name
+  // We check data.drivers, driverStatsByClass, AND race results directly to catch all matches
+  const expandedSelectedDriverIds = useMemo(() => {
+    if (selectedDriverIds.length === 0) {
+      return []
+    }
+    
+    // Get normalized names of selected drivers from data.drivers
+    const selectedNormalizedNames = new Set<string>()
+    data.drivers.forEach((driver) => {
+      if (selectedDriverIds.includes(driver.driverId)) {
+        selectedNormalizedNames.add(normalizeDriverName(driver.driverName))
+      }
+    })
+    
+    // Find all driverIds that match any of the selected normalized names
+    const expandedIds = new Set<string>(selectedDriverIds)
+    
+    // Check data.drivers
+    data.drivers.forEach((driver) => {
+      const normalizedName = normalizeDriverName(driver.driverName)
+      if (selectedNormalizedNames.has(normalizedName)) {
+        expandedIds.add(driver.driverId)
+      }
+    })
+    
+    // Check driverStatsByClass (aggregated from race results)
+    driverStatsByClass.forEach((driver) => {
+      const normalizedName = normalizeDriverName(driver.driverName)
+      if (selectedNormalizedNames.has(normalizedName)) {
+        expandedIds.add(driver.driverId)
+      }
+    })
+    
+    // Also check race results directly - check both filtered and all races
+    // This catches any driverIds that might not be in aggregates or filtered races
+    filteredRaces.forEach((race) => {
+      race.results.forEach((result) => {
+        const normalizedName = normalizeDriverName(result.driverName)
+        if (selectedNormalizedNames.has(normalizedName)) {
+          expandedIds.add(result.driverId)
+        }
+      })
+    })
+    
+    // Also check all races (not just filtered) to catch drivers in other classes
+    data.races.forEach((race) => {
+      race.results.forEach((result) => {
+        const normalizedName = normalizeDriverName(result.driverName)
+        if (selectedNormalizedNames.has(normalizedName)) {
+          expandedIds.add(result.driverId)
+        }
+      })
+    })
+    
+    return Array.from(expandedIds)
+  }, [selectedDriverIds, data.drivers, driverStatsByClass, filteredRaces, data.races])
+
+  const shouldShowSelectionNotices = expandedSelectedDriverIds.length > 0
+
+  const missingBestLapDriverIds = useMemo(() => {
+    if (!shouldShowSelectionNotices) {
+      return []
+    }
+    return getDriversMissingBestLap(
+      expandedSelectedDriverIds,
+      driverStatsByClass
+    )
+  }, [shouldShowSelectionNotices, expandedSelectedDriverIds, driverStatsByClass])
+
+  const missingAvgVsFastestDriverIds = useMemo(() => {
+    if (!shouldShowSelectionNotices) {
+      return []
+    }
+    return getDriversMissingAvgVsFastest(
+      expandedSelectedDriverIds,
+      driverStatsByClass
+    )
+  }, [shouldShowSelectionNotices, expandedSelectedDriverIds, driverStatsByClass])
+
+  const missingGapDriverIds = useMemo(() => {
+    if (!shouldShowSelectionNotices) {
+      return []
+    }
+    return getDriversMissingGapSeries(
+      expandedSelectedDriverIds,
+      gapEvolutionData
+    )
+  }, [shouldShowSelectionNotices, expandedSelectedDriverIds, gapEvolutionData])
+
+  const mapDriverIdsToNames = useCallback(
+    (driverIds: string[]) => {
+      return driverIds.map((driverId) =>
+        driverNameLookup.get(driverId) ?? "Unknown Driver"
+      )
+    },
+    [driverNameLookup]
+  )
+
+  const missingBestLapDriverNames = useMemo(
+    () => mapDriverIdsToNames(missingBestLapDriverIds),
+    [mapDriverIdsToNames, missingBestLapDriverIds]
+  )
+
+  const missingAvgVsFastestDriverNames = useMemo(
+    () => mapDriverIdsToNames(missingAvgVsFastestDriverIds),
+    [mapDriverIdsToNames, missingAvgVsFastestDriverIds]
+  )
+
+  const missingGapDriverNames = useMemo(
+    () => mapDriverIdsToNames(missingGapDriverIds),
+    [mapDriverIdsToNames, missingGapDriverIds]
+  )
 
   // Handle driver toggle from chart click
   const handleSelectionChange = useCallback(
@@ -289,6 +444,51 @@ export default function OverviewTab({
     }
   }, [data.races, handleSelectionChange])
 
+  useEffect(() => {
+    if (!shouldShowSelectionNotices) {
+      lastLoggedMissingState.current = null
+      return
+    }
+
+    if (
+      missingBestLapDriverIds.length === 0 &&
+      missingAvgVsFastestDriverIds.length === 0 &&
+      missingGapDriverIds.length === 0
+    ) {
+      lastLoggedMissingState.current = null
+      return
+    }
+
+    const payload = JSON.stringify({
+      missingBestLapDriverIds,
+      missingAvgVsFastestDriverIds,
+      missingGapDriverIds,
+    })
+
+    if (lastLoggedMissingState.current === payload) {
+      return
+    }
+
+    lastLoggedMissingState.current = payload
+
+    logger.warn("event_analysis_missing_driver_metrics", {
+      eventId: data.event.id,
+      classFilter: selectedClass ?? "all",
+      selectedDriverCount: expandedSelectedDriverIds.length,
+      missingBestLapDriverIds,
+      missingAvgVsFastestDriverIds,
+      missingGapDriverIds,
+    })
+  }, [
+    shouldShowSelectionNotices,
+    missingBestLapDriverIds,
+    missingAvgVsFastestDriverIds,
+    missingGapDriverIds,
+    data.event.id,
+    selectedClass,
+    expandedSelectedDriverIds.length,
+  ])
+
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-overview" aria-labelledby="tab-overview">
       {/* Event Statistics */}
@@ -299,25 +499,70 @@ export default function OverviewTab({
         dateRange={data.summary.dateRange}
       />
 
-      {/* Chart Controls */}
-      <ChartControls
-        drivers={driverOptions}
-        races={data.races}
-        selectedDriverIds={selectedDriverIds}
-        onDriverSelectionChange={handleSelectionChange}
-        chartType={chartType}
-        onChartTypeChange={setChartType}
-        onClassChange={handleClassChange}
-      />
+      {/* Chart Configuration Section */}
+      <section className="space-y-4">
+        <div className="border-b border-[var(--token-border-default)] pb-4">
+          <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
+            Chart Configuration
+          </h2>
+          <p className="text-sm text-[var(--token-text-secondary)]">
+            Select drivers and choose a chart type to visualize race performance data.
+          </p>
+        </div>
 
-      {/* Chart Section */}
-      <ChartSection>
+        <ChartControls
+          drivers={driverOptions}
+          races={data.races}
+          selectedDriverIds={selectedDriverIds}
+          onDriverSelectionChange={handleSelectionChange}
+          chartType={chartType}
+          onChartTypeChange={setChartType}
+          onClassChange={handleClassChange}
+        />
+      </section>
+
+      {/* Chart Visualization */}
+      <section className="space-y-4">
+        <div className="border-b border-[var(--token-border-default)] pb-4">
+          <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
+            Performance Visualization
+          </h2>
+          <p className="text-sm text-[var(--token-text-secondary)]">
+            Interactive chart showing selected drivers' performance metrics.
+          </p>
+        </div>
+
+        {chartType === "best-lap" && missingBestLapDriverNames.length > 0 && (
+          <ChartDataNotice
+            title="Some selected drivers have no recorded fastest lap"
+            description="LiveRC did not publish a fastest lap for these drivers in the selected class, so they are hidden from the chart."
+            driverNames={missingBestLapDriverNames}
+          />
+        )}
+
+        {chartType === "avg-vs-fastest" &&
+          missingAvgVsFastestDriverNames.length > 0 && (
+            <ChartDataNotice
+              title="Missing average lap telemetry"
+              description="These drivers were selected, but the data feed does not include both fastest and average lap times for them."
+              driverNames={missingAvgVsFastestDriverNames}
+            />
+          )}
+
+        {chartType === "gap-evolution" && missingGapDriverNames.length > 0 && (
+          <ChartDataNotice
+            title="Gap evolution unavailable"
+            description="The selected drivers below have no lap-by-lap telemetry in the current class, so their gap lines cannot be rendered."
+            driverNames={missingGapDriverNames}
+          />
+        )}
+
+        {/* Chart Section */}
+        <ChartSection>
         {chartType === "best-lap" && (
           <BestLapBarChart
             data={bestLapData}
-            selectedDriverIds={
-              selectedDriverIds.length > 0 ? selectedDriverIds : undefined
-            }
+            selectedDriverIds={expandedSelectedDriverIds}
             currentPage={currentPage}
             driversPerPage={driversPerPage}
             onPageChange={handlePageChange}
@@ -328,9 +573,7 @@ export default function OverviewTab({
         {chartType === "gap-evolution" && (
           <GapEvolutionLineChart
             data={gapEvolutionData}
-            selectedDriverIds={
-              selectedDriverIds.length > 0 ? selectedDriverIds : undefined
-            }
+            selectedDriverIds={expandedSelectedDriverIds}
             currentPage={currentPage}
             driversPerPage={driversPerPage}
             onPageChange={handlePageChange}
@@ -341,9 +584,7 @@ export default function OverviewTab({
         {chartType === "avg-vs-fastest" && (
           <AvgVsFastestChart
             data={avgVsFastestData}
-            selectedDriverIds={
-              selectedDriverIds.length > 0 ? selectedDriverIds : undefined
-            }
+            selectedDriverIds={expandedSelectedDriverIds}
             currentPage={currentPage}
             driversPerPage={driversPerPage}
             onPageChange={handlePageChange}
@@ -351,6 +592,7 @@ export default function OverviewTab({
           />
         )}
       </ChartSection>
+      </section>
     </div>
   )
 }

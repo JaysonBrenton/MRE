@@ -46,6 +46,21 @@ class IngestDepth(PyEnum):
     LAPS_FULL = "laps_full"
 
 
+class UserDriverLinkStatus(PyEnum):
+    """Status of user-driver link."""
+    SUGGESTED = "suggested"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+    CONFLICT = "conflict"
+
+
+class EventDriverLinkMatchType(PyEnum):
+    """Type of match for event-driver link."""
+    TRANSPONDER = "transponder"
+    EXACT = "exact"
+    FUZZY = "fuzzy"
+
+
 class IngestDepthType(TypeDecorator):
     """Type decorator to ensure enum values are used instead of names."""
     impl = String
@@ -111,6 +126,7 @@ class Event(Base):
     track = relationship("Track", back_populates="events")
     races = relationship("Race", back_populates="event", cascade="all, delete-orphan")
     entries = relationship("EventEntry", back_populates="event", cascade="all, delete-orphan")
+    driver_links = relationship("EventDriverLink", back_populates="event", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("source", "source_event_id", name="events_source_source_event_id_key"),
@@ -189,11 +205,14 @@ class Driver(Base):
 
     race_drivers = relationship("RaceDriver", back_populates="driver", cascade="all, delete-orphan")
     event_entries = relationship("EventEntry", back_populates="driver", cascade="all, delete-orphan")
+    user_driver_link = relationship("UserDriverLink", back_populates="driver", uselist=False)
+    event_driver_links = relationship("EventDriverLink", back_populates="driver", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("source", "source_driver_id", name="drivers_source_source_driver_id_key"),
         Index("drivers_source_source_driver_id_idx", "source", "source_driver_id"),
         Index("drivers_display_name_idx", "display_name"),
+        Index("drivers_normalized_name_idx", "normalized_name"),
     )
 
 
@@ -277,5 +296,124 @@ class Lap(Base):
         Index("laps_race_result_id_lap_number_idx", "race_result_id", "lap_number"),
         Index("laps_race_result_id_idx", "race_result_id"),
         Index("laps_lap_number_idx", "lap_number"),
+    )
+
+
+class User(Base):
+    """User model for authentication and user-driver linking."""
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    email = Column(String, unique=True, nullable=False)
+    password_hash = Column("passwordHash", String, nullable=False)
+    driver_name = Column("driverName", String, nullable=False)
+    normalized_name = Column("normalized_name", String, nullable=True)
+    transponder_number = Column("transponder_number", String, nullable=True)
+    team_name = Column("teamName", String, nullable=True)
+    is_admin = Column("isAdmin", Boolean, default=False, nullable=False)
+    created_at = Column("createdAt", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updatedAt", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    driver_links = relationship("UserDriverLink", back_populates="user", cascade="all, delete-orphan")
+    event_driver_links = relationship("EventDriverLink", back_populates="user", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("users_normalized_name_idx", "normalized_name"),
+        Index("users_transponder_number_idx", "transponder_number"),
+    )
+
+
+class UserDriverLinkStatusType(TypeDecorator):
+    """Type decorator for UserDriverLinkStatus enum."""
+    impl = String
+    cache_ok = True
+    
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, UserDriverLinkStatus):
+            return value.value
+        return value
+    
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return UserDriverLinkStatus(value)
+
+
+class EventDriverLinkMatchTypeType(TypeDecorator):
+    """Type decorator for EventDriverLinkMatchType enum."""
+    impl = String
+    cache_ok = True
+    
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, EventDriverLinkMatchType):
+            return value.value
+        return value
+    
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return EventDriverLinkMatchType(value)
+
+
+class UserDriverLink(Base):
+    """UserDriverLink model representing link between User and Driver."""
+    __tablename__ = "user_driver_links"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column("user_id", String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    driver_id = Column("driver_id", String, ForeignKey("drivers.id", ondelete="CASCADE"), nullable=False, unique=True)
+    status = Column(UserDriverLinkStatusType(), nullable=False)
+    similarity_score = Column("similarity_score", Float, nullable=False)
+    matched_at = Column("matched_at", DateTime(timezone=True), nullable=False)
+    confirmed_at = Column("confirmed_at", DateTime(timezone=True), nullable=True)
+    rejected_at = Column("rejected_at", DateTime(timezone=True), nullable=True)
+    matcher_id = Column("matcher_id", String, nullable=False)
+    matcher_version = Column("matcher_version", String, nullable=False)
+    conflict_reason = Column("conflict_reason", String, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="driver_links")
+    driver = relationship("Driver", back_populates="user_driver_link")
+    events = relationship("EventDriverLink", back_populates="user_driver_link", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "driver_id", name="user_driver_links_user_id_driver_id_key"),
+        Index("user_driver_links_user_id_idx", "user_id"),
+        Index("user_driver_links_driver_id_idx", "driver_id"),
+        Index("user_driver_links_status_idx", "status"),
+    )
+
+
+class EventDriverLink(Base):
+    """EventDriverLink model tracking all events where matches found."""
+    __tablename__ = "event_driver_links"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column("user_id", String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    event_id = Column("event_id", String, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    driver_id = Column("driver_id", String, ForeignKey("drivers.id", ondelete="CASCADE"), nullable=False)
+    user_driver_link_id = Column("user_driver_link_id", String, ForeignKey("user_driver_links.id", ondelete="SET NULL"), nullable=True)
+    match_type = Column(EventDriverLinkMatchTypeType(), nullable=False)
+    similarity_score = Column("similarity_score", Float, nullable=False)
+    transponder_number = Column("transponder_number", String, nullable=True)
+    matched_at = Column("matched_at", DateTime(timezone=True), nullable=False)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="event_driver_links")
+    event = relationship("Event", back_populates="driver_links")
+    driver = relationship("Driver", back_populates="event_driver_links")
+    user_driver_link = relationship("UserDriverLink", back_populates="events")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "event_id", "driver_id", name="event_driver_links_user_id_event_id_driver_id_key"),
+        Index("event_driver_links_user_id_driver_id_transponder_number_idx", "user_id", "driver_id", "transponder_number"),
+        Index("event_driver_links_event_id_driver_id_idx", "event_id", "driver_id"),
+        Index("event_driver_links_user_driver_link_id_idx", "user_driver_link_id"),
     )
 

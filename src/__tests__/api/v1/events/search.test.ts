@@ -16,6 +16,21 @@ import { GET } from "@/app/api/v1/events/search/route"
 import { searchEvents } from "@/core/events/search-events"
 import { NextRequest } from "next/server"
 
+vi.mock("@/lib/auth", () => ({
+  auth: vi.fn(async () => ({ user: { id: "user-123" } })),
+}))
+
+vi.mock("@/lib/request-context", () => ({
+  createRequestLogger: () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  }),
+  generateRequestId: () => "test-request-id",
+  getRequestContext: () => ({}),
+  getClientIp: () => "test",
+}))
+
 // Mock the core function
 vi.mock("@/core/events/search-events")
 
@@ -124,7 +139,7 @@ describe("GET /api/v1/events/search", () => {
       expect(body).toHaveProperty("success", false)
       expect(body).toHaveProperty("error")
       expect(body.error).toHaveProperty("code", "INTERNAL_ERROR")
-      expect(body.error).toHaveProperty("message", "Failed to search events")
+      expect(body.error).toHaveProperty("message", "Database error")
     })
   })
 })

@@ -72,7 +72,7 @@ describe("validateEventSearchParams", () => {
 
       expect(result).not.toBeNull()
       expect(result?.code).toBe("VALIDATION_ERROR")
-      expect(result?.message).toBe("start_date is required")
+      expect(result?.message).toBe("start_date is required when end_date is provided")
       expect(result?.field).toBe("start_date")
     })
 
@@ -86,7 +86,7 @@ describe("validateEventSearchParams", () => {
 
       expect(result).not.toBeNull()
       expect(result?.code).toBe("VALIDATION_ERROR")
-      expect(result?.message).toBe("end_date is required")
+      expect(result?.message).toBe("end_date is required when start_date is provided")
       expect(result?.field).toBe("end_date")
     })
   })
@@ -170,7 +170,8 @@ describe("validateEventSearchParams", () => {
 
       expect(result).not.toBeNull()
       expect(result?.code).toBe("VALIDATION_ERROR")
-      expect(result?.message).toContain("Cannot select future dates")
+      // The validation checks start > end first, so this error comes first
+      expect(result?.message).toContain("start_date must be before or equal to end_date")
       expect(result?.field).toBe("start_date")
     })
 

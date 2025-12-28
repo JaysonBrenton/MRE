@@ -15,6 +15,14 @@ import { successResponse, errorResponse } from "@/lib/api-utils";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
 import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
+import { getEventById } from "@/core/events/repo";
+import {
+  isRecoverableIngestionError,
+  waitForIngestionCompletion,
+} from "@/lib/ingestion-status";
+
+const COMPLETION_POLL_ATTEMPTS = 3
+const COMPLETION_POLL_DELAY_MS = 2000
 
 // Increase timeout for large event ingestion (up to 10 minutes)
 // Keep in sync with API_TIMEOUTS.INGESTION_MAX_DURATION (docs/core auth constants)
@@ -26,6 +34,7 @@ export async function POST(
 ) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
+  const { eventId } = await params
 
   // Check authentication
   const session = await auth()
@@ -56,7 +65,6 @@ export async function POST(
       )
     }
 
-    const { eventId } = await params;
     const body = await request.json();
     const depth = body.depth || "laps_full";
 
@@ -75,11 +83,60 @@ export async function POST(
 
     return successResponse(result);
   } catch (error: unknown) {
+    if (isRecoverableIngestionError(error)) {
+      const completedEvent = await waitForIngestionCompletion({
+        fetchEvent: getEventById,
+        eventId,
+        attempts: COMPLETION_POLL_ATTEMPTS,
+        delayMs: COMPLETION_POLL_DELAY_MS,
+      })
+
+      if (completedEvent && completedEvent.lastIngestedAt) {
+        requestLogger.info("Event ingestion completed after timeout", {
+          eventId,
+          ingestDepth: completedEvent.ingestDepth,
+        })
+
+        return successResponse(
+          {
+            event_id: completedEvent.id,
+            ingest_depth: completedEvent.ingestDepth,
+            last_ingested_at: completedEvent.lastIngestedAt.toISOString(),
+            races_ingested: 0,
+            results_ingested: 0,
+            laps_ingested: 0,
+            status: "already_complete",
+          },
+          200,
+          "Ingestion completed after a transient error"
+        )
+      }
+
+      requestLogger.warn("Event ingestion still running after timeout", {
+        eventId,
+        attempts: COMPLETION_POLL_ATTEMPTS,
+      })
+
+      return successResponse(
+        {
+          event_id: eventId,
+          ingest_depth: completedEvent?.ingestDepth ?? "laps_full",
+          last_ingested_at: completedEvent?.lastIngestedAt?.toISOString() ?? null,
+          races_ingested: 0,
+          results_ingested: 0,
+          laps_ingested: 0,
+          status: "in_progress",
+        },
+        202,
+        "Ingestion is still running in the background. Refresh shortly to see updated data."
+      )
+    }
+
     // Handle external service errors (ingestion service)
     if (error instanceof Error && error.message.includes("Ingestion")) {
       const errorInfo = handleExternalServiceError(
         error,
-        "Ingestion Service",
+        "Ingestion",
         "ingestEvent",
         requestLogger
       )

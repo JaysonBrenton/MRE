@@ -68,7 +68,8 @@ The ingestion runtime executes the following stages in strict order:
 5. Extract lap time series per driver
 6. Normalise to structured ingestion models
 7. Persist into DB using idempotent upserts
-8. Update ingestion state and timestamps
+8. Match users to drivers (fuzzy matching and auto-confirmation)
+9. Update ingestion state and timestamps
 
 Each stage MUST succeed before the next begins.
 

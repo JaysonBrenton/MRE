@@ -118,21 +118,41 @@ export const config = {
       }
 
       if (isRoot) {
-        return NextResponse.redirect(new URL("/dashboard", nextUrl))
+        // Redirect authenticated users from root to their appropriate page
+        if (auth?.user?.isAdmin) {
+          return NextResponse.redirect(new URL("/admin", nextUrl))
+        }
+        return NextResponse.redirect(new URL("/welcome", nextUrl))
       }
 
       if (isPublicPage || isApiAuthRoute || isPublicApi) {
         if (isLogin || isRegister) {
+          // Redirect authenticated users away from login/register pages
           if (auth?.user?.isAdmin) {
             return NextResponse.redirect(new URL("/admin", nextUrl))
           }
-          return NextResponse.redirect(new URL("/dashboard", nextUrl))
+          return NextResponse.redirect(new URL("/welcome", nextUrl))
         }
         return true
       }
 
       if (isAdminRoute && !auth?.user?.isAdmin) {
         return NextResponse.redirect(new URL("/welcome", nextUrl))
+      }
+
+      // Protect admin API routes
+      const isAdminApiRoute = pathname.startsWith("/api/v1/admin")
+      if (isAdminApiRoute && !auth?.user?.isAdmin) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "FORBIDDEN",
+              message: "Admin access required",
+            },
+          },
+          { status: 403 }
+        )
       }
 
       if (pathname.startsWith("/event-search") && auth?.user?.isAdmin) {
