@@ -33,7 +33,7 @@ export default function Button({
   children,
   ...props
 }: ButtonProps) {
-  const baseClasses = "mobile-button flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+  const baseClasses = "flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
   
   const variantClasses = {
     default: "border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] active:opacity-90",
@@ -42,7 +42,7 @@ export default function Button({
   }
   
   const widthClass = fullWidth ? "w-full" : ""
-  const paddingClass = "px-4 sm:px-5"
+  const paddingClass = "px-5"
   
   return (
     <button

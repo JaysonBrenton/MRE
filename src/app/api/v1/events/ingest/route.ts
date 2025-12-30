@@ -13,11 +13,12 @@
 
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { ingestionClient } from "@/lib/ingestion-client";
+import { ingestionClient, IngestionServiceError } from "@/lib/ingestion-client";
 import { successResponse, errorResponse } from "@/lib/api-utils";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
 import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
 import { getEventBySourceId } from "@/core/events/repo";
+import { toHttpErrorPayload } from "@/lib/ingestion-error-map";
 
 // Increase timeout for large event ingestion (up to 10 minutes)
 export const maxDuration = 600; // 10 minutes in seconds
@@ -37,28 +38,18 @@ export async function POST(request: NextRequest) {
       401
     )
   }
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:21',message:'API route POST started',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
-  
   // Declare variables outside try block so they're accessible in catch
   let source_event_id: string | undefined;
+  let track_id: string | undefined;
   
   try {
     const body = await request.json();
     source_event_id = body.source_event_id;
-    const track_id = body.track_id;
+    track_id = body.track_id;
     const depth = body.depth;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:25',message:'Request body parsed',data:{hasSourceEventId:!!source_event_id,hasTrackId:!!track_id,sourceEventId:source_event_id,trackId:track_id,depth:depth},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
 
     // Validate required fields
     if (!source_event_id) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:30',message:'Validation failed - missing source_event_id',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       requestLogger.warn("Validation failed - missing source_event_id")
       return errorResponse(
         "VALIDATION_ERROR",
@@ -69,9 +60,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!track_id) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:38',message:'Validation failed - missing track_id',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       requestLogger.warn("Validation failed - missing track_id")
       return errorResponse(
         "VALIDATION_ERROR",
@@ -82,17 +70,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Call ingestion client
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:48',message:'Calling ingestion client',data:{sourceEventId:source_event_id,trackId:track_id,depth:depth||'laps_full'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     const result = await ingestionClient.ingestEventBySourceId(
       source_event_id,
       track_id,
       depth || "laps_full"
     );
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:54',message:'Ingestion client returned',data:{hasResult:!!result,eventId:result?.event_id,ingestDepth:result?.ingest_depth,racesIngested:result?.races_ingested,status:result?.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C,D'})}).catch(()=>{});
-    // #endregion
 
     requestLogger.info("Event ingestion completed", {
       sourceEventId: source_event_id,
@@ -103,10 +85,32 @@ export async function POST(request: NextRequest) {
 
     return successResponse(result);
   } catch (error: unknown) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/81eec606-eae6-4063-8584-aec156f4ab27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ingest/route.ts:56',message:'API route error caught',data:{errorMessage:error instanceof Error?error.message:String(error),errorName:error instanceof Error?error.name:undefined,errorStack:error instanceof Error?error.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    
+    if (error instanceof IngestionServiceError) {
+      const payload = toHttpErrorPayload(error, {
+        sourceEventId: source_event_id,
+        trackId: track_id,
+      })
+      const logMeta = {
+        sourceEventId: source_event_id,
+        trackId: track_id,
+        code: error.code,
+        status: payload.status,
+      }
+
+      if (error.code === "INGESTION_IN_PROGRESS") {
+        requestLogger.info("Ingestion already running for source event", logMeta)
+      } else {
+        requestLogger.error("Ingestion service error", logMeta)
+      }
+
+      return errorResponse(
+        error.code,
+        payload.message,
+        payload.details,
+        payload.status,
+      )
+    }
+  
     // For connection errors or timeouts, check if ingestion actually succeeded
     // This handles the case where HTTP connection fails but ingestion completes
     if (error instanceof Error) {
@@ -174,4 +178,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

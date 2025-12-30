@@ -13,7 +13,6 @@
  *          however they prefer.
  */
 
-import type { GapEvolutionSeries } from "./calculate-gap-evolution"
 
 export interface DriverMetricSnapshot {
   driverId: string
@@ -101,28 +100,4 @@ export function getDriversMissingAvgVsFastest(
   return dedupe(missing)
 }
 
-/**
- * Identify selected drivers that have no lap telemetry for gap evolution.
- */
-export function getDriversMissingGapSeries(
-  selectedDriverIds: Iterable<string>,
-  series: GapEvolutionSeries[]
-): string[] {
-  const relevantIds = getRelevantDriverIds(selectedDriverIds)
-  if (relevantIds.length === 0) {
-    return []
-  }
-
-  const seriesMap = new Map(series.map((entry) => [entry.driverId, entry]))
-  const missing: string[] = []
-
-  for (const driverId of relevantIds) {
-    const entry = seriesMap.get(driverId)
-    if (!entry || entry.gaps.length === 0) {
-      missing.push(driverId)
-    }
-  }
-
-  return dedupe(missing)
-}
 

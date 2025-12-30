@@ -162,7 +162,7 @@ Separation of UI + logic
 The codebase must match the document.
 If not, code must be corrected or an ADR created.
 
-4. Dark Theme Standard
+4. Theme System
 
 See:
 
@@ -170,13 +170,15 @@ docs/design/mre-dark-theme-guidelines.md
 
 Requirements:
 
-Semantic tokens only
+Semantic tokens only (supports theme experimentation)
+
+Dark theme is default, but theme system supports experimentation
 
 No pure black backgrounds
 
-AA contrast
+AA contrast for all themes
 
-Mobile-first layout
+Desktop-optimized layout
 
 Consistent form and button styles
 
@@ -208,7 +210,7 @@ Function fully on mobile
 
 Avoid hover-only interactions
 
-Use proper touch targets
+Use appropriate sizing for desktop interaction
 
 Collapse correctly on small screens
 
@@ -269,6 +271,8 @@ See individual role documents in `docs/roles/` for detailed responsibilities, ha
 │   │   └── ADR-*.md (Architecture Decision Records)
 │   ├── reviews/
 │   │   └── DOCKER_REVIEW_REPORT.md
+│   ├── reports/            # Operational reports (track sync, UI reviews, etc.)
+│   ├── AGENTS.md           # MRE Agents Handbook
 │   ├── roles/
 │   │   ├── devops-platform-engineer.md
 │   │   ├── documentation-knowledge-steward.md
@@ -295,14 +299,14 @@ See individual role documents in `docs/roles/` for detailed responsibilities, ha
 │   │   └── under-development/  # Placeholder page
 │   ├── components/        # React components (shared)
 │   └── lib/               # Shared libraries and utilities
-├── components/            # React components (root level, legacy)
 ├── ingestion/             # Python ingestion service
 │   ├── api/               # FastAPI application
 │   ├── connectors/        # Data source connectors (LiveRC)
 │   ├── db/                # Database models and repository
 │   └── ingestion/         # Ingestion pipeline logic
 ├── prisma/                # Database schema and migrations
-├── scripts/               # Utility scripts for database operations
+├── scripts/               # Utility scripts for database operations and setup
+│   ├── setup-database.sh     # Initial database setup script (Docker network, PostgreSQL, migrations, seed)
 │   ├── check-db-data.ts      # Display database contents overview
 │   ├── cleanup-events.ts     # Remove all events and related data
 │   ├── diagnose-auth.ts      # Diagnostic tool for authentication issues
@@ -502,10 +506,35 @@ The MRE application exposes the following API endpoints:
 - PATCH /api/v1/transponder-overrides/[overrideId] - Update transponder override
 - DELETE /api/v1/transponder-overrides/[overrideId] - Delete transponder override
 
+**Personas Endpoints:**
+- GET /api/v1/personas - Get available personas for current user
+- GET /api/v1/personas/driver/events - Get events for driver persona
+- GET /api/v1/personas/team-manager/team - Get team data for team manager persona
+- GET /api/v1/users/me/persona - Get current user's active persona
+- GET /api/v1/users/[userId]/driver-links - Get driver links for a user
+
+**Admin Endpoints (Admin Only):**
+- GET /api/v1/admin/stats - Get system statistics
+- GET /api/v1/admin/health - Get detailed health check information
+- GET /api/v1/admin/ingestion - Get ingestion service status
+- GET /api/v1/admin/users - List all users
+- GET /api/v1/admin/users/[userId] - Get user details
+- PATCH /api/v1/admin/users/[userId] - Update user details
+- DELETE /api/v1/admin/users/[userId] - Delete user
+- GET /api/v1/admin/events - List all events
+- GET /api/v1/admin/events/[eventId] - Get event details
+- POST /api/v1/admin/events/[eventId]/reingest - Trigger event re-ingestion
+- GET /api/v1/admin/tracks - List all tracks
+- GET /api/v1/admin/tracks/[trackId] - Get track details
+- PATCH /api/v1/admin/tracks/[trackId] - Update track (e.g., follow/unfollow)
+- GET /api/v1/admin/audit - Get audit log entries
+- GET /api/v1/admin/logs - Get application logs
+- GET /api/v1/admin/logs/sources - Get available log sources
+
 **Health Check:**
 - GET /api/health - Application health check
 
-**Note:** All data endpoints require authentication. Rate limiting is applied to authentication and ingestion endpoints.
+**Note:** All data endpoints require authentication. Admin endpoints require admin privileges (`isAdmin: true`). Rate limiting is applied to authentication and ingestion endpoints.
 
 All API endpoints follow the standard response format defined in docs/architecture/mobile-safe-architecture-guidelines.md Section 3.2. See docs/api/api-reference.md for complete API documentation.
 

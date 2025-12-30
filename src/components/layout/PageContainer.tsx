@@ -13,7 +13,6 @@
  * 
  * @relatedFiles
  * - src/components/layout/ContentWrapper.tsx (content wrapper component)
- * - docs/design/mre-mobile-ux-guidelines.md (mobile UX requirements)
  */
 
 import { ReactNode } from "react"
@@ -45,7 +44,7 @@ export default function PageContainer({
   return (
     <main
       id={id}
-      className={`page-container flex-1 w-full min-w-0 px-4 py-8 sm:px-6 sm:py-12 ${className}`}
+      className={`page-container flex-1 w-full min-w-0 px-6 py-12 ${className}`}
       tabIndex={tabIndex}
     >
       {children}

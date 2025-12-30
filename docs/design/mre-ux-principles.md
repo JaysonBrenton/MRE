@@ -1,18 +1,20 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
-description: Mandatory UX principles for all MRE version 0.1.0 features
+lastModified: 2025-12-28
+description: Mandatory UX principles for all MRE version 0.1.1 features
 purpose: Defines the mandatory User Experience principles for My Race Engineer (MRE).
-         These rules apply to all version 0.1.0 features and will remain the baseline foundation
+         These rules apply to all version 0.1.1 features and will remain the baseline foundation
          for Beta and Production. Ensures every screen behaves consistently, LLM
-         contributors follow predictable UX patterns, and version 0.1.0 UI remains simple,
+         contributors follow predictable UX patterns, and version 0.1.1 UI remains simple,
          mobile-first, and enterprise-grade. This document is fully authoritative.
-         No UX deviations are allowed in version 0.1.0.
+         No UX deviations are allowed in version 0.1.1.
 relatedFiles:
   - docs/design/mre-dark-theme-guidelines.md
   - docs/design/mre-mobile-ux-guidelines.md
+  - docs/design/navigation-patterns.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
+  - docs/adr/ADR-20251228-allow-sidebar-navigation.md
   - docs/roles/senior-ui-ux-expert.md
   - docs/roles/nextjs-front-end-engineer.md
   - docs/roles/quality-automation-engineer.md
@@ -21,15 +23,15 @@ relatedFiles:
 
 # MRE UX Principles (Authoritative Guide)
 
-This document defines the mandatory User Experience principles for **My Race Engineer (MRE)**. These rules apply to **all version 0.1.0 features** and will remain the baseline foundation for Beta and Production.
+This document defines the mandatory User Experience principles for **My Race Engineer (MRE)**. These rules apply to **all version 0.1.1 features** and will remain the baseline foundation for Beta and Production.
 
 The purpose of this document is to ensure that:
 
 * Every screen behaves consistently
 * Cursor and other LLM contributors follow predictable UX patterns
-* Version 0.1.0 UI remains simple, mobile-first, and enterprise‑grade
+* Version 0.1.1 UI remains simple, desktop-optimized, and enterprise‑grade
 
-This document is fully authoritative. No UX deviations are allowed in version 0.1.0.
+This document is fully authoritative. No UX deviations are allowed in version 0.1.1.
 
 ---
 
@@ -71,11 +73,11 @@ Touch targets must be easy to tap.
 * Minimum 44px touch height
 * Buttons must not be placed too close together
 
-### 2.3 Hick’s Law
+### 2.3 Hick's Law
 
 Reduce choices.
 
-* Version 0.1.0 screens must contain only a single primary action
+* Version 0.1.1 screens should focus on clear primary actions
 
 ### 2.4 Miller’s Law
 
@@ -107,15 +109,20 @@ Clean design must reinforce trust.
 
 # 3. Foundational Layout Rules
 
-### 3.1 Single Column Layout (Mobile First)
+### 3.1 Layout Rules (Desktop)
 
-All version 0.1.0 screens must use a **single-column layout**.
+All version 0.1.1 screens are optimized for desktop viewports (1280px+).
 
-* No sidebars
-* No multi-column grids
-* No floating elements
-
-This ensures full mobile compatibility.
+**Content Layout:**
+* Main content areas use desktop-optimized layouts
+* Multi-column layouts are allowed where appropriate
+* Sidebars are allowed for navigation purposes
+* Sidebars may be persistent or collapsible
+* All sidebar implementations must:
+  * Comply with WCAG 2.1 AA accessibility standards
+  * Support keyboard navigation and screen readers
+  * Complement (not replace) breadcrumb navigation
+* See `docs/design/navigation-patterns.md` for detailed sidebar implementation guidelines
 
 ### 3.2 Predictable Page Structure
 
@@ -208,22 +215,8 @@ mobile-button flex items-center justify-center rounded-md
 
 #### 4.3.2 Button Width Guidelines
 
-* **Full-width buttons**: Use `w-full` for form submit buttons and primary actions on mobile-first layouts
+* **Full-width buttons**: Use `w-full` for form submit buttons and primary actions where appropriate
 * **Auto-width buttons**: Omit `w-full` for navigation buttons and secondary actions that should size to content
-
-#### 4.3.3 Mobile Spacing Considerations
-
-When buttons are stacked vertically on mobile (e.g., in navigation bars), add spacing:
-* Use `mt-2 sm:mt-0` on the second button in a vertical stack
-* This provides appropriate spacing on mobile while maintaining horizontal layout on desktop
-
-**Example for Stacked Buttons:**
-```tsx
-<div className="flex flex-col gap-0 sm:flex-row sm:gap-2">
-  <button className="mobile-button ...">First</button>
-  <button className="mobile-button mt-2 sm:mt-0 ...">Second</button>
-</div>
-```
 
 #### 4.3.4 Disabled States
 
@@ -286,9 +279,9 @@ Microcopy must:
 * Avoid jargon
 * Explain exactly what the user needs to do
 
-### 5.3 No Marketing Copy in Version 0.1.0
+### 5.3 No Marketing Copy in Version 0.1.1
 
-The version 0.1.0 experience must stay strictly functional.
+The version 0.1.1 experience must stay strictly functional.
 
 ---
 
@@ -307,14 +300,15 @@ Welcome back <Driver Name>
 * Standard user → Welcome Page
 * Admin user → Admin Console
 
-### 6.3 No Additional Navigation
+### 6.3 Navigation Scope
 
-Version 0.1.0 must not have:
+Version 0.1.1 includes:
 
 * Dashboard
-* Profile pages
-* Settings
-* Menus referencing future features
+* Event pages
+* Driver pages
+* Admin console
+* Navigation patterns as documented in `docs/design/navigation-patterns.md`
 
 ---
 
@@ -340,31 +334,30 @@ Minimal. Used only where needed.
 
 ---
 
-# 8. Mobile-Specific Requirements
+# 8. Desktop-Specific Requirements
 
 These rules are mandatory:
 
-* No hover-only interactions
-* Buttons must have full-width tap targets
+* Buttons should have appropriate sizing for desktop interaction
 * Inputs must not truncate text
-* Layout must collapse gracefully on small devices
-* Avoid large empty spaces above content on mobile
+* Layout must be optimized for desktop viewports (1280px+)
+* Hover interactions are allowed for desktop
 
 ---
 
 # 9. What Not To Do (Critical Section)
 
-The following must **never** appear in version 0.1.0:
+The following must **never** appear in version 0.1.1:
 
 * Multi-step forms
 * Carousels
-* Images or illustrations
-* Animations
-* Tooltips
+* Images or illustrations (except as specified in design guidelines)
+* Animations (except minimal transitions)
+* Tooltips (unless required for accessibility)
 * Accordions
-* Tabs
-* Side navigation
-* Additional pages beyond version 0.1.0 scope
+* Additional pages beyond version 0.1.1 scope
+
+**Note:** Side navigation (sidebars) and tabs are allowed per ADR-20251228-allow-sidebar-navigation and feature scope. See section 3.1 for sidebar requirements.
 
 If a feature is not listed as required, it is **not allowed**.
 
@@ -384,15 +377,14 @@ UX tests must validate:
 
 # 11. Future Expansion Notes (Beta+)
 
-These rules remain strict in version 0.1.0 but may expand later to include:
+These rules remain strict in version 0.1.1 but may expand later to include:
 
 * Additional form screens
 * Multi-step onboarding
 * Hero sections
-* Tables and analytics components
-* Interactive widgets
+* Additional interactive widgets beyond current dashboard system
 
-No Beta features may be added in version 0.1.0.
+No Beta features may be added in version 0.1.1.
 
 ---
 

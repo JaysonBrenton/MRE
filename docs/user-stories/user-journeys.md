@@ -21,7 +21,7 @@ relatedFiles:
 # User Journeys Documentation
 
 **Status:** Authoritative  
-**Scope:** All personas, scenarios, edge cases, and variations for MRE version 0.1.0  
+**Scope:** All personas, scenarios, edge cases, and variations for MRE version 0.1.1  
 **Purpose:** Comprehensive end-to-end user journey documentation covering all user types, their complete workflows, error scenarios, and platform variations.
 
 This document provides detailed, step-by-step user journeys for all MRE personas. Each journey includes visual flowcharts, API interactions, UI elements, error handling, and cross-references to related user stories and technical documentation.
@@ -907,10 +907,10 @@ sequenceDiagram
 **Scenario 3: Partial Import Failure (Bulk Import)**
 
 - **User Action**: User imports multiple events, some fail
-- **UI Elements**: Toast notification: "Imported X of Y events. Z failed. Please retry failed imports."
+- **UI Elements**: Event table shows individual status for each event (imported/failed)
 - **API Response**: Individual responses per event
 - **Error Handling**: 
-  - Success count and failure count displayed
+  - Each event's status is displayed in the table
   - Failed events remain in list with "Failed import" status
   - User can retry failed events individually
 - **Recovery Path**: User retries failed imports
@@ -1616,7 +1616,7 @@ flowchart TD
 
 ## Team Manager Persona Journeys
 
-**Note**: Team Manager persona is defined but not fully implemented in version 0.1.0. The following journeys document the intended behavior based on persona specifications.
+**Note**: Team Manager persona is defined but not fully implemented in version 0.1.1. The following journeys document the intended behavior based on persona specifications.
 
 ### Team Manager Assignment Journey
 
@@ -1682,7 +1682,7 @@ flowchart TD
 
 ## Race Engineer Persona Journeys
 
-**Note**: Race Engineer persona is defined but not fully implemented in version 0.1.0. The following journeys document the intended behavior based on persona specifications.
+**Note**: Race Engineer persona is defined but not fully implemented in version 0.1.1. The following journeys document the intended behavior based on persona specifications.
 
 ### Race Engineer Selection Journey
 
@@ -1929,7 +1929,7 @@ This user journey documentation references and complements:
 - **[LiveRC Integration Epic](liverc-integration.md)**: Event search and analysis user stories
 - **[LiveRC User Workflow](../frontend/liverc/user-workflow.md)**: Detailed Event Search and Analysis workflow
 - **[MRE Personas](../design/mre-personas.md)**: Comprehensive persona definitions
-- **[MRE Version 0.1.0 Feature Scope](../specs/mre-v0.1-feature-scope.md)**: Version 0.1.0 feature specifications
+- **[MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md)**: Version 0.1.1 feature specifications
 - **[Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)**: Technical architecture requirements
 - **[LiveRC API Contracts](../architecture/liverc-ingestion/05-api-contracts.md)**: API endpoint specifications
 - **[MRE UX Principles](../design/mre-ux-principles.md)**: UX design principles

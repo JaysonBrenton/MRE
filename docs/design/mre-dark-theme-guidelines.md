@@ -2,10 +2,10 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Visual standards and token system for MRE dark theme implementation
-purpose: Defines the visual standards, token system, and rules for implementing the MRE dark
-         theme across all screens, ensuring consistency, legibility, and brand identity.
-         Applies to all UI in Alpha.
+description: Visual standards and token system for MRE theme implementation
+purpose: Defines the visual standards, token system, and rules for implementing themes in MRE.
+         Dark theme is the default, but the token system supports theme experimentation.
+         Applies to all UI in version 0.1.1 and beyond.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/mre-mobile-ux-guidelines.md
@@ -14,9 +14,9 @@ relatedFiles:
 
 # MRE Dark Theme Guidelines
 
-**Document Status:** Updated and aligned with MRE version 0.1.0 directives
-**Authoritative Scope:** Applies to all UI in version 0.1.0
-**Purpose:** Define the visual standards, token system, and rules for implementing the MRE dark theme (default) and light theme (optional) across all screens, ensuring consistency, legibility, and brand identity. Both themes are implemented and accessible via theme toggle component.
+**Document Status:** Updated and aligned with MRE version 0.1.1 directives
+**Authoritative Scope:** Applies to all UI in version 0.1.1
+**Purpose:** Define the visual standards, token system, and rules for implementing themes in MRE. Dark theme is the default, but the token system is designed to support theme experimentation. Both dark and light themes are implemented and accessible via theme toggle component. The semantic token system enables creation of additional themes while maintaining consistency and accessibility.
 
 ---
 
@@ -187,9 +187,9 @@ Rules:
 
 All forms must:
 
-* Use the dark theme tokens for backgrounds and borders
+* Use semantic theme tokens for backgrounds and borders (not hard-coded colors)
 * Use clear focus rings (light or accent-coloured)
-* Have a minimum touch target height of **44px** (Apple standard)
+* Have appropriate sizing for desktop interaction
 * Have clear error messaging following UX principles
 
 Buttons:
@@ -202,7 +202,7 @@ Buttons:
 
 # 7. Mobile Requirements
 
-All dark theme rules must translate cleanly to mobile screens.
+All theme rules must translate cleanly to mobile screens.
 
 Mobile constraints:
 
@@ -239,7 +239,7 @@ Components must degrade gracefully on narrow layouts.
 
 All UI components must be checked for:
 
-* Dark theme correctness
+* Theme correctness (works with all available themes)
 * Token usage (no hard-coded values)
 * Mobile readability
 * WCAG contrast compliance
@@ -256,7 +256,7 @@ Screenshots should be taken in:
 
 # 10. Theme Toggle and Light Theme Support
 
-**Status:** ✅ **Implemented** in version 0.1.0
+**Status:** ✅ **Implemented** in version 0.1.1
 
 Light theme support and theme switching are implemented:
 
@@ -272,7 +272,41 @@ Light theme support and theme switching are implemented:
 - Light theme values override dark theme values when `.light` class is present
 - Theme toggle is accessible from the header/navigation on authenticated pages
 
-# 11. Future Expansion
+# 11. Theme Experimentation
+
+The MRE theme system is designed to support experimentation while maintaining consistency and accessibility.
+
+## 11.1 Creating New Themes
+
+The semantic token system (`--token-*`) enables creation of additional themes beyond dark and light:
+
+1. **Define theme class**: Create a new CSS class (e.g., `.theme-custom`) in `src/app/globals.css`
+2. **Override tokens**: Define all semantic tokens for the new theme
+3. **Maintain contrast**: Ensure all themes meet WCAG AA contrast requirements
+4. **Test thoroughly**: Verify all components work correctly with the new theme
+
+## 11.2 Theme Best Practices
+
+When experimenting with themes:
+
+* **Always use semantic tokens**: Never hard-code colors in components
+* **Maintain accessibility**: All themes must meet WCAG AA contrast minimums
+* **Test across components**: Ensure new themes work with all UI components
+* **Document custom themes**: If creating project-wide themes, document them in this file
+* **Preserve dark theme as default**: Dark theme remains the default for consistency
+
+## 11.3 Token System Benefits
+
+The semantic token system provides:
+
+* **Flexibility**: Easy to create new themes by overriding token values
+* **Consistency**: Components automatically adapt to theme changes
+* **Maintainability**: Single source of truth for color values
+* **Accessibility**: Centralized contrast management
+
+---
+
+# 12. Future Expansion
 
 Future versions may include:
 
@@ -280,9 +314,10 @@ Future versions may include:
 * Expanded accent palette
 * Adaptive colour tokens for hardware telemetry displays
 * System theme detection (respect OS preference)
+* Additional pre-built themes (e.g., high-contrast, sepia, custom brand themes)
 
 ---
 
-# 11. License
+# 13. License
 
-Internal use only. This document defines the required dark theme standards for all version 0.1.0 screens.
+Internal use only. This document defines the theme system standards for all version 0.1.1 screens and beyond.

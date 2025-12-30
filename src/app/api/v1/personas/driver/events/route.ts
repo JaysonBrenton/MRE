@@ -15,8 +15,7 @@
  * - docs/architecture/mobile-safe-architecture-guidelines.md (API standards)
  */
 
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { getUserPersona } from "@/core/personas/repo"
 import { discoverDriverEvents, getDriverEvents } from "@/core/personas/driver-events"
 import { successResponse, errorResponse } from "@/lib/api-utils"
@@ -33,10 +32,12 @@ import { logger } from "@/lib/logger"
  * - confirmedOnly: Only return confirmed matches (true/false)
  */
 export async function GET(request: Request) {
+  let session = null
+  
   try {
-    const session = await getServerSession(authOptions)
+    session = await auth()
 
-    if (!session?.user?.id) {
+    if (!session || !session.user?.id) {
       return errorResponse(
         "UNAUTHORIZED",
         "Authentication required",
@@ -90,16 +91,42 @@ export async function GET(request: Request) {
       participationDetails
     })
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
     logger.error("Error fetching driver events", {
-      error: error instanceof Error ? error.message : String(error)
+      error: errorMessage,
+      stack: errorStack,
+      userId: session?.user?.id
     })
 
-    return errorResponse(
-      "INTERNAL_ERROR",
-      "Failed to fetch driver events",
-      undefined,
-      500
-    )
+    // Ensure we always return a valid response, even if error handling fails
+    try {
+      return errorResponse(
+        "INTERNAL_ERROR",
+        `Failed to fetch driver events: ${errorMessage}`,
+        process.env.NODE_ENV === "development" ? { stack: errorStack } : undefined,
+        500
+      )
+    } catch (responseError) {
+      // Fallback if errorResponse itself fails
+      logger.error("Failed to create error response", {
+        error: responseError instanceof Error ? responseError.message : String(responseError)
+      })
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "An unexpected error occurred"
+          }
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        }
+      )
+    }
   }
 }
 

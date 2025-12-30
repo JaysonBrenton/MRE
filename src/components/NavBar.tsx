@@ -14,7 +14,6 @@
  * @relatedFiles
  * - README.md (section 13.1 - Landing Page Navigation)
  * - docs/specs/mre-under-development-page.md
- * - docs/design/mre-mobile-ux-guidelines.md
  */
 
 import Link from "next/link"
@@ -33,8 +32,8 @@ export default function NavBar() {
 
   return (
     <nav className="w-full border-b border-[var(--token-border-default)] bg-[var(--token-surface)]">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="flex items-center justify-between gap-4">
           {/* Logo/Brand */}
           <div className="flex items-center py-4">
             <Link
@@ -46,28 +45,28 @@ export default function NavBar() {
           </div>
 
           {/* Navigation Items */}
-          <div className="flex flex-col gap-0 sm:flex-row sm:items-center sm:gap-1">
+          <div className="flex items-center gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className="mobile-list-item flex items-center px-4 text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-3"
+                className="flex items-center px-3 text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
               >
                 {item.label}
               </Link>
             ))}
             
             {/* Login / Register */}
-            <div className="flex flex-col gap-0 border-t border-[var(--token-border-muted)] py-2 sm:flex-row sm:border-t-0 sm:gap-2 sm:py-0 sm:pl-4">
+            <div className="flex items-center gap-2 pl-4">
               <Link
                 href="/login"
-                className="mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5"
+                className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
               >
                 Login
               </Link>
               <Link
                 href="/register"
-                className="mobile-button mt-2 flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:mt-0 sm:px-5"
+                className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
               >
                 Register
               </Link>

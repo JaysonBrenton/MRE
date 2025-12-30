@@ -14,11 +14,11 @@ relatedFiles:
 
 # LiveRC Ingestion – Overview & Goals
 
-**Status:** This ingestion subsystem is **in scope for version 0.1.0 release**. See [MRE Version 0.1.0 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for version 0.1.0 feature specifications.
+**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**. See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for version 0.1.1 feature specifications.
 
 **Related Documentation:**
 - [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) - Overall MRE architecture principles
-- [MRE Version 0.1.0 Feature Scope](../../specs/mre-v0.1-feature-scope.md) - Version 0.1.0 feature specifications
+- [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) - Version 0.1.1 feature specifications
 - [Web Scraping Best Practices](27-web-scraping-best-practices.md) - Comprehensive guide to web scraping practices and ethical guidelines
 
 ## Purpose

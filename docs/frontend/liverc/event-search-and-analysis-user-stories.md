@@ -153,12 +153,10 @@ This document provides user stories and acceptance criteria for the Event Search
 - [ ] "Clear Selection" button clears all selections
 - [ ] Import runs sequentially for selected events (one at a time)
 - [ ] Status column shows real-time progress (importing → imported/failed) for each event
-- [ ] Toast notification shown: "Import started for X event(s)." (for bulk import)
 - [ ] Events show status "Importing" during import
 - [ ] Import runs asynchronously (does not block UI)
 - [ ] Status updates when import completes or fails for each event
-- [ ] Success toast: "Import completed for X event(s)." (for bulk import)
-- [ ] Failure toast shows summary: "Imported X of Y events. Z failed. Please retry failed imports."
+- [ ] Each event's final status is displayed in the table (imported/failed)
 - [ ] Failed events show status "Failed import" with red tag
 - [ ] Selection persists in sessionStorage across page refreshes
 - [ ] Selection clears automatically after successful bulk import
@@ -217,7 +215,7 @@ This document provides user stories and acceptance criteria for the Event Search
 - [ ] Page header shows event name, date, and track name
 - [ ] Overview tab displays primary highlights chart
 - [ ] Chart is interactive (not static screenshot)
-- [ ] Chart shows meaningful summary (e.g., best lap per driver, gap evolution)
+- [ ] Chart shows meaningful summary (e.g., best lap per driver)
 - [ ] Chart allows selecting/unselecting drivers
 - [ ] Chart allows switching metrics (lap time vs gap)
 - [ ] Chart is responsive (scales to mobile width)

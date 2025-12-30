@@ -11,6 +11,7 @@
 
 import asyncio
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional
 from uuid import UUID
@@ -26,7 +27,14 @@ from ingestion.connectors.liverc.models import (
     ConnectorEntryList,
 )
 from ingestion.connectors.liverc.utils import build_event_url
-from ingestion.db.models import IngestDepth
+from ingestion.db.models import (
+    IngestDepth,
+    EventEntry,
+    UserDriverLinkStatus,
+    EventDriverLinkMatchType,
+    Track,
+    Event,
+)
 from ingestion.db.repository import Repository
 from ingestion.db.session import db_session
 from sqlalchemy import select, and_, func
@@ -34,27 +42,156 @@ from ingestion.ingestion.errors import (
     IngestionInProgressError,
     StateMachineError,
     ValidationError,
+    IngestionTimeoutError,
+    ConstraintViolationError,
 )
 from ingestion.ingestion.normalizer import Normalizer
 from ingestion.ingestion.state_machine import IngestionStateMachine
 from ingestion.ingestion.validator import Validator
 from ingestion.ingestion.driver_matcher import DriverMatcher
 from ingestion.ingestion.auto_confirm import check_and_confirm_links
-from ingestion.db.models import EventEntry, UserDriverLinkStatus, EventDriverLinkMatchType
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class EventContext:
+    """Lightweight snapshot of event metadata required for ingestion."""
+    event_id: UUID
+    track_id: UUID
+    track_slug: str
+    source_event_id: str
+
+
+@dataclass
+class TrackContext:
+    """Snapshot of track metadata needed for discovery/creation flows."""
+    track_id: UUID
+    source_track_slug: str
 
 
 class IngestionPipeline:
     """Main ingestion pipeline orchestrator."""
     
-    # Maximum number of concurrent race page fetches
-    # This prevents overwhelming the LiveRC API while significantly speeding up imports
-    RACE_FETCH_CONCURRENCY = 15
+    # Race fetch concurrency is limited to 1 per v0.1 performance guardrails
+    RACE_FETCH_CONCURRENCY = 1
+    LOCK_TIMEOUT_SECONDS = 5 * 60  # 5 minutes per concurrency spec
     
     def __init__(self):
         """Initialize pipeline."""
         self.connector = LiveRCConnector()
+        self._current_stage: str = "idle"
+
+    def _set_stage(self, stage: str, event_id: Optional[UUID] = None) -> None:
+        """Update the current pipeline stage for observability/timeout tracking."""
+        self._current_stage = stage
+        if event_id:
+            logger.debug("ingestion_stage", event_id=str(event_id), stage=stage)
+
+    async def _run_with_timeout(
+        self,
+        coro,
+        event_id: UUID,
+        ingestion_timer: Optional[metrics.IngestionDurationTracker] = None,
+    ):
+        """Wrap ingestion work with timeout + telemetry hooks."""
+        try:
+            return await asyncio.wait_for(coro, timeout=self.LOCK_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError as exc:
+            metrics.record_lock_timeout(str(event_id), self._current_stage)
+            logger.error(
+                "ingestion_lock_timeout",
+                event_id=str(event_id),
+                stage=self._current_stage,
+                timeout_seconds=self.LOCK_TIMEOUT_SECONDS,
+            )
+            if ingestion_timer:
+                ingestion_timer.finish("timeout")
+            raise IngestionTimeoutError(str(event_id), self._current_stage) from exc
+
+    def _load_event_context(self, event_id: UUID) -> EventContext:
+        """Load the immutable metadata for an event without holding the ingestion lock."""
+        with db_session() as session:
+            stmt = (
+                select(Event, Track)
+                .join(Track, Track.id == Event.track_id)
+                .where(Event.id == str(event_id))
+            )
+            row = session.execute(stmt).first()
+            if not row:
+                raise StateMachineError(
+                    f"Event {event_id} not found",
+                    event_id=str(event_id),
+                )
+            event_row, track_row = row
+            try:
+                track_uuid = UUID(track_row.id)
+            except ValueError as exc:
+                raise StateMachineError(
+                    f"Invalid track id for event {event_id}",
+                    event_id=str(event_id),
+                ) from exc
+
+            return EventContext(
+                event_id=event_id,
+                track_id=track_uuid,
+                track_slug=track_row.source_track_slug,
+                source_event_id=event_row.source_event_id,
+            )
+
+    def _load_track_context(self, track_id: UUID) -> TrackContext:
+        """Load minimal track metadata for source-ingestion flows."""
+        with db_session() as session:
+            track = session.get(Track, str(track_id))
+            if not track:
+                raise StateMachineError(
+                    f"Track {track_id} not found",
+                    track_id=str(track_id),
+                )
+            return TrackContext(
+                track_id=track_id,
+                source_track_slug=track.source_track_slug,
+            )
+
+    def _ensure_event_record(
+        self,
+        source_event_id: str,
+        track_id: UUID,
+        normalized_event: Dict[str, Any],
+        event_url: str,
+    ) -> UUID:
+        """Ensure an Event row exists for a source_event_id, guarded by a source-level lock."""
+        with db_session() as session:
+            repo = Repository(session)
+            if not repo.acquire_source_event_lock(source_event_id):
+                raise IngestionInProgressError(source_event_id)
+            lock_held = True
+
+            try:
+                existing = repo.get_event_by_source_event_id("liverc", source_event_id)
+                if existing:
+                    return UUID(existing.id)
+
+                event = repo.upsert_event(
+                    source="liverc",
+                    source_event_id=source_event_id,
+                    track_id=track_id,
+                    event_name=normalized_event["event_name"],
+                    event_date=normalized_event["event_date"],
+                    event_entries=normalized_event["event_entries"],
+                    event_drivers=normalized_event["event_drivers"],
+                    event_url=event_url,
+                )
+                session.flush()
+                logger.info(
+                    "event_record_created",
+                    event_id=str(event.id),
+                    source_event_id=source_event_id,
+                )
+                return UUID(event.id)
+            finally:
+                if lock_held:
+                    repo.release_source_event_lock(source_event_id)
     
     async def _fetch_race_page_with_validation(
         self,
@@ -226,6 +363,7 @@ class IngestionPipeline:
                         duration_seconds=normalized_race["duration_seconds"],
                     )
                     races_ingested += 1
+                    repo.session.commit()
                     continue
                 
                 # Normalize race data
@@ -409,7 +547,10 @@ class IngestionPipeline:
                 if race_laps:
                     repo.bulk_upsert_laps(race_laps)
                     laps_ingested += len(race_laps)
-        
+
+                # Commit after each race to keep transactions short-lived
+                repo.session.commit()
+
         return races_ingested, results_ingested, laps_ingested
     
     def _process_entry_list(
@@ -642,247 +783,229 @@ class IngestionPipeline:
         event_id: UUID,
         depth: str = "laps_full",
     ) -> Dict[str, Any]:
-        """
-        Ingest event data from LiveRC.
-        
-        Args:
-            event_id: Event ID from database
-            depth: Ingestion depth (must be "laps_full" for V1)
-        
-        Returns:
-            Ingestion summary dictionary
-        
-        Raises:
-            IngestionInProgressError: If ingestion already running
-            StateMachineError: If invalid state transition
-            ValidationError: If data validation fails
-        """
+        """Ingest event data from LiveRC while limiting lock scope."""
         logger.info("ingestion_start", event_id=str(event_id), depth=depth)
-        
+
+        event_context = self._load_event_context(event_id)
+
+        self._set_stage("fetch_event_page", event_id)
+        logger.info("connector_fetch_start", event_id=str(event_id), type="event_page")
+        event_data = await self.connector.fetch_event_page(
+            track_slug=event_context.track_slug,
+            source_event_id=event_context.source_event_id,
+        )
+        logger.info("connector_fetch_end", event_id=str(event_id), type="event_page")
+
+        self._set_stage("fetch_entry_list", event_id)
+        logger.info("connector_fetch_start", event_id=str(event_id), type="entry_list")
+        entry_list = await self.connector.fetch_entry_list(
+            track_slug=event_context.track_slug,
+            source_event_id=event_context.source_event_id,
+        )
+        logger.info("entry_list_fetched", event_id=str(event_id), class_count=len(entry_list.entries_by_class))
+
+        if not entry_list.entries_by_class:
+            raise ValidationError(
+                f"Entry list is empty for event {event_context.source_event_id}",
+                event_id=str(event_id),
+            )
+
+        event_data.races.sort(
+            key=lambda r: (r.race_order is None, r.race_order if r.race_order is not None else 0)
+        )
+        Validator.validate_event(event_data, event_context.source_event_id)
+        normalized_event = Normalizer.normalize_event(event_data)
+
+        self._set_stage("await_event_lock", event_id)
+        return await self._persist_with_lock(
+            event_context=event_context,
+            depth=depth,
+            normalized_event=normalized_event,
+            event_data=event_data,
+            entry_list=entry_list,
+        )
+
+    async def _persist_with_lock(
+        self,
+        event_context: EventContext,
+        depth: str,
+        normalized_event: Dict[str, Any],
+        event_data: ConnectorEventSummary,
+        entry_list: ConnectorEntryList,
+    ) -> Dict[str, Any]:
+        """Acquire the advisory lock and persist the ingestion payload."""
         with db_session() as session:
             repo = Repository(session)
-            
-            # Acquire lock early, before any database operations
-            # This prevents race conditions and ensures we fail fast
-            if not repo.acquire_event_lock(event_id):
-                # Lock acquisition failed - no rollback needed as no work was done
-                raise IngestionInProgressError(str(event_id))
-            
-            ingestion_timer = None
+            if not repo.acquire_event_lock(event_context.event_id):
+                raise IngestionInProgressError(str(event_context.event_id))
+            lock_held = True
+
+            ingestion_timer = metrics.IngestionDurationTracker(
+                event_id=str(event_context.event_id),
+                track_id=str(event_context.track_id),
+            )
+
             try:
-                # Get event
-                event = repo.get_event_by_id(event_id)
-                if not event:
-                    raise StateMachineError(
-                        f"Event {event_id} not found",
-                        event_id=str(event_id),
-                    )
-                
-                ingestion_timer = metrics.IngestionDurationTracker(
-                    event_id=str(event_id),
-                    track_id=str(event.track_id),
-                )
-
-                # Validate state transition
-                IngestionStateMachine.validate_transition(
-                    event.ingest_depth,
-                    depth,
-                    event_id=str(event_id),
-                )
-                
-                # Check if already at requested depth
-                # BUT: Always process entry list if EventEntry records are missing
-                # (needed for fuzzy matching even if races are already ingested)
-                if event.ingest_depth == IngestDepth(depth) and depth == "laps_full":
-                    # Check if EventEntry records exist - if not, we need to process entry list
-                    from ingestion.db.models import EventEntry
-                    event_entry_count = repo.session.scalar(
-                        select(func.count(EventEntry.id)).where(
-                            EventEntry.event_id == str(event_id)
-                        )
-                    ) or 0
-                    
-                    if event_entry_count > 0:
-                        # Event is fully ingested and has EventEntry records - skip
-                        logger.info("ingestion_already_complete", event_id=str(event_id))
-                        ingestion_timer.finish("already_complete")
-                        return {
-                            "event_id": str(event_id),
-                            "ingest_depth": depth,
-                            "status": "already_complete",
-                            "races_ingested": 0,
-                            "results_ingested": 0,
-                            "laps_ingested": 0,
-                        }
-                    else:
-                        # Event is marked as ingested but missing EventEntry records
-                        # Continue with entry list processing (but skip race processing)
-                        logger.warning(
-                            "ingestion_missing_event_entries",
-                            event_id=str(event_id),
-                            message="Event marked as ingested but missing EventEntry records - will process entry list only"
-                        )
-            
-                # Fetch event page
-                logger.info("connector_fetch_start", event_id=str(event_id), type="event_page")
-                event_data = await self.connector.fetch_event_page(
-                    track_slug=event.track.source_track_slug,
-                    source_event_id=event.source_event_id,
-                )
-                logger.info("connector_fetch_end", event_id=str(event_id), type="event_page")
-                
-                # Fetch entry list (REQUIRED - fail if missing)
-                logger.info("connector_fetch_start", event_id=str(event_id), type="entry_list")
-                entry_list = await self.connector.fetch_entry_list(
-                    track_slug=event.track.source_track_slug,
-                    source_event_id=event.source_event_id,
-                )
-                logger.info("entry_list_fetched", event_id=str(event_id), class_count=len(entry_list.entries_by_class))
-                
-                if not entry_list.entries_by_class:
-                    raise ValidationError(
-                        f"Entry list is empty for event {event.source_event_id}",
-                        event_id=str(event_id),
-                    )
-                
-                # Sort races by race_order before validation
-                # Sorting logic:
-                # - Races with race_order=None are sorted to the end (treated as highest priority for "None" group)
-                # - Races with numeric race_order are sorted in ascending order
-                # - This ensures numbered races (1, 2, 3...) come before unnumbered races
-                # - Within the None group, order is preserved (stable sort)
-                event_data.races.sort(key=lambda r: (r.race_order is None, r.race_order if r.race_order is not None else 0))
-                
-                # Validate event data
-                Validator.validate_event(event_data, event.source_event_id)
-                
-                # Normalize event data
-                normalized_event = Normalizer.normalize_event(event_data)
-                
-                # Update event metadata
-                event.event_name = normalized_event["event_name"]
-                event.event_date = normalized_event["event_date"]
-                event.event_entries = normalized_event["event_entries"]
-                event.event_drivers = normalized_event["event_drivers"]
-                
-                # Process entry list FIRST - create drivers and EventEntry records
-                entry_stats = self._process_entry_list(
-                    entry_list=entry_list,
-                    event_id=event_id,
-                    repo=repo,
-                )
-                
-                # Process races in parallel batches
-                # Skip if event is already at laps_full (races already ingested)
-                # We only process entry list to create EventEntry records for fuzzy matching
-                races_ingested = 0
-                results_ingested = 0
-                laps_ingested = 0
-                
-                if event.ingest_depth != IngestDepth.LAPS_FULL:
-                    races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(
-                        race_summaries=event_data.races,
-                        event_id=event_id,
+                self._set_stage("persist_event", event_context.event_id)
+                return await self._run_with_timeout(
+                    self._persist_event_data(
                         repo=repo,
+                        event_context=event_context,
+                        normalized_event=normalized_event,
+                        event_data=event_data,
+                        entry_list=entry_list,
                         depth=depth,
-                    )
-                else:
-                    logger.info(
-                        "skipping_race_processing",
-                        event_id=str(event_id),
-                        message="Event already at laps_full - only processing entry list for EventEntry records"
-                    )
-                
-                # Match users to drivers for this event
-                self._match_users_to_drivers_for_event(
-                    event_id=event_id,
-                    repo=repo,
+                        ingestion_timer=ingestion_timer,
+                    ),
+                    event_context.event_id,
+                    ingestion_timer,
                 )
-                
-                # Run auto-confirmation after initial matching
-                # This checks for transponder matches across multiple events
-                # and auto-confirms links when strong evidence is found
-                check_and_confirm_links(repo)
-                
-                # Update event ingest_depth and timestamp
-                event.ingest_depth = IngestDepth(depth)
-                event.last_ingested_at = datetime.utcnow()
-                
-                logger.info(
-                    "ingestion_complete",
-                    event_id=str(event_id),
-                    races_ingested=races_ingested,
-                    results_ingested=results_ingested,
-                    laps_ingested=laps_ingested,
-                )
-                
-                result_payload = {
-                    "event_id": str(event_id),
-                    "ingest_depth": depth,
-                    "last_ingested_at": event.last_ingested_at.isoformat(),
-                    "races_ingested": races_ingested,
-                    "results_ingested": results_ingested,
-                    "laps_ingested": laps_ingested,
-                    "status": "updated",
-                }
-                ingestion_timer.finish("success")
-                return result_payload
-
-            except Exception as e:
-                if ingestion_timer:
-                    ingestion_timer.finish("error")
-                # Check if this is a retryable constraint violation (race condition)
-                # Use a thread-safe retry tracking mechanism
-                from ingestion.ingestion.errors import ConstraintViolationError
-                if isinstance(e, ConstraintViolationError) and "race condition" in str(e).lower():
-                    # Check if we've already retried for this event in this session
-                    if not hasattr(self, '_retry_events'):
+            except ConstraintViolationError as exc:
+                if "race condition" in str(exc).lower():
+                    if not hasattr(self, "_retry_events"):
                         self._retry_events = set()
-                    
-                    if str(event_id) not in self._retry_events:
-                        self._retry_events.add(str(event_id))
+                    if str(event_context.event_id) not in self._retry_events:
+                        self._retry_events.add(str(event_context.event_id))
                         logger.warning(
                             "ingestion_race_condition_retry",
-                            event_id=str(event_id),
-                            error=str(e),
-                            message="Retrying ingestion once due to driver race condition"
+                            event_id=str(event_context.event_id),
+                            error=str(exc),
+                            message="Retrying ingestion once due to constraint violation",
                         )
-                        # Release lock before retry
-                        try:
-                            repo.release_event_lock(event_id)
-                        except Exception:
-                            pass  # Ignore errors releasing lock
-                        
-                        # Wait a moment for the transaction to fully commit
-                        import asyncio
+                        repo.release_event_lock(event_context.event_id)
+                        lock_held = False
                         await asyncio.sleep(1.0)
-                        
-                        # Retry once by calling ingest_event again
                         try:
-                            result = await self.ingest_event(event_id, depth=depth)
-                            self._retry_events.discard(str(event_id))  # Clear retry flag on success
+                            result = await self.ingest_event(event_context.event_id, depth=depth)
                             return result
-                        except Exception as retry_error:
-                            self._retry_events.discard(str(event_id))  # Clear retry flag on failure
-                            logger.error(
-                                "ingestion_retry_failed",
-                                event_id=str(event_id),
-                                error=str(retry_error),
-                            )
-                            raise
+                        finally:
+                            self._retry_events.discard(str(event_context.event_id))
                 raise
-
             finally:
-                # Release lock - wrap in try-except to ensure we don't fail silently
-                try:
-                    repo.release_event_lock(event_id)
-                except Exception as e:
-                    logger.error(
-                        "lock_release_failed",
-                        event_id=str(event_id),
-                        error=str(e),
-                        exc_info=True,
-                    )
+                if lock_held:
+                    try:
+                        repo.release_event_lock(event_context.event_id)
+                    except Exception as exc:
+                        logger.error(
+                            "lock_release_failed",
+                            event_id=str(event_context.event_id),
+                            error=str(exc),
+                            exc_info=True,
+                        )
+
+    async def _persist_event_data(
+        self,
+        repo: Repository,
+        event_context: EventContext,
+        normalized_event: Dict[str, Any],
+        event_data: ConnectorEventSummary,
+        entry_list: ConnectorEntryList,
+        depth: str,
+        ingestion_timer: metrics.IngestionDurationTracker,
+    ) -> Dict[str, Any]:
+        event_id = event_context.event_id
+        try:
+            event = repo.get_event_by_id(event_id)
+            if not event:
+                raise StateMachineError(
+                    f"Event {event_id} not found",
+                    event_id=str(event_id),
+                )
+
+            IngestionStateMachine.validate_transition(
+                event.ingest_depth,
+                depth,
+                event_id=str(event_id),
+            )
+
+            already_at_depth = event.ingest_depth == IngestDepth(depth) and depth == "laps_full"
+            event_entry_count = repo.session.scalar(
+                select(func.count(EventEntry.id)).where(EventEntry.event_id == str(event_id))
+            ) or 0
+
+            if already_at_depth and event_entry_count > 0:
+                logger.info("ingestion_already_complete", event_id=str(event_id))
+                ingestion_timer.finish("already_complete")
+                return {
+                    "event_id": str(event_id),
+                    "ingest_depth": depth,
+                    "status": "already_complete",
+                    "races_ingested": 0,
+                    "results_ingested": 0,
+                    "laps_ingested": 0,
+                }
+
+            # Update event metadata from normalized payload
+            event.event_name = normalized_event["event_name"]
+            event.event_date = normalized_event["event_date"]
+            event.event_entries = normalized_event["event_entries"]
+            event.event_drivers = normalized_event["event_drivers"]
+            repo.session.flush()
+
+            # Process entry list first for driver matching
+            self._set_stage("persist_entry_list", event_id)
+            entry_stats = self._process_entry_list(
+                entry_list=entry_list,
+                event_id=event_id,
+                repo=repo,
+            )
+            repo.session.commit()
+            logger.info(
+                "entry_list_persisted",
+                event_id=str(event_id),
+                drivers_created=entry_stats.get("drivers_created"),
+                drivers_updated=entry_stats.get("drivers_updated"),
+                entries_created=entry_stats.get("entries_created"),
+            )
+
+            races_ingested = 0
+            results_ingested = 0
+            laps_ingested = 0
+
+            if event.ingest_depth != IngestDepth.LAPS_FULL:
+                self._set_stage("persist_races", event_id)
+                races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(
+                    race_summaries=event_data.races,
+                    event_id=event_id,
+                    repo=repo,
+                    depth=depth,
+                )
+                repo.session.commit()
+            else:
+                logger.info(
+                    "skipping_race_processing",
+                    event_id=str(event_id),
+                    message="Event already at laps_full - only processed entry list",
+                )
+
+            self._set_stage("driver_matching", event_id)
+            self._match_users_to_drivers_for_event(
+                event_id=event_id,
+                repo=repo,
+            )
+            repo.session.commit()
+
+            check_and_confirm_links(repo)
+            repo.session.commit()
+
+            event.ingest_depth = IngestDepth(depth)
+            event.last_ingested_at = datetime.utcnow()
+            repo.session.commit()
+
+            result_payload = {
+                "event_id": str(event_id),
+                "ingest_depth": depth,
+                "last_ingested_at": event.last_ingested_at.isoformat(),
+                "races_ingested": races_ingested,
+                "results_ingested": results_ingested,
+                "laps_ingested": laps_ingested,
+                "status": "updated",
+            }
+            ingestion_timer.finish("success")
+            return result_payload
+        except Exception:
+            ingestion_timer.finish("error")
+            raise
     
     async def ingest_event_by_source_id(
         self,
@@ -890,223 +1013,80 @@ class IngestionPipeline:
         track_id: UUID,
         depth: str = "laps_full",
     ) -> Dict[str, Any]:
-        """
-        Ingest event by source_event_id and track_id, creating Event if missing.
-        
-        This method fetches full event metadata from LiveRC and upserts
-        the Event row if it doesn't exist, then proceeds with normal ingestion.
-        
-        Args:
-            source_event_id: Event ID from LiveRC
-            track_id: Track ID from database
-            depth: Ingestion depth (must be "laps_full" for V1)
-        
-        Returns:
-            Ingestion summary dictionary
-        
-        Raises:
-            IngestionInProgressError: If ingestion already running
-            StateMachineError: If invalid state transition
-            ValidationError: If data validation fails
-        """
+        """Ingest an event by discovering it from LiveRC and persisting it."""
         logger.info(
             "ingestion_by_source_id_start",
             source_event_id=source_event_id,
             track_id=str(track_id),
             depth=depth,
         )
-        
-        with db_session() as session:
-            repo = Repository(session)
-            
-            # Get track to extract track_slug
-            from ingestion.db.models import Track
-            # Convert UUID to string since tracks.id is TEXT in database
-            track_id_str = str(track_id)
-            track = session.get(Track, track_id_str)
-            if not track:
-                raise StateMachineError(
-                    f"Track {track_id} not found",
-                    track_id=track_id_str,
-                )
-            
-            # Check if event already exists
-            from ingestion.db.models import Event
-            existing_event = session.query(Event).filter(
-                Event.source == "liverc",
-                Event.source_event_id == source_event_id,
-            ).first()
-            
-            if existing_event:
-                # Event exists, use normal ingestion flow
-                logger.info(
-                    "ingestion_by_source_id_event_exists",
-                    event_id=str(existing_event.id),
-                    source_event_id=source_event_id,
-                )
-                return await self.ingest_event(
-                    event_id=existing_event.id,
-                    depth=depth,
-                )
-            
-            # Event doesn't exist - fetch full metadata from LiveRC and create it
-            logger.info(
-                "ingestion_by_source_id_fetching_metadata",
-                source_event_id=source_event_id,
-                track_slug=track.source_track_slug,
+
+        track_context = self._load_track_context(track_id)
+
+        self._set_stage("fetch_event_page", None)
+        logger.info(
+            "connector_fetch_start",
+            source_event_id=source_event_id,
+            track_slug=track_context.source_track_slug,
+            type="event_page",
+        )
+        event_data = await self.connector.fetch_event_page(
+            track_slug=track_context.source_track_slug,
+            source_event_id=source_event_id,
+        )
+        logger.info(
+            "connector_fetch_end",
+            source_event_id=source_event_id,
+            track_slug=track_context.source_track_slug,
+            type="event_page",
+        )
+
+        self._set_stage("fetch_entry_list", None)
+        logger.info(
+            "connector_fetch_start",
+            source_event_id=source_event_id,
+            track_slug=track_context.source_track_slug,
+            type="entry_list",
+        )
+        entry_list = await self.connector.fetch_entry_list(
+            track_slug=track_context.source_track_slug,
+            source_event_id=source_event_id,
+        )
+        logger.info(
+            "entry_list_fetched",
+            source_event_id=source_event_id,
+            class_count=len(entry_list.entries_by_class),
+        )
+
+        if not entry_list.entries_by_class:
+            raise ValidationError(
+                f"Entry list is empty for event {source_event_id}",
+                event_id=source_event_id,
             )
-            
-            # Fetch event page to get full metadata
-            try:
-                event_data = await self.connector.fetch_event_page(
-                    track_slug=track.source_track_slug,
-                    source_event_id=source_event_id,
-                )
-                logger.info(
-                    "ingestion_by_source_id_event_page_fetched",
-                    source_event_id=source_event_id,
-                )
-            except Exception as e:
-                logger.error(
-                    "ingestion_by_source_id_fetch_event_page_error",
-                    source_event_id=source_event_id,
-                    track_slug=track.source_track_slug,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                    exc_info=True,
-                )
-                raise
-            
-            # Normalize event data
-            try:
-                normalized_event = Normalizer.normalize_event(event_data)
-                logger.info(
-                    "ingestion_by_source_id_event_normalized",
-                    source_event_id=source_event_id,
-                )
-            except Exception as e:
-                logger.error(
-                    "ingestion_by_source_id_normalize_event_error",
-                    source_event_id=source_event_id,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                    exc_info=True,
-                )
-                raise
-            
-            # Build event URL
-            event_url = build_event_url(track.source_track_slug, source_event_id)
-            
-            # Upsert event (will create new one)
-            event = repo.upsert_event(
-                source="liverc",
-                source_event_id=source_event_id,
-                track_id=track_id,  # Pass UUID - repository converts to string
-                event_name=normalized_event["event_name"],
-                event_date=normalized_event["event_date"],
-                event_entries=normalized_event["event_entries"],
-                event_drivers=normalized_event["event_drivers"],
-                event_url=event_url,
-            )
-            
-            # Flush to ensure event.id is available without committing
-            # This keeps everything in the same transaction to avoid race conditions
-            session.flush()
-            
-            logger.info(
-                "ingestion_by_source_id_event_created",
-                event_id=str(event.id),
-                source_event_id=source_event_id,
-            )
-            
-            # Continue with ingestion in the same session to avoid race conditions
-            # Reuse the same repo and session for consistency
-            event_id = event.id
-            
-            # Acquire lock early
-            if not repo.acquire_event_lock(event_id):
-                raise IngestionInProgressError(str(event_id))
-            
-            try:
-                # Fetch event page
-                logger.info("connector_fetch_start", event_id=str(event_id), type="event_page")
-                event_data = await self.connector.fetch_event_page(
-                    track_slug=track.source_track_slug,
-                    source_event_id=source_event_id,
-                )
-                logger.info("connector_fetch_end", event_id=str(event_id), type="event_page")
-                
-                # Fetch entry list (REQUIRED - fail if missing)
-                logger.info("connector_fetch_start", event_id=str(event_id), type="entry_list")
-                entry_list = await self.connector.fetch_entry_list(
-                    track_slug=track.source_track_slug,
-                    source_event_id=source_event_id,
-                )
-                logger.info("entry_list_fetched", event_id=str(event_id), class_count=len(entry_list.entries_by_class))
-                
-                if not entry_list.entries_by_class:
-                    raise ValidationError(
-                        f"Entry list is empty for event {source_event_id}",
-                        event_id=str(event_id),
-                    )
-                
-                # Sort races by race_order before validation
-                event_data.races.sort(key=lambda r: (r.race_order is None, r.race_order or 0))
-                
-                # Validate event data
-                Validator.validate_event(event_data, source_event_id)
-                
-                # Update event metadata
-                event.event_name = normalized_event["event_name"]
-                event.event_date = normalized_event["event_date"]
-                event.event_entries = normalized_event["event_entries"]
-                event.event_drivers = normalized_event["event_drivers"]
-                
-                # Process entry list FIRST - create drivers and EventEntry records
-                entry_stats = self._process_entry_list(
-                    entry_list=entry_list,
-                    event_id=event_id,
-                    repo=repo,
-                )
-                
-                # Process races in parallel batches (same logic as ingest_event)
-                races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(
-                    race_summaries=event_data.races,
-                    event_id=event_id,
-                    repo=repo,
-                    depth=depth,
-                )
-                
-                # Update event ingest_depth and timestamp
-                event.ingest_depth = IngestDepth(depth)
-                event.last_ingested_at = datetime.utcnow()
-                
-                logger.info(
-                    "ingestion_complete",
-                    event_id=str(event_id),
-                    races_ingested=races_ingested,
-                    results_ingested=results_ingested,
-                    laps_ingested=laps_ingested,
-                )
-                
-                return {
-                    "event_id": str(event_id),
-                    "ingest_depth": depth,
-                    "last_ingested_at": event.last_ingested_at.isoformat(),
-                    "races_ingested": races_ingested,
-                    "results_ingested": results_ingested,
-                    "laps_ingested": laps_ingested,
-                    "status": "updated",
-                }
-            
-            finally:
-                # Release lock - wrap in try-except to ensure we don't fail silently
-                try:
-                    repo.release_event_lock(event_id)
-                except Exception as e:
-                    logger.error(
-                        "lock_release_failed",
-                        event_id=str(event_id),
-                        error=str(e),
-                        exc_info=True,
-                    )
+
+        event_data.races.sort(key=lambda r: (r.race_order is None, r.race_order or 0))
+        Validator.validate_event(event_data, source_event_id)
+        normalized_event = Normalizer.normalize_event(event_data)
+        event_url = build_event_url(track_context.source_track_slug, source_event_id)
+
+        event_id = self._ensure_event_record(
+            source_event_id=source_event_id,
+            track_id=track_id,
+            normalized_event=normalized_event,
+            event_url=event_url,
+        )
+
+        event_context = EventContext(
+            event_id=event_id,
+            track_id=track_id,
+            track_slug=track_context.source_track_slug,
+            source_event_id=source_event_id,
+        )
+
+        return await self._persist_with_lock(
+            event_context=event_context,
+            depth=depth,
+            normalized_event=normalized_event,
+            event_data=event_data,
+            entry_list=entry_list,
+        )

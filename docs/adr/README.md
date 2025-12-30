@@ -10,6 +10,7 @@ purpose: This directory contains all Architecture Decision Records (ADRs) for th
          and maintaining ADRs.
 relatedFiles:
   - docs/adr/ADR-20250127-adopt-mobile-safe-architecture.md
+  - docs/adr/ADR-20251228-allow-sidebar-navigation.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/roles/documentation-knowledge-steward.md
 ---
@@ -118,7 +119,8 @@ Example structure:
 ```
 docs/adr/
   ├── README.md
-  └── ADR-20250127-adopt-mobile-safe-architecture.md
+  ├── ADR-20250127-adopt-mobile-safe-architecture.md
+  └── ADR-20251228-allow-sidebar-navigation.md
 ```
 
 ---

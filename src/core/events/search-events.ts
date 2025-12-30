@@ -47,8 +47,22 @@ export async function searchEvents(input: SearchEventsInput): Promise<SearchEven
   }
 
   // Convert date strings to Date objects if provided
-  const startDate = input.startDate ? new Date(input.startDate) : undefined
-  const endDate = input.endDate ? new Date(input.endDate) : undefined
+  // Start date: set to beginning of day (midnight)
+  // End date: set to end of day (23:59:59.999) to include all events on that day
+  let startDate: Date | undefined
+  let endDate: Date | undefined
+
+  if (input.startDate) {
+    const date = new Date(input.startDate)
+    date.setHours(0, 0, 0, 0)
+    startDate = date
+  }
+
+  if (input.endDate) {
+    const date = new Date(input.endDate)
+    date.setHours(23, 59, 59, 999)
+    endDate = date
+  }
 
   // Search events (repo will throw if track not found)
   return searchEventsFromRepo({

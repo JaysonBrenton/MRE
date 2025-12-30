@@ -38,7 +38,7 @@ The purpose of the version 0.1.1 release is to build upon version 0.1.0 by addin
 * Table components with sorting, filtering, and pagination
 * Complex dashboard systems with customizable widgets
 * Telemetry visualizations for lap data and future sensor data
-* Enhanced UI patterns while maintaining mobile-first architecture
+* Enhanced UI patterns optimized for desktop
 
 Version 0.1.1 maintains the architectural foundation from version 0.1.0 while expanding UI capabilities.
 
@@ -206,10 +206,10 @@ Version 0.1.1 includes navigation features to improve user experience and suppor
 
 **Simplified Hamburger Menus:**
 - Basic open/close toggle functionality
-- Mobile-first implementation
+- Desktop-optimized implementation
 - Complements sidebars on desktop (hamburger for mobile, sidebar for desktop)
 - Minimal features (basic state management, simple accessibility)
-- Touch-friendly with minimum 44px touch targets
+- Accessible and keyboard-navigable
 - See `docs/design/navigation-patterns.md` for simplified implementation guidelines
 
 **Multi-Level Dropdown Menus (Secondary Pattern):**
@@ -221,11 +221,11 @@ Version 0.1.1 includes navigation features to improve user experience and suppor
 
 **Tab-Based Navigation (Secondary Pattern):**
 - Tab navigation for organizing related content within pages
-- Mobile-responsive tab behavior
+- Desktop-optimized tab behavior
 - Accessible tab panels
 - Use for organizing content within a single page context
 
-All navigation features must follow mobile-first principles and maintain accessibility standards. Breadcrumb navigation should be the primary method used throughout the application. See `docs/design/navigation-patterns.md` for complete specifications.
+All navigation features must follow desktop-optimized principles and maintain accessibility standards. Breadcrumb navigation should be the primary method used throughout the application. See `docs/design/navigation-patterns.md` for complete specifications.
 
 ---
 
@@ -243,9 +243,9 @@ Version 0.1.1 includes table components for displaying structured data across th
 - Column sorting (ascending/descending)
 - Row filtering and search
 - Pagination for large datasets
-- Responsive behavior on mobile
-- Horizontal scroll support for mobile devices
-- Touch-friendly interactions (minimum 44px touch targets)
+- Desktop-optimized layouts
+- Horizontal scroll support for wide tables if needed
+- Accessible interactions
 - Column visibility strategies for small screens
 
 **Mobile Behavior:**
@@ -281,7 +281,7 @@ Version 0.1.1 includes a comprehensive dashboard system with customizable widget
 - Save custom layouts per user per dashboard type
 - Reset to default layout capability
 
-All dashboards must follow mobile-first design and performance optimization. Complex dashboards with customizable widgets are fully in-scope for version 0.1.1. See `docs/architecture/dashboard-architecture.md` for complete specifications.
+All dashboards must follow desktop-optimized design and performance optimization. Complex dashboards with customizable widgets are fully in-scope for version 0.1.1. See `docs/architecture/dashboard-architecture.md` for complete specifications.
 
 ---
 
@@ -351,7 +351,7 @@ These features must only appear as links that redirect to `/under-development` w
 - Tab-based navigation (secondary pattern)
 - Sidebars for navigation on in-scope pages
 
-All navigation features must follow mobile-first principles and maintain accessibility standards.
+All navigation features must follow desktop-optimized principles and maintain accessibility standards.
 
 ### ❌ Backend
 
@@ -393,13 +393,14 @@ All version 0.1.1 screens (registration, login, welcome, admin, dashboards, tabl
 
 This includes:
 
-* Dark theme (default) with optional light theme toggle
+* Theme system with dark theme as default (light theme available via toggle)
 * Theme toggle component allows users to switch between dark and light themes
 * Theme preference persisted in localStorage
-* Semantic tokens for visuals (support both dark and light themes)
-* Mobile-first layouts
+* Semantic tokens for visuals (support theme experimentation - dark, light, and future themes)
+* Desktop-optimized layouts
 * Accessible form handling
 * UX consistency across all screens
+* Theme system designed to support experimentation while maintaining accessibility
 
 ---
 

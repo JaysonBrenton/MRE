@@ -14,7 +14,6 @@
  * 
  * @relatedFiles
  * - src/components/layout/PageContainer.tsx (page container component)
- * - docs/design/mre-mobile-ux-guidelines.md (mobile UX requirements)
  */
 
 import { ReactNode } from "react"

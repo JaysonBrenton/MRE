@@ -12,7 +12,6 @@
  *          when displaying text content with action buttons/icons.
  * 
  * @relatedFiles
- * - docs/design/mre-mobile-ux-guidelines.md (mobile UX requirements)
  * - src/components/ui/Modal.tsx (modal component)
  */
 
@@ -75,7 +74,7 @@ export default function ListRow({
 
   return (
     <div
-      className={`flex items-center justify-between px-4 py-3 min-h-[44px] cursor-pointer hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${className}`}
+      className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${className}`}
       onClick={onClick}
       role={role}
       tabIndex={tabIndex}

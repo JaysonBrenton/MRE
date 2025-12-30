@@ -224,7 +224,7 @@ const isValid = await argon2.verify(passwordHash, password)
 
 ### Authentication Requirements
 
-**Current State (version 0.1.0):**
+**Current State (version 0.1.1):**
 - Most endpoints do not require authentication
 - Authentication endpoints are public
 - Admin endpoints may require authentication in future
@@ -327,7 +327,7 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 **Protection:**
 - Email addresses used for authentication
 - Driver names displayed in UI
-- No additional PII collected in version 0.1.0
+- No additional PII collected in version 0.1.1
 
 **Placeholder for future documentation:**
 - PII retention policies
@@ -351,7 +351,7 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 
 ## Security Headers
 
-**Status:** ✅ **Implemented** (Version 0.1.0)
+**Status:** ✅ **Implemented** (Version 0.1.1)
 
 Security headers are implemented in `middleware.ts` with environment-aware configuration. All responses include security headers to protect against common web vulnerabilities.
 

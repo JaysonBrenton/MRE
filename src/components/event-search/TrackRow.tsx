@@ -42,7 +42,7 @@ export default function TrackRow({ track, isFavourite, onSelect, onToggleFavouri
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-3 min-h-[44px] cursor-pointer hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
       onClick={handleRowClick}
       role="button"
       tabIndex={0}
@@ -65,7 +65,7 @@ export default function TrackRow({ track, isFavourite, onSelect, onToggleFavouri
       <button
         type="button"
         onClick={handleStarClick}
-        className="ml-4 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+        className="ml-4 p-2 flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
         aria-label={isFavourite ? `Remove ${track.trackName} from favourites` : `Add ${track.trackName} to favourites`}
         aria-pressed={isFavourite}
         style={{ flexShrink: 0 }}

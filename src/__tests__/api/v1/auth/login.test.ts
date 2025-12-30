@@ -8,7 +8,7 @@
  * @description Tests for API route response format validation
  * 
  * @purpose Validates that the login API route returns responses in the
- *          standardized format defined in the mobile-safe architecture guidelines.
+ *          standardized format defined in the architecture guidelines.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"

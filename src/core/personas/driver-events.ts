@@ -57,7 +57,16 @@ export async function discoverDriverEvents(userId: string): Promise<{
       }
     },
     include: {
-      event: true,
+      event: {
+        include: {
+          track: {
+            select: {
+              id: true,
+              trackName: true
+            }
+          }
+        }
+      },
       userDriverLink: {
         select: {
           status: true

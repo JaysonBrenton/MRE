@@ -55,11 +55,11 @@ def get_reports_directory() -> Path:
     Returns:
         Path to reports directory
     """
-    # Check if we're in Docker (reports mounted at /app/reports)
-    if os.path.exists("/app/reports"):
-        return Path("/app/reports")
+    # Check if we're in Docker (reports mounted at /app/docs/reports)
+    if os.path.exists("/app/docs/reports"):
+        return Path("/app/docs/reports")
     # Otherwise, use relative path from repo root
-    return Path(__file__).parent.parent.parent / "reports"
+    return Path(__file__).parent.parent.parent / "docs" / "reports"
 
 
 def generate_track_sync_report(

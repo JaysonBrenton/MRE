@@ -185,7 +185,7 @@ Additional items may be added per story based on specific requirements.
 
 User stories reference and link to:
 
-- **[MRE Alpha Feature Scope](../specs/mre-v0.1-feature-scope.md)**: Defines version 0.1.0 feature set
+- **[MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md)**: Defines version 0.1.1 feature set
 - **[Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)**: Technical architecture requirements
 - **[MRE UX Principles](../design/mre-ux-principles.md)**: UX design principles
 - **[MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)**: Mobile-specific UX requirements

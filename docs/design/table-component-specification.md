@@ -199,7 +199,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 **Column Sorting:**
 - Tap column header to sort
 - Visual feedback on tap
-- Large touch target (minimum 44px height)
+- Appropriate sizing for desktop interaction
 
 **Row Selection:**
 - Tap row to select (if selection enabled)
@@ -207,12 +207,12 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 - Adequate spacing between rows
 
 **Filter Controls:**
-- Large touch targets for filter buttons
+- Appropriate sizing for filter buttons
 - Dropdown filters with mobile-friendly UI
 - Search input with adequate size
 
 **Pagination:**
-- Large pagination buttons (minimum 44px)
+- Appropriate sizing for pagination buttons
 - Swipe gestures optional (for mobile apps)
 - Clear page indicators
 

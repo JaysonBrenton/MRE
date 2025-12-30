@@ -8,7 +8,7 @@
  * @description Modal dialog prompting user to import newly discovered events
  * 
  * @purpose Shows a prompt when new events are discovered from LiveRC, asking
- *          the user if they want to import all events. In version 0.1.0, only "import all"
+ *          the user if they want to import all events. In version 0.1.1, only "import all"
  *          is supported (no selective import).
  * 
  * @relatedFiles
@@ -55,18 +55,18 @@ export default function ImportPrompt({
           We found {newEventCount} new event{newEventCount !== 1 ? "s" : ""} on LiveRC that{" "}
           {newEventCount !== 1 ? "are" : "is"} not yet imported. Import all now?
         </p>
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex gap-4">
           <button
             type="button"
             onClick={onImportAll}
-            className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5 h-11"
+            className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
           >
             Import All
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5 h-11"
+            className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
           >
             Cancel
           </button>

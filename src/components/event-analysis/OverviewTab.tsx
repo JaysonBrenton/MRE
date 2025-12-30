@@ -29,17 +29,14 @@ import {
 import EventStats from "./EventStats"
 import ChartControls from "./ChartControls"
 import BestLapBarChart from "./BestLapBarChart"
-import GapEvolutionLineChart from "./GapEvolutionLineChart"
 import AvgVsFastestChart from "./AvgVsFastestChart"
 import ChartSection from "./ChartSection"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-import { calculateGapEvolution } from "@/core/events/calculate-gap-evolution"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 import ChartDataNotice from "./ChartDataNotice"
 import {
   getDriversMissingAvgVsFastest,
   getDriversMissingBestLap,
-  getDriversMissingGapSeries,
 } from "@/core/events/event-analysis-notices"
 import { logger } from "@/lib/logger"
 
@@ -49,7 +46,7 @@ export interface OverviewTabProps {
   onDriverSelectionChange: (driverIds: string[]) => void
 }
 
-type ChartType = "best-lap" | "gap-evolution" | "avg-vs-fastest"
+type ChartType = "best-lap" | "avg-vs-fastest"
 
 const STORAGE_KEY_CHART_TYPE = "mre-overview-chart-type"
 
@@ -72,7 +69,7 @@ export default function OverviewTab({
     )
     if (
       storedChartType &&
-      ["best-lap", "gap-evolution", "avg-vs-fastest"].includes(
+      ["best-lap", "avg-vs-fastest"].includes(
         storedChartType
       )
     ) {
@@ -109,6 +106,7 @@ export default function OverviewTab({
   }, [data.races, selectedClass])
 
   // Calculate driver stats from filtered races only
+  // Exclude non-starting drivers (lapsCompleted === 0) as they have no performance data
   const driverStatsByClass = useMemo(() => {
     const driverMap = new Map<
       string,
@@ -123,6 +121,11 @@ export default function OverviewTab({
     // Process each race in filtered races
     filteredRaces.forEach((race) => {
       race.results.forEach((result) => {
+        // Skip non-starting drivers (0 laps completed) - they have no performance data
+        if (result.lapsCompleted === 0) {
+          return
+        }
+
         const driverId = result.driverId
         const driverName = result.driverName
 
@@ -183,58 +186,6 @@ export default function OverviewTab({
       .sort((a, b) => a.bestLapTime - b.bestLapTime)
   }, [driverStatsByClass])
 
-  const gapEvolutionData = useMemo(() => {
-    const driverMap = new Map<
-      string,
-      {
-        driverId: string
-        driverName: string
-        laps: Array<{
-          lapNumber: number
-          lapTimeSeconds: number
-          elapsedRaceTime: number
-          positionOnLap: number
-        }>
-      }
-    >()
-
-    filteredRaces.forEach((race) => {
-      race.results.forEach((result) => {
-        if (!driverMap.has(result.driverId)) {
-          driverMap.set(result.driverId, {
-            driverId: result.driverId,
-            driverName: result.driverName,
-            laps: [],
-          })
-        }
-        const driverSeries = driverMap.get(result.driverId)!
-        driverSeries.laps.push(
-          ...result.laps.map((lap) => ({
-            lapNumber: lap.lapNumber,
-            lapTimeSeconds: lap.lapTimeSeconds,
-            elapsedRaceTime: lap.elapsedRaceTime,
-            positionOnLap: lap.positionOnLap,
-          }))
-        )
-      })
-    })
-
-    const seriesArray = Array.from(driverMap.values())
-    const bestLapLookup = new Map<string, number>()
-    seriesArray.forEach((series) => {
-      const fastestLap = series.laps.reduce((best, lap) => {
-        return Math.min(best, lap.lapTimeSeconds)
-      }, Infinity)
-      bestLapLookup.set(series.driverId, fastestLap)
-    })
-
-    const gapSeries = calculateGapEvolution(seriesArray)
-    return gapSeries.sort((a, b) => {
-      const aLap = bestLapLookup.get(a.driverId) ?? Infinity
-      const bLap = bestLapLookup.get(b.driverId) ?? Infinity
-      return aLap - bLap
-    })
-  }, [filteredRaces])
 
   const avgVsFastestData = useMemo(() => {
     return driverStatsByClass
@@ -248,22 +199,37 @@ export default function OverviewTab({
       .sort((a, b) => a.fastestLap - b.fastestLap)
   }, [driverStatsByClass])
 
+  // Build driver options from driverStatsByClass to exclude non-starting drivers
+  // (those with 0 laps completed who have no performance data to visualize)
   const driverOptions = useMemo(() => {
-    return data.drivers.map((d) => ({
+    return driverStatsByClass.map((d) => ({
       driverId: d.driverId,
       driverName: d.driverName,
     }))
-  }, [data.drivers])
+  }, [driverStatsByClass])
+
+  const driverOptionsLookup = useMemo(() => {
+    return new Map(driverOptions.map((driver) => [driver.driverId, driver.driverName]))
+  }, [driverOptions])
 
   const driverNameLookup = useMemo(() => {
     const map = new Map<string, string>()
+    // First, add all drivers from data.drivers (these are aggregated across all races)
     data.drivers.forEach((driver) => {
-      map.set(driver.driverId, driver.driverName)
+      if (driver.driverName) {
+        map.set(driver.driverId, driver.driverName)
+      }
     })
+    // Then, add all drivers from race results (including those with 0 laps)
+    // This ensures we have names for all drivers who appear in any race
     data.races.forEach((race) => {
       race.results.forEach((result) => {
-        if (!map.has(result.driverId)) {
-          map.set(result.driverId, result.driverName)
+        // Only add if we don't already have this driverId, or if the existing entry is empty
+        if (result.driverId && result.driverName) {
+          const existing = map.get(result.driverId)
+          if (!existing || existing.trim() === "") {
+            map.set(result.driverId, result.driverName)
+          }
         }
       })
     })
@@ -307,18 +273,24 @@ export default function OverviewTab({
     
     // Also check race results directly - check both filtered and all races
     // This catches any driverIds that might not be in aggregates or filtered races
+    // Only include drivers with laps > 0 (exclude non-starting drivers)
     filteredRaces.forEach((race) => {
       race.results.forEach((result) => {
-        const normalizedName = normalizeDriverName(result.driverName)
-        if (selectedNormalizedNames.has(normalizedName)) {
-          expandedIds.add(result.driverId)
+        if (result.lapsCompleted > 0) {
+          const normalizedName = normalizeDriverName(result.driverName)
+          if (selectedNormalizedNames.has(normalizedName)) {
+            expandedIds.add(result.driverId)
+          }
         }
       })
     })
     
     // Also check all races (not just filtered) to catch drivers in other classes
+    // Include ALL drivers from race results (even with 0 laps) to ensure we catch all matches
     data.races.forEach((race) => {
       race.results.forEach((result) => {
+        // Include all drivers, not just those with laps > 0, to ensure name matching works
+        // for drivers who may have 0 laps in some races but > 0 in others
         const normalizedName = normalizeDriverName(result.driverName)
         if (selectedNormalizedNames.has(normalizedName)) {
           expandedIds.add(result.driverId)
@@ -326,8 +298,11 @@ export default function OverviewTab({
       })
     })
     
-    return Array.from(expandedIds)
-  }, [selectedDriverIds, data.drivers, driverStatsByClass, filteredRaces, data.races])
+    // Filter to only include driverIds that we have names for in driverNameLookup
+    // This prevents "Unknown Driver" from appearing
+    const driverNameLookupSnapshot = new Map(driverNameLookup)
+    return Array.from(expandedIds).filter((driverId) => driverNameLookupSnapshot.has(driverId))
+  }, [selectedDriverIds, data.drivers, driverStatsByClass, filteredRaces, data.races, driverNameLookup])
 
   const shouldShowSelectionNotices = expandedSelectedDriverIds.length > 0
 
@@ -351,23 +326,17 @@ export default function OverviewTab({
     )
   }, [shouldShowSelectionNotices, expandedSelectedDriverIds, driverStatsByClass])
 
-  const missingGapDriverIds = useMemo(() => {
-    if (!shouldShowSelectionNotices) {
-      return []
-    }
-    return getDriversMissingGapSeries(
-      expandedSelectedDriverIds,
-      gapEvolutionData
-    )
-  }, [shouldShowSelectionNotices, expandedSelectedDriverIds, gapEvolutionData])
 
   const mapDriverIdsToNames = useCallback(
     (driverIds: string[]) => {
-      return driverIds.map((driverId) =>
-        driverNameLookup.get(driverId) ?? "Unknown Driver"
-      )
+      return driverIds.map((driverId) => {
+        const name =
+          driverNameLookup.get(driverId) ??
+          driverOptionsLookup.get(driverId)
+        return name ?? "Unknown Driver"
+      })
     },
-    [driverNameLookup]
+    [driverNameLookup, driverOptionsLookup]
   )
 
   const missingBestLapDriverNames = useMemo(
@@ -380,10 +349,6 @@ export default function OverviewTab({
     [mapDriverIdsToNames, missingAvgVsFastestDriverIds]
   )
 
-  const missingGapDriverNames = useMemo(
-    () => mapDriverIdsToNames(missingGapDriverIds),
-    [mapDriverIdsToNames, missingGapDriverIds]
-  )
 
   // Handle driver toggle from chart click
   const handleSelectionChange = useCallback(
@@ -423,15 +388,18 @@ export default function OverviewTab({
       selectionKey: "",
     })
     
-    // Auto-select all drivers in the selected class
+    // Auto-select all drivers in the selected class (excluding non-starting drivers)
     if (className !== null) {
-      // Get all drivers who raced in this class
+      // Get all drivers who raced in this class and have completed at least one lap
       const driversInClass = new Set<string>()
       data.races
         .filter((race) => race.className === className)
         .forEach((race) => {
           race.results.forEach((result) => {
-            driversInClass.add(result.driverId)
+            // Only include drivers who have completed at least one lap
+            if (result.lapsCompleted > 0) {
+              driversInClass.add(result.driverId)
+            }
           })
         })
       
@@ -452,8 +420,7 @@ export default function OverviewTab({
 
     if (
       missingBestLapDriverIds.length === 0 &&
-      missingAvgVsFastestDriverIds.length === 0 &&
-      missingGapDriverIds.length === 0
+      missingAvgVsFastestDriverIds.length === 0
     ) {
       lastLoggedMissingState.current = null
       return
@@ -462,7 +429,6 @@ export default function OverviewTab({
     const payload = JSON.stringify({
       missingBestLapDriverIds,
       missingAvgVsFastestDriverIds,
-      missingGapDriverIds,
     })
 
     if (lastLoggedMissingState.current === payload) {
@@ -477,13 +443,11 @@ export default function OverviewTab({
       selectedDriverCount: expandedSelectedDriverIds.length,
       missingBestLapDriverIds,
       missingAvgVsFastestDriverIds,
-      missingGapDriverIds,
     })
   }, [
     shouldShowSelectionNotices,
     missingBestLapDriverIds,
     missingAvgVsFastestDriverIds,
-    missingGapDriverIds,
     data.event.id,
     selectedClass,
     expandedSelectedDriverIds.length,
@@ -549,13 +513,6 @@ export default function OverviewTab({
             />
           )}
 
-        {chartType === "gap-evolution" && missingGapDriverNames.length > 0 && (
-          <ChartDataNotice
-            title="Gap evolution unavailable"
-            description="The selected drivers below have no lap-by-lap telemetry in the current class, so their gap lines cannot be rendered."
-            driverNames={missingGapDriverNames}
-          />
-        )}
 
         {/* Chart Section */}
         <ChartSection>
@@ -570,16 +527,6 @@ export default function OverviewTab({
           />
         )}
 
-        {chartType === "gap-evolution" && (
-          <GapEvolutionLineChart
-            data={gapEvolutionData}
-            selectedDriverIds={expandedSelectedDriverIds}
-            currentPage={currentPage}
-            driversPerPage={driversPerPage}
-            onPageChange={handlePageChange}
-            onDriverToggle={handleDriverToggle}
-          />
-        )}
 
         {chartType === "avg-vs-fastest" && (
           <AvgVsFastestChart

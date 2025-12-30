@@ -64,6 +64,12 @@ class IngestBySourceIdRequest(BaseModel):
             raise ValueError("depth='summary_only' is not supported in V1. Use 'laps_full' for full ingestion or 'none' for discovery only.")
 
 
+class EntryListRequest(BaseModel):
+    """Request body for entry list endpoint."""
+    source_event_id: str
+    track_slug: str
+
+
 @router.post("/tracks/sync")
 async def sync_tracks(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
@@ -696,6 +702,121 @@ async def ingest_event_by_source_id(
                 "source": "ingest_event_by_source_id",
                 "message": error_message,
                 "details": {"error_type": type(e).__name__},
+            },
+        }
+
+
+@router.post("/events/entry-list")
+async def get_event_entry_list(
+    request: EntryListRequest,
+) -> Dict[str, Any]:
+    """
+    Fetch entry list for an event from LiveRC.
+    
+    This endpoint fetches the entry list page for a given event and returns
+    all driver entries grouped by racing class. Useful for filtering events
+    by driver name before importing.
+    
+    Args:
+        request: Entry list request with source_event_id and track_slug
+    
+    Returns:
+        Standard envelope: { "success": true, "data": { ...entry_list... } }
+        or { "success": false, "error": { ... } }
+    """
+    logger.info(
+        "get_event_entry_list_start",
+        source_event_id=request.source_event_id,
+        track_slug=request.track_slug,
+    )
+    
+    try:
+        connector = LiveRCConnector()
+        
+        # Fetch entry list from LiveRC
+        entry_list = await connector.fetch_entry_list(
+            track_slug=request.track_slug,
+            source_event_id=request.source_event_id,
+        )
+        
+        # Convert ConnectorEntryList to dict for JSON serialization
+        entries_by_class = {}
+        for class_name, drivers in entry_list.entries_by_class.items():
+            entries_by_class[class_name] = [
+                {
+                    "driver_name": driver.driver_name,
+                    "car_number": driver.car_number,
+                    "transponder_number": driver.transponder_number,
+                    "source_driver_id": driver.source_driver_id,
+                    "class_name": driver.class_name,
+                }
+                for driver in drivers
+            ]
+        
+        logger.info(
+            "get_event_entry_list_success",
+            source_event_id=request.source_event_id,
+            track_slug=request.track_slug,
+            class_count=len(entries_by_class),
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "source_event_id": entry_list.source_event_id,
+                "entries_by_class": entries_by_class,
+            },
+        }
+    
+    except ConnectorHTTPError as e:
+        logger.error(
+            "get_event_entry_list_http_error",
+            error=str(e),
+            source_event_id=request.source_event_id,
+            track_slug=request.track_slug,
+        )
+        return {
+            "success": False,
+            "error": {
+                "code": "CONNECTOR_HTTP_ERROR",
+                "message": str(e),
+                "details": None,
+                "source": "liverc_entry_list",
+            },
+        }
+    
+    except EventPageFormatError as e:
+        logger.error(
+            "get_event_entry_list_parse_error",
+            error=str(e),
+            source_event_id=request.source_event_id,
+            track_slug=request.track_slug,
+        )
+        return {
+            "success": False,
+            "error": {
+                "code": "PAGE_FORMAT_ERROR",
+                "message": str(e),
+                "details": None,
+                "source": "liverc_entry_list",
+            },
+        }
+    
+    except Exception as e:
+        logger.error(
+            "get_event_entry_list_error",
+            error=str(e),
+            source_event_id=request.source_event_id,
+            track_slug=request.track_slug,
+            exc_info=True,
+        )
+        return {
+            "success": False,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Internal server error during entry list fetch",
+                "details": None,
+                "source": "liverc_entry_list",
             },
         }
 

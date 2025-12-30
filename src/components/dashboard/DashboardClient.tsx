@@ -182,7 +182,7 @@ export default function DashboardClient() {
           <p>Import an event to see it appear here for quick access.</p>
           <Link
             href="/event-search"
-            className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
           >
             Search for events
           </Link>
@@ -193,7 +193,7 @@ export default function DashboardClient() {
     return (
       <ul className="space-y-3">
         {recentEvents.map((event) => (
-          <li key={event.id} className="flex flex-col gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
+          <li key={event.id} className="flex items-center justify-between gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] p-3">
             <div>
               <p className="text-sm font-medium text-[var(--token-text-primary)]">{event.eventName}</p>
               <p className="text-xs text-[var(--token-text-secondary)]">
@@ -202,7 +202,7 @@ export default function DashboardClient() {
             </div>
             <Link
               href={`/events/analyse/${event.id}`}
-              className="mobile-button inline-flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
             >
               View analysis
             </Link>

@@ -51,22 +51,22 @@ export default function EventOverview({
             <h3 className="text-lg font-semibold text-[var(--token-text-primary)] truncate">
               {eventName}
             </h3>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-sm text-[var(--token-text-secondary)] mt-1">
+            <div className="flex items-center gap-4 text-sm text-[var(--token-text-secondary)] mt-1">
               <span>{formatDateLong(eventDate)}</span>
-              <span className="hidden sm:inline">•</span>
+              <span>•</span>
               <span className="truncate">{trackName}</span>
             </div>
           </div>
           <div className="flex gap-2">
             <Link
               href={`/events/analyse/${eventId}`}
-              className="mobile-button hidden sm:inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
             >
               View full analysis
             </Link>
             <Link
               href={`/events/analyse/${eventId}`}
-              className="flex-shrink-0 p-2 rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:hidden"
+              className="flex-shrink-0 p-2 rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] hidden"
               aria-label="View full event analysis"
             >
               <ChartIcon size={20} />

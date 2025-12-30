@@ -12,7 +12,7 @@
  * 
  * @relatedFiles
  * - src/components/event-analysis/BestLapBarChart.tsx (uses this)
- * - src/components/event-analysis/GapEvolutionLineChart.tsx (uses this)
+ * - src/components/event-analysis/AvgVsFastestChart.tsx (uses this)
  * - docs/design/mre-dark-theme-guidelines.md (token system)
  */
 

@@ -190,6 +190,21 @@ class IngestionInProgressError(StateMachineError):
         self.code = "INGESTION_IN_PROGRESS"
 
 
+class IngestionTimeoutError(IngestionError):
+    """Raised when an ingestion job exceeds the lock timeout."""
+
+    def __init__(self, event_id: str, stage: Optional[str] = None):
+        details: Dict[str, Any] = {"event_id": event_id}
+        if stage:
+            details["stage"] = stage
+        super().__init__(
+            f"Ingestion timed out for event {event_id}",
+            code="INGESTION_TIMEOUT",
+            source="pipeline",
+            details=details,
+        )
+
+
 # Persistence Errors
 
 class PersistenceError(IngestionError):
@@ -216,4 +231,3 @@ class ConstraintViolationError(PersistenceError):
         if constraint:
             self.details["constraint"] = constraint
         self.code = "CONSTRAINT_VIOLATION_ERROR"
-

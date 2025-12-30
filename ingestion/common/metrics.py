@@ -52,6 +52,13 @@ _CONNECTOR_ERRORS = Counter(
     registry=REGISTRY,
 )
 
+_INGESTION_LOCK_TIMEOUTS = Counter(
+    "ingestion_lock_timeouts_total",
+    "Counts ingestion lock timeouts grouped by stage",
+    labelnames=("event_id", "stage"),
+    registry=REGISTRY,
+)
+
 _SITE_POLICY_EVENTS = Counter(
     "site_policy_events_total",
     "Counts site policy decisions (cache hits, robots blocks, disabled, etc.)",
@@ -105,6 +112,11 @@ def record_event_entry_cache_hit(event_id: str) -> None:
 def record_event_entry_cache_lookup(event_id: str) -> None:
     """Record an event entry cache lookup (hit or miss)."""
     _EVENT_ENTRY_CACHE_LOOKUPS.labels(event_id=event_id).inc()
+
+
+def record_lock_timeout(event_id: str, stage: str) -> None:
+    """Record when an ingestion job exceeds the lock timeout."""
+    _INGESTION_LOCK_TIMEOUTS.labels(event_id=event_id, stage=stage).inc()
 
 
 class _DurationTracker:
@@ -178,6 +190,7 @@ __all__ = [
     "record_site_policy_event",
     "record_event_entry_cache_hit",
     "record_event_entry_cache_lookup",
+    "record_lock_timeout",
     "start_race_fetch_timer",
     "start_lap_extraction_timer",
     "observe_race_fetch",

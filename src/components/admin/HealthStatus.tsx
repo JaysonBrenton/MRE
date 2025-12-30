@@ -17,7 +17,7 @@ export default function HealthStatus() {
       .then((d) => d.success && setChecks(d.data))
       .finally(() => setLoading(false))
   }, [])
-  if (loading) return <div className="py-8 text-center">Loading...</div>
+  if (loading) return <div className="py-8 text-center w-full min-w-0">Loading...</div>
   return (
     <div className="space-y-4">
       {checks.map((check) => (

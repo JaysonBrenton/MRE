@@ -45,7 +45,7 @@ async function main() {
   }
 
   const adminEmail = process.env.ADMIN_EMAIL || "admin@mre.local"
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123456"
+  const adminPassword = process.env.ADMIN_PASSWORD || "Wilier2013"
   const adminDriverName = process.env.ADMIN_DRIVER_NAME || "Administrator"
 
   // Normalize email to lowercase for consistent storage

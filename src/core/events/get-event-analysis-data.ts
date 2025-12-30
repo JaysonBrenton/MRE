@@ -13,10 +13,54 @@
  * @relatedFiles
  * - src/core/events/repo.ts (database access)
  * - src/core/events/calculate-driver-stats.ts (driver statistics)
- * - src/core/events/calculate-gap-evolution.ts (gap calculations)
  */
 
 import { prisma } from "@/lib/prisma"
+
+function sanitizeLapTime(value: number | null | undefined): number | null {
+  if (typeof value !== "number") {
+    return null
+  }
+  if (!Number.isFinite(value) || value <= 0) {
+    return null
+  }
+  return value
+}
+
+function deriveLapMetrics(
+  laps: Array<{
+    lapTimeSeconds: number
+  }>
+): { bestLap: number | null; averageLap: number | null } {
+  if (!laps || laps.length === 0) {
+    return { bestLap: null, averageLap: null }
+  }
+
+  let best = Infinity
+  let total = 0
+  let count = 0
+
+  for (const lap of laps) {
+    const time = sanitizeLapTime(lap.lapTimeSeconds)
+    if (time === null) {
+      continue
+    }
+    if (time < best) {
+      best = time
+    }
+    total += time
+    count += 1
+  }
+
+  if (count === 0) {
+    return { bestLap: null, averageLap: null }
+  }
+
+  return {
+    bestLap: Number.isFinite(best) ? best : null,
+    averageLap: total / count,
+  }
+}
 
 export interface EventSummary {
   event: {
@@ -243,6 +287,13 @@ export async function getEventAnalysisData(
     const resultsData = race.results.map((result) => {
       totalLaps += result.laps.length
 
+      // Derive lap metrics when LiveRC omits aggregate columns
+      const derivedMetrics = deriveLapMetrics(result.laps)
+      const normalizedFastLap =
+        sanitizeLapTime(result.fastLapTime) ?? derivedMetrics.bestLap
+      const normalizedAvgLap =
+        sanitizeLapTime(result.avgLapTime) ?? derivedMetrics.averageLap
+
       // Track driver stats using normalized Driver ID (not raceDriverId)
       const driverId = result.raceDriver.driverId
       // Use denormalized displayName from RaceDriver (no need to join Driver table)
@@ -262,17 +313,17 @@ export async function getEventAnalysisData(
       const driverData = driverMap.get(driverId)!
       driverData.racesParticipated++
 
-      if (result.fastLapTime !== null) {
+      if (normalizedFastLap !== null) {
         if (
           driverData.bestLapTime === null ||
-          result.fastLapTime < driverData.bestLapTime
+          normalizedFastLap < driverData.bestLapTime
         ) {
-          driverData.bestLapTime = result.fastLapTime
+          driverData.bestLapTime = normalizedFastLap
         }
       }
 
-      if (result.avgLapTime !== null) {
-        driverData.avgLapTimes.push(result.avgLapTime)
+      if (normalizedAvgLap !== null) {
+        driverData.avgLapTimes.push(normalizedAvgLap)
       }
 
       if (result.consistency !== null) {
@@ -287,8 +338,8 @@ export async function getEventAnalysisData(
         positionFinal: result.positionFinal,
         lapsCompleted: result.lapsCompleted,
         totalTimeSeconds: result.totalTimeSeconds,
-        fastLapTime: result.fastLapTime,
-        avgLapTime: result.avgLapTime,
+        fastLapTime: normalizedFastLap,
+        avgLapTime: normalizedAvgLap,
         consistency: result.consistency,
         laps: result.laps.map((lap) => ({
           lapNumber: lap.lapNumber,

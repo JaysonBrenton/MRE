@@ -83,7 +83,7 @@ services:
       # Mount source code for hot reload (development)
       - ./ingestion:/app/ingestion
       # Mount reports directory (persists reports on host)
-      - ./reports:/app/reports
+      - ./docs/reports:/app/docs/reports
     networks:
       - mre-network
     restart: unless-stopped

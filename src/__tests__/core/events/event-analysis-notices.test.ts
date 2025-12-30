@@ -10,11 +10,9 @@
  */
 
 import { describe, it, expect } from "vitest"
-import type { GapEvolutionSeries } from "@/core/events/calculate-gap-evolution"
 import {
   getDriversMissingAvgVsFastest,
   getDriversMissingBestLap,
-  getDriversMissingGapSeries,
   type DriverMetricSnapshot,
 } from "@/core/events/event-analysis-notices"
 
@@ -73,32 +71,5 @@ describe("event analysis notices", () => {
     expect(result).toEqual(["driver-b"])
   })
 
-  it("detects drivers without gap telemetry", () => {
-    const gapSeries: GapEvolutionSeries[] = [
-      {
-        driverId: "driver-a",
-        driverName: "Driver A",
-        gaps: [
-          {
-            lapNumber: 1,
-            elapsedRaceTime: 30,
-            gapToLeader: 0,
-          },
-        ],
-      },
-      {
-        driverId: "driver-b",
-        driverName: "Driver B",
-        gaps: [],
-      },
-    ]
-
-    const result = getDriversMissingGapSeries(
-      ["driver-a", "driver-b", "driver-c"],
-      gapSeries
-    )
-
-    expect(result).toEqual(["driver-b", "driver-c"])
-  })
 })
 

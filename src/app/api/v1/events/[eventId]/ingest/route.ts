@@ -10,7 +10,7 @@
 
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { ingestionClient } from "@/lib/ingestion-client";
+import { ingestionClient, IngestionServiceError } from "@/lib/ingestion-client";
 import { successResponse, errorResponse } from "@/lib/api-utils";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
@@ -20,6 +20,7 @@ import {
   isRecoverableIngestionError,
   waitForIngestionCompletion,
 } from "@/lib/ingestion-status";
+import { toHttpErrorPayload } from "@/lib/ingestion-error-map";
 
 const COMPLETION_POLL_ATTEMPTS = 3
 const COMPLETION_POLL_DELAY_MS = 2000
@@ -83,6 +84,28 @@ export async function POST(
 
     return successResponse(result);
   } catch (error: unknown) {
+    if (error instanceof IngestionServiceError) {
+      const payload = toHttpErrorPayload(error, { eventId })
+      const logContext = {
+        eventId,
+        code: error.code,
+        source: error.source,
+        status: payload.status,
+      }
+      if (error.code === "INGESTION_IN_PROGRESS") {
+        requestLogger.info("Ingestion already running", logContext)
+      } else {
+        requestLogger.error("Ingestion service error", logContext)
+      }
+
+      return errorResponse(
+        error.code,
+        payload.message,
+        payload.details,
+        payload.status,
+      )
+    }
+
     if (isRecoverableIngestionError(error)) {
       const completedEvent = await waitForIngestionCompletion({
         fetchEvent: getEventById,

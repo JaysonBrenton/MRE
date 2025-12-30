@@ -141,20 +141,22 @@ function commonPrefixLength(s1: string, s2: string, maxLength: number): number {
  * Match User to Driver using fuzzy matching.
  * 
  * Matching priority:
- * 1. Transponder number match (if both exist)
+ * 1. Transponder number match (if both exist, unless skipTransponderMatch is true)
  * 2. Exact normalized name match
  * 3. Fuzzy name match (Jaro-Winkler >= SUGGEST_MIN)
  * 
  * @param user - User to match
  * @param driver - Driver to match against
+ * @param skipTransponderMatch - If true, skip transponder matching (for LiveRC matching)
  * @returns Match result or null if no match
  */
 export function fuzzyMatchUserToDriver(
   user: User,
   driver: Driver,
+  skipTransponderMatch: boolean = false,
 ): { matchType: MatchType; similarityScore: number; status: "confirmed" | "suggested" } | null {
-  // Strategy 1: Transponder match (primary)
-  if (user.transponderNumber && driver.transponderNumber) {
+  // Strategy 1: Transponder match (primary) - skip if requested
+  if (!skipTransponderMatch && user.transponderNumber && driver.transponderNumber) {
     if (user.transponderNumber === driver.transponderNumber) {
       // Transponder match - create suggested link (will be auto-confirmed if found across 2+ events)
       return {

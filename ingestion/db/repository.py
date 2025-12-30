@@ -970,43 +970,37 @@ class Repository:
 
         return lap
     
+    def _compute_lock_id(self, key: str) -> int:
+        """Compute a deterministic advisory lock ID from a string key."""
+        hash_bytes = hashlib.sha256(key.encode('utf-8')).digest()
+        return int.from_bytes(hash_bytes[:8], byteorder='big') % (2**31)
+
     def acquire_event_lock(self, event_id: UUID) -> bool:
-        """
-        Acquire advisory lock for event ingestion.
-        
-        Uses SHA-256 hash of event_id to generate a deterministic lock ID
-        within PostgreSQL int4 range to avoid hash collisions.
-        
-        Args:
-            event_id: Event ID
-        
-        Returns:
-            True if lock acquired, False if already locked
-        """
-        # Use SHA-256 for deterministic, collision-resistant hashing
-        # Convert to int and take modulo to fit in PostgreSQL int4 range
-        event_id_str = str(event_id)
-        hash_bytes = hashlib.sha256(event_id_str.encode('utf-8')).digest()
-        # Use first 4 bytes to create a 32-bit integer
-        lock_id = int.from_bytes(hash_bytes[:4], byteorder='big') % (2**31)
-        
+        """Acquire advisory lock scoped to a specific event."""
+        lock_id = self._compute_lock_id(f"event:{event_id}")
         result = self.session.execute(
             text("SELECT pg_try_advisory_lock(:lock_id)").bindparams(lock_id=lock_id)
         ).scalar()
-        return result
-    
+        return bool(result)
+
     def release_event_lock(self, event_id: UUID) -> None:
-        """
-        Release advisory lock for event ingestion.
-        
-        Args:
-            event_id: Event ID
-        """
-        # Use same hash algorithm as acquire_event_lock
-        event_id_str = str(event_id)
-        hash_bytes = hashlib.sha256(event_id_str.encode('utf-8')).digest()
-        lock_id = int.from_bytes(hash_bytes[:4], byteorder='big') % (2**31)
-        
+        """Release the event-scoped advisory lock."""
+        lock_id = self._compute_lock_id(f"event:{event_id}")
+        self.session.execute(
+            text("SELECT pg_advisory_unlock(:lock_id)").bindparams(lock_id=lock_id)
+        )
+
+    def acquire_source_event_lock(self, source_event_id: str) -> bool:
+        """Acquire advisory lock scoped to a source_event_id (pre-event creation)."""
+        lock_id = self._compute_lock_id(f"source_event:{source_event_id}")
+        result = self.session.execute(
+            text("SELECT pg_try_advisory_lock(:lock_id)").bindparams(lock_id=lock_id)
+        ).scalar()
+        return bool(result)
+
+    def release_source_event_lock(self, source_event_id: str) -> None:
+        """Release the advisory lock for a source_event_id."""
+        lock_id = self._compute_lock_id(f"source_event:{source_event_id}")
         self.session.execute(
             text("SELECT pg_advisory_unlock(:lock_id)").bindparams(lock_id=lock_id)
         )
@@ -1031,6 +1025,16 @@ class Repository:
         stmt = select(UserDriverLink)
         links = self.session.scalars(stmt).all()
         return {link.driver_id: link for link in links}
+
+    def get_event_by_source_event_id(self, source: str, source_event_id: str) -> Optional[Event]:
+        """Fetch an event by its source + source_event_id natural key."""
+        stmt = select(Event).where(
+            and_(
+                Event.source == source,
+                Event.source_event_id == source_event_id,
+            )
+        )
+        return self.session.scalar(stmt)
     
     def upsert_user_driver_link(
         self,

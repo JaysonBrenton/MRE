@@ -17,7 +17,7 @@ Rate limiting is **implemented** to protect API endpoints from abuse and ensure 
 
 ## Implementation Status
 
-**Status:** ✅ **Implemented** (Alpha Release)
+**Status:** ✅ **Implemented** (Version 0.1.1)
 
 Rate limiting is currently implemented and active. The implementation includes:
 

@@ -9,7 +9,6 @@ purpose: Defines the mission, core responsibilities, key handoffs, and success m
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/mre-ux-principles.md
-  - docs/design/mre-mobile-ux-guidelines.md
   - docs/design/mre-dark-theme-guidelines.md
   - docs/roles/typescript-domain-engineer.md
   - docs/roles/senior-ui-ux-expert.md

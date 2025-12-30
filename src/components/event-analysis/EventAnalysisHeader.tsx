@@ -8,7 +8,7 @@
  * @description Page header component for event analysis page
  * 
  * @purpose Displays event name, date, track name, and back button.
- *          Mobile-friendly layout following MRE design guidelines.
+ *          Desktop-optimized layout following MRE design guidelines.
  * 
  * @relatedFiles
  * - src/app/events/analyse/[eventId]/page.tsx (uses this)
@@ -58,12 +58,12 @@ export default function EventAnalysisHeader({
         </ol>
       </nav>
       <div className="space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
+        <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
           {eventName}
         </h1>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-sm text-[var(--token-text-secondary)]">
+        <div className="flex items-center gap-4 text-sm text-[var(--token-text-secondary)]">
           <span>{formatDateLong(eventDate)}</span>
-          <span className="hidden sm:inline">•</span>
+          <span>•</span>
           <span>{trackName}</span>
         </div>
       </div>

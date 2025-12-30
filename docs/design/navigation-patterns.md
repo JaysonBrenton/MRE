@@ -1,11 +1,10 @@
 ---
 created: 2025-01-27
 creator: Documentation Update
-lastModified: 2025-01-27
+lastModified: 2025-12-28
 description: Navigation patterns and guidelines for MRE version 0.1.1
-purpose: Defines navigation patterns including hamburger menus, multi-level navigation, tabs, and breadcrumbs for version 0.1.1
+purpose: Defines navigation patterns including sidebars, multi-level navigation, tabs, and breadcrumbs for version 0.1.1
 relatedFiles:
-  - docs/design/mre-mobile-ux-guidelines.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/specs/mre-v0.1-feature-scope.md
 ---
@@ -22,26 +21,23 @@ relatedFiles:
 
 1. [Overview](#overview)
 2. [Breadcrumb Navigation (Primary Pattern)](#breadcrumb-navigation-primary-pattern)
-3. [Simplified Hamburger Menus](#simplified-hamburger-menus)
+3. [Sidebar Navigation](#sidebar-navigation)
 4. [Multi-Level Dropdown Menus (Secondary Pattern)](#multi-level-dropdown-menus-secondary-pattern)
 5. [Tab Navigation (Secondary Pattern)](#tab-navigation-secondary-pattern)
-6. [Integration with Sidebars](#integration-with-sidebars)
-7. [Accessibility Requirements](#accessibility-requirements)
-8. [Mobile vs Desktop Strategies](#mobile-vs-desktop-strategies)
+6. [Accessibility Requirements](#accessibility-requirements)
 
 ---
 
 ## Overview
 
-Version 0.1.1 includes navigation features to support complex application structures while maintaining mobile-first principles. **Breadcrumb navigation is the primary navigation pattern** for version 0.1.1. All navigation patterns must be accessible, touch-friendly, and consistent across devices.
+Version 0.1.1 includes navigation features to support complex application structures optimized for desktop viewports. **Breadcrumb navigation is the primary navigation pattern** for version 0.1.1. All navigation patterns must be accessible and consistent.
 
 **Key Principles:**
 - Breadcrumb navigation is the primary pattern (preferred method)
-- Mobile-first design approach
-- Touch-friendly interactions (44px minimum touch targets)
+- Desktop-optimized design approach
 - Keyboard navigation support
 - Screen reader compatibility
-- Consistent behavior across devices
+- Consistent behavior
 
 ---
 
@@ -59,21 +55,12 @@ Breadcrumb navigation is the **primary navigation pattern** for version 0.1.1. I
 - Each level is clickable (except current page)
 - Current page shown as plain text (not clickable)
 
-**Mobile Behavior:**
-- Truncate long breadcrumb paths
-- Show most recent levels (e.g., "... > Subsection > Current")
-- Ellipsis indicates hidden levels
-- Tap ellipsis to show full path (optional)
-- Horizontal scroll if needed
-- Minimum 44px touch target for clickable items
-
-**Desktop Behavior:**
+**Behavior:**
 - Show full breadcrumb path
 - Hover states on clickable items
 - Tooltip for truncated items (if applicable)
 
 **Design Requirements:**
-- Minimum 44px touch target for clickable items
 - Clear visual separation between levels
 - Accessible separator (visible and screen-reader friendly)
 - Consistent styling with rest of navigation
@@ -276,45 +263,6 @@ Tab navigation organizes related content into distinct sections within a single 
 
 ---
 
-## Integration with Sidebars
-
-### Strategy
-
-Simplified hamburger menus complement sidebars rather than replace them. Breadcrumb navigation works alongside both hamburger menus and sidebars.
-
-**Desktop (> 900px):**
-- Sidebar navigation is primary
-- Breadcrumb navigation shows page hierarchy
-- Simplified hamburger menu can be hidden or used for secondary navigation
-- Consistent navigation items between sidebar and hamburger menu
-
-**Mobile (< 900px):**
-- Breadcrumb navigation shows page hierarchy (primary navigation pattern)
-- Simplified hamburger menu provides navigation toggle
-- Tapping hamburger opens sidebar as drawer/overlay
-- Sidebar slides in from left or right
-- Backdrop overlay when sidebar is open
-
-**Implementation Pattern:**
-```tsx
-// Desktop: Show sidebar, breadcrumbs, optional hamburger
-{isDesktop && (
-  <>
-    <SidebarNavigation />
-    <BreadcrumbNavigation />
-  </>
-)}
-
-// Mobile: Show breadcrumbs, hamburger, sidebar opens on tap
-{isMobile && (
-  <>
-    <BreadcrumbNavigation />
-    <SimplifiedHamburgerMenuButton onClick={openSidebar} />
-    {isSidebarOpen && <SidebarNavigation asDrawer />}
-  </>
-)}
-```
-
 ---
 
 ## Accessibility Requirements
@@ -344,47 +292,6 @@ All navigation components must support keyboard navigation:
 - Focus return to trigger when menu closes
 - Logical tab order throughout navigation
 
-### Touch Targets
-
-- Minimum 44px × 44px for all interactive elements
-- Adequate spacing between touch targets (8-12px minimum)
-- No overlapping touch targets
-- Clear hit areas for small icons
-
----
-
-## Mobile vs Desktop Strategies
-
-### Responsive Breakpoints
-
-- **Mobile**: 0-899px (hamburger menu primary)
-- **Desktop**: 900px+ (sidebar primary, hamburger complementary)
-
-### Adaptive Behavior
-
-**Mobile:**
-- Breadcrumb navigation for page hierarchy (primary pattern)
-- Simplified hamburger menu for navigation toggle
-- Drawer/overlay for sidebar
-- Tab navigation with horizontal scroll if needed (secondary pattern)
-- Breadcrumbs truncate with ellipsis
-- Touch-optimized interactions
-
-**Desktop:**
-- Breadcrumb navigation for page hierarchy (primary pattern)
-- Sidebar navigation primary
-- Simplified hamburger menu for secondary navigation or mobile toggle
-- Full tab navigation visible (secondary pattern)
-- Full breadcrumb paths
-- Hover states for better UX
-
-### Consistent Experience
-
-- Same navigation structure across devices
-- Same navigation items in sidebar and hamburger menu
-- Consistent behavior patterns
-- Same accessibility features on all devices
-
 ---
 
 ## Performance Considerations
@@ -399,8 +306,7 @@ All navigation components must support keyboard navigation:
 
 ## Related Documentation
 
-- [Mobile UX Guidelines](mre-mobile-ux-guidelines.md) - Mobile-specific UX requirements
-- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Architecture rules
+- [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Architecture rules
 - [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature specifications
 
 ---

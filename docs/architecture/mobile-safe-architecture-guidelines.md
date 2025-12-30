@@ -1,17 +1,16 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-28
-description: Authoritative architecture guidelines for mobile-safe, API-first application structure
+lastModified: 2025-12-28
+description: Authoritative architecture guidelines for API-first application structure
 purpose: Defines the complete architectural framework for the My Race Engineer (MRE) application.
-         Ensures the system is fully mobile-safe, API-first, future-native for iOS/Android clients,
-         and compliant with enterprise-grade structure and maintainability requirements. These
-         rules are binding, not advisory. Version 0.1.0 implementation must follow these guidelines exactly.
+         Ensures the system is API-first, maintains separation of concerns, and is compliant
+         with enterprise-grade structure and maintainability requirements. These rules are binding,
+         not advisory. Version 0.1.1 implementation must follow these guidelines exactly.
 relatedFiles:
   - docs/adr/ADR-20250127-adopt-mobile-safe-architecture.md
   - docs/specs/mre-v0.1-feature-scope.md
   - docs/design/mre-dark-theme-guidelines.md
-  - docs/design/mre-mobile-ux-guidelines.md
   - docs/design/mre-ux-principles.md
   - docs/roles/typescript-domain-engineer.md
   - docs/roles/nextjs-front-end-engineer.md
@@ -23,22 +22,24 @@ relatedFiles:
   - docs/roles/documentation-knowledge-steward.md
 ---
 
-# Mobile-Safe Architecture Guidelines for My Race Engineer (MRE)
+# Architecture Guidelines for My Race Engineer (MRE)
 
 **Version:** 0.1.1
 **Status:** Authoritative Architecture Standard
 **Scope:** Governs all backend, API, client, UI, and LLM-generated code
 **Applicability:** ALL contributors, including Cursor, Copilot, and ChatGPT Coding Mode
 
-This document defines the complete architectural framework for the **My Race Engineer (MRE)** application. It ensures the system is fully mobile-safe, API-first, future-native for iOS/Android clients, and compliant with enterprise-grade structure and maintainability requirements.
+This document defines the complete architectural framework for the **My Race Engineer (MRE)** application. It ensures the system is API-first, maintains separation of concerns, and is compliant with enterprise-grade structure and maintainability requirements.
 
 These rules are **binding**, not advisory. Version 0.1.1 implementation must follow these guidelines exactly.
 
+**Note:** The term "mobile-safe" in this document refers to architectural patterns (API-first, separation of concerns) that enable clean architecture, not mobile UI support. The application is desktop-only for UI, but the architecture patterns remain valuable for maintainability and future flexibility.
+
 ---
 
-# 1. Architectural Principles (Five Core Rules)
+# 1. Architectural Principles (Four Core Rules)
 
-The entire MRE codebase is governed by five foundational architectural rules. All design decisions must align with them.
+The entire MRE codebase is governed by four foundational architectural rules. All design decisions must align with them.
 
 ## **Rule 1 — API-First Backend**
 
@@ -46,14 +47,13 @@ All features must be exposed via clean, typed JSON APIs.
 
 * Every user-facing workflow must have a corresponding `/api/v1/...` endpoint.
 * No UI-exclusive logic is permitted.
-* Mobile clients must be able to perform all actions without a browser.
 * API responses must follow the documented standard format (Section 7).
 
 **Why this matters:**
 
-* Enables mobile apps (iOS/Android) to interact without web assumptions
 * Simplifies testing, automation, and validation
 * Decouples UI from logic for long-term maintainability
+* Enables future client types (CLI tools, automation scripts) without web assumptions
 
 ---
 
@@ -84,7 +84,7 @@ src/core/users/get-user.ts
 
 **Why this matters:**
 
-* Ensures shared logic works on mobile, server, and future CLI tools
+* Ensures shared logic works on server and future CLI tools
 * Prevents React-specific coupling
 * Enforces predictable architecture for LLMs
 
@@ -105,55 +105,26 @@ All essential business logic must function:
 
 * in Node
 * in serverless runtimes
-* inside mobile JS runtimes
 
 **Why this matters:**
 
-* Guarantees the business logic works for mobile apps
 * Prevents hidden UI-only assumptions
-* Allows UI enhancements while maintaining mobile compatibility
+* Allows UI enhancements while maintaining clean architecture
 
 ---
 
-## **Rule 4 — Design UI/UX with Mobile Constraints**
-
-All UI must be:
-
-* one-column-first
-* fully touch-safe
-* accessible with minimal device precision
-* free of hover-only interactions
-* adaptive to small screens by default
-
-Tables in version 0.1.1 may use:
-
-* Horizontal scroll on mobile (preferred for data tables)
-* Degradation to lists or cards (alternative approach)
-* Responsive column visibility (hide less important columns on small screens)
-
-Complex multicolumn layouts are allowed in version 0.1.1, but must follow mobile-first principles with appropriate degradation strategies for small screens.
-
-**Why this matters:**
-
-* Ensures web and mobile experiences are aligned
-* Prevents UIs that cannot be translated to mobile
-
----
-
-## **Rule 5 — Authentication Must Support Cookies AND Mobile Tokens**
+## **Rule 4 — Authentication Must Support Cookies**
 
 Authentication system must:
 
 * support cookie-based sessions for web
-* be architecturally ready for token-based mobile login
-* expose token-based session endpoints (even if stubbed)
 
-In version 0.1.1, UI may use cookies only—but backend must be structured for mobile.
+In version 0.1.1, authentication uses cookies only for web sessions.
 
 **Why this matters:**
 
-* Prevents future lock-in to browser-only authentication
-* Enables mobile app login without hacks
+* Keeps authentication simple and focused
+* Provides secure session management for web clients
 
 ---
 
@@ -320,33 +291,31 @@ Version 0.1.1 entities include:
 
 ---
 
-# 6. Mobile-Safe UI Architecture
+# 6. Desktop UI Architecture
 
 UI must:
 
-* use semantic tokens for colors
-* use dark mode only (light theme optional)
-* avoid hover interactions
-* support small screens
-* follow tap target guidelines
+* use semantic tokens for colors (supports theme experimentation)
+* dark theme is default, but theme system supports experimentation
 * load fast
 * avoid complex state machines
+* be optimized for desktop viewports (1280px+)
 
 **Version 0.1.1 Additions (All Required):**
 
-* Table components with horizontal scroll support on mobile (fully in-scope, used in admin console, event lists, driver management, race results)
+* Table components (fully in-scope, used in admin console, event lists, driver management, race results)
 * Dashboard systems with customizable widgets (user, driver, team, track dashboards with drag-and-drop, resize, rearrange)
 * Telemetry visualizations (all visualization types: lap time charts, speed graphs, GPS tracks, sensor data, sector analysis - real-time and historical)
-* Navigation structures (breadcrumb navigation as primary pattern, simplified hamburger menus, multi-level dropdowns and tabs as secondary patterns)
+* Navigation structures (breadcrumb navigation as primary pattern, sidebars, multi-level dropdowns and tabs as secondary patterns)
 
 All UI must follow:
 
 * `docs/design/mre-dark-theme-guidelines.md`
-* `docs/design/mre-mobile-ux-guidelines.md`
 * `docs/design/mre-ux-principles.md`
 * `docs/design/navigation-patterns.md` (for navigation features)
 * `docs/design/table-component-specification.md` (for table components)
 * `docs/architecture/dashboard-architecture.md` (for dashboard systems)
+* `docs/design/telemetry-visualization-specification.md` (for telemetry visualizations)
 
 **Reusable UI Components (MUST USE):**
 
@@ -356,10 +325,9 @@ To prevent common layout bugs, especially horizontal compression issues in flex 
 * **List Rows**: Always use `src/components/ui/ListRow.tsx` - enforces proper text truncation
 * **Page Containers**: Use `src/components/layout/PageContainer.tsx` and `ContentWrapper.tsx`
 
-These components prevent the common flexbox shrink issues that cause layout breakage. See `docs/design/mre-mobile-ux-guidelines.md` Section 5.7 for details.
-* `docs/design/telemetry-visualization-specification.md` (for telemetry visualizations)
+These components prevent the common flexbox shrink issues that cause layout breakage.
 
-**Note:** All features listed above are fully in-scope and required for version 0.1.1. Mobile-first approach must always be attempted first. These are architectural requirements, not optional features.
+**Note:** All features listed above are fully in-scope and required for version 0.1.1. These are architectural requirements, not optional features.
 
 ---
 
@@ -458,15 +426,15 @@ Different engineering roles have specific responsibilities for maintaining and e
 
 * **TypeScript Domain Engineer** (`docs/roles/typescript-domain-engineer.md`): Responsible for enforcing Rule 2 (Separation of UI and Business Logic), maintaining the `src/core/` structure, and ensuring business logic remains framework-agnostic. Creates ADRs for domain architecture changes.
 
-* **Next.js Front-End Engineer** (`docs/roles/nextjs-front-end-engineer.md`): Responsible for implementing Rule 4 (Mobile-First UI), ensuring UI components follow the architecture, and maintaining the separation between UI and business logic. Works with TypeScript Domain Engineers to ensure proper layering.
+* **Next.js Front-End Engineer** (`docs/roles/nextjs-front-end-engineer.md`): Responsible for ensuring UI components follow the architecture, and maintaining the separation between UI and business logic. Works with TypeScript Domain Engineers to ensure proper layering.
 
 * **Prisma/PostgreSQL Backend Engineer** (`docs/roles/prisma-postgresql-backend-engineer.md`): Responsible for database rules (Section 5), ensuring all Prisma queries exist only in `src/core/<domain>/repo.ts`, and maintaining database schema alignment with architecture requirements.
 
-* **Senior UI/UX Expert** (`docs/roles/senior-ui-ux-expert.md`): Responsible for Rule 4 (Mobile-First UI) design decisions, ensuring UI follows mobile-safe patterns, and maintaining consistency with design guidelines referenced in Section 6.
+* **Senior UI/UX Expert** (`docs/roles/senior-ui-ux-expert.md`): Responsible for UI design decisions, ensuring UI follows architectural patterns, and maintaining consistency with design guidelines referenced in Section 6.
 
 * **DevOps & Platform Engineer** (`docs/roles/devops-platform-engineer.md`): Responsible for deployment infrastructure that supports the architecture, ensuring environment configuration aligns with architecture requirements, and maintaining CI/CD pipelines that enforce architecture rules.
 
-* **Observability & Incident Response Lead** (`docs/roles/observability-incident-response-lead.md`): Responsible for logging and telemetry standards (Section 7), ensuring observability follows architecture constraints, and maintaining structured logging that supports mobile-safe architecture.
+* **Observability & Incident Response Lead** (`docs/roles/observability-incident-response-lead.md`): Responsible for logging and telemetry standards (Section 7), ensuring observability follows architecture constraints, and maintaining structured logging.
 
 * **Quality & Automation Engineer** (`docs/roles/quality-automation-engineer.md`): Responsible for testing requirements (Section 9), ensuring tests validate architecture compliance, and maintaining quality gates that prevent architectural violations.
 

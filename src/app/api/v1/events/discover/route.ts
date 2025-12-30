@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { track_id, start_date, end_date } = body;
+    const { track_id, start_date, end_date, existing_event_source_ids, track: trackData } = body;
 
     requestLogger.debug("Event discovery request", {
       trackId: track_id,
@@ -55,18 +55,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Look up track to get track slug
-    const track = await getTrackById(track_id);
-
+    // Use provided track data or look it up
+    let track = trackData
     if (!track) {
-      requestLogger.warn("Track not found", { trackId: track_id })
-      return errorResponse(
-        "NOT_FOUND",
-        "Track not found",
-        { track_id },
-        404
-      );
+      track = await getTrackById(track_id);
+      if (!track) {
+        requestLogger.warn("Track not found", { trackId: track_id })
+        return errorResponse(
+          "NOT_FOUND",
+          "Track not found",
+          { track_id },
+          404
+        );
+      }
     }
+
+    // Convert existing_event_source_ids array to Set if provided
+    const existingEventSourceIds = existing_event_source_ids
+      ? new Set<string>(existing_event_source_ids)
+      : undefined
 
     // Call core business logic function
     // Note: start_date and end_date are optional for discovery
@@ -75,6 +82,13 @@ export async function POST(request: NextRequest) {
       trackId: track.id,
       startDate: start_date,
       endDate: end_date,
+      existingEventSourceIds,
+      track: {
+        id: track.id,
+        source: track.source,
+        sourceTrackSlug: track.sourceTrackSlug,
+        trackName: track.trackName,
+      },
     });
 
     requestLogger.info("Event discovery completed", {

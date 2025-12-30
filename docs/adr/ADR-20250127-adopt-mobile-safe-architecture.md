@@ -1,12 +1,13 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-12-28
 description: ADR documenting adoption of mobile-safe architecture guidelines
-purpose: Documents the architectural decision to adopt the Mobile-Safe Architecture
-         Guidelines as the authoritative standard for the MRE codebase. Status: Accepted.
+purpose: Documents the architectural decision to adopt the Architecture Guidelines
+         as the authoritative standard for the MRE codebase. Status: Accepted.
          This decision mandates API-first backend, separation of UI and business logic,
-         browser-independent core, mobile-first UI, and dual authentication support.
+         browser-independent core, and cookie-based authentication. Note: "Mobile-safe"
+         refers to architectural patterns (API-first, separation of concerns), not mobile UI support.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/specs/mre-v0.1-feature-scope.md
@@ -20,31 +21,31 @@ Accepted
 
 ## Context
 
-The My Race Engineer (MRE) application requires a robust, scalable architecture that supports both web and future mobile clients (iOS/Android). The current codebase structure does not enforce separation of concerns between UI and business logic, which creates several risks:
+The My Race Engineer (MRE) application requires a robust, scalable architecture that enforces separation of concerns between UI and business logic. The current codebase structure does not enforce this separation, which creates several risks:
 
-1. **Mobile Incompatibility**: Business logic embedded in React components or Next.js API routes cannot be reused by mobile clients
-2. **Testing Challenges**: Tightly coupled code makes unit testing difficult
-3. **Architectural Drift**: Without clear boundaries, the codebase may evolve in ways that prevent mobile app development
-4. **LLM Confusion**: AI coding assistants need clear, enforceable patterns to maintain consistency
+1. **Testing Challenges**: Tightly coupled code makes unit testing difficult
+2. **Architectural Drift**: Without clear boundaries, the codebase may evolve in ways that reduce maintainability
+3. **LLM Confusion**: AI coding assistants need clear, enforceable patterns to maintain consistency
+4. **Code Reusability**: Business logic embedded in React components or Next.js API routes cannot be easily reused
 
 The project requires an architecture that:
 - Separates business logic from UI components
-- Provides clean, versioned JSON APIs accessible to mobile clients
+- Provides clean, versioned JSON APIs
 - Prevents browser-specific dependencies in core logic
-- Enforces mobile-first UI design
-- Supports both cookie-based (web) and token-based (mobile) authentication
+- Supports cookie-based authentication for web clients
 
 ## Decision
 
-We adopt the **Mobile-Safe Architecture Guidelines** as defined in `docs/architecture/mobile-safe-architecture-guidelines.md` as the authoritative architectural standard for the MRE codebase.
+We adopt the **Architecture Guidelines** as defined in `docs/architecture/mobile-safe-architecture-guidelines.md` as the authoritative architectural standard for the MRE codebase.
+
+**Note:** The term "mobile-safe" in the document name refers to architectural patterns (API-first, separation of concerns) that enable clean architecture, not mobile UI support. The application is desktop-only for UI, but these architectural patterns remain valuable for maintainability and future flexibility.
 
 This decision mandates:
 
 1. **API-First Backend**: All features exposed via `/api/v1/...` JSON endpoints
 2. **Separation of UI and Business Logic**: Business logic must reside in `src/core/<domain>/` directories, never in UI components or API routes
 3. **Browser-Independent Core**: Core logic must not depend on DOM APIs, browser events, or browser-specific features
-4. **Mobile-First UI**: All UI must be touch-safe, one-column-first, and free of hover-only interactions
-5. **Dual Authentication Support**: Architecture must support both cookie-based (web) and token-based (mobile) authentication
+4. **Cookie-Based Authentication**: Architecture supports cookie-based authentication for web clients
 
 The folder structure must follow:
 
@@ -68,11 +69,11 @@ API routes must only handle HTTP concerns and call core functions.
 
 ### Positive
 
-- **Mobile-Ready Foundation**: The architecture enables future iOS/Android app development without major refactoring
 - **Improved Testability**: Separated business logic can be unit tested independently
 - **Clear Boundaries**: Developers and LLMs have explicit rules preventing architectural violations
 - **Consistent Patterns**: All features follow the same architectural pattern, reducing cognitive load
-- **Future-Proof**: The structure supports scaling to multiple client types (web, mobile, CLI tools)
+- **Future-Proof**: The structure supports scaling to multiple client types (web, CLI tools, automation scripts)
+- **Maintainability**: Clean separation makes code easier to understand and modify
 
 ### Negative
 
@@ -90,7 +91,7 @@ API routes must only handle HTTP concerns and call core functions.
 ## Alternatives Considered
 
 ### Alternative 1: Keep Current Next.js Structure
-**Rejected because**: Business logic in `app/` and `lib/` cannot be easily extracted for mobile clients. Next.js App Router convention conflicts with mobile-safe requirements.
+**Rejected because**: Business logic in `app/` and `lib/` cannot be easily extracted or tested independently. Next.js App Router convention conflicts with clean architecture requirements.
 
 ### Alternative 2: Monorepo with Shared Packages
 **Rejected because**: Over-engineered for Alpha phase. Adds complexity (workspace management, build tooling) without immediate benefit. Can be adopted later if needed.
@@ -99,7 +100,7 @@ API routes must only handle HTTP concerns and call core functions.
 **Rejected because**: Premature separation. Alpha phase benefits from integrated Next.js development. Can be split in future if needed.
 
 ### Alternative 4: Hybrid Approach (Some Logic in Components)
-**Rejected because**: Violates core principle of mobile-safety. Allows architectural drift and prevents mobile client development.
+**Rejected because**: Violates core principle of separation of concerns. Allows architectural drift and reduces testability and maintainability.
 
 ## Implementation Notes
 
@@ -117,6 +118,6 @@ The implementation will be completed as part of the documentation and codebase a
 ## References
 
 - `docs/architecture/mobile-safe-architecture-guidelines.md` - Authoritative architecture document
-- `docs/specs/mre-v0.1-feature-scope.md` - version 0.1.0 feature requirements
+- `docs/specs/mre-v0.1-feature-scope.md` - version 0.1.1 feature requirements
 - `docs/standards/file-headers-and-commenting-guidelines.md` - Code documentation standards
 

@@ -1006,7 +1006,7 @@ curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/a
 
 ## Personas Endpoints
 
-**Note:** Personas endpoints provide user-specific views of data (driver persona, team manager persona). These endpoints are in scope for version 0.1.0 but may be expanded in future releases. See [MRE Version 0.1.0 Feature Scope](../specs/mre-v0.1-feature-scope.md) for complete feature specifications.
+**Note:** Personas endpoints provide user-specific views of data (driver persona, team manager persona). These endpoints are in scope for version 0.1.1 but may be expanded in future releases. See [MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) for complete feature specifications.
 
 ### GET /api/v1/personas
 
@@ -1553,7 +1553,7 @@ All errors follow this structure:
 
 ## Authentication Requirements
 
-### Current State (Version 0.1.0)
+### Current State (Version 0.1.1)
 
 - Authentication endpoints (`/api/v1/auth/*`) do not require authentication
 - All data endpoints require authentication (session-based via NextAuth cookies)

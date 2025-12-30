@@ -18,6 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import type { Persona, PersonaType } from "@prisma/client"
 
 /**
@@ -62,11 +63,36 @@ export async function getAllPersonas(): Promise<Persona[]> {
  * @returns Persona or null if user has no persona assigned
  */
 export async function getUserPersona(userId: string): Promise<Persona | null> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { persona: true }
-  })
+  // Defensive check to ensure prisma client is initialized
+  if (!prisma) {
+    throw new Error("Prisma client is not initialized")
+  }
 
-  return user?.persona || null
+  try {
+    const result = await prisma.$queryRaw<Array<{ persona_id: string | null }>>(
+      Prisma.sql`
+        SELECT "persona_id"
+        FROM "users"
+        WHERE "id" = ${userId}
+        LIMIT 1
+      `
+    )
+
+    const personaId = result[0]?.persona_id
+    if (!personaId) {
+      return null
+    }
+
+    return prisma.persona.findUnique({
+      where: { id: personaId }
+    })
+  } catch (error) {
+    // Provide helpful error message if prisma.persona is undefined
+    if (error instanceof TypeError && 
+        (error.message.includes("Cannot read properties of undefined") || 
+         error.message.includes("Cannot read property"))) {
+      throw new Error(`Prisma client persona model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`)
+    }
+    throw error
+  }
 }
-

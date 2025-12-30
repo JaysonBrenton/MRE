@@ -3,7 +3,7 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Complete end-to-end user workflow for Event Search and Event Analysis features
-purpose: Defines the complete Driver workflow from login → Event Search → search/filter → LiveRC discovery/import → select event → Event Analysis. This document serves as the authoritative UX specification for the Event Search and Event Analysis features in the MRE version 0.1.0 release.
+purpose: Defines the complete Driver workflow from login → Event Search → search/filter → LiveRC discovery/import → select event → Event Analysis. This document serves as the authoritative UX specification for the Event Search and Event Analysis features in the MRE version 0.1.1 release.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -18,7 +18,7 @@ relatedFiles:
 # LiveRC Event Search and Event Analysis User Workflow
 
 **Status:** Complete  
-**Note:** This feature is in scope for version 0.1.0 release. See [MRE Version 0.1.0 Feature Scope](../specs/mre-v0.1-feature-scope.md) for version 0.1.0 feature specifications.
+**Note:** This feature is in scope for version 0.1.1 release. See [MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) for version 0.1.1 feature specifications.
 
 ## Purpose
 
@@ -404,8 +404,8 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 
 **Bulk Import Completion:**
 - After all selected events complete (success or failure):
-  - Toast notification shows summary: "Imported X of Y events. Z failed. Please retry failed imports."
   - Event list refreshes to show updated statuses
+  - Each event's status is visible in the table (imported/failed)
   - Selection clears automatically
   - Failed events remain visible for retry
 
@@ -654,7 +654,7 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 - Must follow [MRE UX Principles](../../design/mre-ux-principles.md)
 - Must follow [MRE Mobile UX Guidelines](../../design/mre-mobile-ux-guidelines.md)
 - Must follow [MRE Dark Theme Guidelines](../../design/mre-dark-theme-guidelines.md)
-- Dark theme only (no light mode)
+- Use semantic theme tokens (dark theme is default, but theme system supports experimentation)
 
 **Page Header:**
 - Display event name prominently (h1)
@@ -692,7 +692,6 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 - Chart examples:
   - **Best lap per driver:** Bar chart or list showing fastest lap time per driver
   - **Average lap vs fastest lap:** Comparison chart showing consistency
-  - **Gap evolution for top 3 drivers:** Line chart showing time gap changes over race duration
 
 **Chart Interactivity:**
 - **Driver Selection:** Allow selecting/unselecting drivers
@@ -1008,7 +1007,7 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 - **[LiveRC Ingestion Overview](../../architecture/liverc-ingestion/01-overview.md)** - Technical architecture and system overview
 - **[Ingestion Pipeline](../../architecture/liverc-ingestion/03-ingestion-pipeline.md)** - Backend ingestion logic and flow
 - **[API Contracts](../../architecture/liverc-ingestion/05-api-contracts.md)** - API endpoints used by frontend
-- **[MRE Version 0.1.0 Feature Scope](../../specs/mre-v0.1-feature-scope.md)** - version 0.1.0 feature specifications and constraints
+- **[MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md)** - version 0.1.1 feature specifications and constraints
 - **[MRE UX Principles](../../design/mre-ux-principles.md)** - Core UX principles and patterns
 - **[MRE Mobile UX Guidelines](../../design/mre-mobile-ux-guidelines.md)** - Mobile-first design requirements
 - **[MRE Dark Theme Guidelines](../../design/mre-dark-theme-guidelines.md)** - Visual design standards
@@ -1038,16 +1037,16 @@ All UI/UX specifications in this document must comply with:
 
 ---
 
-## Alpha Scope Considerations
+## Version 0.1.1 Scope Considerations
 
 **Note on Tables and Charts:**
-While [MRE Version 0.1.0 Feature Scope](../../specs/mre-v0.1-feature-scope.md) Section 3 explicitly forbids "Tables or charts" in version 0.1.0 UI, Event Search and Event Analysis are core features of the LiveRC ingestion subsystem, which **is** in version 0.1.0 scope. Therefore:
+Version 0.1.1 explicitly includes tables and charts as in-scope features. Event Search and Event Analysis are core features of the LiveRC ingestion subsystem, which is fully in version 0.1.1 scope. Therefore:
 
-- **Event Search table** is required for displaying search results (simplified list format acceptable on mobile)
-- **Event Analysis charts** are required for core functionality (basic interactive charts acceptable)
-- Advanced visualizations and complex dashboards remain Beta+ features
+- **Event Search table** is required for displaying search results with full sorting, filtering, and pagination support
+- **Event Analysis charts** are required for core functionality with interactive visualizations
+- Tables and charts are fully implemented features in version 0.1.1 (see [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) Sections 2.8 and 2.10)
 
-This document designs the full experience, but Alpha implementation may simplify certain aspects (e.g., basic charts instead of advanced visualizations) while maintaining core functionality.
+This document defines the complete experience for version 0.1.1, including all table and chart functionality.
 
 ---
 

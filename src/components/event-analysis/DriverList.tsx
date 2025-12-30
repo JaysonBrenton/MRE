@@ -1,25 +1,23 @@
 /**
- * @fileoverview Driver list component - responsive driver list/table
+ * @fileoverview Driver list component with table layout
  * 
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-27
+ * @lastModified 2025-12-28
  * 
- * @description Responsive driver list component (cards on mobile, table on desktop)
+ * @description Driver list component with desktop-optimized table layout
  * 
  * @purpose Displays drivers with stats, supports selection and sorting.
- *          Mobile-first design with card layout on small screens.
+ *          Desktop-optimized table layout.
  * 
  * @relatedFiles
- * - src/components/event-analysis/DriverCard.tsx (mobile card)
  * - src/components/event-analysis/DriversTab.tsx (uses this)
  */
 
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { FixedSizeList as List } from "react-window"
-import DriverCard from "./DriverCard"
 
 export interface Driver {
   driverId: string
@@ -52,23 +50,6 @@ function SortIcon({ field, activeField, direction }: SortIconProps) {
   return <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
 }
 
-// Hook to detect if screen is mobile (sm breakpoint = 640px)
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(true)
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640)
-    }
-    
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
-
-  return isMobile
-}
-
 export default function DriverList({
   drivers,
   selectedDriverIds,
@@ -76,7 +57,6 @@ export default function DriverList({
 }: DriverListProps) {
   const [sortField, setSortField] = useState<SortField>("bestLapTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
-  const isMobile = useIsMobile()
 
   // Stabilize drivers reference to prevent unnecessary re-sorts
   const driversKey = useMemo(() => drivers.map(d => d.driverId).join(","), [drivers.length, drivers.map(d => d.driverId).join(",")])
@@ -137,23 +117,7 @@ export default function DriverList({
   }
 
   // Mobile card row renderer for react-window
-  const CardRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const driver = sortedDrivers[index]
-    return (
-      <div style={style}>
-        <div className="px-0 pb-3">
-          <DriverCard
-            key={driver.driverId}
-            {...driver}
-            isSelected={selectedDriverIds.includes(driver.driverId)}
-            onSelectionChange={handleDriverSelectionChange}
-          />
-        </div>
-      </div>
-    )
-  }
-
-  // Desktop table row renderer for react-window
+  // Table row renderer for react-window
   const TableRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
     const driver = sortedDrivers[index]
     const isSelected = selectedDriverIds.includes(driver.driverId)
@@ -206,23 +170,8 @@ export default function DriverList({
 
   return (
     <div className="space-y-4">
-      {/* Mobile: Virtualized card layout */}
-      {isMobile && (
-        <div className="block sm:hidden">
-          <List
-            height={600}
-            itemCount={sortedDrivers.length}
-            itemSize={140}
-            width="100%"
-          >
-            {CardRow}
-          </List>
-        </div>
-      )}
-
-      {/* Desktop: Virtualized table layout */}
-      {!isMobile && (
-        <div className="hidden sm:block overflow-x-auto">
+      {/* Virtualized table layout */}
+      <div className="overflow-x-auto">
           <div className="w-full">
             {/* Table header */}
             <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] border-b border-[var(--token-border-default)]">
@@ -335,7 +284,6 @@ export default function DriverList({
             </List>
           </div>
         </div>
-      )}
     </div>
   )
 }

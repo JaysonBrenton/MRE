@@ -35,7 +35,7 @@ export default function EventStats({
   dateRange,
 }: EventStatsProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-4 gap-4 mb-6">
       <div className="bg-[var(--token-surface-elevated)] rounded-md border border-[var(--token-border-default)] p-4">
         <div className="text-sm text-[var(--token-text-secondary)] mb-1">
           Total Races

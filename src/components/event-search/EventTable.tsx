@@ -110,43 +110,45 @@ export default function EventTable({
     return sortDirection === "asc" ? comparison : -comparison
   })
 
-  if (isLoading) {
-    return (
-      <div className="mt-8 text-center py-8" role="status" aria-live="polite">
-        <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
-      </div>
-    )
-  }
-
-  // Don't show "No events found" if search hasn't been executed yet
-  if (!hasSearched) {
+  // Don't render anything if we're loading or haven't searched yet
+  // This prevents any flash of old data during state transitions
+  if (isLoading || !hasSearched) {
+    if (isLoading) {
+      return (
+        <div className="mt-8 text-center py-8 w-full min-w-0" role="status" aria-live="polite">
+          <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
+        </div>
+      )
+    }
     return null
   }
 
   if (events.length === 0) {
     return (
-      <div className="mt-8 text-center py-8">
-        <div className="mx-auto max-w-md space-y-3">
-          <p className="text-[var(--token-text-primary)] font-medium">
+      <div className="mt-8 py-8 w-full min-w-0 flex-shrink-0">
+        <div className="mx-auto max-w-2xl min-w-[320px] px-4 space-y-3">
+          <p className="text-center text-[var(--token-text-primary)] font-medium">
             No events found
           </p>
-          <p className="text-sm text-[var(--token-text-secondary)]">
+          <p className="text-center text-sm text-[var(--token-text-secondary)]">
             No events were found for this track and date range. Try:
           </p>
-          <ul className="text-sm text-[var(--token-text-secondary)] text-left space-y-1 list-disc list-inside">
-            <li>Expanding your date range</li>
-            <li>Selecting a different track</li>
-            <li>Checking if events exist on LiveRC for this track</li>
-          </ul>
+          <div className="flex justify-center">
+            <ul className="text-sm text-[var(--token-text-secondary)] space-y-1 list-disc list-outside text-left">
+              <li>Expanding your date range</li>
+              <li>Selecting a different track</li>
+              <li>Checking if events exist on LiveRC for this track</li>
+            </ul>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="mt-8">
+    <div className="mt-8 w-full min-w-0">
       {/* Desktop: Table Header (hidden on mobile) */}
-      <div className="hidden sm:grid sm:grid-cols-4 gap-4 px-4 py-3 border-b border-[var(--token-border-default)]">
+      <div className="grid grid-cols-4 gap-4 px-4 py-3 border-b border-[var(--token-border-default)]">
         {/* Checkbox column header */}
         <div className="flex items-center justify-center">
           {onSelectAll ? (

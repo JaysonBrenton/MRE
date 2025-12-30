@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     if (endDate && endDate.trim() !== "") {
       searchInput.endDate = endDate
     }
-    
+
     const result = await searchEvents(searchInput);
 
     requestLogger.info("Event search successful", {

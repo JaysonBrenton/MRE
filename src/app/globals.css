@@ -241,50 +241,12 @@ nextjs-portal > *,
 }
 
 /* ============================================================================
-   Mobile UX - Hit Targets and Spacing
-   ============================================================================
-   
-   Mobile-first utilities for touch-friendly interfaces.
-   Ensures buttons and interactive elements meet minimum size requirements
-   and have adequate spacing to prevent accidental touches.
-   ============================================================================ */
-
-/* Minimum tap target size: 44px (iOS/Android guidelines) */
-@theme inline {
-  /* Mobile spacing tokens */
-  --spacing-tap-target: 2.75rem; /* 44px - minimum tap target height */
-  --spacing-tap-gap: 0.75rem; /* 12px - minimum gap between tap targets */
-}
-
-/* Mobile-optimized button base styles */
-.mobile-button {
-  min-height: var(--spacing-tap-target);
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  touch-action: manipulation; /* Prevents double-tap zoom on buttons */
-}
-
-/* Mobile-optimized form input spacing */
-.mobile-form-field {
-  margin-bottom: var(--spacing-tap-gap);
-}
-
-/* Mobile-optimized list item spacing */
-.mobile-list-item {
-  min-height: var(--spacing-tap-target);
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-}
-
-/* ============================================================================
    Layout Utilities - Prevent Flexbox Shrink Issues
    ============================================================================
    
    Utility classes to ensure proper width constraints in flex layouts.
    These classes prevent the common flexbox issue where containers collapse
    to minimal width when used in flex column layouts.
-   
-   See docs/design/mre-mobile-ux-guidelines.md for usage guidelines.
    ============================================================================ */
 
 /* Page container base - ensures proper flex behavior */

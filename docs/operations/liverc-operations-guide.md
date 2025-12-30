@@ -185,7 +185,7 @@ Track refresh completed:
 
 **Use Case**: Run this periodically to keep your track catalogue synchronized with LiveRC.
 
-**Automated Execution**: A cron job runs this command automatically every 24 hours at midnight UTC. Reports are generated in the `reports/` directory at the repository root. See "Track Sync Cron Job and Reports" section below for details.
+**Automated Execution**: A cron job runs this command automatically every 24 hours at midnight UTC. Reports are generated in the `docs/reports/` directory. See "Track Sync Cron Job and Reports" section below for details.
 
 **Note**: This command does not require any IDs.
 

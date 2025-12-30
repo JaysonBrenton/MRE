@@ -8,7 +8,7 @@
  * @description Tests for health endpoint response format
  * 
  * @purpose Validates that the health endpoint returns responses in the
- *          standardized format defined in the mobile-safe architecture guidelines.
+ *          standardized format defined in the architecture guidelines.
  */
 
 import { describe, it, expect } from "vitest"

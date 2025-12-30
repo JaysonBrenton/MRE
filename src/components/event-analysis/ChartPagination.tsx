@@ -8,7 +8,7 @@
  * @description Pagination controls for charts with many data points
  * 
  * @purpose Provides navigation controls for paginated chart views.
- *          Mobile-friendly with touch targets.
+ *          Optimized for desktop viewports.
  * 
  * @relatedFiles
  * - src/components/event-analysis/BestLapBarChart.tsx (uses this)
@@ -73,7 +73,7 @@ export default function ChartPagination({
 
   return (
     <nav
-      className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 px-2"
+      className="flex items-center justify-between gap-4 mt-4 px-2"
       aria-label="Chart pagination"
     >
       <div className="text-sm text-[var(--token-text-secondary)]" aria-live="polite">
@@ -86,9 +86,8 @@ export default function ChartPagination({
           type="button"
           onClick={handleFirst}
           disabled={currentPage === 1}
-          className="mobile-button flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           aria-label="First page"
-          style={{ minWidth: "44px", minHeight: "44px" }}
         >
           <svg
             className="w-4 h-4"
@@ -110,9 +109,8 @@ export default function ChartPagination({
           type="button"
           onClick={handlePrev}
           disabled={currentPage === 1}
-          className="mobile-button flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           aria-label="Previous page"
-          style={{ minWidth: "44px", minHeight: "44px" }}
         >
           <svg
             className="w-4 h-4"
@@ -131,7 +129,7 @@ export default function ChartPagination({
 
         {/* Page input */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-[var(--token-text-secondary)] hidden sm:inline">
+          <span className="text-sm text-[var(--token-text-secondary)]">
             Page
           </span>
           <input
@@ -153,9 +151,8 @@ export default function ChartPagination({
           type="button"
           onClick={handleNext}
           disabled={currentPage === totalPages}
-          className="mobile-button flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           aria-label="Next page"
-          style={{ minWidth: "44px", minHeight: "44px" }}
         >
           <svg
             className="w-4 h-4"
@@ -177,9 +174,8 @@ export default function ChartPagination({
           type="button"
           onClick={handleLast}
           disabled={currentPage === totalPages}
-          className="mobile-button flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           aria-label="Last page"
-          style={{ minWidth: "44px", minHeight: "44px" }}
         >
           <svg
             className="w-4 h-4"

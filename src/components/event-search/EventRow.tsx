@@ -8,7 +8,7 @@
  * @description Individual event row/card in the event table
  * 
  * @purpose Displays event information with status badge and "Analyse event" button.
- *          Mobile-friendly card layout that degrades from table format.
+ *          Desktop-optimized table row layout.
  * 
  * @relatedFiles
  * - src/components/event-search/EventTable.tsx (parent component)
@@ -108,7 +108,7 @@ export default function EventRow({
 
   return (
     <div 
-      className={`flex flex-col sm:grid sm:grid-cols-4 sm:items-center gap-4 px-4 py-4 border-b transition-colors duration-200 ${
+      className={`grid grid-cols-4 items-center gap-4 px-4 py-4 border-b transition-colors duration-200 ${
         isSelected 
           ? "bg-[var(--token-surface-elevated)] border-2 border-[var(--token-accent)]" 
           : "border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
@@ -116,7 +116,7 @@ export default function EventRow({
     >
       {/* Mobile: Stacked layout, Desktop: Column 1 - Checkbox */}
       {isImportable && (
-        <div className="flex items-center sm:justify-center">
+        <div className="flex items-center justify-center">
           <label className="flex items-center cursor-pointer">
             <input
               type="checkbox"
@@ -126,26 +126,21 @@ export default function EventRow({
               className="w-5 h-5 rounded border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label={`Select ${event.eventName} for import`}
             />
-            <span className="ml-2 sm:hidden text-sm text-[var(--token-text-secondary)]">
-              Select for import
-            </span>
           </label>
         </div>
       )}
-      {!isImportable && <div className="hidden sm:block" />}
+      {!isImportable && <div />}
 
-      {/* Mobile: Stacked layout, Desktop: Column 2 - Event Name */}
-      <div className="space-y-2 sm:space-y-0">
+      {/* Column 2 - Event Name */}
+      <div>
         <h3 className="text-[var(--token-text-primary)] font-medium">{event.eventName}</h3>
-        {/* Mobile: Show date below name */}
-        <p className="text-sm text-[var(--token-text-secondary)] sm:hidden">{formattedDate}</p>
       </div>
 
-      {/* Desktop: Column 3 - Event Date */}
-      <p className="hidden sm:block text-sm text-[var(--token-text-secondary)]">{formattedDate}</p>
+      {/* Column 3 - Event Date */}
+      <p className="text-sm text-[var(--token-text-secondary)]">{formattedDate}</p>
 
-      {/* Mobile: Status and Buttons, Desktop: Column 4 - Status and Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+      {/* Column 4 - Status and Actions */}
+      <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <EventStatusBadge status={status} />
@@ -169,14 +164,14 @@ export default function EventRow({
         </div>
         
         {/* Action Buttons */}
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex gap-2 ml-auto">
           {/* Retry Button - shown for failed imports */}
           {hasFailed && onImport && (
             <button
               type="button"
               onClick={handleRetry}
               disabled={isImporting || isBulkImporting}
-              className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-4 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed sm:px-5 h-11"
+              className="flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-5 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
               aria-label={`Retry import for ${event.eventName}`}
             >
               Retry
@@ -189,7 +184,7 @@ export default function EventRow({
               type="button"
               onClick={() => onImport(event)}
               disabled={isImporting || isBulkImporting}
-              className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed sm:px-5 h-11"
+              className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
             >
               Import
             </button>
@@ -200,7 +195,7 @@ export default function EventRow({
             <button
               type="button"
               onClick={handleSelect}
-              className="mobile-button w-full sm:w-auto flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5 h-11"
+              className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
             >
               Analyse event
             </button>

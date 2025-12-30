@@ -60,29 +60,34 @@ This is implemented using a **database-backed advisory lock** or a **row-level l
 
 When ingestion begins:
 
-1. The system attempts to acquire the per-event ingestion lock.  
-2. If the lock **fails**, the system must return:
+1. Initial connector work (event page fetch + entry list fetch) happens **before** any locks are requested so we never block the database while waiting on LiveRC.  
+2. Immediately before persisting anything, the system attempts to acquire the per-event ingestion lock.  
+3. If the lock **fails**, the system must return:
    - error code: INGESTION_IN_PROGRESS  
+   - HTTP status: 409 (Conflict)
    - a message indicating ingestion is already running  
-3. If the lock **succeeds**, ingestion proceeds normally.
+4. If the lock **succeeds**, the pipeline performs all database writes (including race fetching and persistence) within the locked transaction and releases the lock as soon as persistence is complete.
 
-The lock must be **held for the full ingestion duration**, including all sub-stages (fetching, parsing, normalisation, persistence).
-
-The lock must be **released even on failure**.
+**Current Implementation**: The lock is held during the entire persistence stage, including race page fetching. This ensures data consistency but means the lock duration includes network I/O for race pages. The lock must be **released even on failure** and the caller must surface the structured error via the `IngestionServiceError` class which preserves error codes through the API boundary.
 
 ---
 
 ## 4. Lock Granularity
 
 ### 4.1 Per-Event Lock  
-This is the only mandatory lock.  
-Granularity: event_id  
-Scope: entire ingestion pipeline for the event.
+This lock guards all database writes (entry list persistence, race persistence, driver matching, ingest_depth updates). Initial event page and entry list fetching happens prior to acquiring this lock. Race page fetching occurs within the locked transaction to ensure consistency.  
+Granularity: event_id (computed via `_compute_lock_id("event:{event_id}")`)  
+Scope: entire persistence stage including race fetching and database writes.
 
-### 4.2 Per-Race Lock (Optional Future Feature)  
+### 4.2 Source-Event Lock  
+Used only by the "ingest by source" flow to prevent duplicate Event creation.  
+Granularity: source_event_id (hashed advisory lock)  
+Scope: creation/upsert of the Event row before the per-event lock is acquired.
+
+### 4.3 Per-Race Lock (Optional Future Feature)  
 This may be used for distributed ingestion of massive events but is not required in V1.
 
-### 4.3 Global Lock (Not Recommended)  
+### 4.4 Global Lock (Not Recommended)  
 A global lock (disallowing any simultaneous ingestion at all) is explicitly prohibited because:
 
 - tracks are independent  
@@ -103,15 +108,18 @@ A single event ingestion is expected to take:
 ### 5.2 Automatic Timeout  
 To prevent deadlocks, ingestion locks must time out:
 
-- recommended timeout: 5 minutes  
-- after timeout, a lock is forcibly cleared  
-- ingestion state is set to failed  
+- **Implemented timeout**: 5 minutes (`LOCK_TIMEOUT_SECONDS = 5 * 60`)  
+- Enforced via `asyncio.wait_for()` wrapper in `_run_with_timeout()` method  
+- On timeout, raises `IngestionTimeoutError` with event_id and current stage  
+- Metrics are recorded via `metrics.record_lock_timeout(event_id, stage)`  
+- The lock is automatically released when the timeout exception is raised  
 
-If a timeout occurs, observability logs MUST capture:
+If a timeout occurs, observability logs capture:
 
 - event_id  
-- lock acquisition duration  
-- stage where the process hung  
+- current ingestion stage (via `_set_stage()` tracking)  
+- timeout duration (5 minutes)  
+- ingestion timer status (marked as "timeout")  
 
 ---
 
@@ -139,11 +147,15 @@ DB writes during ingestion must be executed within controlled transaction bounda
 
 ### 7.1 Transaction Scope
 
-Each race should be persisted in its own short-lived transaction:
+**Current Implementation**: The entire persistence stage runs within a single database transaction (`db_session()` context), but commits are performed at logical boundaries:
 
-- avoids long transactions that lock too many rows  
-- improves crash resilience  
-- makes ingestion progress visible incrementally  
+- Event metadata update (flush only)  
+- Entry list persistence (commit after all entries processed)  
+- Race processing (commit after each race is fully persisted, including results and laps)  
+- Driver matching + auto-confirm (commit after matching complete)  
+- ingest_depth/last_ingested_at update (final commit)
+
+The advisory lock is held for the duration of this transaction, which includes race page fetching. This ensures consistency but means lock duration includes network I/O for race pages. Race fetching is sequential (concurrency = 1) per v0.1 performance requirements.  
 
 ### 7.2 Idempotent Upserts
 
@@ -153,7 +165,7 @@ Ingestion MUST use deterministic upsert logic:
 - repeated ingestion must produce identical results  
 - race_results and laps must always overwrite outdated data  
 
-Isolation level: `READ COMMITTED` is sufficient because ingestion has exclusive access for the event.
+Isolation level: `READ COMMITTED` is sufficient because the advisory lock guarantees exclusive access for the event.
 
 ---
 
@@ -208,7 +220,9 @@ Admin UI must:
 - poll ingestion state  
 - never attempt parallel runs for the same event  
 - display ingestion progress  
-- display “ingestion already running” errors  
+- display "ingestion already running" errors (mapped to HTTP 409 via `toHttpErrorPayload()`)
+
+**Current Implementation**: The Next.js API routes (`src/app/api/v1/events/[eventId]/ingest/route.ts` and `src/app/api/v1/events/ingest/route.ts`) properly handle `IngestionServiceError` exceptions and map `INGESTION_IN_PROGRESS` to HTTP 409 with a user-friendly message. The error payload is preserved through the `ingestion-client.ts` layer using the `IngestionServiceError` class.  
 
 ---
 
@@ -219,11 +233,13 @@ The ingestion system must guarantee:
 1. Only one ingestion per event at any time  
 2. Locks persist across crashes  
 3. Idempotent ingestion results  
-4. Short-lived transactions to avoid DB contention  
+4. Transaction boundaries with logical commits to minimize lock duration  
 5. Deterministic and conflict-free writes  
 6. Non-blocking reads during ingestion  
 7. No race conditions in connector fetches  
-8. Clear failure modes when concurrency violations occur  
+8. Clear failure modes when concurrency violations occur
+
+**Note on Transaction Scope**: The current implementation uses a single transaction for the entire persistence stage (including race fetching) with logical commits at boundaries. This ensures consistency but means the advisory lock is held during network I/O for race pages. Future optimizations may move race fetching outside the locked transaction while maintaining consistency guarantees.  
 
 These guarantees ensure ingestion stability even under bursty admin usage, cron-triggered ingestion, or future multi-node runtimes.
 

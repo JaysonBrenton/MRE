@@ -8,7 +8,7 @@
  * @description Tests for standardized API response format helpers
  * 
  * @purpose Validates that API response helpers return the correct format
- *          as defined in the mobile-safe architecture guidelines.
+ *          as defined in the architecture guidelines.
  */
 
 import { describe, it, expect } from "vitest"

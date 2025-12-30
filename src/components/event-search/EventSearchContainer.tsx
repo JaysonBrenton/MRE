@@ -23,7 +23,6 @@ import EventSearchForm from "./EventSearchForm"
 import { type Track } from "./TrackRow"
 import EventTable from "./EventTable"
 import { type Event } from "./EventRow"
-import ImportStatusToast, { type ImportStatus } from "./ImportStatusToast"
 import { type EventStatus } from "./EventStatusBadge"
 import BulkImportBar from "./BulkImportBar"
 import ErrorDisplay from "./ErrorDisplay"
@@ -97,21 +96,18 @@ export default function EventSearchContainer() {
   const [isLoadingTracks, setIsLoadingTracks] = useState(true)
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
   const [isCheckingLiveRC, setIsCheckingLiveRC] = useState(false)
-  const [liveRCTimeout, setLiveRCTimeout] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [, setNewEventsFromLiveRC] = useState<Event[]>([])
   const keptLoadingForEmptyDB = useRef(false)
-  const liveRCTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const [importStatus, setImportStatus] = useState<{
-    status: ImportStatus
-    message: string
-    eventName?: string
-  } | null>(null)
   const [eventStatusOverrides, setEventStatusOverrides] = useState<Record<string, EventStatus>>({})
   const [eventErrorMessages, setEventErrorMessages] = useState<Record<string, string>>({})
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set())
   const [isImportingBulk, setIsImportingBulk] = useState(false)
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
+  const [searchKey, setSearchKey] = useState(0) // Key to force EventTable remount on new search
+  const [isStartingSearch, setIsStartingSearch] = useState(false) // Track if we're starting a new search
+  const dbEventsRef = useRef<Event[]>([]) // Ref to track DB events to ensure they're preserved
+  const abortControllerRef = useRef<AbortController | null>(null) // Ref to track AbortController for cancelling LiveRC requests
   const [errors, setErrors] = useState<{
     track?: string
     startDate?: string
@@ -123,6 +119,32 @@ export default function EventSearchContainer() {
     details?: unknown
     onRetry?: () => void
   } | null>(null)
+
+  const ensureDbEventsVisible = () => {
+    setEvents((prevEvents) => {
+      if (dbEventsRef.current.length === 0) {
+        return prevEvents
+      }
+
+      if (prevEvents.length === 0) {
+        logger.warn("Restoring DB events after LiveRC issue", {
+          dbEventCount: dbEventsRef.current.length,
+        })
+        return dbEventsRef.current
+      }
+
+      const hasDbEvents = prevEvents.some((event) => !event.id.startsWith("liverc-"))
+      if (!hasDbEvents) {
+        logger.warn("DB events missing from list - merging them back", {
+          dbEventCount: dbEventsRef.current.length,
+        })
+        const existingLiveRCEvents = prevEvents.filter((event) => event.id.startsWith("liverc-"))
+        return [...dbEventsRef.current, ...existingLiveRCEvents]
+      }
+
+      return prevEvents
+    })
+  }
   
   // Generate error reference ID
   const generateErrorId = (): string => {
@@ -209,6 +231,7 @@ export default function EventSearchContainer() {
         error: error instanceof Error ? error.message : String(error),
       })
     }
+
 
     // Load persisted selected event IDs from sessionStorage
     // Note: We'll filter out invalid IDs after events are loaded
@@ -370,9 +393,32 @@ export default function EventSearchContainer() {
     }
 
     try {
-      setHasSearched(false) // Clear flag immediately to prevent flash of "No events found"
+      // Cancel any outstanding LiveRC request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+
+      // Mark that we're starting a search to hide EventTable during transition
+      setIsStartingSearch(true)
+      // Clear all state FIRST to prevent any flash of old data
+      // Order matters: clear search flag and events before setting loading state
+      setHasSearched(false)
+      setEvents([])
+      dbEventsRef.current = [] // Clear DB events ref at start of new search
+      // Then increment search key to force EventTable remount with clean state
+      setSearchKey((prev) => prev + 1)
       setIsLoadingEvents(true)
       setErrors({})
+      
+      logger.debug("EventSearchContainer: Starting search", {
+        trackId: selectedTrack.id,
+        useDateFilter,
+      })
+      // Note: isStartingSearch will be cleared when:
+      // - For empty DB results: after LiveRC check completes (in checkLiveRC finally block)
+      // - For DB results: after LiveRC check completes (in checkLiveRC finally block)
+      // - For errors: in the catch block below
 
       // Persist form values
       try {
@@ -403,8 +449,25 @@ export default function EventSearchContainer() {
         }
       }
 
-      // Call API
-      const response = await fetch(`/api/v1/events/search?${params.toString()}`)
+      // Call API with timeout to prevent hanging
+      const searchAbortController = new AbortController()
+      const searchTimeout = setTimeout(() => {
+        searchAbortController.abort()
+      }, 30000) // 30 second timeout for search
+
+      let response: Response
+      try {
+        response = await fetch(`/api/v1/events/search?${params.toString()}`, {
+          signal: searchAbortController.signal,
+        })
+      } catch (error) {
+        clearTimeout(searchTimeout)
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new Error("Search request timed out. Please try again.")
+        }
+        throw error
+      }
+      clearTimeout(searchTimeout)
 
       const result = await parseApiResponse<{
         track: { id: string; source: string; source_track_slug: string; track_name: string }
@@ -435,6 +498,8 @@ export default function EventSearchContainer() {
           })
         }
         setIsLoadingEvents(false)
+        setIsStartingSearch(false) // Clear flag on API error
+        ensureDbEventsVisible()
         return
       }
       
@@ -449,14 +514,34 @@ export default function EventSearchContainer() {
         sourceEventId: event.sourceEventId || event.source_event_id, // Include for matching
       }))
 
-      setEvents(dbEvents)
+      logger.debug("EventSearchContainer: DB search completed", {
+        eventCount: dbEvents.length,
+        eventIds: dbEvents.map((e) => e.id),
+      })
+
+      // Store track data from search result for use in LiveRC discovery
+      const trackDataFromSearch = result.data.track
 
       // If DB search returned no events, immediately check LiveRC and keep loading state true
       // If DB search returned events, show them immediately and check LiveRC in background
+      // Note: LiveRC check now supports driver filtering, so we can call it even when filter is enabled
       if (dbEvents.length === 0) {
-        // Keep loading state true, immediately check LiveRC (no setTimeout)
+        // If DB search returned no events, show empty state immediately and check LiveRC in background
+        setEvents(dbEvents)
+        setHasSearched(true)
+        setIsStartingSearch(false) // Clear immediately to show empty state
+        setIsLoadingEvents(false) // Clear main loading state
+        setIsCheckingLiveRC(true) // Show LiveRC indicator separately
         keptLoadingForEmptyDB.current = true
-        checkLiveRC().catch((error) => {
+        
+        // Start LiveRC check in background with timeout
+        const liveRCTimeout = setTimeout(() => {
+          logger.warn("LiveRC check timed out after 30 seconds")
+          setIsCheckingLiveRC(false)
+          keptLoadingForEmptyDB.current = false
+        }, 30000) // 30 second timeout
+        
+        checkLiveRC(trackDataFromSearch, []).catch((error) => {
           logger.error("Error in auto-check LiveRC", {
             error: error instanceof Error
               ? {
@@ -465,15 +550,29 @@ export default function EventSearchContainer() {
                 }
               : String(error),
           })
-          setIsLoadingEvents(false) // Only clear loading on error
+        }).finally(() => {
+          clearTimeout(liveRCTimeout)
+          setIsCheckingLiveRC(false)
           keptLoadingForEmptyDB.current = false
         })
       } else {
-        // DB has results - show them immediately, check LiveRC in background for new events
-        setIsLoadingEvents(false)
+        // DB has results - show them immediately and check LiveRC in background
+        // This provides instant feedback to users while LiveRC discovery runs asynchronously
+        dbEventsRef.current = dbEvents
+        setEvents(dbEvents)
         setHasSearched(true)
+        setIsStartingSearch(false) // Clear immediately to show results
+        setIsLoadingEvents(false) // Clear main loading state once DB data is visible
+        setIsCheckingLiveRC(true)   // Show LiveRC indicator separately
+        
+        logger.debug("EventSearchContainer: DB events set, starting LiveRC check in background", {
+          dbEventCount: dbEvents.length,
+          dbEventIds: dbEvents.map((e) => e.id),
+        })
+        // Start LiveRC check in background - don't block UI rendering
+        // Pass track data and event source IDs to avoid duplicate queries
         setTimeout(() => {
-          checkLiveRC().catch((error) => {
+          checkLiveRC(trackDataFromSearch, dbEvents.map((e) => e.sourceEventId).filter((id): id is string => id !== undefined)).catch((error) => {
             logger.error("Error in auto-check LiveRC", {
             error: error instanceof Error
               ? {
@@ -509,27 +608,32 @@ export default function EventSearchContainer() {
         onRetry: handleSearch,
       })
       setIsLoadingEvents(false)
+      setIsStartingSearch(false) // Clear flag on error so UI is not stuck
     }
   }
 
-  const checkLiveRC = async () => {
+  const checkLiveRC = async (
+    trackData?: { id: string; source: string; source_track_slug: string; track_name: string },
+    existingEventSourceIds: string[] = []
+  ) => {
     if (!selectedTrack) return
+
+    // Create new AbortController for this request
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
 
     try {
       setIsCheckingLiveRC(true)
-      setLiveRCTimeout(false)
       setErrors({})
       
-      // Set timeout to show message after 10 seconds
-      if (liveRCTimeoutRef.current) {
-        clearTimeout(liveRCTimeoutRef.current)
-      }
-      liveRCTimeoutRef.current = setTimeout(() => {
-        setLiveRCTimeout(true)
-      }, 10000)
-
       // Build request body - only include dates if date filter is enabled and dates are provided
-      const requestBody: { track_id: string; start_date?: string; end_date?: string } = {
+      const requestBody: { 
+        track_id: string
+        start_date?: string
+        end_date?: string
+        existing_event_source_ids?: string[]
+        track?: { id: string; source: string; sourceTrackSlug: string; trackName: string }
+      } = {
         track_id: selectedTrack.id,
       }
       
@@ -543,12 +647,35 @@ export default function EventSearchContainer() {
         }
       }
 
+      // Pass existing event source IDs to avoid duplicate DB queries
+      if (existingEventSourceIds.length > 0) {
+        requestBody.existing_event_source_ids = existingEventSourceIds
+      }
+
+      // Pass track info from search result to avoid re-querying
+      if (trackData) {
+        const sourceTrackSlug =
+          trackData.source_track_slug || (trackData as { sourceTrackSlug?: string }).sourceTrackSlug || selectedTrack.sourceTrackSlug || ""
+        const trackName =
+          trackData.track_name || (trackData as { trackName?: string }).trackName || selectedTrack.trackName
+
+        if (sourceTrackSlug) {
+          requestBody.track = {
+            id: trackData.id,
+            source: trackData.source || "liverc",
+            sourceTrackSlug,
+            trackName,
+          }
+        }
+      }
+
       const response = await fetch("/api/v1/events/discover", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
+        signal: abortController.signal,
       })
 
       const result = await parseApiResponse<{
@@ -559,17 +686,14 @@ export default function EventSearchContainer() {
       if (!result.success) {
         // Handle timeout gracefully - it's expected if ingestion service is busy
         if (result.error.message?.includes("timeout")) {
-          // Timeout is expected, don't show error toast but user will see no new events
+          // Timeout is expected, don't show error but user will see no new events
           return
         }
-        // Show error for actual failures
-        setImportStatus({
-          status: "failed",
-          message: result.error.message || "Unable to check LiveRC. Please try again later.",
-        })
+        // Error occurred but we'll continue silently
         return
       }
 
+      // Add new events from LiveRC
       if (result.data.new_events && result.data.new_events.length > 0) {
         // Convert discovered events to Event format
         // Store sourceEventId for import later
@@ -585,6 +709,12 @@ export default function EventSearchContainer() {
         
         // Add new events to the events list (they'll show with "New (LiveRC only)" status and Import button)
         setEvents((prevEvents) => {
+          logger.debug("EventSearchContainer: Adding LiveRC events to existing events", {
+            prevEventCount: prevEvents.length,
+            newEventCount: newEvents.length,
+            prevEventIds: prevEvents.map((e) => e.id),
+          })
+          
           // Build sets of existing identifiers for deduplication
           const existingIds = new Set(prevEvents.map((e) => e.id))
           const existingSourceIds = new Set(
@@ -635,13 +765,36 @@ export default function EventSearchContainer() {
             return true
           })
           
-          return [...filteredPrevEvents, ...uniqueNewEvents]
+          const finalEvents = [...filteredPrevEvents, ...uniqueNewEvents]
+          logger.debug("EventSearchContainer: Final events after adding LiveRC events", {
+            finalEventCount: finalEvents.length,
+            dbEventCount: filteredPrevEvents.filter((e) => !e.id.startsWith("liverc-")).length,
+            newLiveRCEventCount: uniqueNewEvents.length,
+          })
+          
+          return finalEvents
         })
       } else {
         setNewEventsFromLiveRC([])
+        // No new events found - DB events should still be visible
+        // Explicitly ensure DB events are preserved (they were set before LiveRC check)
+        // The setEvents callback above preserves prevEvents, so DB events should still be there
+        logger.debug("LiveRC discovery completed with no new events - DB events should still be visible", {
+          currentEventCount: events.length,
+        })
+        
+        // Explicitly preserve DB events by ensuring they're still in state
+        // This is a safety check - events should already be there from the initial setEvents(dbEvents) call
+        ensureDbEventsVisible()
       }
       // No new events found - silently continue (no toast notification needed)
     } catch (error) {
+      // Ignore AbortError - it's expected when a new search starts
+      if (error instanceof Error && error.name === "AbortError") {
+        logger.debug("LiveRC check cancelled by new search")
+        return
+      }
+
       logger.error("Error checking LiveRC", {
         error: error instanceof Error
           ? {
@@ -650,23 +803,26 @@ export default function EventSearchContainer() {
             }
           : String(error),
       })
-      setImportStatus({
-        status: "failed",
-        message: "Unable to check LiveRC. Please try again later.",
-      })
+      ensureDbEventsVisible()
+      // On error, DB events should still be visible (they were set before LiveRC check)
+      // Don't clear events on error - preserve what we have
     } finally {
-      setIsCheckingLiveRC(false)
-      setLiveRCTimeout(false)
-      if (liveRCTimeoutRef.current) {
-        clearTimeout(liveRCTimeoutRef.current)
-        liveRCTimeoutRef.current = null
+      // Clear abort controller reference if this is the current request
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null
       }
-      // Clear loading state when LiveRC check completes (if it was kept true for empty DB results)
-      // This ensures "No events found" only shows after both DB and LiveRC checks complete
+      setIsCheckingLiveRC(false)
+      if (isLoadingEvents) {
+        setIsLoadingEvents(false)
+      }
+      // Clear loading state when LiveRC check completes
+      // Note: isStartingSearch is already cleared when DB results are shown, so we don't need to clear it here
       if (keptLoadingForEmptyDB.current) {
         setIsLoadingEvents(false)
+        setIsStartingSearch(false) // Clear for empty DB case
         keptLoadingForEmptyDB.current = false
       }
+      // For DB events case, isLoadingEvents is already false (set when DB results were shown)
       // Mark that a search has been completed
       setHasSearched(true)
     }
@@ -682,12 +838,6 @@ export default function EventSearchContainer() {
 
       updateEventStatusOverride(event.id, "importing")
       updateEventErrorMessage(event.id) // Clear any previous error
-    if (!silentStart) {
-      setImportStatus({
-        status: "started",
-        message: `Import started for "${event.eventName}".`,
-      })
-    }
 
     try {
       let ingestionResponse: ApiIngestionResult | null = null
@@ -742,13 +892,6 @@ export default function EventSearchContainer() {
         clearLiveRcPlaceholder()
         updateEventErrorMessage(event.id)
 
-        if (!silentStart) {
-          setImportStatus({
-            status: "pending",
-            message: `Import is still running for "${event.eventName}". We'll refresh the list when it finishes.`,
-          })
-        }
-
         setTimeout(() => {
           void handleSearch()
         }, PENDING_REFRESH_DELAY_MS)
@@ -763,13 +906,6 @@ export default function EventSearchContainer() {
       if (refreshAfter) {
         await new Promise((resolve) => setTimeout(resolve, 1000))
         await handleSearch()
-      }
-
-      if (!silentStart) {
-        setImportStatus({
-          status: "completed",
-          message: `Import completed for "${event.eventName}".`,
-        })
       }
 
       return true
@@ -792,12 +928,6 @@ export default function EventSearchContainer() {
 
       updateEventStatusOverride(event.id, "failed")
       updateEventErrorMessage(event.id, errorMessage)
-      if (!silentStart) {
-        setImportStatus({
-          status: "failed",
-          message: `Import failed for "${event.eventName}".`,
-        })
-      }
       return false
     }
   }
@@ -817,7 +947,6 @@ export default function EventSearchContainer() {
     setErrors({})
     setApiError(null)
     setNewEventsFromLiveRC([])
-    setImportStatus(null)
     setEventStatusOverrides({})
     setEventErrorMessages({})
     handleClearSelection()
@@ -843,6 +972,7 @@ export default function EventSearchContainer() {
       endDate: undefined,
     }))
   }
+
 
   const handleToggleFavourite = (trackId: string) => {
     const newFavourites = favourites.includes(trackId)
@@ -969,33 +1099,20 @@ export default function EventSearchContainer() {
     // Clear selection
     handleClearSelection()
 
-    // Show completion toast
-    if (failedImports === 0) {
-      setImportStatus({
-        status: "completed",
-        message: `Import completed for ${successfulImports} event${successfulImports === 1 ? "" : "s"}.`,
-      })
-    } else {
-      setImportStatus({
-        status: "failed",
-        message: `Imported ${successfulImports} of ${eventsToImport.length} event${eventsToImport.length === 1 ? "" : "s"}. ${failedImports} failed. Please retry failed imports.`,
-      })
-    }
-
     setIsImportingBulk(false)
     setImportProgress(null)
   }
 
   if (isLoadingTracks) {
     return (
-      <div className="text-center py-8" role="status" aria-live="polite">
+      <div className="text-center py-8 w-full min-w-0" role="status" aria-live="polite">
         <p className="text-[var(--token-text-secondary)]">Loading tracks...</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 w-full min-w-0">
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {isLoadingEvents
           ? "Loading events..."
@@ -1009,48 +1126,10 @@ export default function EventSearchContainer() {
         <ErrorDisplay
           message={apiError.message}
           errorId={apiError.errorId}
-          details={apiError.details}
+          details={apiError.details as string | Record<string, unknown> | undefined}
           onRetry={apiError.onRetry}
           retryLabel="Retry Search"
         />
-      )}
-      
-      {/* LiveRC Discovery Status Indicator */}
-      {isCheckingLiveRC && (
-        <div
-          className={`rounded-md border p-4 ${
-            liveRCTimeout
-              ? "border-[var(--token-status-warning-text)] bg-[var(--token-status-warning-bg)]"
-              : "border-[var(--token-status-info-text)] bg-[var(--token-status-info-bg)]"
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex items-start gap-3">
-            {!liveRCTimeout && (
-              <svg className="h-5 w-5 flex-shrink-0 text-[var(--token-status-info-text)] animate-spin mt-0.5" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            )}
-            <div className="flex-1">
-              <p className={`text-sm font-medium ${
-                liveRCTimeout
-                  ? "text-[var(--token-status-warning-text)]"
-                  : "text-[var(--token-status-info-text)]"
-              }`}>
-                {liveRCTimeout
-                  ? "LiveRC check is taking longer than expected"
-                  : "Checking LiveRC for additional events..."}
-              </p>
-              <p className="mt-1 text-xs text-[var(--token-text-secondary)]">
-                {liveRCTimeout
-                  ? "The LiveRC service may be busy. Results will appear when available, or you can try searching again."
-                  : "We're checking LiveRC for events not yet in our database. This may take a few moments."}
-              </p>
-            </div>
-          </div>
-        </div>
       )}
       
       <EventSearchForm
@@ -1082,28 +1161,27 @@ export default function EventSearchContainer() {
         onClearSelection={handleClearSelection}
       />
 
-      {/* Event Table */}
-      <EventTable 
-        events={events} 
-        isLoading={isLoadingEvents || isCheckingLiveRC}
-        hasSearched={hasSearched}
-        onImportEvent={handleImportSingle}
-        statusOverrides={eventStatusOverrides}
-        errorMessages={eventErrorMessages}
-        selectedEventIds={selectedEventIds}
-        onEventSelect={handleEventSelect}
-        isBulkImporting={isImportingBulk}
-        onSelectAll={handleSelectAllImportable}
-      />
-
-      {/* Import Status Toast */}
-      {importStatus && (
-        <ImportStatusToast
-          status={importStatus.status}
-          message={importStatus.message}
-          eventName={importStatus.eventName}
-          onClose={() => setImportStatus(null)}
+      {/* Event Table - Hide during search transition to prevent flash of old data */}
+      {!isStartingSearch && (
+        <EventTable 
+          key={searchKey}
+          events={events} 
+          isLoading={isLoadingEvents || isCheckingLiveRC}
+          hasSearched={hasSearched}
+          onImportEvent={handleImportSingle}
+          statusOverrides={eventStatusOverrides}
+          errorMessages={eventErrorMessages}
+          selectedEventIds={selectedEventIds}
+          onEventSelect={handleEventSelect}
+          isBulkImporting={isImportingBulk}
+          onSelectAll={handleSelectAllImportable}
         />
+      )}
+      {/* Show loading state during transition */}
+      {isStartingSearch && (
+        <div className="mt-8 text-center py-8 w-full min-w-0" role="status" aria-live="polite">
+          <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
+        </div>
       )}
     </div>
   )

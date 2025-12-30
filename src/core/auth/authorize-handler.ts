@@ -18,6 +18,7 @@
  */
 
 import type { User } from "next-auth"
+import { logger } from "@/lib/logger"
 
 /**
  * Authorizes credentials for NextAuth
@@ -27,30 +28,53 @@ import type { User } from "next-auth"
 export async function authorizeCredentials(
   credentials: Record<"email" | "password", string> | undefined
 ): Promise<User | null> {
-  if (!credentials?.email || !credentials?.password) {
+  try {
+    if (!credentials?.email || !credentials?.password) {
+      return null
+    }
+
+    // Dynamically import authenticateUser to avoid loading argon2 during static analysis
+    // This ensures argon2 is only loaded when this function is actually called (Node.js runtime)
+    const { authenticateUser } = await import("./login")
+
+    // Use core authentication function
+    const result = await authenticateUser({
+      email: credentials.email,
+      password: credentials.password,
+    })
+
+    if (!result.success) {
+      // Log failed authentication attempts for debugging
+      logger.debug("Authentication failed", {
+        email: credentials.email,
+        errorCode: result.error.code,
+        errorMessage: result.error.message,
+      })
+      return null
+    }
+
+    // Return user in NextAuth format
+    return {
+      id: result.user.id,
+      email: result.user.email,
+      name: result.user.driverName,
+      isAdmin: result.user.isAdmin,
+    }
+  } catch (error) {
+    // Log any unexpected errors during authorization
+    logger.error("Error in authorizeCredentials", {
+      error: error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : String(error),
+      email: credentials?.email,
+    })
+    // Return null to indicate authentication failure
+    // This prevents the error from propagating and breaking NextAuth
     return null
-  }
-
-  // Dynamically import authenticateUser to avoid loading argon2 during static analysis
-  // This ensures argon2 is only loaded when this function is actually called (Node.js runtime)
-  const { authenticateUser } = await import("./login")
-
-  // Use core authentication function
-  const result = await authenticateUser({
-    email: credentials.email,
-    password: credentials.password,
-  })
-
-  if (!result.success) {
-    return null
-  }
-
-  // Return user in NextAuth format
-  return {
-    id: result.user.id,
-    email: result.user.email,
-    name: result.user.driverName,
-    isAdmin: result.user.isAdmin,
   }
 }
 

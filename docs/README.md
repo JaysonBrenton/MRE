@@ -46,7 +46,7 @@ Core architectural guidelines and principles that govern the entire codebase.
 
 **Authoritative architecture standard** for the MRE application. Defines the complete architectural framework ensuring the system is mobile-safe, API-first, and future-native for iOS/Android clients. All code must follow these guidelines.
 
-**Key Topics:** API-first backend, separation of UI and business logic, folder structure, database rules, authentication, mobile-first UI, performance requirements.
+**Key Topics:** API-first backend, separation of UI and business logic, folder structure, database rules, authentication, desktop UI architecture, performance requirements.
 
 **Related:** See [Role Responsibilities](architecture/mobile-safe-architecture-guidelines.md#13-role-responsibilities) section for role ownership.
 
@@ -55,7 +55,7 @@ Core architectural guidelines and principles that govern the entire codebase.
 **Status:** Complete  
 **Last Updated:** 2025-01-27
 
-Comprehensive architecture documentation for the LiveRC ingestion subsystem. This subsystem provides MRE with the ability to retrieve, normalize, and store race event data from LiveRC. **Status:** This subsystem is in scope for version 0.1.0 release (see [MRE Version 0.1.0 Feature Scope](specs/mre-v0.1-feature-scope.md)).
+Comprehensive architecture documentation for the LiveRC ingestion subsystem. This subsystem provides MRE with the ability to retrieve, normalize, and store race event data from LiveRC. **Status:** This subsystem is in scope for version 0.1.1 release (see [MRE Version 0.1.1 Feature Scope](specs/mre-v0.1-feature-scope.md)).
 
 **Key Topics:** Connector architecture, ingestion pipeline, data model, API contracts, admin CLI, state machine, error handling, validation, performance, idempotency, observability, security, testing, fixture management, replay/debugging, recovery procedures, versioning, cross-connector abstractions.
 
@@ -69,7 +69,7 @@ Comprehensive architecture documentation for the LiveRC ingestion subsystem. Thi
 - [27 - Web Scraping Best Practices](architecture/liverc-ingestion/27-web-scraping-best-practices.md) - Comprehensive guide to robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, retry logic, and kill switch mechanism
 - [07-26 - Additional technical specifications](architecture/liverc-ingestion/)
 
-**Related:** See [MRE Version 0.1.0 Feature Scope](specs/mre-v0.1-feature-scope.md) for version 0.1.0 feature specifications. See [Mobile-Safe Architecture Guidelines](architecture/mobile-safe-architecture-guidelines.md) for overall architecture principles.
+**Related:** See [MRE Version 0.1.1 Feature Scope](specs/mre-v0.1-feature-scope.md) for version 0.1.1 feature specifications. See [Mobile-Safe Architecture Guidelines](architecture/mobile-safe-architecture-guidelines.md) for overall architecture principles.
 
 ### [Error Handling and Error Codes Catalog](architecture/error-handling.md)
 
@@ -166,7 +166,7 @@ Visual design, UX principles, and user experience guidelines.
 **Status:** Complete  
 **Last Updated:** 2025-01-27
 
-Mandatory User Experience principles for all MRE version 0.1.0 features. Defines core UX philosophy, laws of UX, foundational layout rules, form patterns, content rules, and mobile-specific requirements.
+Mandatory User Experience principles for all MRE version 0.1.1 features. Defines core UX philosophy, laws of UX, foundational layout rules, form patterns, content rules, and mobile-specific requirements.
 
 **Key Topics:** Jakob's Law, Fitts's Law, single-column layouts, form validation, error handling, mobile-first design.
 
@@ -186,9 +186,7 @@ Visual standards and token system for MRE dark theme implementation. Defines sem
 **Status:** Complete  
 **Last Updated:** 2025-01-27
 
-Mobile UX guidelines ensuring all screens are touch-friendly and mobile-compliant. Defines mobile-first foundation, viewport breakpoints, touch target requirements, form rules, navigation patterns, and responsive behavior.
-
-**Key Topics:** Mobile-first design, touch targets (44px minimum), single-column layouts, keyboard-friendly behavior, responsive breakpoints.
+**Note:** This document has been removed. The application is now desktop-only for UI. See `docs/design/mre-ux-principles.md` for current UX guidelines.
 
 ### [MRE Hero Image Generation](design/mre-hero-image-generation.md)
 
@@ -266,16 +264,16 @@ Changelog template following Keep a Changelog format. Documents all notable chan
 
 ## Specifications
 
-Feature specifications and requirements for the version 0.1.0 release.
+Feature specifications and requirements for the version 0.1.1 release.
 
-### [MRE Version 0.1.0 Feature Scope](specs/mre-v0.1-feature-scope.md)
+### [MRE Version 0.1.1 Feature Scope](specs/mre-v0.1-feature-scope.md)
 
 **Status:** Complete  
 **Last Updated:** 2025-01-27
 
-**Authoritative specification** for the strict, locked-down feature set for the MRE Alpha Release. Defines allowed features (registration, login, welcome pages, admin console) and explicitly forbidden features.
+**Authoritative specification** for the strict, locked-down feature set for the MRE Version 0.1.1 Release. Defines allowed features (registration, login, welcome pages, admin console, LiveRC ingestion, navigation features, table components, dashboard systems, telemetry visualizations) and explicitly forbidden features.
 
-**Key Topics:** version 0.1.0 feature list, out-of-scope features, architecture requirements, UI/UX requirements, completion criteria.
+**Key Topics:** version 0.1.1 feature list, out-of-scope features, architecture requirements, UI/UX requirements, completion criteria.
 
 **Related:** See [Role Ownership](specs/mre-v0.1-feature-scope.md#9-role-ownership) section for feature ownership.
 
@@ -488,7 +486,7 @@ User workflow documentation for LiveRC integration features. Defines the end-to-
 
 **Key Topics:** User journey, track selection, event discovery, date filtering, on-demand ingestion, data visualization.
 
-**Note:** This feature is in scope for version 0.1.0 release. See [MRE Version 0.1.0 Feature Scope](specs/mre-v0.1-feature-scope.md) for details.
+**Note:** This feature is in scope for version 0.1.1 release. See [MRE Version 0.1.1 Feature Scope](specs/mre-v0.1-feature-scope.md) for details.
 
 **Related:** See [LiveRC Ingestion Architecture](architecture/liverc-ingestion/01-overview.md) for technical implementation details.
 

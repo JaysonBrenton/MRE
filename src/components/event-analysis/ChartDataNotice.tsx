@@ -55,9 +55,8 @@ export default function ChartDataNotice({
       <button
         type="button"
         onClick={handleDismiss}
-        className="absolute top-3 right-3 p-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] mobile-button"
+        className="absolute top-3 right-3 p-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
         aria-label="Dismiss notice"
-        style={{ minWidth: "44px", minHeight: "44px" }}
       >
         <svg
           className="w-5 h-5 text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)]"

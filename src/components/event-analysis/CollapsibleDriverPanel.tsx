@@ -69,11 +69,10 @@ export default function CollapsibleDriverPanel({
         <button
           type="button"
           onClick={onToggle}
-          className="mobile-button flex items-center gap-3 flex-1 text-left hover:bg-[var(--token-surface)] rounded-md px-2 -mx-2 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+          className="flex items-center gap-3 flex-1 text-left hover:bg-[var(--token-surface)] rounded-md px-2 -mx-2 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
           aria-expanded={isOpen}
           aria-controls="driver-panel-content"
           aria-label={`${isOpen ? "Collapse" : "Expand"} driver selection panel`}
-          style={{ minHeight: "44px" }}
         >
           <svg
             className={`w-5 h-5 text-[var(--token-text-secondary)] transition-transform ${

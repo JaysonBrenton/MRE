@@ -49,7 +49,6 @@ export default function DriverCard({
   return (
     <div
       className="bg-[var(--token-surface-elevated)] rounded-md border border-[var(--token-border-default)] p-4 space-y-3"
-      style={{ minHeight: "44px" }}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 flex-1">

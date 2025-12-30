@@ -18,8 +18,8 @@
 export default function Footer() {
   return (
     <footer className="border-t border-[var(--token-border-muted)] bg-[var(--token-surface)] py-6">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-center gap-2 text-center sm:flex-row sm:justify-between">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="flex items-center justify-center gap-2 text-center justify-between">
           <p className="text-sm text-[var(--token-text-muted)]">
             © 2025 My Race Engineer
           </p>

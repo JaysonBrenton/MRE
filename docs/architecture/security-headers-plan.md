@@ -3,7 +3,7 @@ created: 2025-01-27
 creator: Auto (AI Assistant)
 lastModified: 2025-01-27
 description: Security headers implementation documentation for MRE application
-purpose: Documents the security headers implementation that protects against common web vulnerabilities. Security headers are implemented in version 0.1.0 with environment-aware configuration.
+purpose: Documents the security headers implementation that protects against common web vulnerabilities. Security headers are implemented in version 0.1.1 with environment-aware configuration.
 relatedFiles:
   - middleware.ts (security headers implementation)
   - docs/security/security-overview.md (security documentation)
@@ -13,7 +13,7 @@ relatedFiles:
 
 ## Overview
 
-Security headers are **implemented** in version 0.1.0 to protect the application against common web vulnerabilities. The implementation uses environment-aware configuration to balance security and development experience.
+Security headers are **implemented** in version 0.1.1 to protect the application against common web vulnerabilities. The implementation uses environment-aware configuration to balance security and development experience.
 
 ## Required Security Headers
 

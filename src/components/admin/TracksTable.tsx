@@ -19,7 +19,7 @@ export default function TracksTable() {
       .then((d) => d.success && setTracks(d.data.tracks))
       .finally(() => setLoading(false))
   }, [])
-  if (loading) return <div className="py-8 text-center">Loading...</div>
+  if (loading) return <div className="py-8 text-center w-full min-w-0">Loading...</div>
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse">

@@ -121,7 +121,7 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 sm:p-0"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
@@ -134,7 +134,7 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col sm:max-h-[600px]`}
+        className={`w-full ${maxWidthClasses[maxWidth]} max-h-[600px] bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col`}
         onClick={(e) => e.stopPropagation()}
         style={{ 
           minWidth: 0,
@@ -158,7 +158,7 @@ export default function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md flex-shrink-0"
+            className="p-2 flex items-center justify-center text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md flex-shrink-0"
             aria-label="Close modal"
           >
             <svg

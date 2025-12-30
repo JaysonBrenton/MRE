@@ -38,21 +38,71 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Parse pagination parameters from query string
+    // Parse query parameters
     const searchParams = request.nextUrl.searchParams
+    
+    // Pagination
     const limitParam = searchParams.get("limit")
     const offsetParam = searchParams.get("offset")
-    
     const limit = limitParam ? Math.max(1, Math.min(100, parseInt(limitParam, 10))) : 20
     const offset = offsetParam ? Math.max(0, parseInt(offsetParam, 10)) : 0
 
-    const result = await getAllImportedEvents({ limit, offset })
+    // Filters
+    const trackId = searchParams.get("trackId") || undefined
+    const startDateParam = searchParams.get("startDate")
+    const endDateParam = searchParams.get("endDate")
+    const statusParam = searchParams.get("status")
+    const orderByParam = searchParams.get("orderBy")
+    const orderDirectionParam = searchParams.get("orderDirection")
+
+    // Parse dates
+    let startDate: Date | undefined
+    let endDate: Date | undefined
+    if (startDateParam) {
+      startDate = new Date(startDateParam)
+      if (isNaN(startDate.getTime())) {
+        startDate = undefined
+      }
+    }
+    if (endDateParam) {
+      endDate = new Date(endDateParam)
+      if (isNaN(endDate.getTime())) {
+        endDate = undefined
+      }
+    }
+
+    // Parse status (imported | all)
+    const status = statusParam === 'all' ? 'all' : 'imported'
+
+    // Parse orderBy
+    const validOrderBy = ['eventDate', 'eventName', 'trackName', 'eventEntries', 'eventDrivers']
+    const orderBy = orderByParam && validOrderBy.includes(orderByParam) 
+      ? orderByParam as 'eventDate' | 'eventName' | 'trackName' | 'eventEntries' | 'eventDrivers'
+      : 'eventDate'
+
+    // Parse orderDirection
+    const orderDirection = orderDirectionParam === 'asc' ? 'asc' : 'desc'
+
+    const result = await getAllImportedEvents({
+      limit,
+      offset,
+      trackId,
+      startDate,
+      endDate,
+      status,
+      orderBy,
+      orderDirection,
+    })
 
     requestLogger.info("Events list retrieved successfully", {
       eventCount: result.events.length,
       total: result.total,
       limit,
       offset,
+      trackId,
+      status,
+      orderBy,
+      orderDirection,
     })
 
     return successResponse({

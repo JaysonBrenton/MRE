@@ -9,7 +9,7 @@
  * 
  * @purpose Provides driver selection and metric switching controls for charts.
  *          Features virtualization, class grouping, compact toggle, and search.
- *          Mobile-friendly with touch targets.
+ *          Optimized for desktop viewports.
  * 
  * @relatedFiles
  * - src/components/event-analysis/OverviewTab.tsx (uses this)
@@ -40,8 +40,8 @@ export interface ChartControlsProps {
   races: Race[]
   selectedDriverIds: string[]
   onDriverSelectionChange: (driverIds: string[]) => void
-  chartType?: "best-lap" | "gap-evolution" | "avg-vs-fastest"
-  onChartTypeChange?: (type: "best-lap" | "gap-evolution" | "avg-vs-fastest") => void
+  chartType?: "best-lap" | "avg-vs-fastest"
+  onChartTypeChange?: (type: "best-lap" | "avg-vs-fastest") => void
   onClassChange?: (className: string | null) => void
 }
 
@@ -191,10 +191,9 @@ const DriverItem = React.memo<{
       <div style={{ paddingLeft: "8px", paddingRight: "8px", ...marginStyle }}>
         <label
           className={`flex items-center ${compactClasses} rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface)] cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[var(--token-interactive-focus-ring)]`}
-          style={{ minHeight: "44px" }}
           aria-label={`${item.data.driverName}, ${isSelected ? "selected" : "not selected"}`}
         >
-        <span className="flex items-center justify-center" style={{ minWidth: "44px", minHeight: "44px" }}>
+        <span className="flex items-center justify-center">
           <input
             type="checkbox"
             checked={isSelected}
@@ -236,19 +235,7 @@ export default function ChartControls({
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
   const [isChartTypeDropdownOpen, setIsChartTypeDropdownOpen] = useState(false)
   const [isPanelOpen, setIsPanelOpen] = useState(true)
-  // Hydrate mobile vs desktop default once the client is available
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-    if (window.innerWidth < 640) {
-      startTransition(() => {
-        setIsPanelOpen(false)
-      })
-    }
-  }, [])
-
-  const [containerHeight, setContainerHeight] = useState(300)
+  const [containerHeight, setContainerHeight] = useState(400)
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const chartTypeDropdownRef = useRef<HTMLDivElement>(null)
@@ -260,16 +247,6 @@ export default function ChartControls({
     }, 300)
     return () => clearTimeout(timer)
   }, [searchQuery])
-
-  // Set responsive container height
-  useEffect(() => {
-    const updateHeight = () => {
-      setContainerHeight(window.innerWidth >= 640 ? 400 : 300)
-    }
-    updateHeight()
-    window.addEventListener("resize", updateHeight)
-    return () => window.removeEventListener("resize", updateHeight)
-  }, [])
 
   // Group drivers by class
   const driversByClass = useMemo(
@@ -399,9 +376,8 @@ export default function ChartControls({
     ? `${selectedClassInfo.className} (${selectedClassInfo.driverCount})`
     : "All Classes"
 
-  const chartTypeLabels: Record<"best-lap" | "gap-evolution" | "avg-vs-fastest", string> = {
+  const chartTypeLabels: Record<"best-lap" | "avg-vs-fastest", string> = {
     "best-lap": "Best Lap",
-    "gap-evolution": "Gap Evolution",
     "avg-vs-fastest": "Avg vs Fastest",
   }
 
@@ -425,13 +401,13 @@ export default function ChartControls({
         <div className="space-y-2">
 
         {/* Controls Row */}
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex gap-2">
           {/* Class Filter Dropdown */}
-          <div className="relative flex-1 sm:flex-initial sm:max-w-[200px]" ref={dropdownRef}>
+          <div className="relative flex-initial max-w-[200px]" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-              className="mobile-button w-full sm:w-auto flex items-center justify-between px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="flex items-center justify-between px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Filter by class"
               aria-expanded={isClassDropdownOpen}
             >
@@ -461,7 +437,7 @@ export default function ChartControls({
                     setIsClassDropdownOpen(false)
                     onClassChange?.(null)
                   }}
-                  className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
+                  className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
                     selectedClass === null
                       ? "bg-[var(--token-accent)] text-[var(--token-text-primary)]"
                       : ""
@@ -478,7 +454,7 @@ export default function ChartControls({
                       setIsClassDropdownOpen(false)
                       onClassChange?.(classInfo.className)
                     }}
-                    className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
+                    className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
                       selectedClass === classInfo.className
                         ? "bg-[var(--token-accent)] text-[var(--token-text-primary)]"
                         : ""
@@ -492,13 +468,13 @@ export default function ChartControls({
           </div>
 
           {/* Search Input */}
-          <div className="flex-1 sm:flex-initial sm:max-w-[250px] relative">
+          <div className="flex-initial max-w-[250px] relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search drivers... (Cmd/Ctrl+K)"
-              className="mobile-button w-full px-3 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full px-3 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Search drivers"
               id="driver-search-input"
             />
@@ -508,7 +484,6 @@ export default function ChartControls({
                 onClick={() => setSearchQuery("")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
                 aria-label="Clear search"
-                style={{ minWidth: "44px", minHeight: "44px" }}
               >
                 <svg
                   className="w-4 h-4 text-[var(--token-text-secondary)]"
@@ -531,9 +506,8 @@ export default function ChartControls({
           <button
             type="button"
             onClick={() => setIsCompact(!isCompact)}
-            className="mobile-button flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
             aria-label={isCompact ? "Switch to expanded view" : "Switch to compact view"}
-            style={{ minWidth: "44px", minHeight: "44px" }}
           >
             <svg
               className="w-5 h-5"
@@ -557,7 +531,7 @@ export default function ChartControls({
                 />
               )}
             </svg>
-            <span className="hidden sm:inline ml-2">
+            <span className="ml-2">
               {isCompact ? "Expanded" : "Compact"}
             </span>
           </button>
@@ -597,10 +571,9 @@ export default function ChartControls({
           <button
             type="button"
             onClick={() => setIsChartTypeDropdownOpen(!isChartTypeDropdownOpen)}
-            className="mobile-button w-full sm:w-auto inline-flex items-center gap-2 px-2.5 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-2.5 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] whitespace-nowrap"
             aria-label="Select chart type"
             aria-expanded={isChartTypeDropdownOpen}
-            style={{ minHeight: "44px" }}
           >
             <span>
               {chartTypeLabels[chartType]}
@@ -622,21 +595,20 @@ export default function ChartControls({
             </svg>
           </button>
           {isChartTypeDropdownOpen && (
-            <div className="absolute z-10 left-0 w-full sm:w-auto sm:min-w-[200px] sm:max-w-[280px] mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg overflow-auto">
+            <div className="absolute z-10 left-0 w-auto min-w-[200px] max-w-[280px] mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg overflow-auto">
               <button
                 type="button"
                 onClick={() => {
                   onChartTypeChange("best-lap")
                   setIsChartTypeDropdownOpen(false)
                 }}
-                className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
+                className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
                   chartType === "best-lap"
                     ? "bg-[var(--token-surface)] border-l-2 border-l-[var(--token-accent)]"
                     : ""
                 }`}
                 aria-label="Best Lap chart - shows fastest lap time per driver"
                 title="Best Lap: Shows the fastest lap time for each driver"
-                style={{ minHeight: "44px" }}
               >
                 <div className="font-medium">Best Lap</div>
                 <div className="text-xs text-[var(--token-text-secondary)] mt-0.5">
@@ -646,37 +618,16 @@ export default function ChartControls({
               <button
                 type="button"
                 onClick={() => {
-                  onChartTypeChange("gap-evolution")
-                  setIsChartTypeDropdownOpen(false)
-                }}
-                className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
-                  chartType === "gap-evolution"
-                    ? "bg-[var(--token-surface)] border-l-2 border-l-[var(--token-accent)]"
-                    : ""
-                }`}
-                aria-label="Gap Evolution chart - shows time gap to leader over race duration"
-                title="Gap Evolution: Shows how time gaps between drivers change over the race"
-                style={{ minHeight: "44px" }}
-              >
-                <div className="font-medium">Gap Evolution</div>
-                <div className="text-xs text-[var(--token-text-secondary)] mt-0.5">
-                  Shows how time gaps between drivers change over the race
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
                   onChartTypeChange("avg-vs-fastest")
                   setIsChartTypeDropdownOpen(false)
                 }}
-                className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] mobile-button ${
+                className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
                   chartType === "avg-vs-fastest"
                     ? "bg-[var(--token-surface)] border-l-2 border-l-[var(--token-accent)]"
                     : ""
                 }`}
                 aria-label="Average vs Fastest chart - compares average and fastest lap times"
                 title="Avg vs Fastest: Compares each driver's average lap time to their fastest lap"
-                style={{ minHeight: "44px" }}
               >
                 <div className="font-medium">Avg vs Fastest</div>
                 <div className="text-xs text-[var(--token-text-secondary)] mt-0.5">

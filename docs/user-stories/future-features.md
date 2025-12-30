@@ -16,7 +16,7 @@ This epic contains placeholder user stories for Beta+ features that are explicit
 
 **Status:** Placeholder - Not implemented in Alpha  
 **Planned Phase:** Beta+  
-**Reference:** [MRE Version 0.1.0 Feature Scope - Future Phases](../specs/mre-v0.1-feature-scope.md#8-future-phases-non-alpha)
+**Reference:** [MRE Version 0.1.1 Feature Scope - Future Phases](../specs/mre-v0.1-feature-scope.md#8-future-phases-post-011)
 
 ---
 
@@ -40,7 +40,7 @@ Users will be able to upload telemetry data from their RC cars, including sensor
 - GPS or IMU data handling
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
 
 ---
 
@@ -62,7 +62,7 @@ Users will have access to advanced analytics and visualization tools, including 
 - Advanced visualizations
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
 - [LiveRC User Workflow - Future Visualizations](../frontend/liverc/user-workflow.md#future-visualizations-beta)
 
 ---
@@ -84,7 +84,7 @@ Users will be able to create, edit, and manage setup sheets for their RC cars. S
 - Configuration management
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
 
 ---
 
@@ -105,7 +105,7 @@ Users will have access to an AI coach that analyzes their race data and provides
 - Automated recommendations
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
 
 ---
 
@@ -127,7 +127,7 @@ Users will be able to edit their profile information, including driver name, tea
 - Preferences beyond dark mode
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
 
 ---
 
@@ -149,7 +149,7 @@ Users will be able to configure various application settings and preferences, in
 - Notifications or emails
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
 
 ---
 
@@ -171,7 +171,7 @@ Users will have access to a comprehensive dashboard that provides an overview of
 - Multi-page flows beyond login/registration/welcome/admin
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
 
 ---
 
@@ -193,7 +193,7 @@ Users will be able to import race data from external sources and export their da
 - Uploading data
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
 
 ---
 
@@ -214,7 +214,7 @@ Users will have access to a comprehensive landing page with navigation to all fe
 - Multi-page flows beyond login/registration/welcome/admin
 
 ### Related Documentation
-- [MRE Version 0.1.0 Feature Scope - Future Phases](../specs/mre-v0.1-feature-scope.md#8-future-phases-non-alpha)
+- [MRE Version 0.1.1 Feature Scope - Future Phases](../specs/mre-v0.1-feature-scope.md#8-future-phases-post-011)
 - [README - Product Vision](../README.md#131-landing-page-navigation-future)
 
 ---

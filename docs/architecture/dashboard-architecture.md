@@ -401,7 +401,7 @@ return <WidgetContent data={data} />;
 
 **Requirements:**
 - Touch-friendly drag-and-drop (if supported on mobile)
-- Large touch targets for customization controls
+- Appropriate sizing for customization controls
 - Swipe gestures for navigation (optional)
 - Simplified customization UI on mobile
 

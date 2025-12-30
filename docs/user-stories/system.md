@@ -46,25 +46,26 @@ None
    - Page must include top navigation (Alpha or Future, depending on release phase)
    - Page must include the same padding and spacing scale as all pages
    - Page must use the same container components (flex or grid wrappers)
-   - Page must follow dark theme rules
+   - Page must follow theme system guidelines (use semantic tokens)
 
 4. **Content Positioning**
    - Message must be centered horizontally
    - Message must be centered vertically (using flex or grid)
    - Typography must follow typography scale from the design system
 
-5. **Dark Theme Compliance**
+5. **Theme System Compliance**
    - Background must use `--token-surface` (no pure black)
    - Text must use `--token-text-primary`
    - No pure black backgrounds
    - No unapproved accent colors
+   - Use semantic tokens to support theme experimentation
 
 6. **Component Restrictions**
    - Allowed components:
      - Layout wrapper
      - Typography components
      - Standard spacing utilities
-     - Dark theme visual tokens
+     - Theme system visual tokens
    - Forbidden components:
      - Buttons
      - Links (except navigation)

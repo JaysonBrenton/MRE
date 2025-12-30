@@ -16,7 +16,7 @@ relatedFiles:
 
 # 05. API Contracts (LiveRC Ingestion Subsystem)
 
-**Status:** This ingestion subsystem is **in scope for the Alpha release**. See [MRE Alpha Feature Scope](../../specs/mre-v0.1-feature-scope.md) for Alpha feature specifications.
+**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**. See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for version 0.1.1 feature specifications.
 
 **Related Documentation:**
 - [LiveRC Ingestion Overview](01-overview.md) - System overview

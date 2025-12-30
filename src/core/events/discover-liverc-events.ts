@@ -16,13 +16,20 @@
  * - ingestion/connectors/liverc/ (Python LiveRC connector)
  */
 
-import { searchEvents as searchEventsFromRepo } from "./repo"
+import { getTrackMetadata } from "./repo"
 import { ingestionClient } from "@/lib/ingestion-client"
 
 export interface DiscoverLiveRCEventsInput {
   trackId: string
   startDate?: string // ISO date string (optional)
   endDate?: string // ISO date string (optional)
+  existingEventSourceIds?: Set<string> // sourceEventIds from initial search (to avoid re-querying)
+  track?: {
+    id: string
+    source: string
+    sourceTrackSlug: string
+    trackName: string
+  } // Track metadata (to avoid re-querying)
 }
 
 export interface DiscoveredEvent {
@@ -40,6 +47,7 @@ export interface DiscoverLiveRCEventsResult {
   existingEvents: DiscoveredEvent[] // Events already in MRE DB
 }
 
+
 /**
  * Discover events from LiveRC for a given track and date range
  * 
@@ -52,17 +60,19 @@ export interface DiscoverLiveRCEventsResult {
 export async function discoverLiveRCEvents(
   input: DiscoverLiveRCEventsInput
 ): Promise<DiscoverLiveRCEventsResult> {
-  // First, get events already in DB (with optional date filtering)
-  const dbResult = await searchEventsFromRepo({
-    trackId: input.trackId,
-    startDate: input.startDate ? new Date(input.startDate) : undefined,
-    endDate: input.endDate ? new Date(input.endDate) : undefined,
-  })
+  // Use provided existing event source IDs or empty set (avoids duplicate DB search)
+  const existingEventIds = input.existingEventSourceIds || new Set<string>()
+  
+  console.log(`[LiveRCDiscovery] Using ${existingEventIds.size} existing event source IDs from initial search (no duplicate DB query)`)
 
-  const existingEventIds = new Set(dbResult.events.map((e) => e.sourceEventId))
+  // Get track metadata - use provided track or fetch it
+  const track = input.track || await getTrackMetadata(input.trackId)
+  
+  if (!track) {
+    throw new Error("Track not found")
+  }
 
-  // Get track to extract track slug
-  const trackSlug = dbResult.track.sourceTrackSlug
+  const trackSlug = track.sourceTrackSlug
 
   // Call Python ingestion service to discover events from LiveRC
   // If dates are not provided, pass undefined to get all events
@@ -87,10 +97,13 @@ export async function discoverLiveRCEvents(
   const newEvents: DiscoveredEvent[] = []
   const existingEvents: DiscoveredEvent[] = []
 
+  // Separate events into new (not in DB) and existing (in DB)
   for (const event of livercEvents) {
     if (existingEventIds.has(event.sourceEventId)) {
+      // Event is in DB
       existingEvents.push(event)
     } else {
+      // Event is not in DB
       newEvents.push(event)
     }
   }

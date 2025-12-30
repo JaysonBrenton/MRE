@@ -36,16 +36,16 @@ export default function Home() {
               Registration and login are the only enabled workflows in this locked scope build.
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <div className="flex gap-3 justify-center">
             <Link
               href="/login"
-              className="mobile-button inline-flex w-full items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-6 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:w-auto"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-6 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
             >
               Sign in
             </Link>
             <Link
               href="/register"
-              className="mobile-button inline-flex w-full items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-6 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:w-auto"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-6 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
             >
               Create account
             </Link>

@@ -242,14 +242,14 @@ export default function RegisterPage() {
     <div className="flex min-h-screen w-full flex-col bg-[var(--token-surface)] overflow-x-hidden" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
       <main
         id="main-content"
-        className="page-container flex-1 w-full min-w-0 px-4 py-8 sm:px-6 sm:py-12"
+        className="page-container flex-1 w-full min-w-0 px-6 py-12"
         tabIndex={-1}
         style={{ width: '100%', minWidth: 0, flexBasis: '100%', boxSizing: 'border-box', flexShrink: 1 }}
       >
         <section className="content-wrapper w-full min-w-0 max-w-2xl" style={{ width: '100%', minWidth: 0, marginLeft: 'auto', marginRight: 'auto', maxWidth: '672px', boxSizing: 'border-box' }}>
-          <div className="w-full min-w-0 space-y-8 rounded-lg bg-[var(--token-surface-elevated)] p-6 sm:p-8 shadow-lg" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+          <div className="w-full min-w-0 space-y-8 rounded-lg bg-[var(--token-surface-elevated)] p-8 shadow-lg" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--token-text-primary)]">
+              <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
                 Create an account
               </h1>
               <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
@@ -271,7 +271,7 @@ export default function RegisterPage() {
               )}
 
               <div className="space-y-6 w-full min-w-0" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-                <div className="mobile-form-field">
+                <div>
                   <label
                     htmlFor="email"
                     className="block text-base font-medium text-[var(--token-text-secondary)] mb-2"
@@ -301,7 +301,7 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                <div className="mobile-form-field">
+                <div>
                   <label
                     htmlFor="password"
                     className="block text-base font-medium text-[var(--token-text-secondary)] mb-2"
@@ -335,7 +335,7 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                <div className="mobile-form-field">
+                <div>
                   <label
                     htmlFor="driverName"
                     className="block text-base font-medium text-[var(--token-text-secondary)] mb-2"
@@ -364,7 +364,7 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                <div className="mobile-form-field">
+                <div>
                   <label
                     htmlFor="teamName"
                     className="block text-base font-medium text-[var(--token-text-secondary)] mb-2"
@@ -387,7 +387,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mobile-button w-full flex justify-center items-center px-6 py-3 rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] active:opacity-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full flex justify-center items-center px-6 py-3 rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] active:opacity-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? "Creating account..." : "Create account"}
                 </button>

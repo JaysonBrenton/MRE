@@ -53,11 +53,11 @@ export default function UsersTable() {
   }, [page])
 
   if (loading) {
-    return <div className="text-center py-8 text-[var(--token-text-secondary)]">Loading users...</div>
+    return <div className="text-center py-8 text-[var(--token-text-secondary)] w-full min-w-0">Loading users...</div>
   }
 
   if (error) {
-    return <div className="text-center py-8 text-[var(--token-text-error)]">Error: {error}</div>
+    return <div className="text-center py-8 text-[var(--token-text-error)] w-full min-w-0">Error: {error}</div>
   }
 
   return (
