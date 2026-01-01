@@ -20,6 +20,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Breadcrumbs from "@/components/Breadcrumbs"
 
 interface Event {
   id: string
@@ -39,13 +40,20 @@ interface ParticipationDetail {
   userDriverLinkStatus: "confirmed" | "suggested" | "rejected" | "conflict"
 }
 
-interface DriverEventsResponse {
-  success: true
-  data: {
-    events: Event[]
-    participationDetails: ParticipationDetail[]
-  }
-}
+type DriverEventsResponse =
+  | {
+      success: true
+      data: {
+        events: Event[]
+        participationDetails: ParticipationDetail[]
+      }
+    }
+  | {
+      success: false
+      error?: {
+        message?: string
+      }
+    }
 
 const formatEventDate = (eventDate: string | null): string => {
   if (!eventDate) {
@@ -88,12 +96,12 @@ export default function MyEventPage() {
         const contentType = response.headers.get("content-type")
         const hasJsonContent = contentType && contentType.includes("application/json")
         
-        let data: any = null
+        let data: DriverEventsResponse | null = null
         if (hasJsonContent) {
           const text = await response.text()
           if (text.trim()) {
             try {
-              data = JSON.parse(text)
+              data = JSON.parse(text) as DriverEventsResponse
             } catch (parseError) {
               console.error("Failed to parse JSON response:", parseError, "Response text:", text)
               throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`)
@@ -150,6 +158,12 @@ export default function MyEventPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/welcome" },
+          { label: "My Event" },
+        ]}
+      />
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-semibold text-[var(--token-text-primary)]">
@@ -277,4 +291,3 @@ export default function MyEventPage() {
     </div>
   )
 }
-

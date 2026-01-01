@@ -16,6 +16,11 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import {
+  calculateClassThresholds,
+  isValidLapTime,
+  type RaceResultForValidation,
+} from "./validate-lap-times"
 
 function sanitizeLapTime(value: number | null | undefined): number | null {
   if (typeof value !== "number") {
@@ -77,6 +82,45 @@ export interface EventSummary {
       earliest: Date | null
       latest: Date | null
     }
+  }
+  topDrivers?: Array<{
+    driverId: string
+    driverName: string
+    fastestLapTime: number
+    raceLabel: string
+    className: string
+    raceId: string
+  }>
+  mostConsistentDrivers?: Array<{
+    driverId: string
+    driverName: string
+    consistency: number
+    raceLabel: string
+    className: string
+    raceId: string
+  }>
+  bestAvgLapDrivers?: Array<{
+    driverId: string
+    driverName: string
+    avgLapTime: number
+    raceLabel: string
+    className: string
+    raceId: string
+  }>
+  userBestLap?: {
+    lapTime: number
+    position: number
+    gapToFastest: number
+  }
+  userBestConsistency?: {
+    consistency: number
+    position: number
+    gapToBest: number
+  }
+  userBestAvgLap?: {
+    avgLapTime: number
+    position: number
+    gapToBest: number
   }
 }
 
@@ -140,10 +184,12 @@ export interface EventAnalysisData {
  * without loading the full event graph (races, results, laps).
  * 
  * @param eventId - Event's unique identifier
+ * @param userId - Optional user ID to include user's best lap comparison
  * @returns Event summary with aggregated statistics or null if event not found
  */
 export async function getEventSummary(
-  eventId: string
+  eventId: string,
+  userId?: string
 ): Promise<EventSummary | null> {
   // Fetch event metadata only
   const event = await prisma.event.findUnique({
@@ -202,6 +248,409 @@ export async function getEventSummary(
     },
   })
 
+  // Get top 3 fastest drivers
+  const allResults = await prisma.raceResult.findMany({
+    where: {
+      race: { eventId },
+      fastLapTime: { not: null },
+    },
+    select: {
+      fastLapTime: true,
+      race: {
+        select: {
+          raceLabel: true,
+          className: true,
+          id: true,
+        },
+      },
+      raceDriver: {
+        select: {
+          driverId: true,
+          displayName: true,
+        },
+      },
+    },
+  })
+
+  // Calculate class thresholds for validation
+  const resultsForValidation: RaceResultForValidation[] = allResults.map(
+    (result) => ({
+      fastLapTime: result.fastLapTime,
+      className: result.race.className,
+    })
+  )
+  const classThresholds = calculateClassThresholds(resultsForValidation)
+
+  // Group by driverId to get each driver's best lap
+  const driverBestLaps = new Map<
+    string,
+    {
+      driverId: string
+      driverName: string
+      fastestLapTime: number
+      raceLabel: string
+      className: string
+      raceId: string
+    }
+  >()
+
+  for (const result of allResults) {
+    const lapTime = sanitizeLapTime(result.fastLapTime)
+    if (lapTime === null) continue
+
+    // Validate lap time against class threshold
+    if (
+      !isValidLapTime(lapTime, result.race.className, classThresholds)
+    ) {
+      continue
+    }
+
+    const driverId = result.raceDriver.driverId
+    const existing = driverBestLaps.get(driverId)
+
+    if (!existing || lapTime < existing.fastestLapTime) {
+      driverBestLaps.set(driverId, {
+        driverId,
+        driverName: result.raceDriver.displayName,
+        fastestLapTime: lapTime,
+        raceLabel: result.race.raceLabel,
+        className: result.race.className,
+        raceId: result.race.id,
+      })
+    }
+  }
+
+  // Group drivers by className and get fastest from each class
+  const driversByClass = new Map<
+    string,
+    {
+      driverId: string
+      driverName: string
+      fastestLapTime: number
+      raceLabel: string
+      className: string
+      raceId: string
+    }
+  >()
+
+  for (const driver of driverBestLaps.values()) {
+    const existing = driversByClass.get(driver.className)
+    if (!existing || driver.fastestLapTime < existing.fastestLapTime) {
+      driversByClass.set(driver.className, driver)
+    }
+  }
+
+  // Sort classes by their fastest driver's lap time and take top 3 classes
+  const topDrivers = Array.from(driversByClass.values())
+    .sort((a, b) => a.fastestLapTime - b.fastestLapTime)
+    .slice(0, 3)
+
+  // Get top 3 most consistent drivers (highest consistency score)
+  const allResultsWithConsistency = await prisma.raceResult.findMany({
+    where: {
+      race: { eventId },
+      consistency: { not: null },
+    },
+    select: {
+      consistency: true,
+      race: {
+        select: {
+          raceLabel: true,
+          className: true,
+          id: true,
+        },
+      },
+      raceDriver: {
+        select: {
+          driverId: true,
+          displayName: true,
+        },
+      },
+    },
+  })
+
+  const driverBestConsistency = new Map<
+    string,
+    {
+      driverId: string
+      driverName: string
+      consistency: number
+      raceLabel: string
+      className: string
+      raceId: string
+    }
+  >()
+
+  for (const result of allResultsWithConsistency) {
+    const consistency = result.consistency
+    if (consistency === null) continue
+
+    const driverId = result.raceDriver.driverId
+    const existing = driverBestConsistency.get(driverId)
+
+    if (!existing || consistency > existing.consistency) {
+      driverBestConsistency.set(driverId, {
+        driverId,
+        driverName: result.raceDriver.displayName,
+        consistency,
+        raceLabel: result.race.raceLabel,
+        className: result.race.className,
+        raceId: result.race.id,
+      })
+    }
+  }
+
+  const mostConsistentDrivers = Array.from(driverBestConsistency.values())
+    .sort((a, b) => b.consistency - a.consistency)
+    .slice(0, 3)
+
+  // Get top 3 drivers by best average lap time (lowest average from any single race)
+  const allResultsWithAvgLap = await prisma.raceResult.findMany({
+    where: {
+      race: { eventId },
+      avgLapTime: { not: null },
+    },
+    select: {
+      avgLapTime: true,
+      race: {
+        select: {
+          raceLabel: true,
+          className: true,
+          id: true,
+        },
+      },
+      raceDriver: {
+        select: {
+          driverId: true,
+          displayName: true,
+        },
+      },
+    },
+  })
+
+  const driverBestAvgLap = new Map<
+    string,
+    {
+      driverId: string
+      driverName: string
+      avgLapTime: number
+      raceLabel: string
+      className: string
+      raceId: string
+    }
+  >()
+
+  for (const result of allResultsWithAvgLap) {
+    const avgLapTime = sanitizeLapTime(result.avgLapTime)
+    if (avgLapTime === null) continue
+
+    const driverId = result.raceDriver.driverId
+    const existing = driverBestAvgLap.get(driverId)
+
+    if (!existing || avgLapTime < existing.avgLapTime) {
+      driverBestAvgLap.set(driverId, {
+        driverId,
+        driverName: result.raceDriver.displayName,
+        avgLapTime,
+        raceLabel: result.race.raceLabel,
+        className: result.race.className,
+        raceId: result.race.id,
+      })
+    }
+  }
+
+  const bestAvgLapDrivers = Array.from(driverBestAvgLap.values())
+    .sort((a, b) => a.avgLapTime - b.avgLapTime)
+    .slice(0, 3)
+
+  // Get user's best lap if userId provided
+  let userBestLap: { lapTime: number; position: number; gapToFastest: number } | undefined
+  let userBestConsistency: { consistency: number; position: number; gapToBest: number } | undefined
+  let userBestAvgLap: { avgLapTime: number; position: number; gapToBest: number } | undefined
+
+  if (userId) {
+    // Find user's driver link for this event
+    const userDriverLink = await prisma.eventDriverLink.findFirst({
+      where: {
+        userId,
+        eventId,
+      },
+      include: {
+        driver: {
+          include: {
+            raceDrivers: {
+              where: {
+                race: { eventId },
+              },
+              include: {
+                results: {
+                  where: {
+                    race: { eventId },
+                    fastLapTime: { not: null },
+                  },
+                  select: {
+                    fastLapTime: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    if (userDriverLink) {
+      // Find user's best lap across all their race results (if we have topDrivers data)
+      if (topDrivers.length > 0) {
+        const userResultsWithRace = await prisma.raceResult.findMany({
+          where: {
+            raceDriver: {
+              driverId: userDriverLink.driverId,
+              race: { eventId },
+            },
+            fastLapTime: { not: null },
+          },
+          select: {
+            fastLapTime: true,
+            race: {
+              select: {
+                className: true,
+              },
+            },
+          },
+        })
+
+        let userBestLapTime: number | null = null
+        for (const result of userResultsWithRace) {
+          const lapTime = sanitizeLapTime(result.fastLapTime)
+          if (lapTime === null) continue
+
+          // Validate lap time against class threshold
+          if (
+            !isValidLapTime(lapTime, result.race.className, classThresholds)
+          ) {
+            continue
+          }
+
+          if (userBestLapTime === null || lapTime < userBestLapTime) {
+            userBestLapTime = lapTime
+          }
+        }
+
+        if (userBestLapTime !== null) {
+          // Find user's position among all drivers
+          const allDriverTimes = Array.from(driverBestLaps.values())
+            .map((d) => d.fastestLapTime)
+            .sort((a, b) => a - b)
+          
+          // Count how many drivers have faster lap times
+          const fasterCount = allDriverTimes.filter((time) => time < userBestLapTime!).length
+          const position = fasterCount + 1
+          
+          const fastestLapTime = topDrivers[0]?.fastestLapTime ?? userBestLapTime
+          const gapToFastest = userBestLapTime - fastestLapTime
+
+          userBestLap = {
+            lapTime: userBestLapTime,
+            position,
+            gapToFastest,
+          }
+        }
+      }
+
+      // Calculate user's best consistency if we have consistency data
+      if (mostConsistentDrivers.length > 0) {
+        const userConsistencyResults = await prisma.raceResult.findMany({
+          where: {
+            raceDriver: {
+              driverId: userDriverLink.driverId,
+              race: { eventId },
+            },
+            consistency: { not: null },
+          },
+          select: {
+            consistency: true,
+          },
+        })
+
+        let userBestConsistencyScore: number | null = null
+        for (const result of userConsistencyResults) {
+          if (result.consistency !== null) {
+            if (userBestConsistencyScore === null || result.consistency > userBestConsistencyScore) {
+              userBestConsistencyScore = result.consistency
+            }
+          }
+        }
+
+        if (userBestConsistencyScore !== null) {
+          // Find user's position among all drivers' best consistency scores
+          const allDriverConsistencies = Array.from(driverBestConsistency.values())
+            .map((d) => d.consistency)
+            .sort((a, b) => b - a) // Sort descending for consistency
+          
+          // Count how many drivers have higher consistency scores
+          const betterCount = allDriverConsistencies.filter((consistency) => consistency > userBestConsistencyScore!).length
+          const position = betterCount + 1
+          
+          const bestConsistency = mostConsistentDrivers[0]?.consistency ?? userBestConsistencyScore
+          const gapToBest = bestConsistency - userBestConsistencyScore
+
+          userBestConsistency = {
+            consistency: userBestConsistencyScore,
+            position,
+            gapToBest,
+          }
+        }
+      }
+
+      // Calculate user's best average lap time if we have average lap data
+      if (bestAvgLapDrivers.length > 0) {
+        const userAvgLapResults = await prisma.raceResult.findMany({
+          where: {
+            raceDriver: {
+              driverId: userDriverLink.driverId,
+              race: { eventId },
+            },
+            avgLapTime: { not: null },
+          },
+          select: {
+            avgLapTime: true,
+          },
+        })
+
+        let userBestAvgLapTime: number | null = null
+        for (const result of userAvgLapResults) {
+          const avgLapTime = sanitizeLapTime(result.avgLapTime)
+          if (avgLapTime === null) continue
+
+          if (userBestAvgLapTime === null || avgLapTime < userBestAvgLapTime) {
+            userBestAvgLapTime = avgLapTime
+          }
+        }
+
+        if (userBestAvgLapTime !== null) {
+          // Find user's position among all drivers' best average lap times
+          const allDriverAvgLaps = Array.from(driverBestAvgLap.values())
+            .map((d) => d.avgLapTime)
+            .sort((a, b) => a - b) // Sort ascending for lap times
+          
+          // Count how many drivers have better (lower) average lap times
+          const betterCount = allDriverAvgLaps.filter((avgLap) => avgLap < userBestAvgLapTime!).length
+          const position = betterCount + 1
+          
+          const bestAvgLap = bestAvgLapDrivers[0]?.avgLapTime ?? userBestAvgLapTime
+          const gapToBest = userBestAvgLapTime - bestAvgLap
+
+          userBestAvgLap = {
+            avgLapTime: userBestAvgLapTime,
+            position,
+            gapToBest,
+          }
+        }
+      }
+    }
+  }
+
   return {
     event: {
       id: event.id,
@@ -218,6 +667,12 @@ export async function getEventSummary(
         latest: raceStats._max.startTime,
       },
     },
+    topDrivers: topDrivers.length > 0 ? topDrivers : undefined,
+    mostConsistentDrivers: mostConsistentDrivers.length > 0 ? mostConsistentDrivers : undefined,
+    bestAvgLapDrivers: bestAvgLapDrivers.length > 0 ? bestAvgLapDrivers : undefined,
+    userBestLap,
+    userBestConsistency,
+    userBestAvgLap,
   }
 }
 
@@ -262,6 +717,21 @@ export async function getEventAnalysisData(
     return null
   }
 
+  // Calculate class thresholds for validation
+  // Collect all race results with fastLapTime for threshold calculation
+  const allResultsForValidation: RaceResultForValidation[] = []
+  for (const race of event.races) {
+    for (const result of race.results) {
+      if (result.fastLapTime !== null) {
+        allResultsForValidation.push({
+          fastLapTime: result.fastLapTime,
+          className: race.className,
+        })
+      }
+    }
+  }
+  const classThresholds = calculateClassThresholds(allResultsForValidation)
+
   // Aggregate driver data across all races using normalized Driver ID
   const driverMap = new Map<
     string,
@@ -289,8 +759,17 @@ export async function getEventAnalysisData(
 
       // Derive lap metrics when LiveRC omits aggregate columns
       const derivedMetrics = deriveLapMetrics(result.laps)
-      const normalizedFastLap =
+      let normalizedFastLap =
         sanitizeLapTime(result.fastLapTime) ?? derivedMetrics.bestLap
+      
+      // Validate fast lap time against class threshold
+      if (
+        normalizedFastLap !== null &&
+        !isValidLapTime(normalizedFastLap, race.className, classThresholds)
+      ) {
+        normalizedFastLap = null
+      }
+      
       const normalizedAvgLap =
         sanitizeLapTime(result.avgLapTime) ?? derivedMetrics.averageLap
 

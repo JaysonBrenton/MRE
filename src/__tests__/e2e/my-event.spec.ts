@@ -32,7 +32,6 @@ import { test, expect } from '@playwright/test'
  */
 const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL || 'jaysoncareybrenton@gmail.com'
 const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD || 'S-works29er2016'
-const EXPECTED_DRIVER_NAME = 'Jayson Brenton'
 
 test.describe('My Event Page', () => {
   test.beforeEach(async ({ page }) => {
@@ -330,4 +329,3 @@ test.describe('My Event Page', () => {
     }
   })
 })
-

@@ -20,11 +20,18 @@
  * - src/lib/auth.ts (authentication check)
  */
 
+import Breadcrumbs from "@/components/Breadcrumbs"
 import EventSearchContainer from "@/components/event-search/EventSearchContainer"
 
 export default async function EventSearchPage() {
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl flex-shrink-0">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/welcome" },
+          { label: "Event Search" },
+        ]}
+      />
       <div className="mb-6">
         <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
           Event Search

@@ -4,7 +4,7 @@
  * Usage: npx ts-node scripts/debug-event-search.ts <userEmail> <trackId> [startDate] [endDate]
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, type Prisma } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -70,7 +70,7 @@ async function main() {
   console.log()
 
   // Check events for track/date range (without driver filter)
-  const whereClause: any = { trackId }
+  const whereClause: Prisma.EventWhereInput = { trackId }
   if (startDate && endDate) {
     whereClause.eventDate = {
       gte: startDate,

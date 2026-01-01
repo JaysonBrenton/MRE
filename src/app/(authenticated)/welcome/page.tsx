@@ -34,11 +34,6 @@ export default async function WelcomePage() {
     redirect("/admin")
   }
 
-  return (
-    <section className="content-wrapper w-full min-w-0 max-w-3xl text-center mx-auto">
-      <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
-        Welcome back {session.user.name}
-      </h1>
-    </section>
-  )
+  // Redirect all users to dashboard
+  redirect("/dashboard")
 }

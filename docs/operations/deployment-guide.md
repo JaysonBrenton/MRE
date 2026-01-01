@@ -43,7 +43,7 @@ This document provides comprehensive deployment procedures for the MRE applicati
 
 **Services:**
 - `mre-app` - Next.js application (port 3001)
-- `mre-ingestion-service` - Python ingestion service (port 8000)
+- `mre-liverc-ingestion-service` - Python ingestion service (port 8000)
 - `mre-postgres` - PostgreSQL database (port 5432)
 
 **Network:**
@@ -321,7 +321,7 @@ curl http://localhost:8000/health
 docker logs -f mre-app
 
 # Ingestion service logs
-docker logs -f mre-ingestion-service
+docker logs -f mre-liverc-ingestion-service
 
 # Database logs
 docker logs -f mre-postgres

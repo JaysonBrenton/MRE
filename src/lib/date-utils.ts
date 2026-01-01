@@ -79,3 +79,25 @@ export function formatDateForInput(dateString: string | null | undefined): strin
   
   return date.toISOString().split("T")[0]
 }
+
+/**
+ * Format lap time in seconds to MM:SS.mmm format
+ * @param lapTimeSeconds - Lap time in seconds (e.g., 45.123)
+ * @returns Formatted lap time string (e.g., "00:45.123") or "N/A" if invalid
+ */
+export function formatLapTime(lapTimeSeconds: number | null | undefined): string {
+  if (lapTimeSeconds === null || lapTimeSeconds === undefined) {
+    return "N/A"
+  }
+  
+  if (!Number.isFinite(lapTimeSeconds) || lapTimeSeconds < 0) {
+    return "N/A"
+  }
+  
+  const totalSeconds = Math.floor(lapTimeSeconds)
+  const milliseconds = Math.floor((lapTimeSeconds - totalSeconds) * 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`
+}

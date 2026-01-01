@@ -11,14 +11,22 @@
  * @purpose Provides a consistent modal pattern that prevents flexbox shrink issues.
  *          All modals should use this component instead of custom implementations.
  * 
+ * @critical If you must create a custom modal (NOT RECOMMENDED), you MUST apply
+ *           the same inline styles used in this component to prevent horizontal
+ *           compression. See getModalContainerStyles() in @/lib/modal-styles.ts
+ *           for the required styles pattern.
+ * 
  * @relatedFiles
- * - docs/design/mre-mobile-ux-guidelines.md (mobile UX requirements)
+ * - src/lib/modal-styles.ts (shared styles utility for custom modals)
+ * - docs/development/FLEXBOX_LAYOUT_CHECKLIST.md (prevention checklist)
+ * - docs/architecture/mobile-safe-architecture-guidelines.md (requirements)
  * - src/components/ui/ListRow.tsx (list row component for modal content)
  */
 
 "use client"
 
 import { ReactNode, useEffect, useRef } from "react"
+import { getModalContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
 
 export interface ModalProps {
   isOpen: boolean
@@ -39,6 +47,10 @@ const maxWidthClasses = {
   "3xl": "max-w-3xl",
   "4xl": "max-w-4xl",
 }
+
+// Use shared modal styles utility to ensure consistency
+// This prevents horizontal compression issues in flex containers
+const maxWidthInRem = MODAL_MAX_WIDTHS
 
 /**
  * Modal component with enforced flexbox constraints
@@ -134,14 +146,9 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`w-full ${maxWidthClasses[maxWidth]} max-h-[600px] bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col`}
+        className={`max-h-[600px] bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col`}
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          minWidth: 0,
-          width: '100%',
-          maxWidth: maxWidth === '2xl' ? '42rem' : undefined,
-          boxSizing: 'border-box'
-        }}
+        style={getModalContainerStyles(maxWidthInRem[maxWidth])}
       >
         {/* Header */}
         <div 

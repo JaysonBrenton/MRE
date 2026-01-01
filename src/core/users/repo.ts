@@ -29,15 +29,35 @@ import type { User } from "@prisma/client"
  * Emails are normalized to lowercase before querying to ensure case-insensitive
  * lookups, as email addresses should be treated as case-insensitive per RFC 5321.
  * 
+ * Uses case-insensitive matching to handle legacy emails that may not be normalized.
+ * 
  * @param email - User's email address
  * @returns User object or null if not found
  */
 export async function findUserByEmail(email: string): Promise<User | null> {
   // Normalize email to lowercase for case-insensitive lookup
   const normalizedEmail = normalizeEmail(email)
-  return prisma.user.findUnique({
+  
+  // First try exact match with normalized email (for normalized emails)
+  const user = await prisma.user.findUnique({
     where: { email: normalizedEmail }
   })
+  
+  // If not found and email might be mixed case in DB, try case-insensitive search
+  // This handles the case where emails were stored before normalization was enforced
+  if (!user) {
+    // Use raw SQL query with Prisma's tagged template for safe parameterization
+    // This ensures we can find users even if their email is stored with mixed case
+    const result = await prisma.$queryRaw<Array<User>>`
+      SELECT * FROM users WHERE LOWER(email) = LOWER(${normalizedEmail}) LIMIT 1
+    `
+    
+    if (result && result.length > 0) {
+      return result[0]
+    }
+  }
+  
+  return user
 }
 
 /**
@@ -50,6 +70,23 @@ export async function findUserById(id: string): Promise<User | null> {
   return prisma.user.findUnique({
     where: { id }
   })
+}
+
+/**
+ * Get user by ID with only id and driverName fields
+ * 
+ * @param id - User's unique identifier
+ * @returns User object with id and driverName, or null if not found
+ */
+export async function getUserById(id: string): Promise<{ id: string; driverName: string } | null> {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      driverName: true
+    }
+  })
+  return user
 }
 
 /**

@@ -19,20 +19,21 @@
   /* Dark theme tokens (default) */
   
   /* Surface colors */
-  --token-surface: #0a0a0a;
-  --token-surface-elevated: #181818;
+  --token-surface: #0a0a0b;
+  --token-surface-elevated: #111214;
+  --token-surface-raised: #18191c;
   
   /* Text colors */
-  --token-text-primary: #ededed;
-  --token-text-secondary: #a3a3a3;
-  --token-text-muted: #71717a;
+  --token-text-primary: #f2f2f3;
+  --token-text-secondary: #b8bbc2;
+  --token-text-muted: #6b7280;
   
   /* Border colors */
-  --token-border-default: #3f3f46;
-  --token-border-muted: #27272a;
+  --token-border-default: #26272e;
+  --token-border-muted: #1a1b20;
   
   /* Interactive colors */
-  --token-interactive-focus: #71717a;
+  --token-interactive-focus: #6b7280;
   --token-interactive-focus-ring: #3f3f46;
   
   /* Accent colors */
@@ -50,23 +51,31 @@
   --token-error-text: #fca5a5;
   
   /* Button colors */
-  --token-button-primary-bg: #18181b;
-  --token-button-primary-bg-hover: #27272a;
-  --token-button-primary-text: #ededed;
+  --token-button-primary-bg: #18191c;
+  --token-button-primary-bg-hover: #1f2024;
+  --token-button-primary-text: #f2f2f3;
   
   /* Legacy tokens for backward compatibility */
   --background: var(--token-surface);
   --foreground: var(--token-text-primary);
   
   /* Status tokens */
-  --token-status-success-bg: rgba(34, 197, 94, 0.2);
-  --token-status-success-text: #4ade80;
-  --token-status-info-bg: rgba(59, 130, 246, 0.2);
-  --token-status-info-text: #60a5fa;
-  --token-status-warning-bg: rgba(234, 179, 8, 0.2);
-  --token-status-warning-text: #fbbf24;
+  --token-status-success-bg: rgba(16, 185, 129, 0.2);
+  --token-status-success-text: #10b981;
+  --token-status-info-bg: rgba(58, 142, 255, 0.2);
+  --token-status-info-text: #3a8eff;
+  --token-status-warning-bg: rgba(245, 158, 11, 0.2);
+  --token-status-warning-text: #f59e0b;
   --token-status-error-bg: rgba(239, 68, 68, 0.2);
-  --token-status-error-text: #f87171;
+  --token-status-error-text: #ef4444;
+
+  /* Racing tokens */
+  --token-sector-s1: #38bdf8;
+  --token-sector-s2: #34d399;
+  --token-sector-s3: #f87171;
+  --token-telemetry-speed: #5eead4;
+  --token-telemetry-throttle: #22c55e;
+  --token-telemetry-brake: #f43f5e;
   
   /* Spacing tokens */
   --token-spacing-xs: 0.25rem;   /* 4px */
@@ -75,6 +84,11 @@
   --token-spacing-lg: 1rem;      /* 16px */
   --token-spacing-xl: 1.25rem;   /* 20px */
   --token-spacing-2xl: 1.5rem;   /* 24px */
+
+  /* Dashboard density tokens */
+  --dashboard-gap: 1.5rem;
+  --dashboard-card-padding: 1.25rem;
+  --dashboard-font-scale: 1;
   
   /* Typography scale tokens */
   --token-font-size-xs: 0.75rem;    /* 12px */
@@ -131,13 +145,13 @@
   --foreground: var(--token-text-primary);
   
   /* Status tokens for light theme */
-  --token-status-success-bg: rgba(34, 197, 94, 0.1);
+  --token-status-success-bg: rgba(16, 185, 129, 0.12);
   --token-status-success-text: #16a34a;
-  --token-status-info-bg: rgba(59, 130, 246, 0.1);
+  --token-status-info-bg: rgba(58, 142, 255, 0.12);
   --token-status-info-text: #2563eb;
-  --token-status-warning-bg: rgba(234, 179, 8, 0.1);
+  --token-status-warning-bg: rgba(245, 158, 11, 0.12);
   --token-status-warning-text: #ca8a04;
-  --token-status-error-bg: rgba(239, 68, 68, 0.1);
+  --token-status-error-bg: rgba(239, 68, 68, 0.12);
   --token-status-error-text: #dc2626;
 }
 
@@ -231,6 +245,24 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
   padding: 0;
+}
+
+[data-density="compact"] {
+  --dashboard-gap: 0.75rem;
+  --dashboard-card-padding: 0.75rem;
+  --dashboard-font-scale: 0.95;
+}
+
+[data-density="comfortable"] {
+  --dashboard-gap: 1.5rem;
+  --dashboard-card-padding: 1.25rem;
+  --dashboard-font-scale: 1;
+}
+
+[data-density="spacious"] {
+  --dashboard-gap: 2rem;
+  --dashboard-card-padding: 1.75rem;
+  --dashboard-font-scale: 1.05;
 }
 
 /* Ensure portal content can expand properly */

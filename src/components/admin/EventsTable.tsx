@@ -14,7 +14,7 @@
  */
 
 "use client"
-import { useEffect, useState, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 interface Event {
   id: string
@@ -73,21 +73,21 @@ export default function EventsTable() {
   const [total, setTotal] = useState(0)
   const pageSize = 20
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
         pageSize: pageSize.toString(),
       })
-      
+
       if (ingestDepthFilter !== "all") {
         params.append("ingestDepth", ingestDepthFilter)
       }
 
       const response = await fetch(`/api/v1/admin/events?${params.toString()}`)
       const data = await response.json()
-      
+
       if (data.success && data.data) {
         const result = data.data as EventsResponse
         setEvents(result.events || [])
@@ -99,11 +99,11 @@ export default function EventsTable() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [ingestDepthFilter, page, pageSize])
 
   useEffect(() => {
     fetchEvents()
-  }, [page, ingestDepthFilter])
+  }, [fetchEvents])
 
   // Client-side search and sorting
   const filteredAndSortedEvents = useMemo(() => {
@@ -204,13 +204,15 @@ export default function EventsTable() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[var(--token-border-default)]">
-              <th className="px-4 py-3 text-left">
+              <th
+                className="px-4 py-3 text-left"
+                aria-sort={sortField === "eventName" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+              >
                 <button
                   type="button"
                   onClick={() => handleSort("eventName")}
                   className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
                   aria-label={`Sort by event name ${sortField === "eventName" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
-                  aria-sort={sortField === "eventName" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                 >
                   Event
                   {sortField === "eventName" && (
@@ -218,13 +220,15 @@ export default function EventsTable() {
                   )}
                 </button>
               </th>
-              <th className="px-4 py-3 text-left">
+              <th
+                className="px-4 py-3 text-left"
+                aria-sort={sortField === "trackName" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+              >
                 <button
                   type="button"
                   onClick={() => handleSort("trackName")}
                   className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
                   aria-label={`Sort by track name ${sortField === "trackName" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
-                  aria-sort={sortField === "trackName" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                 >
                   Track
                   {sortField === "trackName" && (
@@ -232,13 +236,15 @@ export default function EventsTable() {
                   )}
                 </button>
               </th>
-              <th className="px-4 py-3 text-left">
+              <th
+                className="px-4 py-3 text-left"
+                aria-sort={sortField === "eventDate" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+              >
                 <button
                   type="button"
                   onClick={() => handleSort("eventDate")}
                   className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
                   aria-label={`Sort by event date ${sortField === "eventDate" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
-                  aria-sort={sortField === "eventDate" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                 >
                   Date
                   {sortField === "eventDate" && (
@@ -246,13 +252,15 @@ export default function EventsTable() {
                   )}
                 </button>
               </th>
-              <th className="px-4 py-3 text-left">
+              <th
+                className="px-4 py-3 text-left"
+                aria-sort={sortField === "ingestDepth" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+              >
                 <button
                   type="button"
                   onClick={() => handleSort("ingestDepth")}
                   className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
                   aria-label={`Sort by status ${sortField === "ingestDepth" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
-                  aria-sort={sortField === "ingestDepth" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                 >
                   Status
                   {sortField === "ingestDepth" && (
@@ -319,4 +327,3 @@ export default function EventsTable() {
     </div>
   )
 }
-

@@ -22,10 +22,9 @@ interface DriverDetailsPageProps {
 }
 
 export default async function DriverDetailsPage({ params, searchParams }: DriverDetailsPageProps) {
-  // Properly await and destructure the Promises immediately to avoid serialization errors
-  // This must happen before any other operations to prevent React DevTools from enumerating the Promises
-  const { driverId } = await params
-  const { eventId } = await searchParams
+  // Properly await and resolve the Promises immediately to avoid serialization errors
+  await params
+  await searchParams
 
   const session = await auth()
 

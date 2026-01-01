@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, type Prisma } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -16,6 +16,7 @@ async function main() {
   const raceResultCount = await prisma.raceResult.count()
   const lapCount = await prisma.lap.count()
   const driverCount = await prisma.driver.count({ where: { source: 'liverc' } })
+  const weatherDataCount = await prisma.weatherData.count()
 
   // Count ingestion and fuzzy matching tables
   const eventEntryCount = await prisma.eventEntry.count()
@@ -27,15 +28,20 @@ async function main() {
   // Handle case where audit_logs table doesn't exist yet
   let auditLogCount = 0
   try {
-    auditLogCount = await prisma.auditLog.count({
-      where: {
-        resourceType: {
-          in: ['event', 'ingestion']
+    // Use type assertion since auditLog may not exist in schema
+    const auditLogModel = (prisma as any).auditLog
+    if (auditLogModel) {
+      auditLogCount = await auditLogModel.count({
+        where: {
+          resourceType: {
+            in: ['event', 'ingestion']
+          }
         }
-      }
-    })
-  } catch (error: any) {
-    if (error.code === 'P2021') {
+      })
+    }
+  } catch (error) {
+    const prismaError = error as Prisma.PrismaClientKnownRequestError
+    if (prismaError.code === 'P2021') {
       // Table doesn't exist - skip audit log cleanup
       console.log('   ℹ️  Audit logs table does not exist - skipping audit log cleanup')
     } else {
@@ -55,6 +61,7 @@ async function main() {
   console.log(`    Race Results: ${raceResultCount}`)
   console.log(`    Laps: ${lapCount}`)
   console.log(`    Drivers (LiveRC): ${driverCount}`)
+  console.log(`    Weather Data: ${weatherDataCount}`)
   console.log(`    Event Entries: ${eventEntryCount}`)
   console.log(`    Event Driver Links: ${eventDriverLinkCount}`)
   console.log(`    User Driver Links: ${userDriverLinkCount}`)
@@ -65,8 +72,9 @@ async function main() {
   console.log(`    Users: ${userCount}`)
 
   const totalToDelete = eventCount + raceCount + raceDriverCount + raceResultCount + 
-                       lapCount + driverCount + eventEntryCount + eventDriverLinkCount + 
-                       userDriverLinkCount + transponderOverrideCount + auditLogCount
+                       lapCount + driverCount + weatherDataCount + eventEntryCount + 
+                       eventDriverLinkCount + userDriverLinkCount + transponderOverrideCount + 
+                       auditLogCount
 
   if (totalToDelete === 0) {
     console.log('\n✅ No LiveRC data to delete. Database is already clean.')
@@ -83,11 +91,11 @@ async function main() {
   console.log('\n🗑️  Starting cleanup...\n')
 
   // Step 1: Delete all events first
-  // This will cascade delete: EventEntry, EventDriverLink, TransponderOverride, Race, RaceDriver, RaceResult, Lap
+  // This will cascade delete: EventEntry, EventDriverLink, TransponderOverride, Race, RaceDriver, RaceResult, Lap, WeatherData
   console.log('Step 1: Deleting all events (cascade will delete related data)...')
   const deleteResult = await prisma.event.deleteMany({})
   console.log(`   ✅ Deleted ${deleteResult.count} event(s)`)
-  console.log(`   (Cascade deleted: EventEntry, EventDriverLink, TransponderOverride, Race, RaceDriver, RaceResult, Lap)`)
+  console.log(`   (Cascade deleted: EventEntry, EventDriverLink, TransponderOverride, Race, RaceDriver, RaceResult, Lap, WeatherData)`)
 
   // Step 2: Delete LiveRC drivers
   // This will cascade delete: EventEntry, UserDriverLink, EventDriverLink, TransponderOverride
@@ -146,16 +154,21 @@ async function main() {
   // These won't cascade delete, so we explicitly clean them up
   // Handle case where audit_logs table doesn't exist yet
   try {
-    const deletedAuditLogs = await prisma.auditLog.deleteMany({
-      where: {
-        resourceType: {
-          in: ['event', 'ingestion']
+    // Use type assertion since auditLog may not exist in schema
+    const auditLogModel = (prisma as any).auditLog
+    if (auditLogModel) {
+      const deletedAuditLogs = await auditLogModel.deleteMany({
+        where: {
+          resourceType: {
+            in: ['event', 'ingestion']
+          }
         }
-      }
-    })
-    console.log(`   ✅ Cleaned up ${deletedAuditLogs.count} audit log(s) referencing events/ingestion`)
-  } catch (error: any) {
-    if (error.code === 'P2021') {
+      })
+      console.log(`   ✅ Cleaned up ${deletedAuditLogs.count} audit log(s) referencing events/ingestion`)
+    }
+  } catch (error) {
+    const prismaError = error as Prisma.PrismaClientKnownRequestError
+    if (prismaError.code === 'P2021') {
       // Table doesn't exist - skip audit log cleanup
       console.log(`   ℹ️  Audit logs table does not exist - skipping audit log cleanup`)
     } else {
@@ -173,6 +186,7 @@ async function main() {
   const remainingRaceResults = await prisma.raceResult.count()
   const remainingLaps = await prisma.lap.count()
   const remainingDrivers = await prisma.driver.count({ where: { source: 'liverc' } })
+  const remainingWeatherData = await prisma.weatherData.count()
   const finalEventEntries = await prisma.eventEntry.count()
   const finalEventDriverLinks = await prisma.eventDriverLink.count()
   const finalUserDriverLinks = await prisma.userDriverLink.count()
@@ -180,15 +194,20 @@ async function main() {
   // Check final audit log count (handle missing table)
   let finalAuditLogs = 0
   try {
-    finalAuditLogs = await prisma.auditLog.count({
-      where: {
-        resourceType: {
-          in: ['event', 'ingestion']
+    // Use type assertion since auditLog may not exist in schema
+    const auditLogModel = (prisma as any).auditLog
+    if (auditLogModel) {
+      finalAuditLogs = await auditLogModel.count({
+        where: {
+          resourceType: {
+            in: ['event', 'ingestion']
+          }
         }
-      }
-    })
-  } catch (error: any) {
-    if (error.code === 'P2021') {
+      })
+    }
+  } catch (error) {
+    const prismaError = error as Prisma.PrismaClientKnownRequestError
+    if (prismaError.code === 'P2021') {
       // Table doesn't exist - treat as clean
       finalAuditLogs = 0
     } else {
@@ -200,7 +219,7 @@ async function main() {
 
   const allClean = remainingEvents === 0 && remainingRaces === 0 && remainingRaceDrivers === 0 &&
                    remainingRaceResults === 0 && remainingLaps === 0 && remainingDrivers === 0 &&
-                   finalEventEntries === 0 && finalEventDriverLinks === 0 &&
+                   remainingWeatherData === 0 && finalEventEntries === 0 && finalEventDriverLinks === 0 &&
                    finalUserDriverLinks === 0 && finalTransponderOverrides === 0 && finalAuditLogs === 0
 
   console.log('\n📊 Final Database State:')
@@ -211,6 +230,7 @@ async function main() {
   console.log(`    Race Results: ${remainingRaceResults} ${remainingRaceResults === 0 ? '✅' : '❌'}`)
   console.log(`    Laps: ${remainingLaps} ${remainingLaps === 0 ? '✅' : '❌'}`)
   console.log(`    Drivers (LiveRC): ${remainingDrivers} ${remainingDrivers === 0 ? '✅' : '❌'}`)
+  console.log(`    Weather Data: ${remainingWeatherData} ${remainingWeatherData === 0 ? '✅' : '❌'}`)
   console.log(`    Event Entries: ${finalEventEntries} ${finalEventEntries === 0 ? '✅' : '❌'}`)
   console.log(`    Event Driver Links: ${finalEventDriverLinks} ${finalEventDriverLinks === 0 ? '✅' : '❌'}`)
   console.log(`    User Driver Links: ${finalUserDriverLinks} ${finalUserDriverLinks === 0 ? '✅' : '❌'}`)

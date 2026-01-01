@@ -321,11 +321,14 @@ All UI must follow:
 
 To prevent common layout bugs, especially horizontal compression issues in flex containers:
 
-* **Modals**: Always use `src/components/ui/Modal.tsx` - enforces proper width constraints
+* **Modals**: **ALWAYS use `src/components/ui/Modal.tsx`** - enforces proper width constraints
+  * If you MUST create a custom modal (strongly discouraged), use `getModalContainerStyles()` from `src/lib/modal-styles.ts`
+  * **NEVER use Tailwind classes (`w-full max-w-*`) alone in flex containers with `items-center`/`justify-center`** - they will compress
+  * Required pattern: `minWidth: '20rem'`, `flexShrink: 0`, `flexGrow: 0`, plus `width: '100%'` and `maxWidth`
 * **List Rows**: Always use `src/components/ui/ListRow.tsx` - enforces proper text truncation
 * **Page Containers**: Use `src/components/layout/PageContainer.tsx` and `ContentWrapper.tsx`
 
-These components prevent the common flexbox shrink issues that cause layout breakage.
+These components prevent the common flexbox shrink issues that cause layout breakage. See `docs/development/FLEXBOX_LAYOUT_CHECKLIST.md` for detailed prevention guidelines.
 
 **Note:** All features listed above are fully in-scope and required for version 0.1.1. These are architectural requirements, not optional features.
 

@@ -108,7 +108,7 @@ test.describe('Login Flow', () => {
     await expect(pageContent).toBeVisible()
   })
 
-  test('should persist session after page reload', async ({ page, context }) => {
+  test('should persist session after page reload', async ({ page }) => {
     // Login as admin
     await page.getByLabel(/email address/i).fill(ADMIN_EMAIL)
     await page.getByLabel(/password/i).fill(ADMIN_PASSWORD)
@@ -142,4 +142,3 @@ test.describe('Login Flow', () => {
     await expect(page).toHaveURL(/\/admin/)
   })
 })
-

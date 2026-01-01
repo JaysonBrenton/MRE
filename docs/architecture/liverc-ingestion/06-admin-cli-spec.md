@@ -23,7 +23,7 @@ and represent the authoritative operational interface for ingestion control.
 
 The CLI MUST:
 - Run locally on the MRE server (developer machine, production server, or container).
-- **Primary execution method: Docker container** - Commands should be executed via `docker exec` into the running `mre-ingestion-service` container.
+- **Primary execution method: Docker container** - Commands should be executed via `docker exec` into the running `mre-liverc-ingestion-service` container.
 - Use the same ingestion pipeline logic that the HTTP API uses.
 - Produce deterministic output suitable for logs, automation, and cron.
 - Never require frontend components.
@@ -55,11 +55,11 @@ mre ingest liverc …
 All CLI commands MUST be executed inside the Docker container using:
 
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc <command> [options]
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc <command> [options]
 ```
 
 **Prerequisites:**
-- Ingestion service container must be running: `docker compose up -d ingestion-service`
+- Ingestion service container must be running: `docker compose up -d liverc-ingestion-service`
 - Docker network configured (see `docs/operations/docker-user-guide.md`)
 
 **Why Docker?**

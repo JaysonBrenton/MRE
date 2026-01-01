@@ -83,6 +83,10 @@ export async function GET(request: NextRequest) {
     // Parse orderDirection
     const orderDirection = orderDirectionParam === 'asc' ? 'asc' : 'desc'
 
+    // Parse filter parameter (optional - "my" to filter to user's events)
+    const filterParam = searchParams.get("filter")
+    const userId = filterParam === "my" ? session.user.id : undefined
+
     const result = await getAllImportedEvents({
       limit,
       offset,
@@ -92,6 +96,7 @@ export async function GET(request: NextRequest) {
       status,
       orderBy,
       orderDirection,
+      userId,
     })
 
     requestLogger.info("Events list retrieved successfully", {
@@ -103,6 +108,7 @@ export async function GET(request: NextRequest) {
       status,
       orderBy,
       orderDirection,
+      userId: userId || null,
     })
 
     return successResponse({

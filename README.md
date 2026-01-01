@@ -440,7 +440,7 @@ The MRE application includes a Python-based ingestion service that runs as a sep
 
 Service Details
 
-Container: mre-ingestion-service
+Container: mre-liverc-ingestion-service
 
 Port: 8000 (default, configurable via INGESTION_PORT)
 
@@ -456,13 +456,13 @@ Running CLI Commands
 
 ```bash
 # Ensure ingestion service is running
-docker compose up -d ingestion-service
+docker compose up -d liverc-ingestion-service
 
 # Example: List tracks
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 
 # Example: Refresh tracks
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
 ```
 
 **Why Docker?**
@@ -488,8 +488,10 @@ The MRE application exposes the following API endpoints:
 - POST /api/v1/events/discover - Discover events from LiveRC for a track
 - GET /api/v1/events/[eventId] - Get event details
 - GET /api/v1/events/[eventId]/analysis - Get event analysis data
+- GET /api/v1/events/[eventId]/summary - Get lightweight event summary data
 - POST /api/v1/events/[eventId]/ingest - Trigger on-demand event ingestion
 - POST /api/v1/events/ingest - Ingest event by source_event_id and track_id
+- POST /api/v1/events/check-entry-lists - Check if driver name appears in entry lists
 
 **Race Data Endpoints:**
 - GET /api/v1/races/[raceId] - Get race details with results
@@ -511,21 +513,20 @@ The MRE application exposes the following API endpoints:
 - GET /api/v1/personas/driver/events - Get events for driver persona
 - GET /api/v1/personas/team-manager/team - Get team data for team manager persona
 - GET /api/v1/users/me/persona - Get current user's active persona
+- POST /api/v1/users/me/persona - Set current user's active persona (Race Engineer only)
 - GET /api/v1/users/[userId]/driver-links - Get driver links for a user
 
 **Admin Endpoints (Admin Only):**
 - GET /api/v1/admin/stats - Get system statistics
 - GET /api/v1/admin/health - Get detailed health check information
-- GET /api/v1/admin/ingestion - Get ingestion service status
+- POST /api/v1/admin/ingestion - Trigger ingestion jobs (track sync or event ingestion)
 - GET /api/v1/admin/users - List all users
-- GET /api/v1/admin/users/[userId] - Get user details
 - PATCH /api/v1/admin/users/[userId] - Update user details
 - DELETE /api/v1/admin/users/[userId] - Delete user
-- GET /api/v1/admin/events - List all events
-- GET /api/v1/admin/events/[eventId] - Get event details
+- GET /api/v1/admin/events - List all events with pagination and filtering
+- DELETE /api/v1/admin/events/[eventId] - Delete event and all associated data
 - POST /api/v1/admin/events/[eventId]/reingest - Trigger event re-ingestion
 - GET /api/v1/admin/tracks - List all tracks
-- GET /api/v1/admin/tracks/[trackId] - Get track details
 - PATCH /api/v1/admin/tracks/[trackId] - Update track (e.g., follow/unfollow)
 - GET /api/v1/admin/audit - Get audit log entries
 - GET /api/v1/admin/logs - Get application logs

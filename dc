@@ -1,7 +1,7 @@
 #!/bin/bash
 # Docker Compose wrapper script
 # Usage: ./dc [docker compose commands]
-# Example: ./dc up ingestion-service
+# Example: ./dc up liverc-ingestion-service
 
 docker compose "$@"
 

@@ -104,10 +104,14 @@ export default function EventSearchContainer() {
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set())
   const [isImportingBulk, setIsImportingBulk] = useState(false)
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
+  const [eventImportProgress, setEventImportProgress] = useState<Record<string, { stage?: string; counts?: { races: number; results: number; laps: number } }>>({})
+  const pollingIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({}) // Track polling intervals per event
   const [searchKey, setSearchKey] = useState(0) // Key to force EventTable remount on new search
   const [isStartingSearch, setIsStartingSearch] = useState(false) // Track if we're starting a new search
   const dbEventsRef = useRef<Event[]>([]) // Ref to track DB events to ensure they're preserved
   const abortControllerRef = useRef<AbortController | null>(null) // Ref to track AbortController for cancelling LiveRC requests
+  const [driverInEvents, setDriverInEvents] = useState<Record<string, boolean>>({}) // Map of sourceEventId to boolean
+  const [isCheckingEntryLists, setIsCheckingEntryLists] = useState(false) // Track if we're checking entry lists
   const [errors, setErrors] = useState<{
     track?: string
     startDate?: string
@@ -274,6 +278,17 @@ export default function EventSearchContainer() {
     }
   }, [events, selectedEventIds])
 
+  // Cleanup polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      // Stop all polling intervals when component unmounts
+      Object.values(pollingIntervalsRef.current).forEach((intervalId) => {
+        clearInterval(intervalId)
+      })
+      pollingIntervalsRef.current = {}
+    }
+  }, [])
+
   const loadTracks = async () => {
     try {
       setIsLoadingTracks(true)
@@ -406,6 +421,7 @@ export default function EventSearchContainer() {
       setHasSearched(false)
       setEvents([])
       dbEventsRef.current = [] // Clear DB events ref at start of new search
+      setDriverInEvents({}) // Clear driver in events state on new search
       // Then increment search key to force EventTable remount with clean state
       setSearchKey((prev) => prev + 1)
       setIsLoadingEvents(true)
@@ -828,9 +844,231 @@ export default function EventSearchContainer() {
     }
   }
 
+  const stopPollingEventStatus = (eventId: string) => {
+    const intervalId = pollingIntervalsRef.current[eventId]
+    if (intervalId) {
+      clearInterval(intervalId)
+      delete pollingIntervalsRef.current[eventId]
+    }
+  }
+
+  // Helper function to update a single event in the events array
+  const updateEventInList = (eventId: string, updatedEventData: Partial<Event>, sourceEventId?: string) => {
+    setEvents((prevEvents) => {
+      // First, try to find by eventId
+      let eventIndex = prevEvents.findIndex((e) => e.id === eventId)
+      
+      // If not found and we have a sourceEventId, try finding by sourceEventId
+      // This handles the case where a LiveRC event (liverc-*) got a new DB ID
+      if (eventIndex === -1 && sourceEventId) {
+        eventIndex = prevEvents.findIndex((e) => e.sourceEventId === sourceEventId)
+      }
+      
+      if (eventIndex === -1) {
+        // Event not found in list, return unchanged
+        logger.warn("Event not found in list for update", { eventId, sourceEventId })
+        return prevEvents
+      }
+      
+      const updatedEvents = [...prevEvents]
+      updatedEvents[eventIndex] = {
+        ...updatedEvents[eventIndex],
+        ...updatedEventData,
+      }
+      
+      return updatedEvents
+    })
+  }
+
+  // Helper function to replace a LiveRC event with its DB equivalent
+  const replaceLiveRCEventWithDBEvent = (oldEventId: string, newDbEvent: ApiEvent) => {
+    setEvents((prevEvents) => {
+      const eventIndex = prevEvents.findIndex((e) => e.id === oldEventId)
+      if (eventIndex === -1) {
+        // Event not found, return unchanged
+        return prevEvents
+      }
+      
+      const updatedEvents = [...prevEvents]
+      // Replace the LiveRC event with the DB event
+      updatedEvents[eventIndex] = {
+        id: newDbEvent.id,
+        eventName: newDbEvent.eventName,
+        eventDate: newDbEvent.eventDate || newDbEvent.event_date || "",
+        ingestDepth: (newDbEvent.ingestDepth || newDbEvent.ingest_depth || "").trim(),
+        sourceEventId: newDbEvent.sourceEventId || newDbEvent.source_event_id,
+      }
+      
+      return updatedEvents
+    })
+  }
+
+  const pollEventImportStatus = (eventId: string, maxAttempts = 100, pollIntervalMs = 2500, displayEventId?: string, sourceEventId?: string) => {
+    // Stop any existing polling for this event
+    stopPollingEventStatus(eventId)
+
+    // Use displayEventId for progress lookup (the ID currently in events list), fallback to eventId
+    const progressKey = displayEventId || eventId
+
+    let attempts = 0
+    const startTime = Date.now()
+    const maxDurationMs = 5 * 60 * 1000 // 5 minutes max
+
+    // Update progress immediately to show we're polling (replaces "Starting import...")
+    setEventImportProgress((prev) => ({
+      ...prev,
+      [progressKey]: { stage: "Connecting to ingestion service..." },
+    }))
+
+    // Update status immediately on first tick (before waiting for interval)
+    const updateStatusImmediately = () => {
+      const elapsedMs = Date.now() - startTime
+      let stage = "Starting import..."
+      if (elapsedMs < 5000) {
+        stage = "Starting import..."
+      } else if (elapsedMs < 15000) {
+        stage = "Fetching event data..."
+      } else if (elapsedMs < 45000) {
+        stage = "Importing races..."
+      } else if (elapsedMs < 90000) {
+        stage = "Importing results..."
+      } else {
+        stage = "Importing laps..."
+      }
+      setEventImportProgress((prev) => ({
+        ...prev,
+        [progressKey]: { stage },
+      }))
+    }
+
+    const pollInterval = setInterval(async () => {
+      attempts++
+      const elapsedMs = Date.now() - startTime
+
+        // Stop polling if we've exceeded max attempts or duration
+        if (attempts > maxAttempts || elapsedMs > maxDurationMs) {
+          stopPollingEventStatus(eventId)
+          // Clear progress state if polling timed out
+          setEventImportProgress((prev) => {
+            const next = { ...prev }
+            delete next[progressKey]
+            delete next[eventId] // Also clean up by eventId in case it's different
+            return next
+          })
+          return
+        }
+
+      // Update stage based on elapsed time (simple heuristic)
+      let stage = "Importing..."
+      if (elapsedMs < 10000) {
+        stage = "Fetching event data..."
+      } else if (elapsedMs < 30000) {
+        stage = "Importing races..."
+      } else if (elapsedMs < 60000) {
+        stage = "Importing results..."
+      } else {
+        stage = "Importing laps..."
+      }
+
+      setEventImportProgress((prev) => ({
+        ...prev,
+        [progressKey]: { stage },
+      }))
+
+      try {
+        // Poll by doing a search to get updated event status
+        if (!selectedTrack) {
+          stopPollingEventStatus(eventId)
+          return
+        }
+
+        const params = new URLSearchParams({
+          track_id: selectedTrack.id,
+        })
+
+        if (useDateFilter) {
+          if (startDate && startDate.trim() !== "") {
+            params.append("start_date", startDate)
+          }
+          if (endDate && endDate.trim() !== "") {
+            params.append("end_date", endDate)
+          }
+        }
+
+        const response = await fetch(`/api/v1/events/search?${params.toString()}`)
+        const result = await parseApiResponse<{
+          track: { id: string; source: string; source_track_slug: string; track_name: string }
+          events: ApiEvent[]
+        }>(response)
+
+        if (result.success) {
+          // Find the event in the results - try by eventId first, then by sourceEventId
+          let updatedEvent = result.data.events.find((e) => e.id === eventId)
+          
+          // If not found by eventId, try finding by sourceEventId (handles LiveRC -> DB transition)
+          if (!updatedEvent && sourceEventId) {
+            updatedEvent = result.data.events.find((e) => e.sourceEventId === sourceEventId || e.source_event_id === sourceEventId)
+          }
+          
+          if (updatedEvent) {
+            const ingestDepth = (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim().toLowerCase()
+            
+            // If event is fully imported, stop polling and clear progress
+            if (ingestDepth === "laps_full" || ingestDepth === "lapsfull") {
+              stopPollingEventStatus(eventId)
+              setEventImportProgress((prev) => {
+                const next = { ...prev }
+                delete next[progressKey]
+                delete next[eventId] // Also clean up by eventId in case it's different
+                return next
+              })
+              
+              // Update event in place instead of refreshing entire list
+              const eventData: Partial<Event> = {
+                id: updatedEvent.id,
+                eventName: updatedEvent.eventName,
+                eventDate: updatedEvent.eventDate || updatedEvent.event_date || "",
+                ingestDepth: (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim(),
+                sourceEventId: updatedEvent.sourceEventId || updatedEvent.source_event_id,
+              }
+              
+              // If the event ID changed (LiveRC -> DB), replace the event
+              if (updatedEvent.id !== eventId && updatedEvent.id !== displayEventId) {
+                const oldEventId = displayEventId || eventId
+                replaceLiveRCEventWithDBEvent(oldEventId, updatedEvent)
+              } else {
+                // Update existing event in place
+                updateEventInList(eventId, eventData, updatedEvent.sourceEventId || updatedEvent.source_event_id)
+              }
+              
+              // Clear status override since event is now fully imported
+              updateEventStatusOverride(eventId)
+              // Also clear for the new ID if it changed
+              if (updatedEvent.id !== eventId) {
+                updateEventStatusOverride(updatedEvent.id)
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // Log error but continue polling
+        logger.warn("Error polling event import status", {
+          eventId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }, pollIntervalMs)
+
+    // Store interval ID for cleanup
+    pollingIntervalsRef.current[eventId] = pollInterval
+    
+    // Update status immediately (don't wait for first interval)
+    updateStatusImmediately()
+  }
+
   const importEvent = async (
     event: Event,
-    { refreshAfter = true, silentStart = false }: { refreshAfter?: boolean; silentStart?: boolean } = {}
+    { refreshAfter = true }: { refreshAfter?: boolean } = {}
   ) => {
     if (!selectedTrack) {
       return false
@@ -838,6 +1076,17 @@ export default function EventSearchContainer() {
 
       updateEventStatusOverride(event.id, "importing")
       updateEventErrorMessage(event.id) // Clear any previous error
+
+      // Set initial progress state immediately so user sees feedback right away
+      setEventImportProgress((prev) => ({
+        ...prev,
+        [event.id]: { stage: "Starting import..." },
+      }))
+
+      // Start polling immediately (before API call) so status updates right away
+      // We'll use a temporary event ID for polling until we get the real one from the API
+      const tempPollingId = event.id
+      pollEventImportStatus(tempPollingId, 100, 2500, event.id, event.sourceEventId)
 
     try {
       let ingestionResponse: ApiIngestionResult | null = null
@@ -866,47 +1115,302 @@ export default function EventSearchContainer() {
           track_id: selectedTrack.id,
           depth: "laps_full",
         }
-        const response = await fetch("/api/v1/events/ingest", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        })
-        const result = await parseApiResponse<ApiIngestionResult>(response)
-        if (!result.success) {
-          throw new Error(result.error.message)
+        
+        // Use AbortController for timeout
+        // Note: Browser fetch has NO built-in timeout, so we add one here
+        // The API route has maxDuration=600s (10 min), so we set client timeout to 11 min
+        // to account for network latency while staying under server timeout
+        const controller = new AbortController()
+        let timeoutId: NodeJS.Timeout | undefined
+        try {
+          timeoutId = setTimeout(() => controller.abort(), 11 * 60 * 1000) // 11 minutes (server timeout is 10 min)
+          
+          const response = await fetch("/api/v1/events/ingest", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          })
+          
+          if (timeoutId) {
+            clearTimeout(timeoutId)
+          }
+          const result = await parseApiResponse<ApiIngestionResult>(response)
+          if (!result.success) {
+            throw new Error(result.error.message)
+          }
+          ingestionResponse = result.data
+        } catch (fetchError) {
+          // Clear timeout if it was set
+          if (timeoutId) {
+            clearTimeout(timeoutId)
+          }
+          
+          // Check if this is a connection/timeout error
+          const isConnectionError = 
+            fetchError instanceof Error && (
+              fetchError.name === "AbortError" ||
+              fetchError.message.includes("fetch failed") ||
+              fetchError.message.includes("Failed to fetch") ||
+              fetchError.message.includes("network") ||
+              fetchError.message.includes("timeout") ||
+              fetchError.message.includes("ECONNREFUSED") ||
+              fetchError.message.includes("ENOTFOUND")
+            )
+          
+          if (isConnectionError) {
+            // Connection failed - check if ingestion actually succeeded in the background
+            logger.warn("Connection error during ingestion, checking if ingestion succeeded", {
+              sourceEventId,
+              error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+            })
+            
+            // Wait a moment for ingestion to potentially complete
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            
+            // Check if event was actually ingested by searching for it
+            if (selectedTrack) {
+              try {
+                const checkParams = new URLSearchParams({
+                  track_id: selectedTrack.id,
+                })
+                if (useDateFilter) {
+                  if (startDate && startDate.trim() !== "") {
+                    checkParams.append("start_date", startDate)
+                  }
+                  if (endDate && endDate.trim() !== "") {
+                    checkParams.append("end_date", endDate)
+                  }
+                }
+                
+                const checkResponse = await fetch(`/api/v1/events/search?${checkParams.toString()}`)
+                const checkResult = await parseApiResponse<{
+                  track: { id: string; source: string; source_track_slug: string; track_name: string }
+                  events: ApiEvent[]
+                }>(checkResponse)
+                
+                if (checkResult.success) {
+                  // Try to find the event by sourceEventId
+                  const foundEvent = checkResult.data.events.find(
+                    (e) => e.sourceEventId === sourceEventId || e.source_event_id === sourceEventId
+                  )
+                  
+                  if (foundEvent) {
+                    const ingestDepth = (foundEvent.ingestDepth || foundEvent.ingest_depth || "").trim().toLowerCase()
+                    
+                    // If event is fully imported, treat as success
+                    if (ingestDepth === "laps_full" || ingestDepth === "lapsfull") {
+                      logger.info("Ingestion succeeded despite connection error", {
+                        sourceEventId,
+                        eventId: foundEvent.id,
+                      })
+                      
+                      // Create a mock response to continue with success flow
+                      ingestionResponse = {
+                        event_id: foundEvent.id,
+                        ingest_depth: "laps_full",
+                        last_ingested_at: foundEvent.lastIngestedAt || new Date().toISOString(),
+                        races_ingested: 0,
+                        results_ingested: 0,
+                        laps_ingested: 0,
+                        status: "updated",
+                      }
+                    } else if (foundEvent.lastIngestedAt) {
+                      // Event exists but not fully imported yet - start polling
+                      logger.info("Ingestion in progress despite connection error, starting polling", {
+                        sourceEventId,
+                        eventId: foundEvent.id,
+                        ingestDepth,
+                      })
+                      
+                      ingestionResponse = {
+                        event_id: foundEvent.id,
+                        ingest_depth: ingestDepth,
+                        last_ingested_at: foundEvent.lastIngestedAt,
+                        races_ingested: 0,
+                        results_ingested: 0,
+                        laps_ingested: 0,
+                        status: "in_progress",
+                      }
+                    } else {
+                      // Event found but not ingested - rethrow original error
+                      throw fetchError
+                    }
+                  } else {
+                    // Event not found - rethrow original error
+                    throw fetchError
+                  }
+                } else {
+                  // Search failed - rethrow original error
+                  throw fetchError
+                }
+              } catch (checkError) {
+                // If check fails, rethrow original fetch error
+                logger.warn("Failed to check event status after connection error", {
+                  sourceEventId,
+                  checkError: checkError instanceof Error ? checkError.message : String(checkError),
+                })
+                throw fetchError
+              }
+            } else {
+              // No track selected - can't check, rethrow error
+              throw fetchError
+            }
+          } else {
+            // Not a connection error - rethrow as-is
+            throw fetchError
+          }
         }
-        ingestionResponse = result.data
       }
 
       const ingestionStatus = ingestionResponse?.status ?? "updated"
       const isPendingResponse = ingestionStatus === "in_progress"
+      const finalEventId = ingestionResponse?.event_id || event.id // Use event_id from response if available (for new imports)
+      
+      // If we have a new event ID (e.g., LiveRC event was created), update status override to use it
+      if (finalEventId !== event.id && finalEventId) {
+        // Clear old status override and set it on the new event ID
+        updateEventStatusOverride(event.id) // Clear old
+        updateEventStatusOverride(finalEventId, "importing") // Set importing status on new ID
+        
+        // Stop old polling and start new polling with the correct event ID
+        stopPollingEventStatus(event.id)
+        pollEventImportStatus(finalEventId, 100, 2500, event.id, event.sourceEventId)
+      }
+      
       const clearLiveRcPlaceholder = () => {
         setNewEventsFromLiveRC((prev) =>
           prev.filter((newEvent) => newEvent.sourceEventId !== event.sourceEventId)
         )
       }
 
+      // Store progress - use event.id for lookup (the ID currently in the events list)
+      // Also store with finalEventId if different (for after refresh when ID might change)
+      const progressKey = event.id // Use current event ID for immediate display
+      
+      // Always set progress state, include counts if available
+      const hasCounts = ingestionResponse && (ingestionResponse.races_ingested > 0 || ingestionResponse.results_ingested > 0 || ingestionResponse.laps_ingested > 0)
+      
+      setEventImportProgress((prev) => {
+        const progressData = hasCounts
+          ? {
+              stage: "Importing...",
+              counts: {
+                races: ingestionResponse!.races_ingested,
+                results: ingestionResponse!.results_ingested,
+                laps: ingestionResponse!.laps_ingested,
+              },
+            }
+          : { stage: "Importing..." }
+        
+        const updated = {
+          ...prev,
+          [progressKey]: progressData,
+        }
+        // Also store with finalEventId if different (for after refresh)
+        if (finalEventId !== event.id && finalEventId) {
+          updated[finalEventId] = progressData
+        }
+        return updated
+      })
+
       if (isPendingResponse) {
         clearLiveRcPlaceholder()
-        updateEventErrorMessage(event.id)
+        updateEventErrorMessage(finalEventId !== event.id ? finalEventId : event.id)
 
-        setTimeout(() => {
-          void handleSearch()
-        }, PENDING_REFRESH_DELAY_MS)
+        // Polling already started above, but ensure it's using the correct event ID
+        if (finalEventId !== event.id) {
+          // Already handled above when we detected the new event ID
+        } else {
+          // Ensure polling is running with the correct ID
+          pollEventImportStatus(finalEventId, 100, 2500, event.id, event.sourceEventId)
+        }
 
+        // Polling will handle the update when import completes
         return true
       }
 
-      updateEventStatusOverride(event.id)
-      updateEventErrorMessage(event.id) // Clear error on success
-      clearLiveRcPlaceholder()
+      // Import completed immediately - fetch updated event data and update in place
+      stopPollingEventStatus(finalEventId)
+      
+      // Fetch the updated event data to update the list
+      try {
+        if (!selectedTrack) {
+          throw new Error("No track selected")
+        }
 
-      if (refreshAfter) {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        await handleSearch()
+        const params = new URLSearchParams({
+          track_id: selectedTrack.id,
+        })
+
+        if (useDateFilter) {
+          if (startDate && startDate.trim() !== "") {
+            params.append("start_date", startDate)
+          }
+          if (endDate && endDate.trim() !== "") {
+            params.append("end_date", endDate)
+          }
+        }
+
+        const response = await fetch(`/api/v1/events/search?${params.toString()}`)
+        const result = await parseApiResponse<{
+          track: { id: string; source: string; source_track_slug: string; track_name: string }
+          events: ApiEvent[]
+        }>(response)
+
+        if (result.success) {
+          // Find the updated event - try by finalEventId first, then by sourceEventId
+          let updatedEvent = result.data.events.find((e) => e.id === finalEventId)
+          
+          // If not found and we have a sourceEventId, try finding by sourceEventId
+          if (!updatedEvent && event.sourceEventId) {
+            updatedEvent = result.data.events.find((e) => e.sourceEventId === event.sourceEventId || e.source_event_id === event.sourceEventId)
+          }
+          
+          if (updatedEvent) {
+            const eventData: Partial<Event> = {
+              id: updatedEvent.id,
+              eventName: updatedEvent.eventName,
+              eventDate: updatedEvent.eventDate || updatedEvent.event_date || "",
+              ingestDepth: (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim(),
+              sourceEventId: updatedEvent.sourceEventId || updatedEvent.source_event_id,
+            }
+            
+            // If the event ID changed (LiveRC -> DB), replace the event
+            if (updatedEvent.id !== event.id && event.id.startsWith("liverc-")) {
+              replaceLiveRCEventWithDBEvent(event.id, updatedEvent)
+            } else {
+              // Update existing event in place - find by original event.id, not finalEventId
+              // because the event in the list still has the original ID
+              updateEventInList(event.id, eventData, updatedEvent.sourceEventId || updatedEvent.source_event_id)
+            }
+          }
+        }
+      } catch (error) {
+        logger.warn("Failed to fetch updated event data after import", {
+          error: error instanceof Error ? error.message : String(error),
+          eventId: finalEventId,
+        })
+        // Continue anyway - the polling will eventually update it
       }
+      
+      // Clear progress state after a delay so user can see final counts
+      setTimeout(() => {
+        setEventImportProgress((prev) => {
+          const next = { ...prev }
+          delete next[progressKey]
+          if (finalEventId !== event.id && finalEventId) {
+            delete next[finalEventId]
+          }
+          return next
+        })
+      }, 2000) // Clear after 2 seconds
+
+      updateEventStatusOverride(finalEventId !== event.id ? finalEventId : event.id)
+      updateEventErrorMessage(finalEventId !== event.id ? finalEventId : event.id) // Clear error on success
+      clearLiveRcPlaceholder()
 
       return true
     } catch (error) {
@@ -925,6 +1429,14 @@ export default function EventSearchContainer() {
       } else if (typeof error === "string") {
         errorMessage = error
       }
+
+      // Stop polling and clear progress on error
+      stopPollingEventStatus(event.id)
+      setEventImportProgress((prev) => {
+        const next = { ...prev }
+        delete next[event.id]
+        return next
+      })
 
       updateEventStatusOverride(event.id, "failed")
       updateEventErrorMessage(event.id, errorMessage)
@@ -1071,8 +1583,6 @@ export default function EventSearchContainer() {
     setIsImportingBulk(true)
     setImportProgress({ current: 0, total: eventsToImport.length })
 
-    let successfulImports = 0
-    let failedImports = 0
 
     for (let i = 0; i < eventsToImport.length; i++) {
       const event = eventsToImport[i]
@@ -1081,20 +1591,99 @@ export default function EventSearchContainer() {
       // Set status to importing
       updateEventStatusOverride(event.id, "importing")
 
-      const success = await importEvent(event, { refreshAfter: false, silentStart: true })
+      const success = await importEvent(event, { refreshAfter: false })
       
       if (success) {
-        successfulImports++
         updateEventStatusOverride(event.id, "imported")
+        // Note: The importEvent function already updates the event in place
       } else {
-        failedImports++
         updateEventStatusOverride(event.id, "failed")
       }
     }
 
-    // Refresh event list after all imports complete
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    await handleSearch()
+    // After all imports complete, fetch updated event data and update in place
+    // This ensures we have the latest data for all imported events
+    try {
+      const params = new URLSearchParams({
+        track_id: selectedTrack.id,
+      })
+
+      if (useDateFilter) {
+        if (startDate && startDate.trim() !== "") {
+          params.append("start_date", startDate)
+        }
+        if (endDate && endDate.trim() !== "") {
+          params.append("end_date", endDate)
+        }
+      }
+
+      const response = await fetch(`/api/v1/events/search?${params.toString()}`)
+      const result = await parseApiResponse<{
+        track: { id: string; source: string; source_track_slug: string; track_name: string }
+        events: ApiEvent[]
+      }>(response)
+
+      if (result.success) {
+        // Update all imported events in place
+        setEvents((prevEvents) => {
+          const updatedEvents = [...prevEvents]
+          let hasChanges = false
+
+          for (const event of eventsToImport) {
+            // Try to find the updated event by old ID first
+            let updatedEvent = result.data.events.find((e) => e.id === event.id)
+            
+            // If not found and we have a sourceEventId, try finding by sourceEventId
+            if (!updatedEvent && event.sourceEventId) {
+              updatedEvent = result.data.events.find(
+                (e) => e.sourceEventId === event.sourceEventId || e.source_event_id === event.sourceEventId
+              )
+            }
+
+            if (updatedEvent) {
+              const eventIndex = updatedEvents.findIndex((e) => e.id === event.id)
+              
+              if (eventIndex !== -1) {
+                // Update existing event
+                updatedEvents[eventIndex] = {
+                  id: updatedEvent.id,
+                  eventName: updatedEvent.eventName,
+                  eventDate: updatedEvent.eventDate || updatedEvent.event_date || "",
+                  ingestDepth: (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim(),
+                  sourceEventId: updatedEvent.sourceEventId || updatedEvent.source_event_id,
+                }
+                hasChanges = true
+              } else if (event.id.startsWith("liverc-") && updatedEvent.id !== event.id) {
+                // LiveRC event got a new DB ID - find and replace it
+                const livercIndex = updatedEvents.findIndex((e) => e.id === event.id)
+                if (livercIndex !== -1) {
+                  updatedEvents[livercIndex] = {
+                    id: updatedEvent.id,
+                    eventName: updatedEvent.eventName,
+                    eventDate: updatedEvent.eventDate || updatedEvent.event_date || "",
+                    ingestDepth: (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim(),
+                    sourceEventId: updatedEvent.sourceEventId || updatedEvent.source_event_id,
+                  }
+                  hasChanges = true
+                }
+              }
+            }
+          }
+
+          return hasChanges ? updatedEvents : prevEvents
+        })
+
+        // Clear status overrides for all imported events
+        for (const event of eventsToImport) {
+          updateEventStatusOverride(event.id)
+        }
+      }
+    } catch (error) {
+      logger.warn("Failed to fetch updated event data after bulk import", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      // Continue anyway - individual event updates may have already happened
+    }
 
     // Clear selection
     handleClearSelection()
@@ -1102,6 +1691,135 @@ export default function EventSearchContainer() {
     setIsImportingBulk(false)
     setImportProgress(null)
   }
+
+  // Handle check entry lists for driver
+  const handleCheckEntryLists = async () => {
+    if (!selectedTrack) return
+
+    // Filter to liverc events (not yet imported) and DB events (already imported)
+    const livercEvents = events.filter((event) => event.id.startsWith("liverc-") && event.sourceEventId)
+    const dbEvents = events.filter((event) => !event.id.startsWith("liverc-") && event.id)
+
+    if (livercEvents.length === 0 && dbEvents.length === 0) {
+      logger.debug("No events to check")
+      return
+    }
+
+    setIsCheckingEntryLists(true)
+    setErrors({})
+
+    try {
+      // Add client-side timeout (6 minutes to match server timeout)
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => {
+        abortController.abort()
+      }, 6 * 60 * 1000) // 6 minutes
+
+      // Build events array with both LiveRC and DB events
+      const eventsToCheck: Array<{ source_event_id?: string; event_id?: string }> = []
+      
+      // Add LiveRC events
+      for (const event of livercEvents) {
+        if (event.sourceEventId) {
+          eventsToCheck.push({
+            source_event_id: event.sourceEventId,
+          })
+        }
+      }
+      
+      // Add DB events
+      for (const event of dbEvents) {
+        eventsToCheck.push({
+          event_id: event.id,
+        })
+      }
+
+      let response: Response
+      try {
+        response = await fetch("/api/v1/events/check-entry-lists", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            events: eventsToCheck,
+            track_slug: selectedTrack.sourceTrackSlug, // Required for LiveRC events
+          }),
+          signal: abortController.signal,
+        })
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        if (fetchError instanceof Error && fetchError.name === "AbortError") {
+          throw new Error("Request timed out. The check is taking longer than expected. Please try again with fewer events or check if the ingestion service is running.")
+        }
+        throw fetchError
+      }
+      clearTimeout(timeoutId)
+
+      const result = await parseApiResponse<{
+        driver_in_events: Record<string, boolean>
+        errors: Record<string, string>
+      }>(response)
+
+      if (!result.success) {
+        logger.error("Error checking entry lists", {
+          error: result.error.message || String(result.error),
+        })
+        setApiError({
+          message: result.error.message || "Unable to check entry lists. Please try again.",
+          errorId: generateErrorId(),
+          details: result.error.details || { code: result.error.code },
+          onRetry: handleCheckEntryLists,
+        })
+        return
+      }
+
+      // Update state with results
+      // The API returns results keyed by sourceEventId (for LiveRC) or eventId (for DB)
+      setDriverInEvents(result.data.driver_in_events)
+
+      // Log any errors for individual events
+      if (Object.keys(result.data.errors).length > 0) {
+        logger.warn("Some entry list checks failed", {
+          errors: result.data.errors,
+        })
+      }
+
+      logger.info("Entry list check completed", {
+        checkedLiveRCEvents: livercEvents.length,
+        checkedDbEvents: dbEvents.length,
+        foundInEvents: Object.values(result.data.driver_in_events).filter(Boolean).length,
+      })
+    } catch (error) {
+      const errorId = generateErrorId()
+      logger.error("Error checking entry lists", {
+        error: error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+            }
+          : String(error),
+        errorId,
+      })
+      setApiError({
+        message: error instanceof Error 
+          ? `Network error: ${error.message}. Please check your connection and try again.`
+          : "Unable to check entry lists. Please try again.",
+        errorId,
+        details: error instanceof Error 
+          ? { name: error.name, message: error.message }
+          : String(error),
+        onRetry: handleCheckEntryLists,
+      })
+    } finally {
+      setIsCheckingEntryLists(false)
+    }
+  }
+
+  // Get events count for button visibility (both LiveRC and DB events)
+  const livercEventsCount = events.filter((event) => event.id.startsWith("liverc-") && event.sourceEventId).length
+  const dbEventsCount = events.filter((event) => !event.id.startsWith("liverc-") && event.id).length
+  const totalEventsCount = livercEventsCount + dbEventsCount
 
   if (isLoadingTracks) {
     return (
@@ -1148,6 +1866,12 @@ export default function EventSearchContainer() {
         onToggleFavourite={handleToggleFavourite}
         onSearch={handleSearch}
         onReset={handleReset}
+        livercEventsCount={totalEventsCount}
+        hasSearched={hasSearched}
+        isCheckingEntryLists={isCheckingEntryLists}
+        isImportingBulk={isImportingBulk}
+        driverInEvents={driverInEvents}
+        onCheckEntryLists={handleCheckEntryLists}
       />
 
       {/* Bulk Import Bar */}
@@ -1160,6 +1884,15 @@ export default function EventSearchContainer() {
         onSelectAll={handleSelectAllImportable}
         onClearSelection={handleClearSelection}
       />
+
+      {/* Driver in events count display - Only show when there are results */}
+      {Object.keys(driverInEvents).length > 0 && (
+        <div className="mt-4 flex items-center gap-2">
+          <span className="text-sm text-[var(--token-text-secondary)]">
+            {Object.values(driverInEvents).filter(Boolean).length} event{Object.values(driverInEvents).filter(Boolean).length === 1 ? "" : "s"} found
+          </span>
+        </div>
+      )}
 
       {/* Event Table - Hide during search transition to prevent flash of old data */}
       {!isStartingSearch && (
@@ -1175,6 +1908,8 @@ export default function EventSearchContainer() {
           onEventSelect={handleEventSelect}
           isBulkImporting={isImportingBulk}
           onSelectAll={handleSelectAllImportable}
+          driverInEvents={driverInEvents}
+          eventImportProgress={eventImportProgress}
         />
       )}
       {/* Show loading state during transition */}

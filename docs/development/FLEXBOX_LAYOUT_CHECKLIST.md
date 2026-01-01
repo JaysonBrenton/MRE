@@ -26,10 +26,17 @@ Before writing code, ask:
 
 If creating a modal (even if using reusable component):
 
-- [ ] Backdrop container has `min-w-0` (or uses `Modal` component)
-- [ ] Modal container has explicit width constraints (`min-w-0`, `width: 100%`, `max-width`)
+**Preferred approach:**
+- [ ] **Use `src/components/ui/Modal.tsx` component** - This handles all width constraints automatically
+
+**If creating a custom modal (NOT RECOMMENDED):**
+- [ ] **Use `getModalContainerStyles()` from `@/lib/modal-styles.ts`** - This provides the required inline styles
+- [ ] Backdrop container has `min-w-0` inline style
+- [ ] Modal container uses `getModalContainerStyles(maxWidth)` with appropriate maxWidth
+- [ ] Modal container has `minWidth: '20rem'`, `flexShrink: 0`, `flexGrow: 0` (provided by utility)
 - [ ] All sections (header, body, footer) have `min-w-0` and `width: 100%`
 - [ ] Body container has `overflow-x-hidden` to prevent horizontal scroll
+- [ ] **DO NOT rely on Tailwind classes alone** - they don't prevent flexbox compression
 - [ ] Tested with long text content
 - [ ] Tested on mobile viewport (375px width)
 
@@ -48,6 +55,15 @@ If creating list rows with text and actions:
 
 If you must implement manually (not using reusable components):
 
+**⚠️ CRITICAL: For modal containers in flex containers with items-center/justify-center:**
+- [ ] **USE `getModalContainerStyles()` from `@/lib/modal-styles.ts`** - This is the required pattern
+- [ ] Modal container has `minWidth: '20rem'` (320px minimum)
+- [ ] Modal container has `flexShrink: 0` and `flexGrow: 0` (prevents compression/expansion)
+- [ ] Modal container has `width: '100%'` and appropriate `maxWidth` in rem units
+- [ ] Modal container has `boxSizing: 'border-box'`
+- [ ] **DO NOT use Tailwind classes `w-full max-w-*` alone** - they don't prevent compression
+
+**For other flex containers:**
 - [ ] All flex containers have `min-w-0` class AND inline style `{ minWidth: 0, width: '100%', boxSizing: 'border-box' }`
 - [ ] All text elements have inline styles: `{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }`
 - [ ] All action elements have inline style: `{ flexShrink: 0 }`
@@ -96,11 +112,26 @@ If you see any of these, you have a layout bug:
 **Common Patterns:**
 
 ```tsx
-// ✅ Modal with reusable component
+// ✅ Modal with reusable component (PREFERRED)
 import Modal from "@/components/ui/Modal"
 <Modal isOpen={isOpen} onClose={handleClose} title="Title">
   {content}
 </Modal>
+
+// ✅ Custom modal with shared styles utility (if absolutely necessary)
+import { getModalContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+  <div style={getModalContainerStyles(MODAL_MAX_WIDTHS.md)}>
+    {modal content}
+  </div>
+</div>
+
+// ❌ WRONG - Don't use Tailwind classes alone (will compress!)
+<div className="fixed inset-0 z-50 flex items-center justify-center">
+  <div className="w-full max-w-md">  {/* This will compress! */}
+    {modal content}
+  </div>
+</div>
 
 // ✅ List row with reusable components
 import ListRow, { ListRowText, ListRowAction } from "@/components/ui/ListRow"

@@ -88,7 +88,7 @@ export default function LoginPage() {
       if (session?.user?.isAdmin) {
         router.push("/admin")
       } else {
-        router.push("/welcome")
+        router.push("/dashboard")
       }
       router.refresh()
     } catch (authError) {

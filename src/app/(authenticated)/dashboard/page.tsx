@@ -7,13 +7,13 @@
  * 
  * @description Dashboard/Overview page for My Race Engineer
  * 
- * @purpose Displays the main overview page with event overview and recent events.
+ * @purpose Renders the driver-first dashboard composed of modern racing widgets
+ *          (hero context, KPIs, telemetry snapshot, activity, weather, etc.).
  *          This page is protected and requires authentication.
  * 
  * @relatedFiles
- * - src/components/dashboard/DashboardClient.tsx (dashboard content)
- * - src/components/dashboard/DashboardSidebar.tsx (sidebar navigation)
- * - src/app/(authenticated)/layout.tsx (shared layout wrapper)
+ * - src/components/dashboard/DashboardClient.tsx (dashboard content/widg)
+ * - src/app/(authenticated)/layout.tsx (shared immersive layout)
  * - src/lib/auth.ts (authentication check)
  */
 
@@ -21,15 +21,14 @@ import DashboardClient from "@/components/dashboard/DashboardClient"
 
 export default async function Dashboard() {
   return (
-    <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
-          Dashboard
-        </h1>
-        <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
-          Overview of your selected event and recent events
+    <section className="content-wrapper w-full min-w-0">
+      <header className="mb-8 space-y-2">
+        <p className="text-[11px] uppercase tracking-[0.5em] text-[var(--token-text-muted)]">Mission Control</p>
+        <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">Driver Dashboard</h1>
+        <p className="text-sm text-[var(--token-text-secondary)]">
+          Live context, telemetry snapshots, weather, and engineer activity blended into one workspace.
         </p>
-      </div>
+      </header>
       <DashboardClient />
     </section>
   )

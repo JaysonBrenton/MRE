@@ -42,7 +42,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 - `timestamp` - UTC timestamp
 - `level` - Log level (info, warn, error)
 - `message` - Human-readable message
-- `service` - Service name (mre-app, ingestion-service)
+- `service` - Service name (mre-app, liverc-ingestion-service)
 - `context` - Additional context object
 
 ### Log Levels

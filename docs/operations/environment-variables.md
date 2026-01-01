@@ -292,17 +292,17 @@ NEXTAUTH_SECRET=your-secret-here
 
 **Type:** URL String  
 **Required:** No  
-**Default:** `http://ingestion-service:8000`  
+**Default:** `http://liverc-ingestion-service:8000`  
 **Environment:** Next.js application (used by ingestion client)
 
 Base URL of the Python ingestion service. Used by the Next.js application to communicate with the ingestion service.
 
 **Example:**
 ```bash
-INGESTION_SERVICE_URL=http://ingestion-service:8000
+INGESTION_SERVICE_URL=http://liverc-ingestion-service:8000
 ```
 
-**Note:** In Docker Compose, this uses the service name `ingestion-service` and default port `8000`.
+**Note:** In Docker Compose, this uses the service name `liverc-ingestion-service` and default port `8000`.
 
 ---
 
@@ -491,7 +491,7 @@ HOST=0.0.0.0
 AUTH_SECRET=development-secret-change-in-production
 
 # Ingestion Service
-INGESTION_SERVICE_URL=http://ingestion-service:8000
+INGESTION_SERVICE_URL=http://liverc-ingestion-service:8000
 INGESTION_PORT=8000
 LOG_LEVEL=INFO
 PYTHONUNBUFFERED=1
@@ -523,7 +523,7 @@ HOST=0.0.0.0
 AUTH_SECRET=[strong-random-secret]
 
 # Ingestion Service
-INGESTION_SERVICE_URL=http://ingestion-service:8000
+INGESTION_SERVICE_URL=http://liverc-ingestion-service:8000
 LOG_LEVEL=INFO
 
 # System
@@ -555,7 +555,7 @@ HOST=0.0.0.0
 AUTH_SECRET=[strong-random-secret-minimum-32-chars]
 
 # Ingestion Service
-INGESTION_SERVICE_URL=http://ingestion-service:8000
+INGESTION_SERVICE_URL=http://liverc-ingestion-service:8000
 LOG_LEVEL=WARNING
 
 # System
@@ -668,7 +668,7 @@ See [Development](#development) section above for complete example.
 | `HOST` | No | `0.0.0.0` | Application | No |
 | `AUTH_SECRET` | Yes | None (min 32 chars) | Authentication | Yes |
 | `NEXTAUTH_SECRET` | No | Falls back to `AUTH_SECRET` | Authentication | Yes |
-| `INGESTION_SERVICE_URL` | No | `http://ingestion-service:8000` | Ingestion | No |
+| `INGESTION_SERVICE_URL` | No | `http://liverc-ingestion-service:8000` | Ingestion | No |
 | `INGESTION_PORT` | No | `8000` | Ingestion | No |
 | `LOG_LEVEL` | No | `INFO` | Ingestion | No |
 | `TRACK_SYNC_REPORT_RETENTION_DAYS` | No | `30` | Ingestion | No |

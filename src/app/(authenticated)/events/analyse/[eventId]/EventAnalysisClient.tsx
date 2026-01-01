@@ -99,7 +99,6 @@ export default function EventAnalysisClient({
         <SessionsTab
           data={initialData}
           selectedDriverIds={selectedDriverIds}
-          onDriverSelectionChange={setSelectedDriverIds}
         />
       )}
 

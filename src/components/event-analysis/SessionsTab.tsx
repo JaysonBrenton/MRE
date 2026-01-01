@@ -34,13 +34,11 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 export interface SessionsTabProps {
   data: EventAnalysisData
   selectedDriverIds: string[]
-  onDriverSelectionChange: (driverIds: string[]) => void
 }
 
 export default function SessionsTab({
   data,
   selectedDriverIds,
-  onDriverSelectionChange,
 }: SessionsTabProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("chart")
   const [selectedClass, setSelectedClass] = useState<string | null>(null)

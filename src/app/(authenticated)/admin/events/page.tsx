@@ -7,7 +7,7 @@ export default async function AdminEventsPage() {
     redirect("/login")
   }
   if (!session.user.isAdmin) {
-    redirect("/welcome")
+    redirect("/dashboard")
   }
   redirect("/under-development")
 }

@@ -16,11 +16,18 @@
  * - src/lib/auth.ts (authentication check)
  */
 
+import Breadcrumbs from "@/components/Breadcrumbs"
 import EventsPageClient from "@/components/events/EventsPageClient"
 
 export default async function EventsPage() {
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/welcome" },
+          { label: "Events" },
+        ]}
+      />
       <EventsPageClient />
     </section>
   )

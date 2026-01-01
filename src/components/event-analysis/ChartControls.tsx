@@ -17,7 +17,7 @@
 
 "use client"
 
-import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FixedSizeList } from "react-window"
 import CollapsibleDriverPanel from "./CollapsibleDriverPanel"
 import DriverSelectionHeader from "./DriverSelectionHeader"
@@ -235,7 +235,7 @@ export default function ChartControls({
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
   const [isChartTypeDropdownOpen, setIsChartTypeDropdownOpen] = useState(false)
   const [isPanelOpen, setIsPanelOpen] = useState(true)
-  const [containerHeight, setContainerHeight] = useState(400)
+  const containerHeight = 400
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const chartTypeDropdownRef = useRef<HTMLDivElement>(null)
@@ -329,21 +329,6 @@ export default function ChartControls({
     }
   }, [isClassDropdownOpen, isChartTypeDropdownOpen])
 
-  // Keyboard shortcut for search (Cmd/Ctrl+K)
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault()
-        const searchInput = document.getElementById("driver-search-input")
-        if (searchInput) {
-          searchInput.focus()
-        }
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
 
   // Item height based on compact mode (base height + margins: 4px top + 4px bottom = 8px)
   // Class headers need extra top margin (8px instead of 4px)
@@ -473,7 +458,7 @@ export default function ChartControls({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search drivers... (Cmd/Ctrl+K)"
+              placeholder="Search drivers..."
               className="w-full px-3 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Search drivers"
               id="driver-search-input"
@@ -627,11 +612,11 @@ export default function ChartControls({
                     : ""
                 }`}
                 aria-label="Average vs Fastest chart - compares average and fastest lap times"
-                title="Avg vs Fastest: Compares each driver's average lap time to their fastest lap"
+                title="Avg vs Fastest: Compares each driver&rsquo;s average lap time to their fastest lap"
               >
                 <div className="font-medium">Avg vs Fastest</div>
                 <div className="text-xs text-[var(--token-text-secondary)] mt-0.5">
-                  Compares each driver's average lap time to their fastest lap
+                  Compares each driver&rsquo;s average lap time to their fastest lap
                 </div>
               </button>
             </div>

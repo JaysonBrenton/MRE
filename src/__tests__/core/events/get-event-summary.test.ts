@@ -15,6 +15,25 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { getEventSummary } from "@/core/events/get-event-analysis-data"
 import { prisma } from "@/lib/prisma"
 
+interface MockEventSummary {
+  id: string
+  eventName: string
+  eventDate: Date
+  track: {
+    trackName: string
+  }
+}
+
+interface MockRaceAggregate {
+  _count: { id: number }
+  _min: { startTime: Date | null }
+  _max: { startTime: Date | null }
+}
+
+interface MockLapAggregate {
+  _count: { id: number }
+}
+
 // Mock Prisma client
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -42,33 +61,36 @@ describe("getEventSummary - Query Count Regression", () => {
     const eventId = "event-123"
 
     // Mock event metadata query
-    vi.mocked(prisma.event.findUnique).mockResolvedValue({
+    const mockEvent: MockEventSummary = {
       id: eventId,
       eventName: "Test Event",
       eventDate: new Date("2025-01-15"),
       track: {
         trackName: "Test Track",
       },
-    } as any)
+    }
+    vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as never)
 
     // Mock race aggregate query
-    vi.mocked(prisma.race.aggregate).mockResolvedValue({
+    const raceAggregate: MockRaceAggregate = {
       _count: { id: 12 },
       _min: { startTime: new Date("2025-01-15T09:00:00Z") },
       _max: { startTime: new Date("2025-01-15T17:00:00Z") },
-    } as any)
+    }
+    vi.mocked(prisma.race.aggregate).mockResolvedValue(raceAggregate as never)
 
     // Mock distinct drivers query
     vi.mocked(prisma.raceDriver.groupBy).mockResolvedValue([
       { driverId: "driver-1" },
       { driverId: "driver-2" },
       { driverId: "driver-3" },
-    ] as any)
+    ] as never)
 
     // Mock lap aggregate query
-    vi.mocked(prisma.lap.aggregate).mockResolvedValue({
+    const lapAggregate: MockLapAggregate = {
       _count: { id: 1500 },
-    } as any)
+    }
+    vi.mocked(prisma.lap.aggregate).mockResolvedValue(lapAggregate as never)
 
     await getEventSummary(eventId)
 
@@ -86,26 +108,29 @@ describe("getEventSummary - Query Count Regression", () => {
   it("should not load lap data in memory", async () => {
     const eventId = "event-123"
 
-    vi.mocked(prisma.event.findUnique).mockResolvedValue({
+    const mockEvent: MockEventSummary = {
       id: eventId,
       eventName: "Test Event",
       eventDate: new Date("2025-01-15"),
       track: {
         trackName: "Test Track",
       },
-    } as any)
+    }
+    vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as never)
 
-    vi.mocked(prisma.race.aggregate).mockResolvedValue({
+    const raceAggregate: MockRaceAggregate = {
       _count: { id: 12 },
       _min: { startTime: new Date("2025-01-15T09:00:00Z") },
       _max: { startTime: new Date("2025-01-15T17:00:00Z") },
-    } as any)
+    }
+    vi.mocked(prisma.race.aggregate).mockResolvedValue(raceAggregate as never)
 
-    vi.mocked(prisma.raceDriver.groupBy).mockResolvedValue([] as any)
+    vi.mocked(prisma.raceDriver.groupBy).mockResolvedValue([] as never)
 
-    vi.mocked(prisma.lap.aggregate).mockResolvedValue({
+    const lapAggregate: MockLapAggregate = {
       _count: { id: 1500 },
-    } as any)
+    }
+    vi.mocked(prisma.lap.aggregate).mockResolvedValue(lapAggregate as never)
 
     await getEventSummary(eventId)
 
@@ -129,4 +154,3 @@ describe("getEventSummary - Query Count Regression", () => {
     expect(prisma.lap.aggregate).toHaveBeenCalled()
   })
 })
-

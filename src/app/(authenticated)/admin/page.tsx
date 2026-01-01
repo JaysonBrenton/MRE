@@ -29,9 +29,9 @@ export default async function AdminPage() {
     redirect("/login")
   }
 
-  // Redirect non-admins to user welcome page
+  // Redirect non-admins to dashboard
   if (!session.user.isAdmin) {
-    redirect("/welcome")
+    redirect("/dashboard")
   }
 
   return (

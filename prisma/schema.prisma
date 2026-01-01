@@ -86,6 +86,7 @@ model Event {
   track                Track                 @relation(fields: [trackId], references: [id], onDelete: Cascade)
   races                Race[]
   transponderOverrides TransponderOverride[]
+  weatherData          WeatherData[]
 
   @@unique([source, sourceEventId])
   @@index([source, sourceEventId])
@@ -322,4 +323,31 @@ enum EventDriverLinkMatchType {
   transponder
   exact
   fuzzy
+}
+
+model WeatherData {
+  id               String   @id @default(uuid())
+  eventId          String   @map("event_id")
+  latitude         Float
+  longitude        Float
+  timestamp        DateTime
+  airTemperature   Float    @map("air_temperature")
+  humidity         Int
+  windSpeed        Float    @map("wind_speed")
+  windDirection    Int?     @map("wind_direction")
+  precipitation    Int
+  condition        String
+  trackTemperature Float    @map("track_temperature")
+  forecast         Json
+  isHistorical     Boolean  @default(false) @map("is_historical")
+  cachedAt         DateTime @default(now()) @map("cached_at")
+  expiresAt        DateTime @map("expires_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  event            Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([expiresAt])
+  @@index([eventId, expiresAt])
+  @@map("weather_data")
 }

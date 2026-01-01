@@ -37,6 +37,8 @@ export interface EventRowProps {
   onSelect?: (event: Event, selected: boolean) => void
   isBulkImporting?: boolean
   errorMessage?: string // Optional error message for failed imports
+  containsDriver?: boolean // Whether the driver name was found in the entry list
+  importProgress?: { stage?: string; counts?: { races: number; results: number; laps: number } } // Progress information for ongoing imports
 }
 
 function getStatusFromIngestDepth(ingestDepth: string | null | undefined, eventId?: string): EventStatus {
@@ -74,6 +76,8 @@ export default function EventRow({
   onSelect,
   isBulkImporting = false,
   errorMessage,
+  containsDriver = false,
+  importProgress,
 }: EventRowProps) {
   const router = useRouter()
   const derivedStatus = getStatusFromIngestDepth(event.ingestDepth, event.id)
@@ -132,8 +136,20 @@ export default function EventRow({
       {!isImportable && <div />}
 
       {/* Column 2 - Event Name */}
-      <div>
+      <div className="flex items-center gap-2">
         <h3 className="text-[var(--token-text-primary)] font-medium">{event.eventName}</h3>
+        {containsDriver && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full bg-[var(--token-status-success-bg)] px-2 py-1 text-xs font-medium text-[var(--token-status-success-text)]"
+            title="You participated in this event"
+            aria-label="You participated in this event"
+          >
+            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            You participated
+          </span>
+        )}
       </div>
 
       {/* Column 3 - Event Date */}
@@ -151,7 +167,11 @@ export default function EventRow({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span className="text-xs text-[var(--token-text-muted)]">Importing...</span>
+                <span className="text-xs text-[var(--token-text-muted)]">
+                  {importProgress?.counts
+                    ? `${importProgress.counts.races} race${importProgress.counts.races !== 1 ? "s" : ""}, ${importProgress.counts.results} result${importProgress.counts.results !== 1 ? "s" : ""}, ${importProgress.counts.laps} lap${importProgress.counts.laps !== 1 ? "s" : ""} imported`
+                    : importProgress?.stage || "Importing..."}
+                </span>
               </div>
             )}
           </div>
@@ -175,18 +195,6 @@ export default function EventRow({
               aria-label={`Retry import for ${event.eventName}`}
             >
               Retry
-            </button>
-          )}
-          
-          {/* Import Button - shown for unimported events */}
-          {needsImport && onImport && !hasFailed && (
-            <button
-              type="button"
-              onClick={() => onImport(event)}
-              disabled={isImporting || isBulkImporting}
-              className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
-            >
-              Import
             </button>
           )}
           

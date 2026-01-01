@@ -95,7 +95,12 @@ export async function POST(
       if (error.code === "INGESTION_IN_PROGRESS") {
         requestLogger.info("Ingestion already running", logContext)
       } else {
-        requestLogger.error("Ingestion service error", logContext)
+        requestLogger.error("Ingestion service error", {
+          ...logContext,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          stack: error.stack,
+        })
       }
 
       return errorResponse(
@@ -171,7 +176,18 @@ export async function POST(
       )
     }
     
-    // Handle other errors
+    // Handle other errors - log full error details for debugging
+    requestLogger.error("Unexpected error during event ingestion", {
+      error: error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : String(error),
+      eventId,
+    })
+    
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(
       errorInfo.code,

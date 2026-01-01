@@ -45,8 +45,10 @@ This document provides a comprehensive overview of the MRE database schema. The 
 The MRE database schema consists of:
 
 - **1 User model** - User accounts and authentication
-- **8 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry, Race, Driver, RaceDriver, RaceResult, Lap, TransponderOverride)
-- **1 Enum type** - IngestDepth
+- **1 Persona model** - Persona definitions and user personas
+- **9 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry, Race, Driver, RaceDriver, RaceResult, Lap, TransponderOverride, WeatherData)
+- **2 User-Driver Link models** - User-driver matching and linking (UserDriverLink, EventDriverLink)
+- **4 Enum types** - IngestDepth, PersonaType, UserDriverLinkStatus, EventDriverLinkMatchType
 
 All models use UUID primary keys and include `createdAt` and `updatedAt` timestamps.
 
@@ -78,6 +80,9 @@ Track (1) ─┼──< (many) Event ──< (many) Race ──< (many) RaceDriv
 - **RaceDriver** - Belongs to Race and Driver, has many RaceResults
 - **RaceResult** - Belongs to Race and RaceDriver, has many Laps
 - **Lap** - Belongs to RaceResult
+- **UserDriverLink** - Belongs to User and Driver (one-to-one with Driver), has many EventDriverLinks
+- **EventDriverLink** - Belongs to User, Event, Driver, and optionally UserDriverLink
+- **Persona** - Has many Users
 
 **Note:** For a visual ERD, use Prisma Studio (`npx prisma studio`) or generate a diagram using a tool like `prisma-erd-generator`.
 
@@ -111,6 +116,10 @@ User accounts for authentication and user management.
 **Indexes:**
 - Primary key on `id`
 - Unique index on `email`
+- Index on `normalizedName`
+- Index on `transponderNumber`
+- Index on `personaId`
+- Index on `[isTeamManager, teamName]`
 
 ---
 
@@ -191,6 +200,7 @@ Race events associated with tracks.
 - Belongs to `Track` (cascade delete)
 - Has many `EventEntry` records (cascade delete)
 - Has many `Race` records (cascade delete)
+- Has many `WeatherData` records (cascade delete)
 
 ---
 
@@ -261,6 +271,7 @@ Normalized driver identity across all races/events.
 - Unique index on `[source, sourceDriverId]`
 - Index on `[source, sourceDriverId]` (for lookups)
 - Index on `displayName` (for name-based queries)
+- Index on `normalizedName` (for fuzzy matching)
 
 **Relationships:**
 - Has many `EventEntry` records (cascade delete)
@@ -426,6 +437,123 @@ Individual lap times for a race result.
 
 ---
 
+### Persona
+
+Persona definitions for user personas (Driver, Admin, Team Manager, Race Engineer).
+
+**Table:** `personas`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique persona identifier |
+| `type` | PersonaType | Unique, Required | Persona type (driver, admin, team_manager, race_engineer) |
+| `name` | String | Required | Human-readable persona name |
+| `description` | String | Required | Persona description |
+| `permissions` | Json | Optional | Persona permissions (JSON) |
+| `preferences` | Json | Optional | Persona preferences (JSON) |
+| `metadata` | Json | Optional | Additional metadata (JSON) |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `type` must be unique across all personas
+- Personas are created via seed script
+- Four persona types are defined: driver, admin, team_manager, race_engineer
+- Users are linked to personas via `User.personaId`
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `type`
+
+**Relationships:**
+- Has many `User` records (users with this persona)
+
+---
+
+### UserDriverLink
+
+Links users to drivers with matching status and similarity scores. Used for driver matching and user-driver association.
+
+**Table:** `user_driver_links`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique link identifier |
+| `userId` | String (UUID) | Foreign Key, Required | Reference to User |
+| `driverId` | String (UUID) | Foreign Key, Required, Unique | Reference to Driver (one-to-one relationship) |
+| `status` | UserDriverLinkStatus | Required | Link status (suggested, confirmed, rejected, conflict) |
+| `similarityScore` | Float | Required | Similarity score from matching algorithm |
+| `matchedAt` | DateTime | Required | When the match was created |
+| `confirmedAt` | DateTime | Optional | When the link was confirmed |
+| `rejectedAt` | DateTime | Optional | When the link was rejected |
+| `matcherId` | String | Required | Matcher algorithm identifier |
+| `matcherVersion` | String | Required | Matcher algorithm version |
+| `conflictReason` | String | Optional | Reason for conflict status |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `userId` + `driverId` must be unique (composite unique constraint)
+- `driverId` must be unique (one driver per user)
+- Status transitions: suggested → confirmed/rejected/conflict
+- Deleted when parent User or Driver is deleted (cascade delete)
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `[userId, driverId]`
+- Unique index on `driverId`
+- Index on `userId`
+- Index on `driverId`
+- Index on `status`
+
+**Relationships:**
+- Belongs to `User` (cascade delete)
+- Belongs to `Driver` (cascade delete, one-to-one)
+- Has many `EventDriverLink` records
+
+---
+
+### EventDriverLink
+
+Links users to drivers within specific events with match type and similarity information. Represents event-specific driver matches.
+
+**Table:** `event_driver_links`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique link identifier |
+| `userId` | String (UUID) | Foreign Key, Required | Reference to User |
+| `eventId` | String (UUID) | Foreign Key, Required | Reference to Event |
+| `driverId` | String (UUID) | Foreign Key, Required | Reference to Driver |
+| `userDriverLinkId` | String (UUID) | Foreign Key, Optional | Reference to UserDriverLink |
+| `matchType` | EventDriverLinkMatchType | Required | Match type (transponder, exact, fuzzy) |
+| `similarityScore` | Float | Required | Similarity score from matching algorithm |
+| `transponderNumber` | String | Optional | Transponder number used for matching |
+| `matchedAt` | DateTime | Required | When the match was created |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `userId` + `eventId` + `driverId` must be unique (composite unique constraint)
+- Links users to drivers within specific events
+- Can reference a UserDriverLink for user-level driver associations
+- Deleted when parent User, Event, or Driver is deleted (cascade delete)
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `[userId, eventId, driverId]`
+- Index on `[userId, driverId, transponderNumber]`
+- Index on `[eventId, driverId]`
+- Index on `userDriverLinkId`
+
+**Relationships:**
+- Belongs to `User` (cascade delete)
+- Belongs to `Event` (cascade delete)
+- Belongs to `Driver` (cascade delete)
+- Belongs to `UserDriverLink` (optional)
+
+---
+
 ### TransponderOverride
 
 Manual transponder number overrides for drivers in events. Allows administrators to correct or override transponder numbers when the ingested data is incorrect.
@@ -460,6 +588,136 @@ Manual transponder number overrides for drivers in events. Allows administrators
 - Belongs to `Event` (cascade delete)
 - Belongs to `Driver` (cascade delete - overrides deleted when driver deleted)
 - Belongs to `Race` (set null on delete - if race is deleted, override applies from first race)
+
+---
+
+### WeatherData
+
+Cached weather data for events, retrieved from OpenWeatherMap API.
+
+**Table:** `weather_data`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique weather data identifier |
+| `eventId` | String (UUID) | Foreign Key → Event.id, Required | Associated event |
+| `latitude` | Float | Required | Latitude coordinate used for API call |
+| `longitude` | Float | Required | Longitude coordinate used for API call |
+| `timestamp` | DateTime | Required | When weather was observed/forecasted |
+| `airTemperature` | Float | Required | Air temperature in Celsius |
+| `humidity` | Int | Required | Humidity percentage (0-100) |
+| `windSpeed` | Float | Required | Wind speed (km/h) |
+| `windDirection` | Int? | Optional | Wind direction in degrees (0-360) |
+| `precipitation` | Int | Required | Precipitation chance percentage (0-100) |
+| `condition` | String | Required | Weather condition description |
+| `trackTemperature` | Float | Required | Calculated track surface temperature (Celsius) |
+| `forecast` | Json | Required | Array of forecast entries (JSON) |
+| `isHistorical` | Boolean | Required, Default: false | Whether this is historical weather data |
+| `cachedAt` | DateTime | Required, Default: now() | When this data was cached |
+| `expiresAt` | DateTime | Required | When this cache entry expires (TTL) |
+| `createdAt` | DateTime | Required, Default: now() | Record creation timestamp |
+| `updatedAt` | DateTime | Required, Default: now(), Updated on write | Record update timestamp |
+
+**Indexes:**
+- Primary key on `id`
+- Foreign key index on `eventId`
+- Index on `expiresAt` for cache cleanup queries
+- Index on `eventId, expiresAt` for cache lookup
+
+**Relationships:**
+- Many-to-One with Event (one event can have many weather data entries over time)
+
+**Business Rules:**
+- Weather data is cached with TTL (expiresAt) to reduce API calls
+- Cache TTL is 1 hour for current/forecast data, longer for historical data
+- Track temperature is calculated from air temperature using a formula
+- Forecast data is stored as JSON array
+- Historical flag distinguishes past events from current/future events
+- Deleted when parent Event is deleted (cascade delete)
+
+---
+
+### UserDriverLink
+
+Links users to drivers with matching status and similarity scores. Used for driver matching and user-driver association.
+
+**Table:** `user_driver_links`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique link identifier |
+| `userId` | String (UUID) | Foreign Key, Required | Reference to User |
+| `driverId` | String (UUID) | Foreign Key, Required, Unique | Reference to Driver (one-to-one relationship) |
+| `status` | UserDriverLinkStatus | Required | Link status (suggested, confirmed, rejected, conflict) |
+| `similarityScore` | Float | Required | Similarity score from matching algorithm |
+| `matchedAt` | DateTime | Required | When the match was created |
+| `confirmedAt` | DateTime | Optional | When the link was confirmed |
+| `rejectedAt` | DateTime | Optional | When the link was rejected |
+| `matcherId` | String | Required | Matcher algorithm identifier |
+| `matcherVersion` | String | Required | Matcher algorithm version |
+| `conflictReason` | String | Optional | Reason for conflict status |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `userId` + `driverId` must be unique (composite unique constraint)
+- `driverId` must be unique (one driver per user)
+- Status transitions: suggested → confirmed/rejected/conflict
+- Deleted when parent User or Driver is deleted (cascade delete)
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `[userId, driverId]`
+- Unique index on `driverId`
+- Index on `userId`
+- Index on `driverId`
+- Index on `status`
+
+**Relationships:**
+- Belongs to `User` (cascade delete)
+- Belongs to `Driver` (cascade delete, one-to-one)
+- Has many `EventDriverLink` records
+
+---
+
+### EventDriverLink
+
+Links users to drivers within specific events with match type and similarity information. Represents event-specific driver matches.
+
+**Table:** `event_driver_links`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique link identifier |
+| `userId` | String (UUID) | Foreign Key, Required | Reference to User |
+| `eventId` | String (UUID) | Foreign Key, Required | Reference to Event |
+| `driverId` | String (UUID) | Foreign Key, Required | Reference to Driver |
+| `userDriverLinkId` | String (UUID) | Foreign Key, Optional | Reference to UserDriverLink |
+| `matchType` | EventDriverLinkMatchType | Required | Match type (transponder, exact, fuzzy) |
+| `similarityScore` | Float | Required | Similarity score from matching algorithm |
+| `transponderNumber` | String | Optional | Transponder number used for matching |
+| `matchedAt` | DateTime | Required | When the match was created |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `userId` + `eventId` + `driverId` must be unique (composite unique constraint)
+- Links users to drivers within specific events
+- Can reference a UserDriverLink for user-level driver associations
+- Deleted when parent User, Event, or Driver is deleted (cascade delete)
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `[userId, eventId, driverId]`
+- Index on `[userId, driverId, transponderNumber]`
+- Index on `[eventId, driverId]`
+- Index on `userDriverLinkId`
+
+**Relationships:**
+- Belongs to `User` (cascade delete)
+- Belongs to `Event` (cascade delete)
+- Belongs to `Driver` (cascade delete)
+- Belongs to `UserDriverLink` (optional)
 
 ---
 
@@ -552,14 +810,63 @@ Controls the depth of data ingestion for events.
 
 **Values:**
 - `none` - Event metadata only (discovery/browsing, default for newly discovered events)
+- `summary_only` - Event summary data (not currently used in V1)
 - `laps_full` - Complete data including races, results, and all lap times
 
-**V1 Note**: In V1, "Import Event" always means `laps_full` ingestion. The `none` depth is used for event discovery, but users always get complete data when importing.
+**V1 Note**: In V1, "Import Event" always means `laps_full` ingestion. The `none` depth is used for event discovery, but users always get complete data when importing. The `summary_only` value exists in the enum but is not currently used.
 
 **Usage:**
 - Set via event ingestion API or admin CLI
 - Determines what data is ingested from LiveRC
 - Used for filtering events by ingestion status
+
+---
+
+### PersonaType
+
+Defines the types of personas available in the system.
+
+**Values:**
+- `driver` - Individual RC racer persona
+- `admin` - System administrator persona
+- `team_manager` - Team manager persona
+- `race_engineer` - AI-backed race engineer persona
+
+**Usage:**
+- Used in Persona model `type` field
+- Users are linked to personas via `User.personaId`
+- Personas are created via seed script
+
+---
+
+### UserDriverLinkStatus
+
+Status of user-driver link associations.
+
+**Values:**
+- `suggested` - Link suggested by matching algorithm (awaiting confirmation)
+- `confirmed` - Link confirmed by user
+- `rejected` - Link rejected by user
+- `conflict` - Link has conflicts (e.g., driver already linked to another user)
+
+**Usage:**
+- Used in UserDriverLink model `status` field
+- Status transitions: suggested → confirmed/rejected/conflict
+
+---
+
+### EventDriverLinkMatchType
+
+Type of matching algorithm used to create event-driver links.
+
+**Values:**
+- `transponder` - Matched via transponder number
+- `exact` - Exact name match
+- `fuzzy` - Fuzzy name matching algorithm
+
+**Usage:**
+- Used in EventDriverLink model `matchType` field
+- Indicates how the user-driver-event link was established
 
 ---
 
@@ -570,6 +877,10 @@ Controls the depth of data ingestion for events.
 **User:**
 - Primary key: `id`
 - Unique: `email`
+- Index on `normalizedName`
+- Index on `transponderNumber`
+- Index on `personaId`
+- Index on `[isTeamManager, teamName]`
 
 **Track:**
 - Primary key: `id`
@@ -633,6 +944,31 @@ Controls the depth of data ingestion for events.
 - Index: `[eventId, driverId]`
 - Index: `effectiveFromRaceId`
 
+**WeatherData:**
+- Primary key: `id`
+- Foreign key index on `eventId`
+- Index on `expiresAt`
+- Index on `[eventId, expiresAt]`
+
+**Persona:**
+- Primary key: `id`
+- Unique: `type`
+
+**UserDriverLink:**
+- Primary key: `id`
+- Unique: `[userId, driverId]`
+- Unique: `driverId`
+- Index: `userId`
+- Index: `driverId`
+- Index: `status`
+
+**EventDriverLink:**
+- Primary key: `id`
+- Unique: `[userId, eventId, driverId]`
+- Index: `[userId, driverId, transponderNumber]`
+- Index: `[eventId, driverId]`
+- Index: `userDriverLinkId`
+
 ---
 
 ## Relationships
@@ -687,6 +1023,34 @@ Controls the depth of data ingestion for events.
     - Foreign key: `TransponderOverride.effectiveFromRaceId`
     - Set null on delete: If race is deleted, override applies from first race
 
+13. **Persona → User** (One-to-Many)
+    - Foreign key: `User.personaId`
+    - Set null on delete: If persona is deleted, user's personaId is set to null
+
+14. **User → UserDriverLink** (One-to-Many)
+    - Foreign key: `UserDriverLink.userId`
+    - Cascade delete: UserDriverLinks deleted when User deleted
+
+15. **Driver → UserDriverLink** (One-to-One)
+    - Foreign key: `UserDriverLink.driverId`
+    - Cascade delete: UserDriverLink deleted when Driver deleted
+
+16. **User → EventDriverLink** (One-to-Many)
+    - Foreign key: `EventDriverLink.userId`
+    - Cascade delete: EventDriverLinks deleted when User deleted
+
+17. **Event → EventDriverLink** (One-to-Many)
+    - Foreign key: `EventDriverLink.eventId`
+    - Cascade delete: EventDriverLinks deleted when Event deleted
+
+18. **Driver → EventDriverLink** (One-to-Many)
+    - Foreign key: `EventDriverLink.driverId`
+    - Cascade delete: EventDriverLinks deleted when Driver deleted
+
+19. **UserDriverLink → EventDriverLink** (One-to-Many)
+    - Foreign key: `EventDriverLink.userDriverLinkId`
+    - Set null on delete: If UserDriverLink is deleted, EventDriverLink.userDriverLinkId is set to null
+
 ### Cascade Delete Behavior
 
 Most relationships use cascade delete to maintain referential integrity:
@@ -696,19 +1060,24 @@ Most relationships use cascade delete to maintain referential integrity:
 - Deleting a Race deletes all associated RaceDrivers and RaceResults
 - Deleting a RaceDriver deletes all associated RaceResults
 - Deleting a RaceResult deletes all associated Laps
-- Deleting an Event deletes all associated TransponderOverrides
-- Deleting a Driver deletes all associated TransponderOverrides
+- Deleting an Event deletes all associated TransponderOverrides and EventDriverLinks
+- Deleting a Driver deletes all associated TransponderOverrides, UserDriverLinks, and EventDriverLinks
+- Deleting a User deletes all associated EventDriverLinks and UserDriverLinks
 
 **Restrict Delete:**
 - RaceDrivers prevent Driver deletion (onDelete: Restrict) to maintain referential integrity
 
 **Cascade Delete:**
 - TransponderOverrides are deleted when Driver is deleted (onDelete: Cascade)
+- UserDriverLinks are deleted when User or Driver is deleted (onDelete: Cascade)
+- EventDriverLinks are deleted when User, Event, or Driver is deleted (onDelete: Cascade)
 
 **Set Null on Delete:**
 - If a Race is deleted, TransponderOverride.effectiveFromRaceId is set to null (override applies from first race)
+- If a Persona is deleted, User.personaId is set to null
+- If a UserDriverLink is deleted, EventDriverLink.userDriverLinkId is set to null
 
-**Note:** User records are standalone and have no cascade relationships.
+**Note:** User records cascade delete to UserDriverLinks and EventDriverLinks, but are not cascade deleted themselves.
 
 ---
 
@@ -720,6 +1089,12 @@ Most relationships use cascade delete to maintain referential integrity:
 - Created via registration API endpoint
 - Password is hashed using Argon2id before storage
 - `isAdmin` is explicitly set to `false` (security requirement)
+- Persona is auto-assigned based on user properties (driver links, isAdmin, isTeamManager)
+
+**Persona:**
+- Created via seed script
+- Four default personas: driver, admin, team_manager, race_engineer
+- Users are linked to personas via `User.personaId`
 
 **Track:**
 - Created via LiveRC catalogue ingestion
@@ -748,6 +1123,18 @@ Most relationships use cascade delete to maintain referential integrity:
 - Created via API endpoint (`POST /api/v1/transponder-overrides`)
 - Allows manual correction of transponder numbers when ingested data is incorrect
 - Can be effective from a specific race or from the first race (if `effectiveFromRaceId` is null)
+
+**UserDriverLink:**
+- Created via driver matching algorithms
+- Links users to drivers with similarity scores and status
+- One driver can be linked to one user (unique constraint on driverId)
+- Status can be: suggested, confirmed, rejected, or conflict
+
+**EventDriverLink:**
+- Created via event-specific driver matching
+- Links users to drivers within specific events
+- Can reference a UserDriverLink for user-level associations
+- Match types: transponder, exact, or fuzzy
 
 ### Updates
 

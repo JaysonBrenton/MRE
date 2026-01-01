@@ -95,6 +95,22 @@ export default function DriverPerformanceChart({
     )
   }, [driverLapTrends])
 
+  // Calculate Y scale domain from all lap times
+  const allLapTimes = useMemo(() => {
+    const times: number[] = []
+    driverLapTrends.forEach((trend) => {
+      trend.sessions.forEach((s) => {
+        if (s.bestLapTime !== null) {
+          times.push(s.bestLapTime)
+        }
+        if (s.avgLapTime !== null) {
+          times.push(s.avgLapTime)
+        }
+      })
+    })
+    return times
+  }, [driverLapTrends])
+
   if (driverLapTrends.length === 0 || allRaceLabels.length === 0) {
     return (
       <ChartContainer
@@ -111,22 +127,6 @@ export default function DriverPerformanceChart({
   }
 
   const margin = defaultMargin
-
-  // Calculate Y scale domain from all lap times
-  const allLapTimes = useMemo(() => {
-    const times: number[] = []
-    driverLapTrends.forEach((trend) => {
-      trend.sessions.forEach((s) => {
-        if (s.bestLapTime !== null) {
-          times.push(s.bestLapTime)
-        }
-        if (s.avgLapTime !== null) {
-          times.push(s.avgLapTime)
-        }
-      })
-    })
-    return times
-  }, [driverLapTrends])
 
   if (allLapTimes.length === 0) {
     return (
@@ -389,4 +389,3 @@ export default function DriverPerformanceChart({
     </ChartContainer>
   )
 }
-

@@ -3,7 +3,7 @@
 # 
 # @created 2025-01-27
 # @creator Jayson Brenton
-# @lastModified 2025-01-27
+# @lastModified 2025-01-28
 # 
 # @description Starts cron daemon and uvicorn API server
 # 
@@ -54,23 +54,43 @@ fi
 
 # Start uvicorn API server
 # If we're root, switch to ingestion user for security
-# Use multiple workers for concurrent request handling
-# Workers = (2 * CPU cores) + 1, but cap at reasonable number for memory
-# Default to 4 workers if UVICORN_WORKERS not set
+# Use --reload for development (hot reload), or --workers for production
+UVICORN_RELOAD=${UVICORN_RELOAD:-false}
 UVICORN_WORKERS=${UVICORN_WORKERS:-4}
-echo "Starting uvicorn API server with ${UVICORN_WORKERS} workers..."
-if [ "$IS_ROOT" = "true" ]; then
-    # Switch to ingestion user and start uvicorn
-    # Use 'su ingestion' (not 'su - ingestion') to preserve environment
-    # Ensure PYTHONPATH is set for the ingestion user
-    su ingestion -c "export PYTHONPATH=${PYTHONPATH:-/app} && cd /app && uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS}" &
-    uvicorn_pid=$!
+
+if [ "$UVICORN_RELOAD" = "true" ]; then
+    # Development mode: use --reload for hot reload (single worker only)
+    echo "Starting uvicorn API server with hot reload enabled..."
+    if [ "$IS_ROOT" = "true" ]; then
+        # Switch to ingestion user and start uvicorn with hot reload
+        # Use 'su ingestion' (not 'su - ingestion') to preserve environment
+        # Ensure PYTHONPATH is set for the ingestion user
+        su ingestion -c "export PYTHONPATH=${PYTHONPATH:-/app} && cd /app && uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 --reload" &
+        uvicorn_pid=$!
+    else
+        # Already running as ingestion user
+        cd /app
+        export PYTHONPATH=${PYTHONPATH:-/app}
+        uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 --reload &
+        uvicorn_pid=$!
+    fi
 else
-    # Already running as ingestion user
-    cd /app
-    export PYTHONPATH=${PYTHONPATH:-/app}
-    uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS} &
-    uvicorn_pid=$!
+    # Production mode: use multiple workers for concurrent request handling
+    # Workers = (2 * CPU cores) + 1, but cap at reasonable number for memory
+    echo "Starting uvicorn API server with ${UVICORN_WORKERS} workers..."
+    if [ "$IS_ROOT" = "true" ]; then
+        # Switch to ingestion user and start uvicorn
+        # Use 'su ingestion' (not 'su - ingestion') to preserve environment
+        # Ensure PYTHONPATH is set for the ingestion user
+        su ingestion -c "export PYTHONPATH=${PYTHONPATH:-/app} && cd /app && uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS}" &
+        uvicorn_pid=$!
+    else
+        # Already running as ingestion user
+        cd /app
+        export PYTHONPATH=${PYTHONPATH:-/app}
+        uvicorn ingestion.api.app:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS} &
+        uvicorn_pid=$!
+    fi
 fi
 
 # Wait for uvicorn to start

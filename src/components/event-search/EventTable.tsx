@@ -36,6 +36,8 @@ export interface EventTableProps {
   onEventSelect?: (event: Event, selected: boolean) => void
   isBulkImporting?: boolean
   onSelectAll?: () => void
+  driverInEvents?: Record<string, boolean> // Map of sourceEventId to boolean
+  eventImportProgress?: Record<string, { stage?: string; counts?: { races: number; results: number; laps: number } }> // Progress information per event
 }
 
 export default function EventTable({ 
@@ -49,6 +51,8 @@ export default function EventTable({
   onEventSelect,
   isBulkImporting = false,
   onSelectAll,
+  driverInEvents = {},
+  eventImportProgress = {},
 }: EventTableProps) {
   const [sortField, setSortField] = useState<SortField>("date")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
@@ -166,30 +170,38 @@ export default function EventTable({
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => handleSort("name")}
-          className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
-          aria-label={`Sort by event name ${sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
+        <div
+          className="text-left"
           aria-sort={sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
         >
-          Event Name
-          {sortField === "name" && (
-            <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleSort("date")}
-          className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
-          aria-label={`Sort by event date ${sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
+          <button
+            type="button"
+            onClick={() => handleSort("name")}
+            className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+            aria-label={`Sort by event name ${sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
+          >
+            Event Name
+            {sortField === "name" && (
+              <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
+            )}
+          </button>
+        </div>
+        <div
+          className="text-left"
           aria-sort={sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
         >
-          Event Date
-          {sortField === "date" && (
-            <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => handleSort("date")}
+            className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+            aria-label={`Sort by event date ${sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
+          >
+            Event Date
+            {sortField === "date" && (
+              <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
+            )}
+          </button>
+        </div>
         <div className="text-sm font-medium text-[var(--token-text-secondary)]">
           <span aria-label="Event status column">Status</span>
         </div>
@@ -199,6 +211,10 @@ export default function EventTable({
       <div className="divide-y divide-[var(--token-border-default)]">
         {sortedEvents.map((event) => {
           const isImportable = isEventImportable(event)
+          // Check driver participation: for LiveRC events use sourceEventId, for DB events use eventId
+          const containsDriver = event.id.startsWith("liverc-")
+            ? (event.sourceEventId ? driverInEvents[event.sourceEventId] === true : false)
+            : driverInEvents[event.id] === true
           return (
             <EventRow 
               key={event.id} 
@@ -209,6 +225,8 @@ export default function EventTable({
               isSelected={selectedEventIds.has(event.id)}
               onSelect={isImportable ? onEventSelect : undefined}
               isBulkImporting={isBulkImporting}
+              containsDriver={containsDriver}
+              importProgress={eventImportProgress[event.id]}
             />
           )
         })}

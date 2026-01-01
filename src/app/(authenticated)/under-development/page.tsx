@@ -18,13 +18,22 @@
  * - docs/design/mre-dark-theme-guidelines.md (theme guidelines)
  */
 
+import Breadcrumbs from "@/components/Breadcrumbs"
+
 export default function UnderDevelopmentPage() {
   return (
-    <section className="content-wrapper mx-auto w-full min-w-0 max-w-2xl text-center">
-      <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
-        We're still building this feature, the pit crew is working on it!
-      </h1>
+    <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl flex-shrink-0">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/welcome" },
+          { label: "Under Development" },
+        ]}
+      />
+      <div className="text-center">
+        <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
+          We&rsquo;re still building this feature, the pit crew is working on it!
+        </h1>
+      </div>
     </section>
   )
 }
-

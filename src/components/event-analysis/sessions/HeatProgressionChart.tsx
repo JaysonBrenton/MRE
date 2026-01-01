@@ -82,6 +82,16 @@ export default function HeatProgressionChart({
     return data
   }, [progressionData])
 
+  // Get unique classes and stages
+  const classes = useMemo(
+    () => Array.from(new Set(chartData.map((d) => d.className))).sort(),
+    [chartData]
+  )
+  const stages = useMemo(
+    () => Array.from(new Set(chartData.map((d) => d.stage))).sort(),
+    [chartData]
+  )
+
   if (chartData.length === 0) {
     return (
       <ChartContainer
@@ -98,16 +108,6 @@ export default function HeatProgressionChart({
   }
 
   const margin = defaultMargin
-
-  // Get unique classes and stages
-  const classes = useMemo(
-    () => Array.from(new Set(chartData.map((d) => d.className))).sort(),
-    [chartData]
-  )
-  const stages = useMemo(
-    () => Array.from(new Set(chartData.map((d) => d.stage))).sort(),
-    [chartData]
-  )
 
   const getStageColor = (stage: string): string => {
     if (stage === "qualifying") return qualifyingColor
@@ -322,4 +322,3 @@ export default function HeatProgressionChart({
     </ChartContainer>
   )
 }
-

@@ -492,7 +492,7 @@ export default function OverviewTab({
             Performance Visualization
           </h2>
           <p className="text-sm text-[var(--token-text-secondary)]">
-            Interactive chart showing selected drivers' performance metrics.
+            Interactive chart showing selected drivers&rsquo; performance metrics.
           </p>
         </div>
 

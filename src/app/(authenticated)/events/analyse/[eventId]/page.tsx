@@ -19,7 +19,6 @@
  * - src/lib/auth.ts (authentication check)
  */
 
-import { redirect } from "next/navigation"
 import Breadcrumbs from "@/components/Breadcrumbs"
 import EventAnalysisHeader from "@/components/event-analysis/EventAnalysisHeader"
 import { getEventAnalysisData } from "@/core/events/get-event-analysis-data"
@@ -56,7 +55,7 @@ export default async function EventAnalysisPage({ params }: EventAnalysisPagePro
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl">
       <Breadcrumbs
         items={[
-          { label: "Welcome", href: "/welcome" },
+          { label: "Home", href: "/welcome" },
           { label: "Event Search", href: "/event-search" },
           { label: analysisData.event.eventName },
         ]}

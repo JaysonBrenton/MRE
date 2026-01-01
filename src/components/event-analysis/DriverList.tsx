@@ -58,9 +58,6 @@ export default function DriverList({
   const [sortField, setSortField] = useState<SortField>("bestLapTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
 
-  // Stabilize drivers reference to prevent unnecessary re-sorts
-  const driversKey = useMemo(() => drivers.map(d => d.driverId).join(","), [drivers.length, drivers.map(d => d.driverId).join(",")])
-
   const sortedDrivers = useMemo(() => {
     const sorted = [...drivers].sort((a, b) => {
       let aValue: number | string | null
@@ -97,7 +94,7 @@ export default function DriverList({
     })
 
     return sorted
-  }, [driversKey, sortField, sortDirection, drivers])
+  }, [drivers, sortField, sortDirection])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {

@@ -1,0 +1,196 @@
+/**
+ * @fileoverview Get weather data for an event
+ * 
+ * @created 2025-01-27
+ * @creator Auto (AI Assistant)
+ * @lastModified 2025-01-27
+ * 
+ * @description Main business logic for retrieving weather data for an event
+ * 
+ * @purpose Orchestrates geocoding, API calls, caching, and error handling to provide
+ *          weather data for events. Handles cache hits/misses, TTL management, and
+ *          fallback to cached data when APIs are unavailable.
+ * 
+ * @relatedFiles
+ * - src/core/weather/repo.ts (database access)
+ * - src/core/weather/geocode-track.ts (geocoding)
+ * - src/core/weather/fetch-weather.ts (Open-Meteo API)
+ * - src/core/weather/calculate-track-temp.ts (track temperature calculation)
+ */
+
+import { geocodeTrack } from "./geocode-track"
+import { fetchWeather, type WeatherResponse } from "./fetch-weather"
+import { calculateTrackTemperature } from "./calculate-track-temp"
+import { getCachedWeather, getLastWeatherData, cacheWeatherData, type WeatherCacheData } from "./repo"
+import { getEventWithTrack } from "@/core/events/repo"
+
+export interface WeatherForEvent {
+  condition: string
+  wind: string // e.g., "12 km/h"
+  humidity: number
+  air: number // temperature in Celsius
+  track: number // calculated track temperature
+  precip: number // precipitation chance percentage
+  forecast: Array<{ label: string; detail: string }>
+  cachedAt?: string // ISO timestamp if showing cached data
+  isCached: boolean
+}
+
+// TTL constants
+const CURRENT_WEATHER_TTL_HOURS = 1 // 1 hour for current/forecast
+const HISTORICAL_WEATHER_TTL_HOURS = 24 * 7 // 7 days for historical (since it won't change)
+
+/**
+ * Gets weather data for an event
+ * 
+ * This function:
+ * 1. Checks for valid cached data (not expired)
+ * 2. If cache miss or expired:
+ *    - Gets event and track information
+ *    - Geocodes track name to get coordinates
+ *    - Fetches weather from Open-Meteo API (historical or forecast)
+ *    - Calculates track temperature
+ *    - Caches the data with appropriate TTL
+ * 3. Returns weather data (from cache or fresh)
+ * 
+ * If API calls fail, attempts to return last cached data (even if expired).
+ * 
+ * @param eventId - The event ID to get weather for
+ * @returns Weather data for the event
+ * @throws Error if event not found, or if no cache available and API fails
+ */
+export async function getWeatherForEvent(eventId: string): Promise<WeatherForEvent> {
+  // Check for valid cached data
+  const cached = await getCachedWeather(eventId)
+  if (cached) {
+    return formatWeatherResponse(cached, true)
+  }
+
+  // Cache miss or expired - need to fetch fresh data
+  try {
+    // Get event with track information
+    const event = await getEventWithTrack(eventId)
+
+    if (!event) {
+      throw new Error(`Event not found: ${eventId}`)
+    }
+
+    if (!event.track) {
+      throw new Error(`Event track not found for event: ${eventId}`)
+    }
+
+    // Geocode track name to get coordinates
+    const geocodeResult = await geocodeTrack(event.track.trackName)
+
+    // Fetch weather from API
+    const weatherResponse = await fetchWeather(
+      geocodeResult.latitude,
+      geocodeResult.longitude,
+      event.eventDate
+    )
+
+    // Calculate track temperature
+    const hourOfDay = event.eventDate.getHours()
+    const trackTemperature = calculateTrackTemperature(
+      weatherResponse.current.airTemperature,
+      hourOfDay
+    )
+
+    // Determine TTL based on whether this is historical
+    const now = new Date()
+    const isHistorical = event.eventDate < now
+    const ttlHours = isHistorical ? HISTORICAL_WEATHER_TTL_HOURS : CURRENT_WEATHER_TTL_HOURS
+    const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000)
+
+    // Cache the data
+    const cacheData: WeatherCacheData = {
+      latitude: geocodeResult.latitude,
+      longitude: geocodeResult.longitude,
+      timestamp: weatherResponse.current.timestamp,
+      airTemperature: weatherResponse.current.airTemperature,
+      humidity: weatherResponse.current.humidity,
+      windSpeed: weatherResponse.current.windSpeed,
+      windDirection: weatherResponse.current.windDirection,
+      precipitation: weatherResponse.current.precipitation,
+      condition: weatherResponse.current.condition,
+      trackTemperature,
+      forecast: weatherResponse.forecast,
+      isHistorical,
+      expiresAt,
+    }
+
+    await cacheWeatherData(eventId, cacheData)
+
+    // Format and return the response
+    const result: WeatherForEvent = {
+      condition: weatherResponse.current.condition,
+      wind: formatWindSpeed(weatherResponse.current.windSpeed, weatherResponse.current.windDirection),
+      humidity: weatherResponse.current.humidity,
+      air: weatherResponse.current.airTemperature,
+      track: trackTemperature,
+      precip: weatherResponse.current.precipitation,
+      forecast: weatherResponse.forecast,
+      isCached: false,
+    }
+
+    return result
+  } catch (error) {
+    // If API calls fail, try to return last cached data (even if expired)
+    const lastCached = await getLastWeatherData(eventId)
+    if (lastCached) {
+      return formatWeatherResponse(lastCached, true)
+    }
+
+    // No cache available and API failed
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error("Failed to fetch weather data and no cache available")
+  }
+}
+
+/**
+ * Formats cached weather data into the response format
+ */
+function formatWeatherResponse(weatherData: { 
+  condition: string
+  humidity: number
+  airTemperature: number
+  windSpeed: number
+  windDirection: number | null
+  trackTemperature: number
+  precipitation: number
+  forecast: unknown
+  cachedAt: Date
+}): WeatherForEvent {
+  const forecast = Array.isArray(weatherData.forecast) 
+    ? weatherData.forecast as Array<{ label: string; detail: string }>
+    : []
+
+  return {
+    condition: weatherData.condition,
+    wind: formatWindSpeed(weatherData.windSpeed, weatherData.windDirection),
+    humidity: weatherData.humidity,
+    air: weatherData.airTemperature,
+    track: weatherData.trackTemperature,
+    precip: weatherData.precipitation,
+    forecast,
+    cachedAt: weatherData.cachedAt.toISOString(),
+    isCached: true,
+  }
+}
+
+/**
+ * Formats wind speed and direction into a human-readable string
+ */
+function formatWindSpeed(speedKmh: number, direction: number | null): string {
+  const speedRounded = Math.round(speedKmh)
+  if (direction !== null) {
+    // Convert degrees to cardinal direction (simplified)
+    const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    const index = Math.round(direction / 45) % 8
+    return `${speedRounded} km/h ${directions[index]}`
+  }
+  return `${speedRounded} km/h`
+}
+

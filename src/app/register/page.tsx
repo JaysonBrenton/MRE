@@ -198,7 +198,7 @@ export default function RegisterPage() {
         if (session?.user?.isAdmin) {
           router.push("/admin")
         } else {
-          router.push("/welcome")
+          router.push("/dashboard")
         }
         router.refresh()
       } catch (signInError) {

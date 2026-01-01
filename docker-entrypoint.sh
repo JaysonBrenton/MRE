@@ -9,12 +9,32 @@
 
 set -e
 
-echo "🔍 Checking if node_modules exists and contains packages..."
+echo "🔍 Checking if node_modules exists and is up to date..."
 
-# Check if node_modules exists and has required packages (check multiple critical packages)
-# Check for @visx/group and react-window to ensure all dependencies are installed
-if [ ! -d "node_modules" ] || [ ! -d "node_modules/@visx/group" ] || [ ! -d "node_modules/react-window" ]; then
-  echo "📦 node_modules missing or incomplete. Installing dependencies..."
+# Determine if we need to install dependencies
+NEED_INSTALL=false
+
+# Check if node_modules directory exists
+if [ ! -d "node_modules" ]; then
+  echo "📦 node_modules directory not found"
+  NEED_INSTALL=true
+else
+  # Check if package.json or package-lock.json is newer than node_modules
+  # This catches cases where dependencies were added/updated
+  if [ "package.json" -nt "node_modules" ] || [ "package-lock.json" -nt "node_modules" ]; then
+    echo "📦 package.json or package-lock.json is newer than node_modules"
+    NEED_INSTALL=true
+  else
+    # Verify critical packages exist (safety check for incomplete installations)
+    if [ ! -d "node_modules/@visx/group" ] || [ ! -d "node_modules/react-window" ]; then
+      echo "📦 Critical packages missing from node_modules"
+      NEED_INSTALL=true
+    fi
+  fi
+fi
+
+if [ "$NEED_INSTALL" = true ]; then
+  echo "📦 Installing dependencies..."
   
   # Ensure Prisma schema exists (needed for postinstall script)
   if [ ! -f "prisma/schema.prisma" ]; then
@@ -24,7 +44,7 @@ if [ ! -d "node_modules" ] || [ ! -d "node_modules/@visx/group" ] || [ ! -d "nod
   npm install --legacy-peer-deps
   echo "✅ Dependencies installed successfully"
 else
-  echo "✅ node_modules already exists with required packages"
+  echo "✅ node_modules is up to date"
 fi
 
 # Execute the main command (npm run dev)

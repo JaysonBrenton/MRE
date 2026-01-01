@@ -18,7 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
-import { getPersonaByType, getUserPersona } from "./repo"
+import { getPersonaByType } from "./repo"
 import type { PersonaType, User } from "@prisma/client"
 import { logger } from "@/lib/logger"
 
@@ -154,4 +154,3 @@ export async function autoAssignPersona(userId: string): Promise<void> {
       logger.warn("No auto-assignment for persona type", { userId, personaType })
   }
 }
-

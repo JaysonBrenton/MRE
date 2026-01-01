@@ -5,7 +5,6 @@
  */
 
 import { PrismaClient } from "@prisma/client"
-import { findUserById } from "../src/core/users/repo"
 import { fuzzyMatchUserToDriver } from "../src/core/users/driver-matcher"
 
 const prisma = new PrismaClient()
@@ -189,4 +188,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-

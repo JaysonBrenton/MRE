@@ -156,7 +156,7 @@ docker compose ps
 
 You should see:
 - `mre-app` - Next.js application (port 3001)
-- `mre-ingestion-service` - Python ingestion service (port 8000)
+- `mre-liverc-ingestion-service` - Python ingestion service (port 8000)
 
 ### View Logs
 
@@ -170,7 +170,7 @@ docker compose logs -f
 docker logs -f mre-app
 
 # Ingestion service only
-docker logs -f mre-ingestion-service
+docker logs -f mre-liverc-ingestion-service
 ```
 
 ### Access the Application
@@ -303,7 +303,7 @@ Run ingestion service tests (Docker - Recommended):
 
 ```bash
 # Enter ingestion container
-docker exec -it mre-ingestion-service sh
+docker exec -it mre-liverc-ingestion-service sh
 
 # Run tests
 pytest
@@ -319,10 +319,10 @@ Or run tests directly without entering the container:
 
 ```bash
 # Run tests in container
-docker exec -it mre-ingestion-service pytest
+docker exec -it mre-liverc-ingestion-service pytest
 
 # Run with coverage
-docker exec -it mre-ingestion-service pytest --cov=ingestion
+docker exec -it mre-liverc-ingestion-service pytest --cov=ingestion
 ```
 
 **Note:** Local Python setup is optional. Docker execution is recommended for consistency.
@@ -365,7 +365,7 @@ docker compose up -d --build
 
 # Execute command in container
 docker exec -it mre-app sh
-docker exec -it mre-ingestion-service sh
+docker exec -it mre-liverc-ingestion-service sh
 
 # View container resource usage
 docker stats
@@ -452,28 +452,28 @@ docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' s
 
 ```bash
 # Ensure ingestion service is running
-docker compose up -d ingestion-service
+docker compose up -d liverc-ingestion-service
 
 # List all tracks
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 
 # Refresh tracks from LiveRC
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
 
 # List events for a track
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <UUID>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <UUID>
 
 # Refresh events for a track
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <UUID>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <UUID>
 
 # Ingest an event
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <UUID>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <UUID>
 
 # Check system status
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc status
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
 
 # Verify data integrity
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
 ```
 
 **Why use Docker?**
@@ -488,7 +488,7 @@ See `docs/operations/liverc-operations-guide.md` for complete CLI documentation.
 
 ```bash
 # View ingestion service logs
-docker logs -f mre-ingestion-service
+docker logs -f mre-liverc-ingestion-service
 
 # Check ingestion service health
 curl http://localhost:8000/health
@@ -608,12 +608,12 @@ docker exec -it mre-app npx prisma generate
 **Solutions:**
 1. Verify ingestion service is running:
    ```bash
-   docker ps | grep ingestion-service
+   docker ps | grep liverc-ingestion-service
    ```
 
 2. Check ingestion service logs:
    ```bash
-   docker logs mre-ingestion-service
+   docker logs mre-liverc-ingestion-service
    ```
 
 3. Test ingestion service health:

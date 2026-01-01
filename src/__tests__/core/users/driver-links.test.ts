@@ -13,6 +13,55 @@ import { getUserDriverLinks, getUserLinkedDrivers, getUserLinkedEvents } from "@
 import { prisma } from "@/lib/prisma"
 import type { Prisma, UserDriverLinkStatus, EventDriverLinkMatchType } from "@prisma/client"
 
+type UserDriverLinkResult = Prisma.UserDriverLinkGetPayload<{
+  include: { driver: true; events: { select: { id: true; matchType: true } } }
+}>
+
+type EventDriverLinkResult = Prisma.EventDriverLinkGetPayload<{
+  select: { eventId: true }
+}>
+
+const timestamp = new Date()
+
+function buildLink(overrides: Partial<UserDriverLinkResult>): UserDriverLinkResult {
+  return {
+    id: "link-base",
+    userId: "user-1",
+    driverId: "driver-base",
+    driver: {
+      id: "driver-base",
+      source: "liverc",
+      sourceDriverId: "liverc-driver-base",
+      displayName: "Driver Base",
+      normalizedName: null,
+      transponderNumber: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    status: STATUS.SUGGESTED,
+    similarityScore: 0.8,
+    matchedAt: timestamp,
+    confirmedAt: null,
+    rejectedAt: null,
+    conflictReason: null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    events: [],
+    ...overrides,
+    driver: overrides.driver ?? {
+      id: "driver-base",
+      source: "liverc",
+      sourceDriverId: "liverc-driver-base",
+      displayName: "Driver Base",
+      normalizedName: null,
+      transponderNumber: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    events: overrides.events ?? [],
+  }
+}
+
 const STATUS: Record<
   "CONFIRMED" | "SUGGESTED" | "CONFLICT",
   UserDriverLinkStatus
@@ -46,8 +95,8 @@ describe("getUserDriverLinks", () => {
   })
 
   it("should retrieve and format user driver links", async () => {
-    const mockLinks = [
-      {
+    const mockLinks: UserDriverLinkResult[] = [
+      buildLink({
         id: "link-1",
         driverId: "driver-1",
         driver: {
@@ -57,23 +106,21 @@ describe("getUserDriverLinks", () => {
           displayName: "Jayson Brenton",
           normalizedName: null,
           transponderNumber: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: timestamp,
+          updatedAt: timestamp,
         },
         status: STATUS.CONFIRMED,
         similarityScore: 0.95,
         matchedAt: new Date("2025-01-01"),
         confirmedAt: new Date("2025-01-01"),
-        rejectedAt: null,
-        conflictReason: null,
         events: [
           {
             id: "event-link-1",
             matchType: MATCH_TYPE.EXACT,
           },
         ],
-      },
-      {
+      }),
+      buildLink({
         id: "link-2",
         driverId: "driver-2",
         driver: {
@@ -83,29 +130,22 @@ describe("getUserDriverLinks", () => {
           displayName: "John Doe",
           normalizedName: null,
           transponderNumber: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: timestamp,
+          updatedAt: timestamp,
         },
         status: STATUS.SUGGESTED,
         similarityScore: 0.87,
         matchedAt: new Date("2025-01-02"),
-        confirmedAt: null,
-        rejectedAt: null,
-        conflictReason: null,
         events: [
           {
             id: "event-link-2",
             matchType: MATCH_TYPE.FUZZY,
           },
         ],
-      },
+      }),
     ]
 
-    vi.mocked(prisma.userDriverLink.findMany).mockResolvedValue(
-      mockLinks as unknown as Prisma.UserDriverLinkGetPayload<{
-        include: { driver: true; events: { select: { id: true; matchType: true } } }
-      }>[]
-    )
+    vi.mocked(prisma.userDriverLink.findMany).mockResolvedValue(mockLinks as never)
 
     const result = await getUserDriverLinks("user-1")
 
@@ -129,35 +169,18 @@ describe("getUserDriverLinks", () => {
   })
 
   it("should handle links with no events", async () => {
-    const mockLinks = [
-      {
+    const mockLinks: UserDriverLinkResult[] = [
+      buildLink({
         id: "link-1",
         driverId: "driver-1",
-        driver: {
-          id: "driver-1",
-          source: "liverc",
-          sourceDriverId: "liverc-driver-1",
-          displayName: "Jayson Brenton",
-          normalizedName: null,
-          transponderNumber: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
         status: STATUS.SUGGESTED,
         similarityScore: 0.85,
         matchedAt: new Date("2025-01-01"),
-        confirmedAt: null,
-        rejectedAt: null,
-        conflictReason: null,
         events: [],
-      },
+      }),
     ]
 
-    vi.mocked(prisma.userDriverLink.findMany).mockResolvedValue(
-      mockLinks as unknown as Prisma.UserDriverLinkGetPayload<{
-        include: { driver: true; events: { select: { id: true; matchType: true } } }
-      }>[]
-    )
+    vi.mocked(prisma.userDriverLink.findMany).mockResolvedValue(mockLinks as never)
 
     const result = await getUserDriverLinks("user-1")
 
@@ -169,24 +192,13 @@ describe("getUserDriverLinks", () => {
   })
 
   it("should handle conflict reasons", async () => {
-    const mockLinks = [
-      {
+    const mockLinks: UserDriverLinkResult[] = [
+      buildLink({
         id: "link-1",
         driverId: "driver-1",
-        driver: {
-          id: "driver-1",
-          source: "liverc",
-          sourceDriverId: "liverc-driver-1",
-          displayName: "Jayson Brenton",
-          normalizedName: null,
-          transponderNumber: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
         status: STATUS.CONFLICT,
         similarityScore: 0.5,
         matchedAt: new Date("2025-01-01"),
-        confirmedAt: null,
         rejectedAt: new Date("2025-01-01"),
         conflictReason: "Transponder match but low name compatibility",
         events: [
@@ -195,14 +207,10 @@ describe("getUserDriverLinks", () => {
             matchType: MATCH_TYPE.TRANSPONDER,
           },
         ],
-      },
+      }),
     ]
 
-    vi.mocked(prisma.userDriverLink.findMany).mockResolvedValue(
-      mockLinks as unknown as Prisma.UserDriverLinkGetPayload<{
-        include: { driver: true; events: { select: { id: true; matchType: true } } }
-      }>[]
-    )
+    vi.mocked(prisma.userDriverLink.findMany).mockResolvedValue(mockLinks as never)
 
     const result = await getUserDriverLinks("user-1")
 
@@ -216,8 +224,8 @@ describe("getUserLinkedDrivers", () => {
   })
 
   it("should retrieve only confirmed and suggested drivers", async () => {
-    const mockLinks = [
-      {
+    const mockLinks: UserDriverLinkResult[] = [
+      buildLink({
         driverId: "driver-1",
         driver: {
           id: "driver-1",
@@ -226,18 +234,16 @@ describe("getUserLinkedDrivers", () => {
           displayName: "Jayson Brenton",
           normalizedName: null,
           transponderNumber: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: timestamp,
+          updatedAt: timestamp,
         },
         status: STATUS.CONFIRMED,
         similarityScore: 0.95,
         matchedAt: new Date("2025-01-01"),
         confirmedAt: new Date("2025-01-01"),
-        rejectedAt: null,
-        conflictReason: null,
         events: [],
-      },
-      {
+      }),
+      buildLink({
         driverId: "driver-2",
         driver: {
           id: "driver-2",
@@ -246,24 +252,17 @@ describe("getUserLinkedDrivers", () => {
           displayName: "John Doe",
           normalizedName: null,
           transponderNumber: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: timestamp,
+          updatedAt: timestamp,
         },
         status: STATUS.SUGGESTED,
         similarityScore: 0.87,
         matchedAt: new Date("2025-01-02"),
-        confirmedAt: null,
-        rejectedAt: null,
-        conflictReason: null,
         events: [],
-      },
+      }),
     ]
 
-    vi.mocked(prisma.userDriverLink.findMany).mockResolvedValue(
-      mockLinks as unknown as Prisma.UserDriverLinkGetPayload<{
-        include: { driver: true; events: { select: { id: true; matchType: true } } }
-      }>[]
-    )
+    vi.mocked(prisma.userDriverLink.findMany).mockResolvedValue(mockLinks as never)
 
     const result = await getUserLinkedDrivers("user-1")
 
@@ -288,18 +287,12 @@ describe("getUserLinkedEvents", () => {
   })
 
   it("should retrieve events for linked drivers", async () => {
-    const mockEventLinks: Array<{ eventId: string }> = [
-      {
-        eventId: "event-1",
-      },
-      {
-        eventId: "event-2",
-      },
+    const mockEventLinks: EventDriverLinkResult[] = [
+      { eventId: "event-1" },
+      { eventId: "event-2" },
     ]
 
-    vi.mocked(prisma.eventDriverLink.findMany).mockResolvedValue(
-      mockEventLinks as any
-    )
+    vi.mocked(prisma.eventDriverLink.findMany).mockResolvedValue(mockEventLinks as never)
 
     const result = await getUserLinkedEvents("user-1")
 

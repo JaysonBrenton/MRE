@@ -16,6 +16,38 @@ import { getRaceWithResults } from "@/core/races/repo"
 import { getTranspondersForRaceBatch } from "@/core/drivers/repo"
 import { prisma } from "@/lib/prisma"
 
+interface MockRaceResult {
+  id: string
+  raceDriverId: string
+  positionFinal: number
+  lapsCompleted?: number
+  totalTimeSeconds?: number
+  fastLapTime?: number
+  avgLapTime?: number
+  consistency?: number
+  raceDriver: {
+    id: string
+    driverId: string
+    displayName: string
+    driver: {
+      id: string
+      displayName: string
+    }
+  }
+}
+
+interface MockRace {
+  id: string
+  eventId: string
+  className: string
+  raceOrder: number
+  event: {
+    id: string
+    eventName: string
+  }
+  results: MockRaceResult[]
+}
+
 // Mock Prisma client
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -41,7 +73,7 @@ describe("getRaceWithResults - Query Count Regression", () => {
     const className = "Mod"
 
     // Create 60 mock results
-    const mockResults = Array.from({ length: 60 }, (_, i) => ({
+    const mockResults: MockRaceResult[] = Array.from({ length: 60 }, (_, i) => ({
       id: `result-${i}`,
       raceDriverId: `race-driver-${i}`,
       positionFinal: i + 1,
@@ -62,7 +94,7 @@ describe("getRaceWithResults - Query Count Regression", () => {
     }))
 
     // Mock race query
-    vi.mocked(prisma.race.findUnique).mockResolvedValue({
+    const mockRace: MockRace = {
       id: raceId,
       eventId,
       className,
@@ -72,10 +104,11 @@ describe("getRaceWithResults - Query Count Regression", () => {
         eventName: "Test Event",
       },
       results: mockResults,
-    } as any)
+    }
+    vi.mocked(prisma.race.findUnique).mockResolvedValue(mockRace as never)
 
     // Mock batch transponder lookup
-    const transponderMap = new Map()
+    const transponderMap = new Map<string, { transponderNumber: string; source: 'entry_list' }>()
     mockResults.forEach((result) => {
       transponderMap.set(result.raceDriver.driverId, {
         transponderNumber: `T${result.raceDriver.driverId}`,
@@ -108,7 +141,7 @@ describe("getRaceWithResults - Query Count Regression", () => {
     const raceId = "race-123"
     const eventId = "event-123"
 
-    vi.mocked(prisma.race.findUnique).mockResolvedValue({
+    const mockRace: MockRace = {
       id: raceId,
       eventId,
       className: "Mod",
@@ -133,9 +166,10 @@ describe("getRaceWithResults - Query Count Regression", () => {
           },
         },
       ],
-    } as any)
+    }
+    vi.mocked(prisma.race.findUnique).mockResolvedValue(mockRace as never)
 
-    const transponderMap = new Map([
+    const transponderMap = new Map<string, { transponderNumber: string; source: 'entry_list' }>([
       [
         "driver-1",
         {
@@ -154,4 +188,3 @@ describe("getRaceWithResults - Query Count Regression", () => {
     // by checking that we only call the batch version
   })
 })
-

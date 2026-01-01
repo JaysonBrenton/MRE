@@ -21,6 +21,7 @@
 import argon2 from "argon2"
 import { findUserByEmail } from "../users/repo"
 import { normalizeEmail } from "../common/email"
+import { logger } from "@/lib/logger"
 
 /**
  * Login input type
@@ -100,6 +101,11 @@ export async function authenticateUser(input: LoginInput): Promise<LoginResult> 
   // Find user by email
   const user = await findUserByEmail(normalizedEmail)
   if (!user) {
+    // Log for debugging (email is already normalized, safe to log)
+    logger.debug("User not found during login", {
+      normalizedEmail,
+      originalEmail: input.email
+    })
     // Return generic error to prevent user enumeration
     return {
       success: false,
@@ -111,8 +117,33 @@ export async function authenticateUser(input: LoginInput): Promise<LoginResult> 
   }
 
   // Verify password using Argon2id (required by mobile-safe architecture guidelines)
-  const isPasswordValid = await argon2.verify(user.passwordHash, input.password)
+  let isPasswordValid = false
+  try {
+    isPasswordValid = await argon2.verify(user.passwordHash, input.password)
+  } catch (error) {
+    logger.error("Error verifying password", {
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      } : String(error),
+      userId: user.id,
+      email: normalizedEmail
+    })
+    return {
+      success: false,
+      error: {
+        code: "INVALID_CREDENTIALS",
+        message: "Invalid email or password"
+      }
+    }
+  }
+
   if (!isPasswordValid) {
+    logger.debug("Password verification failed", {
+      userId: user.id,
+      email: normalizedEmail
+    })
     return {
       success: false,
       error: {

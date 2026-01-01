@@ -31,7 +31,7 @@ services:
       TZ: ${TZ:-Australia/Sydney}
       APP_URL: ${APP_URL:-http://localhost:3001}
       # Ingestion service URL (internal Docker network)
-      INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://ingestion-service:8000}
+      INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://liverc-ingestion-service:8000}
       # AUTH_SECRET is loaded from .env.docker via env_file directive
       # REQUIRED: Must be at least 32 characters. Generate with: openssl rand -base64 32
       # The application validates AUTH_SECRET at build time and will fail if invalid
@@ -56,12 +56,12 @@ services:
       start_period: 40s
 
   # Python ingestion service
-  ingestion-service:
+  liverc-ingestion-service:
     build:
       context: ./ingestion
       dockerfile: Dockerfile
       target: ${INGESTION_BUILD_TARGET:-development}
-    container_name: mre-ingestion-service
+    container_name: mre-liverc-ingestion-service
     env_file:
       - .env.docker
     environment:
@@ -71,7 +71,11 @@ services:
       PYTHONUNBUFFERED: 1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       TZ: ${TZ:-Australia/Sydney}
-      # Uvicorn workers for concurrent request handling
+      # Hot reload for development (set to "true" to enable, "false" or unset for production with workers)
+      # When enabled, uses single worker with --reload flag for automatic code reloading
+      # When disabled, uses multiple workers for concurrent request handling
+      UVICORN_RELOAD: ${UVICORN_RELOAD:-true}
+      # Uvicorn workers (only used when UVICORN_RELOAD is false)
       # Default: 4 workers (handles ~4 concurrent long-running ingestions)
       # Increase for higher concurrency (each worker uses ~100-200MB memory)
       UVICORN_WORKERS: ${UVICORN_WORKERS:-4}

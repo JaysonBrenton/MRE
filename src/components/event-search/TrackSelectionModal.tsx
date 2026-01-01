@@ -148,13 +148,15 @@ export default function TrackSelectionModal({
     >
       <div
         ref={modalRef}
-        className="w-full max-w-2xl max-h-[600px] bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col"
+        className="max-h-[600px] bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col"
         onClick={(e) => e.stopPropagation()}
         style={{ 
-          minWidth: 0,
           width: '100%',
           maxWidth: '42rem',
-          boxSizing: 'border-box'
+          minWidth: '20rem',
+          boxSizing: 'border-box',
+          flexShrink: 0,
+          flexGrow: 0
         }}
       >
         {/* Header */}

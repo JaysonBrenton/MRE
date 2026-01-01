@@ -100,7 +100,12 @@ export async function POST(request: NextRequest) {
       if (error.code === "INGESTION_IN_PROGRESS") {
         requestLogger.info("Ingestion already running for source event", logMeta)
       } else {
-        requestLogger.error("Ingestion service error", logMeta)
+        requestLogger.error("Ingestion service error", {
+          ...logMeta,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          stack: error.stack,
+        })
       }
 
       return errorResponse(
@@ -168,7 +173,19 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Handle other errors
+    // Handle other errors - log full error details for debugging
+    requestLogger.error("Unexpected error during event ingestion", {
+      error: error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : String(error),
+      sourceEventId: source_event_id,
+      trackId: track_id,
+    })
+    
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(
       errorInfo.code,

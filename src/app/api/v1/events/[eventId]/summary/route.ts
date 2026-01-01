@@ -48,7 +48,8 @@ export async function GET(
 
   try {
     const { eventId } = await params
-    const summaryData = await getEventSummary(eventId)
+    const userId = session.user.id
+    const summaryData = await getEventSummary(eventId, userId)
 
     if (!summaryData) {
       requestLogger.warn("Event not found", { eventId })
@@ -65,6 +66,10 @@ export async function GET(
       totalRaces: summaryData.summary.totalRaces,
       totalDrivers: summaryData.summary.totalDrivers,
       totalLaps: summaryData.summary.totalLaps,
+      topDriversCount: summaryData.topDrivers?.length ?? 0,
+      mostConsistentCount: summaryData.mostConsistentDrivers?.length ?? 0,
+      bestAvgLapCount: summaryData.bestAvgLapDrivers?.length ?? 0,
+      hasUserBestLap: !!summaryData.userBestLap,
     })
 
     return successResponse({
@@ -83,6 +88,12 @@ export async function GET(
           latest: summaryData.summary.dateRange.latest?.toISOString() || null,
         },
       },
+      topDrivers: summaryData.topDrivers,
+      mostConsistentDrivers: summaryData.mostConsistentDrivers,
+      bestAvgLapDrivers: summaryData.bestAvgLapDrivers,
+      userBestLap: summaryData.userBestLap,
+      userBestConsistency: summaryData.userBestConsistency,
+      userBestAvgLap: summaryData.userBestAvgLap,
     })
   } catch (error) {
     const errorInfo = handleApiError(error, request, requestId)

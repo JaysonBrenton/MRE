@@ -49,7 +49,7 @@ This guide provides comprehensive documentation for understanding and working wi
 The MRE application runs as a containerized microservices architecture using Docker Compose. The environment consists of:
 
 - **Next.js Application** (`mre-app`) - Main web application and API server
-- **Python Ingestion Service** (`mre-ingestion-service`) - LiveRC data ingestion microservice
+- **Python Ingestion Service** (`mre-liverc-ingestion-service`) - LiveRC data ingestion microservice
 - **PostgreSQL Database** (`mre-postgres`) - External database container (managed separately)
 
 ### Goals
@@ -96,7 +96,7 @@ The Docker setup provides:
 | Service | Container Name | Port | Technology | Purpose |
 |---------|---------------|------|------------|---------|
 | Next.js App | `mre-app` | 3001 | Node.js 20, Next.js | Web application and API server |
-| Ingestion Service | `mre-ingestion-service` | 8000 | Python 3.11, FastAPI | LiveRC data ingestion |
+| Ingestion Service | `mre-liverc-ingestion-service` | 8000 | Python 3.11, FastAPI | LiveRC data ingestion |
 | Database | `mre-postgres` | 5432 | PostgreSQL 16 | Data persistence |
 
 ### Network Architecture
@@ -230,7 +230,7 @@ docker compose ps
 
 You should see:
 - `mre-app` - Status: Up, Ports: 0.0.0.0:3001->3001/tcp
-- `mre-ingestion-service` - Status: Up, Ports: 0.0.0.0:8000->8000/tcp
+- `mre-liverc-ingestion-service` - Status: Up, Ports: 0.0.0.0:8000->8000/tcp
 
 ### Step 8: Run Database Migrations
 
@@ -278,7 +278,7 @@ docker compose up -d
 
 # Start specific service
 docker compose up -d app
-docker compose up -d ingestion-service
+docker compose up -d liverc-ingestion-service
 ```
 
 ### Stopping Services
@@ -302,7 +302,7 @@ docker compose logs -f
 
 # Specific service
 docker logs -f mre-app
-docker logs -f mre-ingestion-service
+docker logs -f mre-liverc-ingestion-service
 
 # Last 100 lines
 docker logs --tail 100 mre-app
@@ -318,7 +318,7 @@ docker logs -f --timestamps mre-app
 docker exec -it mre-app sh
 
 # Enter ingestion service container shell
-docker exec -it mre-ingestion-service sh
+docker exec -it mre-liverc-ingestion-service sh
 
 # Run command in container
 docker exec -it mre-app npx prisma studio
@@ -333,7 +333,7 @@ docker compose restart
 
 # Restart specific service
 docker compose restart app
-docker compose restart ingestion-service
+docker compose restart liverc-ingestion-service
 ```
 
 ### Rebuilding Services
@@ -344,7 +344,7 @@ docker compose build
 
 # Rebuild specific service
 docker compose build app
-docker compose build ingestion-service
+docker compose build liverc-ingestion-service
 
 # Rebuild without cache (clean build)
 docker compose build --no-cache
@@ -411,35 +411,35 @@ docker exec -it mre-app npx prisma studio
 - **No virtual environment management** - Avoids Python version conflicts
 
 **Prerequisites:**
-- Ensure ingestion service is running: `docker compose up -d ingestion-service`
+- Ensure ingestion service is running: `docker compose up -d liverc-ingestion-service`
 
 **Basic CLI Commands:**
 ```bash
 # List all tracks
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 
 # Refresh tracks from LiveRC
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
 
 # List events for a track
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <UUID>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <UUID>
 
 # Refresh events for a track
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <UUID>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <UUID>
 
 # Ingest an event
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <UUID>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <UUID>
 
 # Check system status
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc status
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
 
 # Verify data integrity
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
 ```
 
 **Command Format:**
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc <command> [options]
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc <command> [options]
 ```
 
 The `-it` flags enable interactive terminal mode with proper output formatting.
@@ -452,7 +452,7 @@ See `docs/operations/liverc-operations-guide.md` for complete CLI command refere
 **Python Ingestion Service:**
 ```bash
 # Enter container
-docker exec -it mre-ingestion-service sh
+docker exec -it mre-liverc-ingestion-service sh
 
 # Run tests
 pytest
@@ -467,10 +467,10 @@ pytest tests/unit/test_validator.py
 Or run tests directly without entering the container:
 ```bash
 # Run tests in container
-docker exec -it mre-ingestion-service pytest
+docker exec -it mre-liverc-ingestion-service pytest
 
 # Run with coverage
-docker exec -it mre-ingestion-service pytest --cov=ingestion
+docker exec -it mre-liverc-ingestion-service pytest --cov=ingestion
 ```
 
 **Next.js Application:**
@@ -499,8 +499,8 @@ docker compose build app
 **Ingestion Service:**
 ```bash
 # Add to requirements.txt, then rebuild
-docker compose build ingestion-service
-docker compose up -d ingestion-service
+docker compose build liverc-ingestion-service
+docker compose up -d liverc-ingestion-service
 ```
 
 ### Accessing the Application
@@ -553,10 +553,10 @@ healthcheck:
   start_period: 40s
 ```
 
-### mre-ingestion-service (Python Ingestion Service)
+### mre-liverc-ingestion-service (Python Ingestion Service)
 
 **Image:** Built from `ingestion/Dockerfile`  
-**Container Name:** `mre-ingestion-service`  
+**Container Name:** `mre-liverc-ingestion-service`  
 **Port:** 8000 (mapped to host)  
 **Technology:** Python 3.11 (slim), FastAPI, Playwright
 
@@ -620,8 +620,8 @@ postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?schema=public
 Containers communicate using Docker's built-in DNS:
 
 - `mre-app` → `mre-postgres:5432` (database connection)
-- `mre-app` → `mre-ingestion-service:8000` (API calls)
-- `mre-ingestion-service` → `mre-postgres:5432` (database connection)
+- `mre-app` → `mre-liverc-ingestion-service:8000` (API calls)
+- `mre-liverc-ingestion-service` → `mre-postgres:5432` (database connection)
 
 ### Network Management
 
@@ -644,7 +644,7 @@ docker network rm my-race-engineer_mre-network
 | Container | Container Port | Host Port | Access |
 |-----------|---------------|------------|--------|
 | mre-app | 3001 | 3001 (configurable) | http://localhost:3001 |
-| mre-ingestion-service | 8000 | 8000 (configurable) | http://localhost:8000 |
+| mre-liverc-ingestion-service | 8000 | 8000 (configurable) | http://localhost:8000 |
 | mre-postgres | 5432 | 5432 | localhost:5432 |
 
 **Configuration:** Port mappings are configured in `docker-compose.yml` and can be overridden via environment variables (`APP_PORT`, `INGESTION_PORT`).
@@ -867,12 +867,12 @@ docker exec -it mre-app npx prisma generate
 
 1. **Verify service is running:**
    ```bash
-   docker ps | grep ingestion-service
+   docker ps | grep liverc-ingestion-service
    ```
 
 2. **Check service logs:**
    ```bash
-   docker logs mre-ingestion-service
+   docker logs mre-liverc-ingestion-service
    ```
 
 3. **Test health endpoint:**
@@ -882,7 +882,7 @@ docker exec -it mre-app npx prisma generate
 
 4. **Restart service:**
    ```bash
-   docker compose restart ingestion-service
+   docker compose restart liverc-ingestion-service
    ```
 
 #### Issue: Module Not Found Errors
@@ -1069,15 +1069,15 @@ docker compose up -d --build
 
 # Execute command in container
 docker exec -it mre-app sh
-docker exec -it mre-ingestion-service sh
+docker exec -it mre-liverc-ingestion-service sh
 
 # Run migrations
 docker exec -it mre-app npx prisma migrate deploy
 
 # Python CLI commands (ingestion service)
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc status
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
 
 # Check health
 curl http://localhost:3001/api/health
@@ -1117,7 +1117,7 @@ services:
     networks: ...
     healthcheck: ...
   
-  ingestion-service:      # Python ingestion service
+  liverc-ingestion-service:      # Python ingestion service
     build: ...
     ports: ...
     volumes: ...

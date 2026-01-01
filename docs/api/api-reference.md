@@ -31,13 +31,14 @@ This document provides a complete reference for all API endpoints in the My Race
 3. [LiveRC Ingestion Endpoints](#liverc-ingestion-endpoints)
 4. [Driver Endpoints](#driver-endpoints)
 5. [Transponder Override Endpoints](#transponder-override-endpoints)
-6. [Personas Endpoints](#personas-endpoints)
-7. [User Endpoints](#user-endpoints)
-8. [Admin Endpoints](#admin-endpoints)
-9. [Health Check](#health-check)
-10. [Error Handling](#error-handling)
-11. [Authentication Requirements](#authentication-requirements)
-12. [Rate Limiting](#rate-limiting)
+6. [Weather Endpoints](#weather-endpoints)
+7. [Personas Endpoints](#personas-endpoints)
+8. [User Endpoints](#user-endpoints)
+9. [Admin Endpoints](#admin-endpoints)
+10. [Health Check](#health-check)
+11. [Error Handling](#error-handling)
+12. [Authentication Requirements](#authentication-requirements)
+13. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -734,6 +735,133 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/even
 
 ---
 
+### GET /api/v1/events/[eventId]/summary
+
+Gets lightweight event summary data including metadata and aggregated statistics. This endpoint is optimized for performance and does not load the full event graph, making it faster than the analysis endpoint.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `eventId` (string, required) - Event UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "event": {
+      "id": "uuid",
+      "eventName": "Event Name",
+      "eventDate": "2025-01-27T00:00:00.000Z",
+      "trackName": "Track Name"
+    },
+    "summary": {
+      "totalRaces": 12,
+      "totalDrivers": 87,
+      "totalLaps": 2400,
+      "dateRange": {
+        "earliest": "2025-01-27T10:00:00.000Z",
+        "latest": "2025-01-27T18:00:00.000Z"
+      }
+    },
+    "topDrivers": [],
+    "mostConsistentDrivers": [],
+    "bestAvgLapDrivers": [],
+    "userBestLap": null,
+    "userBestConsistency": null,
+    "userBestAvgLap": null
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `NOT_FOUND` (404) - Event not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Notes:**
+- Response is cached for 1 hour (3600 seconds)
+- Uses database aggregations for better performance compared to the analysis endpoint
+- Includes user-specific stats if the user has linked drivers
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events/uuid/summary"
+```
+
+---
+
+### POST /api/v1/events/check-entry-lists
+
+Checks if a driver name appears in entry lists for LiveRC events. This endpoint processes both LiveRC events (not yet in database) and database events to determine driver participation.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "events": [
+    {
+      "source_event_id": "6304829"
+    },
+    {
+      "event_id": "uuid"
+    }
+  ],
+  "track_slug": "track-slug"
+}
+```
+
+**Request Fields:**
+- `events` (array, required) - Array of events to check. Each event must have either:
+  - `source_event_id` (string) - For LiveRC events not yet in database (requires `track_slug`)
+  - `event_id` (string) - For events already in database
+- `track_slug` (string, required if any event has `source_event_id`) - Track slug for LiveRC events
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "driver_in_events": {
+      "6304829": true,
+      "uuid": false
+    },
+    "errors": {}
+  }
+}
+```
+
+**Response Fields:**
+- `driver_in_events` (object) - Map of event IDs to boolean indicating if driver name was found
+- `errors` (object) - Map of event IDs to error messages for events that failed to check
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing or invalid request body
+- `INTERNAL_ERROR` (500) - Server error
+
+**Notes:**
+- Uses the driver name from the authenticated user's session
+- Has a 5-minute timeout to prevent long-running requests
+- Processes events in parallel where possible
+
+**Example:**
+```bash
+curl -X POST "http://localhost:3001/api/v1/events/check-entry-lists" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{
+    "events": [
+      {"source_event_id": "6304829"},
+      {"event_id": "uuid"}
+    ],
+    "track_slug": "track-slug"
+  }'
+```
+
+---
+
 ### GET /api/v1/drivers/[driverId]
 
 Gets detailed information about a specific driver including transponder numbers and event entries.
@@ -1004,6 +1132,69 @@ curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/a
 
 ---
 
+## Weather Endpoints
+
+### GET /api/v1/events/[eventId]/weather
+
+Retrieves weather data for a specific event, including current conditions, forecast, and historical weather (if available).
+
+**Authentication:** Required
+
+**URL Parameters:**
+- `eventId` (string, required) - The UUID of the event
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "condition": "Clear skies",
+    "wind": "12 km/h",
+    "humidity": 62,
+    "air": 24,
+    "track": 32,
+    "precip": 18,
+    "forecast": [
+      { "label": "+15m", "detail": "Clouds, stable" },
+      { "label": "+30m", "detail": "Light breeze" },
+      { "label": "+45m", "detail": "Spotty drizzle" }
+    ],
+    "cachedAt": "2025-01-27T10:30:00Z",
+    "isCached": false
+  }
+}
+```
+
+**Response Fields:**
+- `condition` (string) - Weather condition description
+- `wind` (string) - Wind speed and direction (e.g., "12 km/h N")
+- `humidity` (number) - Humidity percentage (0-100)
+- `air` (number) - Air temperature in Celsius
+- `track` (number) - Estimated track surface temperature in Celsius (calculated)
+- `precip` (number) - Precipitation chance percentage (0-100)
+- `forecast` (array) - Array of forecast entries with `label` and `detail` fields
+- `cachedAt` (string, optional) - ISO 8601 timestamp indicating when data was cached (present if `isCached` is true)
+- `isCached` (boolean) - Indicates if the response contains cached data
+
+**Error Responses:**
+- `401 UNAUTHORIZED` - Authentication required
+- `404 NOT_FOUND` - Event not found
+- `503 SERVICE_UNAVAILABLE` - Weather service unavailable (may include last cached data if available)
+
+**Notes:**
+- Weather data is cached in the database with TTL (1 hour for current/forecast, longer for historical)
+- If weather API is unavailable, the endpoint returns the last cached data (if available) with `isCached: true`
+- Track temperature is estimated from air temperature using a calculation formula
+- Historical weather data availability depends on OpenWeatherMap API tier
+- Geocoding is performed automatically based on track name
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events/uuid/weather"
+```
+
+---
+
 ## Personas Endpoints
 
 **Note:** Personas endpoints provide user-specific views of data (driver persona, team manager persona). These endpoints are in scope for version 0.1.1 but may be expanded in future releases. See [MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) for complete feature specifications.
@@ -1143,6 +1334,60 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/user
 
 ---
 
+### POST /api/v1/users/me/persona
+
+Sets the current user's active persona. Only the Race Engineer persona can be manually selected. Driver, Admin, and Team Manager personas are auto-assigned based on user properties and cannot be manually selected.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "personaId": "uuid"
+}
+```
+
+**Request Fields:**
+- `personaId` (string, required) - Persona UUID (must be Race Engineer persona type)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "persona": {
+      "id": "uuid",
+      "type": "race_engineer",
+      "name": "Race Engineer",
+      "description": "AI-backed assistant providing setup and tuning guidance"
+    }
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing personaId or invalid persona type
+- `PERSONA_NOT_FOUND` (404) - Persona not found
+- `INVALID_PERSONA` (400) - Only Race Engineer persona can be manually selected
+- `INTERNAL_ERROR` (500) - Server error
+
+**Notes:**
+- Only Race Engineer persona can be manually selected via this endpoint
+- Driver persona is automatically assigned based on user driver links
+- Admin persona is automatically assigned based on isAdmin flag
+- Team Manager persona is automatically assigned based on isTeamManager flag
+
+**Example:**
+```bash
+curl -X POST "http://localhost:3001/api/v1/users/me/persona" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"personaId": "uuid"}'
+```
+
+---
+
 ### GET /api/v1/users/[userId]/driver-links
 
 Gets driver links for a specific user.
@@ -1269,28 +1514,107 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admi
 
 ---
 
-### GET /api/v1/admin/ingestion
+### POST /api/v1/admin/ingestion
 
-Gets ingestion service status and statistics.
+Triggers ingestion jobs (track sync or event ingestion). Admin-only endpoint for manual ingestion control.
 
 **Authentication:** Required (Admin only)
+
+**Request Body:**
+```json
+{
+  "type": "track_sync"
+}
+```
+
+or
+
+```json
+{
+  "type": "event_ingestion",
+  "eventId": "uuid"
+}
+```
+
+**Request Fields:**
+- `type` (string, required) - Type of ingestion job: `"track_sync"` or `"event_ingestion"`
+- `eventId` (string, required if type is `"event_ingestion"`) - Event UUID for event ingestion
 
 **Response (200 OK):**
 ```json
 {
   "success": true,
   "data": {
-    "status": "running",
-    "active_jobs": 2,
-    "recent_jobs": [
+    "success": true,
+    "message": "Track sync triggered successfully"
+  },
+  "message": "Track sync triggered successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `VALIDATION_ERROR` (400) - Missing or invalid request body
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+# Trigger track sync
+curl -X POST "http://localhost:3001/api/v1/admin/ingestion" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"type": "track_sync"}'
+
+# Trigger event ingestion
+curl -X POST "http://localhost:3001/api/v1/admin/ingestion" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"type": "event_ingestion", "eventId": "uuid"}'
+```
+
+---
+
+### GET /api/v1/admin/events
+
+Gets all events with pagination and filtering (admin-only endpoint).
+
+**Authentication:** Required (Admin only)
+
+**Query Parameters:**
+- `trackId` (string, optional) - Filter by track UUID
+- `startDate` (string, optional) - Filter by start date (ISO 8601 format)
+- `endDate` (string, optional) - Filter by end date (ISO 8601 format)
+- `ingestDepth` (string, optional) - Filter by ingestion depth (`none`, `laps_full`)
+- `page` (number, optional) - Page number (default: 1)
+- `pageSize` (number, optional) - Page size (default: 50)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "events": [
       {
         "id": "uuid",
-        "type": "event_ingestion",
-        "status": "completed",
-        "started_at": "2025-01-27T10:00:00.000Z",
-        "completed_at": "2025-01-27T10:05:00.000Z"
+        "source": "liverc",
+        "source_event_id": "event-id",
+        "track_id": "uuid",
+        "event_name": "Event Name",
+        "event_date": "2025-01-27T00:00:00.000Z",
+        "event_entries": 50,
+        "event_drivers": 45,
+        "event_url": "https://liverc.com/event/...",
+        "ingest_depth": "laps_full",
+        "last_ingested_at": "2025-01-27T00:00:00.000Z"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "pageSize": 50,
+      "total": 1245,
+      "totalPages": 25
+    }
   }
 }
 ```
@@ -1302,7 +1626,43 @@ Gets ingestion service status and statistics.
 
 **Example:**
 ```bash
-curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/ingestion"
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/events?page=1&pageSize=50&trackId=uuid"
+```
+
+---
+
+### DELETE /api/v1/admin/events/[eventId]
+
+Deletes an event and all associated data (admin-only endpoint). This operation cascades to delete all related races, results, laps, and other associated records.
+
+**Authentication:** Required (Admin only)
+
+**Path Parameters:**
+- `eventId` (string, required) - Event UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "Event deleted successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `NOT_FOUND` (404) - Event not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Notes:**
+- This operation permanently deletes the event and all cascading data
+- Deleted events cannot be recovered
+- Consider re-ingestion instead of deletion if data correction is needed
+
+**Example:**
+```bash
+curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/events/uuid"
 ```
 
 ---

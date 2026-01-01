@@ -54,17 +54,6 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`
 }
 
-/**
- * Format lap time in seconds to MM:SS.mmm format
- */
-function formatLapTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  const wholeSecs = Math.floor(secs)
-  const millis = Math.floor((secs - wholeSecs) * 1000)
-  return `${minutes}:${wholeSecs.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`
-}
-
 export default function OverviewChart({
   sessions,
   driverLapTrends = [],
@@ -487,4 +476,3 @@ export default function OverviewChart({
     </ChartContainer>
   )
 }
-

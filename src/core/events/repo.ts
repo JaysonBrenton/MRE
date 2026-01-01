@@ -156,6 +156,23 @@ export async function getEventById(id: string): Promise<Event | null> {
 }
 
 /**
+ * Get an event by ID with track information
+ * 
+ * @param id - Event's unique identifier
+ * @returns Event object with track or null if not found
+ */
+export async function getEventWithTrack(
+  id: string
+): Promise<(Event & { track: Track }) | null> {
+  return prisma.event.findUnique({
+    where: { id },
+    include: {
+      track: true,
+    },
+  })
+}
+
+/**
  * Get an event by source and source_event_id
  * 
  * @param source - Event source (e.g., "liverc")
@@ -228,6 +245,7 @@ export interface GetAllImportedEventsParams {
   status?: 'imported' | 'all'  // imported = laps_full, all = any ingestDepth
   orderBy?: 'eventDate' | 'eventName' | 'trackName' | 'eventEntries' | 'eventDrivers'
   orderDirection?: 'asc' | 'desc'
+  userId?: string  // When provided, filter events to only those where user has EventDriverLink
 }
 
 export interface GetAllImportedEventsResult {
@@ -252,11 +270,47 @@ export async function getAllImportedEvents(
     endDate,
     status = 'imported',
     orderBy = 'eventDate',
-    orderDirection = 'desc'
+    orderDirection = 'desc',
+    userId
   } = params || {}
+
+  // If userId is provided, get event IDs from EventDriverLink
+  let userEventIds: string[] | undefined
+  if (userId) {
+    const eventDriverLinks = await prisma.eventDriverLink.findMany({
+      where: {
+        userId,
+        userDriverLink: {
+          status: {
+            in: ["confirmed", "suggested"]
+          }
+        }
+      },
+      select: {
+        eventId: true
+      },
+      distinct: ['eventId']
+    })
+    userEventIds = eventDriverLinks.map(link => link.eventId)
+    
+    // If user has no events, return empty result
+    if (userEventIds.length === 0) {
+      return {
+        events: [],
+        total: 0
+      }
+    }
+  }
 
   // Build where clause
   const whereClause: Prisma.EventWhereInput = {}
+
+  // User filter: only events where user has EventDriverLink
+  if (userEventIds) {
+    whereClause.id = {
+      in: userEventIds
+    }
+  }
 
   // Status filter: imported = only laps_full, all = any ingestDepth
   if (status === 'imported') {
@@ -361,4 +415,47 @@ export async function getAllImportedEvents(
     })),
     total,
   }
+}
+
+/**
+ * Check if a driver name appears in database events by checking EventEntry records
+ * 
+ * @param eventIds - Array of event IDs to check
+ * @param normalizedDriverName - Normalized driver name to search for
+ * @returns Map of event ID to boolean (true if driver found, false if not found)
+ */
+export async function checkDbEventsForDriver(
+  eventIds: string[],
+  normalizedDriverName: string
+): Promise<Record<string, boolean>> {
+  if (eventIds.length === 0 || !normalizedDriverName) {
+    return {}
+  }
+
+  // Find all EventEntry records for these events where the driver's normalized name matches
+  const eventEntries = await prisma.eventEntry.findMany({
+    where: {
+      eventId: {
+        in: eventIds
+      },
+      driver: {
+        normalizedName: normalizedDriverName
+      }
+    },
+    select: {
+      eventId: true
+    },
+    distinct: ['eventId']
+  })
+
+  // Build result map - default to false, set to true if found
+  const result: Record<string, boolean> = {}
+  for (const eventId of eventIds) {
+    result[eventId] = false
+  }
+  for (const entry of eventEntries) {
+    result[entry.eventId] = true
+  }
+
+  return result
 }

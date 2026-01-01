@@ -41,7 +41,7 @@ export LOG_LEVEL="INFO"
 **Docker (Recommended):**
 The API server runs automatically when the ingestion service container starts:
 ```bash
-docker compose up -d ingestion-service
+docker compose up -d liverc-ingestion-service
 ```
 
 The API will be available at `http://localhost:8000` (or your configured port).
@@ -64,34 +64,34 @@ All CLI commands should be run inside the Docker container. This is the recommen
 
 ```bash
 # Ensure ingestion service is running
-docker compose up -d ingestion-service
+docker compose up -d liverc-ingestion-service
 
 # List all tracks
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 
 # Refresh tracks from LiveRC
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
 
 # List events for a track
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <uuid>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <uuid>
 
 # Refresh events for a track (metadata only)
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <uuid> --depth none
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <uuid> --depth none
 
 # Refresh events and perform full ingestion for new events only
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <uuid> --depth laps_full --ingest-new-only
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <uuid> --depth laps_full --ingest-new-only
 
 # Refresh events and perform full ingestion for all events
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <uuid> --depth laps_full --ingest-all
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <uuid> --depth laps_full --ingest-all
 
 # Ingest a specific event (legacy command, still supported)
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <uuid> --depth laps_full
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <uuid> --depth laps_full
 
 # Check system status
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc status
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
 
 # Verify data integrity
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
 ```
 
 **Why use Docker?**

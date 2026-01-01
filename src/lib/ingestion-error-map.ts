@@ -17,6 +17,8 @@ const ERROR_STATUS_MAP: Record<string, number> = {
   LAP_TABLE_MISSING_ERROR: 502,
   NORMALISATION_ERROR: 502,
   INGESTION_TIMEOUT: 504,
+  INGESTION_ERROR: 502,
+  INTERNAL_ERROR: 502,
 }
 
 const CUSTOM_MESSAGE_MAP: Record<string, string> = {
@@ -24,6 +26,10 @@ const CUSTOM_MESSAGE_MAP: Record<string, string> = {
     "An import is already running for this event. Please wait for it to finish before trying again.",
   INGESTION_TIMEOUT:
     "The ingestion service is taking longer than expected. Please retry in a moment while we finish processing.",
+  INTERNAL_ERROR:
+    "The ingestion service encountered an internal error. Please try again later or contact support if the issue persists.",
+  INGESTION_ERROR:
+    "An error occurred while importing the event. Please try again or contact support if the issue persists.",
 }
 
 export interface IngestionErrorContext {
@@ -37,7 +43,20 @@ export function toHttpErrorPayload(
   context: IngestionErrorContext = {}
 ): { status: number; message: string; details: Record<string, unknown> } {
   const status = ERROR_STATUS_MAP[error.code] ?? 502
-  const message = CUSTOM_MESSAGE_MAP[error.code] ?? error.message ?? "Ingestion service error"
+  // Use custom message if available, otherwise use error.message if it's informative,
+  // otherwise fall back to default message for the code
+  let message = CUSTOM_MESSAGE_MAP[error.code]
+  if (!message) {
+    // Only use error.message if it's not a generic/default message
+    if (error.message && 
+        error.message !== "Internal server error" && 
+        error.message !== "Ingestion service error" &&
+        error.message.length > 0) {
+      message = error.message
+    } else {
+      message = "Ingestion service error"
+    }
+  }
 
   const details: Record<string, unknown> = {
     source: error.source,

@@ -755,7 +755,7 @@ class Repository:
     def bulk_upsert_laps(
         self,
         laps: List[Dict[str, Any]],
-        batch_size: int = 1000,
+        batch_size: int = 5000,
     ) -> int:
         """
         Bulk upsert laps using PostgreSQL ON CONFLICT.
@@ -764,6 +764,9 @@ class Repository:
         proper upsert semantics. Chunks input into batches to avoid
         parameter limit issues. The entire operation is performed within
         the current transaction context.
+        
+        Performance optimization: Removed unnecessary SELECT query before insert.
+        PostgreSQL's ON CONFLICT clause automatically handles conflict detection.
         
         Conflict resolution:
         - Natural key: (race_result_id, lap_number)
@@ -780,7 +783,7 @@ class Repository:
                   - pace_string: Optional[str]
                   - elapsed_race_time: float
                   - segments_json: Optional[Dict[str, Any]]
-            batch_size: Number of rows per batch (default 1000)
+            batch_size: Number of rows per batch (default 5000, increased from 1000)
         
         Returns:
             Number of laps processed
@@ -792,33 +795,13 @@ class Repository:
             return 0
         
         now = datetime.utcnow()
-        
-        total_inserted = 0
-        total_updated = 0
 
         try:
             # Process laps in batches - all within the same transaction
             # If any batch fails, the entire transaction will rollback
+            # Removed unnecessary SELECT query - PostgreSQL ON CONFLICT handles conflict detection
             for i in range(0, len(laps), batch_size):
                 batch = laps[i:i + batch_size]
-                key_tuples = [
-                    (lap["race_result_id"], lap["lap_number"])
-                    for lap in batch
-                ]
-                existing_keys: set = set()
-                if key_tuples:
-                    stmt_existing = select(
-                        Lap.race_result_id,
-                        Lap.lap_number,
-                    ).where(
-                        tuple_(Lap.race_result_id, Lap.lap_number).in_(key_tuples)
-                    )
-                    existing_keys = {
-                        (row.race_result_id, row.lap_number)
-                        for row in self.session.execute(stmt_existing)
-                    }
-                batch_inserts = 0
-                batch_updates = 0
                 
                 # Prepare batch data with all required fields
                 batch_data = []
@@ -836,13 +819,9 @@ class Repository:
                         "updated_at": now,  # For new inserts
                     }
                     batch_data.append(lap_dict)
-                    key = (lap["race_result_id"], lap["lap_number"])
-                    if key in existing_keys:
-                        batch_updates += 1
-                    else:
-                        batch_inserts += 1
                 
                 # Use PostgreSQL dialect insert with ON CONFLICT
+                # No SELECT needed - PostgreSQL automatically detects conflicts
                 stmt = pg_insert(Lap).values(batch_data)
                 stmt = stmt.on_conflict_do_update(
                     index_elements=["race_result_id", "lap_number"],
@@ -865,13 +844,17 @@ class Repository:
                     batch_number=(i // batch_size) + 1,
                     total_batches=(len(laps) + batch_size - 1) // batch_size,
                 )
-                total_inserted += batch_inserts
-                total_updated += batch_updates
             
-            logger.info("bulk_upsert_laps_complete", total_laps=len(laps))
-            metrics.record_db_insert("laps", total_inserted)
-            metrics.record_db_update("laps", total_updated)
-            return len(laps)
+            # Record metrics as total upserts (inserts + updates combined)
+            # Note: We no longer distinguish inserts from updates to avoid the SELECT query overhead
+            # If insert/update distinction is needed for observability, consider using
+            # PostgreSQL RETURNING clause with xmax or a separate lightweight query
+            total_upserted = len(laps)
+            logger.info("bulk_upsert_laps_complete", total_laps=total_upserted)
+            metrics.record_db_insert("laps", total_upserted)
+            # Record as update as well for backward compatibility with metrics
+            metrics.record_db_update("laps", 0)  # Set to 0 since we're tracking combined upserts
+            return total_upserted
         
         except Exception as e:
             logger.error(

@@ -11,7 +11,7 @@
 
 import { assertScrapingEnabled } from "./site-policy"
 
-const INGESTION_SERVICE_URL = process.env.INGESTION_SERVICE_URL || "http://ingestion-service:8000";
+const INGESTION_SERVICE_URL = process.env.INGESTION_SERVICE_URL || "http://liverc-ingestion-service:8000";
 
 export interface IngestEventRequest {
   depth: "laps_full" | "none";
@@ -169,7 +169,38 @@ export class IngestionClient {
     }
 
     if (!isIngestionSuccessResponse(payload)) {
-      throw new Error("Ingestion service returned an unexpected response format")
+      // Try to extract error information from the unexpected payload
+      let errorMessage = "Ingestion service returned an unexpected response format"
+      const errorDetails: Record<string, unknown> = { payload: payload ?? null }
+      
+      if (payload && typeof payload === "object" && payload !== null) {
+        const payloadObj = payload as Record<string, unknown>
+        
+        // Check for error information in various formats
+        if (typeof payloadObj.error === "string") {
+          errorMessage = payloadObj.error as string
+        } else if (typeof payloadObj.message === "string") {
+          errorMessage = payloadObj.message as string
+        } else if (typeof payloadObj.detail === "string") {
+          errorMessage = payloadObj.detail as string
+        } else if (typeof payloadObj.error_type === "string") {
+          const errorType = payloadObj.error_type as string
+          errorMessage = `Ingestion service error: ${errorType}`
+          if (typeof payloadObj.error === "string") {
+            errorMessage = payloadObj.error as string
+          }
+        }
+      }
+      
+      throw new IngestionServiceError(
+        {
+          code: "INGESTION_ERROR",
+          message: errorMessage,
+          source: "ingestion_client",
+          details: errorDetails,
+        },
+        status
+      )
     }
 
     return payload.data
@@ -197,9 +228,69 @@ export class IngestionClient {
 
       if (!response.ok) {
         if (payload && isIngestionErrorResponse(payload)) {
-          throw new IngestionServiceError(payload.error, response.status)
+          // Extract error details, including any nested error information
+          const errorData = payload.error
+          const errorDetails: Record<string, unknown> = {}
+          
+          // Preserve all error details
+          if (typeof errorData === "object" && errorData !== null) {
+            Object.assign(errorDetails, errorData)
+          }
+          
+          throw new IngestionServiceError(
+            {
+              code: errorData.code,
+              message: errorData.message,
+              source: errorData.source,
+              details: { ...errorDetails, ...(typeof errorData.details === "object" && errorData.details !== null ? errorData.details : {}) },
+            },
+            response.status
+          )
         }
-        throw new Error(`Ingestion request failed with HTTP ${response.status}: ${response.statusText}`)
+        // Try to extract error details from non-standard error response
+        let errorMessage = `Ingestion request failed with HTTP ${response.status}: ${response.statusText}`
+        let errorCode = "INGESTION_ERROR"
+        const errorDetails: Record<string, unknown> = {}
+        
+        if (payload && typeof payload === "object" && payload !== null) {
+          const errorObj = payload as Record<string, unknown>
+          
+          // Try to extract message from various possible locations
+          if (typeof errorObj.message === "string") {
+            errorMessage = errorObj.message
+          } else if (typeof errorObj.error === "object" && errorObj.error !== null) {
+            const innerError = errorObj.error as Record<string, unknown>
+            if (typeof innerError.message === "string") {
+              errorMessage = innerError.message
+            }
+            if (typeof innerError.code === "string") {
+              errorCode = innerError.code
+            }
+          } else if (typeof errorObj.detail === "string") {
+            // FastAPI often puts error details in 'detail' field
+            errorMessage = errorObj.detail
+          } else if (typeof errorObj.error_type === "string") {
+            // Handle Python error types (e.g., AttributeError, ValueError)
+            const errorType = errorObj.error_type as string
+            errorMessage = `Ingestion service error: ${errorType}`
+            if (typeof errorObj.error === "string") {
+              errorMessage = errorObj.error as string
+            }
+          }
+          
+          // Preserve all error details for debugging
+          Object.assign(errorDetails, payload)
+        }
+        
+        throw new IngestionServiceError(
+          {
+            code: errorCode,
+            message: errorMessage,
+            source: "ingestion_service",
+            details: errorDetails,
+          },
+          response.status
+        )
       }
 
       return this.assertIngestionSuccess(payload, response.status)
@@ -211,12 +302,34 @@ export class IngestionClient {
           )
         }
 
-        if (
+        // Check for various connection error patterns
+        const isConnectionError = 
           error.message.includes("fetch failed") ||
           error.message.includes("ECONNREFUSED") ||
-          error.message.includes("ENOTFOUND")
-        ) {
-          throw new Error("Cannot connect to ingestion service. Please ensure the ingestion service is running.")
+          error.message.includes("ENOTFOUND") ||
+          error.message.includes("getaddrinfo") ||
+          error.message.includes("EAI_AGAIN") ||
+          error.message.includes("network") ||
+          error.message.includes("socket") ||
+          error.cause instanceof Error && (
+            error.cause.message.includes("ECONNREFUSED") ||
+            error.cause.message.includes("ENOTFOUND") ||
+            error.cause.message.includes("getaddrinfo")
+          )
+
+        if (isConnectionError) {
+          // Include the URL in the error message for debugging
+          const errorDetails = {
+            url,
+            baseUrl: this.baseUrl,
+            errorName: error.name,
+            errorMessage: error.message,
+            errorCause: error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
+          }
+          console.error("[IngestionClient] Connection error details:", errorDetails)
+          throw new Error(
+            `Cannot connect to ingestion service at ${url}. Please ensure the ingestion service is running. Error: ${error.message}`
+          )
         }
       }
 
@@ -298,8 +411,27 @@ export class IngestionClient {
           throw new Error("Discovery timeout: The LiveRC discovery is taking longer than expected. The ingestion service may be busy processing other requests. Please try again in a few moments.");
         }
         // Handle network errors
-        if (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED") || error.message.includes("ENOTFOUND")) {
-          throw new Error("Cannot connect to ingestion service. Please ensure the ingestion service is running.");
+        const isConnectionError = 
+          error.message.includes("fetch failed") ||
+          error.message.includes("ECONNREFUSED") ||
+          error.message.includes("ENOTFOUND") ||
+          error.message.includes("getaddrinfo") ||
+          error.message.includes("EAI_AGAIN") ||
+          error.message.includes("network") ||
+          error.message.includes("socket") ||
+          error.cause instanceof Error && (
+            error.cause.message.includes("ECONNREFUSED") ||
+            error.cause.message.includes("ENOTFOUND") ||
+            error.cause.message.includes("getaddrinfo")
+          )
+        if (isConnectionError) {
+          console.error("[IngestionClient] Discovery connection error:", {
+            url,
+            errorName: error.name,
+            errorMessage: error.message,
+            errorCause: error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
+          })
+          throw new Error(`Cannot connect to ingestion service at ${url}. Please ensure the ingestion service is running. Error: ${error.message}`);
         }
       }
       throw error;
@@ -363,8 +495,27 @@ export class IngestionClient {
           throw new Error("Entry list fetch timeout: The LiveRC entry list fetch is taking longer than expected. Please try again in a few moments.")
         }
         // Handle network errors
-        if (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED") || error.message.includes("ENOTFOUND")) {
-          throw new Error("Cannot connect to ingestion service. Please ensure the ingestion service is running.")
+        const isConnectionError = 
+          error.message.includes("fetch failed") ||
+          error.message.includes("ECONNREFUSED") ||
+          error.message.includes("ENOTFOUND") ||
+          error.message.includes("getaddrinfo") ||
+          error.message.includes("EAI_AGAIN") ||
+          error.message.includes("network") ||
+          error.message.includes("socket") ||
+          error.cause instanceof Error && (
+            error.cause.message.includes("ECONNREFUSED") ||
+            error.cause.message.includes("ENOTFOUND") ||
+            error.cause.message.includes("getaddrinfo")
+          )
+        if (isConnectionError) {
+          console.error("[IngestionClient] Entry list connection error:", {
+            url,
+            errorName: error.name,
+            errorMessage: error.message,
+            errorCause: error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
+          })
+          throw new Error(`Cannot connect to ingestion service at ${url}. Please ensure the ingestion service is running. Error: ${error.message}`)
         }
       }
       throw error

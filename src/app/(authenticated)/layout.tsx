@@ -7,15 +7,13 @@
  * 
  * @description Shared layout for all authenticated pages providing consistent shell
  * 
- * @purpose Provides the dashboard layout (sidebar, navigation, footer) to all
- *          authenticated pages via Next.js route groups. This ensures consistent
+ * @purpose Provides the immersive racing shell (adaptive rail, status bar, context ribbon)
+ *          to all authenticated pages via Next.js route groups. This ensures consistent
  *          UI across all authenticated routes without manually wrapping each page.
  * 
  * @relatedFiles
- * - src/components/dashboard/DashboardLayout.tsx (sidebar wrapper)
- * - src/components/dashboard/DashboardSidebar.tsx (sidebar component)
- * - src/components/AuthenticatedNav.tsx (regular user navigation)
- * - src/components/AdminNav.tsx (admin navigation)
+ * - src/components/dashboard/DashboardLayout.tsx (adaptive racing shell)
+ * - src/components/dashboard/shell/* (shell primitives)
  * - src/components/Footer.tsx (footer component)
  * - src/lib/auth.ts (authentication check)
  */
@@ -23,7 +21,6 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import DashboardLayout from "@/components/dashboard/DashboardLayout"
-import ConditionalNav from "@/components/ConditionalNav"
 import Footer from "@/components/Footer"
 
 export default async function AuthenticatedLayout({
@@ -38,12 +35,11 @@ export default async function AuthenticatedLayout({
   }
 
   return (
-    <DashboardLayout>
-      <div className="flex min-h-screen w-full flex-col bg-[var(--token-surface)]">
-        <ConditionalNav />
+    <DashboardLayout user={session.user}>
+      <div className="flex min-h-full flex-col">
         <main
           id="main-content"
-          className="page-container flex-1 w-full min-w-0 px-6 py-12"
+          className="page-container w-full min-w-0 flex-1 mb-8"
           tabIndex={-1}
         >
           {children}
@@ -53,4 +49,3 @@ export default async function AuthenticatedLayout({
     </DashboardLayout>
   )
 }
-

@@ -43,10 +43,19 @@ export default function ImportPrompt({
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-prompt-title"
+      style={{ minWidth: 0 }}
     >
       <div
-        className="w-full max-w-md bg-[var(--token-surface)] rounded-lg shadow-lg p-6"
+        className="bg-[var(--token-surface)] rounded-lg shadow-lg p-6"
         onClick={(e) => e.stopPropagation()}
+        style={{ 
+          width: '100%',
+          maxWidth: '28rem',
+          minWidth: '20rem',
+          boxSizing: 'border-box',
+          flexShrink: 0,
+          flexGrow: 0
+        }}
       >
         <h2 id="import-prompt-title" className="text-lg font-semibold text-[var(--token-text-primary)] mb-4">
           Import Events?

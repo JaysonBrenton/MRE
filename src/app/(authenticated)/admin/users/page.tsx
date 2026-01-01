@@ -19,7 +19,7 @@ export default async function AdminUsersPage() {
   }
 
   if (!session.user.isAdmin) {
-    redirect("/welcome")
+    redirect("/dashboard")
   }
 
   redirect("/under-development")

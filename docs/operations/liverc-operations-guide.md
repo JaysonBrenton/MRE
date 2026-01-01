@@ -32,7 +32,7 @@
 
 **Prerequisites for Docker execution:**
 1. Docker and Docker Compose installed
-2. Ingestion service container running: `docker-compose up -d ingestion-service`
+2. Ingestion service container running: `docker-compose up -d liverc-ingestion-service`
 3. Docker network configured (see `docs/operations/docker-user-guide.md`)
 
 **All examples in this guide show Docker execution first, followed by local execution alternatives.**
@@ -93,11 +93,11 @@ Re-enable scraping with `MRE_SCRAPE_ENABLED=true`. This flag is part of `policie
 CLI commands can be executed in two ways:
 
 1. **Docker Execution** (Recommended - Primary Method):
-   - Execute via `docker exec` into the running `mre-ingestion-service` container
+   - Execute via `docker exec` into the running `mre-liverc-ingestion-service` container
    - **No local Python setup required** - Python, dependencies, and Playwright are pre-installed
    - **Pre-configured environment** - Database connection and environment variables already set
    - **Consistent across developers** - Same environment for everyone
-   - Ensure the service is running: `docker-compose up -d ingestion-service` (or `./dc up -d ingestion-service`)
+   - Ensure the service is running: `docker-compose up -d liverc-ingestion-service` (or `./dc up -d liverc-ingestion-service`)
 
 2. **Local Execution** (Alternative - Requires Python Setup):
    - Execute from the `ingestion/` directory with the Python virtual environment activated
@@ -109,7 +109,7 @@ CLI commands can be executed in two ways:
 
 **Docker Execution** (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc <command> [options]
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc <command> [options]
 ```
 
 **Local Execution** (Alternative):
@@ -131,7 +131,7 @@ python -m ingestion.cli ingest liverc <command> [options]
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 ```
 
 Local (Alternative):
@@ -166,7 +166,7 @@ Found 150 tracks:
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
 ```
 
 Local (Alternative):
@@ -194,7 +194,7 @@ Track refresh completed:
 Followed tracks are refreshed nightly via `run-followed-event-sync.sh`, which executes the `refresh-followed-events` CLI command with `--depth none`. This keeps event metadata up to date without manual CLI runs. You can run the same workflow locally:
 
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth none
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth none
 ```
 
 For ad-hoc deep ingests across all followed tracks, pass `--depth laps_full` (optionally `--quiet` to suppress per-event output). The command automatically iterates every `Track` marked `is_followed=true` and aggregates the ingestion results.
@@ -213,7 +213,7 @@ For ad-hoc deep ingests across all followed tracks, pass `--depth laps_full` (op
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id> [--start-date <ISO_DATE>] [--end-date <ISO_DATE>]
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id> [--start-date <ISO_DATE>] [--end-date <ISO_DATE>]
 ```
 
 Local (Alternative):
@@ -232,12 +232,12 @@ python -m ingestion.cli ingest liverc list-events --track-id <track_id> [--start
 
 **Example** (Docker):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 **Example with Date Range** (Docker):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events \
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events \
   --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
   --start-date 2025-01-01 \
   --end-date 2025-12-31
@@ -270,7 +270,7 @@ Found 12 events:
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id> --depth {none|laps_full} [--ingest-new-only|--ingest-all]
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id> --depth {none|laps_full} [--ingest-new-only|--ingest-all]
 ```
 
 Local (Alternative):
@@ -290,17 +290,17 @@ python -m ingestion.cli ingest liverc refresh-events --track-id <track_id> --dep
 
 1. **Metadata only** (discover events, no race data):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth none
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth none
 ```
 
 2. **Full ingestion for new events only** (default behavior):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth laps_full --ingest-new-only
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth laps_full --ingest-new-only
 ```
 
 3. **Full ingestion for all events** (re-ingest existing events):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth laps_full --ingest-all
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth laps_full --ingest-all
 ```
 
 **Output** (with `--depth none`):
@@ -342,7 +342,7 @@ Full ingestion results:
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id> [--depth <depth>]
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id> [--depth <depth>]
 ```
 
 Local (Alternative):
@@ -362,12 +362,12 @@ python -m ingestion.cli ingest liverc ingest-event --event-id <event_id> [--dept
 
 **Example** (Docker):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id c3d4e5f6-a7b8-9012-cdef-123456789012
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id c3d4e5f6-a7b8-9012-cdef-123456789012
 ```
 
 **Example with Custom Depth** (Docker):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event \
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event \
   --event-id c3d4e5f6-a7b8-9012-cdef-123456789012 \
   --depth laps_full
 ```
@@ -397,7 +397,7 @@ Ingestion completed successfully:
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth {none|laps_full} [--quiet]
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth {none|laps_full} [--quiet]
 ```
 
 Local (Alternative):
@@ -415,17 +415,17 @@ python -m ingestion.cli ingest liverc refresh-followed-events --depth {none|laps
 
 1. **Metadata only** (discover events, no race data):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth none
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth none
 ```
 
 2. **Full ingestion for all followed tracks**:
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth laps_full
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth laps_full
 ```
 
 3. **Full ingestion with quiet mode**:
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth laps_full --quiet
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth laps_full --quiet
 ```
 
 **Output** (with `--depth none`):
@@ -483,7 +483,7 @@ Refresh completed:
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc status
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
 ```
 
 Local (Alternative):
@@ -521,7 +521,7 @@ Events by Ingestion Depth:
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
 ```
 
 Local (Alternative):
@@ -711,7 +711,7 @@ Use the `list-tracks` command:
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 ```
 
 Local (Alternative):
@@ -735,7 +735,7 @@ Use the `list-events` command with a track ID:
 
 Docker (Recommended):
 ```bash
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 Local (Alternative):
@@ -947,7 +947,7 @@ const event = await prisma.event.findUnique({
    
    Docker (Recommended):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
    ```
    
    Local (Alternative):
@@ -959,7 +959,7 @@ const event = await prisma.event.findUnique({
    
    Docker (Recommended):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
    ```
    
    Local (Alternative):
@@ -971,7 +971,7 @@ const event = await prisma.event.findUnique({
    
    Docker (Recommended):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc status
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
    ```
    
    Local (Alternative):
@@ -993,7 +993,7 @@ const event = await prisma.event.findUnique({
    
    Docker (Recommended):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
    ```
    
    Local (Alternative):
@@ -1007,7 +1007,7 @@ const event = await prisma.event.findUnique({
    
    Docker (Recommended):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id>
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id>
    ```
    
    Local (Alternative):
@@ -1019,7 +1019,7 @@ const event = await prisma.event.findUnique({
    
    Docker (Recommended):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id>
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id>
    ```
    
    Local (Alternative):
@@ -1033,7 +1033,7 @@ const event = await prisma.event.findUnique({
    
    Docker (Recommended):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id>
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id>
    ```
    
    Local (Alternative):
@@ -1045,7 +1045,7 @@ const event = await prisma.event.findUnique({
    
    Docker (Recommended):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc status
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
    ```
    
    Local (Alternative):
@@ -1065,28 +1065,28 @@ const event = await prisma.event.findUnique({
 
 1. **Get track ID** (Docker):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
    ```
 
 2. **Refresh events** (Docker):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id>
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id>
    ```
 
 3. **List events and filter for uningested ones** (Docker):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id>
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id>
    ```
    Look for events with `Depth: none` (these are events that have been discovered but not yet imported).
 
 4. **Ingest each event** (repeat for each event ID, Docker):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id>
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id>
    ```
 
 5. **Verify integrity** (Docker):
    ```bash
-   docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
+   docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
    ```
 
 **Expected Result**: All events for the track fully ingested.
@@ -1157,10 +1157,10 @@ const event = await prisma.event.findUnique({
 **Example** (Docker):
 ```bash
 # Wrong - using slug instead of UUID
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id canberraoffroad
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id canberraoffroad
 
 # Correct - using UUID
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 ---
@@ -1177,39 +1177,39 @@ docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refr
 **Example** (Docker):
 ```bash
 # Wrong - using source event ID instead of UUID
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id 486677
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id 486677
 
 # Correct - using UUID
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id c3d4e5f6-a7b8-9012-cdef-123456789012
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id c3d4e5f6-a7b8-9012-cdef-123456789012
 ```
 
 ---
 
 #### 3. Docker Container Not Running
 
-**Problem**: Docker commands fail with "Error: No such container: mre-ingestion-service" or "Cannot connect to the Docker daemon".
+**Problem**: Docker commands fail with "Error: No such container: mre-liverc-ingestion-service" or "Cannot connect to the Docker daemon".
 
 **Solution**:
 - **Check if container is running:**
   ```bash
-  docker ps | grep mre-ingestion-service
+  docker ps | grep mre-liverc-ingestion-service
   ```
 
 - **Start the ingestion service:**
   ```bash
-  docker compose up -d ingestion-service
+  docker compose up -d liverc-ingestion-service
   ```
 
 - **Verify container is healthy:**
   ```bash
-  docker logs mre-ingestion-service
+  docker logs mre-liverc-ingestion-service
   curl http://localhost:8000/health
   ```
 
 - **If container doesn't exist, rebuild it:**
   ```bash
-  docker compose build ingestion-service
-  docker compose up -d ingestion-service
+  docker compose build liverc-ingestion-service
+  docker compose up -d liverc-ingestion-service
   ```
 
 ---
@@ -1226,7 +1226,7 @@ docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc inge
 
 - **Check database connection from ingestion container:**
   ```bash
-  docker exec -it mre-ingestion-service python -c "import os; print(os.getenv('DATABASE_URL'))"
+  docker exec -it mre-liverc-ingestion-service python -c "import os; print(os.getenv('DATABASE_URL'))"
   ```
 
 - **Test database connectivity:**
@@ -1253,17 +1253,17 @@ docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc inge
 **Solution** (Docker):
 - **Check container logs for detailed errors:**
   ```bash
-  docker logs mre-ingestion-service
+  docker logs mre-liverc-ingestion-service
   ```
 
 - **Verify Playwright is installed in container:**
   ```bash
-  docker exec -it mre-ingestion-service playwright --version
+  docker exec -it mre-liverc-ingestion-service playwright --version
   ```
 
 - **Check network connectivity from container:**
   ```bash
-  docker exec -it mre-ingestion-service curl -I https://live.liverc.com
+  docker exec -it mre-liverc-ingestion-service curl -I https://live.liverc.com
   ```
 
 - **Check network connectivity to LiveRC**
@@ -1309,28 +1309,28 @@ docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc inge
 **Docker Execution** (Recommended - Primary Method):
 ```bash
 # List all tracks
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 
 # Refresh tracks from LiveRC
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
 
 # List events for a track
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <UUID>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <UUID>
 
 # Refresh events for a track (metadata only)
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <UUID> --depth none
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <UUID> --depth none
 
 # Refresh events and perform full ingestion for new events
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <UUID> --depth laps_full --ingest-new-only
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <UUID> --depth laps_full --ingest-new-only
 
 # Ingest an event
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <UUID>
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <UUID>
 
 # Check system status
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc status
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
 
 # Verify data integrity
-docker exec -it mre-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
 ```
 
 **Local Execution** (Alternative - Requires Python Setup):
