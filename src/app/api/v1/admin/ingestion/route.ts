@@ -16,7 +16,7 @@
 import { NextRequest } from "next/server"
 import { requireAdmin } from "@/lib/admin-auth"
 import { triggerTrackSync, triggerEventIngestion } from "@/core/admin/ingestion"
-import { successResponse, parseRequestBody } from "@/lib/api-utils"
+import { successResponse, parseRequestBody, errorResponse } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
 
@@ -84,6 +84,11 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorInfo.response
+    return errorResponse(
+      errorInfo.code,
+      errorInfo.message,
+      undefined,
+      errorInfo.statusCode
+    )
   }
 }

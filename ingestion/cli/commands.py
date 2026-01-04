@@ -390,6 +390,18 @@ def refresh_tracks():
             for track_summary in tracks:
                 seen_slugs.add(track_summary.source_track_slug)
                 
+                # Fetch dashboard metadata for this track
+                dashboard_metadata = None
+                try:
+                    dashboard_metadata = asyncio.run(connector.fetch_track_metadata(track_summary.source_track_slug))
+                except Exception as e:
+                    # Log error but continue - graceful degradation
+                    logger.warning(
+                        "track_dashboard_fetch_error",
+                        slug=track_summary.source_track_slug,
+                        error=str(e)
+                    )
+                
                 # Check if track exists
                 existing = session.query(Track).filter(
                     Track.source == track_summary.source,
@@ -426,6 +438,28 @@ def refresh_tracks():
                         "url": track_summary.track_url
                     })
                 
+                # Prepare metadata parameters
+                metadata_kwargs = {}
+                if dashboard_metadata:
+                    metadata_kwargs = {
+                        "latitude": dashboard_metadata.latitude,
+                        "longitude": dashboard_metadata.longitude,
+                        "address": dashboard_metadata.address,
+                        "city": dashboard_metadata.city,
+                        "state": dashboard_metadata.state,
+                        "country": dashboard_metadata.country,
+                        "postal_code": dashboard_metadata.postal_code,
+                        "phone": dashboard_metadata.phone,
+                        "website": dashboard_metadata.website,
+                        "email": dashboard_metadata.email,
+                        "description": dashboard_metadata.description,
+                        "logo_url": dashboard_metadata.logo_url,
+                        "facebook_url": dashboard_metadata.facebook_url,
+                        "total_laps": dashboard_metadata.total_laps,
+                        "total_races": dashboard_metadata.total_races,
+                        "total_events": dashboard_metadata.total_events,
+                    }
+                
                 repository.upsert_track(
                     source=track_summary.source,
                     source_track_slug=track_summary.source_track_slug,
@@ -434,6 +468,7 @@ def refresh_tracks():
                     events_url=track_summary.events_url,
                     liverc_track_last_updated=track_summary.liverc_track_last_updated,
                     is_active=True,
+                    **metadata_kwargs,
                 )
             
             # Mark tracks not in latest sync as inactive

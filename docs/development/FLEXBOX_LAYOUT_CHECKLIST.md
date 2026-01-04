@@ -51,6 +51,21 @@ If creating list rows with text and actions:
 - [ ] Tested with very long text content (100+ characters)
 - [ ] Tested on mobile viewport (375px width)
 
+## ✅ Pagination Component Checklist
+
+If creating pagination components (chart, table, or list pagination):
+
+- [ ] **CRITICAL: Component has `mb-16` (4rem / 64px minimum bottom margin) to prevent footer overlap**
+- [ ] **DO NOT use `mb-8` - it's insufficient and will cause overlap**
+- [ ] Component has appropriate top margin (`mt-4` or `mt-6`) to separate from content above
+- [ ] **VISUALLY VERIFIED:** Scrolled to bottom of page and confirmed no overlap with footer
+- [ ] If using ChartContainer, verified it has `pb-4` bottom padding
+- [ ] See `docs/development/PAGINATION_SPACING_GUIDELINES.md` for complete requirements
+- [ ] Tested with content that reaches the bottom of the viewport
+- [ ] Verified no overlap with footer component
+- [ ] Verified spacing is consistent across different content lengths
+- [ ] See `docs/development/PAGINATION_SPACING_GUIDELINES.md` for complete guidelines
+
 ## ✅ Manual Implementation Checklist
 
 If you must implement manually (not using reusable components):
@@ -96,6 +111,8 @@ If you see any of these, you have a layout bug:
 - Horizontal scrolling appears unexpectedly
 - Text overlaps with buttons/icons
 - Content appears as a thin grey bar
+- Pagination controls appear too close to footer
+- Footer overlaps pagination controls
 
 ## 📚 Quick Reference
 
@@ -104,10 +121,12 @@ If you see any of these, you have a layout bug:
 - List Rows: `src/components/ui/ListRow.tsx`
 - Page Containers: `src/components/layout/PageContainer.tsx`
 - Content Wrappers: `src/components/layout/ContentWrapper.tsx`
+- Pagination: `src/components/event-analysis/ChartPagination.tsx` (reference implementation)
 
 **Documentation:**
 - Full guidelines: `docs/design/mre-mobile-ux-guidelines.md` Section 5.7
 - Architecture rules: `docs/architecture/mobile-safe-architecture-guidelines.md` Section 6
+- Pagination spacing: `docs/development/PAGINATION_SPACING_GUIDELINES.md`
 
 **Common Patterns:**
 
@@ -139,5 +158,20 @@ import ListRow, { ListRowText, ListRowAction } from "@/components/ui/ListRow"
   <ListRowText title={fullText}>{text}</ListRowText>
   <ListRowAction><button>Action</button></ListRowAction>
 </ListRow>
+
+// ✅ Pagination with proper spacing (REQUIRED - mb-16 minimum)
+<nav className="flex items-center justify-between gap-4 mt-4 mb-16 px-2">
+  {/* pagination controls */}
+</nav>
+
+// ❌ WRONG - Missing bottom margin (will overlap with footer!)
+<nav className="flex items-center justify-between gap-4 mt-4 px-2">
+  {/* pagination controls */}
+</nav>
+
+// ❌ WRONG - Insufficient bottom margin (mb-8 is not enough!)
+<nav className="flex items-center justify-between gap-4 mt-4 mb-8 px-2">
+  {/* pagination controls */}
+</nav>
 ```
 

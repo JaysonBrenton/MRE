@@ -90,6 +90,9 @@ All API errors follow a standardized format defined in `src/lib/api-utils.ts`:
 | `NOT_FOUND` | 404 | Requested resource does not exist | Resource not found by ID or identifier |
 | `INGESTION_IN_PROGRESS` | 409 | Ingestion already running | Concurrent ingestion attempts |
 | `INGESTION_FAILED` | 500 | Ingestion process failed | Ingestion service errors |
+| `EXTERNAL_SERVICE_ERROR` | 502 | External service error | Errors from LiveRC ingestion service |
+| `SERVICE_UNAVAILABLE` | 503 | External service unavailable | Connection errors to ingestion service |
+| `SERVICE_TIMEOUT` | 504 | External service timeout | Timeout errors from ingestion service |
 | `INTERNAL_ERROR` | 500 | Unexpected server error | Unhandled exceptions, system errors |
 
 ### Ingestion-Specific Error Codes
@@ -119,6 +122,9 @@ See `docs/architecture/liverc-ingestion/11-ingestion-error-handling.md` for deta
 | `EMAIL_ALREADY_EXISTS` | 409 Conflict | Resource conflict |
 | `INGESTION_IN_PROGRESS` | 409 Conflict | Operation conflict |
 | `INGESTION_FAILED` | 500 Internal Server Error | Server-side processing error |
+| `EXTERNAL_SERVICE_ERROR` | 502 Bad Gateway | External service error |
+| `SERVICE_UNAVAILABLE` | 503 Service Unavailable | External service connection error |
+| `SERVICE_TIMEOUT` | 504 Gateway Timeout | External service timeout |
 | `INTERNAL_ERROR` | 500 Internal Server Error | Unexpected server error |
 
 ### Status Code Guidelines
@@ -330,7 +336,7 @@ if (!event) {
 - Ingestion is already running for the same resource
 - Concurrent ingestion attempts detected
 
-**Example:**
+**Server-side Example:**
 ```typescript
 if (await isIngestionInProgress(eventId)) {
   return errorResponse(
@@ -339,6 +345,32 @@ if (await isIngestionInProgress(eventId)) {
     undefined,
     409
   )
+}
+```
+
+**Client-side Handling:**
+This error should be handled gracefully on the client side. It indicates that an import is already in progress, which is not a failure condition. The client should:
+
+1. Log as a warning (not an error) since this is expected behavior
+2. Keep the event in "importing" status
+3. Allow polling to track the existing import progress
+4. Return success from the import function (don't treat as failure)
+
+**Example:**
+```typescript
+const result = await parseApiResponse<ApiIngestionResult>(response)
+if (!result.success) {
+  // Check if this is an "already in progress" error - handle gracefully
+  if (result.error.code === "INGESTION_IN_PROGRESS") {
+    logger.warn("Import already in progress for event", {
+      eventId: event.id,
+      eventName: event.eventName,
+    })
+    // Don't treat this as a failure - the import is already running
+    // Keep the "importing" status and let polling handle the update
+    return true
+  }
+  throw new Error(result.error.message)
 }
 ```
 
@@ -429,6 +461,13 @@ function handleError(error: { code: string; message: string; details?: unknown }
       // Show not found message
       showError('Resource not found')
       break
+      
+    case 'INGESTION_IN_PROGRESS':
+      // This is not an error - import is already running
+      // Log as warning, keep importing status, let polling handle updates
+      logger.warn('Import already in progress', { eventId: error.details?.eventId })
+      // Don't show error to user - import is proceeding
+      return true // Indicate success (not a failure)
       
     case 'INTERNAL_ERROR':
       // Show generic error, log for debugging
@@ -637,9 +676,10 @@ Errors that should not be retried:
 - `INVALID_CREDENTIALS` - User must provide correct credentials
 - `NOT_FOUND` - Resource doesn't exist
 - `EMAIL_ALREADY_EXISTS` - Conflict that won't resolve
+- `INGESTION_IN_PROGRESS` - Import already running (not an error, handled gracefully)
 
 **Strategy:**
-- Show error immediately
+- Show error immediately (except `INGESTION_IN_PROGRESS` which is handled silently)
 - Provide guidance on how to fix
 - Don't retry automatically
 

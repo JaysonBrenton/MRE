@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-29
 description: Step-by-step developer onboarding guide for MRE application
 purpose: Provides a comprehensive quick start guide for new developers, including
          prerequisites, setup instructions, first-time workflow, and troubleshooting.
@@ -333,8 +333,11 @@ docker exec -it mre-liverc-ingestion-service pytest --cov=ingestion
 
 When tests are added:
 - Unit tests: `npm test`
-- Integration tests: `npm run test:integration`
+- Unit tests with UI: `npm run test:ui`
+- Test coverage: `npm run test:coverage`
 - E2E tests: `npm run test:e2e`
+- E2E tests with UI: `npm run test:e2e:ui`
+- E2E tests (headed): `npm run test:e2e:headed`
 
 See `docs/development/testing-strategy.md` for testing guidelines.
 

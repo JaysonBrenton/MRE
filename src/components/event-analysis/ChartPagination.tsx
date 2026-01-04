@@ -3,15 +3,21 @@
  * 
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-27
+ * @lastModified 2025-01-28
  * 
  * @description Pagination controls for charts with many data points
  * 
  * @purpose Provides navigation controls for paginated chart views.
  *          Optimized for desktop viewports.
  * 
+ * @spacing CRITICAL: This component includes `mb-16` (4rem / 64px) bottom margin to prevent footer overlap.
+ *          DO NOT use `mb-8` - it's insufficient and will cause overlap.
+ *          See docs/development/PAGINATION_SPACING_GUIDELINES.md for complete spacing requirements.
+ * 
  * @relatedFiles
  * - src/components/event-analysis/BestLapBarChart.tsx (uses this)
+ * - src/components/event-analysis/AvgVsFastestChart.tsx (uses this)
+ * - docs/development/PAGINATION_SPACING_GUIDELINES.md (spacing requirements)
  */
 
 "use client"
@@ -73,7 +79,7 @@ export default function ChartPagination({
 
   return (
     <nav
-      className="flex items-center justify-between gap-4 mt-4 px-2"
+      className="flex items-center justify-between gap-4 mt-4 mb-16 px-2"
       aria-label="Chart pagination"
     >
       <div className="text-sm text-[var(--token-text-secondary)]" aria-live="polite">

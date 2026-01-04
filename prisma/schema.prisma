@@ -38,6 +38,7 @@ model User {
   eventDriverLinks  EventDriverLink[]
   driverLinks       UserDriverLink[]
   persona           Persona?          @relation(fields: [personaId], references: [id])
+  auditLogs         AuditLog[]
 
   @@index([normalizedName])
   @@index([transponderNumber])
@@ -57,6 +58,22 @@ model Track {
   lastSeenAt             DateTime? @map("last_seen_at")
   isActive               Boolean   @default(true) @map("is_active")
   isFollowed             Boolean   @default(false) @map("is_followed")
+  latitude               Float?
+  longitude              Float?
+  address                String?
+  city                   String?
+  state                  String?
+  country                String?
+  postalCode             String?   @map("postal_code")
+  phone                  String?
+  website                String?
+  email                  String?
+  description            String?
+  logoUrl                String?   @map("logo_url")
+  facebookUrl            String?   @map("facebook_url")
+  totalLaps              Int?      @default(0) @map("total_laps")
+  totalRaces             Int?      @default(0) @map("total_races")
+  totalEvents            Int?      @default(0) @map("total_events")
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
   events                 Event[]
@@ -350,4 +367,49 @@ model WeatherData {
   @@index([expiresAt])
   @@index([eventId, expiresAt])
   @@map("weather_data")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?  @map("user_id")
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  details      Json?
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+model ApplicationLog {
+  id        String   @id @default(uuid())
+  level     String // debug, info, warn, error
+  message   String
+  service   String   @default("nextjs") // nextjs, ingestion, database
+  context   Json?
+  requestId String?  @map("request_id")
+  userId    String?  @map("user_id")
+  ip        String?
+  path      String?
+  method    String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([level])
+  @@index([service])
+  @@index([createdAt])
+  @@index([level, service])
+  @@index([service, createdAt])
+  @@index([requestId])
+  @@index([userId])
+  @@map("application_logs")
 }

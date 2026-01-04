@@ -30,6 +30,13 @@ const CUSTOM_MESSAGE_MAP: Record<string, string> = {
     "The ingestion service encountered an internal error. Please try again later or contact support if the issue persists.",
   INGESTION_ERROR:
     "An error occurred while importing the event. Please try again or contact support if the issue persists.",
+  VALIDATION_ERROR:
+    "Validation error during import. Please check the event details and try again.",
+}
+
+// Check if error message indicates empty entry list
+function isEmptyEntryListError(message: string): boolean {
+  return message.toLowerCase().includes("entry list is empty")
 }
 
 export interface IngestionErrorContext {
@@ -46,7 +53,11 @@ export function toHttpErrorPayload(
   // Use custom message if available, otherwise use error.message if it's informative,
   // otherwise fall back to default message for the code
   let message = CUSTOM_MESSAGE_MAP[error.code]
-  if (!message) {
+  
+  // Special handling for empty entry list errors - use the detailed message from the pipeline
+  if (error.code === "VALIDATION_ERROR" && isEmptyEntryListError(error.message)) {
+    message = error.message
+  } else if (!message) {
     // Only use error.message if it's not a generic/default message
     if (error.message && 
         error.message !== "Internal server error" && 

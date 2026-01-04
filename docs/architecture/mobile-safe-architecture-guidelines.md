@@ -316,6 +316,7 @@ All UI must follow:
 * `docs/design/table-component-specification.md` (for table components)
 * `docs/architecture/dashboard-architecture.md` (for dashboard systems)
 * `docs/design/telemetry-visualization-specification.md` (for telemetry visualizations)
+* `docs/design/chart-design-standards.md` (for all chart components - MANDATORY)
 
 **Reusable UI Components (MUST USE):**
 
@@ -327,6 +328,10 @@ To prevent common layout bugs, especially horizontal compression issues in flex 
   * Required pattern: `minWidth: '20rem'`, `flexShrink: 0`, `flexGrow: 0`, plus `width: '100%'` and `maxWidth`
 * **List Rows**: Always use `src/components/ui/ListRow.tsx` - enforces proper text truncation
 * **Page Containers**: Use `src/components/layout/PageContainer.tsx` and `ContentWrapper.tsx`
+* **Pagination Components**: **CRITICAL - Must have `mb-16` (4rem / 64px) bottom margin to prevent footer overlap**
+  * See `docs/development/PAGINATION_SPACING_GUIDELINES.md` for complete requirements
+  * Reference implementation: `src/components/event-analysis/ChartPagination.tsx`
+  * **Common bug:** Using `mb-8` instead of `mb-16` causes footer overlap
 
 These components prevent the common flexbox shrink issues that cause layout breakage. See `docs/development/FLEXBOX_LAYOUT_CHECKLIST.md` for detailed prevention guidelines.
 

@@ -17,7 +17,7 @@
 "use client"
 
 import React from "react"
-import { logger } from "@/lib/logger"
+import { clientLogger } from "@/lib/client-logger"
 
 interface ErrorBoundaryProps {
   children: React.ReactNode
@@ -90,7 +90,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     // Log error for debugging
-    logger.error("React component error", {
+    clientLogger.error("React component error", {
       error: {
         message: error.message,
         stack: error.stack,
@@ -118,4 +118,3 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     return this.props.children
   }
 }
-

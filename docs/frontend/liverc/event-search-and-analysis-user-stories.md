@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-28
 description: User stories and acceptance criteria for Event Search and Event Analysis features
 purpose: Defines user stories written from the Driver perspective, with detailed acceptance criteria for Event Search, LiveRC discovery/import, Event Analysis, and related functionality. These stories serve as implementation guidance and testing requirements.
 relatedFiles:
@@ -54,6 +54,11 @@ This document provides user stories and acceptance criteria for the Event Search
 - [ ] Each track row has star icon that toggles favourite status
 - [ ] Toggling star adds/removes track from favourites (persisted in localStorage)
 - [ ] Selecting a track closes modal and populates track field
+- [ ] Favourite tracks displayed as chips above Event Search form
+- [ ] Each favourite chip has a remove button (X icon) on the right side
+- [ ] Clicking favourite chip name selects track and automatically triggers search
+- [ ] Clicking X icon removes track from favourites (does not trigger search)
+- [ ] Remove button meets 44px touch target requirement
 - [ ] Modal is keyboard accessible (Escape closes, focus trapped)
 - [ ] Modal is mobile-friendly (full-screen on mobile, centered on desktop)
 - [ ] Track selection persists across page reloads (localStorage)
@@ -91,6 +96,7 @@ This document provides user stories and acceptance criteria for the Event Search
 ### Acceptance Criteria
 
 - [ ] Search button triggers event search
+- [ ] Clicking a favourite track chip automatically triggers search after selecting the track
 - [ ] Form validation occurs before search (track selected, valid dates)
 - [ ] System queries MRE database for matching events
 - [ ] Event table displays matching events with Event Name, Event Date, Status columns
@@ -118,26 +124,7 @@ This document provides user stories and acceptance criteria for the Event Search
 
 ---
 
-## User Story 6: Check LiveRC for New Events
-
-**As a** Driver  
-**I want to** manually check LiveRC for new events  
-**So that** I can discover events not yet in MRE database
-
-### Acceptance Criteria
-
-- [ ] "Check LiveRC" button is prominent and accessible
-- [ ] Clicking button triggers LiveRC discovery for track and date range
-- [ ] Loading state shown: "Checking LiveRC for events..."
-- [ ] New events discovered from LiveRC displayed in event table
-- [ ] New events show status "New (LiveRC only)"
-- [ ] Events already in DB are not duplicated
-- [ ] Error message shown if LiveRC is unavailable
-- [ ] Message shown if no new events found: "No new events found on LiveRC for this search."
-
----
-
-## User Story 7: Import Discovered Events
+## User Story 6: Import Discovered Events
 
 **As a** Driver  
 **I want to** import newly discovered events from LiveRC  
@@ -154,6 +141,9 @@ This document provides user stories and acceptance criteria for the Event Search
 - [ ] Import runs sequentially for selected events (one at a time)
 - [ ] Status column shows real-time progress (importing → imported/failed) for each event
 - [ ] Events show status "Importing" during import
+- [ ] Importing status badge displays progress percentage (e.g., "Importing 45%")
+- [ ] Importing status badge shows visual progress bar that fills from left to right
+- [ ] Badge color transitions from yellow/orange to green as import progresses
 - [ ] Import runs asynchronously (does not block UI)
 - [ ] Status updates when import completes or fails for each event
 - [ ] Each event's final status is displayed in the table (imported/failed)
@@ -177,6 +167,9 @@ This document provides user stories and acceptance criteria for the Event Search
 - [ ] "Stored"/"Imported" events show green tag (ready for analysis)
 - [ ] "New (LiveRC only)" events show blue tag (available for import)
 - [ ] "Importing" events show yellow/amber tag with spinner (in progress)
+- [ ] "Importing" badge displays progress percentage and visual progress bar fill
+- [ ] Progress bar fills from left to right showing completion percentage
+- [ ] Badge color transitions from warning (yellow/orange) to success (green) as progress increases
 - [ ] "Failed import" events show red tag (failed, can retry)
 - [ ] Status updates automatically during import (polling or WebSocket)
 - [ ] Status tags meet accessibility requirements (not color-only indicators)
@@ -477,4 +470,3 @@ All stories must be implemented in compliance with:
 ---
 
 End of event-search-and-analysis-user-stories.md
-

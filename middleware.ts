@@ -170,6 +170,34 @@ export async function middleware(request: NextRequest) {
   const isProduction = env.NODE_ENV === "production"
 
   try {
+    // Handle /welcome redirect in middleware to prevent page component from rendering
+    // This avoids Next.js performance measurement errors when components redirect immediately
+    if (pathname === "/welcome" || pathname.startsWith("/welcome/")) {
+      const session = await auth(request as unknown as Request)
+      
+      if (!session?.user) {
+        // Not authenticated - redirect to login
+        const redirectResponse = NextResponse.redirect(
+          new URL("/login", request.url)
+        )
+        return addSecurityHeaders(redirectResponse, isProduction)
+      }
+      
+      // Authenticated - redirect based on user role
+      if (session.user.isAdmin) {
+        const redirectResponse = NextResponse.redirect(
+          new URL("/admin", request.url)
+        )
+        return addSecurityHeaders(redirectResponse, isProduction)
+      }
+      
+      // Regular user - redirect to dashboard
+      const redirectResponse = NextResponse.redirect(
+        new URL("/dashboard", request.url)
+      )
+      return addSecurityHeaders(redirectResponse, isProduction)
+    }
+
     // Apply rate limiting to API endpoints
     if (pathname.startsWith("/api/")) {
       const rateLimitResponse = checkRateLimit(request)

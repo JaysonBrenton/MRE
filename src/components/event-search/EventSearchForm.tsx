@@ -22,7 +22,7 @@ import { useState } from "react"
 import TrackSelectionModal from "./TrackSelectionModal"
 import { type Track } from "./TrackRow"
 import DateRangePicker from "./DateRangePicker"
-import { logger } from "@/lib/logger"
+import { clientLogger } from "@/lib/client-logger"
 
 export interface EventSearchFormProps {
   selectedTrack: Track | null
@@ -42,7 +42,7 @@ export interface EventSearchFormProps {
   onEndDateChange: (date: string) => void
   onUseDateFilterChange: (checked: boolean) => void
   onToggleFavourite: (trackId: string) => void
-  onSearch: () => void
+  onSearch: (track?: Track) => void
   onReset: () => void
   livercEventsCount?: number
   hasSearched?: boolean
@@ -83,7 +83,7 @@ export default function EventSearchForm({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    logger.debug("EventSearchForm: handleSearch called", { 
+    clientLogger.debug("EventSearchForm: handleSearch called", { 
       hasOnSearch: !!onSearch, 
       selectedTrack, 
       isLoading 
@@ -91,7 +91,7 @@ export default function EventSearchForm({
     if (onSearch) {
       onSearch()
     } else {
-      logger.error("EventSearchForm: onSearch prop is missing")
+      clientLogger.error("EventSearchForm: onSearch prop is missing")
     }
   }
 
@@ -137,14 +137,46 @@ export default function EventSearchForm({
           {favouriteTrackOptions.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2" aria-label="Favourite tracks">
               {favouriteTrackOptions.map((track) => (
-                <button
+                <div
                   key={track.id}
-                  type="button"
-                  onClick={() => onTrackSelect(track)}
-                  className="rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1 text-xs font-medium text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="group rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface)] flex items-center gap-1"
                 >
-                  {track.trackName}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onTrackSelect(track)
+                      // Pass track directly to search to avoid stale state issue
+                      if (onSearch) {
+                        onSearch(track)
+                      }
+                    }}
+                    className="pl-3 pr-1 py-1 text-xs font-medium text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  >
+                    {track.trackName}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onToggleFavourite(track.id)}
+                    className="mr-1 p-0.5 rounded-full hover:bg-[var(--token-surface-alt)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] flex items-center justify-center"
+                    aria-label={`Remove ${track.trackName} from favourites`}
+                    title="Remove from favourites"
+                  >
+                    <svg
+                      className="w-3 h-3 text-[var(--token-text-secondary)] group-hover:text-[var(--token-text-primary)]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -184,7 +216,7 @@ export default function EventSearchForm({
           <button
             type="submit"
             disabled={isLoading || !selectedTrack}
-            className="flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed h-11"
+            className="mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90 h-11"
           >
             {isLoading ? "Searching..." : "Search"}
           </button>

@@ -137,3 +137,128 @@ export async function createUser(data: {
   return user
 }
 
+/**
+ * Find a user by ID with persona relation
+ * 
+ * @param id - User's unique identifier
+ * @returns User object with persona or null if not found
+ */
+export async function findUserByIdWithPersona(id: string) {
+  return prisma.user.findUnique({
+    where: { id },
+    include: {
+      persona: true,
+    },
+  })
+}
+
+/**
+ * Get user activity statistics
+ * 
+ * Aggregates statistics about user's participation in events, races, and performance metrics.
+ * 
+ * @param userId - User's unique identifier
+ * @returns Activity statistics object
+ */
+export async function getUserActivityStats(userId: string) {
+  // Get distinct event count via EventDriverLink
+  const distinctEvents = await prisma.eventDriverLink.findMany({
+    where: { userId },
+    select: {
+      eventId: true,
+    },
+    distinct: ["eventId"],
+  })
+  const eventCount = distinctEvents.length
+
+  // Get race count via linked drivers
+  // First get all driver IDs linked to this user
+  const userDriverLinks = await prisma.userDriverLink.findMany({
+    where: {
+      userId,
+      status: {
+        in: ["confirmed", "suggested"],
+      },
+    },
+    select: {
+      driverId: true,
+    },
+  })
+
+  const driverIds = userDriverLinks.map((link) => link.driverId)
+
+  // Count distinct races where these drivers participated
+  const raceCount = driverIds.length > 0
+    ? (
+        await prisma.raceDriver.findMany({
+          where: {
+            driverId: { in: driverIds },
+          },
+          select: {
+            raceId: true,
+          },
+          distinct: ["raceId"],
+        })
+      ).length
+    : 0
+
+  // Get best lap time, best average lap time, and best consistency
+  // via RaceResult through linked drivers
+  let bestLapTime: number | null = null
+  let bestAvgLapTime: number | null = null
+  let bestConsistency: number | null = null
+
+  if (driverIds.length > 0) {
+    // Get race driver IDs for linked drivers
+    const raceDrivers = await prisma.raceDriver.findMany({
+      where: {
+        driverId: { in: driverIds },
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    const raceDriverIds = raceDrivers.map((rd) => rd.id)
+
+    // Get all race results for these race drivers
+    const raceResults = await prisma.raceResult.findMany({
+      where: {
+        raceDriverId: { in: raceDriverIds },
+      },
+      select: {
+        fastLapTime: true,
+        avgLapTime: true,
+        consistency: true,
+      },
+    })
+
+    // Calculate bests
+    for (const result of raceResults) {
+      if (result.fastLapTime !== null) {
+        if (bestLapTime === null || result.fastLapTime < bestLapTime) {
+          bestLapTime = result.fastLapTime
+        }
+      }
+      if (result.avgLapTime !== null) {
+        if (bestAvgLapTime === null || result.avgLapTime < bestAvgLapTime) {
+          bestAvgLapTime = result.avgLapTime
+        }
+      }
+      if (result.consistency !== null) {
+        if (bestConsistency === null || result.consistency > bestConsistency) {
+          bestConsistency = result.consistency
+        }
+      }
+    }
+  }
+
+  return {
+    eventCount,
+    raceCount,
+    bestLapTime,
+    bestAvgLapTime,
+    bestConsistency,
+  }
+}
+

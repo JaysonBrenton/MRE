@@ -166,6 +166,14 @@ export interface EventAnalysisData {
     avgLapTime: number | null
     consistency: number | null
   }>
+  entryList: Array<{
+    id: string
+    driverId: string
+    driverName: string
+    className: string
+    transponderNumber: string | null
+    carNumber: string | null
+  }>
   summary: {
     totalRaces: number
     totalDrivers: number
@@ -320,30 +328,58 @@ export async function getEventSummary(
     }
   }
 
-  // Group drivers by className and get fastest from each class
+  // Group drivers by className, keeping all drivers per class
   const driversByClass = new Map<
     string,
-    {
+    Array<{
       driverId: string
       driverName: string
       fastestLapTime: number
       raceLabel: string
       className: string
       raceId: string
-    }
+    }>
   >()
 
   for (const driver of driverBestLaps.values()) {
-    const existing = driversByClass.get(driver.className)
-    if (!existing || driver.fastestLapTime < existing.fastestLapTime) {
-      driversByClass.set(driver.className, driver)
-    }
+    const classDrivers = driversByClass.get(driver.className) || []
+    classDrivers.push(driver)
+    driversByClass.set(driver.className, classDrivers)
+  }
+
+  // Sort drivers within each class by fastest lap time
+  for (const [className, drivers] of driversByClass.entries()) {
+    drivers.sort((a, b) => a.fastestLapTime - b.fastestLapTime)
   }
 
   // Sort classes by their fastest driver's lap time and take top 3 classes
-  const topDrivers = Array.from(driversByClass.values())
+  const topClasses = Array.from(driversByClass.entries())
+    .map(([className, drivers]) => ({
+      className,
+      fastestLapTime: drivers[0].fastestLapTime,
+      drivers,
+    }))
     .sort((a, b) => a.fastestLapTime - b.fastestLapTime)
     .slice(0, 3)
+
+  // Flatten to get top 3 drivers from each of the top 3 classes
+  const topDrivers: Array<{
+    driverId: string
+    driverName: string
+    fastestLapTime: number
+    raceLabel: string
+    className: string
+    raceId: string
+  }> = []
+  
+  for (const classData of topClasses) {
+    // Take top 3 drivers from each class
+    const topDriversFromClass = classData.drivers.slice(0, 3)
+    topDrivers.push(...topDriversFromClass)
+  }
+
+  // Sort all drivers by fastest lap time to maintain overall ranking
+  topDrivers.sort((a, b) => a.fastestLapTime - b.fastestLapTime)
 
   // Get top 3 most consistent drivers (highest consistency score)
   const allResultsWithConsistency = await prisma.raceResult.findMany({
@@ -869,6 +905,36 @@ export async function getEventAnalysisData(
   const earliestDate = raceDates.length > 0 ? new Date(Math.min(...raceDates.map(d => d.getTime()))) : null
   const latestDate = raceDates.length > 0 ? new Date(Math.max(...raceDates.map(d => d.getTime()))) : null
 
+  // Fetch entry list (EventEntry records)
+  const eventEntries = await prisma.eventEntry.findMany({
+    where: { eventId },
+    include: {
+      driver: {
+        select: {
+          id: true,
+          displayName: true,
+        },
+      },
+    },
+    orderBy: { className: "asc" },
+  })
+
+  // Sort by className first, then by driver name
+  const sortedEntries = [...eventEntries].sort((a, b) => {
+    const classNameCompare = a.className.localeCompare(b.className)
+    if (classNameCompare !== 0) return classNameCompare
+    return a.driver.displayName.localeCompare(b.driver.displayName)
+  })
+
+  const entryListData = sortedEntries.map((entry) => ({
+    id: entry.id,
+    driverId: entry.driverId,
+    driverName: entry.driver.displayName,
+    className: entry.className,
+    transponderNumber: entry.transponderNumber,
+    carNumber: entry.carNumber,
+  }))
+
   return {
     event: {
       id: event.id,
@@ -878,6 +944,7 @@ export async function getEventAnalysisData(
     },
     races: racesData,
     drivers: driversData,
+    entryList: entryListData,
     summary: {
       totalRaces: event.races.length,
       totalDrivers: driversData.length,

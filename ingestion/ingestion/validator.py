@@ -86,13 +86,15 @@ class Validator:
                 event_id=event.source_event_id,
             )
         
-        # Validate race list is not empty
+        # Allow empty race lists - some events may not have races yet or may have no valid races
+        # If empty, skip race validation (ordering/uniqueness checks don't apply)
         if not event.races or len(event.races) == 0:
-            raise ValidationError(
-                "Race list must not be empty",
-                field="races",
+            logger.warning(
+                "validate_event_empty_race_list",
                 event_id=event.source_event_id,
+                message="Event has no races - event metadata will be imported without races",
             )
+            return  # Skip race validation for empty lists
         
         # Validate race ordering and uniqueness
         race_ids: Set[str] = set()

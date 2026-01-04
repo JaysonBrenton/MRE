@@ -15,6 +15,8 @@
 
 "use client"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import DeleteConfirmationDialog from "./DeleteConfirmationDialog"
+import Modal from "@/components/ui/Modal"
 
 interface Event {
   id: string
@@ -71,6 +73,10 @@ export default function EventsTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [reingestEvent, setReingestEvent] = useState<Event | null>(null)
+  const [deleteEvent, setDeleteEvent] = useState<Event | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const pageSize = 20
 
   const fetchEvents = useCallback(async () => {
@@ -153,6 +159,54 @@ export default function EventsTable() {
     }
   }
 
+  const handleReingest = async () => {
+    if (!reingestEvent) return
+
+    setActionLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/v1/admin/events/${reingestEvent.id}/reingest`, {
+        method: "POST",
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setReingestEvent(null)
+        fetchEvents() // Refresh events
+      } else {
+        setError(data.error?.message || "Failed to mark event for re-ingestion")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteEvent) return
+
+    setActionLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/v1/admin/events/${deleteEvent.id}`, {
+        method: "DELETE",
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setDeleteEvent(null)
+        fetchEvents() // Refresh events
+      } else {
+        setError(data.error?.message || "Failed to delete event")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading && events.length === 0) {
     return (
       <div className="py-8 text-center text-[var(--token-text-secondary)] w-full min-w-0">
@@ -163,6 +217,12 @@ export default function EventsTable() {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
+          <p className="text-sm text-[var(--token-text-error)]">{error}</p>
+        </div>
+      )}
+
       {/* Search and Filters */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
@@ -268,12 +328,15 @@ export default function EventsTable() {
                   )}
                 </button>
               </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {filteredAndSortedEvents.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-[var(--token-text-secondary)]">
+                <td colSpan={5} className="px-4 py-8 text-center text-[var(--token-text-secondary)]">
                   {searchQuery ? "No events match your search." : "No events found."}
                 </td>
               </tr>
@@ -288,6 +351,24 @@ export default function EventsTable() {
                   <td className={`px-4 py-3 ${getStatusColor(e.ingestDepth)}`}>
                     {getStatusLabel(e.ingestDepth)}
                   </td>
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setReingestEvent(e)}
+                        className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
+                        aria-label={`Re-ingest ${e.eventName}`}
+                      >
+                        Re-ingest
+                      </button>
+                      <button
+                        onClick={() => setDeleteEvent(e)}
+                        className="text-[var(--token-text-error)] hover:text-[var(--token-text-error)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
+                        aria-label={`Delete ${e.eventName}`}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
@@ -297,7 +378,7 @@ export default function EventsTable() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-8">
           <div className="text-sm text-[var(--token-text-secondary)]">
             Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} events
           </div>
@@ -324,6 +405,64 @@ export default function EventsTable() {
           </div>
         </div>
       )}
+
+      {/* Re-ingest Modal */}
+      <Modal
+        isOpen={reingestEvent !== null}
+        onClose={() => setReingestEvent(null)}
+        title="Re-ingest Event"
+        maxWidth="md"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setReingestEvent(null)}
+              disabled={actionLoading}
+              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-elevated)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleReingest}
+              disabled={actionLoading}
+              className="rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {actionLoading ? "Marking..." : "Mark for Re-ingestion"}
+            </button>
+          </div>
+        }
+      >
+        <div className="px-4 py-4">
+          <p className="text-sm text-[var(--token-text-primary)]">
+            Are you sure you want to mark this event for re-ingestion?
+          </p>
+          {reingestEvent && (
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium text-[var(--token-text-primary)]">
+                {reingestEvent.eventName}
+              </p>
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                Track: {reingestEvent.track.trackName}
+              </p>
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                Date: {new Date(reingestEvent.eventDate).toLocaleDateString()}
+              </p>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={deleteEvent !== null}
+        onClose={() => setDeleteEvent(null)}
+        onConfirm={handleDelete}
+        title="Delete Event"
+        message="Are you sure you want to delete this event? This will permanently delete the event and all associated data including races, results, and lap data. This action cannot be undone."
+        itemName={deleteEvent ? `${deleteEvent.eventName} (${deleteEvent.track.trackName})` : undefined}
+        loading={actionLoading}
+      />
     </div>
   )
 }

@@ -586,8 +586,8 @@ flowchart TD
 
 **Existing Events:**
 - If user searches for events already in database, they see "Stored" status
-- User can immediately click "Analyse event" without importing
-- System may still query LiveRC if user clicks "Check LiveRC" button
+- Drivers must import an event (status becomes "Imported/Ready") before the "Analyse event" action appears
+- System may still query LiveRC in the background to surface newer events
 
 ---
 
@@ -1941,4 +1941,3 @@ This user journey documentation references and complements:
 ## License
 
 Internal use only. This documentation governs user journey definitions for the MRE application.
-

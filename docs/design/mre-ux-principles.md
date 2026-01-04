@@ -1,17 +1,16 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-12-28
+lastModified: 2025-01-29
 description: Mandatory UX principles for all MRE version 0.1.1 features
 purpose: Defines the mandatory User Experience principles for My Race Engineer (MRE).
          These rules apply to all version 0.1.1 features and will remain the baseline foundation
          for Beta and Production. Ensures every screen behaves consistently, LLM
          contributors follow predictable UX patterns, and version 0.1.1 UI remains simple,
-         mobile-first, and enterprise-grade. This document is fully authoritative.
+         desktop-optimized, and enterprise-grade. This document is fully authoritative.
          No UX deviations are allowed in version 0.1.1.
 relatedFiles:
   - docs/design/mre-dark-theme-guidelines.md
-  - docs/design/mre-mobile-ux-guidelines.md
   - docs/design/navigation-patterns.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/adr/ADR-20251228-allow-sidebar-navigation.md
@@ -66,11 +65,11 @@ Users expect your app to behave like other apps they already use.
 * Do not invent new form layouts
 * Do not rearrange standard login/register patterns
 
-### 2.2 Fitts’s Law
+### 2.2 Fitts's Law
 
-Touch targets must be easy to tap.
+Interactive targets must be easy to click.
 
-* Minimum 44px touch height
+* Minimum 44px click target height
 * Buttons must not be placed too close together
 
 ### 2.3 Hick's Law

@@ -190,10 +190,13 @@ class RaceListParser:
                     logger.warning("race_row_parse_error", error=str(e), url=url)
                     continue
             
+            # Allow empty race lists - some events may not have races yet or may have no valid races
+            # Log a warning but don't fail the import (event metadata can still be useful)
             if not races:
-                raise EventPageFormatError(
-                    "No valid races extracted from race list",
+                logger.warning(
+                    "parse_race_list_no_valid_races",
                     url=url,
+                    message="No valid races extracted from race list - event will be imported without races",
                 )
             
             logger.debug("parse_race_list_success", race_count=len(races), url=url)

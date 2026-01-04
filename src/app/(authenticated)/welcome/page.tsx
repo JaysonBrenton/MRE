@@ -7,33 +7,38 @@
  * 
  * @description Welcome page for authenticated regular users
  * 
- * @purpose Displays a welcome message for authenticated users after login.
- *          Per version 0.1.1 scope, this page shows "Welcome back <Driver Name>" and
- *          includes navigation to Event Search. This is the default landing page for
- *          regular users after login. Admins are automatically redirected to /admin.
+ * @purpose This page redirects users to their appropriate destination.
+ *          The redirect is primarily handled in middleware to avoid Next.js
+ *          performance measurement errors. This component serves as a fallback
+ *          client-side redirect if middleware doesn't catch it.
  * 
  * @relatedFiles
+ * - middleware.ts (primary redirect handling)
  * - src/app/(authenticated)/admin/page.tsx (admin console)
  * - src/app/(authenticated)/layout.tsx (shared layout wrapper)
  * - src/lib/auth.ts (session check)
- * - components/LogoutButton.tsx (logout functionality)
  */
 
-import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
+"use client"
 
-export default async function WelcomePage() {
-  const session = await auth()
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
-  if (!session) {
-    redirect("/login")
-  }
+export default function WelcomePage() {
+  const router = useRouter()
 
-  // Redirect admins to admin page
-  if (session.user.isAdmin) {
-    redirect("/admin")
-  }
+  useEffect(() => {
+    // This page should never render as middleware handles the redirect
+    // This is a fallback client-side redirect
+    router.replace("/dashboard")
+  }, [router])
 
-  // Redirect all users to dashboard
-  redirect("/dashboard")
+  // Show loading state while redirecting
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <p className="text-lg">Redirecting...</p>
+      </div>
+    </div>
+  )
 }

@@ -9,7 +9,8 @@ const COMMANDS = [
   { id: "event", label: "View My Event", action: "/dashboard/my-event" },
   { id: "search", label: "Open Event Search", action: "/event-search" },
   { id: "telemetry", label: "Telemetry Workspace", action: "/dashboard/my-telemetry" },
-  { id: "settings", label: "Open Settings", action: "/dashboard/profile" },
+  { id: "engineer", label: "My Engineer", action: "/dashboard/my-engineer" },
+  { id: "team", label: "My Team", action: "/under-development" },
 ]
 
 export default function CommandPalette() {

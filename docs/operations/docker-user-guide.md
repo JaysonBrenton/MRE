@@ -572,6 +572,12 @@ healthcheck:
 - `PYTHONUNBUFFERED` - Disable Python output buffering
 - `LOG_LEVEL` - Logging level (INFO, DEBUG, etc.)
 - `TZ` - Timezone
+- `SITE_POLICY_PATH` - Path to site policy configuration file (default: `/app/policies/site_policy/policy.json`)
+
+**Volume Mounts:**
+- `./ingestion:/app/ingestion` - Source code for hot reload
+- `./docs/reports:/app/docs/reports` - Persist sync reports
+- `./policies:/app/policies:ro` - Site policy configuration (read-only, required for LiveRC discovery)
 
 **Health Check:**
 ```yaml
@@ -883,6 +889,15 @@ docker exec -it mre-app npx prisma generate
 4. **Restart service:**
    ```bash
    docker compose restart liverc-ingestion-service
+   ```
+
+5. **Verify site policy configuration is mounted:**
+   ```bash
+   # Check if policy file is accessible
+   docker exec mre-liverc-ingestion-service ls -la /app/policies/site_policy/policy.json
+   
+   # If missing, recreate container to apply volume mount
+   docker compose up -d --force-recreate liverc-ingestion-service
    ```
 
 #### Issue: Module Not Found Errors

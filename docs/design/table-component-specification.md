@@ -5,7 +5,6 @@ lastModified: 2025-01-27
 description: Table component specification for MRE version 0.1.1
 purpose: Defines table component usage, features, mobile behavior, and implementation guidelines
 relatedFiles:
-  - docs/design/mre-mobile-ux-guidelines.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/specs/mre-v0.1-feature-scope.md
 ---
@@ -413,8 +412,6 @@ const users = await getUsers(filters, sort, pagination);
 ---
 
 ## Related Documentation
-
-- [Mobile UX Guidelines](mre-mobile-ux-guidelines.md) - Mobile-specific requirements
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Architecture rules
 - [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature specifications
 - [Dark Theme Guidelines](mre-dark-theme-guidelines.md) - Visual styling

@@ -13,7 +13,16 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "prepare": "husky",
+    "release": "standard-version",
+    "release:minor": "standard-version --release-as minor",
+    "release:patch": "standard-version --release-as patch",
+    "release:major": "standard-version --release-as major",
+    "changelog": "node scripts/generate-changelog-with-dates.js",
+    "changelog:with-dates": "node scripts/generate-changelog-with-dates.js",
+    "changelog:auto": "auto-changelog --template keepachangelog --output docs/development/CHANGELOG.md",
+    "changelog:retro": "bash scripts/generate-retrospective-changelog.sh"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"commonjs\"} prisma/seed.ts"
@@ -42,6 +51,8 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.3.0",
+    "@commitlint/config-conventional": "^20.3.0",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",
     "@types/argon2": "^0.14.1",
@@ -50,9 +61,12 @@
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^2.1.8",
     "@vitest/ui": "^2.1.8",
+    "auto-changelog": "^2.5.0",
     "baseline-browser-mapping": "^2.9.11",
     "eslint": "^9",
     "eslint-config-next": "16.0.5",
+    "husky": "^9.1.7",
+    "standard-version": "^9.5.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5",

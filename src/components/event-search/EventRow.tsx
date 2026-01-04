@@ -8,11 +8,19 @@
  * @description Individual event row/card in the event table
  * 
  * @purpose Displays event information with status badge and "Analyse event" button.
- *          Desktop-optimized table row layout.
+ *          Desktop-optimized table row layout. Calculates import progress from
+ *          import counts (races, results, laps) or import stage, and passes it
+ *          to EventStatusBadge for visual progress indication.
+ * 
+ * @features
+ * - Progress calculation: Estimates import progress from counts or stage information
+ * - Volume-based calculation: Uses weighted approach based on data volume
+ * - Stage-based fallback: Maps import stages to progress percentages when counts unavailable
+ * - Real-time updates: Progress updates as import counts change during polling
  * 
  * @relatedFiles
  * - src/components/event-search/EventTable.tsx (parent component)
- * - src/components/event-search/EventStatusBadge.tsx (status badge)
+ * - src/components/event-search/EventStatusBadge.tsx (status badge with progress visualization)
  */
 
 "use client"
@@ -39,6 +47,7 @@ export interface EventRowProps {
   errorMessage?: string // Optional error message for failed imports
   containsDriver?: boolean // Whether the driver name was found in the entry list
   importProgress?: { stage?: string; counts?: { races: number; results: number; laps: number } } // Progress information for ongoing imports
+  onSelectForDashboard?: (eventId: string) => void // Callback for selecting an event for dashboard context
 }
 
 function getStatusFromIngestDepth(ingestDepth: string | null | undefined, eventId?: string): EventStatus {
@@ -68,6 +77,91 @@ function getStatusFromIngestDepth(ingestDepth: string | null | undefined, eventI
   }
 }
 
+/**
+ * Calculates import progress percentage from import counts using a volume-based approach,
+ * or falls back to stage-based progress when counts aren't available.
+ * Progress is estimated based on the relative amounts of races, results, and laps imported,
+ * or mapped from import stage if counts are missing.
+ */
+function calculateImportProgress(
+  counts?: { races: number; results: number; laps: number },
+  stage?: string
+): number | undefined {
+  // If we have counts, use volume-based calculation
+  if (counts) {
+    const { races, results, laps } = counts
+
+    // If no counts exist, we're just starting (0-10%)
+    if (races === 0 && results === 0 && laps === 0) {
+      return 5 // Small initial progress
+    }
+
+    // Volume-based calculation using weighted approach
+    // Races are typically fewer (10-30% of progress)
+    // Results are moderate (30-70% of progress)
+    // Laps are most numerous (70-95% of progress)
+
+    let progress = 0
+
+    // Race progress: 0-30% (weighted by race count, but races are typically 1-5 per event)
+    // If we have races, we're at least 10% done
+    if (races > 0) {
+      // Assume typical event has 1-5 races, so each race is roughly 4-6% progress
+      // Cap at 30% for races
+      progress += Math.min(30, 10 + (races * 4))
+    }
+
+    // Result progress: 30-70% (weighted by result count)
+    // Results are more numerous than races but less than laps
+    if (results > 0) {
+      // If we have results, we're at least 30% done
+      // Each result adds roughly 0.1-0.5% depending on volume
+      // Typical event might have 20-100 results
+      const resultProgress = Math.min(40, results * 0.3) // Cap additional progress at 40%
+      progress = Math.max(progress, 30) + resultProgress
+    }
+
+    // Lap progress: 70-95% (weighted by lap count)
+    // Laps are the most numerous data points
+    if (laps > 0) {
+      // If we have laps, we're at least 70% done
+      // Each lap adds a tiny amount (0.01-0.05% depending on volume)
+      // Typical event might have 500-5000 laps
+      const lapProgress = Math.min(25, laps * 0.005) // Cap additional progress at 25%
+      progress = Math.max(progress, 70) + lapProgress
+    }
+
+    // Clamp between 5% (minimum when counts exist) and 95% (maximum before completion)
+    return Math.max(5, Math.min(95, Math.round(progress)))
+  }
+
+  // Fallback to stage-based progress when counts aren't available
+  if (stage) {
+    const normalizedStage = stage.toLowerCase().trim()
+    
+    if (normalizedStage.includes("starting") || normalizedStage.includes("connecting")) {
+      return 5
+    }
+    if (normalizedStage.includes("fetching event") || normalizedStage.includes("fetching")) {
+      return 15
+    }
+    if (normalizedStage.includes("importing race")) {
+      return 35
+    }
+    if (normalizedStage.includes("importing result")) {
+      return 55
+    }
+    if (normalizedStage.includes("importing lap")) {
+      return 75
+    }
+    // Default "Importing..." or any other stage
+    return 50
+  }
+
+  // No counts and no stage - return undefined
+  return undefined
+}
+
 export default function EventRow({ 
   event, 
   onImport, 
@@ -78,6 +172,7 @@ export default function EventRow({
   errorMessage,
   containsDriver = false,
   importProgress,
+  onSelectForDashboard,
 }: EventRowProps) {
   const router = useRouter()
   const derivedStatus = getStatusFromIngestDepth(event.ingestDepth, event.id)
@@ -90,6 +185,12 @@ export default function EventRow({
   const hasFailed = status === "failed"
   const canSelect = isImported
   const isImportable = status === "new"
+  const canSelectForDashboard = isImported && !isLiveRCOnly && onSelectForDashboard
+  
+  // Calculate progress for importing status
+  const importProgressPercentage = isImporting 
+    ? calculateImportProgress(importProgress?.counts, importProgress?.stage) 
+    : undefined
   
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onSelect && !isBulkImporting && !isImporting) {
@@ -107,6 +208,12 @@ export default function EventRow({
   const handleRetry = () => {
     if (onImport && !isImporting) {
       onImport(event)
+    }
+  }
+
+  const handleSelectForDashboard = () => {
+    if (onSelectForDashboard && canSelectForDashboard) {
+      onSelectForDashboard(event.id)
     }
   }
 
@@ -159,14 +266,10 @@ export default function EventRow({
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <EventStatusBadge status={status} />
+            <EventStatusBadge status={status} progress={importProgressPercentage} />
             {/* Import Progress Indicator */}
             {isImporting && (
               <div className="flex items-center gap-2" role="status" aria-live="polite">
-                <svg className="h-4 w-4 animate-spin text-[var(--token-status-warning-text)]" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
                 <span className="text-xs text-[var(--token-text-muted)]">
                   {importProgress?.counts
                     ? `${importProgress.counts.races} race${importProgress.counts.races !== 1 ? "s" : ""}, ${importProgress.counts.results} result${importProgress.counts.results !== 1 ? "s" : ""}, ${importProgress.counts.laps} lap${importProgress.counts.laps !== 1 ? "s" : ""} imported`
@@ -198,8 +301,19 @@ export default function EventRow({
             </button>
           )}
           
-          {/* Analyse Button - shown for imported events */}
-          {canSelect && (
+          {/* Select for Dashboard Button - shown for imported events when in modal context */}
+          {canSelectForDashboard && (
+            <button
+              type="button"
+              onClick={handleSelectForDashboard}
+              className="flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
+            >
+              Select
+            </button>
+          )}
+          
+          {/* Analyse Button - shown for imported events when not in modal context */}
+          {canSelect && !onSelectForDashboard && (
             <button
               type="button"
               onClick={handleSelect}

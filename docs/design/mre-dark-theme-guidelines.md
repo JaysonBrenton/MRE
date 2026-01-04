@@ -1,14 +1,13 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-29
 description: Visual standards and token system for MRE theme implementation
 purpose: Defines the visual standards, token system, and rules for implementing themes in MRE.
          Dark theme is the default, but the token system supports theme experimentation.
          Applies to all UI in version 0.1.1 and beyond.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
-  - docs/design/mre-mobile-ux-guidelines.md
   - docs/design/mre-ux-principles.md
 ---
 
@@ -59,9 +58,10 @@ Example:
 
 ```css
 :root {
-  --token-surface: #111214;
-  --token-surface-alt: #18191c;
-  --token-border: #26272b;
+  --token-surface: #0a0a0b;
+  --token-surface-elevated: #111214;
+  --token-surface-raised: #18191c;
+  --token-border-default: #26272e;
   --token-text-primary: #f2f2f3;
   --token-text-secondary: #b8bbc2;
   --token-accent: #3a8eff;
@@ -127,7 +127,7 @@ Accent colours must pass contrast on focus states.
 Use a tiered system:
 
 * `--token-surface` (base background)
-* `--token-surface-alt` (cards, containers)
+* `--token-surface-elevated` (cards, containers)
 * `--token-surface-raised` (overlays, drawers)
 
 Each layer should differ by **3–6 percent luminance**.

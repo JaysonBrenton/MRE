@@ -108,7 +108,7 @@ class PlaywrightClient:
 
             if self._site_policy:
                 self._site_policy.ensure_enabled("liverc")
-                self._site_policy.ensure_allowed(url)
+                await self._site_policy.ensure_allowed(url)
                 async with self._site_policy.throttle(url):
                     await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
             else:

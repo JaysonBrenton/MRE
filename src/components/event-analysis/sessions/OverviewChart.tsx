@@ -46,6 +46,35 @@ const textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
 
 /**
+ * Calculate bottom margin needed for rotated labels
+ * Estimates space needed for -45 degree rotated text labels
+ */
+function calculateBottomMargin(labels: string[], minMargin = 100): number {
+  if (labels.length === 0) return minMargin
+  
+  const fontSize = 11 // Match the fontSize in tickLabelProps
+  const avgCharWidth = 6.5 // Approximate width per character for 11px font
+  const rotationRadians = Math.PI / 4 // 45 degrees
+  const padding = 20 // Extra padding for safety
+  
+  // Find the longest label
+  const maxLabelLength = Math.max(...labels.map(label => label.length))
+  
+  // Estimate text width
+  const estimatedTextWidth = maxLabelLength * avgCharWidth
+  
+  // Calculate vertical extension for -45 degree rotation
+  // When rotated -45°, the text extends diagonally down and to the right
+  // The vertical component is width * sin(45°)
+  const verticalExtension = estimatedTextWidth * Math.sin(rotationRadians)
+  
+  // Add padding and ensure minimum margin
+  const calculatedMargin = Math.ceil(verticalExtension + padding)
+  
+  return Math.max(calculatedMargin, minMargin)
+}
+
+/**
  * Format duration in seconds to MM:SS format
  */
 function formatDuration(seconds: number): string {
@@ -84,6 +113,13 @@ export default function OverviewChart({
     }))
   }, [sessions])
 
+  // Calculate dynamic bottom margin based on label lengths
+  const margin = useMemo(() => {
+    const labelLengths = chartData.map(d => d.session.raceLabel)
+    const dynamicBottom = calculateBottomMargin(labelLengths, 100)
+    return { ...defaultMargin, bottom: dynamicBottom }
+  }, [chartData])
+
   if (chartData.length === 0) {
     return (
       <ChartContainer
@@ -98,8 +134,6 @@ export default function OverviewChart({
       </ChartContainer>
     )
   }
-
-  const margin = defaultMargin
 
   return (
     <ChartContainer
@@ -336,7 +370,7 @@ export default function OverviewChart({
                             key={`lap-trend-${trend.driverId}`}
                             data={lineData}
                             x={(d) => (xScale(d.session.raceLabel) || 0) + xScale.bandwidth() / 2}
-                            y={(d) => yScaleLapTime!(d.lapTime)}
+                            y={(d) => (yScaleLapTime ? yScaleLapTime(d.lapTime) : 0) as number}
                             stroke={color}
                             strokeWidth={2}
                             curve={curveLinear}

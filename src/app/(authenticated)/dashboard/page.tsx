@@ -18,16 +18,17 @@
  */
 
 import DashboardClient from "@/components/dashboard/DashboardClient"
+import ContextRibbon from "@/components/dashboard/shell/ContextRibbon"
 
 export default async function Dashboard() {
   return (
     <section className="content-wrapper w-full min-w-0">
       <header className="mb-8 space-y-2">
-        <p className="text-[11px] uppercase tracking-[0.5em] text-[var(--token-text-muted)]">Mission Control</p>
-        <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">Driver Dashboard</h1>
+        <h2 className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">Event Discovery</h2>
         <p className="text-sm text-[var(--token-text-secondary)]">
-          Live context, telemetry snapshots, weather, and engineer activity blended into one workspace.
+          Browse and discover racing events from LiveRC. Select an event to view detailed race data, telemetry, and performance analytics.
         </p>
+        <ContextRibbon />
       </header>
       <DashboardClient />
     </section>

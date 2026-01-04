@@ -81,6 +81,24 @@ Tracks represent LiveRC subdomains such as `canberraoffroad`.
 | `last_seen_at` | timestamptz | When the track was last observed during sync |
 | `is_active` | boolean | True if the track appeared in the latest global track sync |
 | `is_followed` | boolean | Admin-controlled: true if MRE should allow event syncing or display in UI |
+| `latitude` | float | Track latitude coordinate (extracted from dashboard map, optional) |
+| `longitude` | float | Track longitude coordinate (extracted from dashboard map, optional) |
+| `address` | text | Full address string (extracted from dashboard, optional) |
+| `city` | text | City name (parsed from address, optional) |
+| `state` | text | State/province name (parsed from address, optional) |
+| `country` | text | Country name (parsed from address, optional) |
+| `postal_code` | text | Postal/ZIP code (parsed from address, optional) |
+| `phone` | text | Phone number (extracted from dashboard, optional) |
+| `website` | text | Website URL (extracted from dashboard, optional) |
+| `email` | text | Email address (extracted from dashboard, may be obfuscated, optional) |
+| `description` | text | Track description/amenities (extracted from dashboard, optional) |
+| `logo_url` | text | Track logo image URL (extracted from dashboard, optional) |
+| `facebook_url` | text | Facebook page URL (extracted from dashboard, optional) |
+| `total_laps` | integer | Total lifetime laps (from dashboard stats, optional, default: 0) |
+| `total_races` | integer | Total lifetime races (from dashboard stats, optional, default: 0) |
+| `total_events` | integer | Total lifetime events (from dashboard stats, optional, default: 0) |
+
+**Note:** Metadata fields (location, contact info, statistics, description, logos) are extracted from track dashboard pages (`https://{slug}.liverc.com/`) during track sync. These fields are optional - tracks without dashboard data continue to function normally. Stored coordinates are used by the weather service for improved geolocation accuracy.
 
 ### Natural Key
 

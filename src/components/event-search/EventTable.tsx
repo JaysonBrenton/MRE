@@ -29,6 +29,7 @@ export interface EventTableProps {
   events: Event[]
   isLoading?: boolean
   hasSearched?: boolean
+  isCheckingLiveRC?: boolean // Whether LiveRC is currently being checked
   onImportEvent?: (event: Event) => void
   statusOverrides?: Record<string, EventStatus>
   errorMessages?: Record<string, string>
@@ -38,12 +39,14 @@ export interface EventTableProps {
   onSelectAll?: () => void
   driverInEvents?: Record<string, boolean> // Map of sourceEventId to boolean
   eventImportProgress?: Record<string, { stage?: string; counts?: { races: number; results: number; laps: number } }> // Progress information per event
+  onSelectForDashboard?: (eventId: string) => void // Callback for selecting an event for dashboard context
 }
 
 export default function EventTable({ 
   events, 
   isLoading, 
   hasSearched = false, 
+  isCheckingLiveRC = false,
   onImportEvent, 
   statusOverrides,
   errorMessages = {},
@@ -53,6 +56,7 @@ export default function EventTable({
   onSelectAll,
   driverInEvents = {},
   eventImportProgress = {},
+  onSelectForDashboard,
 }: EventTableProps) {
   const [sortField, setSortField] = useState<SortField>("date")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
@@ -116,8 +120,9 @@ export default function EventTable({
 
   // Don't render anything if we're loading or haven't searched yet
   // This prevents any flash of old data during state transitions
-  if (isLoading || !hasSearched) {
-    if (isLoading) {
+  // Show loading state while checking database or LiveRC
+  if (isLoading || isCheckingLiveRC || !hasSearched) {
+    if (isLoading || isCheckingLiveRC) {
       return (
         <div className="mt-8 text-center py-8 w-full min-w-0" role="status" aria-live="polite">
           <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
@@ -127,7 +132,8 @@ export default function EventTable({
     return null
   }
 
-  if (events.length === 0) {
+  // Only show empty state after both database and LiveRC checks have completed
+  if (events.length === 0 && !isCheckingLiveRC && !isLoading && hasSearched) {
     return (
       <div className="mt-8 py-8 w-full min-w-0 flex-shrink-0">
         <div className="mx-auto max-w-2xl min-w-[320px] px-4 space-y-3">
@@ -227,6 +233,7 @@ export default function EventTable({
               isBulkImporting={isBulkImporting}
               containsDriver={containsDriver}
               importProgress={eventImportProgress[event.id]}
+              onSelectForDashboard={onSelectForDashboard}
             />
           )
         })}

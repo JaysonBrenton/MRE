@@ -31,6 +31,7 @@ from ingestion.connectors.liverc.parsers.race_list_parser import RaceListParser
 from ingestion.connectors.liverc.parsers.race_results_parser import RaceResultsParser
 from ingestion.connectors.liverc.parsers.race_lap_parser import RaceLapParser
 from ingestion.connectors.liverc.parsers.entry_list_parser import EntryListParser
+from ingestion.connectors.liverc.parsers.track_dashboard_parser import TrackDashboardParser, TrackDashboardData
 from ingestion.connectors.liverc.utils import (
     build_event_url,
     build_events_url,
@@ -62,7 +63,7 @@ class LiveRCConnector:
     def __init__(
         self,
         page_type_cache_size: int = 1000,
-        playwright_concurrency: int = 1,
+        playwright_concurrency: int = 2,
         site_policy: Optional[SitePolicy] = None,
     ):
         """
@@ -352,12 +353,14 @@ class LiveRCConnector:
     async def fetch_race_page(
         self,
         race_summary: ConnectorRaceSummary,
+        shared_client: Optional[HTTPXClient] = None,
     ) -> ConnectorRacePackage:
         """
         Fetch and parse race result page with all driver data.
         
         Args:
             race_summary: Race summary with URL and metadata
+            shared_client: Optional HTTPXClient instance to reuse (must already be entered as context manager)
         
         Returns:
             ConnectorRacePackage with race summary, results, and lap data
@@ -366,7 +369,6 @@ class LiveRCConnector:
             ConnectorHTTPError: On network/HTTP errors
             RacePageFormatError: On parsing errors
         """
-        self._ensure_enabled()
         self._ensure_enabled()
         # Extract track_slug from race_url if needed
         track_slug = parse_track_slug_from_url(race_summary.race_url)
@@ -382,18 +384,23 @@ class LiveRCConnector:
         # Try HTTPX first (unless we know it requires Playwright)
         if not requires_playwright:
             try:
-                async with HTTPXClient(self._site_policy) as client:
-                    response = await client.get(url)
+                # Use shared client if provided, otherwise create new one
+                if shared_client is not None:
+                    response = await shared_client.get(url)
                     html = response.text
-                    
-                    # Check if we have the required content
-                    # If not, mark as requiring Playwright and retry
-                    if "racerLaps" not in html or "table" not in html.lower():
-                        logger.debug("race_page_requires_playwright", url=url)
-                        requires_playwright = True
-                        self._page_type_cache[url] = True
-                        self._trim_page_type_cache()
-                        html = None
+                else:
+                    async with HTTPXClient(self._site_policy) as client:
+                        response = await client.get(url)
+                        html = response.text
+                
+                # Check if we have the required content
+                # If not, mark as requiring Playwright and retry
+                if html and ("racerLaps" not in html or "table" not in html.lower()):
+                    logger.debug("race_page_requires_playwright", url=url)
+                    requires_playwright = True
+                    self._page_type_cache[url] = True
+                    self._trim_page_type_cache()
+                    html = None
             
             except ConnectorHTTPError:
                 # If HTTPX fails, try Playwright
@@ -589,3 +596,67 @@ class LiveRCConnector:
                 f"Unexpected error fetching entry list: {str(e)}",
                 url=url,
             )
+    
+    async def fetch_track_dashboard(self, track_slug: str) -> str:
+        """
+        Fetch track dashboard page HTML.
+        
+        Args:
+            track_slug: Track subdomain slug
+        
+        Returns:
+            HTML content from dashboard page
+        
+        Raises:
+            ConnectorHTTPError: On network/HTTP errors
+        """
+        self._ensure_enabled()
+        url = f"https://{track_slug}.liverc.com/"
+        logger.debug("fetch_track_dashboard_start", url=url, track_slug=track_slug)
+        
+        try:
+            async with HTTPXClient(self._site_policy) as client:
+                response = await client.get(url)
+                html = response.text
+                
+                logger.debug("fetch_track_dashboard_success", url=url)
+                return html
+        
+        except ConnectorHTTPError as err:
+            self._record_error("fetch_track_dashboard", err)
+            raise
+        
+        except Exception as e:
+            self._record_error("fetch_track_dashboard", e)
+            logger.error("fetch_track_dashboard_error", url=url, error=str(e))
+            raise ConnectorHTTPError(
+                f"Failed to fetch track dashboard: {str(e)}",
+                url=url,
+            )
+    
+    async def fetch_track_metadata(self, track_slug: str) -> Optional[TrackDashboardData]:
+        """
+        Fetch and parse track dashboard metadata.
+        
+        Args:
+            track_slug: Track subdomain slug
+        
+        Returns:
+            TrackDashboardData with extracted metadata, or None if fetch/parse fails
+        """
+        self._ensure_enabled()
+        url = f"https://{track_slug}.liverc.com/"
+        logger.debug("fetch_track_metadata_start", url=url, track_slug=track_slug)
+        
+        try:
+            html = await self.fetch_track_dashboard(track_slug)
+            parser = TrackDashboardParser()
+            metadata = parser.parse(html, url)
+            
+            logger.debug("fetch_track_metadata_success", url=url)
+            return metadata
+        
+        except Exception as e:
+            # Log error but don't fail - graceful degradation
+            logger.warning("fetch_track_metadata_error", url=url, track_slug=track_slug, error=str(e))
+            return None

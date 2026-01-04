@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
-import type { DensityPreference, EventAnalysisSummary, ImportedEventSummary } from "@/types/dashboard"
+import type { DensityPreference, EventAnalysisSummary, ImportedEventSummary } from "@root-types/dashboard"
 
 const STORAGE_KEYS = {
   selectedEvent: "mre-selected-event-id",

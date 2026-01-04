@@ -61,6 +61,7 @@ export async function GET(
       driversCount: analysisData.drivers.length,
     })
 
+    // Convert Date objects to ISO strings for JSON serialization
     return successResponse({
       event: {
         id: analysisData.event.id,
@@ -68,6 +69,12 @@ export async function GET(
         eventDate: analysisData.event.eventDate.toISOString(),
         trackName: analysisData.event.trackName,
       },
+      races: analysisData.races.map((race) => ({
+        ...race,
+        startTime: race.startTime?.toISOString() || null,
+      })),
+      drivers: analysisData.drivers,
+      entryList: analysisData.entryList,
       summary: {
         totalRaces: analysisData.summary.totalRaces,
         totalDrivers: analysisData.summary.totalDrivers,

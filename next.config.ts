@@ -31,13 +31,20 @@ const nextConfig: NextConfig = {
   // It should only be used in API routes and server components (Node.js runtime)
   serverExternalPackages: ["argon2"],
   webpack: (config, { isServer }) => {
-    // Exclude argon2 from client-side bundling
+    // Exclude argon2 and Prisma from client-side bundling
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         path: false,
         crypto: false,
+      }
+      // Exclude Prisma client from client bundles
+      config.externals = config.externals || []
+      if (Array.isArray(config.externals)) {
+        config.externals.push("@prisma/client")
+      } else {
+        config.externals = [config.externals, "@prisma/client"]
       }
     }
     return config

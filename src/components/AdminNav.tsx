@@ -23,7 +23,13 @@ import LogoutButton from "./LogoutButton"
 
 const ADMIN_NAV_LINKS = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/events", label: "Events" },
+  { href: "/admin/tracks", label: "Tracks" },
   { href: "/admin/ingestion", label: "Ingestion" },
+  { href: "/admin/audit", label: "Audit Logs" },
+  { href: "/admin/health", label: "Health Checks" },
+  { href: "/admin/logs", label: "Logs" },
 ]
 
 export default function AdminNav() {

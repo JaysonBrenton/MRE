@@ -17,7 +17,7 @@
 
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--token-border-muted)] bg-[var(--token-surface)] py-6">
+    <footer className="mt-12 border-t border-[var(--token-border-muted)] bg-[var(--token-surface)] py-6">
       <div className="mx-auto max-w-7xl px-6">
         <div className="flex items-center justify-center gap-2 text-center justify-between">
           <p className="text-sm text-[var(--token-text-muted)]">

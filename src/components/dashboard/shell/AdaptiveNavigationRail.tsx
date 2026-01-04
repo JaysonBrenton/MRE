@@ -2,14 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useMemo } from "react"
+import { useMemo, useState, useEffect, type ReactElement } from "react"
 import { useDashboardContext } from "@/components/dashboard/context/DashboardContext"
 
 interface NavItem {
   href: string
   label: string
   description: string
-  icon: (active: boolean) => JSX.Element
+  icon: (active: boolean) => ReactElement
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -70,7 +70,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/dashboard/my-telemetry",
-    label: "Telemetry",
+    label: "My Telemetry",
     description: "Data sources & traces",
     icon: (active) => (
       <svg
@@ -91,7 +91,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     href: "/dashboard/my-engineer",
     label: "My Engineer",
-    description: "Collaboration hub",
+    description: "Racing intelligence hub",
     icon: (active) => (
       <svg
         className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
@@ -109,9 +109,9 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/dashboard/profile",
-    label: "Settings",
-    description: "Profile & preferences",
+    href: "/under-development",
+    label: "My Team",
+    description: "Team dashboard & insights",
     icon: (active) => (
       <svg
         className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
@@ -119,9 +119,17 @@ const NAV_ITEMS: NavItem[] = [
         fill="none"
       >
         <path
-          d="M12 15a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm7.5-3a7.5 7.5 0 0 1-.09 1.15l2.11 1.65-2 3.46-2.49-1a7.58 7.58 0 0 1-1.93 1.15l-.37 2.65h-4l-.37-2.65a7.58 7.58 0 0 1-1.93-1.15l-2.49 1-2-3.46 2.11-1.65A7.5 7.5 0 0 1 4.5 12a7.5 7.5 0 0 1 .09-1.15L2.48 9.2l2-3.46 2.49 1a7.58 7.58 0 0 1 1.93-1.15L9.27 3h4l.37 2.65a7.58 7.58 0 0 1 1.93 1.15l2.49-1 2 3.46-2.11 1.65A7.5 7.5 0 0 1 19.5 12z"
+          d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
           stroke="currentColor"
-          strokeWidth={1.2}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth={1.5} />
+        <path
+          d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+          stroke="currentColor"
+          strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -130,17 +138,111 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-export default function AdaptiveNavigationRail() {
+interface GuideItem {
+  href: string
+  label: string
+  icon: (active: boolean) => ReactElement
+}
+
+const GUIDE_ITEMS: GuideItem[] = [
+  {
+    href: "/guides/getting-started",
+    label: "Getting Started",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+]
+
+const STORAGE_KEY_GUIDES_EXPANDED = "mre-user-guides-expanded"
+
+const ADMIN_NAV_ITEM: NavItem = {
+  href: "http://localhost:3001/admin",
+  label: "MRE Administration",
+  description: "System administration console",
+  icon: (active) => (
+    <svg
+      className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+}
+
+interface AdaptiveNavigationRailProps {
+  user?: {
+    isAdmin?: boolean | null
+  } | null
+}
+
+export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailProps) {
   const pathname = usePathname()
   const { isNavCollapsed, toggleNavCollapsed } = useDashboardContext()
+  const [isGuidesExpanded, setIsGuidesExpanded] = useState(false)
 
   const navWidth = isNavCollapsed ? "w-[80px]" : "w-64"
 
-  const navItems = useMemo(() => NAV_ITEMS, [])
+  const navItems = useMemo(() => {
+    const items = [...NAV_ITEMS]
+    if (user?.isAdmin === true) {
+      items.push(ADMIN_NAV_ITEM)
+    }
+    return items
+  }, [user?.isAdmin])
+
+  // Hydrate guides expanded state from localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    const stored = window.localStorage.getItem(STORAGE_KEY_GUIDES_EXPANDED)
+    if (stored === "true") {
+      setIsGuidesExpanded(true)
+    }
+  }, [])
+
+  const toggleGuidesExpanded = () => {
+    const newState = !isGuidesExpanded
+    setIsGuidesExpanded(newState)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY_GUIDES_EXPANDED, String(newState))
+    }
+  }
+
+  const isGuideActive = (href: string) => {
+    return pathname === href || pathname.startsWith(`${href}/`)
+  }
 
   return (
     <aside
-      className={`${navWidth} hidden border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg transition-all duration-300 lg:flex lg:flex-col`}
+      className={`${navWidth} fixed left-0 top-0 z-10 hidden h-screen border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg transition-all duration-300 lg:flex lg:flex-col`}
     >
       <div className="flex h-16 items-center justify-between px-4">
         <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)]">
@@ -166,7 +268,9 @@ export default function AdaptiveNavigationRail() {
 
       <nav className="flex-1 space-y-1 px-2 py-4">
         {navItems.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+          // For external URLs, don't check active state
+          const isExternal = item.href.startsWith("http://") || item.href.startsWith("https://")
+          const active = isExternal ? false : pathname === item.href || pathname.startsWith(`${item.href}/`)
           return (
             <Link
               key={item.href}
@@ -191,9 +295,89 @@ export default function AdaptiveNavigationRail() {
         })}
       </nav>
 
-      <div className="px-4 py-6 text-xs text-[var(--token-text-muted)]">
-        <p className="mb-1 font-semibold text-[var(--token-text-secondary)]">Need speed?</p>
-        <p>Click Command for quick actions</p>
+      {/* User Guides Section */}
+      <div className="border-t border-[var(--token-border-muted)] px-2 py-4">
+        {isNavCollapsed ? (
+          <div className="space-y-1">
+            {GUIDE_ITEMS.map((guide) => {
+              const active = isGuideActive(guide.href)
+              return (
+                <Link
+                  key={guide.href}
+                  href={guide.href}
+                  className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+                  title={guide.label}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {guide.icon(active)}
+                </Link>
+              )
+            })}
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={toggleGuidesExpanded}
+              className="group flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+              aria-label="User Guides"
+              aria-expanded={isGuidesExpanded}
+            >
+              <div className="flex items-center gap-3">
+                <svg
+                  className="h-5 w-5 text-[var(--token-text-secondary)]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span className="text-sm font-medium text-[var(--token-text-secondary)]">
+                  User Guides
+                </span>
+              </div>
+              <svg
+                className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${isGuidesExpanded ? "rotate-180" : ""}`}
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <path
+                  d="m6 9 6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            {isGuidesExpanded && (
+              <div className="mt-1 space-y-1 pl-8">
+                {GUIDE_ITEMS.map((guide) => {
+                  const active = isGuideActive(guide.href)
+                  return (
+                    <Link
+                      key={guide.href}
+                      href={guide.href}
+                      className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                        active
+                          ? "font-medium text-[var(--token-text-primary)]"
+                          : "text-[var(--token-text-secondary)]"
+                      }`}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      {guide.label}
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </aside>
   )

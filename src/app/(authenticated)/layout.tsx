@@ -35,11 +35,11 @@ export default async function AuthenticatedLayout({
   }
 
   return (
-    <DashboardLayout user={session.user}>
+    <DashboardLayout user={session.user} userId={session.user.id}>
       <div className="flex min-h-full flex-col">
         <main
           id="main-content"
-          className="page-container w-full min-w-0 flex-1 mb-8"
+          className="page-container w-full min-w-0 flex-1"
           tabIndex={-1}
         >
           {children}

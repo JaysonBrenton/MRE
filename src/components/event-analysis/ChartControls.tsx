@@ -62,6 +62,7 @@ interface ClassInfo {
 }
 
 // Group drivers by class from races data
+// Only counts drivers that exist in the provided drivers array
 function groupDriversByClass(
   drivers: Driver[],
   races: Race[]
@@ -69,18 +70,24 @@ function groupDriversByClass(
   const classMap = new Map<string, Set<string>>()
   const driverMap = new Map<string, Driver>()
 
-  // Create driver lookup map
+  // Create driver lookup map - only include drivers from the provided array
   drivers.forEach((driver) => {
     driverMap.set(driver.driverId, driver)
   })
 
-  // Group drivers by class
+  // Only process driver IDs that exist in the drivers array
+  const validDriverIds = new Set(driverMap.keys())
+
+  // Group drivers by class - only count drivers that exist in drivers array
   races.forEach((race) => {
     if (!classMap.has(race.className)) {
       classMap.set(race.className, new Set())
     }
     race.results.forEach((result) => {
-      classMap.get(race.className)!.add(result.driverId)
+      // Only add driver IDs that are in the valid drivers array
+      if (validDriverIds.has(result.driverId)) {
+        classMap.get(race.className)!.add(result.driverId)
+      }
     })
   })
 
@@ -131,7 +138,9 @@ function createVirtualizedList(
         type: "class-header",
         data: {
           className: classInfo.className,
-          driverCount: filteredDrivers.length,
+          // Always show the total driver count for the class, not the filtered count
+          // This ensures consistency with the selected count calculation
+          driverCount: classInfo.driverCount,
         },
       })
 
@@ -234,7 +243,7 @@ export default function ChartControls({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
   const [isChartTypeDropdownOpen, setIsChartTypeDropdownOpen] = useState(false)
-  const [isPanelOpen, setIsPanelOpen] = useState(true)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
   const containerHeight = 400
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -301,10 +310,44 @@ export default function ChartControls({
     onDriverSelectionChange([])
   }, [onDriverSelectionChange])
 
-  // Get total driver count
+  // Get total driver count - if a class is selected, show count for that class only
   const totalDriverCount = useMemo(() => {
+    if (selectedClass) {
+      const classInfo = driversByClass.get(selectedClass)
+      return classInfo ? classInfo.driverCount : drivers.length
+    }
     return drivers.length
-  }, [drivers])
+  }, [drivers, selectedClass, driversByClass])
+
+  // Get selected count - if a class is selected, only count selected drivers in that class
+  const selectedCount = useMemo(() => {
+    const driverIdsSet = new Set(drivers.map(d => d.driverId))
+    const validSelectedIds = selectedDriverIds.filter(id => driverIdsSet.has(id))
+    
+    if (selectedClass) {
+      const classInfo = driversByClass.get(selectedClass)
+      if (classInfo) {
+        const classDriverIds = new Set(classInfo.drivers.map(d => d.driverId))
+        const selectedInClass = validSelectedIds.filter(id => classDriverIds.has(id))
+        
+        // Debug: Find missing drivers
+        if (classInfo.driverCount !== selectedInClass.length) {
+          const missingDrivers = classInfo.drivers.filter(
+            d => !selectedDriverIds.includes(d.driverId)
+          )
+          console.log(`[ChartControls] Missing ${missingDrivers.length} drivers in class "${selectedClass}":`, 
+            missingDrivers.map(d => ({ id: d.driverId, name: d.driverName })))
+          console.log(`[ChartControls] Class has ${classInfo.driverCount} drivers, but only ${selectedInClass.length} are selected`)
+          console.log(`[ChartControls] Selected driver IDs:`, selectedDriverIds)
+          console.log(`[ChartControls] Class driver IDs:`, Array.from(classDriverIds))
+        }
+        
+        return selectedInClass.length
+      }
+    }
+    
+    return validSelectedIds.length
+  }, [selectedDriverIds, drivers, selectedClass, driversByClass])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -372,11 +415,11 @@ export default function ChartControls({
       <CollapsibleDriverPanel
         isOpen={isPanelOpen}
         onToggle={() => setIsPanelOpen(!isPanelOpen)}
-        selectedCount={selectedDriverIds.length}
+        selectedCount={selectedCount}
         totalCount={totalDriverCount}
         header={
           <DriverSelectionHeader
-            selectedCount={selectedDriverIds.length}
+            selectedCount={selectedCount}
             totalCount={totalDriverCount}
             onSelectAll={handleSelectAll}
             onClear={handleClearSelection}

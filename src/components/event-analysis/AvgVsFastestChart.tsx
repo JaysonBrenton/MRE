@@ -17,7 +17,7 @@
 
 "use client"
 
-import { useMemo, useId } from "react"
+import { useMemo, useId, useState, useRef } from "react"
 import { Group } from "@visx/group"
 import { Bar } from "@visx/shape"
 import { scaleBand, scaleLinear } from "@visx/scale"
@@ -27,6 +27,8 @@ import { localPoint } from "@visx/event"
 import { ParentSize } from "@visx/responsive"
 import ChartContainer from "./ChartContainer"
 import ChartPagination from "./ChartPagination"
+import ChartColorPicker from "./ChartColorPicker"
+import { useChartColors } from "@/hooks/useChartColors"
 
 export interface DriverLapComparison {
   driverId: string
@@ -44,14 +46,44 @@ export interface AvgVsFastestChartProps {
   driversPerPage?: number
   onPageChange?: (page: number) => void
   onDriverToggle?: (driverId: string) => void
+  chartInstanceId?: string
 }
 
-const defaultMargin = { top: 20, right: 20, bottom: 60, left: 80 }
-const fastestColor = "var(--token-accent)"
-const averageColor = "#5aa2ff"
+const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
+const defaultFastestColor = "var(--token-accent)"
+const defaultAverageColor = "#5aa2ff"
 const textColor = "var(--token-text-primary)"
 const textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
+
+/**
+ * Calculate bottom margin needed for rotated labels
+ * Estimates space needed for -45 degree rotated text labels
+ */
+function calculateBottomMargin(labels: string[], minMargin = 100): number {
+  if (labels.length === 0) return minMargin
+  
+  const fontSize = 11 // Match the fontSize in tickLabelProps
+  const avgCharWidth = 6.5 // Approximate width per character for 11px font
+  const rotationRadians = Math.PI / 4 // 45 degrees
+  const padding = 20 // Extra padding for safety
+  
+  // Find the longest label
+  const maxLabelLength = Math.max(...labels.map(label => label.length))
+  
+  // Estimate text width
+  const estimatedTextWidth = maxLabelLength * avgCharWidth
+  
+  // Calculate vertical extension for -45 degree rotation
+  // When rotated -45°, the text extends diagonally down and to the right
+  // The vertical component is width * sin(45°)
+  const verticalExtension = estimatedTextWidth * Math.sin(rotationRadians)
+  
+  // Add padding and ensure minimum margin
+  const calculatedMargin = Math.ceil(verticalExtension + padding)
+  
+  return Math.max(calculatedMargin, minMargin)
+}
 
 /**
  * Format lap time in seconds to MM:SS.mmm format
@@ -73,9 +105,24 @@ export default function AvgVsFastestChart({
   driversPerPage = 25,
   onPageChange,
   onDriverToggle,
+  chartInstanceId,
 }: AvgVsFastestChartProps) {
-  const chartTitleId = useId()
   const chartDescId = useId()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [showColorPicker, setShowColorPicker] = useState(false)
+  const [colorPickerSeries, setColorPickerSeries] = useState<"fastest" | "average" | null>(null)
+  const [colorPickerPosition, setColorPickerPosition] = useState<{
+    top: number
+    left: number
+  } | null>(null)
+
+  // Use chart colors hook for managing both series colors
+  const instanceId = chartInstanceId || "default-avg-vs-fastest"
+  const { colors, setColor } = useChartColors(instanceId, {
+    fastest: defaultFastestColor,
+    average: defaultAverageColor,
+  })
+
   const {
     tooltipData,
     tooltipLeft,
@@ -88,6 +135,18 @@ export default function AvgVsFastestChart({
     fastestLap: number
     averageLap: number
   }>()
+
+  const handleLegendClick = (series: "fastest" | "average", event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation()
+    const rect = event.currentTarget.getBoundingClientRect()
+    // Use fixed positioning, so use getBoundingClientRect directly (viewport-relative)
+    setColorPickerPosition({
+      top: rect.bottom + 8,
+      left: rect.left,
+    })
+    setColorPickerSeries(series)
+    setShowColorPicker(true)
+  }
 
   // Filter data if drivers are selected
   // undefined = show all (initial state), [] = show nothing (cleared), [ids] = show selected
@@ -109,6 +168,23 @@ export default function AvgVsFastestChart({
     return [...displayData].sort((a, b) => a.fastestLap - b.fastestLap)
   }, [displayData])
 
+  // Calculate pagination
+  const totalPages = Math.ceil(sortedData.length / driversPerPage)
+  const startIndex = (currentPage - 1) * driversPerPage
+  const endIndex = startIndex + driversPerPage
+  const paginatedData = sortedData.slice(startIndex, endIndex)
+
+  // Calculate dynamic bottom margin based on label lengths
+  // Must be before early return to maintain hook order
+  const margin = useMemo(() => {
+    if (paginatedData.length === 0) {
+      return defaultMargin
+    }
+    const labelLengths = paginatedData.map(d => d.driverName)
+    const dynamicBottom = calculateBottomMargin(labelLengths, 100)
+    return { ...defaultMargin, bottom: dynamicBottom }
+  }, [paginatedData])
+
   if (displayData.length === 0) {
     return (
       <ChartContainer
@@ -124,21 +200,15 @@ export default function AvgVsFastestChart({
     )
   }
 
-  // Calculate pagination
-  const totalPages = Math.ceil(sortedData.length / driversPerPage)
-  const startIndex = (currentPage - 1) * driversPerPage
-  const endIndex = startIndex + driversPerPage
-  const paginatedData = sortedData.slice(startIndex, endIndex)
-
-  const margin = defaultMargin
-
   return (
-    <ChartContainer
-      title="Average vs Fastest Lap"
-      height={height}
-      className={className}
-      aria-label="Average vs fastest lap comparison bar chart"
-    >
+    <div ref={containerRef} className="relative">
+      <ChartContainer
+        title="Average vs Fastest Lap"
+        height={height}
+        className={className}
+        aria-label="Average vs fastest lap comparison bar chart"
+        chartInstanceId={chartInstanceId}
+      >
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>
           {({ width: parentWidth }) => {
@@ -183,10 +253,10 @@ export default function AvgVsFastestChart({
               <svg
                 width={width}
                 height={height}
-                aria-labelledby={`${chartTitleId} ${chartDescId}`}
+                aria-labelledby={chartDescId}
                 role="img"
+                overflow="visible"
               >
-                <title id={chartTitleId}>Average versus fastest lap times</title>
                 <desc id={chartDescId}>
                   Bar chart comparing each driver&apos;s average lap time against their fastest lap.
                 </desc>
@@ -228,9 +298,9 @@ export default function AvgVsFastestChart({
                           y={yScale(d.fastestLap)}
                           width={barWidth}
                           height={innerHeight - yScale(d.fastestLap)}
-                          fill={fastestColor}
+                          fill={colors.fastest}
                           opacity={isSelected ? 1 : 0.3}
-                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? fastestColor : "none"}
+                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? colors.fastest : "none"}
                           strokeWidth={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? 1.5 : 0}
                           onClick={handleClick}
                           onMouseMove={(event) => {
@@ -282,9 +352,9 @@ export default function AvgVsFastestChart({
                           y={yScale(d.averageLap)}
                           width={barWidth}
                           height={innerHeight - yScale(d.averageLap)}
-                          fill={averageColor}
+                          fill={colors.average}
                           opacity={isSelected ? 1 : 0.3}
-                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? averageColor : "none"}
+                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? colors.average : "none"}
                           strokeWidth={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? 1.5 : 0}
                           onClick={handleClick}
                           onMouseMove={(event) => {
@@ -355,8 +425,10 @@ export default function AvgVsFastestChart({
                     tickStroke={borderColor}
                     tickLabelProps={() => ({
                       fill: textSecondaryColor,
-                      fontSize: 12,
-                      textAnchor: "middle",
+                      fontSize: 11,
+                      textAnchor: "end",
+                      angle: -45,
+                      dx: -5,
                       dy: 8,
                     })}
                   />
@@ -397,17 +469,53 @@ export default function AvgVsFastestChart({
 
       {/* Legend */}
       <div className="flex items-center gap-4 mt-4 text-sm">
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={(e) => handleLegendClick("fastest", e)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              const rect = e.currentTarget.getBoundingClientRect()
+              setColorPickerPosition({
+                top: rect.bottom + 8,
+                left: rect.left,
+              })
+              setColorPickerSeries("fastest")
+              setShowColorPicker(true)
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label="Fastest Lap - Click to customize color"
+        >
           <div
             className="w-4 h-4"
-            style={{ backgroundColor: fastestColor }}
+            style={{ backgroundColor: colors.fastest }}
           />
           <span className="text-[var(--token-text-secondary)]">Fastest Lap</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={(e) => handleLegendClick("average", e)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              const rect = e.currentTarget.getBoundingClientRect()
+              setColorPickerPosition({
+                top: rect.bottom + 8,
+                left: rect.left,
+              })
+              setColorPickerSeries("average")
+              setShowColorPicker(true)
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label="Average Lap - Click to customize color"
+        >
           <div
             className="w-4 h-4"
-            style={{ backgroundColor: averageColor }}
+            style={{ backgroundColor: colors.average }}
           />
           <span className="text-[var(--token-text-secondary)]">Average Lap</span>
         </div>
@@ -424,6 +532,21 @@ export default function AvgVsFastestChart({
           itemLabel="drivers"
         />
       )}
-    </ChartContainer>
+      </ChartContainer>
+
+      {/* Color Picker */}
+      {showColorPicker && colorPickerPosition && colorPickerSeries && (
+        <ChartColorPicker
+          currentColor={colors[colorPickerSeries]}
+          onColorChange={(color) => setColor(colorPickerSeries, color)}
+          onClose={() => {
+            setShowColorPicker(false)
+            setColorPickerSeries(null)
+          }}
+          position={colorPickerPosition}
+          label={`${colorPickerSeries === "fastest" ? "Fastest" : "Average"} Lap Color`}
+        />
+      )}
+    </div>
   )
 }

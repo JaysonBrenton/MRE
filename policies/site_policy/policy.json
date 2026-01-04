@@ -3,15 +3,15 @@
   "hosts": [
     {
       "pattern": "live.liverc.com",
-      "crawlDelaySeconds": 1.0,
-      "maxConcurrency": 1,
+      "crawlDelaySeconds": 0.1,
+      "maxConcurrency": 8,
       "respectRobots": true,
       "conditionalRequests": true
     },
     {
       "pattern": "*.liverc.com",
-      "crawlDelaySeconds": 1.0,
-      "maxConcurrency": 1,
+      "crawlDelaySeconds": 0.1,
+      "maxConcurrency": 8,
       "respectRobots": true,
       "conditionalRequests": true
     }

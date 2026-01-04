@@ -37,8 +37,9 @@ import ChartDataNotice from "./ChartDataNotice"
 import {
   getDriversMissingAvgVsFastest,
   getDriversMissingBestLap,
+  getUnselectedDriversInClass,
 } from "@/core/events/event-analysis-notices"
-import { logger } from "@/lib/logger"
+import { clientLogger } from "@/lib/client-logger"
 
 export interface OverviewTabProps {
   data: EventAnalysisData
@@ -105,7 +106,77 @@ export default function OverviewTab({
     return data.races.filter((race) => race.className === selectedClass)
   }, [data.races, selectedClass])
 
-  // Calculate driver stats from filtered races only
+  // Calculate driver stats from ALL races (not filtered by class)
+  // This ensures ChartControls always has the complete driver list for correct class counts
+  // Exclude non-starting drivers (lapsCompleted === 0) as they have no performance data
+  const allDriverStats = useMemo(() => {
+    const driverMap = new Map<
+      string,
+      {
+        driverId: string
+        driverName: string
+        bestLapTime: number | null
+        avgLapTimes: number[]
+      }
+    >()
+
+    // Process ALL races (not filtered by class)
+    data.races.forEach((race) => {
+      race.results.forEach((result) => {
+        // Skip non-starting drivers (0 laps completed) - they have no performance data
+        if (result.lapsCompleted === 0) {
+          return
+        }
+
+        const driverId = result.driverId
+        const driverName = result.driverName
+
+        if (!driverMap.has(driverId)) {
+          driverMap.set(driverId, {
+            driverId,
+            driverName,
+            bestLapTime: null,
+            avgLapTimes: [],
+          })
+        }
+
+        const driverData = driverMap.get(driverId)!
+
+        // Update best lap time
+        if (result.fastLapTime !== null) {
+          if (
+            driverData.bestLapTime === null ||
+            result.fastLapTime < driverData.bestLapTime
+          ) {
+            driverData.bestLapTime = result.fastLapTime
+          }
+        }
+
+        // Collect average lap times
+        if (result.avgLapTime !== null) {
+          driverData.avgLapTimes.push(result.avgLapTime)
+        }
+      })
+    })
+
+    // Calculate final averages
+    return Array.from(driverMap.values()).map((driver) => {
+      const avgLapTime =
+        driver.avgLapTimes.length > 0
+          ? driver.avgLapTimes.reduce((a, b) => a + b, 0) /
+            driver.avgLapTimes.length
+          : null
+
+      return {
+        driverId: driver.driverId,
+        driverName: driver.driverName,
+        bestLapTime: driver.bestLapTime,
+        avgLapTime,
+      }
+    })
+  }, [data.races])
+
+  // Calculate driver stats from filtered races only (for chart display)
   // Exclude non-starting drivers (lapsCompleted === 0) as they have no performance data
   const driverStatsByClass = useMemo(() => {
     const driverMap = new Map<
@@ -199,14 +270,15 @@ export default function OverviewTab({
       .sort((a, b) => a.fastestLap - b.fastestLap)
   }, [driverStatsByClass])
 
-  // Build driver options from driverStatsByClass to exclude non-starting drivers
-  // (those with 0 laps completed who have no performance data to visualize)
+  // Build driver options from allDriverStats (not filtered by class)
+  // This ensures ChartControls always has the complete driver list for correct class counts
+  // Excludes non-starting drivers (those with 0 laps completed who have no performance data to visualize)
   const driverOptions = useMemo(() => {
-    return driverStatsByClass.map((d) => ({
+    return allDriverStats.map((d) => ({
       driverId: d.driverId,
       driverName: d.driverName,
     }))
-  }, [driverStatsByClass])
+  }, [allDriverStats])
 
   const driverOptionsLookup = useMemo(() => {
     return new Map(driverOptions.map((driver) => [driver.driverId, driver.driverName]))
@@ -349,6 +421,43 @@ export default function OverviewTab({
     [mapDriverIdsToNames, missingAvgVsFastestDriverIds]
   )
 
+  // Calculate unselected drivers in the selected class
+  const unselectedDriversInClassIds = useMemo(() => {
+    if (!selectedClass) {
+      return []
+    }
+
+    // Get all drivers in the selected class from races data
+    // Only include drivers that are in driverOptions (excludes non-starting drivers)
+    const driverOptionsSet = new Set(driverOptions.map((d) => d.driverId))
+    const classDrivers: Array<{ driverId: string }> = []
+
+    data.races.forEach((race) => {
+      if (race.className === selectedClass) {
+        race.results.forEach((result) => {
+          // Only include drivers that are in driverOptions (have performance data)
+          if (driverOptionsSet.has(result.driverId)) {
+            // Avoid duplicates
+            if (!classDrivers.some((d) => d.driverId === result.driverId)) {
+              classDrivers.push({ driverId: result.driverId })
+            }
+          }
+        })
+      }
+    })
+
+    if (classDrivers.length === 0) {
+      return []
+    }
+
+    return getUnselectedDriversInClass(selectedDriverIds, classDrivers)
+  }, [selectedClass, data.races, driverOptions, selectedDriverIds])
+
+  const unselectedDriversInClassNames = useMemo(
+    () => mapDriverIdsToNames(unselectedDriversInClassIds),
+    [mapDriverIdsToNames, unselectedDriversInClassIds]
+  )
+
 
   // Handle driver toggle from chart click
   const handleSelectionChange = useCallback(
@@ -407,10 +516,11 @@ export default function OverviewTab({
       const driverIdsArray = Array.from(driversInClass)
       handleSelectionChange(driverIdsArray)
     } else {
-      // When "All Classes" is selected, clear selection
-      handleSelectionChange([])
+      // When "All Classes" is selected, select all available drivers
+      const allDriverIds = driverOptions.map((driver) => driver.driverId)
+      handleSelectionChange(allDriverIds)
     }
-  }, [data.races, handleSelectionChange])
+  }, [data.races, driverOptions, handleSelectionChange])
 
   useEffect(() => {
     if (!shouldShowSelectionNotices) {
@@ -437,7 +547,7 @@ export default function OverviewTab({
 
     lastLoggedMissingState.current = payload
 
-    logger.warn("event_analysis_missing_driver_metrics", {
+    clientLogger.warn("event_analysis_missing_driver_metrics", {
       eventId: data.event.id,
       classFilter: selectedClass ?? "all",
       selectedDriverCount: expandedSelectedDriverIds.length,
@@ -483,6 +593,16 @@ export default function OverviewTab({
           onChartTypeChange={setChartType}
           onClassChange={handleClassChange}
         />
+
+        {selectedClass && unselectedDriversInClassNames.length > 0 && (
+          <ChartDataNotice
+            title="Some drivers in this class are not selected"
+            description="These drivers are in the selected class but were not included in your selection. They will not appear in the chart."
+            driverNames={unselectedDriversInClassNames}
+            eventId={data.event.id}
+            noticeType="unselected-drivers"
+          />
+        )}
       </section>
 
       {/* Chart Visualization */}
@@ -501,6 +621,8 @@ export default function OverviewTab({
             title="Some selected drivers have no recorded fastest lap"
             description="LiveRC did not publish a fastest lap for these drivers in the selected class, so they are hidden from the chart."
             driverNames={missingBestLapDriverNames}
+            eventId={data.event.id}
+            noticeType="best-lap"
           />
         )}
 
@@ -510,6 +632,8 @@ export default function OverviewTab({
               title="Missing average lap telemetry"
               description="These drivers were selected, but the data feed does not include both fastest and average lap times for them."
               driverNames={missingAvgVsFastestDriverNames}
+              eventId={data.event.id}
+              noticeType="avg-vs-fastest"
             />
           )}
 
@@ -524,6 +648,7 @@ export default function OverviewTab({
             driversPerPage={driversPerPage}
             onPageChange={handlePageChange}
             onDriverToggle={handleDriverToggle}
+            chartInstanceId={`overview-${data.event.id}-best-lap`}
           />
         )}
 
@@ -536,6 +661,7 @@ export default function OverviewTab({
             driversPerPage={driversPerPage}
             onPageChange={handlePageChange}
             onDriverToggle={handleDriverToggle}
+            chartInstanceId={`overview-${data.event.id}-avg-vs-fastest`}
           />
         )}
       </ChartSection>

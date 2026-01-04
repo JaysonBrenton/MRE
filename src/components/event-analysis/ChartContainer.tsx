@@ -27,6 +27,8 @@ export interface ChartContainerProps {
   height?: number
   className?: string
   "aria-label"?: string
+  chartInstanceId?: string
+  onTitleClick?: () => void
 }
 
 /**
@@ -39,10 +41,12 @@ export default function ChartContainer({
   height = 400,
   className = "",
   "aria-label": ariaLabel,
+  chartInstanceId,
+  onTitleClick,
 }: ChartContainerProps) {
   return (
     <div
-      className={`w-full ${className}`}
+      className={`w-full pb-4 ${className}`}
       style={{
         minHeight: `${height}px`,
       }}
@@ -50,7 +54,23 @@ export default function ChartContainer({
       aria-label={ariaLabel || title || "Chart"}
     >
       {title && (
-        <h3 className="text-lg font-semibold text-[var(--token-text-primary)] mb-2">
+        <h3
+          className={`text-lg font-semibold text-[var(--token-text-primary)] mb-2 ${
+            onTitleClick
+              ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
+              : ""
+          }`}
+          onClick={onTitleClick}
+          onKeyDown={(e) => {
+            if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
+              e.preventDefault()
+              onTitleClick()
+            }
+          }}
+          tabIndex={onTitleClick ? 0 : undefined}
+          role={onTitleClick ? "button" : undefined}
+          aria-label={onTitleClick ? `${title} - Click to customize color` : undefined}
+        >
           {title}
         </h3>
       )}
@@ -62,7 +82,7 @@ export default function ChartContainer({
       <div
         className="w-full"
         style={{
-          height: `${height}px`,
+          minHeight: `${height}px`,
           color: "var(--token-text-primary)",
         }}
       >

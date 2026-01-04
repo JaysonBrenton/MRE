@@ -3,7 +3,9 @@
 import { useMemo, useState, useRef, useEffect } from "react"
 import { useDashboardContext } from "@/components/dashboard/context/DashboardContext"
 import { formatDateLong, formatLapTime } from "@/lib/date-utils"
-import type { EventAnalysisSummary, ImportedEventSummary } from "@/types/dashboard"
+import type { EventAnalysisSummary, ImportedEventSummary } from "@root-types/dashboard"
+import EventAnalysisClient from "@/app/(authenticated)/events/analyse/[eventId]/EventAnalysisClient"
+import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 interface WeatherData {
   condition: string
@@ -47,6 +49,7 @@ interface ActivityItem {
 export default function DashboardClient() {
   const {
     selectedEvent,
+    selectedEventId,
     eventSummary,
     topDrivers,
     mostConsistentDrivers,
@@ -57,18 +60,15 @@ export default function DashboardClient() {
     isEventLoading,
     eventError,
     recentEvents,
+    selectEvent,
   } = useDashboardContext()
 
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [weatherError, setWeatherError] = useState<string | null>(null)
+  const [analysisData, setAnalysisData] = useState<EventAnalysisData | null>(null)
+  const [isAnalysisLoading, setIsAnalysisLoading] = useState(false)
 
-  const kpis = useMemo(() => generateKpiData(eventSummary), [eventSummary])
-  const telemetry = useMemo(() => generateTelemetrySnapshot(eventSummary), [eventSummary])
-  const alerts = useMemo<AlertItem[]>(() => generateAlerts(selectedEvent), [selectedEvent])
-  const activity = useMemo<ActivityItem[]>(() => generateActivityStream(recentEvents), [recentEvents])
-  const schedule = useMemo(() => generateSessionSchedule(selectedEvent), [selectedEvent])
-  const heatmap = useMemo(() => generateDataQualityMatrix(), [])
 
   // Fetch weather data when event is selected
   useEffect(() => {
@@ -109,6 +109,51 @@ export default function DashboardClient() {
       })
   }, [selectedEvent?.id])
 
+  // Fetch event analysis data when event is selected
+  useEffect(() => {
+    if (!selectedEvent?.id) {
+      setAnalysisData(null)
+      return
+    }
+
+    setIsAnalysisLoading(true)
+    fetch(`/api/v1/events/${selectedEvent.id}/analysis`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          return
+        }
+        const result = await response.json()
+        if (result.success && result.data) {
+          // Convert date strings back to Date objects
+          const data = result.data
+          setAnalysisData({
+            ...data,
+            event: {
+              ...data.event,
+              eventDate: new Date(data.event.eventDate),
+            },
+            races: data.races.map((race: any) => ({
+              ...race,
+              startTime: race.startTime ? new Date(race.startTime) : null,
+            })),
+            summary: {
+              ...data.summary,
+              dateRange: {
+                earliest: data.summary.dateRange.earliest ? new Date(data.summary.dateRange.earliest) : null,
+                latest: data.summary.dateRange.latest ? new Date(data.summary.dateRange.latest) : null,
+              },
+            },
+          })
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching analysis data", error)
+      })
+      .finally(() => {
+        setIsAnalysisLoading(false)
+      })
+  }, [selectedEvent?.id])
+
   if (isEventLoading) {
     return <DashboardLoadingState />
   }
@@ -123,6 +168,30 @@ export default function DashboardClient() {
 
   return (
     <div className="flex flex-col gap-[var(--dashboard-gap)]">
+      <div className="space-y-2">
+        <h2 className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">Event Analysis</h2>
+        <p className="text-sm text-[var(--token-text-secondary)]">
+          Comprehensive telemetry analysis, performance metrics, and race insights for your selected event. Monitor driver performance, track conditions, and key indicators to optimize your racing strategy.
+        </p>
+      </div>
+      {selectedEventId && (
+        <button
+          type="button"
+          onClick={() => selectEvent(null)}
+          className="flex items-center justify-center rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-2 transition hover:border-[var(--token-accent)] w-fit"
+          aria-label="Clear selected event"
+        >
+          <svg className="h-5 w-5 text-[var(--token-text-muted)]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M18 6L6 18M6 6l12 12"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
       <DashboardHero 
         event={selectedEvent} 
         summary={eventSummary} 
@@ -136,40 +205,11 @@ export default function DashboardClient() {
         weatherLoading={weatherLoading}
         weatherError={weatherError}
       />
-
-      <section className="grid grid-cols-12 gap-4 lg:gap-6">
-        {kpis.map((kpi) => (
-          <KpiCard key={kpi.id} {...kpi} className="col-span-12 sm:col-span-6 xl:col-span-3" />
-        ))}
-      </section>
-
-      <section className="grid grid-cols-12 gap-4 lg:gap-6">
-        <TelemetrySnapshot className="col-span-12 xl:col-span-8" data={telemetry} />
-        <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-[var(--dashboard-card-padding)] xl:col-span-4">
-          <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">Recent focus</p>
-          <div className="mt-4 space-y-3">
-            {recentEvents.slice(0, 3).map((recent) => (
-              <div key={recent.id} className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-3">
-                <p className="text-sm font-semibold text-[var(--token-text-primary)]">{recent.eventName}</p>
-                <p className="text-xs text-[var(--token-text-muted)]">{recent.track.trackName}</p>
-              </div>
-            ))}
-            {recentEvents.length === 0 && (
-              <p className="text-sm text-[var(--token-text-muted)]">Import events to see them here for fast switching.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-12 gap-4 lg:gap-6">
-        <AlertStack className="col-span-12 lg:col-span-4" alerts={alerts} />
-        <ActivityTimeline className="col-span-12 lg:col-span-8" activity={activity} />
-      </section>
-
-      <section className="grid grid-cols-12 gap-4 lg:gap-6">
-        <DataQualityHeatmap className="col-span-12 xl:col-span-6" matrix={heatmap} />
-        <SessionSchedule className="col-span-12 xl:col-span-6" sessions={schedule} />
-      </section>
+      
+      {/* Event Analysis Features - All tabs and components from /events/analyse page */}
+      {analysisData && (
+        <EventAnalysisClient initialData={analysisData} />
+      )}
     </div>
   )
 }
@@ -237,12 +277,16 @@ function DashboardHero({
 }) {
   const eventDate = event?.eventDate ? new Date(event.eventDate) : null
   const [currentSection, setCurrentSection] = useState(0)
+  const [currentClassIndex, setCurrentClassIndex] = useState<number>(0)
   const carouselRef = useRef<HTMLDivElement>(null)
   const sectionRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)]
   const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isUserInteractingRef = useRef(false)
   const currentSectionRef = useRef(0)
+  const previousSectionRef = useRef<number>(0)
   const isProgrammaticScrollRef = useRef(false)
+  const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const programmaticScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const sections = [
     { title: "Fastest Laps", data: topDrivers, type: "fastest" as const },
@@ -251,6 +295,77 @@ function DashboardHero({
   ]
 
   const hasData = topDrivers?.length || mostConsistentDrivers?.length || bestAvgLapDrivers?.length
+
+  // Get intersection of classes from all sections (only classes that appear in all three)
+  const getAllClasses = (): string[] => {
+    const fastestClasses = new Set(topDrivers?.map(d => d.className) || [])
+    const consistentClasses = new Set(mostConsistentDrivers?.map(d => d.className) || [])
+    const avgLapClasses = new Set(bestAvgLapDrivers?.map(d => d.className) || [])
+    
+    // Intersection: classes that appear in all three
+    return Array.from(fastestClasses)
+      .filter(c => consistentClasses.has(c) && avgLapClasses.has(c))
+      .sort()
+  }
+
+  const allClasses = getAllClasses()
+
+  // Group drivers by className for each section
+  const groupDriversByClass = (
+    drivers: EventAnalysisSummary["topDrivers"] | EventAnalysisSummary["mostConsistentDrivers"] | EventAnalysisSummary["bestAvgLapDrivers"],
+    type: "fastest" | "consistency" | "avgLap"
+  ) => {
+    if (!drivers || drivers.length === 0) return {}
+    
+    type DriverUnion = NonNullable<EventAnalysisSummary["topDrivers"]>[number] | NonNullable<EventAnalysisSummary["mostConsistentDrivers"]>[number] | NonNullable<EventAnalysisSummary["bestAvgLapDrivers"]>[number]
+    
+    const grouped = drivers.reduce((acc, driver) => {
+      const className = driver.className
+      if (!acc[className]) {
+        acc[className] = []
+      }
+      acc[className].push(driver as DriverUnion)
+      return acc
+    }, {} as Record<string, DriverUnion[]>)
+
+    // Sort drivers within each class by their metric
+    Object.keys(grouped).forEach((className) => {
+      grouped[className].sort((a, b) => {
+        if (type === "fastest" && "fastestLapTime" in a && "fastestLapTime" in b) {
+          return (a as { fastestLapTime: number }).fastestLapTime - (b as { fastestLapTime: number }).fastestLapTime
+        } else if (type === "consistency" && "consistency" in a && "consistency" in b) {
+          return (b as { consistency: number }).consistency - (a as { consistency: number }).consistency // Higher is better
+        } else if (type === "avgLap" && "avgLapTime" in a && "avgLapTime" in b) {
+          return (a as { avgLapTime: number }).avgLapTime - (b as { avgLapTime: number }).avgLapTime
+        }
+        return 0
+      })
+    })
+
+    return grouped
+  }
+
+  // Get current class drivers for a section (using global class index)
+  const getCurrentClassDrivers = (section: typeof sections[number]): DriverCardData[] => {
+    if (!section.data || section.data.length === 0) return []
+    
+    // If no classes in intersection, show all drivers (top 3)
+    if (allClasses.length === 0) {
+      return section.data.slice(0, 3) as DriverCardData[]
+    }
+    
+    // Ensure currentClassIndex is within bounds
+    const safeClassIndex = currentClassIndex % allClasses.length
+    const currentClass = allClasses[safeClassIndex]
+    
+    if (!currentClass) return []
+    
+    const grouped = groupDriversByClass(section.data, section.type)
+    if (!grouped[currentClass]) return []
+    
+    // Return top 3 drivers from current class
+    return grouped[currentClass].slice(0, 3) as DriverCardData[]
+  }
 
   const scrollToSection = (index: number, isUserAction = false) => {
     if (isUserAction) {
@@ -270,8 +385,11 @@ function DashboardHero({
         left: index * sectionWidth,
         behavior: "smooth"
       })
+      // Track previous section to detect cycle completion
+      previousSectionRef.current = currentSection
       setCurrentSection(index)
       currentSectionRef.current = index
+      // Class index stays the same when manually navigating
     }
   }
 
@@ -297,8 +415,12 @@ function DashboardHero({
     const autoScroll = () => {
       if (isUserInteractingRef.current) {
         // Reset the flag after a delay so auto-scroll resumes
-        setTimeout(() => {
+        if (userInteractionTimeoutRef.current) {
+          clearTimeout(userInteractionTimeoutRef.current)
+        }
+        userInteractionTimeoutRef.current = setTimeout(() => {
           isUserInteractingRef.current = false
+          userInteractionTimeoutRef.current = null
         }, 10000) // Resume auto-scroll 10 seconds after user interaction
         return
       }
@@ -306,7 +428,8 @@ function DashboardHero({
       const carousel = carouselRef.current
       if (!carousel) return
 
-      const nextSection = (currentSectionRef.current + 1) % sections.length
+      const currentSectionIndex = currentSectionRef.current
+      const nextSection = (currentSectionIndex + 1) % sections.length
       const targetRef = sectionRefs[nextSection]
       
       if (targetRef.current) {
@@ -316,11 +439,29 @@ function DashboardHero({
           left: nextSection * sectionWidth,
           behavior: "smooth"
         })
+        
+        // Detect cycle completion: when going from last section (2) to first (0)
+        const isCycleComplete = currentSectionIndex === sections.length - 1 && nextSection === 0
+        
+        if (isCycleComplete && allClasses.length > 0) {
+          // Advance to next class when cycle completes
+          setCurrentClassIndex(prev => {
+            const nextIndex = (prev + 1) % allClasses.length
+            return nextIndex
+          })
+        }
+        
+        previousSectionRef.current = currentSectionIndex
         setCurrentSection(nextSection)
         currentSectionRef.current = nextSection
+        
         // Reset flag after scroll animation completes
-        setTimeout(() => {
+        if (programmaticScrollTimeoutRef.current) {
+          clearTimeout(programmaticScrollTimeoutRef.current)
+        }
+        programmaticScrollTimeoutRef.current = setTimeout(() => {
           isProgrammaticScrollRef.current = false
+          programmaticScrollTimeoutRef.current = null
         }, 600)
       }
     }
@@ -331,9 +472,18 @@ function DashboardHero({
     return () => {
       if (autoScrollIntervalRef.current) {
         clearInterval(autoScrollIntervalRef.current)
+        autoScrollIntervalRef.current = null
+      }
+      if (userInteractionTimeoutRef.current) {
+        clearTimeout(userInteractionTimeoutRef.current)
+        userInteractionTimeoutRef.current = null
+      }
+      if (programmaticScrollTimeoutRef.current) {
+        clearTimeout(programmaticScrollTimeoutRef.current)
+        programmaticScrollTimeoutRef.current = null
       }
     }
-  }, [hasData, sections.length])
+  }, [hasData, sections.length, currentSection, allClasses.length])
 
   // Update current section based on scroll position
   useEffect(() => {
@@ -348,12 +498,17 @@ function DashboardHero({
       const sectionWidth = carousel.clientWidth
       const newSection = Math.round(scrollLeft / sectionWidth)
       if (newSection !== currentSection && newSection >= 0 && newSection < sections.length) {
+        previousSectionRef.current = currentSection
         setCurrentSection(newSection)
         currentSectionRef.current = newSection
         // If scroll happened without using buttons, treat as user interaction
         isUserInteractingRef.current = true
-        setTimeout(() => {
+        if (userInteractionTimeoutRef.current) {
+          clearTimeout(userInteractionTimeoutRef.current)
+        }
+        userInteractionTimeoutRef.current = setTimeout(() => {
           isUserInteractingRef.current = false
+          userInteractionTimeoutRef.current = null
         }, 10000)
       }
     }
@@ -364,10 +519,10 @@ function DashboardHero({
 
   return (
     <section className="grid grid-cols-12 gap-4 lg:gap-6">
-      <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[#0f172a] via-[#0b1120] to-[#020617] p-[var(--dashboard-card-padding)] lg:col-span-8">
+      <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] lg:col-span-8">
         <div className="mb-6">
           <p className="text-[10px] uppercase tracking-[0.5em] text-[var(--token-text-muted)]">Event</p>
-          <h1 className="text-3xl font-bold text-white">{event.eventName}</h1>
+          <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">{event.eventName}</h1>
           <p className="text-sm text-[var(--token-text-secondary)]">{event.trackName} • {eventDate ? formatDateLong(event.eventDate) : "Date TBD"}</p>
         </div>
 
@@ -381,8 +536,8 @@ function DashboardHero({
                   disabled={currentSection === 0}
                   className={`flex items-center justify-center w-8 h-8 rounded-full border transition ${
                     currentSection === 0
-                      ? "border-white/10 text-white/20 cursor-not-allowed"
-                      : "border-white/20 text-white/70 hover:border-white/40 hover:text-white cursor-pointer"
+                      ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed"
+                      : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] hover:border-[var(--token-border-default)] hover:text-[var(--token-text-primary)] cursor-pointer"
                   }`}
                   aria-label="Previous section"
                 >
@@ -390,16 +545,27 @@ function DashboardHero({
                     <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
-                <p className="text-[11px] uppercase tracking-[0.4em] text-white/70 flex-1">
-                  {sections[currentSection]?.title}
-                </p>
+                <div className="flex-1">
+                  <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-text-secondary)]">
+                    {sections[currentSection]?.title}
+                  </p>
+                  {allClasses.length > 0 ? (
+                    <p className="text-xs text-[var(--token-text-primary)] mt-1 font-medium">
+                      {allClasses[currentClassIndex % allClasses.length]}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-[var(--token-text-muted)] mt-1 italic">
+                      No classes in common across all sections
+                    </p>
+                  )}
+                </div>
                 <button
                   onClick={handleNext}
                   disabled={currentSection === sections.length - 1}
                   className={`flex items-center justify-center w-8 h-8 rounded-full border transition ${
                     currentSection === sections.length - 1
-                      ? "border-white/10 text-white/20 cursor-not-allowed"
-                      : "border-white/20 text-white/70 hover:border-white/40 hover:text-white cursor-pointer"
+                      ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed"
+                      : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] hover:border-[var(--token-border-default)] hover:text-[var(--token-text-primary)] cursor-pointer"
                   }`}
                   aria-label="Next section"
                 >
@@ -425,21 +591,49 @@ function DashboardHero({
                       ref={sectionRefs[sectionIndex]}
                       className="w-full flex-shrink-0 snap-start"
                     >
-                      {section.data && section.data.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                          {section.data.map((driver, driverIndex) => (
-                            <DriverCard
-                              key={driver.driverId}
-                              driver={driver}
-                              index={driverIndex}
-                              type={section.type}
-                              sectionData={section.data}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-center">
-                          <p className="text-sm text-white/60">No data available for {section.title.toLowerCase()}</p>
+                      {section.data && section.data.length > 0 ? (() => {
+                        const currentClassDrivers = getCurrentClassDrivers(section)
+                        if (currentClassDrivers.length === 0) {
+                          return (
+                            <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-6 text-center">
+                              <p className="text-sm text-[var(--token-text-muted)]">No drivers available for this class</p>
+                            </div>
+                          )
+                        }
+                        // Get the original index for proper ranking display
+                        let allClassDrivers: DriverCardData[]
+                        if (allClasses.length === 0) {
+                          // No intersection - use all drivers from section (already sorted by metric)
+                          allClassDrivers = section.data.slice(0, 3) as DriverCardData[]
+                        } else {
+                          // Use drivers from the current class
+                          const grouped = groupDriversByClass(section.data, section.type)
+                          const safeClassIndex = currentClassIndex % allClasses.length
+                          const currentClass = allClasses[safeClassIndex]
+                          allClassDrivers = (currentClass ? grouped[currentClass] || [] : []) as DriverCardData[]
+                        }
+                        
+                        return (
+                          <div className="flex gap-4 justify-start md:justify-start">
+                            {currentClassDrivers.map((driver, driverIndex) => {
+                              // Find the original index in the group for proper ranking
+                              const originalIndex = allClassDrivers.findIndex(d => d.driverId === driver.driverId)
+                              return (
+                                <div key={driver.driverId} className="flex-shrink-0 w-full md:w-auto md:flex-1 max-w-[200px]">
+                                  <DriverCard
+                                    driver={driver}
+                                    index={originalIndex >= 0 ? originalIndex : driverIndex}
+                                    type={section.type}
+                                    sectionData={allClassDrivers as typeof section.data}
+                                  />
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })() : (
+                        <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-6 text-center">
+                          <p className="text-sm text-[var(--token-text-muted)]">No data available for {section.title.toLowerCase()}</p>
                         </div>
                       )}
                     </div>
@@ -494,15 +688,15 @@ function DashboardHero({
                   <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-2">{userMetric.label}</p>
                   <div className="flex items-baseline justify-between">
                     <div>
-                      <p className="text-2xl font-bold text-white">{userMetric.value}</p>
-                      <p className="text-xs text-white/70 mt-1">Position #{userMetric.position}</p>
+                      <p className="text-2xl font-bold text-[var(--token-text-primary)]">{userMetric.value}</p>
+                      <p className="text-xs text-[var(--token-text-secondary)] mt-1">Position #{userMetric.position}</p>
                     </div>
                     {((currentSection === 0 && userBestLap?.gapToFastest && userBestLap.gapToFastest > 0) ||
                       (currentSection === 1 && userBestConsistency?.gapToBest && userBestConsistency.gapToBest > 0) ||
                       (currentSection === 2 && userBestAvgLap?.gapToBest && userBestAvgLap.gapToBest > 0)) && (
                       <div className="text-right">
-                        <p className="text-sm text-white/60">{userMetric.gapLabel}</p>
-                        <p className="text-lg font-semibold text-white">{userMetric.gapValue}</p>
+                        <p className="text-sm text-[var(--token-text-muted)]">{userMetric.gapLabel}</p>
+                        <p className="text-lg font-semibold text-[var(--token-text-primary)]">{userMetric.gapValue}</p>
                       </div>
                     )}
                   </div>
@@ -511,8 +705,8 @@ function DashboardHero({
             })()}
           </>
         ) : (
-          <div className="mb-6 rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-center">
-            <p className="text-sm text-white/60">No lap time data available for this event</p>
+          <div className="mb-6 rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-6 text-center">
+            <p className="text-sm text-[var(--token-text-muted)]">No lap time data available for this event</p>
           </div>
         )}
 
@@ -562,7 +756,7 @@ function DriverCard({
       const sameClass = driver.className === sectionData[0].className
       const gapToFastest = index > 0 && sameClass ? driver.fastestLapTime - fastestLapTime : 0
       if (gapToFastest > 0) {
-        gapDisplay = <span className="text-[10px] text-white/50">+{formatLapTime(gapToFastest)}</span>
+        gapDisplay = <span className="text-[10px] text-[var(--token-text-muted)]">+{formatLapTime(gapToFastest)}</span>
       }
     }
   } else if (type === "consistency" && "consistency" in driver) {
@@ -574,33 +768,33 @@ function DriverCard({
   }
 
   return (
-    <div className="rounded-2xl border border-white/20 bg-white/5 px-4 py-4">
+    <div className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-white/60">#{index + 1}</span>
+        <span className="text-xs font-semibold text-[var(--token-text-muted)]">#{index + 1}</span>
         {gapDisplay}
       </div>
-      <p className="text-base font-semibold text-white mb-1">{driver.driverName}</p>
-      <p className="text-2xl font-bold text-white mb-2">{valueDisplay}</p>
-      <p className="text-[10px] text-white/60">{driver.raceLabel}</p>
-      <p className="text-[10px] text-white/50">{driver.className}</p>
+      <p className="text-base font-semibold text-[var(--token-text-primary)] mb-1">{driver.driverName}</p>
+      <p className="text-2xl font-bold text-[var(--token-text-primary)] mb-2">{valueDisplay}</p>
+      <p className="text-[10px] text-[var(--token-text-muted)]">{driver.raceLabel}</p>
+      <p className="text-[10px] text-[var(--token-text-muted)]">{driver.className}</p>
     </div>
   )
 }
 
 function HeroStat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-center">
-      <p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+    <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-3 py-3 text-center">
+      <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-[var(--token-text-primary)]">{value}</p>
     </div>
   )
 }
 
 function PrimaryButton({ label, icon, variant = "primary" }: { label: string; icon: "download" | "compare" | "share"; variant?: "primary" | "secondary" }) {
-  const base = variant === "primary" ? "bg-white text-black" : "bg-white/10 text-white"
-  const border = variant === "primary" ? "border-white" : "border-white/20"
+  // Use standard button pattern with semantic tokens
+  const baseClasses = "mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] active:opacity-90"
   return (
-    <button type="button" className={`flex items-center gap-2 rounded-full border ${border} px-4 py-2 text-sm font-semibold transition hover:opacity-90 ${base}`}>
+    <button type="button" className={`${baseClasses} gap-2`}>
       <HeroIcon type={icon} />
       {label}
     </button>
@@ -636,6 +830,13 @@ function KpiCard({ label, value, helper, trendLabel, trendDelta, trendValueDispl
 }
 
 function Sparkline({ data }: { data: number[] }) {
+  if (data.length === 0) {
+    return (
+      <svg viewBox="0 0 100 60" className="mt-4 h-16 w-full text-[var(--token-accent)]" fill="none">
+        <polyline points="" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" />
+      </svg>
+    )
+  }
   const max = Math.max(...data)
   const min = Math.min(...data)
   const points = data.map((value, index) => {
@@ -685,6 +886,9 @@ function TelemetrySnapshot({ className, data }: { className?: string; data: Retu
 }
 
 function TelemetryPath({ points, color, height }: { points: number[]; color: string; height: number }) {
+  if (points.length === 0) {
+    return <path d="" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" />
+  }
   const max = Math.max(...points)
   const min = Math.min(...points)
   const d = points
@@ -699,26 +903,26 @@ function TelemetryPath({ points, color, height }: { points: number[]; color: str
 
 function WeatherPanel({ className, weather, eventDate, trackName, eventName }: { className?: string; weather: WeatherData; eventDate?: string; trackName?: string; eventName?: string }) {
   return (
-    <article className={`rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[#111f2c] to-[#0b141c] p-[var(--dashboard-card-padding)] text-white ${className}`}>
+    <article className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] ${className}`}>
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] uppercase tracking-[0.4em] text-white/60">Track state</p>
+        <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">Track state</p>
         {weather.isCached && weather.cachedAt && (
-          <p className="text-[9px] uppercase tracking-[0.3em] text-white/40">Cached</p>
+          <p className="text-[9px] uppercase tracking-[0.3em] text-[var(--token-text-muted)]">Cached</p>
         )}
       </div>
       {eventName && trackName && eventDate && (
-        <p className="text-sm text-white/70 mt-2">{eventName} • {trackName} • {formatDateLong(eventDate)}</p>
+        <p className="text-sm text-[var(--token-text-secondary)] mt-2">{eventName} • {trackName} • {formatDateLong(eventDate)}</p>
       )}
-      <h3 className="mt-2 text-xl font-semibold">{weather.condition}</h3>
-      <p className="text-sm text-white/70">Wind {weather.wind} • Humidity {weather.humidity}%</p>
+      <h3 className="mt-2 text-xl font-semibold text-[var(--token-text-primary)]">{weather.condition}</h3>
+      <p className="text-sm text-[var(--token-text-secondary)]">Wind {weather.wind} • Humidity {weather.humidity}%</p>
       <div className="mt-6 grid grid-cols-3 gap-3 text-center">
         <WeatherStat label="Air" value={`${Math.round(weather.air)}°C`} />
         <WeatherStat label="Track" value={`${Math.round(weather.track)}°C`} />
         <WeatherStat label="Chance" value={`${weather.precip}%`} />
       </div>
-      <div className="mt-6 space-y-2 text-xs text-white/70">
+      <div className="mt-6 space-y-2 text-xs text-[var(--token-text-secondary)]">
         {weather.forecast.map((entry) => (
-          <div key={entry.label} className="flex items-center justify-between rounded-2xl border border-white/10 px-3 py-2">
+          <div key={entry.label} className="flex items-center justify-between rounded-2xl border border-[var(--token-border-muted)] px-3 py-2">
             <span>{entry.label}</span>
             <span>{entry.detail}</span>
           </div>
@@ -730,9 +934,9 @@ function WeatherPanel({ className, weather, eventDate, trackName, eventName }: {
 
 function WeatherStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/20 px-3 py-2">
-      <p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
+    <div className="rounded-2xl border border-[var(--token-border-default)] px-3 py-2">
+      <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-[var(--token-text-primary)]">{value}</p>
     </div>
   )
 }
@@ -920,19 +1124,19 @@ function generateTelemetrySnapshot(summary: EventAnalysisSummary["summary"] | nu
 
 function WeatherLoadingState({ className }: { className?: string }) {
   return (
-    <article className={`rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[#111f2c] to-[#0b141c] p-[var(--dashboard-card-padding)] text-white ${className}`}>
+    <article className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] ${className}`}>
       <div className="animate-pulse">
-        <div className="h-4 w-24 bg-white/20 rounded mb-4" />
-        <div className="h-6 w-48 bg-white/20 rounded mb-2" />
-        <div className="h-4 w-32 bg-white/20 rounded mb-6" />
+        <div className="h-4 w-24 bg-[var(--token-surface)] rounded mb-4" />
+        <div className="h-6 w-48 bg-[var(--token-surface)] rounded mb-2" />
+        <div className="h-4 w-32 bg-[var(--token-surface)] rounded mb-6" />
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-white/10 rounded-2xl" />
+            <div key={i} className="h-16 bg-[var(--token-surface)] rounded-2xl" />
           ))}
         </div>
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 bg-white/10 rounded-2xl" />
+            <div key={i} className="h-10 bg-[var(--token-surface)] rounded-2xl" />
           ))}
         </div>
       </div>
@@ -942,9 +1146,9 @@ function WeatherLoadingState({ className }: { className?: string }) {
 
 function WeatherErrorState({ className, error }: { className?: string; error: string }) {
   return (
-    <article className={`rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[#111f2c] to-[#0b141c] p-[var(--dashboard-card-padding)] text-white ${className}`}>
-      <p className="text-[10px] uppercase tracking-[0.4em] text-white/60">Track state</p>
-      <p className="mt-4 text-sm text-white/70">{error}</p>
+    <article className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] ${className}`}>
+      <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">Track state</p>
+      <p className="mt-4 text-sm text-[var(--token-text-secondary)]">{error}</p>
     </article>
   )
 }

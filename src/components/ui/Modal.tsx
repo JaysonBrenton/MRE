@@ -133,7 +133,7 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
@@ -142,11 +142,11 @@ export default function Modal({
       role="dialog"
       aria-modal="true"
       aria-labelledby={ariaLabel || "modal-title"}
-      style={{ minWidth: 0 }}
+      style={{ minWidth: 0, overflowY: 'auto' }}
     >
       <div
         ref={modalRef}
-        className={`max-h-[600px] bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col`}
+        className={`max-h-[calc(100vh-2rem)] my-4 bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col`}
         onClick={(e) => e.stopPropagation()}
         style={getModalContainerStyles(maxWidthInRem[maxWidth])}
       >

@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-28
 description: Complete end-to-end user workflow for Event Search and Event Analysis features
 purpose: Defines the complete Driver workflow from login → Event Search → search/filter → LiveRC discovery/import → select event → Event Analysis. This document serves as the authoritative UX specification for the Event Search and Event Analysis features in the MRE version 0.1.1 release.
 relatedFiles:
@@ -35,10 +35,9 @@ The complete Driver workflow follows this sequence:
 5. **Driver clicks Search** → System queries MRE database for matching events
 6. **If no DB results** → System automatically queries LiveRC for events
 7. **Driver views event list** with status indicators (Stored, New, Importing, Failed)
-8. **Driver clicks "Check LiveRC"** (optional) → System discovers new events
-9. **Driver imports discovered events** → Async ingestion pipeline runs
-10. **Driver selects an event** → Navigates to Event Analysis page
-11. **Driver analyzes event data** → Views interactive charts, comparisons, and exports CSV
+8. **Driver imports discovered events** → Async ingestion pipeline runs
+9. **Driver selects an event** → Navigates to Event Analysis page
+10. **Driver analyzes event data** → Views interactive charts, comparisons, and exports CSV
 
 For detailed technical implementation, see [LiveRC Ingestion Overview](../../architecture/liverc-ingestion/01-overview.md).
 
@@ -124,12 +123,15 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
   - Star icon is tappable/clickable (44px touch target including padding)
   - Toggling star adds/removes track from favourites
   - Favourite tracks appear above all other tracks in modal
-- **Quick Chips (Optional):** Surface favourites as quick-select chips above Event Search form
+- **Quick Chips:** Surface favourites as quick-select chips above Event Search form
   - Chips displayed horizontally (wrap to multiple lines on mobile)
   - Each chip shows track name (truncated if too long)
-  - Clicking chip selects that track and closes modal
+  - Each chip has a remove button (X icon) on the right side
+  - Clicking chip name selects that track and automatically triggers search
+  - Clicking X icon removes track from favourites (does not trigger search)
   - Chips use `--token-surface-elevated` background
   - Chips have 44px minimum height
+  - Remove button meets 44px touch target requirement
 
 **Track Row Display:**
 - Each track row in modal:
@@ -151,6 +153,7 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 
 **Track Selection Behavior:**
 - Selecting a track (clicking row or chip) closes modal and populates track field
+- Clicking a favourite chip automatically triggers search after selecting the track
 - Selected track displayed in track input field
 - If track has alias information (future feature), display subtle note: "Also raced as [Old Name]"
 - Track input field is read-only after selection (shows selected track name)
@@ -289,7 +292,7 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 
 4. **If Events Found in DB:**
    - Display events in event table with status "Stored" or "Imported"
-   - User can still click "Check LiveRC" to discover additional events
+   - System may still run LiveRC discovery in the background to surface any newer events
 
 **Search Results Display:**
 - Event table appears below search form
@@ -306,15 +309,6 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 - For design purposes, assume LiveRC retains only a limited window of historical events per track
 - MRE does **not** attempt to import events older than what LiveRC exposes
 - MRE does **not** attempt to import events outside the selected date range
-
-**"Check LiveRC" Button:**
-- **Location:** Prominent button above or within event table
-- **Label:** "Check LiveRC" (clear action)
-- **Behavior:**
-  - Allows user to manually request a LiveRC check even if DB results exist
-  - Triggers discovery of new events from LiveRC for given track and date range
-  - Shows loading state: "Checking LiveRC for events..."
-  - Calls relevant LiveRC discovery endpoint(s) (per architecture docs)
 
 **Discovery Process:**
 - System calls LiveRC discovery endpoint(s)
@@ -440,8 +434,8 @@ For detailed technical implementation, see [LiveRC Ingestion Overview](../../arc
 **Default Behavior:**
 - **Rely on DB results** for a given track + date range
 - Only call LiveRC when:
-  - User explicitly presses "Check LiveRC" **OR**
   - No DB results exist (automatic LiveRC check)
+  - The system initiates a background refresh to look for newer events
 
 **Caching Strategy:**
 - Cache DB search results in memory (cleared on page reload)

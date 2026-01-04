@@ -605,7 +605,7 @@ export default function EventsPageClient() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-8">
               <div className="text-sm text-[var(--token-text-secondary)]">
                 Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} events
                 {nameSearch && ` (filtered from ${events.length} on this page)`}
@@ -677,7 +677,7 @@ export default function EventsPageClient() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-8">
               <div className="text-sm text-[var(--token-text-secondary)]">
                 Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} events
                 {nameSearch && ` (filtered from ${events.length} on this page)`}

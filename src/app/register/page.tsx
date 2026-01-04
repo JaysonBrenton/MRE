@@ -25,7 +25,7 @@ import { useState } from "react"
 import Link from "next/link"
 import Footer from "@/components/Footer"
 import { signIn, getSession } from "@/lib/auth-client"
-import { logger } from "@/lib/logger"
+import { clientLogger } from "@/lib/client-logger"
 
 type RegisterFieldErrors = {
   email?: string
@@ -95,7 +95,7 @@ export default function RegisterPage() {
         })
       } catch (fetchError) {
         // Network error or fetch failed
-        logger.error("Registration fetch error", {
+        clientLogger.error("Registration fetch error", {
           error: fetchError instanceof Error
             ? {
                 name: fetchError.name,
@@ -120,7 +120,7 @@ export default function RegisterPage() {
         
         if (isHTML) {
           // Server returned HTML error page (likely unhandled error)
-          logger.error("Registration API returned HTML error page instead of JSON", {
+          clientLogger.error("Registration API returned HTML error page instead of JSON", {
             status: response.status,
             statusText: response.statusText,
             contentType
@@ -137,7 +137,7 @@ export default function RegisterPage() {
           errorMessage = errorData.error?.message || errorData.error || `Registration failed (${response.status})`
         } catch (jsonError) {
           // Response is not JSON, use status text
-          logger.error("Failed to parse error response as JSON", {
+          clientLogger.error("Failed to parse error response as JSON", {
             error: jsonError instanceof Error
               ? {
                   name: jsonError.name,
@@ -147,7 +147,7 @@ export default function RegisterPage() {
           })
           errorMessage = `Registration failed: ${response.statusText || `HTTP ${response.status}`}`
         }
-        logger.error("Registration API error", {
+        clientLogger.error("Registration API error", {
           status: response.status,
           message: errorMessage
         })
@@ -161,7 +161,7 @@ export default function RegisterPage() {
       const isJSON = contentType?.includes("application/json")
       
       if (!isJSON) {
-        logger.error("Registration API returned non-JSON response", {
+        clientLogger.error("Registration API returned non-JSON response", {
           contentType,
           status: response.status
         })
@@ -173,7 +173,7 @@ export default function RegisterPage() {
       try {
         await response.json()
       } catch (jsonError) {
-        logger.error("Failed to parse success response as JSON", {
+        clientLogger.error("Failed to parse success response as JSON", {
           error: jsonError instanceof Error
             ? {
                 name: jsonError.name,
@@ -203,7 +203,7 @@ export default function RegisterPage() {
         router.refresh()
       } catch (signInError) {
         // Registration succeeded but auto-login failed, redirect to login
-        logger.warn("Registration succeeded but auto-login failed", {
+        clientLogger.warn("Registration succeeded but auto-login failed", {
           error: signInError instanceof Error
             ? {
                 name: signInError.name,
@@ -215,7 +215,7 @@ export default function RegisterPage() {
       }
     } catch (err) {
       // Unexpected error
-      logger.error("Unexpected registration error", {
+      clientLogger.error("Unexpected registration error", {
         error: err instanceof Error
           ? {
               name: err.name,
@@ -247,7 +247,7 @@ export default function RegisterPage() {
         style={{ width: '100%', minWidth: 0, flexBasis: '100%', boxSizing: 'border-box', flexShrink: 1 }}
       >
         <section className="content-wrapper w-full min-w-0 max-w-2xl" style={{ width: '100%', minWidth: 0, marginLeft: 'auto', marginRight: 'auto', maxWidth: '672px', boxSizing: 'border-box' }}>
-          <div className="w-full min-w-0 space-y-8 rounded-lg bg-[var(--token-surface-elevated)] p-8 shadow-lg" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+          <div className="w-full min-w-0 space-y-8 rounded-lg bg-[var(--token-surface-elevated)] p-8" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
             <div>
               <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
                 Create an account
@@ -387,7 +387,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center items-center px-6 py-3 rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] active:opacity-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="mobile-button w-full flex justify-center items-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-6 py-3 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90"
                 >
                   {loading ? "Creating account..." : "Create account"}
                 </button>

@@ -71,7 +71,7 @@ The Driver persona represents individual RC racers who participate in racing eve
 **Context of Use:**
 - **When**: Before races (preparation), during races (quick reference), after races (analysis)
 - **Where**: At home (desktop/laptop), at the track (mobile device)
-- **How**: Quick access to race data, simple navigation, mobile-first design
+- **How**: Quick access to race data, simple navigation, desktop-optimized design
 
 ### User Journey
 

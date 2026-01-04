@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-29
 description: Central index and navigation for all MRE project documentation
 purpose: Provides a comprehensive index of all documentation in the MRE project, organized by
          category with brief descriptions and cross-references. This document serves as the
@@ -102,7 +102,7 @@ API reference documentation and versioning strategy.
 ### [API Reference](api/api-reference.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-27
+**Last Updated:** 2025-01-29
 
 Complete API reference documentation for all MRE API endpoints. Provides comprehensive catalog of endpoints, request/response formats, authentication requirements, error codes, and usage examples.
 
@@ -130,7 +130,7 @@ Database schema and data model documentation.
 ### [Database Schema Documentation](database/schema.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-27
+**Last Updated:** 2025-01-29
 
 Human-readable database schema documentation. Provides comprehensive overview of all models, relationships, indexes, constraints, and business rules. Essential reference for developers understanding the data model.
 
@@ -164,7 +164,7 @@ Visual design, UX principles, and user experience guidelines.
 ### [MRE UX Principles](design/mre-ux-principles.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-27
+**Last Updated:** 2025-01-29
 
 Mandatory User Experience principles for all MRE version 0.1.1 features. Defines core UX philosophy, laws of UX, foundational layout rules, form patterns, content rules, and mobile-specific requirements.
 
@@ -175,7 +175,7 @@ Mandatory User Experience principles for all MRE version 0.1.1 features. Defines
 ### [MRE Dark Theme Guidelines](design/mre-dark-theme-guidelines.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-27
+**Last Updated:** 2025-01-29
 
 Visual standards and token system for MRE dark theme implementation. Defines semantic token naming (`--token-*`), core dark theme rules, typography, spacing, forms, and mobile requirements.
 
@@ -208,7 +208,7 @@ Development guides, testing strategies, and contributing guidelines.
 ### [Developer Quick Start Guide](development/quick-start.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-27
+**Last Updated:** 2025-01-29
 
 Step-by-step developer onboarding guide. Provides prerequisites, setup instructions, first-time workflow, running tests, useful commands, common setup issues, and IDE recommendations.
 
@@ -384,14 +384,12 @@ Mandatory standards for file headers and code commenting across all files in the
 
 Infrastructure and environment reviews.
 
-### [Docker Review Report](reviews/DOCKER_REVIEW_REPORT.md)
+### Docker Review Report
 
-**Status:** Complete  
-**Last Updated:** 2025-01-27
+**Status:** Not Available  
+**Last Updated:** 2025-01-29
 
-Review and guidance for Docker infrastructure and environment setup. Evaluates Docker configuration, container networking, environment variables, and developer workflow.
-
-**Key Topics:** Container architecture, network configuration, database connection, environment variables, recommended improvements, Alpha restrictions.
+**Note:** This document is not currently available. See [Docker User Guide](operations/docker-user-guide.md) for Docker infrastructure and environment setup documentation.
 
 ---
 
@@ -408,7 +406,7 @@ Operational documentation for deployment, environment configuration, and observa
 
 **Key Topics:** Docker architecture, container details, network architecture, volume management, environment configuration, initial setup, daily usage, development workflow, troubleshooting, production considerations.
 
-**Related:** See [Docker Review Report](reviews/DOCKER_REVIEW_REPORT.md) for Docker evaluation. See [Quick Start Guide](development/quick-start.md) for developer onboarding. See [Deployment Guide](operations/deployment-guide.md) for deployment procedures.
+**Related:** See [Quick Start Guide](development/quick-start.md) for developer onboarding. See [Deployment Guide](operations/deployment-guide.md) for deployment procedures.
 
 ### [Environment Variables Reference](operations/environment-variables.md)
 
@@ -494,12 +492,14 @@ User workflow documentation for LiveRC integration features. Defines the end-to-
 
 ## Documentation Status
 
-Track documentation completion, placeholders, and maintenance in the [Documentation Status](STATUS.md) document.
-
 **Quick Status:**
 - ✅ 14/14 recommended documents created
-- 📝 ~60 placeholders tracked for future completion
+- 📝 Placeholders tracked for future completion
 - 🔄 Monthly reviews scheduled
+
+**Last Updated:** 2025-01-29
+
+**Note:** Detailed documentation status tracking is managed via version control and code review processes.
 
 ---
 
@@ -513,7 +513,6 @@ When adding new documentation:
 2. Include brief description and key topics
 3. Link to related documentation
 4. Update this index's `lastModified` date
-5. Update [Documentation Status](STATUS.md) with new document
 
 ---
 

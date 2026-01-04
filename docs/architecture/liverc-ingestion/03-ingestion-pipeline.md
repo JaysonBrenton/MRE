@@ -75,11 +75,23 @@ Maintain a complete list of all LiveRC tracks locally in the MRE database.
      - events_url
      - last_seen_at
      - liverc_track_last_updated
+   - **Extract dashboard metadata** (if available):
+     - Fetch track dashboard page (`https://{slug}.liverc.com/`)
+     - Parse and extract:
+       - Location data: `latitude`, `longitude`, `address`, `city`, `state`, `country`, `postal_code`
+       - Contact info: `phone`, `website`, `email`
+       - Additional metadata: `description`, `logo_url`, `facebook_url`
+       - Statistics: `total_laps`, `total_races`, `total_events`
+     - Update track record with extracted metadata
+     - If dashboard fetch/parse fails, track sync continues gracefully (metadata remains null)
 3. Mark any previously known LiveRC tracks that no longer appear as `is_active = false`.
 
 ### Notes
 - No events or race data is fetched in this step.
 - This is the only ingestion operation allowed to be run proactively.
+- Dashboard metadata extraction adds one HTTP request per track (may increase sync time).
+- Dashboard parsing failures are logged but do not prevent track sync from completing.
+- Extracted location data improves weather geolocation accuracy (see weather API documentation).
 
 ---
 

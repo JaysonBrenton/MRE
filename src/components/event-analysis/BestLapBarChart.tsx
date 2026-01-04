@@ -17,7 +17,7 @@
 
 "use client"
 
-import { useMemo, useId } from "react"
+import { useMemo, useId, useState, useRef } from "react"
 import { Group } from "@visx/group"
 import { Bar } from "@visx/shape"
 import { scaleBand, scaleLinear } from "@visx/scale"
@@ -27,6 +27,8 @@ import { localPoint } from "@visx/event"
 import { ParentSize } from "@visx/responsive"
 import ChartContainer from "./ChartContainer"
 import ChartPagination from "./ChartPagination"
+import ChartColorPicker from "./ChartColorPicker"
+import { useChartColor } from "@/hooks/useChartColors"
 
 export interface DriverBestLap {
   driverId: string
@@ -43,13 +45,98 @@ export interface BestLapBarChartProps {
   driversPerPage?: number
   onPageChange?: (page: number) => void
   onDriverToggle?: (driverId: string) => void
+  chartInstanceId?: string
 }
 
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
-const accentColor = "var(--token-accent)"
+const defaultAccentColor = "var(--token-accent)"
 const textColor = "var(--token-text-primary)"
 const textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
+
+/**
+ * Convert CSS variable or color string to hex color for SVG
+ * SVG fill attributes don't support CSS variables, so we need to compute the actual color
+ */
+function getComputedColor(color: string, fallback: string = "#3a8eff"): string {
+  // If it's already a hex color, return it
+  if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)) {
+    return color
+  }
+  
+  // If it's a CSS variable, compute it
+  if (color.startsWith("var(")) {
+    if (typeof window === "undefined") {
+      return fallback
+    }
+    
+    // Extract the variable name
+    const match = color.match(/var\(([^)]+)\)/)
+    if (!match) {
+      return fallback
+    }
+    
+    const varName = match[1].trim()
+    
+    // Get computed value from document
+    const computedValue = getComputedStyle(document.documentElement)
+      .getPropertyValue(varName)
+      .trim()
+    
+    if (!computedValue) {
+      return fallback
+    }
+    
+    // If it's already a hex color, return it
+    if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(computedValue)) {
+      return computedValue
+    }
+    
+    // If it's rgb/rgba, convert to hex
+    if (computedValue.startsWith("rgb")) {
+      const rgbMatch = computedValue.match(/\d+/g)
+      if (rgbMatch && rgbMatch.length >= 3) {
+        const r = parseInt(rgbMatch[0], 10)
+        const g = parseInt(rgbMatch[1], 10)
+        const b = parseInt(rgbMatch[2], 10)
+        return `#${[r, g, b].map(x => x.toString(16).padStart(2, "0")).join("")}`
+      }
+    }
+    
+    return fallback
+  }
+  
+  return color
+}
+
+/**
+ * Calculate bottom margin needed for rotated labels
+ * Estimates space needed for -45 degree rotated text labels
+ */
+function calculateBottomMargin(labels: string[], minMargin = 100): number {
+  if (labels.length === 0) return minMargin
+  
+  const fontSize = 11 // Match the fontSize in tickLabelProps
+  const avgCharWidth = 6.5 // Approximate width per character for 11px font
+  const rotationRadians = Math.PI / 4 // 45 degrees
+  const padding = 20 // Extra padding for safety
+  
+  // Find the longest label
+  const maxLabelLength = Math.max(...labels.map(label => label.length))
+  
+  // Estimate text width
+  const estimatedTextWidth = maxLabelLength * avgCharWidth
+  
+  // Calculate vertical extension for -45 degree rotation
+  // When rotated -45°, the text extends diagonally down and to the right
+  // The vertical component is width * sin(45°)
+  const verticalExtension = estimatedTextWidth * Math.sin(rotationRadians)
+  
+  // Add padding and ensure minimum margin
+  const calculatedMargin = Math.ceil(verticalExtension + padding)
+  
+  return Math.max(calculatedMargin, minMargin)
+}
 
 /**
  * Format lap time in seconds to MM:SS.mmm format
@@ -71,9 +158,30 @@ export default function BestLapBarChart({
   driversPerPage = 25,
   onPageChange,
   onDriverToggle,
+  chartInstanceId,
 }: BestLapBarChartProps) {
-  const chartTitleId = useId()
   const chartDescId = useId()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [showColorPicker, setShowColorPicker] = useState(false)
+  const [colorPickerPosition, setColorPickerPosition] = useState<{
+    top: number
+    left: number
+  } | null>(null)
+
+  // Use chart color hook if chartInstanceId is provided
+  const instanceId = chartInstanceId || "default-best-lap"
+  const [barColor, setBarColor] = useChartColor(
+    instanceId,
+    "primary",
+    defaultAccentColor
+  )
+
+  // Convert CSS variable to computed hex color for SVG
+  // SVG fill attributes don't support CSS variables
+  const computedBarColor = useMemo(() => {
+    return getComputedColor(barColor, "#3a8eff")
+  }, [barColor])
+
   const {
     tooltipData,
     tooltipLeft,
@@ -82,6 +190,33 @@ export default function BestLapBarChart({
     showTooltip,
     hideTooltip,
   } = useTooltip<DriverBestLap>()
+
+  const handleTitleClick = () => {
+    if (containerRef.current) {
+      // Position color picker below the title (first h3 element in container)
+      const titleElement = containerRef.current.querySelector("h3")
+      if (titleElement) {
+        const rect = titleElement.getBoundingClientRect()
+        // Use fixed positioning, so use getBoundingClientRect directly (viewport-relative)
+        setColorPickerPosition({
+          top: rect.bottom + 8,
+          left: rect.left,
+        })
+        setShowColorPicker(true)
+      }
+    }
+  }
+
+  const handleLegendClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation()
+    const rect = event.currentTarget.getBoundingClientRect()
+    // Use fixed positioning, so use getBoundingClientRect directly (viewport-relative)
+    setColorPickerPosition({
+      top: rect.bottom + 8,
+      left: rect.left,
+    })
+    setShowColorPicker(true)
+  }
 
   // Filter and validate data
   const validData = useMemo(() => {
@@ -114,6 +249,13 @@ export default function BestLapBarChart({
   const endIndex = startIndex + driversPerPage
   const paginatedData = sortedData.slice(startIndex, endIndex)
 
+  // Calculate dynamic bottom margin based on label lengths
+  const margin = useMemo(() => {
+    const labelLengths = paginatedData.map(d => d.driverName)
+    const dynamicBottom = calculateBottomMargin(labelLengths, 100)
+    return { ...defaultMargin, bottom: dynamicBottom }
+  }, [paginatedData])
+
   if (displayData.length === 0) {
     return (
       <ChartContainer
@@ -131,15 +273,16 @@ export default function BestLapBarChart({
     )
   }
 
-  const margin = defaultMargin
-
   return (
-    <ChartContainer
-      title="Best Lap Times"
-      height={height}
-      className={className}
-      aria-label="Best lap times per driver bar chart"
-    >
+    <div ref={containerRef} className="relative">
+      <ChartContainer
+        title="Best Lap Times"
+        height={height}
+        className={className}
+        aria-label="Best lap times per driver bar chart"
+        chartInstanceId={chartInstanceId}
+        onTitleClick={handleTitleClick}
+      >
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>
           {({ width: parentWidth }) => {
@@ -178,10 +321,10 @@ export default function BestLapBarChart({
               <svg
                 width={width}
                 height={height}
-                aria-labelledby={`${chartTitleId} ${chartDescId}`}
+                aria-labelledby={chartDescId}
                 role="img"
+                overflow="visible"
               >
-                <title id={chartTitleId}>Best lap times per driver</title>
                 <desc id={chartDescId}>
                   Bar chart showing each driver&apos;s best lap time, sorted fastest to slowest.
                 </desc>
@@ -226,9 +369,9 @@ export default function BestLapBarChart({
                           y={y}
                           width={barWidth}
                           height={barHeight}
-                          fill={isSelected ? accentColor : "var(--token-text-muted)"}
+                          fill={isSelected ? computedBarColor : getComputedColor("var(--token-text-muted)", "#666666")}
                           opacity={isSelected ? 1 : 0.3}
-                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? accentColor : "none"}
+                          stroke={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? computedBarColor : "none"}
                           strokeWidth={isSelected && selectedDriverIds !== undefined && selectedDriverIds.length > 0 ? 2 : 0}
                           onClick={handleClick}
                           onMouseMove={(event) => {
@@ -338,6 +481,45 @@ export default function BestLapBarChart({
         )}
       </div>
 
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-4 text-sm">
+        <div
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={handleLegendClick}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              const rect = e.currentTarget.getBoundingClientRect()
+              setColorPickerPosition({
+                top: rect.bottom + 8,
+                left: rect.left,
+              })
+              setShowColorPicker(true)
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label="Best Lap - Click to customize color"
+        >
+          <div
+            className="w-4 h-4"
+            style={{ backgroundColor: computedBarColor }}
+          />
+          <span className="text-[var(--token-text-secondary)]">Best Lap</span>
+        </div>
+      </div>
+
+      {/* Color Picker */}
+      {showColorPicker && colorPickerPosition && (
+        <ChartColorPicker
+          currentColor={barColor}
+          onColorChange={setBarColor}
+          onClose={() => setShowColorPicker(false)}
+          position={colorPickerPosition}
+          label="Chart Color"
+        />
+      )}
+
       {/* Pagination */}
       {onPageChange && totalPages > 1 && (
         <ChartPagination
@@ -349,6 +531,7 @@ export default function BestLapBarChart({
           itemLabel="drivers"
         />
       )}
-    </ChartContainer>
+      </ChartContainer>
+    </div>
   )
 }

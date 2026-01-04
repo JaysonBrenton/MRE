@@ -13,23 +13,18 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { getWeatherForEvent } from "@/core/weather/get-weather-for-event"
-import { prisma } from "@/lib/prisma"
 import * as geocodeTrackModule from "@/core/weather/geocode-track"
 import * as fetchWeatherModule from "@/core/weather/fetch-weather"
 import * as weatherRepoModule from "@/core/weather/repo"
+import * as eventsRepoModule from "@/core/events/repo"
+import * as resolveCandidatesModule from "@/core/weather/resolve-geocode-candidates"
 
 // Mock dependencies
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    event: {
-      findUnique: vi.fn(),
-    },
-  },
-}))
-
 vi.mock("@/core/weather/geocode-track")
 vi.mock("@/core/weather/fetch-weather")
 vi.mock("@/core/weather/repo")
+vi.mock("@/core/events/repo")
+vi.mock("@/core/weather/resolve-geocode-candidates")
 
 describe("Weather Data Display Integration", () => {
   const eventId = "event-123"
@@ -73,7 +68,8 @@ describe("Weather Data Display Integration", () => {
 
       // Mock cache miss
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Sydney Motorsport Park"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue(mockGeocodeResult)
       vi.mocked(fetchWeatherModule.fetchWeather).mockResolvedValue(mockWeatherResponse)
       vi.mocked(weatherRepoModule.cacheWeatherData).mockResolvedValue({
@@ -145,7 +141,8 @@ describe("Weather Data Display Integration", () => {
       }
 
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Sydney Motorsport Park"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue({
         latitude: 0,
         longitude: 0,
@@ -175,7 +172,8 @@ describe("Weather Data Display Integration", () => {
       }
 
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Sydney Motorsport Park"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue({
         latitude: 0,
         longitude: 0,

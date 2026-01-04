@@ -61,6 +61,69 @@ export default function RootLayout({
             `,
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                // Suppress Next.js performance measurement errors
+                // These occur when components redirect immediately, causing invalid timing
+                function isPerformanceMeasurementError(message) {
+                  return (
+                    typeof message === 'string' &&
+                    (message.includes('cannot have a negative time stamp') ||
+                     message.includes("Failed to execute 'measure' on 'Performance'") ||
+                     message.includes('negative time stamp'))
+                  );
+                }
+                
+                // Override console.error early to catch errors before Next.js error overlay
+                const originalConsoleError = console.error;
+                console.error = function() {
+                  const message = Array.from(arguments)
+                    .map(function(arg) {
+                      return typeof arg === 'string' ? arg : String(arg);
+                    })
+                    .join(' ');
+                  
+                  if (isPerformanceMeasurementError(message)) {
+                    return; // Silently ignore
+                  }
+                  
+                  return originalConsoleError.apply(console, arguments);
+                };
+                
+                // Override window.onerror to catch errors before Next.js intercepts them
+                const originalOnError = window.onerror;
+                window.onerror = function(message, source, lineno, colno, error) {
+                  if (isPerformanceMeasurementError(message)) {
+                    return true; // Suppress the error
+                  }
+                  
+                  if (originalOnError) {
+                    return originalOnError.call(this, message, source, lineno, colno, error);
+                  }
+                  
+                  return false;
+                };
+                
+                // Patch Performance.measure to catch and suppress the specific error
+                if (typeof Performance !== 'undefined' && Performance.prototype.measure) {
+                  const originalMeasure = Performance.prototype.measure;
+                  Performance.prototype.measure = function(name, startMark, endMark) {
+                    try {
+                      return originalMeasure.call(this, name, startMark, endMark);
+                    } catch (e) {
+                      if (isPerformanceMeasurementError(e.message)) {
+                        return; // Silently ignore
+                      }
+                      throw e; // Re-throw other errors
+                    }
+                  };
+                }
+              })();
+            `,
+          }}
+        />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <a

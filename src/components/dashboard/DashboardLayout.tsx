@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation"
 import { DashboardContextProvider, useDashboardContext } from "@/components/dashboard/context/DashboardContext"
 import AdaptiveNavigationRail from "@/components/dashboard/shell/AdaptiveNavigationRail"
 import TopStatusBar from "@/components/dashboard/shell/TopStatusBar"
-import ContextRibbon from "@/components/dashboard/shell/ContextRibbon"
 import CommandPalette from "@/components/dashboard/shell/CommandPalette"
 
 interface DashboardLayoutProps {
@@ -14,33 +13,32 @@ interface DashboardLayoutProps {
     email?: string | null
     isAdmin?: boolean | null
   } | null
+  userId: string
 }
 
-export default function DashboardLayout({ children, user }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, user, userId }: DashboardLayoutProps) {
   return (
     <DashboardContextProvider>
-      <DashboardShell user={user}>{children}</DashboardShell>
+      <DashboardShell user={user} userId={userId}>{children}</DashboardShell>
     </DashboardContextProvider>
   )
 }
 
-function DashboardShell({ children, user }: { children: React.ReactNode; user?: DashboardLayoutProps["user"] }) {
-  const { density } = useDashboardContext()
-  const pathname = usePathname()
+function DashboardShell({ children, user, userId }: { children: React.ReactNode; user?: DashboardLayoutProps["user"]; userId: string }) {
+  const { density, isNavCollapsed } = useDashboardContext()
   
-  // Only show ContextRibbon on the main dashboard page
-  const showContextRibbon = pathname === "/dashboard"
+  // Adjust margin based on sidebar collapse state
+  const sidebarMargin = isNavCollapsed ? "lg:ml-[80px]" : "lg:ml-64"
 
   return (
     <div
       className="flex min-h-screen bg-[var(--token-surface)] text-[var(--token-text-primary)]"
       data-density={density}
     >
-      <AdaptiveNavigationRail />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <TopStatusBar user={user ?? null} />
-        {showContextRibbon && <ContextRibbon />}
-        <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10">
+      <AdaptiveNavigationRail user={user ?? null} />
+      <div className={`flex min-h-screen flex-1 flex-col ${sidebarMargin}`}>
+        <TopStatusBar user={user ?? null} userId={userId} />
+        <div className="flex-1 overflow-y-auto px-4 py-6 pb-12 sm:px-6 lg:px-10">
           {children}
         </div>
       </div>

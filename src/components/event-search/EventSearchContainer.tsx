@@ -26,8 +26,9 @@ import { type Event } from "./EventRow"
 import { type EventStatus } from "./EventStatusBadge"
 import BulkImportBar from "./BulkImportBar"
 import ErrorDisplay from "./ErrorDisplay"
+import ListPagination from "../event-analysis/ListPagination"
 import { parseApiResponse } from "@/lib/api-response-helper"
-import { logger } from "@/lib/logger"
+import { clientLogger } from "@/lib/client-logger"
 
 /** API response type for track data */
 interface ApiTrack {
@@ -71,6 +72,7 @@ const LAST_DATE_RANGE_STORAGE_KEY = "mre_last_date_range"
 const LAST_TRACK_STORAGE_KEY = "mre_last_track"
 const USE_DATE_FILTER_STORAGE_KEY = "mre_use_date_filter"
 const SELECTED_EVENT_IDS_STORAGE_KEY = "mre_selected_event_ids"
+const PAGINATION_STORAGE_KEY = "mre_event_search_pagination"
 const PENDING_REFRESH_DELAY_MS = 5000
 
 // Get default date range (last 30 days)
@@ -85,7 +87,11 @@ function getDefaultDateRange(): { startDate: string; endDate: string } {
   }
 }
 
-export default function EventSearchContainer() {
+interface EventSearchContainerProps {
+  onSelectForDashboard?: (eventId: string) => void
+}
+
+export default function EventSearchContainer({ onSelectForDashboard }: EventSearchContainerProps = {}) {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
@@ -112,6 +118,8 @@ export default function EventSearchContainer() {
   const abortControllerRef = useRef<AbortController | null>(null) // Ref to track AbortController for cancelling LiveRC requests
   const [driverInEvents, setDriverInEvents] = useState<Record<string, boolean>>({}) // Map of sourceEventId to boolean
   const [isCheckingEntryLists, setIsCheckingEntryLists] = useState(false) // Track if we're checking entry lists
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
   const [errors, setErrors] = useState<{
     track?: string
     startDate?: string
@@ -131,7 +139,7 @@ export default function EventSearchContainer() {
       }
 
       if (prevEvents.length === 0) {
-        logger.warn("Restoring DB events after LiveRC issue", {
+        clientLogger.warn("Restoring DB events after LiveRC issue", {
           dbEventCount: dbEventsRef.current.length,
         })
         return dbEventsRef.current
@@ -139,7 +147,7 @@ export default function EventSearchContainer() {
 
       const hasDbEvents = prevEvents.some((event) => !event.id.startsWith("liverc-"))
       if (!hasDbEvents) {
-        logger.warn("DB events missing from list - merging them back", {
+        clientLogger.warn("DB events missing from list - merging them back", {
           dbEventCount: dbEventsRef.current.length,
         })
         const existingLiveRCEvents = prevEvents.filter((event) => event.id.startsWith("liverc-"))
@@ -177,6 +185,81 @@ export default function EventSearchContainer() {
     })
   }
 
+  // Check if an import is currently in progress for a DB event
+  // This attempts to start an import and catches INGESTION_IN_PROGRESS errors
+  // Note: If no import is in progress, this will start a new import, which is acceptable
+  // since the user likely wants the event imported anyway
+  const checkImportInProgress = async (eventId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/v1/events/${eventId}/ingest`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ depth: "laps_full" }),
+      })
+      
+      const result = await parseApiResponse<ApiIngestionResult>(response)
+      
+      // If we got an error with code INGESTION_IN_PROGRESS, an import is already running
+      if (!result.success && result.error.code === "INGESTION_IN_PROGRESS") {
+        return true
+      }
+      
+      // If the response indicates ingestion is in progress, return true
+      if (result.success && result.data.status === "in_progress") {
+        return true
+      }
+      
+      // If we got a success response but status is not "in_progress", 
+      // either the import completed or we just started one
+      // In either case, it's not "in progress" from our perspective
+      return false
+    } catch (error) {
+      // On error, assume not in progress (will be checked again later if needed)
+      clientLogger.debug("Error checking import status", {
+        eventId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return false
+    }
+  }
+
+  // Check import status for importable DB events in the background
+  const checkImportStatusForEvents = async (eventsToCheck: Event[]) => {
+    // Only check DB events that are importable (not fully imported)
+    const importableDbEvents = eventsToCheck.filter(
+      (event) =>
+        !event.id.startsWith("liverc-") &&
+        event.ingestDepth?.trim().toLowerCase() !== "laps_full" &&
+        event.ingestDepth?.trim().toLowerCase() !== "lapsfull"
+    )
+
+    if (importableDbEvents.length === 0) {
+      return
+    }
+
+    // Check each event sequentially (with a small delay between checks to avoid rate limiting)
+    for (const event of importableDbEvents) {
+      try {
+        const isInProgress = await checkImportInProgress(event.id)
+        if (isInProgress) {
+          updateEventStatusOverride(event.id, "importing")
+          // Start polling to track progress
+          pollEventImportStatus(event.id, 100, 2500, event.id, event.sourceEventId)
+        }
+        // Add a small delay between checks to avoid hammering the API
+        await new Promise(resolve => setTimeout(resolve, 200))
+      } catch (error) {
+        // Log but continue checking other events
+        clientLogger.debug("Error checking import status for event", {
+          eventId: event.id,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+  }
+
   // Load persisted data and tracks on mount
   useEffect(() => {
     // Load favourites from localStorage
@@ -186,7 +269,7 @@ export default function EventSearchContainer() {
         setFavourites(JSON.parse(storedFavourites))
       }
     } catch (error) {
-      logger.error("Failed to load favourites from localStorage", {
+      clientLogger.error("Failed to load favourites from localStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -204,7 +287,7 @@ export default function EventSearchContainer() {
         setEndDate(defaultRange.endDate)
       }
     } catch (error) {
-      logger.error("Failed to load date range from localStorage", {
+      clientLogger.error("Failed to load date range from localStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
       const defaultRange = getDefaultDateRange()
@@ -219,7 +302,7 @@ export default function EventSearchContainer() {
         setSelectedTrack(JSON.parse(storedTrack))
       }
     } catch (error) {
-      logger.error("Failed to load track from localStorage", {
+      clientLogger.error("Failed to load track from localStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -231,7 +314,7 @@ export default function EventSearchContainer() {
         setUseDateFilter(JSON.parse(storedUseDateFilter))
       }
     } catch (error) {
-      logger.error("Failed to load date filter toggle from localStorage", {
+      clientLogger.error("Failed to load date filter toggle from localStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -246,7 +329,25 @@ export default function EventSearchContainer() {
         setSelectedEventIds(new Set(ids))
       }
     } catch (error) {
-      logger.error("Failed to load selected event IDs from sessionStorage", {
+      clientLogger.error("Failed to load selected event IDs from sessionStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+
+    // Load persisted pagination state from localStorage
+    try {
+      const storedPagination = localStorage.getItem(PAGINATION_STORAGE_KEY)
+      if (storedPagination) {
+        const { currentPage: storedPage, itemsPerPage: storedItemsPerPage } = JSON.parse(storedPagination)
+        if (typeof storedPage === "number" && storedPage >= 1) {
+          setCurrentPage(storedPage)
+        }
+        if (typeof storedItemsPerPage === "number" && storedItemsPerPage > 0) {
+          setItemsPerPage(storedItemsPerPage)
+        }
+      }
+    } catch (error) {
+      clientLogger.error("Failed to load pagination state from localStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -254,6 +355,41 @@ export default function EventSearchContainer() {
     // Load tracks from API
     loadTracks()
   }, [])
+
+  // Restore selected event IDs from sessionStorage when events are loaded
+  // This ensures selections persist when switching between tracks
+  useEffect(() => {
+    if (events.length > 0 && hasSearched) {
+      try {
+        const storedSelectedIds = sessionStorage.getItem(SELECTED_EVENT_IDS_STORAGE_KEY)
+        if (storedSelectedIds) {
+          const ids = JSON.parse(storedSelectedIds) as string[]
+          const validEventIds = new Set(events.map((e) => e.id))
+          const validStoredIds = ids.filter((id) => validEventIds.has(id))
+          
+          // Only update if there are valid stored IDs that aren't already selected
+          if (validStoredIds.length > 0) {
+            setSelectedEventIds((prev) => {
+              const newSet = new Set(prev)
+              let hasChanges = false
+              for (const id of validStoredIds) {
+                if (!newSet.has(id)) {
+                  newSet.add(id)
+                  hasChanges = true
+                }
+              }
+              return hasChanges ? newSet : prev
+            })
+          }
+        }
+      } catch (error) {
+        clientLogger.error("Failed to restore selected event IDs from sessionStorage", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events.length, hasSearched]) // Only depend on events.length and hasSearched to avoid loops
 
   // Filter out persisted event IDs that no longer exist in current results
   useEffect(() => {
@@ -270,7 +406,7 @@ export default function EventSearchContainer() {
             sessionStorage.removeItem(SELECTED_EVENT_IDS_STORAGE_KEY)
           }
         } catch (error) {
-          logger.error("Failed to update selected event IDs in sessionStorage", {
+          clientLogger.error("Failed to update selected event IDs in sessionStorage", {
             error: error instanceof Error ? error.message : String(error),
           })
         }
@@ -296,7 +432,7 @@ export default function EventSearchContainer() {
       const result = await parseApiResponse<{ tracks: ApiTrack[] }>(response)
       
       if (!result.success) {
-        logger.error("Error loading tracks", {
+        clientLogger.error("Error loading tracks", {
           error: result.error.message || String(result.error),
         })
         setErrors({ track: result.error.message })
@@ -311,7 +447,7 @@ export default function EventSearchContainer() {
         }))
       )
     } catch (error) {
-      logger.error("Error loading tracks", {
+      clientLogger.error("Error loading tracks", {
         error: error instanceof Error
           ? {
               name: error.name,
@@ -392,17 +528,22 @@ export default function EventSearchContainer() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSearch = async () => {
-    logger.debug("EventSearchContainer: handleSearch called", { 
-      selectedTrack, 
+  const handleSearch = async (trackOverride?: Track) => {
+    const trackToUse = trackOverride || selectedTrack
+    // Update state if track override is provided to ensure consistency
+    if (trackOverride && trackOverride.id !== selectedTrack?.id) {
+      setSelectedTrack(trackOverride)
+    }
+    clientLogger.debug("EventSearchContainer: handleSearch called", { 
+      selectedTrack: trackToUse, 
       startDate, 
       endDate, 
       useDateFilter 
     })
-    if (!validateForm() || !selectedTrack) {
-      logger.debug("EventSearchContainer: Validation failed or no track selected", {
+    if (!validateForm() || !trackToUse) {
+      clientLogger.debug("EventSearchContainer: Validation failed or no track selected", {
         validationPassed: validateForm(),
-        hasSelectedTrack: !!selectedTrack
+        hasSelectedTrack: !!trackToUse
       })
       return
     }
@@ -414,6 +555,11 @@ export default function EventSearchContainer() {
         abortControllerRef.current = null
       }
 
+      // Stop all polling intervals from previous searches to prevent them from
+      // competing with the new search request. Any importing events in the new
+      // results will have polling restarted by checkImportStatusForEvents.
+      stopAllPolling()
+
       // Mark that we're starting a search to hide EventTable during transition
       setIsStartingSearch(true)
       // Clear all state FIRST to prevent any flash of old data
@@ -422,13 +568,14 @@ export default function EventSearchContainer() {
       setEvents([])
       dbEventsRef.current = [] // Clear DB events ref at start of new search
       setDriverInEvents({}) // Clear driver in events state on new search
+      setCurrentPage(1) // Reset to first page on new search
       // Then increment search key to force EventTable remount with clean state
       setSearchKey((prev) => prev + 1)
       setIsLoadingEvents(true)
       setErrors({})
       
-      logger.debug("EventSearchContainer: Starting search", {
-        trackId: selectedTrack.id,
+      clientLogger.debug("EventSearchContainer: Starting search", {
+        trackId: trackToUse.id,
         useDateFilter,
       })
       // Note: isStartingSearch will be cleared when:
@@ -442,17 +589,17 @@ export default function EventSearchContainer() {
           LAST_DATE_RANGE_STORAGE_KEY,
           JSON.stringify({ startDate, endDate })
         )
-        localStorage.setItem(LAST_TRACK_STORAGE_KEY, JSON.stringify(selectedTrack))
+        localStorage.setItem(LAST_TRACK_STORAGE_KEY, JSON.stringify(trackToUse))
         localStorage.setItem(USE_DATE_FILTER_STORAGE_KEY, JSON.stringify(useDateFilter))
       } catch (error) {
-        logger.error("Failed to persist form values", {
+        clientLogger.error("Failed to persist form values", {
           error: error instanceof Error ? error.message : String(error),
         })
       }
 
       // Build query string - only include dates if date filter is enabled and dates are provided
       const params = new URLSearchParams({
-        track_id: selectedTrack.id,
+        track_id: trackToUse.id,
       })
       
       if (useDateFilter) {
@@ -530,7 +677,7 @@ export default function EventSearchContainer() {
         sourceEventId: event.sourceEventId || event.source_event_id, // Include for matching
       }))
 
-      logger.debug("EventSearchContainer: DB search completed", {
+      clientLogger.debug("EventSearchContainer: DB search completed", {
         eventCount: dbEvents.length,
         eventIds: dbEvents.map((e) => e.id),
       })
@@ -538,38 +685,52 @@ export default function EventSearchContainer() {
       // Store track data from search result for use in LiveRC discovery
       const trackDataFromSearch = result.data.track
 
-      // If DB search returned no events, immediately check LiveRC and keep loading state true
+      // If DB search returned no events, show empty state immediately and check LiveRC in background
       // If DB search returned events, show them immediately and check LiveRC in background
       // Note: LiveRC check now supports driver filtering, so we can call it even when filter is enabled
       if (dbEvents.length === 0) {
-        // If DB search returned no events, show empty state immediately and check LiveRC in background
+        // Show empty state immediately - don't block UI on LiveRC discovery
+        // This improves perceived performance and gives users control
         setEvents(dbEvents)
         setHasSearched(true)
         setIsStartingSearch(false) // Clear immediately to show empty state
-        setIsLoadingEvents(false) // Clear main loading state
+        setIsLoadingEvents(false) // Show empty state immediately, not loading
         setIsCheckingLiveRC(true) // Show LiveRC indicator separately
-        keptLoadingForEmptyDB.current = true
+        keptLoadingForEmptyDB.current = false // No longer keeping loading state
         
-        // Start LiveRC check in background with timeout
+        clientLogger.debug("EventSearchContainer: No DB events found, starting LiveRC discovery in background", {
+          trackId: trackToUse.id,
+          trackName: trackToUse.trackName,
+          sourceTrackSlug: trackToUse.sourceTrackSlug,
+          hasTrackData: !!trackDataFromSearch,
+          trackDataSourceSlug: trackDataFromSearch?.source_track_slug,
+        })
+        
+        // Start LiveRC check in background - don't block UI
+        // Reduced timeout to 60 seconds (matching client timeout) for better UX
         const liveRCTimeout = setTimeout(() => {
-          logger.warn("LiveRC check timed out after 30 seconds")
+          clientLogger.warn("LiveRC check timed out after 60 seconds", {
+            trackId: trackToUse.id,
+          })
           setIsCheckingLiveRC(false)
-          keptLoadingForEmptyDB.current = false
-        }, 30000) // 30 second timeout
+        }, 60 * 1000) // 60 second timeout (matches client timeout)
         
         checkLiveRC(trackDataFromSearch, []).catch((error) => {
-          logger.error("Error in auto-check LiveRC", {
+          clientLogger.error("Error in auto-check LiveRC", {
+            trackId: trackToUse.id,
             error: error instanceof Error
               ? {
                   name: error.name,
                   message: error.message,
+                  stack: error.stack,
                 }
               : String(error),
           })
+          // Clear LiveRC checking state on error
+          setIsCheckingLiveRC(false)
         }).finally(() => {
           clearTimeout(liveRCTimeout)
           setIsCheckingLiveRC(false)
-          keptLoadingForEmptyDB.current = false
         })
       } else {
         // DB has results - show them immediately and check LiveRC in background
@@ -581,15 +742,30 @@ export default function EventSearchContainer() {
         setIsLoadingEvents(false) // Clear main loading state once DB data is visible
         setIsCheckingLiveRC(true)   // Show LiveRC indicator separately
         
-        logger.debug("EventSearchContainer: DB events set, starting LiveRC check in background", {
+        clientLogger.debug("EventSearchContainer: DB events set, starting LiveRC check in background", {
           dbEventCount: dbEvents.length,
           dbEventIds: dbEvents.map((e) => e.id),
         })
+        
+        // Check if any importable events are currently importing (in background)
+        const eventsForImportCheck = dbEvents.map((event) => ({
+          id: event.id,
+          eventName: event.eventName,
+          eventDate: event.eventDate,
+          ingestDepth: event.ingestDepth,
+          sourceEventId: event.sourceEventId,
+        }))
+        checkImportStatusForEvents(eventsForImportCheck).catch((error) => {
+          clientLogger.debug("Error checking import status for events", {
+            error: error instanceof Error ? error.message : String(error),
+          })
+        })
+        
         // Start LiveRC check in background - don't block UI rendering
         // Pass track data and event source IDs to avoid duplicate queries
         setTimeout(() => {
           checkLiveRC(trackDataFromSearch, dbEvents.map((e) => e.sourceEventId).filter((id): id is string => id !== undefined)).catch((error) => {
-            logger.error("Error in auto-check LiveRC", {
+            clientLogger.error("Error in auto-check LiveRC", {
             error: error instanceof Error
               ? {
                   name: error.name,
@@ -602,7 +778,7 @@ export default function EventSearchContainer() {
       }
     } catch (error) {
       const errorId = generateErrorId()
-      logger.error("Error searching events", {
+      clientLogger.error("Error searching events", {
         error: error instanceof Error
           ? {
               name: error.name,
@@ -637,6 +813,10 @@ export default function EventSearchContainer() {
     // Create new AbortController for this request
     const abortController = new AbortController()
     abortControllerRef.current = abortController
+    // Client-side timeout: 60 seconds for better UX (matches ingestion client timeout)
+    const clientTimeout = setTimeout(() => {
+      abortController.abort()
+    }, 60 * 1000)
 
     try {
       setIsCheckingLiveRC(true)
@@ -669,21 +849,52 @@ export default function EventSearchContainer() {
       }
 
       // Pass track info from search result to avoid re-querying
-      if (trackData) {
-        const sourceTrackSlug =
-          trackData.source_track_slug || (trackData as { sourceTrackSlug?: string }).sourceTrackSlug || selectedTrack.sourceTrackSlug || ""
-        const trackName =
-          trackData.track_name || (trackData as { trackName?: string }).trackName || selectedTrack.trackName
+      // Always include track info if we have sourceTrackSlug from any source
+      const sourceTrackSlug =
+        trackData?.source_track_slug || 
+        (trackData as { sourceTrackSlug?: string })?.sourceTrackSlug || 
+        selectedTrack.sourceTrackSlug || 
+        ""
+      const trackName =
+        trackData?.track_name || 
+        (trackData as { trackName?: string })?.trackName || 
+        selectedTrack.trackName
 
-        if (sourceTrackSlug) {
-          requestBody.track = {
-            id: trackData.id,
-            source: trackData.source || "liverc",
-            sourceTrackSlug,
-            trackName,
-          }
+      // Always include track info if we have sourceTrackSlug (required for LiveRC discovery)
+      if (sourceTrackSlug) {
+        requestBody.track = {
+          id: trackData?.id || selectedTrack.id,
+          source: trackData?.source || (selectedTrack.sourceTrackSlug ? "liverc" : "unknown"),
+          sourceTrackSlug,
+          trackName,
         }
+        clientLogger.debug("checkLiveRC: Including track data in request", {
+          trackId: selectedTrack.id,
+          sourceTrackSlug,
+          hasTrackData: !!trackData,
+        })
+      } else {
+        clientLogger.error("checkLiveRC: Missing sourceTrackSlug, LiveRC discovery will fail", {
+          trackId: selectedTrack.id,
+          trackName: selectedTrack.trackName,
+          hasTrackData: !!trackData,
+          trackDataSourceSlug: trackData?.source_track_slug || (trackData as { sourceTrackSlug?: string })?.sourceTrackSlug,
+          selectedTrackSourceSlug: selectedTrack.sourceTrackSlug,
+        })
+        // Don't proceed if we don't have sourceTrackSlug - it's required for LiveRC discovery
+        clearTimeout(clientTimeout)
+        setIsCheckingLiveRC(false)
+        if (isLoadingEvents) {
+          setIsLoadingEvents(false)
+        }
+        return
       }
+
+      clientLogger.debug("checkLiveRC: Making API request", {
+        trackId: selectedTrack.id,
+        requestBody: JSON.stringify(requestBody),
+        hasSourceTrackSlug: !!sourceTrackSlug,
+      })
 
       const response = await fetch("/api/v1/events/discover", {
         method: "POST",
@@ -693,24 +904,67 @@ export default function EventSearchContainer() {
         body: JSON.stringify(requestBody),
         signal: abortController.signal,
       })
+      
+      clearTimeout(clientTimeout)
+
+      clientLogger.debug("checkLiveRC: Received API response", {
+        trackId: selectedTrack.id,
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+      })
 
       const result = await parseApiResponse<{
         new_events: ApiDiscoveredEvent[]
         existing_events: ApiDiscoveredEvent[]
       }>(response)
 
+      clientLogger.debug("checkLiveRC: Parsed API response", {
+        trackId: selectedTrack.id,
+        success: result.success,
+        newEventsCount: result.success ? result.data.new_events?.length : 0,
+        existingEventsCount: result.success ? result.data.existing_events?.length : 0,
+        error: result.success ? undefined : result.error,
+      })
+
       if (!result.success) {
         // Handle timeout gracefully - it's expected if ingestion service is busy
-        if (result.error.message?.includes("timeout")) {
-          // Timeout is expected, don't show error but user will see no new events
+        if (result.error.message?.includes("timeout") || result.error.message?.includes("circuit open")) {
+          clientLogger.warn("LiveRC discovery timed out or circuit open", {
+            trackId: selectedTrack.id,
+            error: result.error.message,
+          })
+          // Timeout/circuit open is expected - user can manually retry
+          // Don't show error, just let them see empty state with option to retry
           return
         }
-        // Error occurred but we'll continue silently
+        // Log other errors for debugging
+        clientLogger.error("LiveRC discovery failed", {
+          trackId: selectedTrack.id,
+          errorCode: result.error.code,
+          errorMessage: result.error.message,
+          errorDetails: result.error.details,
+        })
+        // Error occurred but we'll continue silently to avoid disrupting UX
+        // User can manually retry if needed
         return
       }
 
+      // Log discovery results for debugging
+      clientLogger.info("LiveRC discovery completed successfully", {
+        trackId: selectedTrack.id,
+        newEventsCount: result.data.new_events?.length || 0,
+        existingEventsCount: result.data.existing_events?.length || 0,
+        newEventIds: result.data.new_events?.map((e) => e.sourceEventId) || [],
+      })
+
       // Add new events from LiveRC
       if (result.data.new_events && result.data.new_events.length > 0) {
+        clientLogger.info("checkLiveRC: Found new LiveRC events to add", {
+          trackId: selectedTrack.id,
+          count: result.data.new_events.length,
+          eventNames: result.data.new_events.map((e) => e.eventName),
+        })
         // Convert discovered events to Event format
         // Store sourceEventId for import later
         const newEvents = result.data.new_events.map((event) => ({
@@ -724,8 +978,9 @@ export default function EventSearchContainer() {
         setNewEventsFromLiveRC(newEvents)
         
         // Add new events to the events list (they'll show with "New (LiveRC only)" status and Import button)
+        // Use a callback to ensure we're working with the latest state
         setEvents((prevEvents) => {
-          logger.debug("EventSearchContainer: Adding LiveRC events to existing events", {
+          clientLogger.debug("EventSearchContainer: Adding LiveRC events to existing events", {
             prevEventCount: prevEvents.length,
             newEventCount: newEvents.length,
             prevEventIds: prevEvents.map((e) => e.id),
@@ -762,10 +1017,12 @@ export default function EventSearchContainer() {
           const uniqueNewEvents = newEvents.filter((e: Event) => {
             // Don't add if ID already exists
             if (existingIds.has(e.id)) {
+              clientLogger.debug("EventSearchContainer: Filtering out duplicate event by ID", { eventId: e.id })
               return false
             }
             // Don't add if sourceEventId already exists in any event (DB or LiveRC)
             if (e.sourceEventId && existingSourceIds.has(e.sourceEventId)) {
+              clientLogger.debug("EventSearchContainer: Filtering out duplicate event by sourceEventId", { sourceEventId: e.sourceEventId })
               return false
             }
             // Additional check: don't add if a DB event with this sourceEventId exists
@@ -775,6 +1032,7 @@ export default function EventSearchContainer() {
                 (prev) => !prev.id.startsWith("liverc-") && prev.sourceEventId === e.sourceEventId
               )
               if (hasDbEventWithSourceId) {
+                clientLogger.debug("EventSearchContainer: Filtering out event - DB event exists with same sourceEventId", { sourceEventId: e.sourceEventId })
                 return false
               }
             }
@@ -782,36 +1040,85 @@ export default function EventSearchContainer() {
           })
           
           const finalEvents = [...filteredPrevEvents, ...uniqueNewEvents]
-          logger.debug("EventSearchContainer: Final events after adding LiveRC events", {
+          clientLogger.info("EventSearchContainer: Final events after adding LiveRC events", {
             finalEventCount: finalEvents.length,
             dbEventCount: filteredPrevEvents.filter((e) => !e.id.startsWith("liverc-")).length,
             newLiveRCEventCount: uniqueNewEvents.length,
+            prevEventCount: prevEvents.length,
+            filteredPrevEventCount: filteredPrevEvents.length,
+            uniqueNewEventIds: uniqueNewEvents.map((e) => e.id),
+            finalEventIds: finalEvents.map((e) => e.id),
+            filteredOutCount: newEvents.length - uniqueNewEvents.length,
+            existingIdsSize: existingIds.size,
+            existingSourceIdsSize: existingSourceIds.size,
           })
+          
+          // Ensure we're actually returning events
+          if (finalEvents.length === 0 && newEvents.length > 0) {
+            clientLogger.error("EventSearchContainer: All LiveRC events were filtered out!", {
+              newEventsCount: newEvents.length,
+              uniqueNewEventsCount: uniqueNewEvents.length,
+              existingIds: Array.from(existingIds),
+              existingSourceIds: Array.from(existingSourceIds),
+              newEventIds: newEvents.map((e) => e.id),
+              newEventSourceIds: newEvents.map((e) => e.sourceEventId),
+            })
+          }
+          
+          // Clear loading state after processing events (for empty DB case)
+          // This ensures events are visible before loading state is cleared (if events found)
+          // Or loading is cleared immediately if no events found
+          if (keptLoadingForEmptyDB.current) {
+            if (finalEvents.length > 0) {
+              // Events found - clear loading after React processes the update
+              setTimeout(() => {
+                setIsLoadingEvents(false)
+                setIsStartingSearch(false)
+              }, 0)
+            } else {
+              // No events found - clear loading immediately
+              setIsLoadingEvents(false)
+              setIsStartingSearch(false)
+            }
+          }
           
           return finalEvents
         })
       } else {
+        clientLogger.info("checkLiveRC: No new LiveRC events found", {
+          trackId: selectedTrack.id,
+          currentEventCount: events.length,
+        })
         setNewEventsFromLiveRC([])
         // No new events found - DB events should still be visible
         // Explicitly ensure DB events are preserved (they were set before LiveRC check)
         // The setEvents callback above preserves prevEvents, so DB events should still be there
-        logger.debug("LiveRC discovery completed with no new events - DB events should still be visible", {
+        clientLogger.debug("LiveRC discovery completed with no new events - DB events should still be visible", {
           currentEventCount: events.length,
         })
         
         // Explicitly preserve DB events by ensuring they're still in state
         // This is a safety check - events should already be there from the initial setEvents(dbEvents) call
         ensureDbEventsVisible()
+        
+        // Clear loading state for empty DB case when no LiveRC events found
+        if (keptLoadingForEmptyDB.current) {
+          setIsLoadingEvents(false)
+          setIsStartingSearch(false)
+        }
       }
       // No new events found - silently continue (no toast notification needed)
     } catch (error) {
-      // Ignore AbortError - it's expected when a new search starts
+      clearTimeout(clientTimeout)
+      
+      // Ignore AbortError - it's expected when a new search starts or timeout occurs
       if (error instanceof Error && error.name === "AbortError") {
-        logger.debug("LiveRC check cancelled by new search")
+        clientLogger.debug("LiveRC check cancelled by new search or timeout")
+        // Timeout is expected - user can manually retry
         return
       }
 
-      logger.error("Error checking LiveRC", {
+      clientLogger.error("Error checking LiveRC", {
         error: error instanceof Error
           ? {
               name: error.name,
@@ -828,17 +1135,6 @@ export default function EventSearchContainer() {
         abortControllerRef.current = null
       }
       setIsCheckingLiveRC(false)
-      if (isLoadingEvents) {
-        setIsLoadingEvents(false)
-      }
-      // Clear loading state when LiveRC check completes
-      // Note: isStartingSearch is already cleared when DB results are shown, so we don't need to clear it here
-      if (keptLoadingForEmptyDB.current) {
-        setIsLoadingEvents(false)
-        setIsStartingSearch(false) // Clear for empty DB case
-        keptLoadingForEmptyDB.current = false
-      }
-      // For DB events case, isLoadingEvents is already false (set when DB results were shown)
       // Mark that a search has been completed
       setHasSearched(true)
     }
@@ -850,6 +1146,13 @@ export default function EventSearchContainer() {
       clearInterval(intervalId)
       delete pollingIntervalsRef.current[eventId]
     }
+  }
+
+  // Stop all active polling intervals
+  const stopAllPolling = () => {
+    Object.keys(pollingIntervalsRef.current).forEach((eventId) => {
+      stopPollingEventStatus(eventId)
+    })
   }
 
   // Helper function to update a single event in the events array
@@ -866,7 +1169,7 @@ export default function EventSearchContainer() {
       
       if (eventIndex === -1) {
         // Event not found in list, return unchanged
-        logger.warn("Event not found in list for update", { eventId, sourceEventId })
+        clientLogger.warn("Event not found in list for update", { eventId, sourceEventId })
         return prevEvents
       }
       
@@ -1052,7 +1355,7 @@ export default function EventSearchContainer() {
         }
       } catch (error) {
         // Log error but continue polling
-        logger.warn("Error polling event import status", {
+        clientLogger.warn("Error polling event import status", {
           eventId,
           error: error instanceof Error ? error.message : String(error),
         })
@@ -1101,6 +1404,16 @@ export default function EventSearchContainer() {
         })
         const result = await parseApiResponse<ApiIngestionResult>(response)
         if (!result.success) {
+          // Check if this is an "already in progress" error - handle gracefully
+          if (result.error.code === "INGESTION_IN_PROGRESS") {
+            clientLogger.warn("Import already in progress for event", {
+              eventId: event.id,
+              eventName: event.eventName,
+            })
+            // Don't treat this as a failure - the import is already running
+            // Keep the "importing" status and let polling handle the update
+            return true
+          }
           throw new Error(result.error.message)
         }
         ingestionResponse = result.data
@@ -1139,6 +1452,16 @@ export default function EventSearchContainer() {
           }
           const result = await parseApiResponse<ApiIngestionResult>(response)
           if (!result.success) {
+            // Check if this is an "already in progress" error - handle gracefully
+            if (result.error.code === "INGESTION_IN_PROGRESS") {
+              clientLogger.warn("Import already in progress for event", {
+                sourceEventId,
+                eventName: event.eventName,
+              })
+              // Don't treat this as a failure - the import is already running
+              // Keep the "importing" status and let polling handle the update
+              return true
+            }
             throw new Error(result.error.message)
           }
           ingestionResponse = result.data
@@ -1162,7 +1485,7 @@ export default function EventSearchContainer() {
           
           if (isConnectionError) {
             // Connection failed - check if ingestion actually succeeded in the background
-            logger.warn("Connection error during ingestion, checking if ingestion succeeded", {
+            clientLogger.warn("Connection error during ingestion, checking if ingestion succeeded", {
               sourceEventId,
               error: fetchError instanceof Error ? fetchError.message : String(fetchError),
             })
@@ -1202,7 +1525,7 @@ export default function EventSearchContainer() {
                     
                     // If event is fully imported, treat as success
                     if (ingestDepth === "laps_full" || ingestDepth === "lapsfull") {
-                      logger.info("Ingestion succeeded despite connection error", {
+                      clientLogger.info("Ingestion succeeded despite connection error", {
                         sourceEventId,
                         eventId: foundEvent.id,
                       })
@@ -1211,15 +1534,15 @@ export default function EventSearchContainer() {
                       ingestionResponse = {
                         event_id: foundEvent.id,
                         ingest_depth: "laps_full",
-                        last_ingested_at: foundEvent.lastIngestedAt || new Date().toISOString(),
+                        last_ingested_at: new Date().toISOString(),
                         races_ingested: 0,
                         results_ingested: 0,
                         laps_ingested: 0,
                         status: "updated",
                       }
-                    } else if (foundEvent.lastIngestedAt) {
+                    } else {
                       // Event exists but not fully imported yet - start polling
-                      logger.info("Ingestion in progress despite connection error, starting polling", {
+                      clientLogger.info("Ingestion in progress despite connection error, starting polling", {
                         sourceEventId,
                         eventId: foundEvent.id,
                         ingestDepth,
@@ -1228,15 +1551,12 @@ export default function EventSearchContainer() {
                       ingestionResponse = {
                         event_id: foundEvent.id,
                         ingest_depth: ingestDepth,
-                        last_ingested_at: foundEvent.lastIngestedAt,
+                        last_ingested_at: null,
                         races_ingested: 0,
                         results_ingested: 0,
                         laps_ingested: 0,
                         status: "in_progress",
                       }
-                    } else {
-                      // Event found but not ingested - rethrow original error
-                      throw fetchError
                     }
                   } else {
                     // Event not found - rethrow original error
@@ -1248,7 +1568,7 @@ export default function EventSearchContainer() {
                 }
               } catch (checkError) {
                 // If check fails, rethrow original fetch error
-                logger.warn("Failed to check event status after connection error", {
+                clientLogger.warn("Failed to check event status after connection error", {
                   sourceEventId,
                   checkError: checkError instanceof Error ? checkError.message : String(checkError),
                 })
@@ -1389,7 +1709,7 @@ export default function EventSearchContainer() {
           }
         }
       } catch (error) {
-        logger.warn("Failed to fetch updated event data after import", {
+        clientLogger.warn("Failed to fetch updated event data after import", {
           error: error instanceof Error ? error.message : String(error),
           eventId: finalEventId,
         })
@@ -1414,20 +1734,46 @@ export default function EventSearchContainer() {
 
       return true
     } catch (error) {
-      logger.error("Error importing event", {
-        error: error instanceof Error
-          ? {
-              name: error.name,
-              message: error.message,
-            }
-          : String(error),
-      })
-
+      // Determine error message first to check if it's an expected error
       let errorMessage = `Import failed. Please try again.`
+      let isExpectedError = false
+      
       if (error instanceof Error) {
-        errorMessage = error.message || errorMessage
+        const message = error.message || errorMessage
+        // Check if this is an empty entry list error (expected error)
+        if (message.toLowerCase().includes("entry list is empty")) {
+          errorMessage = message
+          isExpectedError = true
+          // The message from the pipeline already includes helpful context, so we use it as-is
+        } else {
+          errorMessage = message
+        }
       } else if (typeof error === "string") {
         errorMessage = error
+        if (error.toLowerCase().includes("entry list is empty")) {
+          isExpectedError = true
+        }
+      }
+
+      // Log at appropriate level: warn for expected errors, error for unexpected errors
+      if (isExpectedError) {
+        clientLogger.warn("Event import skipped - entry list is empty", {
+          error: error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+              }
+            : String(error),
+        })
+      } else {
+        clientLogger.error("Error importing event", {
+          error: error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+              }
+            : String(error),
+        })
       }
 
       // Stop polling and clear progress on error
@@ -1461,6 +1807,7 @@ export default function EventSearchContainer() {
     setNewEventsFromLiveRC([])
     setEventStatusOverrides({})
     setEventErrorMessages({})
+    setCurrentPage(1) // Reset pagination to first page
     handleClearSelection()
 
     // Clear localStorage
@@ -1468,8 +1815,10 @@ export default function EventSearchContainer() {
       localStorage.removeItem(LAST_DATE_RANGE_STORAGE_KEY)
       localStorage.removeItem(LAST_TRACK_STORAGE_KEY)
       localStorage.removeItem(USE_DATE_FILTER_STORAGE_KEY)
+      // Note: We keep pagination preferences (itemsPerPage) but reset currentPage
+      // This is handled by the setCurrentPage(1) above and will be persisted on next page change
     } catch (error) {
-      logger.error("Failed to clear localStorage", {
+      clientLogger.error("Failed to clear localStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -1496,7 +1845,7 @@ export default function EventSearchContainer() {
     try {
       localStorage.setItem(FAVOURITES_STORAGE_KEY, JSON.stringify(newFavourites))
     } catch (error) {
-      logger.error("Failed to save favourites", {
+      clientLogger.error("Failed to save favourites", {
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -1506,7 +1855,13 @@ export default function EventSearchContainer() {
   const isEventImportable = (event: Event): boolean => {
     const overrideStatus = eventStatusOverrides[event.id]
     if (overrideStatus) {
-      return overrideStatus === "new"
+      // Only "new" status makes an event importable
+      // "importing", "imported", "failed", etc. make it not importable
+      if (overrideStatus === "new") {
+        return true
+      }
+      // For any other override status (importing, imported, failed), event is not importable
+      return false
     }
     // Check if LiveRC-only event
     if (event.id.startsWith("liverc-")) {
@@ -1531,7 +1886,7 @@ export default function EventSearchContainer() {
       try {
         sessionStorage.setItem(SELECTED_EVENT_IDS_STORAGE_KEY, JSON.stringify(Array.from(newSet)))
       } catch (error) {
-        logger.error("Failed to save selected event IDs to sessionStorage", {
+        clientLogger.error("Failed to save selected event IDs to sessionStorage", {
           error: error instanceof Error ? error.message : String(error),
         })
       }
@@ -1550,7 +1905,7 @@ export default function EventSearchContainer() {
     try {
       sessionStorage.setItem(SELECTED_EVENT_IDS_STORAGE_KEY, JSON.stringify(Array.from(newSet)))
     } catch (error) {
-      logger.error("Failed to save selected event IDs to sessionStorage", {
+      clientLogger.error("Failed to save selected event IDs to sessionStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -1562,7 +1917,7 @@ export default function EventSearchContainer() {
     try {
       sessionStorage.removeItem(SELECTED_EVENT_IDS_STORAGE_KEY)
     } catch (error) {
-      logger.error("Failed to clear selected event IDs from sessionStorage", {
+      clientLogger.error("Failed to clear selected event IDs from sessionStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -1679,7 +2034,7 @@ export default function EventSearchContainer() {
         }
       }
     } catch (error) {
-      logger.warn("Failed to fetch updated event data after bulk import", {
+      clientLogger.warn("Failed to fetch updated event data after bulk import", {
         error: error instanceof Error ? error.message : String(error),
       })
       // Continue anyway - individual event updates may have already happened
@@ -1701,7 +2056,7 @@ export default function EventSearchContainer() {
     const dbEvents = events.filter((event) => !event.id.startsWith("liverc-") && event.id)
 
     if (livercEvents.length === 0 && dbEvents.length === 0) {
-      logger.debug("No events to check")
+      clientLogger.debug("No events to check")
       return
     }
 
@@ -1762,7 +2117,7 @@ export default function EventSearchContainer() {
       }>(response)
 
       if (!result.success) {
-        logger.error("Error checking entry lists", {
+        clientLogger.error("Error checking entry lists", {
           error: result.error.message || String(result.error),
         })
         setApiError({
@@ -1780,19 +2135,19 @@ export default function EventSearchContainer() {
 
       // Log any errors for individual events
       if (Object.keys(result.data.errors).length > 0) {
-        logger.warn("Some entry list checks failed", {
+        clientLogger.warn("Some entry list checks failed", {
           errors: result.data.errors,
         })
       }
 
-      logger.info("Entry list check completed", {
+      clientLogger.info("Entry list check completed", {
         checkedLiveRCEvents: livercEvents.length,
         checkedDbEvents: dbEvents.length,
         foundInEvents: Object.values(result.data.driver_in_events).filter(Boolean).length,
       })
     } catch (error) {
       const errorId = generateErrorId()
-      logger.error("Error checking entry lists", {
+      clientLogger.error("Error checking entry lists", {
         error: error instanceof Error
           ? {
               name: error.name,
@@ -1820,6 +2175,57 @@ export default function EventSearchContainer() {
   const livercEventsCount = events.filter((event) => event.id.startsWith("liverc-") && event.sourceEventId).length
   const dbEventsCount = events.filter((event) => !event.id.startsWith("liverc-") && event.id).length
   const totalEventsCount = livercEventsCount + dbEventsCount
+
+  // Calculate pagination
+  const totalItems = events.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage))
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedEvents = events.slice(startIndex, endIndex)
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    // Persist to localStorage
+    try {
+      localStorage.setItem(
+        PAGINATION_STORAGE_KEY,
+        JSON.stringify({ currentPage: page, itemsPerPage })
+      )
+    } catch (error) {
+      clientLogger.error("Failed to save pagination state to localStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  // Handle rows per page change
+  const handleRowsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    // Reset to first page when changing items per page
+    setCurrentPage(1)
+    // Persist to localStorage
+    try {
+      localStorage.setItem(
+        PAGINATION_STORAGE_KEY,
+        JSON.stringify({ currentPage: 1, itemsPerPage: newItemsPerPage })
+      )
+    } catch (error) {
+      clientLogger.error("Failed to save pagination state to localStorage", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  // Reset pagination when events change (but keep itemsPerPage)
+  useEffect(() => {
+    if (events.length > 0) {
+      const maxPage = Math.max(1, Math.ceil(events.length / itemsPerPage))
+      if (currentPage > maxPage) {
+        setCurrentPage(1)
+      }
+    }
+  }, [events.length, itemsPerPage, currentPage])
 
   if (isLoadingTracks) {
     return (
@@ -1896,21 +2302,39 @@ export default function EventSearchContainer() {
 
       {/* Event Table - Hide during search transition to prevent flash of old data */}
       {!isStartingSearch && (
-        <EventTable 
-          key={searchKey}
-          events={events} 
-          isLoading={isLoadingEvents || isCheckingLiveRC}
-          hasSearched={hasSearched}
-          onImportEvent={handleImportSingle}
-          statusOverrides={eventStatusOverrides}
-          errorMessages={eventErrorMessages}
-          selectedEventIds={selectedEventIds}
-          onEventSelect={handleEventSelect}
-          isBulkImporting={isImportingBulk}
-          onSelectAll={handleSelectAllImportable}
-          driverInEvents={driverInEvents}
-          eventImportProgress={eventImportProgress}
-        />
+        <>
+          <EventTable 
+            key={searchKey}
+            events={paginatedEvents} 
+            isLoading={isLoadingEvents}
+            hasSearched={hasSearched}
+            isCheckingLiveRC={isCheckingLiveRC}
+            onImportEvent={handleImportSingle}
+            statusOverrides={eventStatusOverrides}
+            errorMessages={eventErrorMessages}
+            selectedEventIds={selectedEventIds}
+            onEventSelect={handleEventSelect}
+            isBulkImporting={isImportingBulk}
+            onSelectAll={handleSelectAllImportable}
+            driverInEvents={driverInEvents}
+            eventImportProgress={eventImportProgress}
+            onSelectForDashboard={onSelectForDashboard}
+          />
+          
+          {/* Pagination - Only show if there are events */}
+          {hasSearched && events.length > 0 && (
+            <ListPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              totalItems={totalItems}
+              itemLabel="events"
+              rowsPerPageOptions={[5, 10, 25, 50, 100]}
+              onRowsPerPageChange={handleRowsPerPageChange}
+            />
+          )}
+        </>
       )}
       {/* Show loading state during transition */}
       {isStartingSearch && (

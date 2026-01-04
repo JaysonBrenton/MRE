@@ -13,23 +13,18 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { getWeatherForEvent } from "@/core/weather/get-weather-for-event"
-import { prisma } from "@/lib/prisma"
 import * as geocodeTrackModule from "@/core/weather/geocode-track"
 import * as fetchWeatherModule from "@/core/weather/fetch-weather"
 import * as weatherRepoModule from "@/core/weather/repo"
+import * as resolveCandidatesModule from "@/core/weather/resolve-geocode-candidates"
+import * as eventsRepoModule from "@/core/events/repo"
 
 // Mock dependencies
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    event: {
-      findUnique: vi.fn(),
-    },
-  },
-}))
-
 vi.mock("@/core/weather/geocode-track")
 vi.mock("@/core/weather/fetch-weather")
 vi.mock("@/core/weather/repo")
+vi.mock("@/core/weather/resolve-geocode-candidates")
+vi.mock("@/core/events/repo")
 
 describe("getWeatherForEvent", () => {
   const eventId = "event-123"
@@ -115,7 +110,8 @@ describe("getWeatherForEvent", () => {
       }
 
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue(mockGeocodeResult)
       vi.mocked(fetchWeatherModule.fetchWeather).mockResolvedValue(mockWeatherResponse)
       vi.mocked(weatherRepoModule.cacheWeatherData).mockResolvedValue({} as never)
@@ -127,6 +123,7 @@ describe("getWeatherForEvent", () => {
       expect(result.air).toBe(24)
       
       // Should have called geocoding and API
+      expect(resolveCandidatesModule.resolveGeocodeCandidates).toHaveBeenCalledWith(mockEvent)
       expect(geocodeTrackModule.geocodeTrack).toHaveBeenCalledWith("Test Track")
       expect(fetchWeatherModule.fetchWeather).toHaveBeenCalled()
       expect(weatherRepoModule.cacheWeatherData).toHaveBeenCalled()
@@ -139,7 +136,8 @@ describe("getWeatherForEvent", () => {
       }
 
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(futureEvent as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(futureEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue({
         latitude: 0,
         longitude: 0,
@@ -177,7 +175,8 @@ describe("getWeatherForEvent", () => {
       }
 
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(pastEvent as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(pastEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue({
         latitude: 0,
         longitude: 0,
@@ -231,7 +230,8 @@ describe("getWeatherForEvent", () => {
       }
 
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockRejectedValue(new Error("Geocoding failed"))
       vi.mocked(weatherRepoModule.getLastWeatherData).mockResolvedValue(mockLastCached as never)
 
@@ -244,7 +244,7 @@ describe("getWeatherForEvent", () => {
 
     it("should throw error if event not found", async () => {
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(null)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(null)
       vi.mocked(weatherRepoModule.getLastWeatherData).mockResolvedValue(null)
 
       await expect(getWeatherForEvent(eventId)).rejects.toThrow("Event not found")
@@ -252,11 +252,109 @@ describe("getWeatherForEvent", () => {
 
     it("should throw error if API fails and no cache available", async () => {
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
-      vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockRejectedValue(new Error("Geocoding failed"))
       vi.mocked(weatherRepoModule.getLastWeatherData).mockResolvedValue(null)
 
       await expect(getWeatherForEvent(eventId)).rejects.toThrow()
+    })
+
+    it("should try multiple candidates when first fails with no results", async () => {
+      const seriesEvent = {
+        id: eventId,
+        eventName: "ABC Rnd 4 Jakarta Indonesia w/ Scotty Ernst",
+        eventDate: new Date("2025-06-15T12:00:00Z"),
+        track: {
+          trackName: "Asian Buggy Championship",
+        },
+      }
+
+      const mockGeocodeResult = {
+        latitude: -6.2088,
+        longitude: 106.8456,
+        displayName: "Jakarta, Indonesia",
+      }
+
+      const mockWeatherResponse = {
+        current: {
+          condition: "Clear sky",
+          windSpeed: 10,
+          windDirection: 180,
+          humidity: 70,
+          airTemperature: 28,
+          precipitation: 5,
+          timestamp: new Date(),
+        },
+        forecast: [],
+      }
+
+      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(seriesEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
+        "Jakarta Indonesia",
+        "Jakarta",
+        "Asian Buggy Championship",
+      ])
+      
+      // First call fails with "no results", second succeeds
+      vi.mocked(geocodeTrackModule.geocodeTrack)
+        .mockRejectedValueOnce(new Error("No geocoding results found for track: Asian Buggy Championship"))
+        .mockResolvedValueOnce(mockGeocodeResult)
+      
+      vi.mocked(fetchWeatherModule.fetchWeather).mockResolvedValue(mockWeatherResponse)
+      vi.mocked(weatherRepoModule.cacheWeatherData).mockResolvedValue({} as never)
+
+      const result = await getWeatherForEvent(eventId)
+
+      expect(result.isCached).toBe(false)
+      expect(result.condition).toBe("Clear sky")
+      
+      // Should have tried both candidates
+      expect(geocodeTrackModule.geocodeTrack).toHaveBeenCalledTimes(2)
+      expect(geocodeTrackModule.geocodeTrack).toHaveBeenNthCalledWith(1, "Jakarta Indonesia")
+      expect(geocodeTrackModule.geocodeTrack).toHaveBeenNthCalledWith(2, "Jakarta")
+      expect(fetchWeatherModule.fetchWeather).toHaveBeenCalled()
+    })
+
+    it("should fail fast on HTTP errors (429/5xx)", async () => {
+      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track", "Test Event"])
+      vi.mocked(geocodeTrackModule.geocodeTrack).mockRejectedValue(
+        new Error("Geocoding API returned status 429")
+      )
+      vi.mocked(weatherRepoModule.getLastWeatherData).mockResolvedValue(null)
+
+      await expect(getWeatherForEvent(eventId)).rejects.toThrow("Geocoding API returned status 429")
+      
+      // Should only try once and fail fast
+      expect(geocodeTrackModule.geocodeTrack).toHaveBeenCalledTimes(1)
+    })
+
+    it("should throw comprehensive error when all candidates fail", async () => {
+      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
+        "Test Track",
+        "Test Event",
+      ])
+      vi.mocked(geocodeTrackModule.geocodeTrack).mockRejectedValue(
+        new Error("No geocoding results found for track: Test Track")
+      )
+      vi.mocked(weatherRepoModule.getLastWeatherData).mockResolvedValue(null)
+
+      try {
+        await getWeatherForEvent(eventId)
+        expect.fail("Should have thrown an error")
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error)
+        if (error instanceof Error) {
+          expect(error.message).toContain("Test Event")
+          expect(error.message).toContain("Test Track")
+          expect(error.message).toContain("Attempted candidates")
+        }
+      }
     })
   })
 })

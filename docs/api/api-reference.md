@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-29
 description: Complete API reference documentation for all MRE API endpoints
 purpose: Provides a comprehensive catalog of all API endpoints, including request/response
          formats, authentication requirements, error codes, and usage examples. This serves
@@ -16,7 +16,7 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2025-01-27 (Updated with missing endpoints and authentication requirements)  
+**Last Updated:** 2025-01-29 (Added missing admin endpoints; fixed response formats for GET /api/v1/tracks, GET /api/v1/events/[eventId], GET /api/v1/events/search; added GET /api/v1/admin/tracks; expanded GET /api/v1/events query parameters)  
 **API Version:** v1  
 **Base URL:** `/api/v1/` (relative to application root)
 
@@ -202,22 +202,25 @@ Returns the list of known tracks from the database.
 **Response (200 OK):**
 ```json
 {
-  "tracks": [
-    {
-      "id": "uuid",
-      "source": "liverc",
-      "source_track_slug": "track-slug",
-      "track_name": "Track Name",
-      "track_url": "https://liverc.com/track/...",
-      "events_url": "https://liverc.com/track/.../events",
-      "liverc_track_last_updated": "2025-01-27",
-      "last_seen_at": "2025-01-27T00:00:00.000Z",
-      "is_active": true,
-      "is_followed": true,
-      "created_at": "2025-01-27T00:00:00.000Z",
-      "updated_at": "2025-01-27T00:00:00.000Z"
-    }
-  ]
+  "success": true,
+  "data": {
+    "tracks": [
+      {
+        "id": "uuid",
+        "source": "liverc",
+        "source_track_slug": "track-slug",
+        "track_name": "Track Name",
+        "track_url": "https://liverc.com/track/...",
+        "events_url": "https://liverc.com/track/.../events",
+        "liverc_track_last_updated": "2025-01-27",
+        "last_seen_at": "2025-01-27T00:00:00.000Z",
+        "is_active": true,
+        "is_followed": true,
+        "created_at": "2025-01-27T00:00:00.000Z",
+        "updated_at": "2025-01-27T00:00:00.000Z"
+      }
+    ]
+  }
 }
 ```
 
@@ -245,26 +248,29 @@ Searches for events by track and date range.
 **Response (200 OK):**
 ```json
 {
-  "track": {
-    "id": "uuid",
-    "source": "liverc",
-    "source_track_slug": "track-slug",
-    "track_name": "Track Name"
-  },
-  "events": [
-    {
+  "success": true,
+  "data": {
+    "track": {
       "id": "uuid",
       "source": "liverc",
-      "source_event_id": "event-id",
-      "event_name": "Event Name",
-      "event_date": "2025-01-27T00:00:00.000Z",
-      "event_entries": 50,
-      "event_drivers": 45,
-      "event_url": "https://liverc.com/event/...",
-      "ingest_depth": "none",
-      "last_ingested_at": null
-    }
-  ]
+      "source_track_slug": "track-slug",
+      "track_name": "Track Name"
+    },
+    "events": [
+      {
+        "id": "uuid",
+        "source": "liverc",
+        "source_event_id": "event-id",
+        "event_name": "Event Name",
+        "event_date": "2025-01-27T00:00:00.000Z",
+        "event_entries": 50,
+        "event_drivers": 45,
+        "event_url": "https://liverc.com/event/...",
+        "ingest_depth": "none",
+        "last_ingested_at": null
+      }
+    ]
+  }
 }
 ```
 
@@ -292,28 +298,31 @@ Gets detailed information about a specific event.
 **Response (200 OK):**
 ```json
 {
-  "id": "uuid",
-  "source": "liverc",
-  "source_event_id": "event-id",
-  "track_id": "uuid",
-  "event_name": "Event Name",
-  "event_date": "2025-01-27T00:00:00.000Z",
-  "event_entries": 50,
-  "event_drivers": 45,
-  "event_url": "https://liverc.com/event/...",
-  "ingest_depth": "laps_full",
-  "last_ingested_at": "2025-01-27T00:00:00.000Z",
-  "races": [
-    {
-      "id": "uuid",
-      "event_id": "uuid",
-      "class_name": "1.8 Nitro Buggy",
-      "race_label": "A-Main",
-      "race_order": 1,
-      "start_time": "2025-01-27T10:00:00.000Z",
-      "duration_seconds": 3600
-    }
-  ]
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "source": "liverc",
+    "source_event_id": "event-id",
+    "track_id": "uuid",
+    "event_name": "Event Name",
+    "event_date": "2025-01-27T00:00:00.000Z",
+    "event_entries": 50,
+    "event_drivers": 45,
+    "event_url": "https://liverc.com/event/...",
+    "ingest_depth": "laps_full",
+    "last_ingested_at": "2025-01-27T00:00:00.000Z",
+    "races": [
+      {
+        "id": "uuid",
+        "event_id": "uuid",
+        "class_name": "1.8 Nitro Buggy",
+        "race_label": "A-Main",
+        "race_order": 1,
+        "start_time": "2025-01-27T10:00:00.000Z",
+        "duration_seconds": 3600
+      }
+    ]
+  }
 }
 ```
 
@@ -385,8 +394,28 @@ Discovers events from LiveRC for a track and date range. This endpoint compares 
 - `VALIDATION_ERROR` (400) - Missing or invalid request body
 - `NOT_FOUND` (404) - Track not found
 - `RATE_LIMIT_EXCEEDED` (429) - Too many requests (20 per minute)
-- `DISCOVERY_FAILED` (500) - Failed to discover events from LiveRC
+- `EXTERNAL_SERVICE_ERROR` (502) - LiveRC ingestion service error
+- `SERVICE_UNAVAILABLE` (503) - LiveRC ingestion service unavailable (connection error)
+- `SERVICE_TIMEOUT` (504) - LiveRC ingestion service timeout
 - `INTERNAL_ERROR` (500) - Server error
+
+**Error Response Details:**
+When an external service error occurs, the error response includes additional details:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "EXTERNAL_SERVICE_ERROR",
+    "message": "LiveRC service error",
+    "details": {
+      "originalMessage": "Discovery failed: Internal server error during discovery",
+      "errorName": "Error",
+      "source": "ingestion_service",
+      "code": "INGESTION_ERROR"
+    }
+  }
+}
+```
 
 **Example:**
 ```bash
@@ -651,9 +680,20 @@ curl "http://localhost:3001/api/v1/race-results/uuid/laps"
 
 ### GET /api/v1/events
 
-Gets a list of all fully imported events (events with `ingest_depth` = `laps_full`).
+Gets a list of events with filtering, sorting, and pagination. By default, returns only fully imported events (events with `ingest_depth` = `laps_full`), but can be configured to return all events.
 
 **Authentication:** Required
+
+**Query Parameters:**
+- `limit` (number, optional, default: `20`, max: `100`) - Maximum number of events to return
+- `offset` (number, optional, default: `0`) - Number of events to skip for pagination
+- `trackId` (string, optional) - Filter by track UUID
+- `startDate` (string, optional) - Filter by start date (ISO 8601 format)
+- `endDate` (string, optional) - Filter by end date (ISO 8601 format)
+- `status` (string, optional, default: `imported`) - Filter by status: `imported` (only fully imported events) or `all` (all events regardless of ingestion status)
+- `orderBy` (string, optional, default: `eventDate`) - Field to sort by: `eventDate`, `eventName`, `trackName`, `eventEntries`, `eventDrivers`
+- `orderDirection` (string, optional, default: `desc`) - Sort direction: `asc` or `desc`
+- `filter` (string, optional) - Special filter: `my` to filter to events where the user has linked drivers
 
 **Response (200 OK):**
 ```json
@@ -674,10 +714,22 @@ Gets a list of all fully imported events (events with `ingest_depth` = `laps_ful
         "ingest_depth": "laps_full",
         "last_ingested_at": "2025-01-27T00:00:00.000Z"
       }
-    ]
+    ],
+    "pagination": {
+      "total": 245,
+      "limit": 20,
+      "offset": 0
+    }
   }
 }
 ```
+
+**Notes:**
+- Response is cached for 30 minutes (1800 seconds)
+- Default status filter is `imported` (only events with `ingest_depth` = `laps_full`)
+- Use `status=all` to include events with any ingestion status
+- Use `filter=my` to filter to events where the authenticated user has linked drivers
+- Pagination uses limit/offset pattern, not page/pageSize
 
 **Error Codes:**
 - `UNAUTHORIZED` (401) - Authentication required
@@ -685,7 +737,14 @@ Gets a list of all fully imported events (events with `ingest_depth` = `laps_ful
 
 **Example:**
 ```bash
-curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events"
+# Get first page of imported events
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events?limit=20&offset=0"
+
+# Get events for a specific track, sorted by name
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events?trackId=uuid&orderBy=eventName&orderDirection=asc"
+
+# Get user's events only
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events?filter=my"
 ```
 
 ---
@@ -1185,8 +1244,12 @@ Retrieves weather data for a specific event, including current conditions, forec
 - Weather data is cached in the database with TTL (1 hour for current/forecast, longer for historical)
 - If weather API is unavailable, the endpoint returns the last cached data (if available) with `isCached: true`
 - Track temperature is estimated from air temperature using a calculation formula
-- Historical weather data availability depends on OpenWeatherMap API tier
-- Geocoding is performed automatically based on track name
+- Historical weather data availability depends on Open-Meteo API tier
+- **Geocoding Priority:** Weather service uses a three-tier geocoding strategy:
+  1. **Priority 1:** Uses stored coordinates (`latitude`, `longitude`) from track dashboard extraction if available
+  2. **Priority 2:** Uses stored address from track dashboard if coordinates are unavailable
+  3. **Priority 3:** Falls back to name-based geocoding using track name and location hints from event name
+- Track metadata (coordinates, address) is extracted from LiveRC dashboard pages during track sync
 
 **Example:**
 ```bash
@@ -1840,6 +1903,272 @@ Gets audit log entries for admin review.
 **Example:**
 ```bash
 curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/audit?action_type=user_updated&limit=50"
+```
+
+---
+
+### GET /api/v1/admin/users
+
+Gets all users with pagination and filtering (admin-only endpoint).
+
+**Authentication:** Required (Admin only)
+
+**Query Parameters:**
+- `email` (string, optional) - Filter by email (case-insensitive partial match)
+- `driverName` (string, optional) - Filter by driver name (case-insensitive partial match)
+- `isAdmin` (boolean, optional) - Filter by admin status
+- `page` (number, optional) - Page number (default: 1)
+- `pageSize` (number, optional) - Page size (default: 50)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "id": "uuid",
+        "email": "user@example.com",
+        "driverName": "John Doe",
+        "teamName": "Team Alpha",
+        "isAdmin": false,
+        "createdAt": "2025-01-27T00:00:00.000Z",
+        "updatedAt": "2025-01-27T00:00:00.000Z"
+      }
+    ],
+    "total": 150,
+    "page": 1,
+    "pageSize": 50,
+    "totalPages": 3
+  },
+  "message": "Users retrieved successfully"
+}
+```
+
+**Note:** The `passwordHash` field is excluded from the response for security.
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/users?page=1&pageSize=50&isAdmin=false"
+```
+
+---
+
+### PATCH /api/v1/admin/users/[userId]
+
+Updates user details (admin-only endpoint).
+
+**Authentication:** Required (Admin only)
+
+**Path Parameters:**
+- `userId` (string, required) - User UUID
+
+**Request Body:**
+```json
+{
+  "driverName": "Updated Name", // optional
+  "teamName": "Updated Team", // optional (can be null)
+  "email": "newemail@example.com", // optional
+  "isAdmin": true // optional
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "email": "newemail@example.com",
+    "driverName": "Updated Name",
+    "teamName": "Updated Team",
+    "isAdmin": true,
+    "createdAt": "2025-01-27T00:00:00.000Z",
+    "updatedAt": "2025-01-27T00:00:00.000Z"
+  },
+  "message": "User updated successfully"
+}
+```
+
+**Notes:**
+- All fields in the request body are optional
+- Admin status changes are tracked in audit logs
+- Email updates must be unique (not already registered)
+- If no fields are provided, returns success with no changes
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `VALIDATION_ERROR` (400) - Invalid request body or email already exists
+- `NOT_FOUND` (404) - User not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X PATCH "http://localhost:3001/api/v1/admin/users/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"driverName": "Updated Name", "isAdmin": true}'
+```
+
+---
+
+### DELETE /api/v1/admin/users/[userId]
+
+Deletes a user (admin-only endpoint).
+
+**Authentication:** Required (Admin only)
+
+**Path Parameters:**
+- `userId` (string, required) - User UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "User deleted successfully"
+}
+```
+
+**Notes:**
+- This operation permanently deletes the user
+- Deleted users cannot be recovered
+- User deletion is tracked in audit logs
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `NOT_FOUND` (404) - User not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/users/uuid"
+```
+
+---
+
+### PATCH /api/v1/admin/tracks/[trackId]
+
+Updates track follow status (admin-only endpoint).
+
+**Authentication:** Required (Admin only)
+
+**Path Parameters:**
+- `trackId` (string, required) - Track UUID
+
+**Request Body:**
+```json
+{
+  "isFollowed": true // required - boolean
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "source": "liverc",
+    "source_track_slug": "track-slug",
+    "track_name": "Track Name",
+    "track_url": "https://liverc.com/track/...",
+    "events_url": "https://liverc.com/track/.../events",
+    "liverc_track_last_updated": "2025-01-27",
+    "last_seen_at": "2025-01-27T00:00:00.000Z",
+    "is_active": true,
+    "is_followed": true,
+    "created_at": "2025-01-27T00:00:00.000Z",
+    "updated_at": "2025-01-27T00:00:00.000Z"
+  },
+  "message": "Track updated successfully"
+}
+```
+
+**Notes:**
+- Track follow status changes are tracked in audit logs
+- Only the `isFollowed` field can be updated via this endpoint
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `VALIDATION_ERROR` (400) - Missing or invalid request body
+- `NOT_FOUND` (404) - Track not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X PATCH "http://localhost:3001/api/v1/admin/tracks/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"isFollowed": true}'
+```
+
+---
+
+### GET /api/v1/admin/tracks
+
+Gets all tracks with pagination and filtering (admin-only endpoint).
+
+**Authentication:** Required (Admin only)
+
+**Query Parameters:**
+- `source` (string, optional) - Filter by source (e.g., "liverc")
+- `isFollowed` (boolean, optional) - Filter by follow status
+- `isActive` (boolean, optional) - Filter by active status
+- `page` (number, optional) - Page number (default: 1)
+- `pageSize` (number, optional) - Page size (default: 50)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tracks": [
+      {
+        "id": "uuid",
+        "source": "liverc",
+        "source_track_slug": "track-slug",
+        "track_name": "Track Name",
+        "track_url": "https://liverc.com/track/...",
+        "events_url": "https://liverc.com/track/.../events",
+        "liverc_track_last_updated": "2025-01-27",
+        "last_seen_at": "2025-01-27T00:00:00.000Z",
+        "is_active": true,
+        "is_followed": true,
+        "created_at": "2025-01-27T00:00:00.000Z",
+        "updated_at": "2025-01-27T00:00:00.000Z",
+        "eventCount": 15
+      }
+    ],
+    "total": 150,
+    "page": 1,
+    "pageSize": 50,
+    "totalPages": 3
+  },
+  "message": "Tracks retrieved successfully"
+}
+```
+
+**Notes:**
+- Tracks include an `eventCount` field showing the number of events associated with each track
+- Response includes pagination metadata (total, page, pageSize, totalPages)
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/tracks?page=1&pageSize=50&isActive=true"
 ```
 
 ---

@@ -31,7 +31,7 @@ export default function DriversTab({
   onSelectionChange,
 }: DriversTabProps) {
   return (
-    <div className="space-y-4" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
+    <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
       <div>
         <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
           Drivers
@@ -52,6 +52,7 @@ export default function DriversTab({
           drivers={data.drivers}
           selectedDriverIds={selectedDriverIds}
           onSelectionChange={onSelectionChange}
+          races={data.races}
         />
       )}
     </div>

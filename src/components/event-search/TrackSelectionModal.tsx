@@ -20,7 +20,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import TrackRow, { type Track } from "./TrackRow"
-import { logger } from "@/lib/logger"
+import { clientLogger } from "@/lib/client-logger"
 
 export interface TrackSelectionModalProps {
   tracks: Track[]
@@ -118,7 +118,7 @@ export default function TrackSelectionModal({
     try {
       localStorage.setItem(FAVOURITES_STORAGE_KEY, JSON.stringify(newFavourites))
     } catch (error) {
-      logger.error("Failed to save favourites to localStorage", {
+      clientLogger.error("Failed to save favourites to localStorage", {
         error: error instanceof Error ? error.message : String(error),
       })
     }

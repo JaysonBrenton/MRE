@@ -2,7 +2,7 @@
 // 
 // @created 2025-01-27
 // @creator Jayson Brenton
-// @lastModified 2025-01-27
+// @lastModified 2026-01-02
 // 
 // @description API route for discovering events from LiveRC
 // 
@@ -17,6 +17,7 @@ import { getTrackById } from "@/core/tracks/repo";
 import { successResponse, errorResponse } from "@/lib/api-utils";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
 import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
+import { IngestionServiceError } from "@/lib/ingestion-client";
 
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId()
@@ -102,8 +103,8 @@ export async function POST(request: NextRequest) {
       existing_events: result.existingEvents,
     });
   } catch (error: unknown) {
-    // Handle external service errors (LiveRC)
-    if (error instanceof Error && error.message.includes("Discovery")) {
+    // Handle IngestionServiceError specifically (structured errors from ingestion service)
+    if (error instanceof IngestionServiceError) {
       const errorInfo = handleExternalServiceError(
         error,
         "LiveRC",
@@ -113,9 +114,44 @@ export async function POST(request: NextRequest) {
       return errorResponse(
         errorInfo.code,
         errorInfo.message,
-        {},
+        {
+          source: error.source,
+          code: error.code,
+          details: error.details,
+        },
         errorInfo.statusCode
       )
+    }
+    
+    // Handle errors from ingestion client (connection errors, timeouts, circuit breaker, etc.)
+    if (error instanceof Error) {
+      const isIngestionRelated = 
+        error.message.includes("Discovery") ||
+        error.message.includes("ingestion service") ||
+        error.message.includes("LiveRC") ||
+        error.message.includes("circuit open") ||
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("ENOTFOUND") ||
+        error.message.includes("timeout") ||
+        error.message.includes("Cannot connect")
+      
+      if (isIngestionRelated) {
+        const errorInfo = handleExternalServiceError(
+          error,
+          "LiveRC",
+          "discoverLiveRCEvents",
+          requestLogger
+        )
+        return errorResponse(
+          errorInfo.code,
+          errorInfo.message,
+          {
+            originalMessage: error.message,
+            errorName: error.name,
+          },
+          errorInfo.statusCode
+        )
+      }
     }
     
     // Handle other errors

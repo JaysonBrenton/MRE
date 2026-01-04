@@ -26,6 +26,7 @@ from ingestion.ingestion.errors import (
     ConnectorHTTPError,
     EventPageFormatError,
 )
+from ingestion.common.site_policy import RobotsDisallowedError
 from ingestion.ingestion.pipeline import IngestionPipeline
 
 logger = get_logger(__name__)
@@ -476,6 +477,18 @@ async def discover_events(
             "success": False,
             "error": {
                 "code": "PAGE_FORMAT_ERROR",
+                "message": str(e),
+                "details": None,
+                "source": "liverc_discovery",
+            },
+        }
+    
+    except RobotsDisallowedError as e:
+        logger.error("discover_events_robots_disallowed", error=str(e), track_slug=request.track_slug)
+        return {
+            "success": False,
+            "error": {
+                "code": "ROBOTS_DISALLOWED",
                 "message": str(e),
                 "details": None,
                 "source": "liverc_discovery",

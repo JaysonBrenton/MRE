@@ -10,6 +10,7 @@
 #          database persistence with proper locking and transaction management.
 
 import asyncio
+import math
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -20,6 +21,7 @@ from ingestion.common.logging import get_logger
 from ingestion.common import metrics
 from ingestion.common.tracing import TraceSpan
 from ingestion.connectors.liverc.connector import LiveRCConnector
+from ingestion.connectors.liverc.client.httpx_client import HTTPXClient
 from ingestion.connectors.liverc.models import (
     ConnectorEventSummary,
     ConnectorRacePackage,
@@ -73,21 +75,31 @@ class TrackContext:
 class IngestionPipeline:
     """Main ingestion pipeline orchestrator."""
     
-    # Race fetch concurrency - increased to improve performance for large events
-    # Parallel fetching significantly reduces ingestion time for events with many races
-    # Increased from 4 to 8 for better I/O utilization
-    # Note: Ensure worker pool, Redis locks, and downstream APIs can handle increased concurrency
+    # Race fetch concurrency - adaptive, starts conservative and adjusts based on performance
+    # Initial value: 8 (conservative to avoid rate limiting)
+    # Will increase if network is fast and no errors, decrease if rate limited
     RACE_FETCH_CONCURRENCY = 8
+    # Minimum concurrency (safety floor)
+    MIN_CONCURRENCY = 4
+    # Maximum concurrency (safety ceiling)
+    MAX_CONCURRENCY = 16
     # Inactivity timeout - only triggers if no progress is made for this duration
     INACTIVITY_TIMEOUT_SECONDS = 5 * 60  # 5 minutes of inactivity
     # Maximum total duration - safety limit to prevent runaway processes
     MAX_TOTAL_DURATION_SECONDS = 60 * 60  # 1 hour maximum total duration
+    # Percentile thresholds for adaptive concurrency adjustments
+    CONCURRENCY_INCREASE_THRESHOLD_SECONDS = 2.5
+    CONCURRENCY_DECREASE_THRESHOLD_SECONDS = 8.0
     
     def __init__(self):
         """Initialize pipeline."""
         self.connector = LiveRCConnector()
         self._current_stage: str = "idle"
         self._last_activity_time: Optional[float] = None
+        # Adaptive concurrency tracking
+        self._observed_latencies: List[float] = []  # Track last N fetch latencies
+        self._rate_limit_errors: int = 0  # Count of 429 errors
+        self._concurrency_adjustment_window = 8  # Adjust after fewer observations for faster reaction
 
     def _set_stage(self, stage: str, event_id: Optional[UUID] = None) -> None:
         """Update the current pipeline stage for observability/timeout tracking."""
@@ -281,13 +293,15 @@ class IngestionPipeline:
         self,
         race_summary: ConnectorRaceSummary,
         event_id: UUID,
-    ) -> ConnectorRacePackage:
+        shared_client: Optional[HTTPXClient] = None,
+    ) -> Tuple[ConnectorRacePackage, float]:
         """
         Fetch and validate a single race page.
         
         Args:
             race_summary: Race summary to fetch
             event_id: Event ID for logging/validation
+            shared_client: Optional HTTPXClient instance to reuse
         
         Returns:
             ConnectorRacePackage with race data
@@ -308,7 +322,7 @@ class IngestionPipeline:
             event_id=str(event_id),
             race_id=race_id,
         ):
-            race_package = await self.connector.fetch_race_page(race_summary)
+            race_package = await self.connector.fetch_race_page(race_summary, shared_client=shared_client)
         duration = time.perf_counter() - start
         metrics.observe_race_fetch(
             event_id=str(event_id),
@@ -325,49 +339,496 @@ class IngestionPipeline:
             race_summary.source_race_id,
         )
         
-        return race_package
+        return race_package, duration
+    
+    def _adjust_concurrency(self) -> None:
+        """
+        Adjust concurrency based on observed performance.
+        
+        Increases concurrency if latencies are low and no rate limiting.
+        Decreases concurrency if rate limiting occurs or latencies are high.
+        """
+        if len(self._observed_latencies) < self._concurrency_adjustment_window:
+            return  # Not enough data yet
+        
+        recent_latencies = self._observed_latencies[-self._concurrency_adjustment_window:]
+        p75_latency = self._calculate_percentile(recent_latencies, 0.75)
+        p90_latency = self._calculate_percentile(recent_latencies, 0.9)
+        
+        # Check for rate limiting
+        if self._rate_limit_errors > 0:
+            # Rate limited - decrease concurrency aggressively
+            old_concurrency = self.RACE_FETCH_CONCURRENCY
+            self.RACE_FETCH_CONCURRENCY = max(
+                self.MIN_CONCURRENCY,
+                self.RACE_FETCH_CONCURRENCY - 2
+            )
+            logger.info(
+                "concurrency_decreased_due_to_rate_limit",
+                old_concurrency=old_concurrency,
+                new_concurrency=self.RACE_FETCH_CONCURRENCY,
+                rate_limit_errors=self._rate_limit_errors,
+            )
+            # Reset rate limit counter after adjustment
+            self._rate_limit_errors = 0
+            self._observed_latencies = self._observed_latencies[-self._concurrency_adjustment_window:]
+        elif (
+            p75_latency < self.CONCURRENCY_INCREASE_THRESHOLD_SECONDS
+            and self.RACE_FETCH_CONCURRENCY < self.MAX_CONCURRENCY
+        ):
+            old_concurrency = self.RACE_FETCH_CONCURRENCY
+            self.RACE_FETCH_CONCURRENCY = min(
+                self.MAX_CONCURRENCY,
+                self.RACE_FETCH_CONCURRENCY + 1
+            )
+            if old_concurrency != self.RACE_FETCH_CONCURRENCY:
+                logger.info(
+                    "concurrency_increased",
+                    old_concurrency=old_concurrency,
+                    new_concurrency=self.RACE_FETCH_CONCURRENCY,
+                    p75_latency=p75_latency,
+                )
+                self._observed_latencies = self._observed_latencies[-self._concurrency_adjustment_window:]
+        elif (
+            p90_latency > self.CONCURRENCY_DECREASE_THRESHOLD_SECONDS
+            and self.RACE_FETCH_CONCURRENCY > self.MIN_CONCURRENCY
+        ):
+            old_concurrency = self.RACE_FETCH_CONCURRENCY
+            self.RACE_FETCH_CONCURRENCY = max(
+                self.MIN_CONCURRENCY,
+                self.RACE_FETCH_CONCURRENCY - 1
+            )
+            if old_concurrency != self.RACE_FETCH_CONCURRENCY:
+                logger.info(
+                    "concurrency_decreased_due_to_latency",
+                    old_concurrency=old_concurrency,
+                    new_concurrency=self.RACE_FETCH_CONCURRENCY,
+                    p90_latency=p90_latency,
+                )
+                self._observed_latencies = self._observed_latencies[-self._concurrency_adjustment_window:]
+
+    @staticmethod
+    def _calculate_percentile(observations: List[float], percentile: float) -> float:
+        if not observations:
+            return 0.0
+        sorted_values = sorted(observations)
+        if len(sorted_values) == 1:
+            return sorted_values[0]
+        k = (len(sorted_values) - 1) * max(0.0, min(1.0, percentile))
+        lower_index = math.floor(k)
+        upper_index = math.ceil(k)
+        lower_value = sorted_values[lower_index]
+        upper_value = sorted_values[upper_index]
+        if lower_index == upper_index:
+            return lower_value
+        weight = k - lower_index
+        return lower_value + (upper_value - lower_value) * weight
     
     async def _process_races_batch(
         self,
         race_summaries: List[ConnectorRaceSummary],
         event_id: UUID,
+        shared_client: Optional[HTTPXClient] = None,
     ) -> List[Tuple[ConnectorRaceSummary, ConnectorRacePackage]]:
         """
-        Fetch multiple race pages in parallel.
+        Fetch multiple race pages in parallel with shared HTTPXClient.
+        
+        Tracks performance metrics for adaptive concurrency adjustment.
         
         Args:
             race_summaries: List of race summaries to fetch
             event_id: Event ID for logging/validation
+            shared_client: Optional pre-created HTTPXClient to reuse (for connection pooling)
         
         Returns:
             List of tuples (race_summary, race_package) in the same order as input
         """
-        # Create tasks for parallel fetching
-        tasks = [
-            self._fetch_race_page_with_validation(race_summary, event_id)
-            for race_summary in race_summaries
-        ]
-        
-        # Fetch all races in parallel with exception handling
-        # Use return_exceptions=True to handle individual race failures gracefully
-        race_packages = await asyncio.gather(*tasks, return_exceptions=True)
+        # Track per-request latencies for adaptive concurrency decisions
+
+        # Use provided client or create new one (backward compatibility)
+        if shared_client is not None:
+            tasks = [
+                self._fetch_race_page_with_validation(race_summary, event_id, shared_client)
+                for race_summary in race_summaries
+            ]
+            race_fetch_results = await asyncio.gather(*tasks, return_exceptions=True)
+        else:
+            async with HTTPXClient(self.connector._site_policy) as client:
+                tasks = [
+                    self._fetch_race_page_with_validation(race_summary, event_id, client)
+                    for race_summary in race_summaries
+                ]
+                race_fetch_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        per_race_latencies: List[float] = []
         
         # Filter out exceptions and log them, but continue processing valid races
         valid_pairs = []
-        for race_summary, race_package in zip(race_summaries, race_packages):
-            if isinstance(race_package, Exception):
+        rate_limited = False
+        for race_summary, race_result in zip(race_summaries, race_fetch_results):
+            if isinstance(race_result, Exception):
+                # Check if it's a rate limit error (429)
+                error_str = str(race_result).lower()
+                if '429' in error_str or 'rate limit' in error_str or 'too many requests' in error_str:
+                    rate_limited = True
+                    self._rate_limit_errors += 1
+                
                 logger.warning(
                     "race_fetch_failed",
                     event_id=str(event_id),
                     race_id=race_summary.source_race_id,
-                    error_type=type(race_package).__name__,
-                    error_message=str(race_package),
+                    error_type=type(race_result).__name__,
+                    error_message=str(race_result),
                     message="Skipping failed race and continuing with others",
                 )
                 continue
+            race_package, race_latency = race_result
+            per_race_latencies.append(race_latency)
             valid_pairs.append((race_summary, race_package))
+
+        if per_race_latencies:
+            self._observed_latencies.extend(per_race_latencies)
+            # Keep only recent observations (last 200 requests)
+            if len(self._observed_latencies) > 200:
+                self._observed_latencies = self._observed_latencies[-200:]
+
+        # Adjust concurrency based on observed performance
+        self._adjust_concurrency()
         
         return valid_pairs
+    
+    def _process_race_cpu_sync(
+        self,
+        race_summary: ConnectorRaceSummary,
+        race_package: ConnectorRacePackage,
+        event_id: UUID,
+        event_entries_cache: Dict[str, List[EventEntry]],
+    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Process CPU-bound operations for a single race (synchronous, runs in thread pool).
+        
+        This function performs all CPU-intensive work (normalization, validation, matching)
+        without accessing the database. Database writes happen separately in the main thread.
+        
+        Args:
+            race_summary: Race summary
+            race_package: Race package with results and laps
+            event_id: Event ID for validation
+            event_entries_cache: Cached event entries by class name
+        
+        Returns:
+            Tuple of (normalized_race, processed_results, race_laps)
+            - normalized_race: Normalized race data dict
+            - processed_results: List of dicts with result, normalized_result, matched_event_entry info
+            - race_laps: List of normalized lap dicts (without race_result_id)
+        """
+        # Normalize race data (CPU-bound)
+        normalized_race = Normalizer.normalize_race(race_package.race_summary)
+        
+        processed_results = []
+        race_laps = []
+        
+        # Process results (CPU-bound)
+        for result in race_package.results:
+            # Validate result (CPU-bound)
+            Validator.validate_result(result, str(event_id), race_summary.source_race_id)
+            
+            # Normalize result (CPU-bound)
+            normalized_result = Normalizer.normalize_result(result)
+            
+            # Match race result driver to EventEntry record (CPU-bound, uses cached entries)
+            class_name = normalized_race["class_name"]
+            event_entries = event_entries_cache.get(class_name, [])
+            
+            matched_event_entry = None
+            if event_entries:
+                matched_event_entry = DriverMatcher.match_race_result_to_event_entry(
+                    event_entries=event_entries,
+                    race_result=result,
+                    class_name=class_name,
+                )
+            
+            # Process laps (CPU-bound)
+            driver_laps = race_package.laps_by_driver.get(
+                normalized_result["source_driver_id"], []
+            )
+            
+            # Validate and normalize laps
+            driver_race_laps = []
+            try:
+                Validator.validate_laps(
+                    driver_laps,
+                    normalized_result["laps_completed"],
+                    str(event_id),
+                    race_summary.source_race_id,
+                    normalized_result["source_driver_id"],
+                )
+                
+                # Collect normalized laps
+                for lap in driver_laps:
+                    normalized_lap = Normalizer.normalize_lap(lap)
+                    driver_race_laps.append({
+                        "lap_number": normalized_lap["lap_number"],
+                        "position_on_lap": normalized_lap["position_on_lap"],
+                        "lap_time_raw": normalized_lap["lap_time_raw"],
+                        "lap_time_seconds": normalized_lap["lap_time_seconds"],
+                        "pace_string": normalized_lap.get("pace_string"),
+                        "elapsed_race_time": normalized_lap["elapsed_race_time"],
+                        "segments_json": normalized_lap.get("segments"),
+                        # race_result_id will be added after DB write
+                        "source_driver_id": normalized_result["source_driver_id"],  # For matching later
+                    })
+            except ValidationError:
+                # Log but continue - result is still saved, just without lap data
+                pass
+            
+            processed_results.append({
+                "result": result,
+                "normalized_result": normalized_result,
+                "matched_event_entry": matched_event_entry,
+            })
+            race_laps.extend(driver_race_laps)
+        
+        return (normalized_race, processed_results, race_laps)
+    
+    async def _process_race_cpu(
+        self,
+        race_summary: ConnectorRaceSummary,
+        race_package: ConnectorRacePackage,
+        event_id: UUID,
+        event_entries_cache: Dict[str, List[EventEntry]],
+    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Process CPU-bound operations for a single race (async wrapper for thread pool).
+        
+        Args:
+            race_summary: Race summary
+            race_package: Race package with results and laps
+            event_id: Event ID for validation
+            event_entries_cache: Cached event entries by class name
+        
+        Returns:
+            Tuple of (normalized_race, processed_results, race_laps)
+        """
+        # Run CPU-bound work in thread pool to bypass GIL
+        return await asyncio.to_thread(
+            self._process_race_cpu_sync,
+            race_summary,
+            race_package,
+            event_id,
+            event_entries_cache,
+        )
+    
+    def _batch_write_races_data(
+        self,
+        repo: Repository,
+        event_id: UUID,
+        batch_races_data: List[Dict[str, Any]],
+        event_entries_cache: Dict[str, List[EventEntry]],
+    ) -> Tuple[int, int, int]:
+        """
+        Batch write multiple races' data to the database.
+        
+        This method:
+        1. Processes driver updates (must happen before race_drivers)
+        2. Bulk writes all races
+        3. Bulk writes all race_drivers
+        4. Bulk writes all race_results
+        5. Returns accumulated laps for later bulk write
+        
+        Args:
+            repo: Repository instance
+            event_id: Event ID
+            batch_races_data: List of race data dictionaries, each containing:
+                - race_summary: ConnectorRaceSummary
+                - race_package: ConnectorRacePackage
+                - normalized_race: Dict
+                - processed_results: List[Dict]
+                - race_laps: List[Dict]
+            event_entries_cache: Cached event entries by class name
+        
+        Returns:
+            Tuple of (races_ingested, results_ingested, laps_ingested, accumulated_laps)
+        """
+        races_ingested = 0
+        results_ingested = 0
+        laps_ingested = 0
+        accumulated_laps: List[Dict[str, Any]] = []
+        
+        # Step 1: Process driver updates first (these must happen before race_drivers)
+        # Collect all drivers that need to be updated/created
+        drivers_to_upsert: List[Dict[str, Any]] = []
+        driver_update_map: Dict[str, Dict[str, Any]] = {}  # source_driver_id -> update info
+        
+        races_to_write: List[Dict[str, Any]] = []
+        race_drivers_to_write: List[Dict[str, Any]] = []
+        race_results_to_write: List[Dict[str, Any]] = []
+        
+        # Mapping structures to track relationships
+        race_id_map: Dict[str, str] = {}  # source_race_id -> race.id
+        race_driver_id_map: Dict[Tuple[str, str], str] = {}  # (race_id, source_driver_id) -> race_driver.id
+        
+        for race_data in batch_races_data:
+            race_summary = race_data["race_summary"]
+            normalized_race = race_data["normalized_race"]
+            processed_results = race_data["processed_results"]
+            race_laps = race_data["race_laps"]
+            
+            # Handle empty races (no results)
+            race_package = race_data.get("race_package")
+            if not race_package or not race_package.results or len(processed_results) == 0:
+                # Still write the race record for empty races
+                races_to_write.append({
+                    "event_id": event_id,
+                    "source": "liverc",
+                    "source_race_id": normalized_race["source_race_id"],
+                    "class_name": normalized_race["class_name"],
+                    "race_label": normalized_race["race_label"],
+                    "race_order": normalized_race["race_order"],
+                    "race_url": normalized_race["race_url"],
+                    "start_time": normalized_race["start_time"],
+                    "duration_seconds": normalized_race["duration_seconds"],
+                })
+                continue
+            
+            # Collect race data
+            races_to_write.append({
+                "event_id": event_id,
+                "source": "liverc",
+                "source_race_id": normalized_race["source_race_id"],
+                "class_name": normalized_race["class_name"],
+                "race_label": normalized_race["race_label"],
+                "race_order": normalized_race["race_order"],
+                "race_url": normalized_race["race_url"],
+                "start_time": normalized_race["start_time"],
+                "duration_seconds": normalized_race["duration_seconds"],
+            })
+            
+            # Process results to collect driver and race_driver/result data
+            class_name = normalized_race["class_name"]
+            event_entries = event_entries_cache.get(class_name, [])
+            
+            for processed in processed_results:
+                result = processed["result"]
+                normalized_result = processed["normalized_result"]
+                matched_event_entry = processed["matched_event_entry"]
+                
+                # Track cache usage
+                metrics.record_event_entry_cache_lookup(str(event_id))
+                if event_entries:
+                    metrics.record_event_entry_cache_hit(str(event_id))
+                
+                # Handle driver updates
+                driver_id = None
+                if matched_event_entry:
+                    driver = matched_event_entry.driver
+                    if driver.source_driver_id.startswith("entry_"):
+                        # Check if a driver with the real source_driver_id already exists
+                        from ingestion.db.models import Driver as DriverModel
+                        existing_driver_stmt = select(DriverModel).where(
+                            and_(
+                                DriverModel.source == "liverc",
+                                DriverModel.source_driver_id == normalized_result["source_driver_id"],
+                            )
+                        ).limit(1)
+                        existing_driver = repo.session.scalar(existing_driver_stmt)
+                        
+                        if existing_driver and existing_driver.id != driver.id:
+                            matched_event_entry.driver_id = existing_driver.id
+                            matched_event_entry.updated_at = datetime.utcnow()
+                            driver_id = existing_driver.id
+                        else:
+                            # Update driver with actual source_driver_id
+                            driver.source_driver_id = normalized_result["source_driver_id"]
+                            driver.updated_at = datetime.utcnow()
+                            driver_id = driver.id
+                    else:
+                        driver_id = driver.id
+                else:
+                    # Create driver from race result (fallback)
+                    driver = repo.upsert_driver(
+                        source="liverc",
+                        source_driver_id=normalized_result["source_driver_id"],
+                        display_name=normalized_result["display_name"],
+                        transponder_number=None,
+                    )
+                    driver_id = driver.id
+                
+                # Collect race_driver data (will write after races)
+                race_drivers_to_write.append({
+                    "race_id": None,  # Will be filled after races are written
+                    "driver_id": str(driver_id),
+                    "source": "liverc",
+                    "source_driver_id": normalized_result["source_driver_id"],
+                    "display_name": normalized_result["display_name"],
+                    "transponder_number": None,
+                    "_source_race_id": normalized_race["source_race_id"],  # Temporary for mapping
+                })
+                
+                # Collect race_result data (will write after race_drivers)
+                race_results_to_write.append({
+                    "race_id": None,  # Will be filled after races are written
+                    "race_driver_id": None,  # Will be filled after race_drivers are written
+                    "position_final": normalized_result["position_final"],
+                    "laps_completed": normalized_result["laps_completed"],
+                    "total_time_raw": normalized_result.get("total_time_raw"),
+                    "total_time_seconds": normalized_result["total_time_seconds"],
+                    "fast_lap_time": normalized_result["fast_lap_time"],
+                    "avg_lap_time": normalized_result["avg_lap_time"],
+                    "consistency": normalized_result["consistency"],
+                    "_source_race_id": normalized_race["source_race_id"],  # Temporary for mapping
+                    "_source_driver_id": normalized_result["source_driver_id"],  # Temporary for mapping
+                })
+                
+                # Collect laps (will write after race_results)
+                driver_source_id = normalized_result["source_driver_id"]
+                driver_laps = [lap for lap in race_laps if lap.get("source_driver_id") == driver_source_id]
+                for lap in driver_laps:
+                    lap_copy = {k: v for k, v in lap.items() if k != "source_driver_id"}
+                    lap_copy["_source_race_id"] = normalized_race["source_race_id"]
+                    lap_copy["_source_driver_id"] = driver_source_id
+                    accumulated_laps.append(lap_copy)
+        
+        # Step 2: Bulk write races
+        if races_to_write:
+            races = repo.bulk_upsert_races(races_to_write)
+            races_ingested = len(races)
+            # Build mapping
+            for race in races.values():
+                race_id_map[race.source_race_id] = race.id
+        
+        # Step 3: Update race_drivers with race IDs and bulk write
+        if race_drivers_to_write:
+            for rd_data in race_drivers_to_write:
+                rd_data["race_id"] = race_id_map[rd_data.pop("_source_race_id")]
+            race_drivers = repo.bulk_upsert_race_drivers(race_drivers_to_write)
+            # Build mapping
+            for (race_id, source_driver_id), rd in race_drivers.items():
+                race_driver_id_map[(race_id, source_driver_id)] = rd.id
+        
+        # Step 4: Update race_results with race and race_driver IDs and bulk write
+        if race_results_to_write:
+            for rr_data in race_results_to_write:
+                source_race_id = rr_data.pop("_source_race_id")
+                source_driver_id = rr_data.pop("_source_driver_id")
+                race_id = race_id_map[source_race_id]
+                rr_data["race_id"] = race_id
+                rr_data["race_driver_id"] = race_driver_id_map[(race_id, source_driver_id)]
+            race_results = repo.bulk_upsert_race_results(race_results_to_write)
+            results_ingested = len(race_results)
+            
+            # Step 5: Update laps with race_result IDs
+            for lap in accumulated_laps:
+                source_race_id = lap.pop("_source_race_id")
+                source_driver_id = lap.pop("_source_driver_id")
+                race_id = race_id_map[source_race_id]
+                race_driver_id = race_driver_id_map[(race_id, source_driver_id)]
+                race_result_id = race_results[(race_id, race_driver_id)].id
+                lap["race_result_id"] = str(race_result_id)
+            
+            laps_ingested = len(accumulated_laps)
+        
+        return races_ingested, results_ingested, laps_ingested, accumulated_laps
     
     async def _process_races_parallel(
         self,
@@ -417,8 +878,8 @@ class IngestionPipeline:
         
         # Process races in batches to limit concurrent requests
         batch_size = self.RACE_FETCH_CONCURRENCY
-        # Commit in batches to reduce transaction overhead (every 20 races, increased from 10)
-        COMMIT_BATCH_SIZE = 20
+        # Commit in batches to reduce transaction overhead (every 35 races, increased from 20)
+        COMMIT_BATCH_SIZE = 35
         races_since_commit = 0
         
         # Accumulate laps across races within commit batches for better batching efficiency
@@ -427,249 +888,94 @@ class IngestionPipeline:
         
         total_batches = (len(race_summaries) + batch_size - 1) // batch_size  # Ceiling division
         
-        for batch_num, batch_start in enumerate(range(0, len(race_summaries), batch_size)):
-            batch = race_summaries[batch_start:batch_start + batch_size]
+        # Create ONE shared HTTPXClient for ALL batches to enable connection pooling
+        # This significantly improves performance by reusing TCP connections across batches
+        async with HTTPXClient(self.connector._site_policy) as shared_client:
+            # Pipeline optimization: Start fetching next batch while processing current batch
+            # This overlaps network I/O with CPU/DB work for better throughput
+            next_batch_fetch_task: Optional[asyncio.Task] = None
             
-            # Fetch this batch in parallel
-            race_data_pairs = await self._process_races_batch(batch, event_id)
-            
-            # Process fetched races sequentially for database consistency
-            for race_idx, (race_summary, race_package) in enumerate(race_data_pairs):
-                # Skip races with no results (empty races that haven't been run yet)
-                if not race_package.results or len(race_package.results) == 0:
-                    logger.info(
-                        "skipping_empty_race",
-                        event_id=str(event_id),
-                        race_id=race_summary.source_race_id,
-                        message="Race has no results - skipping ingestion",
+            for batch_num, batch_start in enumerate(range(0, len(race_summaries), batch_size)):
+                batch = race_summaries[batch_start:batch_start + batch_size]
+                
+                # If we have a prefetched batch from previous iteration, use it
+                if next_batch_fetch_task is not None:
+                    # Wait for the prefetched batch to complete
+                    race_data_pairs = await next_batch_fetch_task
+                    next_batch_fetch_task = None
+                else:
+                    # First batch - fetch it now
+                    race_data_pairs = await self._process_races_batch(batch, event_id, shared_client)
+                
+                # Start fetching next batch in parallel (if there is one)
+                # This allows network I/O to happen while we process current batch
+                if batch_num + 1 < total_batches:
+                    next_batch = race_summaries[(batch_num + 1) * batch_size:(batch_num + 2) * batch_size]
+                    next_batch_fetch_task = asyncio.create_task(
+                        self._process_races_batch(next_batch, event_id, shared_client)
                     )
-                    # Still create the race record so it's tracked, but mark it as having no results
-                    normalized_race = Normalizer.normalize_race(race_package.race_summary)
-                    race = repo.upsert_race(
-                        event_id=event_id,
-                        source="liverc",
-                        source_race_id=normalized_race["source_race_id"],
-                        class_name=normalized_race["class_name"],
-                        race_label=normalized_race["race_label"],
-                        race_order=normalized_race["race_order"],
-                        race_url=normalized_race["race_url"],
-                        start_time=normalized_race["start_time"],
-                        duration_seconds=normalized_race["duration_seconds"],
-                    )
-                    races_ingested += 1
-                    races_since_commit += 1
-                    self._record_activity()  # Record progress
-                    # Commit in batches or immediately for empty races (to keep them tracked)
-                    if races_since_commit >= COMMIT_BATCH_SIZE:
-                        repo.session.commit()
-                        races_since_commit = 0
-                    continue
                 
-                # Normalize race data
-                normalized_race = Normalizer.normalize_race(race_package.race_summary)
+                # Process CPU-bound work in parallel (normalization, validation, matching)
+                cpu_tasks = [
+                    self._process_race_cpu(race_summary, race_package, event_id, event_entries_cache)
+                    for race_summary, race_package in race_data_pairs
+                ]
+                processed_races = await asyncio.gather(*cpu_tasks, return_exceptions=True)
                 
-                # Upsert race
-                race = repo.upsert_race(
-                    event_id=event_id,
-                    source="liverc",
-                    source_race_id=normalized_race["source_race_id"],
-                    class_name=normalized_race["class_name"],
-                    race_label=normalized_race["race_label"],
-                    race_order=normalized_race["race_order"],
-                    race_url=normalized_race["race_url"],
-                    start_time=normalized_race["start_time"],
-                    duration_seconds=normalized_race["duration_seconds"],
-                )
-                races_ingested += 1
-                self._record_activity()  # Record progress
-                
-                # Collect all race laps for bulk upsert
-                race_laps = []
-                
-                lap_timer = metrics.start_lap_extraction_timer(
-                    event_id=str(event_id),
-                    race_id=race_summary.source_race_id,
-                )
-                try:
-                    # Process results sequentially
-                    for result in race_package.results:
-                        # Validate result
-                        Validator.validate_result(result, str(event_id), race_summary.source_race_id)
-                        
-                        # Normalize result
-                        normalized_result = Normalizer.normalize_result(result)
-                        
-                        # Match race result driver to EventEntry record
-                        # Use cached event entries instead of querying database for each result
-                        class_name = normalized_race["class_name"]
-                        event_entries = event_entries_cache.get(class_name, [])
-                        
-                        # Track cache usage
-                        metrics.record_event_entry_cache_lookup(str(event_id))
-                        if event_entries:
-                            metrics.record_event_entry_cache_hit(str(event_id))
-                        
-                        matched_event_entry = None
-                        
-                        if event_entries:
-                            matched_event_entry = DriverMatcher.match_race_result_to_event_entry(
-                                event_entries=event_entries,
-                                race_result=result,
-                                class_name=class_name,
-                            )
-                            
-                            if matched_event_entry:
-                                # Update driver's source_driver_id if it's still a temporary one
-                                driver = matched_event_entry.driver
-                                if driver.source_driver_id.startswith("entry_"):
-                                    # Check if a driver with the real source_driver_id already exists
-                                    from ingestion.db.models import Driver as DriverModel
-                                    existing_driver = repo.session.query(DriverModel).filter(
-                                        DriverModel.source == "liverc",
-                                        DriverModel.source_driver_id == normalized_result["source_driver_id"],
-                                    ).first()
-                                    
-                                    if existing_driver and existing_driver.id != driver.id:
-                                        # Driver with real ID already exists - use that one and update EventEntry
-                                        logger.debug(
-                                            "driver_merged",
-                                            old_driver_id=str(driver.id),
-                                            new_driver_id=str(existing_driver.id),
-                                            source_driver_id=normalized_result["source_driver_id"],
-                                        )
-                                        matched_event_entry.driver_id = existing_driver.id
-                                        matched_event_entry.updated_at = datetime.utcnow()
-                                        driver = existing_driver
-                                    else:
-                                        # Update driver with actual source_driver_id from race result
-                                        old_id = driver.source_driver_id
-                                        driver.source_driver_id = normalized_result["source_driver_id"]
-                                        driver.updated_at = datetime.utcnow()
-                                        logger.debug(
-                                            "driver_source_id_updated",
-                                            driver_id=str(driver.id),
-                                            old_id=old_id,
-                                            new_id=normalized_result["source_driver_id"],
-                                        )
-                        else:
-                            logger.warning(
-                                "no_event_entries_for_class",
-                                event_id=str(event_id),
-                                class_name=class_name,
-                                race_id=race_summary.source_race_id,
-                            )
-                        
-                        # If no match found, create driver from race result (fallback)
-                        if not matched_event_entry:
-                            driver = repo.upsert_driver(
-                                source="liverc",
-                                source_driver_id=normalized_result["source_driver_id"],
-                                display_name=normalized_result["display_name"],
-                                transponder_number=None,  # No transponder from race results
-                            )
-                            logger.warning(
-                                "driver_not_matched_to_entry",
-                                event_id=str(event_id),
-                                race_id=race_summary.source_race_id,
-                                driver_id=normalized_result["source_driver_id"],
-                                driver_name=normalized_result["display_name"],
-                                class_name=class_name,
-                            )
-                        else:
-                            driver = matched_event_entry.driver
-                        
-                        # Upsert race driver
-                        # Note: Transponder numbers are stored in EventEntry (source of truth), not RaceDriver
-                        race_driver = repo.upsert_race_driver(
-                            race_id=race.id,
-                            source="liverc",
-                            source_driver_id=normalized_result["source_driver_id"],
-                            display_name=normalized_result["display_name"],
-                            transponder_number=None,  # Transponders come from EventEntry, not race results
-                        )
-                        
-                        # Upsert result
-                        race_result = repo.upsert_race_result(
-                            race_id=race.id,
-                            race_driver_id=race_driver.id,
-                            position_final=normalized_result["position_final"],
-                            laps_completed=normalized_result["laps_completed"],
-                            total_time_raw=normalized_result.get("total_time_raw"),
-                            total_time_seconds=normalized_result["total_time_seconds"],
-                            fast_lap_time=normalized_result["fast_lap_time"],
-                            avg_lap_time=normalized_result["avg_lap_time"],
-                            consistency=normalized_result["consistency"],
-                        )
-                    results_ingested += 1
-                    
-                    # Process laps
-                    driver_laps = race_package.laps_by_driver.get(normalized_result["source_driver_id"], [])
-                    
-                    # Validate laps - if validation fails, skip lap ingestion but continue with result
-                    try:
-                        Validator.validate_laps(
-                            driver_laps,
-                            normalized_result["laps_completed"],
-                            str(event_id),
-                            race_summary.source_race_id,
-                            normalized_result["source_driver_id"],
-                        )
-                        
-                        # Collect normalized laps for bulk upsert
-                        for lap in driver_laps:
-                            normalized_lap = Normalizer.normalize_lap(lap)
-                            race_laps.append({
-                                "race_result_id": str(race_result.id),
-                                "lap_number": normalized_lap["lap_number"],
-                                "position_on_lap": normalized_lap["position_on_lap"],
-                                "lap_time_raw": normalized_lap["lap_time_raw"],
-                                "lap_time_seconds": normalized_lap["lap_time_seconds"],
-                                "pace_string": normalized_lap.get("pace_string"),
-                                "elapsed_race_time": normalized_lap["elapsed_race_time"],
-                                "segments_json": normalized_lap.get("segments"),
-                            })
-                    except ValidationError as e:
-                        # Log warning but continue - result is still saved, just without lap data
+                # Collect valid race data for batch writing
+                batch_races_data: List[Dict[str, Any]] = []
+                for (race_summary, race_package), processed_data in zip(race_data_pairs, processed_races):
+                    # Handle exceptions from CPU processing
+                    if isinstance(processed_data, Exception):
                         logger.warning(
-                            "lap_validation_failed_skipping_laps",
+                            "race_cpu_processing_failed",
                             event_id=str(event_id),
                             race_id=race_summary.source_race_id,
-                            driver_id=normalized_result["source_driver_id"],
-                            laps_completed=normalized_result["laps_completed"],
-                            error_message=str(e),
-                            message="Lap validation failed - skipping lap ingestion for this result but continuing with event import",
+                            error_type=type(processed_data).__name__,
+                            error_message=str(processed_data),
+                            message="Skipping race due to CPU processing error",
                         )
+                        continue
+                    
+                    normalized_race, processed_results, race_laps = processed_data
+                    batch_races_data.append({
+                        "race_summary": race_summary,
+                        "race_package": race_package,
+                        "normalized_race": normalized_race,
+                        "processed_results": processed_results,
+                        "race_laps": race_laps,
+                    })
                 
-                finally:
-                    lap_timer.observe()
-
-                # Accumulate laps instead of immediately bulk upserting
-                # This allows batching across multiple races for better efficiency
-                if race_laps:
-                    accumulated_laps.extend(race_laps)
-                    laps_ingested += len(race_laps)
-
-                races_since_commit += 1
-                # Commit in batches to reduce transaction overhead
-                # Commit immediately if this is the last race in the last batch or we've hit the batch size
-                is_last_batch = (batch_num + 1) == total_batches
-                is_last_race_in_batch = (race_idx + 1) == len(race_data_pairs)
-                is_last_race = is_last_batch and is_last_race_in_batch
-                
-                # Before committing, bulk upsert all accumulated laps from this commit batch
-                # This maintains transaction boundaries while improving batching efficiency
-                if races_since_commit >= COMMIT_BATCH_SIZE or is_last_race:
-                    if accumulated_laps:
-                        repo.bulk_upsert_laps(accumulated_laps)
-                        accumulated_laps = []  # Clear for next commit batch
-                    repo.session.commit()
-                    races_since_commit = 0
-                    self._record_activity()  # Record progress after commit
-        
-        # Final bulk upsert for any remaining accumulated laps (safety check)
-        if accumulated_laps:
-            repo.bulk_upsert_laps(accumulated_laps)
-            repo.session.commit()
+                # Batch write all races in this batch
+                if batch_races_data:
+                    batch_races, batch_results, batch_laps, batch_accumulated_laps = self._batch_write_races_data(
+                        repo=repo,
+                        event_id=event_id,
+                        batch_races_data=batch_races_data,
+                        event_entries_cache=event_entries_cache,
+                    )
+                    races_ingested += batch_races
+                    results_ingested += batch_results
+                    laps_ingested += batch_laps
+                    accumulated_laps.extend(batch_accumulated_laps)
+                    races_since_commit += batch_races
+                    self._record_activity()  # Record progress
+                    
+                    # Commit in batches
+                    is_last_batch = (batch_num + 1) == total_batches
+                    if races_since_commit >= COMMIT_BATCH_SIZE or is_last_batch:
+                        if accumulated_laps:
+                            repo.bulk_upsert_laps(accumulated_laps)
+                            accumulated_laps = []  # Clear for next commit batch
+                        repo.session.commit()
+                        races_since_commit = 0
+                        self._record_activity()  # Record progress after commit
+            
+            # Final bulk upsert for any remaining accumulated laps (safety check)
+            # This is inside the HTTPXClient context to ensure all fetches are complete
+            if accumulated_laps:
+                repo.bulk_upsert_laps(accumulated_laps)
+                repo.session.commit()
 
         return races_ingested, results_ingested, laps_ingested
     
@@ -925,8 +1231,16 @@ class IngestionPipeline:
         logger.info("entry_list_fetched", event_id=str(event_id), class_count=len(entry_list.entries_by_class))
 
         if not entry_list.entries_by_class:
+            logger.warning(
+                "entry_list_empty",
+                event_id=str(event_id),
+                source_event_id=event_context.source_event_id,
+                message="Entry list is empty - event may not have entries published yet on LiveRC",
+            )
             raise ValidationError(
-                f"Entry list is empty for event {event_context.source_event_id}",
+                f"Entry list is empty for event {event_context.source_event_id}. "
+                f"This event may not have entries published yet on LiveRC, or entries may not be available. "
+                f"Please check the event on LiveRC and try again later if entries are not yet published.",
                 event_id=str(event_id),
             )
 
@@ -1182,8 +1496,15 @@ class IngestionPipeline:
         )
 
         if not entry_list.entries_by_class:
+            logger.warning(
+                "entry_list_empty",
+                source_event_id=source_event_id,
+                message="Entry list is empty - event may not have entries published yet on LiveRC",
+            )
             raise ValidationError(
-                f"Entry list is empty for event {source_event_id}",
+                f"Entry list is empty for event {source_event_id}. "
+                f"This event may not have entries published yet on LiveRC, or entries may not be available. "
+                f"Please check the event on LiveRC and try again later if entries are not yet published.",
                 event_id=source_event_id,
             )
 

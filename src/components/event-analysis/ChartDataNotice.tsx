@@ -15,7 +15,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export interface ChartDataNoticeProps {
   title: string
@@ -23,6 +23,8 @@ export interface ChartDataNoticeProps {
   driverNames: string[]
   className?: string
   onDismiss?: () => void
+  eventId: string
+  noticeType: string
 }
 
 export default function ChartDataNotice({
@@ -31,8 +33,23 @@ export default function ChartDataNotice({
   driverNames,
   className = "",
   onDismiss,
+  eventId,
+  noticeType,
 }: ChartDataNoticeProps) {
-  const [isDismissed, setIsDismissed] = useState(false)
+  const [isDismissed, setIsDismissed] = useState(true) // Start as dismissed until we check sessionStorage
+  
+  // Create a unique storage key for this event and notice type
+  const storageKey = `mre-chart-notice-dismissed-${eventId}-${noticeType}`
+
+  // Check sessionStorage on mount to see if this notice was previously dismissed
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    
+    const dismissed = window.sessionStorage.getItem(storageKey)
+    setIsDismissed(dismissed === "true")
+  }, [storageKey])
 
   if (driverNames.length === 0 || isDismissed) {
     return null
@@ -43,6 +60,10 @@ export default function ChartDataNotice({
 
   const handleDismiss = () => {
     setIsDismissed(true)
+    // Persist dismissal in sessionStorage
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(storageKey, "true")
+    }
     onDismiss?.()
   }
 

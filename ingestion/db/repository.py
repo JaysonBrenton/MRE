@@ -11,7 +11,7 @@
 
 import hashlib
 from datetime import datetime
-from typing import Optional, Dict, Any, Union, List
+from typing import Optional, Dict, Any, Union, List, Tuple
 from uuid import UUID
 
 from sqlalchemy import select, and_, func, text, tuple_
@@ -82,6 +82,22 @@ class Repository:
         events_url: str,
         liverc_track_last_updated: Optional[str] = None,
         is_active: bool = True,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        address: Optional[str] = None,
+        city: Optional[str] = None,
+        state: Optional[str] = None,
+        country: Optional[str] = None,
+        postal_code: Optional[str] = None,
+        phone: Optional[str] = None,
+        website: Optional[str] = None,
+        email: Optional[str] = None,
+        description: Optional[str] = None,
+        logo_url: Optional[str] = None,
+        facebook_url: Optional[str] = None,
+        total_laps: Optional[int] = None,
+        total_races: Optional[int] = None,
+        total_events: Optional[int] = None,
     ) -> Track:
         """
         Upsert track by natural key (source, source_track_slug).
@@ -94,6 +110,22 @@ class Repository:
             events_url: Events URL
             liverc_track_last_updated: Last updated string from LiveRC
             is_active: Whether track is active
+            latitude: Track latitude coordinate
+            longitude: Track longitude coordinate
+            address: Full address string
+            city: City name
+            state: State/province name
+            country: Country name
+            postal_code: Postal/ZIP code
+            phone: Phone number
+            website: Website URL
+            email: Email address
+            description: Track description/amenities
+            logo_url: Track logo image URL
+            facebook_url: Facebook page URL
+            total_laps: Total lifetime laps
+            total_races: Total lifetime races
+            total_events: Total lifetime events
         
         Returns:
             Track model instance
@@ -114,6 +146,41 @@ class Repository:
             track.liverc_track_last_updated = liverc_track_last_updated
             track.last_seen_at = datetime.utcnow()
             track.is_active = is_active
+            
+            # Update metadata fields only if provided (preserve existing data if None)
+            if latitude is not None:
+                track.latitude = latitude
+            if longitude is not None:
+                track.longitude = longitude
+            if address is not None:
+                track.address = address
+            if city is not None:
+                track.city = city
+            if state is not None:
+                track.state = state
+            if country is not None:
+                track.country = country
+            if postal_code is not None:
+                track.postal_code = postal_code
+            if phone is not None:
+                track.phone = phone
+            if website is not None:
+                track.website = website
+            if email is not None:
+                track.email = email
+            if description is not None:
+                track.description = description
+            if logo_url is not None:
+                track.logo_url = logo_url
+            if facebook_url is not None:
+                track.facebook_url = facebook_url
+            if total_laps is not None:
+                track.total_laps = total_laps
+            if total_races is not None:
+                track.total_races = total_races
+            if total_events is not None:
+                track.total_events = total_events
+            
             logger.debug("track_updated", track_id=str(track.id), slug=source_track_slug)
             metrics.record_db_update("tracks")
         else:
@@ -128,6 +195,22 @@ class Repository:
                 liverc_track_last_updated=liverc_track_last_updated,
                 last_seen_at=now,
                 is_active=is_active,
+                latitude=latitude,
+                longitude=longitude,
+                address=address,
+                city=city,
+                state=state,
+                country=country,
+                postal_code=postal_code,
+                phone=phone,
+                website=website,
+                email=email,
+                description=description,
+                logo_url=logo_url,
+                facebook_url=facebook_url,
+                total_laps=total_laps or 0,
+                total_races=total_races or 0,
+                total_events=total_events or 0,
             )
             # Set timestamps explicitly for new records
             track.created_at = now
@@ -751,6 +834,242 @@ class Repository:
             metrics.record_db_insert("laps")
 
         return lap
+    
+    def bulk_upsert_races(
+        self,
+        races_data: List[Dict[str, Any]],
+    ) -> Dict[str, Race]:
+        """
+        Bulk upsert races using PostgreSQL ON CONFLICT.
+        
+        Returns a mapping of source_race_id -> Race instance for use in subsequent operations.
+        
+        Args:
+            races_data: List of race dictionaries with fields:
+                - event_id: UUID
+                - source: str
+                - source_race_id: str
+                - class_name: str
+                - race_label: str
+                - race_order: Optional[int]
+                - race_url: str
+                - start_time: Optional[datetime]
+                - duration_seconds: Optional[int]
+        
+        Returns:
+            Dictionary mapping source_race_id to Race instance
+        """
+        if not races_data:
+            return {}
+        
+        now = datetime.utcnow()
+        
+        # Prepare batch data
+        batch_data = []
+        for race_data in races_data:
+            race_dict = {
+                "event_id": _uuid_to_str(race_data["event_id"]),
+                "source": race_data["source"],
+                "source_race_id": race_data["source_race_id"],
+                "class_name": race_data["class_name"],
+                "race_label": race_data["race_label"],
+                "race_order": race_data.get("race_order"),
+                "race_url": race_data["race_url"],
+                "start_time": race_data.get("start_time"),
+                "duration_seconds": race_data.get("duration_seconds"),
+                "created_at": now,
+                "updated_at": now,
+            }
+            batch_data.append(race_dict)
+        
+        # Use PostgreSQL dialect insert with ON CONFLICT
+        # Unique constraint is (event_id, source_race_id) - use index_elements for unique index
+        stmt = pg_insert(Race).values(batch_data)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["event_id", "source_race_id"],
+            set_={
+                "class_name": stmt.excluded.class_name,
+                "race_label": stmt.excluded.race_label,
+                "race_order": stmt.excluded.race_order,
+                "race_url": stmt.excluded.race_url,
+                "start_time": stmt.excluded.start_time,
+                "duration_seconds": stmt.excluded.duration_seconds,
+                "updated_at": now,
+            },
+        )
+        
+        self.session.execute(stmt)
+        self.session.flush()  # Ensure IDs are populated
+        
+        # Fetch the races to return them with their IDs
+        source_race_ids = [r["source_race_id"] for r in races_data]
+        event_id_str = _uuid_to_str(races_data[0]["event_id"])
+        races_stmt = select(Race).where(
+            and_(
+                Race.event_id == event_id_str,
+                Race.source_race_id.in_(source_race_ids),
+            )
+        )
+        races = {race.source_race_id: race for race in self.session.scalars(races_stmt).all()}
+        
+        metrics.record_db_insert("races", len(races_data))
+        logger.debug("bulk_upsert_races_complete", count=len(races_data))
+        
+        return races
+    
+    def bulk_upsert_race_drivers(
+        self,
+        race_drivers_data: List[Dict[str, Any]],
+    ) -> Dict[Tuple[str, str], RaceDriver]:
+        """
+        Bulk upsert race drivers using PostgreSQL ON CONFLICT.
+        
+        Note: Assumes drivers already exist (call upsert_driver first if needed).
+        
+        Args:
+            race_drivers_data: List of race driver dictionaries with fields:
+                - race_id: UUID (string)
+                - driver_id: UUID (string)
+                - source: str
+                - source_driver_id: str
+                - display_name: str
+                - transponder_number: Optional[str]
+        
+        Returns:
+            Dictionary mapping (race_id, source_driver_id) tuple to RaceDriver instance
+        """
+        if not race_drivers_data:
+            return {}
+        
+        now = datetime.utcnow()
+        
+        # Prepare batch data
+        batch_data = []
+        for rd_data in race_drivers_data:
+            rd_dict = {
+                "race_id": rd_data["race_id"],
+                "driver_id": rd_data["driver_id"],
+                "source": rd_data["source"],
+                "source_driver_id": rd_data["source_driver_id"],
+                "display_name": rd_data["display_name"],
+                "transponder_number": rd_data.get("transponder_number"),
+                "created_at": now,
+                "updated_at": now,
+            }
+            batch_data.append(rd_dict)
+        
+        # Use PostgreSQL dialect insert with ON CONFLICT
+        # Unique constraint is (race_id, source_driver_id) - use index_elements for unique index
+        stmt = pg_insert(RaceDriver).values(batch_data)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["race_id", "source_driver_id"],
+            set_={
+                "display_name": stmt.excluded.display_name,
+                "transponder_number": stmt.excluded.transponder_number,
+                "updated_at": now,
+            },
+        )
+        
+        self.session.execute(stmt)
+        self.session.flush()  # Ensure IDs are populated
+        
+        # Fetch the race drivers to return them with their IDs
+        race_id_source_pairs = [(rd["race_id"], rd["source_driver_id"]) for rd in race_drivers_data]
+        race_drivers_stmt = select(RaceDriver).where(
+            tuple_(RaceDriver.race_id, RaceDriver.source_driver_id).in_(race_id_source_pairs)
+        )
+        race_drivers = {
+            (rd.race_id, rd.source_driver_id): rd
+            for rd in self.session.scalars(race_drivers_stmt).all()
+        }
+        
+        metrics.record_db_insert("race_drivers", len(race_drivers_data))
+        logger.debug("bulk_upsert_race_drivers_complete", count=len(race_drivers_data))
+        
+        return race_drivers
+    
+    def bulk_upsert_race_results(
+        self,
+        race_results_data: List[Dict[str, Any]],
+    ) -> Dict[Tuple[str, str], RaceResult]:
+        """
+        Bulk upsert race results using PostgreSQL ON CONFLICT.
+        
+        Args:
+            race_results_data: List of race result dictionaries with fields:
+                - race_id: UUID (string)
+                - race_driver_id: UUID (string)
+                - position_final: int
+                - laps_completed: int
+                - total_time_raw: Optional[str]
+                - total_time_seconds: Optional[float]
+                - fast_lap_time: Optional[float]
+                - avg_lap_time: Optional[float]
+                - consistency: Optional[float]
+                - raw_fields_json: Optional[Dict[str, Any]]
+        
+        Returns:
+            Dictionary mapping (race_id, race_driver_id) tuple to RaceResult instance
+        """
+        if not race_results_data:
+            return {}
+        
+        now = datetime.utcnow()
+        
+        # Prepare batch data
+        batch_data = []
+        for rr_data in race_results_data:
+            rr_dict = {
+                "race_id": rr_data["race_id"],
+                "race_driver_id": rr_data["race_driver_id"],
+                "position_final": rr_data["position_final"],
+                "laps_completed": rr_data["laps_completed"],
+                "total_time_raw": rr_data.get("total_time_raw"),
+                "total_time_seconds": rr_data.get("total_time_seconds"),
+                "fast_lap_time": rr_data.get("fast_lap_time"),
+                "avg_lap_time": rr_data.get("avg_lap_time"),
+                "consistency": rr_data.get("consistency"),
+                "raw_fields_json": rr_data.get("raw_fields_json"),
+                "created_at": now,
+                "updated_at": now,
+            }
+            batch_data.append(rr_dict)
+        
+        # Use PostgreSQL dialect insert with ON CONFLICT
+        # Unique constraint is (race_id, race_driver_id) - use index_elements for unique index
+        stmt = pg_insert(RaceResult).values(batch_data)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["race_id", "race_driver_id"],
+            set_={
+                "position_final": stmt.excluded.position_final,
+                "laps_completed": stmt.excluded.laps_completed,
+                "total_time_raw": stmt.excluded.total_time_raw,
+                "total_time_seconds": stmt.excluded.total_time_seconds,
+                "fast_lap_time": stmt.excluded.fast_lap_time,
+                "avg_lap_time": stmt.excluded.avg_lap_time,
+                "consistency": stmt.excluded.consistency,
+                "raw_fields_json": stmt.excluded.raw_fields_json,
+                "updated_at": now,
+            },
+        )
+        
+        self.session.execute(stmt)
+        self.session.flush()  # Ensure IDs are populated
+        
+        # Fetch the race results to return them with their IDs
+        race_id_driver_pairs = [(rr["race_id"], rr["race_driver_id"]) for rr in race_results_data]
+        race_results_stmt = select(RaceResult).where(
+            tuple_(RaceResult.race_id, RaceResult.race_driver_id).in_(race_id_driver_pairs)
+        )
+        race_results = {
+            (rr.race_id, rr.race_driver_id): rr
+            for rr in self.session.scalars(race_results_stmt).all()
+        }
+        
+        metrics.record_db_insert("race_results", len(race_results_data))
+        logger.debug("bulk_upsert_race_results_complete", count=len(race_results_data))
+        
+        return race_results
     
     def bulk_upsert_laps(
         self,

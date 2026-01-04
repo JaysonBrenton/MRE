@@ -157,6 +157,19 @@ Returns all driver results for a race:
 Returns the raw lap data for each driver in the race.  
 For LiveRC, this parses the `racerLaps[...]` JS object.
 
+### `fetchTrackDashboard(track_slug: string): Promise<string>`
+Fetches the track dashboard page HTML. For LiveRC, this fetches `https://{slug}.liverc.com/`. Returns raw HTML string. Used internally by `fetchTrackMetadata()`.
+
+### `fetchTrackMetadata(track_slug: string): Promise<TrackDashboardData | null>`
+Fetches and parses track dashboard page to extract comprehensive metadata including:
+- Location data: coordinates, address, city, state, country, postal code
+- Contact information: phone, website, email
+- Track description and amenities
+- Logo and social media URLs
+- Lifetime statistics: total laps, races, events
+
+Returns `null` if fetch/parse fails (graceful degradation). This method is used during track sync to enrich track records with additional metadata beyond the basic catalogue information.
+
 ---
 
 ## Data Shapes Returned by Connectors
@@ -377,6 +390,29 @@ Fields:
 - results (list of ConnectorRaceResult)
 - laps_by_driver (dict keyed by source_driver_id → list of ConnectorLap)
 
+#### TrackDashboardData
+Represents extracted metadata from a track dashboard page.
+
+All fields are optional (nullable) to support graceful degradation when parsing fails.
+
+Fields:
+- latitude (float | None) - Track latitude coordinate
+- longitude (float | None) - Track longitude coordinate
+- address (str | None) - Full address string
+- city (str | None) - City name
+- state (str | None) - State/province name
+- country (str | None) - Country name
+- postal_code (str | None) - Postal/ZIP code
+- phone (str | None) - Phone number
+- website (str | None) - Website URL
+- email (str | None) - Email address
+- description (str | None) - Track description/amenities
+- logo_url (str | None) - Track logo image URL
+- facebook_url (str | None) - Facebook page URL
+- total_laps (int | None) - Total lifetime laps
+- total_races (int | None) - Total lifetime races
+- total_events (int | None) - Total lifetime events
+
 ### Required Connector Functions
 
 The connector MUST export the following functions. These are contracts the ingestion pipeline depends on.
@@ -414,6 +450,34 @@ Responsibilities:
 - Raise LapTableMissingError if data cannot be found
 
 In V1, this SHOULD NOT be called by the ingestion layer directly. The pipeline will rely on fetch_race_page, which handles all drivers.
+
+#### fetch_track_dashboard(track_slug)
+Returns: str (HTML content)
+
+Fetches the track dashboard page HTML from `https://{slug}.liverc.com/`. Used internally by `fetch_track_metadata()`.
+
+**Responsibilities:**
+- Build track dashboard URL
+- Fetch page using HTTPX (or Playwright if needed)
+- Return raw HTML content
+- Handle HTTP errors gracefully
+
+#### fetch_track_metadata(track_slug)
+Returns: TrackDashboardData | None
+
+Fetches and parses track dashboard page to extract comprehensive metadata including location data (coordinates, address), contact information (phone, website, email), track description, logos, and lifetime statistics. Returns `None` if fetch/parse fails (graceful degradation). Used during track sync to enrich track records.
+
+**Responsibilities:**
+- Fetch dashboard HTML via `fetch_track_dashboard()`
+- Parse HTML to extract metadata fields
+- Handle parsing errors gracefully (log, return None)
+- Return structured metadata object
+
+**Extracted Metadata:**
+- Location: latitude, longitude, address, city, state, country, postal_code
+- Contact: phone, website, email
+- Descriptive: description, logo_url, facebook_url
+- Statistics: total_laps, total_races, total_events
 
 ### Error Contracts
 

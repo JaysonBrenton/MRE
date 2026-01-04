@@ -19,7 +19,7 @@
 
 import { KeyboardEvent } from "react"
 
-export type TabId = "overview" | "drivers" | "sessions" | "comparisons"
+export type TabId = "overview" | "drivers" | "entry-list" | "sessions" | "comparisons"
 
 export interface Tab {
   id: TabId
@@ -35,6 +35,7 @@ export interface TabNavigationProps {
 const defaultTabs: Tab[] = [
   { id: "overview", label: "Overview" },
   { id: "drivers", label: "Drivers" },
+  { id: "entry-list", label: "Entry List" },
   { id: "sessions", label: "Sessions / Heats" },
   { id: "comparisons", label: "Comparisons" },
 ]
@@ -80,7 +81,7 @@ export default function TabNavigation({
               id={`tab-${tab.id}`}
               onClick={() => onTabChange(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, tab.id)}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] ${
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
                 isActive
                   ? "border-[var(--token-accent)] text-[var(--token-accent)]"
                   : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"

@@ -14,15 +14,17 @@
  * @relatedFiles
  * - src/core/weather/repo.ts (database access)
  * - src/core/weather/geocode-track.ts (geocoding)
+ * - src/core/weather/resolve-geocode-candidates.ts (candidate generation for geocoding)
  * - src/core/weather/fetch-weather.ts (Open-Meteo API)
  * - src/core/weather/calculate-track-temp.ts (track temperature calculation)
  */
 
 import { geocodeTrack } from "./geocode-track"
-import { fetchWeather, type WeatherResponse } from "./fetch-weather"
+import { fetchWeather } from "./fetch-weather"
 import { calculateTrackTemperature } from "./calculate-track-temp"
 import { getCachedWeather, getLastWeatherData, cacheWeatherData, type WeatherCacheData } from "./repo"
 import { getEventWithTrack } from "@/core/events/repo"
+import { resolveGeocodeCandidates } from "./resolve-geocode-candidates"
 
 export interface WeatherForEvent {
   condition: string
@@ -47,7 +49,8 @@ const HISTORICAL_WEATHER_TTL_HOURS = 24 * 7 // 7 days for historical (since it w
  * 1. Checks for valid cached data (not expired)
  * 2. If cache miss or expired:
  *    - Gets event and track information
- *    - Geocodes track name to get coordinates
+ *    - Generates geocoding candidates (track name + location hints from event name)
+ *    - Tries geocoding candidates in order until one succeeds
  *    - Fetches weather from Open-Meteo API (historical or forecast)
  *    - Calculates track temperature
  *    - Caches the data with appropriate TTL
@@ -63,7 +66,7 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
   // Check for valid cached data
   const cached = await getCachedWeather(eventId)
   if (cached) {
-    return formatWeatherResponse(cached, true)
+    return formatWeatherResponse(cached)
   }
 
   // Cache miss or expired - need to fetch fresh data
@@ -79,8 +82,69 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
       throw new Error(`Event track not found for event: ${eventId}`)
     }
 
-    // Geocode track name to get coordinates
-    const geocodeResult = await geocodeTrack(event.track.trackName)
+    // Priority 1: Use stored coordinates if available (from dashboard extraction)
+    let geocodeResult = null
+    let lastError: Error | null = null
+    const attemptedCandidates: string[] = []
+
+    const hasStoredCoordinates =
+      event.track.latitude !== null && event.track.latitude !== undefined &&
+      event.track.longitude !== null && event.track.longitude !== undefined
+
+    if (hasStoredCoordinates) {
+      // Use stored coordinates directly - skip geocoding
+      geocodeResult = {
+        latitude: event.track.latitude,
+        longitude: event.track.longitude,
+        displayName: event.track.trackName,
+      }
+    } else {
+      // Priority 2: Try stored address as geocoding candidate (if available)
+      // Priority 3: Fall back to existing name-based geocoding strategy
+      const candidates = resolveGeocodeCandidates(event)
+      
+      // Prepend stored address to candidates if available
+      if (event.track.address) {
+        candidates.unshift(event.track.address)
+      }
+
+      for (const candidate of candidates) {
+        attemptedCandidates.push(candidate)
+        try {
+          geocodeResult = await geocodeTrack(candidate)
+          break // Success, exit loop
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error))
+          
+          // Check if this is a "no results" error - continue to next candidate
+          if (lastError.message.includes("No geocoding results found")) {
+            continue
+          }
+          
+          // For HTTP errors (429, 5xx) or other non-retryable errors, fail fast
+          // because the next candidate will likely hit the same rate limit/outage
+          if (lastError.message.includes("Geocoding API returned status")) {
+            throw lastError
+          }
+          
+          // For other errors, continue to next candidate
+          continue
+        }
+      }
+
+      // If all candidates failed, throw a comprehensive error
+      if (!geocodeResult) {
+        const errorMessage = lastError?.message || "Unknown geocoding error"
+        const priorityInfo = event.track.address 
+          ? " (tried stored address, then name-based geocoding)"
+          : " (used name-based geocoding)"
+        throw new Error(
+          `Failed to geocode location for event "${event.eventName}" (track: "${event.track.trackName}")${priorityInfo}. ` +
+          `Attempted candidates: ${attemptedCandidates.join(", ")}. ` +
+          `Last error: ${errorMessage}`
+        )
+      }
+    }
 
     // Fetch weather from API
     const weatherResponse = await fetchWeather(
@@ -138,7 +202,7 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
     // If API calls fail, try to return last cached data (even if expired)
     const lastCached = await getLastWeatherData(eventId)
     if (lastCached) {
-      return formatWeatherResponse(lastCached, true)
+      return formatWeatherResponse(lastCached)
     }
 
     // No cache available and API failed
@@ -193,4 +257,3 @@ function formatWindSpeed(speedKmh: number, direction: number | null): string {
   }
   return `${speedRounded} km/h`
 }
-

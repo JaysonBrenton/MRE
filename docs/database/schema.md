@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-29
 description: Human-readable database schema documentation for MRE application
 purpose: Provides comprehensive documentation of the database schema, including all models,
          relationships, indexes, constraints, and business rules. This document serves as
@@ -16,7 +16,7 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2025-01-27 (Added TransponderOverride model documentation)  
+**Last Updated:** 2025-01-27 (Added track metadata fields: location data, contact info, statistics, description, logos from dashboard extraction)  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -46,7 +46,7 @@ The MRE database schema consists of:
 
 - **1 User model** - User accounts and authentication
 - **1 Persona model** - Persona definitions and user personas
-- **9 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry, Race, Driver, RaceDriver, RaceResult, Lap, TransponderOverride, WeatherData)
+- **10 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry, Race, Driver, RaceDriver, RaceResult, Lap, TransponderOverride, WeatherData)
 - **2 User-Driver Link models** - User-driver matching and linking (UserDriverLink, EventDriverLink)
 - **4 Enum types** - IngestDepth, PersonaType, UserDriverLinkStatus, EventDriverLinkMatchType
 
@@ -104,6 +104,10 @@ User accounts for authentication and user management.
 | `driverName` | String | Required | Primary display name |
 | `teamName` | String | Optional | Optional team name |
 | `isAdmin` | Boolean | Default: `false` | Admin privilege flag |
+| `normalizedName` | String | Optional | Normalized driver name for fuzzy matching |
+| `transponderNumber` | String | Optional | User's default transponder number |
+| `personaId` | String (UUID) | Foreign Key, Optional | Reference to Persona |
+| `isTeamManager` | Boolean | Default: `false` | Team manager privilege flag |
 | `createdAt` | DateTime | Auto-generated | Account creation timestamp |
 | `updatedAt` | DateTime | Auto-updated | Last update timestamp |
 
@@ -125,7 +129,7 @@ User accounts for authentication and user management.
 
 ### Track
 
-Track catalogue entries from LiveRC.
+Track catalogue entries from LiveRC with metadata extracted from dashboard pages.
 
 **Table:** `tracks`
 
@@ -141,6 +145,22 @@ Track catalogue entries from LiveRC.
 | `lastSeenAt` | DateTime | Optional | Last time track was seen in LiveRC catalogue |
 | `isActive` | Boolean | Default: `true` | Whether track is currently active |
 | `isFollowed` | Boolean | Default: `false` | Whether track is followed by users |
+| `latitude` | Float | Optional | Track latitude coordinate (from dashboard map) |
+| `longitude` | Float | Optional | Track longitude coordinate (from dashboard map) |
+| `address` | String | Optional | Full address string (from dashboard) |
+| `city` | String | Optional | City name (parsed from address) |
+| `state` | String | Optional | State/province name (parsed from address) |
+| `country` | String | Optional | Country name (parsed from address) |
+| `postalCode` | String | Optional | Postal/ZIP code (parsed from address) |
+| `phone` | String | Optional | Phone number (from dashboard) |
+| `website` | String | Optional | Website URL (from dashboard) |
+| `email` | String | Optional | Email address (from dashboard, may be obfuscated) |
+| `description` | String | Optional | Track description/amenities text (from dashboard) |
+| `logoUrl` | String | Optional | Track logo image URL (from dashboard) |
+| `facebookUrl` | String | Optional | Facebook page URL (from dashboard) |
+| `totalLaps` | Int | Optional, Default: 0 | Total lifetime laps (from dashboard stats) |
+| `totalRaces` | Int | Optional, Default: 0 | Total lifetime races (from dashboard stats) |
+| `totalEvents` | Int | Optional, Default: 0 | Total lifetime events (from dashboard stats) |
 | `createdAt` | DateTime | Auto-generated | Record creation timestamp |
 | `updatedAt` | DateTime | Auto-updated | Last update timestamp |
 
@@ -148,6 +168,10 @@ Track catalogue entries from LiveRC.
 - `source` + `sourceTrackSlug` must be unique (composite unique constraint)
 - Tracks are discovered via LiveRC catalogue ingestion
 - `isFollowed` tracks are prioritized in user-facing APIs
+- **Metadata Extraction:** Location, contact info, statistics, description, and logos are extracted from track dashboard pages during sync
+- Metadata fields are optional - tracks without dashboard data continue to function normally
+- Stored coordinates (`latitude`, `longitude`) are used by weather service for improved geolocation accuracy
+- If coordinates are not available, weather service falls back to address geocoding or name-based geocoding
 
 **Indexes:**
 - Primary key on `id`
@@ -157,6 +181,10 @@ Track catalogue entries from LiveRC.
 
 **Relationships:**
 - Has many `Event` records (cascade delete)
+
+**Data Sources:**
+- Basic track info (name, slug, URLs): Track catalogue page (`live.liverc.com`)
+- Metadata (location, contact, stats, description, logos): Track dashboard page (`{slug}.liverc.com/`)
 
 ---
 
@@ -593,7 +621,7 @@ Manual transponder number overrides for drivers in events. Allows administrators
 
 ### WeatherData
 
-Cached weather data for events, retrieved from OpenWeatherMap API.
+Cached weather data for events, retrieved from Open-Meteo API.
 
 **Table:** `weather_data`
 

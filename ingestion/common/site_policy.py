@@ -14,6 +14,7 @@ import asyncio
 import json
 import os
 import time
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,7 +30,8 @@ from ingestion.ingestion.errors import ConnectorError
 
 logger = get_logger(__name__)
 
-_POLICY_PATH = Path(__file__).resolve().parents[2] / "policies" / "site_policy" / "policy.json"
+_DEFAULT_POLICY_PATH = Path(__file__).resolve().parents[2] / "policies" / "site_policy" / "policy.json"
+_POLICY_PATH = Path(os.getenv("SITE_POLICY_PATH", str(_DEFAULT_POLICY_PATH)))
 _USER_AGENT = "MRE-IngestionBot/1.0 (contact: admin@domain.com)"
 
 
@@ -92,7 +94,10 @@ class SitePolicy:
         self._robots_cache: Dict[str, robotparser.RobotFileParser] = {}
         self._robots_delay: Dict[str, float] = {}
         self._host_state: Dict[str, _HostState] = {}
-        self._conditional_cache: Dict[str, Dict[str, Any]] = {}
+        self._conditional_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._conditional_cache_max = max(0, int(os.getenv("SITE_POLICY_CACHE_MAX", "256")))
+        # Track hosts that don't have robots.txt (404) - per spec, these allow all paths
+        self._no_robots_hosts: set[str] = set()
 
     @classmethod
     def shared(cls) -> "SitePolicy":
@@ -102,8 +107,15 @@ class SitePolicy:
 
     def _load_config(self) -> Dict[str, Any]:
         if not self._policy_path.exists():
-            logger.warning("site_policy_config_missing", path=str(self._policy_path))
-            return {}
+            logger.error(
+                "site_policy_config_missing",
+                path=str(self._policy_path),
+                message="Set SITE_POLICY_PATH or mount policies/site_policy/policy.json inside the container.",
+            )
+            raise FileNotFoundError(
+                f"Site policy configuration not found at {self._policy_path}."
+                " Set SITE_POLICY_PATH or ensure policies/site_policy/policy.json is available."
+            )
         with self._policy_path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
 
@@ -142,7 +154,15 @@ class SitePolicy:
             metrics.record_site_policy_event("disabled", host=source)
             raise ScrapingDisabledError(source)
 
-    def _fetch_robots(self, host: str) -> robotparser.RobotFileParser:
+    async def _fetch_robots(self, host: str) -> robotparser.RobotFileParser:
+        # If we've already determined this host has no robots.txt, return a parser that allows all
+        if host in self._no_robots_hosts:
+            parser = robotparser.RobotFileParser()
+            parser.set_url(f"https://{host}/robots.txt")
+            # Parse an empty robots.txt which allows all paths
+            parser.parse([])
+            return parser
+        
         parser = self._robots_cache.get(host)
         if parser:
             return parser
@@ -150,22 +170,48 @@ class SitePolicy:
         parser = robotparser.RobotFileParser()
         parser.set_url(robots_url)
         try:
-            parser.read()
-            logger.debug("robots_loaded", host=host, url=robots_url)
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(robots_url)
+                # Per robots.txt spec: if robots.txt doesn't exist (404), all paths are allowed
+                if response.status_code == 404:
+                    logger.debug("robots_not_found", host=host, url=robots_url, message="robots.txt not found - allowing all paths per spec")
+                    # Mark this host as having no robots.txt
+                    self._no_robots_hosts.add(host)
+                    # Parse an empty robots.txt which allows all paths
+                    parser.parse([])
+                else:
+                    response.raise_for_status()
+                    parser.parse(response.text.splitlines())
+                    logger.debug("robots_loaded", host=host, url=robots_url)
+        except httpx.HTTPStatusError as exc:
+            # Handle other HTTP errors
+            if exc.response.status_code == 404:
+                logger.debug("robots_not_found", host=host, url=robots_url, message="robots.txt not found - allowing all paths per spec")
+                self._no_robots_hosts.add(host)
+                parser.parse([])
+            else:
+                logger.warning("robots_load_failed", host=host, error=str(exc), status_code=exc.response.status_code)
+                # On other HTTP errors, allow all (fail open)
+                parser.parse([])
         except Exception as exc:  # pragma: no cover - network failure fallback
             logger.warning("robots_load_failed", host=host, error=str(exc))
+            # On network errors, allow all (fail open)
+            parser.parse([])
         self._robots_cache[host] = parser
         delay = parser.crawl_delay(_USER_AGENT) or parser.crawl_delay("*")
         if delay:
             self._robots_delay[host] = float(delay)
         return parser
-
-    def ensure_allowed(self, url: str) -> None:
+    
+    async def ensure_allowed(self, url: str) -> None:
         host = urlparse(url).netloc
         rule = self._match_rule(host)
         if not rule.respect_robots:
             return
-        parser = self._fetch_robots(host)
+        # Per robots.txt spec: if robots.txt doesn't exist (404), all paths are allowed
+        if host in self._no_robots_hosts:
+            return
+        parser = await self._fetch_robots(host)
         path = urlparse(url).path or "/"
         allowed = parser.can_fetch(_USER_AGENT, path)
         if not allowed:
@@ -203,6 +249,8 @@ class SitePolicy:
         host = urlparse(url).netloc
         if not self._conditional_enabled(host):
             return
+        if self._conditional_cache_max == 0:
+            return
         cache_entry = {
             "etag": response.headers.get("ETag"),
             "last_modified": response.headers.get("Last-Modified"),
@@ -211,7 +259,15 @@ class SitePolicy:
             "headers": dict(response.headers),
         }
         if cache_entry["etag"] or cache_entry["last_modified"]:
+            # Maintain insertion order for LRU semantics
+            if url in self._conditional_cache:
+                self._conditional_cache.pop(url)
             self._conditional_cache[url] = cache_entry
+            while (
+                self._conditional_cache_max > 0
+                and len(self._conditional_cache) > self._conditional_cache_max
+            ):
+                self._conditional_cache.popitem(last=False)
 
     def maybe_use_cached(self, url: str, response: httpx.Response) -> httpx.Response:
         if response.status_code != 304:
@@ -219,6 +275,8 @@ class SitePolicy:
         cached = self._conditional_cache.get(url)
         if not cached or not cached.get("body"):
             return response
+        # Refresh LRU order so frequently used pages stay cached
+        self._conditional_cache.move_to_end(url)
         new_headers = cached.get("headers") or {}
         new_response = httpx.Response(
             status_code=200,

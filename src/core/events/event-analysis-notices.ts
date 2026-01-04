@@ -100,4 +100,17 @@ export function getDriversMissingAvgVsFastest(
   return dedupe(missing)
 }
 
+/**
+ * Identify drivers in a class that are not selected.
+ */
+export function getUnselectedDriversInClass(
+  selectedDriverIds: Iterable<string>,
+  classDrivers: Array<{ driverId: string }>
+): string[] {
+  const selectedSet = new Set(selectedDriverIds)
+  return classDrivers
+    .filter((driver) => !selectedSet.has(driver.driverId))
+    .map((driver) => driver.driverId)
+}
+
 

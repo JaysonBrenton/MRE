@@ -130,7 +130,7 @@ class HTTPXClient:
                 
                 if self._site_policy:
                     self._site_policy.ensure_enabled("liverc")
-                    self._site_policy.ensure_allowed(url)
+                    await self._site_policy.ensure_allowed(url)
                 conditional_headers = {}
                 if self._site_policy:
                     conditional_headers = self._site_policy.build_conditional_headers(url)

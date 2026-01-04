@@ -74,13 +74,16 @@ services:
       # Hot reload for development (set to "true" to enable, "false" or unset for production with workers)
       # When enabled, uses single worker with --reload flag for automatic code reloading
       # When disabled, uses multiple workers for concurrent request handling
-      UVICORN_RELOAD: ${UVICORN_RELOAD:-true}
+      # WARNING: Defaulting to false to prevent single-worker bottlenecks in production-like environments
+      # Set UVICORN_RELOAD=true explicitly in .env.docker for development if hot reload is needed
+      UVICORN_RELOAD: ${UVICORN_RELOAD:-false}
       # Uvicorn workers (only used when UVICORN_RELOAD is false)
       # Default: 4 workers (handles ~4 concurrent long-running ingestions)
       # Increase for higher concurrency (each worker uses ~100-200MB memory)
       UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
       # Track sync report retention (days)
       TRACK_SYNC_REPORT_RETENTION_DAYS: ${TRACK_SYNC_REPORT_RETENTION_DAYS:-30}
+      SITE_POLICY_PATH: ${SITE_POLICY_PATH:-/app/policies/site_policy/policy.json}
     ports:
       - "${INGESTION_PORT:-8000}:8000"
     volumes:
@@ -88,6 +91,8 @@ services:
       - ./ingestion:/app/ingestion
       # Mount reports directory (persists reports on host)
       - ./docs/reports:/app/docs/reports
+      # Mount site policy config so ingestion honors shared throttling rules
+      - ./policies:/app/policies:ro
     networks:
       - mre-network
     restart: unless-stopped
@@ -104,4 +109,3 @@ networks:
   mre-network:
     driver: bridge
     name: my-race-engineer_mre-network
-

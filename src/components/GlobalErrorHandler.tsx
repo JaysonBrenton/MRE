@@ -19,7 +19,42 @@
 "use client"
 
 import { useEffect } from "react"
-import { logger } from "@/lib/logger"
+import { clientLogger } from "@/lib/client-logger"
+
+/**
+ * Check if an error message is a Next.js performance measurement error
+ * These are non-critical development-only errors that occur when components
+ * redirect immediately, causing invalid timing measurements
+ */
+function isPerformanceMeasurementError(message: string): boolean {
+  return (
+    message.includes("cannot have a negative time stamp") ||
+    message.includes("Failed to execute 'measure' on 'Performance'") ||
+    message.includes("negative time stamp")
+  )
+}
+
+/**
+ * Override console.error to filter out Next.js performance measurement errors
+ * This needs to run early, before Next.js error overlay intercepts the errors
+ */
+if (typeof window !== "undefined") {
+  const originalConsoleError = console.error
+  console.error = (...args: unknown[]) => {
+    // Check if any argument contains the performance measurement error
+    const message = args
+      .map((arg) => (typeof arg === "string" ? arg : String(arg)))
+      .join(" ")
+
+    if (isPerformanceMeasurementError(message)) {
+      // Silently ignore these errors - they're not actual application errors
+      return
+    }
+
+    // Call original console.error for all other errors
+    originalConsoleError.apply(console, args)
+  }
+}
 
 /**
  * Global error handler component
@@ -36,7 +71,19 @@ export default function GlobalErrorHandler() {
      * Handle uncaught JavaScript errors
      */
     const handleError = (event: ErrorEvent) => {
-      logger.error("Uncaught JavaScript error", {
+      // Filter out Next.js performance measurement errors
+      const errorMessage = event.message || event.error?.message || ""
+
+      if (isPerformanceMeasurementError(errorMessage)) {
+        // Prevent the error from propagating to Next.js error overlay
+        event.preventDefault()
+        event.stopPropagation()
+        event.stopImmediatePropagation()
+        // Silently ignore these errors - they're not actual application errors
+        return false
+      }
+
+      clientLogger.error("Uncaught JavaScript error", {
         message: event.message,
         filename: event.filename,
         lineno: event.lineno,
@@ -60,7 +107,7 @@ export default function GlobalErrorHandler() {
      * Handle unhandled promise rejections
      */
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      logger.error("Unhandled promise rejection", {
+      clientLogger.error("Unhandled promise rejection", {
         reason:
           event.reason instanceof Error
             ? {
@@ -91,4 +138,3 @@ export default function GlobalErrorHandler() {
   // This component doesn't render anything
   return null
 }
-
