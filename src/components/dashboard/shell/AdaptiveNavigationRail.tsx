@@ -242,12 +242,14 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
 
   return (
     <aside
-      className={`${navWidth} fixed left-0 top-0 z-10 hidden h-screen border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg transition-all duration-300 lg:flex lg:flex-col`}
+      className={`${navWidth} fixed left-0 top-0 z-10 hidden h-screen border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width] lg:flex lg:flex-col`}
     >
-      <div className="flex h-16 items-center justify-between px-4">
-        <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)]">
-          MRE
-        </div>
+      <div className={`flex h-16 items-center ${isNavCollapsed ? "justify-center px-2" : "justify-between px-4"}`}>
+        {!isNavCollapsed && (
+          <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+            MRE
+          </div>
+        )}
         <button
           type="button"
           onClick={toggleNavCollapsed}
@@ -282,13 +284,13 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
               <div className={`flex items-center ${isNavCollapsed ? "justify-center" : "gap-3"}`}>
                 {item.icon(active)}
                 {!isNavCollapsed && (
-                  <span className={`text-sm font-medium ${active ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}>
+                  <span className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${active ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}>
                     {item.label}
                   </span>
                 )}
               </div>
               {!isNavCollapsed && (
-                <p className="mt-1 text-xs text-[var(--token-text-muted)]">{item.description}</p>
+                <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">{item.description}</p>
               )}
             </Link>
           )
@@ -337,7 +339,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span className="text-sm font-medium text-[var(--token-text-secondary)]">
+                <span className="text-sm font-medium text-[var(--token-text-secondary)] transition-opacity duration-200 ease-in-out">
                   User Guides
                 </span>
               </div>

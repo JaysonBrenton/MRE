@@ -16,7 +16,7 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2025-01-27 (Added track metadata fields: location data, contact info, statistics, description, logos from dashboard extraction)  
+**Last Updated:** 2025-01-29 (Added AuditLog and ApplicationLog models; removed duplicate UserDriverLink and EventDriverLink sections; updated schema overview)  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -48,6 +48,7 @@ The MRE database schema consists of:
 - **1 Persona model** - Persona definitions and user personas
 - **10 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry, Race, Driver, RaceDriver, RaceResult, Lap, TransponderOverride, WeatherData)
 - **2 User-Driver Link models** - User-driver matching and linking (UserDriverLink, EventDriverLink)
+- **2 System models** - Audit logging and application logging (AuditLog, ApplicationLog)
 - **4 Enum types** - IngestDepth, PersonaType, UserDriverLinkStatus, EventDriverLinkMatchType
 
 All models use UUID primary keys and include `createdAt` and `updatedAt` timestamps.
@@ -665,87 +666,81 @@ Cached weather data for events, retrieved from Open-Meteo API.
 
 ---
 
-### UserDriverLink
+### AuditLog
 
-Links users to drivers with matching status and similarity scores. Used for driver matching and user-driver association.
+System audit log for tracking user actions and administrative changes.
 
-**Table:** `user_driver_links`
+**Table:** `audit_logs`
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | String (UUID) | Primary Key | Unique link identifier |
-| `userId` | String (UUID) | Foreign Key, Required | Reference to User |
-| `driverId` | String (UUID) | Foreign Key, Required, Unique | Reference to Driver (one-to-one relationship) |
-| `status` | UserDriverLinkStatus | Required | Link status (suggested, confirmed, rejected, conflict) |
-| `similarityScore` | Float | Required | Similarity score from matching algorithm |
-| `matchedAt` | DateTime | Required | When the match was created |
-| `confirmedAt` | DateTime | Optional | When the link was confirmed |
-| `rejectedAt` | DateTime | Optional | When the link was rejected |
-| `matcherId` | String | Required | Matcher algorithm identifier |
-| `matcherVersion` | String | Required | Matcher algorithm version |
-| `conflictReason` | String | Optional | Reason for conflict status |
+| `id` | String (UUID) | Primary Key | Unique audit log identifier |
+| `userId` | String (UUID) | Foreign Key, Optional | Reference to User (set to null if user deleted) |
+| `action` | String | Required | Action type (e.g., "user_updated", "event_deleted") |
+| `resourceType` | String | Required | Resource type (e.g., "user", "event", "track") |
+| `resourceId` | String | Optional | Resource identifier |
+| `details` | Json | Optional | Additional action details (JSON) |
+| `ipAddress` | String | Optional | IP address of the request |
+| `userAgent` | String | Optional | User agent string |
 | `createdAt` | DateTime | Auto-generated | Record creation timestamp |
-| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
 
 **Business Rules:**
-- `userId` + `driverId` must be unique (composite unique constraint)
-- `driverId` must be unique (one driver per user)
-- Status transitions: suggested → confirmed/rejected/conflict
-- Deleted when parent User or Driver is deleted (cascade delete)
+- Audit logs are automatically created for admin actions
+- `userId` is set to null if user is deleted (onDelete: SetNull)
+- Audit logs are never deleted (permanent audit trail)
 
 **Indexes:**
 - Primary key on `id`
-- Unique index on `[userId, driverId]`
-- Unique index on `driverId`
 - Index on `userId`
-- Index on `driverId`
-- Index on `status`
+- Index on `action`
+- Index on `resourceType`
+- Index on `createdAt`
+- Index on `[userId, createdAt]`
+- Index on `[resourceType, resourceId]`
 
 **Relationships:**
-- Belongs to `User` (cascade delete)
-- Belongs to `Driver` (cascade delete, one-to-one)
-- Has many `EventDriverLink` records
+- Belongs to `User` (set null on delete - userId is set to null if user deleted)
 
 ---
 
-### EventDriverLink
+### ApplicationLog
 
-Links users to drivers within specific events with match type and similarity information. Represents event-specific driver matches.
+Application logging for system monitoring and debugging.
 
-**Table:** `event_driver_links`
+**Table:** `application_logs`
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | String (UUID) | Primary Key | Unique link identifier |
-| `userId` | String (UUID) | Foreign Key, Required | Reference to User |
-| `eventId` | String (UUID) | Foreign Key, Required | Reference to Event |
-| `driverId` | String (UUID) | Foreign Key, Required | Reference to Driver |
-| `userDriverLinkId` | String (UUID) | Foreign Key, Optional | Reference to UserDriverLink |
-| `matchType` | EventDriverLinkMatchType | Required | Match type (transponder, exact, fuzzy) |
-| `similarityScore` | Float | Required | Similarity score from matching algorithm |
-| `transponderNumber` | String | Optional | Transponder number used for matching |
-| `matchedAt` | DateTime | Required | When the match was created |
+| `id` | String (UUID) | Primary Key | Unique log identifier |
+| `level` | String | Required | Log level (debug, info, warn, error) |
+| `message` | String | Required | Log message |
+| `service` | String | Default: "nextjs" | Service name (nextjs, ingestion, database) |
+| `context` | Json | Optional | Additional context data (JSON) |
+| `requestId` | String | Optional | Request identifier for tracing |
+| `userId` | String (UUID) | Optional | User identifier if applicable |
+| `ip` | String | Optional | IP address |
+| `path` | String | Optional | Request path |
+| `method` | String | Optional | HTTP method |
+| `userAgent` | String | Optional | User agent string |
 | `createdAt` | DateTime | Auto-generated | Record creation timestamp |
-| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
 
 **Business Rules:**
-- `userId` + `eventId` + `driverId` must be unique (composite unique constraint)
-- Links users to drivers within specific events
-- Can reference a UserDriverLink for user-level driver associations
-- Deleted when parent User, Event, or Driver is deleted (cascade delete)
+- Logs are created by application logging infrastructure
+- Used for monitoring, debugging, and audit purposes
+- Logs may be archived or deleted based on retention policies
 
 **Indexes:**
 - Primary key on `id`
-- Unique index on `[userId, eventId, driverId]`
-- Index on `[userId, driverId, transponderNumber]`
-- Index on `[eventId, driverId]`
-- Index on `userDriverLinkId`
+- Index on `level`
+- Index on `service`
+- Index on `createdAt`
+- Index on `[level, service]`
+- Index on `[service, createdAt]`
+- Index on `requestId`
+- Index on `userId`
 
 **Relationships:**
-- Belongs to `User` (cascade delete)
-- Belongs to `Event` (cascade delete)
-- Belongs to `Driver` (cascade delete)
-- Belongs to `UserDriverLink` (optional)
+- No foreign key relationships (standalone logging table)
 
 ---
 
@@ -996,6 +991,25 @@ Type of matching algorithm used to create event-driver links.
 - Index: `[userId, driverId, transponderNumber]`
 - Index: `[eventId, driverId]`
 - Index: `userDriverLinkId`
+
+**AuditLog:**
+- Primary key: `id`
+- Index: `userId`
+- Index: `action`
+- Index: `resourceType`
+- Index: `createdAt`
+- Index: `[userId, createdAt]`
+- Index: `[resourceType, resourceId]`
+
+**ApplicationLog:**
+- Primary key: `id`
+- Index: `level`
+- Index: `service`
+- Index: `createdAt`
+- Index: `[level, service]`
+- Index: `[service, createdAt]`
+- Index: `requestId`
+- Index: `userId`
 
 ---
 

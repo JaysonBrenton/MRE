@@ -200,19 +200,7 @@ Cognitive load minimisation
 
 6. Mobile UX Requirements
 
-See:
-
-docs/design/mre-mobile-ux-guidelines.md
-
-Version 0.1.1 screens must:
-
-Function fully on mobile
-
-Avoid hover-only interactions
-
-Use appropriate sizing for desktop interaction
-
-Collapse correctly on small screens
+**Note:** The application is now desktop-only for UI. See `docs/design/mre-ux-principles.md` for current UX guidelines. The mobile UX guidelines document has been removed.
 
 7. ADRs
 
@@ -264,7 +252,6 @@ See individual role documents in `docs/roles/` for detailed responsibilities, ha
 │   ├── design/
 │   │   ├── mre-dark-theme-guidelines.md
 │   │   ├── mre-hero-image-generation.md
-│   │   ├── mre-mobile-ux-guidelines.md
 │   │   └── mre-ux-principles.md
 │   ├── adr/
 │   │   ├── README.md

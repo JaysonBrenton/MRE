@@ -36,7 +36,7 @@ function DashboardShell({ children, user, userId }: { children: React.ReactNode;
       data-density={density}
     >
       <AdaptiveNavigationRail user={user ?? null} />
-      <div className={`flex min-h-screen flex-1 flex-col ${sidebarMargin}`}>
+      <div className={`flex min-h-screen flex-1 flex-col transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarMargin}`}>
         <TopStatusBar user={user ?? null} userId={userId} />
         <div className="flex-1 overflow-y-auto px-4 py-6 pb-12 sm:px-6 lg:px-10">
           {children}

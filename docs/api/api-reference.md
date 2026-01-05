@@ -16,7 +16,7 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2025-01-29 (Added missing admin endpoints; fixed response formats for GET /api/v1/tracks, GET /api/v1/events/[eventId], GET /api/v1/events/search; added GET /api/v1/admin/tracks; expanded GET /api/v1/events query parameters)  
+**Last Updated:** 2025-01-29 (Added missing admin endpoints; fixed response formats for GET /api/v1/tracks, GET /api/v1/events/[eventId], GET /api/v1/events/search; added GET /api/v1/admin/tracks; expanded GET /api/v1/events query parameters; added GET /api/v1/users/[userId]/profile endpoint; fixed GET /api/v1/races/[raceId] to include transponder_number and transponder_source; fixed response wrapper format for GET /api/v1/races/[raceId]/laps and GET /api/v1/race-results/[raceResultId]/laps)  
 **API Version:** v1  
 **Base URL:** `/api/v1/` (relative to application root)
 
@@ -553,33 +553,42 @@ Gets detailed race results for a specific race.
 **Response (200 OK):**
 ```json
 {
-  "race": {
-    "id": "uuid",
-    "event_id": "uuid",
-    "class_name": "1.8 Nitro Buggy",
-    "race_label": "A-Main",
-    "race_order": 1,
-    "start_time": "2025-01-27T10:00:00.000Z",
-    "duration_seconds": 3600
-  },
-  "results": [
-    {
-      "race_result_id": "uuid",
-      "position_final": 1,
-      "laps_completed": 50,
-      "total_time_seconds": 3600.5,
-      "fast_lap_time": 70.2,
-      "avg_lap_time": 72.0,
-      "consistency": 92.5,
-      "driver": {
-        "race_driver_id": "uuid",
-        "display_name": "Driver Name",
-        "source_driver_id": "driver-id"
+  "success": true,
+  "data": {
+    "race": {
+      "id": "uuid",
+      "event_id": "uuid",
+      "class_name": "1.8 Nitro Buggy",
+      "race_label": "A-Main",
+      "race_order": 1,
+      "start_time": "2025-01-27T10:00:00.000Z",
+      "duration_seconds": 3600
+    },
+    "results": [
+      {
+        "race_result_id": "uuid",
+        "position_final": 1,
+        "laps_completed": 50,
+        "total_time_seconds": 3600.5,
+        "fast_lap_time": 70.2,
+        "avg_lap_time": 72.0,
+        "consistency": 92.5,
+        "driver": {
+          "race_driver_id": "uuid",
+          "display_name": "Driver Name",
+          "source_driver_id": "driver-id",
+          "transponder_number": "12345",
+          "transponder_source": "entry_list"
+        }
       }
-    }
-  ]
+    ]
+  }
 }
 ```
+
+**Response Fields:**
+- `transponder_number` (string | null) - Transponder number for the driver in this race
+- `transponder_source` (string | null) - Source of the transponder number: `"entry_list"`, `"override"`, `"driver"`, or `null`
 
 **Error Codes:**
 - `NOT_FOUND` (404) - Race not found
@@ -604,24 +613,27 @@ Gets lap data for all drivers in a race.
 **Response (200 OK):**
 ```json
 {
-  "race_id": "uuid",
-  "series": [
-    {
-      "race_result_id": "uuid",
-      "driver": {
-        "race_driver_id": "uuid",
-        "display_name": "Driver Name",
-        "source_driver_id": "driver-id"
-      },
-      "laps": [
-        {
-          "lap_number": 1,
-          "lap_time_seconds": 70.5,
-          "elapsed_race_time": 70.5
-        }
-      ]
-    }
-  ]
+  "success": true,
+  "data": {
+    "race_id": "uuid",
+    "series": [
+      {
+        "race_result_id": "uuid",
+        "driver": {
+          "race_driver_id": "uuid",
+          "display_name": "Driver Name",
+          "source_driver_id": "driver-id"
+        },
+        "laps": [
+          {
+            "lap_number": 1,
+            "lap_time_seconds": 70.5,
+            "elapsed_race_time": 70.5
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 
@@ -648,22 +660,25 @@ Gets detailed lap data for a specific race result.
 **Response (200 OK):**
 ```json
 {
-  "race_result_id": "uuid",
-  "laps": [
-    {
-      "lap_number": 1,
-      "position_on_lap": 1,
-      "lap_time_seconds": 70.5,
-      "lap_time_raw": "1:10.500",
-      "pace_string": "+0.0s",
-      "elapsed_race_time": 70.5,
-      "segments_json": {
-        "sector1": 25.2,
-        "sector2": 30.1,
-        "sector3": 15.2
+  "success": true,
+  "data": {
+    "race_result_id": "uuid",
+    "laps": [
+      {
+        "lap_number": 1,
+        "position_on_lap": 1,
+        "lap_time_seconds": 70.5,
+        "lap_time_raw": "1:10.500",
+        "pace_string": "+0.0s",
+        "elapsed_race_time": 70.5,
+        "segments_json": {
+          "sector1": 25.2,
+          "sector2": 30.1,
+          "sector3": 15.2
+        }
       }
-    }
-  ]
+    ]
+  }
 }
 ```
 
@@ -1484,6 +1499,76 @@ Gets driver links for a specific user.
 **Example:**
 ```bash
 curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/users/uuid/driver-links"
+```
+
+---
+
+### GET /api/v1/users/[userId]/profile
+
+Gets comprehensive user profile data including user information, activity statistics, and driver links.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId` (string, required) - User UUID (must match authenticated user)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "driverName": "John Doe",
+      "teamName": "Team Alpha",
+      "isAdmin": false,
+      "isTeamManager": false,
+      "transponderNumber": "12345",
+      "persona": {
+        "id": "uuid",
+        "type": "driver",
+        "name": "Driver",
+        "description": "Individual RC racer persona"
+      },
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T00:00:00.000Z"
+    },
+    "activityStats": {
+      "eventCount": 10,
+      "raceCount": 25,
+      "bestLapTime": 70.5,
+      "bestAvgLapTime": 72.3,
+      "bestConsistency": 95.2
+    },
+    "driverLinks": [
+      {
+        "driver_id": "uuid",
+        "driver_name": "Driver Name",
+        "status": "confirmed",
+        "linked_at": "2025-01-27T00:00:00.000Z"
+      }
+    ]
+  },
+  "message": "User profile retrieved successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - User can only access their own profile
+- `NOT_FOUND` (404) - User not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Notes:**
+- Users can only access their own profile (userId must match authenticated user ID)
+- Response includes user data with persona information, activity statistics (event count, race count, best lap times), and driver links with status
+- `persona` may be null if user has no assigned persona
+- Activity stats fields may be null if user has no activity data
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/users/uuid/profile"
 ```
 
 ---
