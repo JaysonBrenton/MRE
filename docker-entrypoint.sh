@@ -26,7 +26,7 @@ else
     NEED_INSTALL=true
   else
     # Verify critical packages exist (safety check for incomplete installations)
-    if [ ! -d "node_modules/@visx/group" ] || [ ! -d "node_modules/react-window" ]; then
+    if [ ! -d "node_modules/@visx/group" ] || [ ! -d "node_modules/react-window" ] || [ ! -d "node_modules/react-redux" ]; then
       echo "📦 Critical packages missing from node_modules"
       NEED_INSTALL=true
     fi

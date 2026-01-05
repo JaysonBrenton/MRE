@@ -1,16 +1,16 @@
 /**
  * @fileoverview Event Analysis page
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Event Analysis page for authenticated users to analyze race event data
- * 
+ *
  * @purpose Provides the Event Analysis interface where Drivers can view and analyze
  *          race data for a specific event. Features interactive charts, driver lists,
  *          and comprehensive event statistics.
- * 
+ *
  * @relatedFiles
  * - src/components/event-analysis/ (all analysis components)
  * - src/core/events/get-event-analysis-data.ts (data fetching)
@@ -55,7 +55,7 @@ export default async function EventAnalysisPage({ params }: EventAnalysisPagePro
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/welcome" },
+          { label: "Home", href: "/dashboard" },
           { label: "Event Search", href: "/event-search" },
           { label: analysisData.event.eventName },
         ]}

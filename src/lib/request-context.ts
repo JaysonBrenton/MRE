@@ -1,16 +1,16 @@
 /**
  * @fileoverview Request context utilities for logging
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Utilities for extracting and managing request context for logging
- * 
+ *
  * @purpose Provides functions to extract request context from Next.js requests
  *          and create logger instances with that context. Ensures consistent
  *          request tracking across all logs.
- * 
+ *
  * @relatedFiles
  * - src/lib/logger.ts (logger with context support)
  */
@@ -18,6 +18,7 @@
 import { NextRequest } from "next/server"
 import { createLoggerWithContext, type LogContext } from "./logger"
 import { getQueryCount, getSlowQueries } from "./prisma"
+import { initializeRequestStorage } from "./request-storage"
 
 /**
  * Generate a unique request ID (UUID v4)
@@ -60,7 +61,7 @@ export function getClientIp(request: NextRequest): string {
 
 /**
  * Extract request context from NextRequest
- * 
+ *
  * @param request - Next.js request object
  * @param requestId - Optional request ID (will generate if not provided)
  * @param userId - Optional user ID from session
@@ -88,39 +89,39 @@ export function getRequestContext(
 
 /**
  * Create a logger instance with request context
- * 
+ *
  * @param request - Next.js request object
  * @param requestId - Optional request ID (will generate if not provided)
  * @param userId - Optional user ID from session
  * @returns Logger instance with request context
  */
-export function createRequestLogger(
-  request: NextRequest,
-  requestId?: string,
-  userId?: string
-) {
+export function createRequestLogger(request: NextRequest, requestId?: string, userId?: string) {
+  // Initialize request-scoped storage for query telemetry
+  // This ensures each request has isolated metrics
+  initializeRequestStorage()
+
   const context = getRequestContext(request, requestId, userId)
   const logger = createLoggerWithContext(context)
-  
+
   // Add query count tracking wrapper
   const originalInfo = logger.info.bind(logger)
   logger.info = (message: string, meta?: Record<string, unknown>) => {
     const queryCount = getQueryCount()
     const slowQueries = getSlowQueries()
-    
+
     const enhancedMeta = {
       ...meta,
       prismaQueryCount: queryCount,
       ...(slowQueries.length > 0 && {
-        slowQueries: slowQueries.map(q => ({
+        slowQueries: slowQueries.map((q) => ({
           duration: q.duration,
           query: q.query.substring(0, 200), // Truncate long queries
         })),
       }),
     }
-    
+
     return originalInfo(message, enhancedMeta)
   }
-  
+
   return logger
 }

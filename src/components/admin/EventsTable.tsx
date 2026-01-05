@@ -1,14 +1,14 @@
 /**
  * @fileoverview Admin events table component with sorting, filtering, search, and pagination
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Enhanced events table for admin console
- * 
+ *
  * @purpose Provides comprehensive event management with search, filtering, sorting, and pagination
- * 
+ *
  * @relatedFiles
  * - src/app/api/v1/admin/events/route.ts (API endpoint)
  */
@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import DeleteConfirmationDialog from "./DeleteConfirmationDialog"
 import Modal from "@/components/ui/Modal"
+import ListPagination from "../event-analysis/ListPagination"
 
 interface Event {
   id: string
@@ -73,18 +74,18 @@ export default function EventsTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [itemsPerPage, setItemsPerPage] = useState(20)
   const [reingestEvent, setReingestEvent] = useState<Event | null>(null)
   const [deleteEvent, setDeleteEvent] = useState<Event | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const pageSize = 20
 
   const fetchEvents = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        pageSize: pageSize.toString(),
+        pageSize: itemsPerPage.toString(),
       })
 
       if (ingestDepthFilter !== "all") {
@@ -105,7 +106,7 @@ export default function EventsTable() {
     } finally {
       setLoading(false)
     }
-  }, [ingestDepthFilter, page, pageSize])
+  }, [ingestDepthFilter, page, itemsPerPage])
 
   useEffect(() => {
     fetchEvents()
@@ -128,7 +129,7 @@ export default function EventsTable() {
     // Apply sorting
     const sorted = [...filtered].sort((a, b) => {
       let comparison = 0
-      
+
       switch (sortField) {
         case "eventName":
           comparison = a.eventName.localeCompare(b.eventName)
@@ -143,7 +144,7 @@ export default function EventsTable() {
           comparison = a.ingestDepth.localeCompare(b.ingestDepth)
           break
       }
-      
+
       return sortDirection === "asc" ? comparison : -comparison
     })
 
@@ -240,7 +241,10 @@ export default function EventsTable() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="ingest-depth-filter" className="text-sm text-[var(--token-text-secondary)]">
+          <label
+            htmlFor="ingest-depth-filter"
+            className="text-sm text-[var(--token-text-secondary)]"
+          >
             Status:
           </label>
           <select
@@ -266,7 +270,13 @@ export default function EventsTable() {
             <tr className="border-b border-[var(--token-border-default)]">
               <th
                 className="px-4 py-3 text-left"
-                aria-sort={sortField === "eventName" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                aria-sort={
+                  sortField === "eventName"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
               >
                 <button
                   type="button"
@@ -276,13 +286,21 @@ export default function EventsTable() {
                 >
                   Event
                   {sortField === "eventName" && (
-                    <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                    <span className="ml-2" aria-hidden="true">
+                      {sortDirection === "asc" ? "↑" : "↓"}
+                    </span>
                   )}
                 </button>
               </th>
               <th
                 className="px-4 py-3 text-left"
-                aria-sort={sortField === "trackName" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                aria-sort={
+                  sortField === "trackName"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
               >
                 <button
                   type="button"
@@ -292,13 +310,21 @@ export default function EventsTable() {
                 >
                   Track
                   {sortField === "trackName" && (
-                    <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                    <span className="ml-2" aria-hidden="true">
+                      {sortDirection === "asc" ? "↑" : "↓"}
+                    </span>
                   )}
                 </button>
               </th>
               <th
                 className="px-4 py-3 text-left"
-                aria-sort={sortField === "eventDate" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                aria-sort={
+                  sortField === "eventDate"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
               >
                 <button
                   type="button"
@@ -308,13 +334,21 @@ export default function EventsTable() {
                 >
                   Date
                   {sortField === "eventDate" && (
-                    <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                    <span className="ml-2" aria-hidden="true">
+                      {sortDirection === "asc" ? "↑" : "↓"}
+                    </span>
                   )}
                 </button>
               </th>
               <th
                 className="px-4 py-3 text-left"
-                aria-sort={sortField === "ingestDepth" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                aria-sort={
+                  sortField === "ingestDepth"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
               >
                 <button
                   type="button"
@@ -324,7 +358,9 @@ export default function EventsTable() {
                 >
                   Status
                   {sortField === "ingestDepth" && (
-                    <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                    <span className="ml-2" aria-hidden="true">
+                      {sortDirection === "asc" ? "↑" : "↓"}
+                    </span>
                   )}
                 </button>
               </th>
@@ -336,15 +372,23 @@ export default function EventsTable() {
           <tbody>
             {filteredAndSortedEvents.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[var(--token-text-secondary)]">
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center text-[var(--token-text-secondary)]"
+                >
                   {searchQuery ? "No events match your search." : "No events found."}
                 </td>
               </tr>
             ) : (
               filteredAndSortedEvents.map((e) => (
-                <tr key={e.id} className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)]">
+                <tr
+                  key={e.id}
+                  className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
+                >
                   <td className="px-4 py-3 text-[var(--token-text-primary)]">{e.eventName}</td>
-                  <td className="px-4 py-3 text-[var(--token-text-secondary)]">{e.track.trackName}</td>
+                  <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                    {e.track.trackName}
+                  </td>
                   <td className="px-4 py-3 text-[var(--token-text-secondary)]">
                     {new Date(e.eventDate).toLocaleDateString()}
                   </td>
@@ -377,34 +421,19 @@ export default function EventsTable() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mb-8">
-          <div className="text-sm text-[var(--token-text-secondary)]">
-            Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} events
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <span className="flex items-center px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <ListPagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        itemsPerPage={itemsPerPage}
+        totalItems={total}
+        itemLabel="events"
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        onRowsPerPageChange={(newRowsPerPage) => {
+          setItemsPerPage(newRowsPerPage)
+          setPage(1)
+        }}
+      />
 
       {/* Re-ingest Modal */}
       <Modal
@@ -460,7 +489,9 @@ export default function EventsTable() {
         onConfirm={handleDelete}
         title="Delete Event"
         message="Are you sure you want to delete this event? This will permanently delete the event and all associated data including races, results, and lap data. This action cannot be undone."
-        itemName={deleteEvent ? `${deleteEvent.eventName} (${deleteEvent.track.trackName})` : undefined}
+        itemName={
+          deleteEvent ? `${deleteEvent.eventName} (${deleteEvent.track.trackName})` : undefined
+        }
         loading={actionLoading}
       />
     </div>

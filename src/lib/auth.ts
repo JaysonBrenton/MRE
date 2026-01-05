@@ -1,17 +1,17 @@
 /**
  * @fileoverview NextAuth configuration and authentication setup
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description NextAuth configuration for credential-based authentication
- * 
+ *
  * @purpose This file configures NextAuth for the MRE application. It sets up
  *          credential-based authentication, JWT session strategy, and authorization
  *          callbacks. The authorize function uses the core authenticateUser function
  *          to maintain separation of concerns while providing NextAuth integration.
- * 
+ *
  * @relatedFiles
  * - src/core/auth/login.ts (authentication business logic)
  * - src/lib/session.ts (session helpers)
@@ -33,13 +33,32 @@ async function getAuthorizeFunction() {
 
 import { env } from "./env"
 
+/**
+ * Public API endpoint prefixes that do not require authentication
+ */
+export const publicApiPrefixes = [
+  "/api/v1/auth/login",
+  "/api/v1/auth/register",
+  "/api/health",
+] as const
+
+/**
+ * Check if a given pathname is a public API endpoint
+ *
+ * @param pathname - The pathname to check
+ * @returns true if the pathname matches a public API prefix
+ */
+export function isPublicApi(pathname: string): boolean {
+  return publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))
+}
+
 export const config = {
   secret: env.AUTH_SECRET,
   providers: [
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         // Only import and execute in Node.js runtime (not Edge Runtime)
@@ -48,16 +67,28 @@ export const config = {
           // Edge Runtime - should never reach here, but fail safely
           return null
         }
-        
+
         // Dynamically import authorize handler to avoid loading argon2 in Edge Runtime
         // This ensures argon2 (native Node.js module) is only loaded during actual authentication
         const authorizeCredentials = await getAuthorizeFunction()
         return authorizeCredentials(credentials as Record<"email" | "password", string> | undefined)
-      }
-    })
+      },
+    }),
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name: `${env.NODE_ENV === "production" ? "__Secure-" : ""}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: env.NODE_ENV === "production", // Only send over HTTPS in production
+      },
+    },
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -80,7 +111,7 @@ export const config = {
           email: String(token.email || ""),
           name: String(token.name || ""),
           isAdmin: Boolean(token.isAdmin || false),
-        }
+        },
       }
     },
     authorized({ auth, request: { nextUrl } }) {
@@ -92,29 +123,28 @@ export const config = {
       const isLogin = pathname.startsWith("/login")
       const isRegister = pathname.startsWith("/register")
       const isApiAuthRoute = pathname.startsWith("/api/auth")
-      const publicApiPrefixes = ["/api/v1/auth/login", "/api/v1/auth/register"]
-      const isPublicApi = publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))
+      const isPublicApiRoute = isPublicApi(pathname)
       const isPublicPage = isLogin || isRegister
 
       if (!isLoggedIn) {
-          if (isPublicPage || isApiAuthRoute || isPublicApi) {
-            return true
-          }
+        if (isPublicPage || isApiAuthRoute || isPublicApiRoute) {
+          return true
+        }
 
-          if (isApiRoute) {
-            return NextResponse.json(
-              {
-                success: false,
-                error: {
-                  code: "UNAUTHORIZED",
-                  message: "Authentication required",
-                },
+        if (isApiRoute) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                code: "UNAUTHORIZED",
+                message: "Authentication required",
               },
-              { status: 401 }
-            )
-          }
+            },
+            { status: 401 }
+          )
+        }
 
-          return NextResponse.redirect(new URL("/login", nextUrl))
+        return NextResponse.redirect(new URL("/login", nextUrl))
       }
 
       if (isRoot) {
@@ -125,7 +155,7 @@ export const config = {
         return NextResponse.redirect(new URL("/dashboard", nextUrl))
       }
 
-      if (isPublicPage || isApiAuthRoute || isPublicApi) {
+      if (isPublicPage || isApiAuthRoute || isPublicApiRoute) {
         if (isLogin || isRegister) {
           // Redirect authenticated users away from login/register pages
           if (auth?.user?.isAdmin) {
@@ -160,7 +190,7 @@ export const config = {
       }
 
       return true
-    }
+    },
   },
   pages: {
     signIn: "/login",

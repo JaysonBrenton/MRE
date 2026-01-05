@@ -1,10 +1,10 @@
 /**
  * @fileoverview Users table component for admin console
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-29
- * 
+ *
  * @description Displays users in a table with management actions, search, and filters
  */
 
@@ -14,6 +14,7 @@ import { useEffect, useState, useCallback } from "react"
 import EditUserModal from "./EditUserModal"
 import DeleteConfirmationDialog from "./DeleteConfirmationDialog"
 import Modal from "@/components/ui/Modal"
+import ListPagination from "../event-analysis/ListPagination"
 
 interface User {
   id: string
@@ -31,6 +32,7 @@ export default function UsersTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [itemsPerPage, setItemsPerPage] = useState(50)
   const [searchQuery, setSearchQuery] = useState("")
   const [isAdminFilter, setIsAdminFilter] = useState<string>("all")
   const [teamNameFilter, setTeamNameFilter] = useState("")
@@ -44,7 +46,7 @@ export default function UsersTable() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        pageSize: "50",
+        pageSize: itemsPerPage.toString(),
       })
 
       if (searchQuery.trim()) {
@@ -73,7 +75,7 @@ export default function UsersTable() {
     } finally {
       setLoading(false)
     }
-  }, [page, searchQuery, isAdminFilter])
+  }, [page, itemsPerPage, searchQuery, isAdminFilter])
 
   useEffect(() => {
     fetchUsers()
@@ -234,7 +236,10 @@ export default function UsersTable() {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-[var(--token-text-secondary)]">
+                <td
+                  colSpan={6}
+                  className="px-4 py-8 text-center text-[var(--token-text-secondary)]"
+                >
                   {searchQuery ? "No users match your search." : "No users found."}
                 </td>
               </tr>
@@ -244,7 +249,9 @@ export default function UsersTable() {
                   key={user.id}
                   className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface)]"
                 >
-                  <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">{user.email}</td>
+                  <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">
+                    {user.email}
+                  </td>
                   <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">
                     {user.driverName}
                   </td>
@@ -294,32 +301,19 @@ export default function UsersTable() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-[var(--token-text-secondary)]">
-            Showing {((page - 1) * 50) + 1} to {Math.min(page * 50, total)} of {total} users
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <span className="flex items-center px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <ListPagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        itemsPerPage={itemsPerPage}
+        totalItems={total}
+        itemLabel="users"
+        rowsPerPageOptions={[10, 25, 50, 100]}
+        onRowsPerPageChange={(newRowsPerPage) => {
+          setItemsPerPage(newRowsPerPage)
+          setPage(1)
+        }}
+      />
 
       {/* Modals */}
       <EditUserModal
@@ -385,4 +379,3 @@ export default function UsersTable() {
     </div>
   )
 }
-

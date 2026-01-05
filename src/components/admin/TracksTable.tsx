@@ -1,14 +1,14 @@
 /**
  * @fileoverview Admin tracks table component with search, filters, and follow/unfollow toggle
- * 
+ *
  * @created 2025-01-29
  * @creator System
  * @lastModified 2025-01-29
- * 
+ *
  * @description Displays tracks in a table with management actions
- * 
+ *
  * @purpose Provides track management with search, filtering, and follow/unfollow functionality
- * 
+ *
  * @relatedFiles
  * - src/app/api/v1/admin/tracks/route.ts (API endpoint)
  * - src/app/api/v1/admin/tracks/[trackId]/route.ts (update endpoint)
@@ -16,6 +16,7 @@
 
 "use client"
 import { useEffect, useState, useCallback } from "react"
+import ListPagination from "../event-analysis/ListPagination"
 
 interface Track {
   id: string
@@ -33,19 +34,19 @@ export default function TracksTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [itemsPerPage, setItemsPerPage] = useState(50)
   const [searchQuery, setSearchQuery] = useState("")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
   const [isFollowedFilter, setIsFollowedFilter] = useState<string>("all")
   const [isActiveFilter, setIsActiveFilter] = useState<string>("all")
   const [updatingTrack, setUpdatingTrack] = useState<string | null>(null)
-  const pageSize = 50
 
   const fetchTracks = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        pageSize: pageSize.toString(),
+        pageSize: itemsPerPage.toString(),
       })
 
       if (sourceFilter !== "all") {
@@ -75,7 +76,7 @@ export default function TracksTable() {
     } finally {
       setLoading(false)
     }
-  }, [page, sourceFilter, isFollowedFilter, isActiveFilter])
+  }, [page, itemsPerPage, sourceFilter, isFollowedFilter, isActiveFilter])
 
   useEffect(() => {
     fetchTracks()
@@ -235,7 +236,10 @@ export default function TracksTable() {
           <tbody>
             {filteredTracks.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-[var(--token-text-secondary)]">
+                <td
+                  colSpan={6}
+                  className="px-4 py-8 text-center text-[var(--token-text-secondary)]"
+                >
                   {searchQuery ? "No tracks match your search." : "No tracks found."}
                 </td>
               </tr>
@@ -290,34 +294,19 @@ export default function TracksTable() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-[var(--token-text-secondary)]">
-            Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total}{" "}
-            tracks
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <span className="flex items-center px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <ListPagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        itemsPerPage={itemsPerPage}
+        totalItems={total}
+        itemLabel="tracks"
+        rowsPerPageOptions={[10, 25, 50, 100]}
+        onRowsPerPageChange={(newRowsPerPage) => {
+          setItemsPerPage(newRowsPerPage)
+          setPage(1)
+        }}
+      />
     </div>
   )
 }
-

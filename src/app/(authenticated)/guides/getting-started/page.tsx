@@ -1,15 +1,15 @@
 /**
  * @fileoverview Getting Started guide page
- * 
+ *
  * @created 2025-01-28
  * @creator Jayson Brenton
  * @lastModified 2025-01-28
- * 
+ *
  * @description Getting Started guide for My Race Engineer users
- * 
+ *
  * @purpose Provides an introduction and getting started guide for new users
  *          to help them understand how to use the My Race Engineer platform.
- * 
+ *
  * @relatedFiles
  * - src/components/Breadcrumbs.tsx (breadcrumb navigation)
  * - src/components/dashboard/shell/AdaptiveNavigationRail.tsx (navigation)
@@ -22,7 +22,7 @@ export default async function GettingStartedPage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/welcome" },
+          { label: "Home", href: "/dashboard" },
           { label: "Guides", href: "/guides" },
           { label: "Getting Started" },
         ]}
@@ -41,7 +41,8 @@ export default async function GettingStartedPage() {
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
             My Race Engineer (MRE) is your comprehensive RC racing telemetry platform. This guide
-            will walk you through the essential features and help you get the most out of the platform.
+            will walk you through the essential features and help you get the most out of the
+            platform.
           </p>
         </section>
 
@@ -59,7 +60,9 @@ export default async function GettingStartedPage() {
               the Event Search feature to find and import racing events from LiveRC.
             </li>
             <li>
-              <strong className="text-[var(--token-text-primary)]">Analyze your performance:</strong>{" "}
+              <strong className="text-[var(--token-text-primary)]">
+                Analyze your performance:
+              </strong>{" "}
               View detailed event analysis to understand your lap times, consistency, and compare
               with other drivers.
             </li>
@@ -107,4 +110,3 @@ export default async function GettingStartedPage() {
     </section>
   )
 }
-

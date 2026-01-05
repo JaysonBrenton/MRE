@@ -3,9 +3,11 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Deployment and DevOps runbook for MRE application
-purpose: Provides comprehensive deployment procedures, including pre-deployment checklists,
-         deployment steps, database migrations, rollback procedures, and health checks.
-         Ensures reliable deployments and clear procedures for operations team.
+purpose:
+  Provides comprehensive deployment procedures, including pre-deployment
+  checklists, deployment steps, database migrations, rollback procedures, and
+  health checks. Ensures reliable deployments and clear procedures for
+  operations team.
 relatedFiles:
   - docker-compose.yml (container configuration)
   - Dockerfile (build configuration)
@@ -19,7 +21,9 @@ relatedFiles:
 **Last Updated:** 2025-01-27  
 **Scope:** Production deployment procedures
 
-This document provides comprehensive deployment procedures for the MRE application, including pre-deployment checklists, deployment steps, database migrations, rollback procedures, and health checks.
+This document provides comprehensive deployment procedures for the MRE
+application, including pre-deployment checklists, deployment steps, database
+migrations, rollback procedures, and health checks.
 
 ---
 
@@ -42,25 +46,30 @@ This document provides comprehensive deployment procedures for the MRE applicati
 ### Container Architecture
 
 **Services:**
+
 - `mre-app` - Next.js application (port 3001)
 - `mre-liverc-ingestion-service` - Python ingestion service (port 8000)
 - `mre-postgres` - PostgreSQL database (port 5432)
 
 **Network:**
+
 - Docker network: `my-race-engineer_mre-network`
 - Bridge network for service communication
 
 ### Deployment Environments
 
 **Development:**
+
 - Local Docker Compose
 - Hot reload enabled
 - Source code mounted as volumes
 
 **Staging:**
+
 - **Placeholder:** Staging environment configuration
 
 **Production:**
+
 - **Placeholder:** Production environment configuration
 
 ---
@@ -123,6 +132,7 @@ docker compose logs -f
 **Placeholder:** Staging deployment procedures will be documented
 
 **Recommended Steps:**
+
 1. Build Docker images
 2. Push images to container registry
 3. Deploy to staging environment
@@ -135,6 +145,7 @@ docker compose logs -f
 **Placeholder:** Production deployment procedures will be documented
 
 **Recommended Steps:**
+
 1. **Pre-deployment**
    - Create database backup
    - Review deployment plan
@@ -160,6 +171,7 @@ docker compose logs -f
 ### Migration Workflow
 
 **Development:**
+
 ```bash
 # Create migration
 npx prisma migrate dev --name migration_name
@@ -169,6 +181,7 @@ npx prisma migrate deploy
 ```
 
 **Production:**
+
 ```bash
 # Review migration SQL
 cat prisma/migrations/[timestamp]_migration_name/migration.sql
@@ -192,6 +205,7 @@ npx prisma migrate deploy
 ### Migration Rollback
 
 **If migration fails:**
+
 1. Stop the application
 2. Restore database from backup
 3. Fix migration script
@@ -199,6 +213,7 @@ npx prisma migrate deploy
 5. Retry deployment
 
 **Manual rollback:**
+
 ```sql
 -- Review migration SQL and create reverse migration
 -- Example: If migration added a column, remove it
@@ -212,6 +227,7 @@ ALTER TABLE table_name DROP COLUMN column_name;
 ### Application Rollback
 
 **Using Docker Compose:**
+
 ```bash
 # Stop current containers
 docker compose down
@@ -225,6 +241,7 @@ docker compose up -d
 ```
 
 **Using Container Registry:**
+
 ```bash
 # Deploy previous image version
 docker compose pull [previous-image-tag]
@@ -234,11 +251,13 @@ docker compose up -d
 ### Database Rollback
 
 **If migration needs rollback:**
+
 1. Restore database from backup
 2. Or manually reverse migration SQL
 3. Verify data integrity
 
 **Backup restoration:**
+
 ```bash
 # Restore from backup
 pg_restore -d database_name backup_file.dump
@@ -255,32 +274,71 @@ docker exec -it mre-postgres pg_restore -U pacetracer -d pacetracer backup_file.
 
 **Endpoint:** `GET /api/health`
 
+**Authentication:** This endpoint is **public** and does not require
+authentication. It is configured as a public API endpoint to allow Docker health
+checks and orchestration tools to verify service availability without
+credentials.
+
 **Expected Response:**
+
 ```json
 {
-  "status": "ok",
-  "timestamp": "2025-01-27T00:00:00.000Z"
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "timestamp": "2025-01-27T00:00:00.000Z"
+  },
+  "message": "Service is healthy"
 }
 ```
 
 **Check Script:**
+
 ```bash
+# Works without authentication
 curl http://localhost:3001/api/health
 ```
 
 ### Container Health Checks
 
-**Docker Compose Configuration:**
+**Docker Compose Configuration:** The `docker-compose.yml` file includes a
+health check configuration that uses the public `/api/health` endpoint:
+
 ```yaml
 healthcheck:
-  test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+  test:
+    [
+      "CMD",
+      "wget",
+      "--quiet",
+      "--tries=1",
+      "--spider",
+      "http://localhost:3001/api/health",
+    ]
   interval: 30s
   timeout: 10s
   retries: 3
   start_period: 40s
 ```
 
+**Why `/api/health` is public:**
+
+- Docker health checks cannot authenticate
+- Orchestration tools (Kubernetes, Docker Swarm) need unauthenticated health
+  checks
+- The endpoint only returns basic service status (no sensitive data)
+
+**Public API Endpoints:** The following endpoints do not require authentication:
+
+- `/api/health` - Health check endpoint (for Docker/orchestration)
+- `/api/v1/auth/login` - User authentication
+- `/api/v1/auth/register` - User registration
+- `/api/auth/*` - NextAuth internal routes
+
+All other API endpoints require authentication.
+
 **Check Container Health:**
+
 ```bash
 docker ps
 # Check STATUS column for "healthy"
@@ -289,11 +347,13 @@ docker ps
 ### Database Health Check
 
 **Connection Test:**
+
 ```bash
 docker exec -it mre-postgres psql -U pacetracer -d pacetracer -c "SELECT 1"
 ```
 
 **Ingestion Service Health:**
+
 ```bash
 curl http://localhost:8000/health
 ```
@@ -307,6 +367,7 @@ curl http://localhost:8000/health
 **Placeholder:** Automated smoke tests will be added
 
 **Manual Checks:**
+
 1. Health endpoint returns 200 OK
 2. Application loads in browser
 3. Login functionality works
@@ -316,6 +377,7 @@ curl http://localhost:8000/health
 ### Monitoring
 
 **Check Logs:**
+
 ```bash
 # Application logs
 docker logs -f mre-app
@@ -328,6 +390,7 @@ docker logs -f mre-postgres
 ```
 
 **Check Metrics:**
+
 - **Placeholder:** Metrics dashboard setup
 
 ---
@@ -362,6 +425,7 @@ docker logs -f mre-postgres
 **Placeholder:** Alerting configuration will be documented
 
 **Recommended Alerts:**
+
 - Health check failures
 - High error rates
 - Database connection failures
@@ -377,6 +441,7 @@ docker logs -f mre-postgres
 ### Backup Strategy
 
 **Database Backups:**
+
 - **Placeholder:** Automated backup schedule
 - **Frequency:** Daily (recommended)
 - **Retention:** 30 days (recommended)
@@ -387,6 +452,7 @@ docker logs -f mre-postgres
 **Placeholder:** Recovery procedures will be documented
 
 **Steps:**
+
 1. Assess damage
 2. Restore from backup
 3. Verify data integrity
@@ -398,7 +464,8 @@ docker logs -f mre-postgres
 
 ## Related Documentation
 
-- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup details
+- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup
+  details
 - [Environment Variables Reference](./environment-variables.md) - Configuration
 - [Quick Start Guide](../development/quick-start.md) - Development setup
 - [Observability Guide](./observability-guide.md) - Monitoring and logging
@@ -406,4 +473,3 @@ docker logs -f mre-postgres
 ---
 
 **End of Deployment Guide**
-

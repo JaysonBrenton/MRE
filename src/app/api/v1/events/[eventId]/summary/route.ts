@@ -1,17 +1,17 @@
 /**
  * @fileoverview Event summary API route
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description API route for getting lightweight event summary
- * 
+ *
  * @purpose Provides user-facing API for event summary data (metadata + aggregated stats).
  *          This endpoint uses database aggregations and does not load the full event graph,
  *          making it much faster than the full analysis endpoint.
  *          Follows mobile-safe architecture by delegating to core function.
- * 
+ *
  * @relatedFiles
  * - src/core/events/get-event-analysis-data.ts (business logic)
  * - src/lib/api-utils.ts (response helpers)
@@ -20,7 +20,7 @@
 import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import { getEventSummary } from "@/core/events/get-event-analysis-data"
-import { successResponse, errorResponse } from "@/lib/api-utils"
+import { successResponse, errorResponse, CACHE_CONTROL } from "@/lib/api-utils"
 import { createRequestLogger, generateRequestId } from "@/lib/request-context"
 import { handleApiError } from "@/lib/server-error-handler"
 
@@ -38,12 +38,7 @@ export async function GET(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized event summary request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -53,12 +48,7 @@ export async function GET(
 
     if (!summaryData) {
       requestLogger.warn("Event not found", { eventId })
-      return errorResponse(
-        "NOT_FOUND",
-        "Event not found",
-        {},
-        404
-      )
+      return errorResponse("NOT_FOUND", "Event not found", {}, 404)
     }
 
     requestLogger.info("Event summary fetched successfully", {
@@ -69,40 +59,42 @@ export async function GET(
       topDriversCount: summaryData.topDrivers?.length ?? 0,
       mostConsistentCount: summaryData.mostConsistentDrivers?.length ?? 0,
       bestAvgLapCount: summaryData.bestAvgLapDrivers?.length ?? 0,
+      mostImprovedCount: summaryData.mostImprovedDrivers?.length ?? 0,
       hasUserBestLap: !!summaryData.userBestLap,
     })
 
-    return successResponse({
-      event: {
-        id: summaryData.event.id,
-        eventName: summaryData.event.eventName,
-        eventDate: summaryData.event.eventDate.toISOString(),
-        trackName: summaryData.event.trackName,
-      },
-      summary: {
-        totalRaces: summaryData.summary.totalRaces,
-        totalDrivers: summaryData.summary.totalDrivers,
-        totalLaps: summaryData.summary.totalLaps,
-        dateRange: {
-          earliest: summaryData.summary.dateRange.earliest?.toISOString() || null,
-          latest: summaryData.summary.dateRange.latest?.toISOString() || null,
+    // Event summary - cache for 5 minutes
+    return successResponse(
+      {
+        event: {
+          id: summaryData.event.id,
+          eventName: summaryData.event.eventName,
+          eventDate: summaryData.event.eventDate.toISOString(),
+          trackName: summaryData.event.trackName,
         },
+        summary: {
+          totalRaces: summaryData.summary.totalRaces,
+          totalDrivers: summaryData.summary.totalDrivers,
+          totalLaps: summaryData.summary.totalLaps,
+          dateRange: {
+            earliest: summaryData.summary.dateRange.earliest?.toISOString() || null,
+            latest: summaryData.summary.dateRange.latest?.toISOString() || null,
+          },
+        },
+        topDrivers: summaryData.topDrivers,
+        mostConsistentDrivers: summaryData.mostConsistentDrivers,
+        bestAvgLapDrivers: summaryData.bestAvgLapDrivers,
+        mostImprovedDrivers: summaryData.mostImprovedDrivers,
+        userBestLap: summaryData.userBestLap,
+        userBestConsistency: summaryData.userBestConsistency,
+        userBestAvgLap: summaryData.userBestAvgLap,
       },
-      topDrivers: summaryData.topDrivers,
-      mostConsistentDrivers: summaryData.mostConsistentDrivers,
-      bestAvgLapDrivers: summaryData.bestAvgLapDrivers,
-      userBestLap: summaryData.userBestLap,
-      userBestConsistency: summaryData.userBestConsistency,
-      userBestAvgLap: summaryData.userBestAvgLap,
-    })
+      200,
+      undefined,
+      CACHE_CONTROL.EVENT_SUMMARY
+    )
   } catch (error) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
-

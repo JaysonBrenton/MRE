@@ -1,30 +1,31 @@
 // @fileoverview HTTP client for Python ingestion service
-// 
+//
 // @created 2025-01-27
 // @creator Jayson Brenton
 // @lastModified 2025-01-27
-// 
+//
 // @description TypeScript client for calling Python ingestion service
-// 
+//
 // @purpose Provides typed HTTP client to interact with Python ingestion
 //          microservice API endpoints
 
 import { assertScrapingEnabled } from "./site-policy"
 
-const INGESTION_SERVICE_URL = process.env.INGESTION_SERVICE_URL || "http://liverc-ingestion-service:8000";
+const INGESTION_SERVICE_URL =
+  process.env.INGESTION_SERVICE_URL || "http://liverc-ingestion-service:8000"
 
 export interface IngestEventRequest {
-  depth: "laps_full" | "none";
+  depth: "laps_full" | "none"
 }
 
 export interface IngestEventResponse {
-  event_id: string;
-  ingest_depth: string;
-  last_ingested_at?: string;
-  races_ingested: number;
-  results_ingested: number;
-  laps_ingested: number;
-  status: "updated" | "already_complete" | "in_progress";
+  event_id: string
+  ingest_depth: string
+  last_ingested_at?: string
+  races_ingested: number
+  results_ingested: number
+  laps_ingested: number
+  status: "updated" | "already_complete" | "in_progress"
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -32,11 +33,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isIngestionSuccessResponse(value: unknown): value is IngestionSuccessResponse {
-  return (
-    isRecord(value) &&
-    value.success === true &&
-    "data" in value
-  )
+  return isRecord(value) && value.success === true && "data" in value
 }
 
 function isIngestionErrorResponse(value: unknown): value is IngestionErrorResponse {
@@ -80,72 +77,72 @@ export class IngestionServiceError extends Error {
 }
 
 export interface DiscoveredEvent {
-  source: string;
-  source_event_id: string;
-  track_slug: string;
-  event_name: string;
-  event_date: string; // ISO string
-  event_entries: number;
-  event_drivers: number;
-  event_url: string;
+  source: string
+  source_event_id: string
+  track_slug: string
+  event_name: string
+  event_date: string // ISO string
+  event_entries: number
+  event_drivers: number
+  event_url: string
 }
 
 export interface DiscoveryResponse {
-  success: true;
+  success: true
   data: {
-    events: DiscoveredEvent[];
-  };
+    events: DiscoveredEvent[]
+  }
 }
 
 export interface DiscoveryErrorResponse {
-  success: false;
+  success: false
   error: {
-    code: string;
-    message: string;
-    details: unknown;
-    source: string;
-  };
+    code: string
+    message: string
+    details: unknown
+    source: string
+  }
 }
 
 export interface IngestionSuccessResponse {
-  success: true;
-  data: IngestEventResponse;
+  success: true
+  data: IngestEventResponse
 }
 
 export interface IngestionErrorResponse {
-  success: false;
+  success: false
   error: {
-    code: string;
-    message: string;
-    details: unknown;
-    source: string;
-  };
+    code: string
+    message: string
+    details: unknown
+    source: string
+  }
 }
 
 export interface EntryListDriver {
-  driver_name: string;
-  car_number: string | null;
-  transponder_number: string | null;
-  source_driver_id: string | null;
-  class_name: string;
+  driver_name: string
+  car_number: string | null
+  transponder_number: string | null
+  source_driver_id: string | null
+  class_name: string
 }
 
 export interface EntryListResponse {
-  success: true;
+  success: true
   data: {
-    source_event_id: string;
-    entries_by_class: Record<string, EntryListDriver[]>;
-  };
+    source_event_id: string
+    entries_by_class: Record<string, EntryListDriver[]>
+  }
 }
 
 export interface EntryListErrorResponse {
-  success: false;
+  success: false
   error: {
-    code: string;
-    message: string;
-    details: unknown;
-    source: string;
-  };
+    code: string
+    message: string
+    details: unknown
+    source: string
+  }
 }
 
 /**
@@ -156,12 +153,12 @@ class CircuitBreaker {
   private failures: number = 0
   private lastFailureTime: number = 0
   private state: "CLOSED" | "OPEN" | "HALF_OPEN" = "CLOSED"
-  
+
   // Configuration
   private readonly failureThreshold: number = 3 // Open circuit after 3 failures
   private readonly timeoutMs: number = 60000 // 60 seconds before trying half-open
   private readonly successThreshold: number = 1 // Close circuit after 1 success in half-open
-  
+
   /**
    * Check if circuit is open (should fail fast)
    */
@@ -177,7 +174,7 @@ class CircuitBreaker {
     }
     return false
   }
-  
+
   /**
    * Record a successful call
    */
@@ -191,14 +188,14 @@ class CircuitBreaker {
       this.failures = 0
     }
   }
-  
+
   /**
    * Record a failed call
    */
   recordFailure(): void {
     this.lastFailureTime = Date.now()
     this.failures++
-    
+
     if (this.state === "HALF_OPEN") {
       // Still failing - open circuit again
       this.state = "OPEN"
@@ -208,7 +205,7 @@ class CircuitBreaker {
       this.state = "OPEN"
     }
   }
-  
+
   /**
    * Get current circuit state for monitoring
    */
@@ -219,7 +216,7 @@ class CircuitBreaker {
       lastFailureTime: this.lastFailureTime,
     }
   }
-  
+
   /**
    * Reset circuit breaker (for testing/recovery)
    */
@@ -231,12 +228,12 @@ class CircuitBreaker {
 }
 
 export class IngestionClient {
-  private baseUrl: string;
-  private circuitBreaker: CircuitBreaker;
+  private baseUrl: string
+  private circuitBreaker: CircuitBreaker
 
   constructor(baseUrl: string = INGESTION_SERVICE_URL) {
-    this.baseUrl = baseUrl;
-    this.circuitBreaker = new CircuitBreaker();
+    this.baseUrl = baseUrl
+    this.circuitBreaker = new CircuitBreaker()
   }
 
   private async parseJsonResponse(response: Response): Promise<unknown> {
@@ -256,10 +253,10 @@ export class IngestionClient {
       // Try to extract error information from the unexpected payload
       let errorMessage = "Ingestion service returned an unexpected response format"
       const errorDetails: Record<string, unknown> = { payload: payload ?? null }
-      
+
       if (payload && typeof payload === "object" && payload !== null) {
         const payloadObj = payload as Record<string, unknown>
-        
+
         // Check for error information in various formats
         if (typeof payloadObj.error === "string") {
           errorMessage = payloadObj.error as string
@@ -275,7 +272,7 @@ export class IngestionClient {
           }
         }
       }
-      
+
       throw new IngestionServiceError(
         {
           code: "INGESTION_ERROR",
@@ -297,7 +294,7 @@ export class IngestionClient {
     maxRetries: number = 3
   ): Promise<IngestEventResponse> {
     let lastError: Error | null = null
-    
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
@@ -319,18 +316,23 @@ export class IngestionClient {
             // Extract error details, including any nested error information
             const errorData = payload.error
             const errorDetails: Record<string, unknown> = {}
-            
+
             // Preserve all error details
             if (typeof errorData === "object" && errorData !== null) {
               Object.assign(errorDetails, errorData)
             }
-            
+
             throw new IngestionServiceError(
               {
                 code: errorData.code,
                 message: errorData.message,
                 source: errorData.source,
-                details: { ...errorDetails, ...(typeof errorData.details === "object" && errorData.details !== null ? errorData.details : {}) },
+                details: {
+                  ...errorDetails,
+                  ...(typeof errorData.details === "object" && errorData.details !== null
+                    ? errorData.details
+                    : {}),
+                },
               },
               response.status
             )
@@ -339,10 +341,10 @@ export class IngestionClient {
           let errorMessage = `Ingestion request failed with HTTP ${response.status}: ${response.statusText}`
           let errorCode = "INGESTION_ERROR"
           const errorDetails: Record<string, unknown> = {}
-          
+
           if (payload && typeof payload === "object" && payload !== null) {
             const errorObj = payload as Record<string, unknown>
-            
+
             // Try to extract message from various possible locations
             if (typeof errorObj.message === "string") {
               errorMessage = errorObj.message
@@ -365,11 +367,11 @@ export class IngestionClient {
                 errorMessage = errorObj.error as string
               }
             }
-            
+
             // Preserve all error details for debugging
             Object.assign(errorDetails, payload)
           }
-          
+
           throw new IngestionServiceError(
             {
               code: errorCode,
@@ -386,7 +388,7 @@ export class IngestionClient {
         return this.assertIngestionSuccess(payload, response.status)
       } catch (error: unknown) {
         clearTimeout(timeoutId)
-        
+
         if (error instanceof Error) {
           if (error.name === "AbortError") {
             throw new Error(
@@ -395,7 +397,7 @@ export class IngestionClient {
           }
 
           // Check for various connection error patterns
-          const isConnectionError = 
+          const isConnectionError =
             error.message.includes("fetch failed") ||
             error.message.includes("ECONNREFUSED") ||
             error.message.includes("ENOTFOUND") ||
@@ -403,36 +405,39 @@ export class IngestionClient {
             error.message.includes("EAI_AGAIN") ||
             error.message.includes("network") ||
             error.message.includes("socket") ||
-            error.cause instanceof Error && (
-              error.cause.message.includes("ECONNREFUSED") ||
-              error.cause.message.includes("ENOTFOUND") ||
-              error.cause.message.includes("getaddrinfo")
-            )
+            (error.cause instanceof Error &&
+              (error.cause.message.includes("ECONNREFUSED") ||
+                error.cause.message.includes("ENOTFOUND") ||
+                error.cause.message.includes("getaddrinfo")))
 
           if (isConnectionError) {
             lastError = error
-            
+
             // If we have retries left, wait and retry
             if (attempt < maxRetries) {
               const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000) // Exponential backoff: 1s, 2s, 4s, max 5s
-              console.warn(`[IngestionClient] Connection error (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${backoffMs}ms...`, {
-                url,
-                errorMessage: error.message,
-                attempt: attempt + 1,
-                maxRetries: maxRetries + 1,
-              })
-              
-              await new Promise(resolve => setTimeout(resolve, backoffMs))
+              console.warn(
+                `[IngestionClient] Connection error (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${backoffMs}ms...`,
+                {
+                  url,
+                  errorMessage: error.message,
+                  attempt: attempt + 1,
+                  maxRetries: maxRetries + 1,
+                }
+              )
+
+              await new Promise((resolve) => setTimeout(resolve, backoffMs))
               continue // Retry the request
             }
-            
+
             // No retries left - throw error with details
             const errorDetails = {
               url,
               baseUrl: this.baseUrl,
               errorName: error.name,
               errorMessage: error.message,
-              errorCause: error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
+              errorCause:
+                error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
               attempts: attempt + 1,
             }
             console.error("[IngestionClient] Connection error after retries:", errorDetails)
@@ -446,7 +451,7 @@ export class IngestionClient {
         throw error
       }
     }
-    
+
     // This should never be reached, but TypeScript needs it
     if (lastError) {
       throw lastError
@@ -460,19 +465,19 @@ export class IngestionClient {
     endDate?: string
   ): Promise<DiscoveredEvent[]> {
     assertScrapingEnabled()
-    
+
     // Check circuit breaker - fail fast if circuit is open
     if (this.circuitBreaker.isOpen()) {
       const state = this.circuitBreaker.getState()
       throw new Error(
         `LiveRC discovery service is currently unavailable (circuit open). ` +
-        `The service has experienced repeated failures. Please try again in a moment. ` +
-        `Last failure: ${new Date(state.lastFailureTime).toLocaleTimeString()}`
+          `The service has experienced repeated failures. Please try again in a moment. ` +
+          `Last failure: ${new Date(state.lastFailureTime).toLocaleTimeString()}`
       )
     }
-    
-    const url = `${this.baseUrl}/api/v1/events/discover`;
-    
+
+    const url = `${this.baseUrl}/api/v1/events/discover`
+
     // Build request body - only include dates if provided
     const requestBody: {
       track_slug: string
@@ -481,20 +486,20 @@ export class IngestionClient {
     } = {
       track_slug: trackSlug,
     }
-    
+
     if (startDate) {
       requestBody.start_date = startDate
     }
-    
+
     if (endDate) {
       requestBody.end_date = endDate
     }
-    
+
     // Reduced timeout from 5 minutes to 60 seconds for better UX
     // Backend still has 5 minute timeout, but we fail fast on client side
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60 * 1000); // 60 seconds
-    
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60 * 1000) // 60 seconds
+
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -503,51 +508,53 @@ export class IngestionClient {
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
-      });
+      })
 
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId)
 
       // Check if response is OK before parsing
       if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
         try {
-          const errorJson = await response.json();
+          const errorJson = await response.json()
           if (errorJson.error && errorJson.error.message) {
-            errorMessage = errorJson.error.message;
+            errorMessage = errorJson.error.message
           } else if (errorJson.message) {
-            errorMessage = errorJson.message;
+            errorMessage = errorJson.message
           }
         } catch {
           // If JSON parsing fails, use status text
         }
-        
+
         // Record failure in circuit breaker
         this.circuitBreaker.recordFailure()
-        throw new Error(`Discovery failed: ${errorMessage}`);
+        throw new Error(`Discovery failed: ${errorMessage}`)
       }
 
-      const json: DiscoveryResponse | DiscoveryErrorResponse = await response.json();
+      const json: DiscoveryResponse | DiscoveryErrorResponse = await response.json()
 
       if (!json.success) {
-        const error = json.error;
+        const error = json.error
         // Record failure in circuit breaker
         this.circuitBreaker.recordFailure()
-        throw new Error(`Discovery failed: ${error.message}`);
+        throw new Error(`Discovery failed: ${error.message}`)
       }
 
       // Record success in circuit breaker
       this.circuitBreaker.recordSuccess()
-      return json.data.events;
+      return json.data.events
     } catch (error: unknown) {
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId)
       if (error instanceof Error) {
         if (error.name === "AbortError") {
           // Timeout - record failure
           this.circuitBreaker.recordFailure()
-          throw new Error("Discovery timeout: The LiveRC discovery is taking longer than expected. The ingestion service may be busy processing other requests. Please try again in a few moments.");
+          throw new Error(
+            "Discovery timeout: The LiveRC discovery is taking longer than expected. The ingestion service may be busy processing other requests. Please try again in a few moments."
+          )
         }
         // Handle network errors
-        const isConnectionError = 
+        const isConnectionError =
           error.message.includes("fetch failed") ||
           error.message.includes("ECONNREFUSED") ||
           error.message.includes("ENOTFOUND") ||
@@ -555,11 +562,10 @@ export class IngestionClient {
           error.message.includes("EAI_AGAIN") ||
           error.message.includes("network") ||
           error.message.includes("socket") ||
-          error.cause instanceof Error && (
-            error.cause.message.includes("ECONNREFUSED") ||
-            error.cause.message.includes("ENOTFOUND") ||
-            error.cause.message.includes("getaddrinfo")
-          )
+          (error.cause instanceof Error &&
+            (error.cause.message.includes("ECONNREFUSED") ||
+              error.cause.message.includes("ENOTFOUND") ||
+              error.cause.message.includes("getaddrinfo")))
         if (isConnectionError) {
           // Record failure in circuit breaker
           this.circuitBreaker.recordFailure()
@@ -567,15 +573,18 @@ export class IngestionClient {
             url,
             errorName: error.name,
             errorMessage: error.message,
-            errorCause: error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
+            errorCause:
+              error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
             circuitState: this.circuitBreaker.getState(),
           })
-          throw new Error(`Cannot connect to ingestion service at ${url}. Please ensure the ingestion service is running. Error: ${error.message}`);
+          throw new Error(
+            `Cannot connect to ingestion service at ${url}. Please ensure the ingestion service is running. Error: ${error.message}`
+          )
         }
       }
       // Record failure for any other error
       this.circuitBreaker.recordFailure()
-      throw error;
+      throw error
     }
   }
 
@@ -585,11 +594,11 @@ export class IngestionClient {
   ): Promise<EntryListResponse["data"]> {
     assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/entry-list`
-    
+
     // Use AbortController for timeout (2 minutes for entry list fetch)
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 2 * 60 * 1000) // 2 minutes
-    
+
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -633,10 +642,12 @@ export class IngestionClient {
       clearTimeout(timeoutId)
       if (error instanceof Error) {
         if (error.name === "AbortError") {
-          throw new Error("Entry list fetch timeout: The LiveRC entry list fetch is taking longer than expected. Please try again in a few moments.")
+          throw new Error(
+            "Entry list fetch timeout: The LiveRC entry list fetch is taking longer than expected. Please try again in a few moments."
+          )
         }
         // Handle network errors
-        const isConnectionError = 
+        const isConnectionError =
           error.message.includes("fetch failed") ||
           error.message.includes("ECONNREFUSED") ||
           error.message.includes("ENOTFOUND") ||
@@ -644,19 +655,21 @@ export class IngestionClient {
           error.message.includes("EAI_AGAIN") ||
           error.message.includes("network") ||
           error.message.includes("socket") ||
-          error.cause instanceof Error && (
-            error.cause.message.includes("ECONNREFUSED") ||
-            error.cause.message.includes("ENOTFOUND") ||
-            error.cause.message.includes("getaddrinfo")
-          )
+          (error.cause instanceof Error &&
+            (error.cause.message.includes("ECONNREFUSED") ||
+              error.cause.message.includes("ENOTFOUND") ||
+              error.cause.message.includes("getaddrinfo")))
         if (isConnectionError) {
           console.error("[IngestionClient] Entry list connection error:", {
             url,
             errorName: error.name,
             errorMessage: error.message,
-            errorCause: error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
+            errorCause:
+              error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
           })
-          throw new Error(`Cannot connect to ingestion service at ${url}. Please ensure the ingestion service is running. Error: ${error.message}`)
+          throw new Error(
+            `Cannot connect to ingestion service at ${url}. Please ensure the ingestion service is running. Error: ${error.message}`
+          )
         }
       }
       throw error
@@ -669,11 +682,7 @@ export class IngestionClient {
   ): Promise<IngestEventResponse> {
     assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/${eventId}/ingest`
-    return this.performIngestionRequest(
-      url,
-      { depth },
-      10 * 60 * 1000,
-    )
+    return this.performIngestionRequest(url, { depth }, 10 * 60 * 1000)
   }
 
   async ingestEventBySourceId(
@@ -681,6 +690,7 @@ export class IngestionClient {
     trackId: string,
     depth: "laps_full" | "none" = "laps_full"
   ): Promise<IngestEventResponse> {
+    assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/ingest`
     return this.performIngestionRequest(
       url,
@@ -689,25 +699,25 @@ export class IngestionClient {
         track_id: trackId,
         depth,
       },
-      10 * 60 * 1000,
+      10 * 60 * 1000
     )
   }
 
   async getIngestionStatus(eventId: string): Promise<{
-    event_id: string;
-    ingest_depth: string;
-    last_ingested_at: string | null;
+    event_id: string
+    ingest_depth: string
+    last_ingested_at: string | null
   }> {
-    const url = `${this.baseUrl}/api/v1/ingestion/status/${eventId}`;
-    
-    const response = await fetch(url);
+    const url = `${this.baseUrl}/api/v1/ingestion/status/${eventId}`
+
+    const response = await fetch(url)
 
     if (!response.ok) {
-      throw new Error(`Failed to get ingestion status: ${response.statusText}`);
+      throw new Error(`Failed to get ingestion status: ${response.statusText}`)
     }
 
-    return response.json();
+    return response.json()
   }
 }
 
-export const ingestionClient = new IngestionClient();
+export const ingestionClient = new IngestionClient()

@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useMemo, useState, useEffect, type ReactElement } from "react"
-import { useDashboardContext } from "@/components/dashboard/context/DashboardContext"
+import { useMemo, useState, type ReactElement } from "react"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { toggleNavCollapsed } from "@/store/slices/uiSlice"
 
 interface NavItem {
   href: string
@@ -169,7 +170,7 @@ const GUIDE_ITEMS: GuideItem[] = [
 const STORAGE_KEY_GUIDES_EXPANDED = "mre-user-guides-expanded"
 
 const ADMIN_NAV_ITEM: NavItem = {
-  href: "http://localhost:3001/admin",
+  href: "/admin",
   label: "MRE Administration",
   description: "System administration console",
   icon: (active) => (
@@ -204,10 +205,21 @@ interface AdaptiveNavigationRailProps {
 
 export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailProps) {
   const pathname = usePathname()
-  const { isNavCollapsed, toggleNavCollapsed } = useDashboardContext()
-  const [isGuidesExpanded, setIsGuidesExpanded] = useState(false)
+  const dispatch = useAppDispatch()
+  const isNavCollapsed = useAppSelector((state) => state.ui.isNavCollapsed)
+  const [isGuidesExpanded, setIsGuidesExpanded] = useState(() => {
+    if (typeof window === "undefined") {
+      return false
+    }
+    const stored = window.localStorage.getItem(STORAGE_KEY_GUIDES_EXPANDED)
+    return stored === "true"
+  })
 
   const navWidth = isNavCollapsed ? "w-[80px]" : "w-64"
+
+  const handleToggleNavCollapsed = () => {
+    dispatch(toggleNavCollapsed())
+  }
 
   const navItems = useMemo(() => {
     const items = [...NAV_ITEMS]
@@ -216,17 +228,6 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     }
     return items
   }, [user?.isAdmin])
-
-  // Hydrate guides expanded state from localStorage
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-    const stored = window.localStorage.getItem(STORAGE_KEY_GUIDES_EXPANDED)
-    if (stored === "true") {
-      setIsGuidesExpanded(true)
-    }
-  }, [])
 
   const toggleGuidesExpanded = () => {
     const newState = !isGuidesExpanded
@@ -244,7 +245,9 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     <aside
       className={`${navWidth} fixed left-0 top-0 z-10 hidden h-screen border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width] lg:flex lg:flex-col`}
     >
-      <div className={`flex h-16 items-center ${isNavCollapsed ? "justify-center px-2" : "justify-between px-4"}`}>
+      <div
+        className={`flex h-16 items-center ${isNavCollapsed ? "justify-center px-2" : "justify-between px-4"}`}
+      >
         {!isNavCollapsed && (
           <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
             MRE
@@ -252,7 +255,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
         )}
         <button
           type="button"
-          onClick={toggleNavCollapsed}
+          onClick={handleToggleNavCollapsed}
           className="rounded-md border border-[var(--token-border-default)] p-2 text-[var(--token-text-secondary)] transition hover:text-[var(--token-text-primary)]"
           aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
         >
@@ -272,7 +275,9 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
         {navItems.map((item) => {
           // For external URLs, don't check active state
           const isExternal = item.href.startsWith("http://") || item.href.startsWith("https://")
-          const active = isExternal ? false : pathname === item.href || pathname.startsWith(`${item.href}/`)
+          const active = isExternal
+            ? false
+            : pathname === item.href || pathname.startsWith(`${item.href}/`)
           return (
             <Link
               key={item.href}
@@ -284,13 +289,17 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
               <div className={`flex items-center ${isNavCollapsed ? "justify-center" : "gap-3"}`}>
                 {item.icon(active)}
                 {!isNavCollapsed && (
-                  <span className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${active ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}>
+                  <span
+                    className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${active ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
+                  >
                     {item.label}
                   </span>
                 )}
               </div>
               {!isNavCollapsed && (
-                <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">{item.description}</p>
+                <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+                  {item.description}
+                </p>
               )}
             </Link>
           )

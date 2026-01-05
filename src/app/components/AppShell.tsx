@@ -1,15 +1,15 @@
 /**
  * @fileoverview Application shell component
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Reusable application shell with sidebar navigation and top bar
- * 
+ *
  * @purpose Provides consistent layout structure for all pages using AppShell.
  *          Includes sidebar navigation, top bar with theme toggle, and main content area.
- * 
+ *
  * @relatedFiles
  * - app/components/ThemeToggle.tsx (theme toggle component)
  * - app/globals.css (theme tokens)
@@ -36,7 +36,7 @@ export default function AppShell({ children, session }: AppShellProps) {
       <header className="border-b border-[var(--token-border-muted)] bg-[var(--token-surface)]">
         <div className="mx-auto flex w-full min-w-0 max-w-7xl items-center justify-between gap-3 px-4 py-4">
           <Link
-            href="/welcome"
+            href="/dashboard"
             className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
           >
             My Race Engineer
@@ -50,9 +50,7 @@ export default function AppShell({ children, session }: AppShellProps) {
         </div>
       </header>
       <main id="main-content" className="flex-1 w-full min-w-0" tabIndex={-1}>
-        <div className="mx-auto w-full min-w-0 max-w-7xl px-6 py-8">
-          {children}
-        </div>
+        <div className="mx-auto w-full min-w-0 max-w-7xl px-6 py-8">{children}</div>
       </main>
       <Footer />
     </div>

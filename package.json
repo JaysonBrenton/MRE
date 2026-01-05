@@ -7,6 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
@@ -21,13 +23,24 @@
     "changelog": "node scripts/generate-changelog-with-dates.js",
     "changelog:with-dates": "node scripts/generate-changelog-with-dates.js",
     "changelog:auto": "auto-changelog --template keepachangelog --output docs/development/CHANGELOG.md",
-    "changelog:retro": "bash scripts/generate-retrospective-changelog.sh"
+    "changelog:retro": "bash scripts/generate-retrospective-changelog.sh",
+    "prepare": "husky"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"commonjs\"} prisma/seed.ts"
   },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
   "dependencies": {
     "@prisma/client": "^6.19.0",
+    "@reduxjs/toolkit": "^2.11.2",
     "@types/react-window": "^1.8.8",
     "@visx/axis": "^3.12.0",
     "@visx/curve": "^3.12.0",
@@ -45,7 +58,9 @@
     "prisma": "^6.19.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-redux": "^9.2.0",
     "react-window": "^1.8.11",
+    "redux-persist": "^6.0.0",
     "server-only": "^0.0.1",
     "zod": "^4.1.13"
   },
@@ -58,12 +73,17 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/redux-persist": "^4.0.0",
     "@vitest/coverage-v8": "^2.1.8",
     "@vitest/ui": "^2.1.8",
     "auto-changelog": "^2.5.0",
     "baseline-browser-mapping": "^2.9.11",
     "eslint": "^9",
     "eslint-config-next": "16.0.5",
+    "eslint-config-prettier": "^9.1.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.7.4",
     "standard-version": "^9.5.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",

@@ -2,10 +2,13 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Complete reference for all environment variables used in MRE application
-purpose: Provides comprehensive documentation of all environment variables, including
-         required vs optional, default values, validation rules, and environment-specific
-         configurations. Essential for deployment, environment setup, and troubleshooting.
+description:
+  Complete reference for all environment variables used in MRE application
+purpose:
+  Provides comprehensive documentation of all environment variables, including
+  required vs optional, default values, validation rules, and
+  environment-specific configurations. Essential for deployment, environment
+  setup, and troubleshooting.
 relatedFiles:
   - docker-compose.yml (Docker environment configuration)
   - README.md (basic setup instructions)
@@ -17,10 +20,13 @@ relatedFiles:
 
 # Environment Variables Reference
 
-**Last Updated:** 2025-01-27 (Added missing ingestion and performance variables)  
+**Last Updated:** 2025-01-27 (Added missing ingestion and performance
+variables)  
 **Environment File:** `.env.docker` (for Docker Compose)
 
-This document provides a complete reference for all environment variables used in the MRE application. All variables are configured via Docker Compose environment files or can be set directly in the environment.
+This document provides a complete reference for all environment variables used
+in the MRE application. All variables are configured via Docker Compose
+environment files or can be set directly in the environment.
 
 ---
 
@@ -59,12 +65,14 @@ Environment variables are organized into the following groups:
 **Values:** `development` | `production` | `test`
 
 Controls the Node.js environment mode. Affects:
+
 - Logging levels
 - Error handling
 - Prisma query logging
 - Development vs production optimizations
 
 **Example:**
+
 ```bash
 NODE_ENV=development
 ```
@@ -78,14 +86,17 @@ NODE_ENV=development
 **Default:** `3001`  
 **Environment:** Docker Compose
 
-Port on which the Next.js application listens. Configured via Docker Compose port mapping.
+Port on which the Next.js application listens. Configured via Docker Compose
+port mapping.
 
 **Example:**
+
 ```bash
 PORT=3001
 ```
 
-**Note:** In Docker Compose, this is mapped to `APP_PORT` environment variable for host port configuration.
+**Note:** In Docker Compose, this is mapped to `APP_PORT` environment variable
+for host port configuration.
 
 ---
 
@@ -99,6 +110,7 @@ PORT=3001
 Host port mapping for Docker Compose. Maps to container port 3001.
 
 **Example:**
+
 ```bash
 APP_PORT=3001
 ```
@@ -113,11 +125,13 @@ APP_PORT=3001
 **Environment:** Docker Compose
 
 Base URL of the application. Used for:
+
 - Generating absolute URLs
 - CORS configuration (if needed)
 - OAuth redirects (if implemented)
 
 **Example:**
+
 ```bash
 APP_URL=http://localhost:3001
 ```
@@ -131,9 +145,11 @@ APP_URL=http://localhost:3001
 **Default:** `0.0.0.0`  
 **Environment:** Docker Compose
 
-Host address to bind the Next.js server. Set to `0.0.0.0` to accept connections from any interface (required for Docker).
+Host address to bind the Next.js server. Set to `0.0.0.0` to accept connections
+from any interface (required for Docker).
 
 **Example:**
+
 ```bash
 HOST=0.0.0.0
 ```
@@ -150,6 +166,7 @@ HOST=0.0.0.0
 **Format:** `postgresql://[user]:[password]@[host]:[port]/[database]?schema=public`
 
 PostgreSQL database connection string used by Prisma. Contains:
+
 - Database user
 - Password
 - Host (container name: `mre-postgres`)
@@ -158,6 +175,7 @@ PostgreSQL database connection string used by Prisma. Contains:
 - Schema (public)
 
 **Example:**
+
 ```bash
 DATABASE_URL=postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?schema=public
 ```
@@ -165,13 +183,15 @@ DATABASE_URL=postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?sche
 **Security:** Contains sensitive credentials. Never commit to version control.
 
 **Components:**
+
 - User: `pacetracer` (default)
 - Password: `change-me` (default, MUST be changed in production)
 - Host: `mre-postgres` (Docker container name)
 - Port: `5432`
 - Database: `pacetracer` (default)
 
-**Note:** This variable is used by both the Next.js application and the Python ingestion service.
+**Note:** This variable is used by both the Next.js application and the Python
+ingestion service.
 
 ---
 
@@ -185,6 +205,7 @@ DATABASE_URL=postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?sche
 PostgreSQL database user name. Used in DATABASE_URL construction.
 
 **Example:**
+
 ```bash
 POSTGRES_USER=pacetracer
 ```
@@ -201,11 +222,13 @@ POSTGRES_USER=pacetracer
 PostgreSQL database password. Used in DATABASE_URL construction.
 
 **Example:**
+
 ```bash
 POSTGRES_PASSWORD=change-me
 ```
 
-**Security:** MUST be changed in production. Use a strong, randomly generated password.
+**Security:** MUST be changed in production. Use a strong, randomly generated
+password.
 
 ---
 
@@ -219,6 +242,7 @@ POSTGRES_PASSWORD=change-me
 PostgreSQL database name. Used in DATABASE_URL construction.
 
 **Example:**
+
 ```bash
 POSTGRES_DB=pacetracer
 ```
@@ -236,17 +260,22 @@ POSTGRES_DB=pacetracer
 **Environment:** Docker Compose (via .env.docker)
 
 Secret key used by NextAuth for:
+
 - JWT token signing
 - Session encryption
 - CSRF protection
 
 **Build-Time Validation:**  
-The application validates AUTH_SECRET at build time via `src/lib/env.ts`. The build will fail with a clear error message if:
+The application validates AUTH_SECRET at build time via `src/lib/env.ts`. The
+build will fail with a clear error message if:
+
 - AUTH_SECRET is not set
 - AUTH_SECRET is less than 32 characters
-- AUTH_SECRET uses the default development value in production (`NODE_ENV=production`)
+- AUTH_SECRET uses the default development value in production
+  (`NODE_ENV=production`)
 
 **Example:**
+
 ```bash
 # Generate a secure secret
 openssl rand -base64 32
@@ -255,18 +284,21 @@ openssl rand -base64 32
 AUTH_SECRET=your-generated-secret-here-at-least-32-chars
 ```
 
-**Security:** 
+**Security:**
+
 - MUST be at least 32 characters
 - MUST be randomly generated
 - MUST be unique per environment
 - MUST NOT be committed to version control
 
 **Generation:**
+
 ```bash
 openssl rand -base64 32
 ```
 
-**Note:** NextAuth also checks `NEXTAUTH_SECRET` as a fallback (for compatibility).
+**Note:** NextAuth also checks `NEXTAUTH_SECRET` as a fallback (for
+compatibility).
 
 ---
 
@@ -277,9 +309,11 @@ openssl rand -base64 32
 **Default:** Falls back to `AUTH_SECRET`  
 **Environment:** Optional (NextAuth compatibility)
 
-Alternative name for `AUTH_SECRET` for NextAuth compatibility. If not set, `AUTH_SECRET` is used.
+Alternative name for `AUTH_SECRET` for NextAuth compatibility. If not set,
+`AUTH_SECRET` is used.
 
 **Example:**
+
 ```bash
 NEXTAUTH_SECRET=your-secret-here
 ```
@@ -291,18 +325,31 @@ NEXTAUTH_SECRET=your-secret-here
 ### INGESTION_SERVICE_URL
 
 **Type:** URL String  
-**Required:** No  
-**Default:** `http://liverc-ingestion-service:8000`  
+**Required:** Yes (Production), No (Development)  
+**Default:** `http://liverc-ingestion-service:8000` (Development only)  
 **Environment:** Next.js application (used by ingestion client)
 
-Base URL of the Python ingestion service. Used by the Next.js application to communicate with the ingestion service.
+Base URL of the Python ingestion service. Used by the Next.js application to
+communicate with the ingestion service.
+
+**Environment-Specific Requirements:**
+
+- **Development:** Optional (defaults to `http://liverc-ingestion-service:8000`
+  if not set)
+- **Production:** Required (application will fail to start if not set)
 
 **Example:**
+
 ```bash
 INGESTION_SERVICE_URL=http://liverc-ingestion-service:8000
 ```
 
-**Note:** In Docker Compose, this uses the service name `liverc-ingestion-service` and default port `8000`.
+**Note:**
+
+- In Docker Compose, this uses the service name `liverc-ingestion-service` and
+  default port `8000`
+- The application validates this variable at startup: required in production,
+  optional in development
 
 ---
 
@@ -316,6 +363,7 @@ INGESTION_SERVICE_URL=http://liverc-ingestion-service:8000
 Host port mapping for the Python ingestion service. Maps to container port 8000.
 
 **Example:**
+
 ```bash
 INGESTION_PORT=8000
 ```
@@ -334,6 +382,7 @@ Logging level for the Python ingestion service.
 **Values:** `DEBUG` | `INFO` | `WARNING` | `ERROR` | `CRITICAL`
 
 **Example:**
+
 ```bash
 LOG_LEVEL=INFO
 ```
@@ -350,6 +399,7 @@ LOG_LEVEL=INFO
 Disables Python output buffering for real-time log output in Docker.
 
 **Example:**
+
 ```bash
 PYTHONUNBUFFERED=1
 ```
@@ -363,9 +413,11 @@ PYTHONUNBUFFERED=1
 **Default:** `30`  
 **Environment:** Python ingestion service
 
-Number of days to retain track sync reports before automatic cleanup. Reports older than this value are automatically deleted.
+Number of days to retain track sync reports before automatic cleanup. Reports
+older than this value are automatically deleted.
 
 **Example:**
+
 ```bash
 TRACK_SYNC_REPORT_RETENTION_DAYS=30
 ```
@@ -379,11 +431,13 @@ TRACK_SYNC_REPORT_RETENTION_DAYS=30
 **Default:** `development`  
 **Environment:** Docker Compose
 
-Docker build target for the ingestion service. Controls which stage of the multi-stage Dockerfile is used.
+Docker build target for the ingestion service. Controls which stage of the
+multi-stage Dockerfile is used.
 
 **Values:** `development` | `production`
 
 **Example:**
+
 ```bash
 INGESTION_BUILD_TARGET=development
 ```
@@ -399,9 +453,11 @@ INGESTION_BUILD_TARGET=development
 **Default:** `300`  
 **Environment:** Next.js application
 
-Performance threshold for API requests. Requests exceeding this duration are logged as slow operations.
+Performance threshold for API requests. Requests exceeding this duration are
+logged as slow operations.
 
 **Example:**
+
 ```bash
 PERF_THRESHOLD_API=300
 ```
@@ -415,9 +471,11 @@ PERF_THRESHOLD_API=300
 **Default:** `100`  
 **Environment:** Next.js application
 
-Performance threshold for database queries. Queries exceeding this duration are logged as slow operations.
+Performance threshold for database queries. Queries exceeding this duration are
+logged as slow operations.
 
 **Example:**
+
 ```bash
 PERF_THRESHOLD_DB=100
 ```
@@ -431,9 +489,11 @@ PERF_THRESHOLD_DB=100
 **Default:** `500`  
 **Environment:** Next.js application
 
-Performance threshold for external service calls (e.g., ingestion service). Calls exceeding this duration are logged as slow operations.
+Performance threshold for external service calls (e.g., ingestion service).
+Calls exceeding this duration are logged as slow operations.
 
 **Example:**
+
 ```bash
 PERF_THRESHOLD_EXTERNAL=500
 ```
@@ -450,20 +510,53 @@ PERF_THRESHOLD_EXTERNAL=500
 **Environment:** Docker Compose (both services)
 
 System timezone for both Next.js and Python services. Affects:
+
 - Log timestamps
 - Date/time parsing
 - Scheduled tasks (if implemented)
 
 **Example:**
+
 ```bash
 TZ=Australia/Sydney
 ```
 
 **Common Values:**
+
 - `UTC` - Coordinated Universal Time
 - `America/New_York` - Eastern Time
 - `Europe/London` - British Time
 - `Australia/Sydney` - Australian Eastern Time
+
+---
+
+## Environment Variable Requirements Matrix
+
+The following table shows which variables are required vs optional for each
+environment:
+
+| Variable                | Development                                                   | Production  | Notes                                          |
+| ----------------------- | ------------------------------------------------------------- | ----------- | ---------------------------------------------- |
+| `DATABASE_URL`          | ✅ Required                                                   | ✅ Required | Must be valid PostgreSQL URL                   |
+| `AUTH_SECRET`           | ✅ Required                                                   | ✅ Required | Min 32 chars; cannot use default in production |
+| `NODE_ENV`              | ✅ Required                                                   | ✅ Required | Must be "development" or "production"          |
+| `APP_URL`               | ⚪ Optional (default: `http://localhost:3001`)                | ✅ Required | Should be HTTPS in production                  |
+| `INGESTION_SERVICE_URL` | ⚪ Optional (default: `http://liverc-ingestion-service:8000`) | ✅ Required | Must be set in production                      |
+| `PORT`                  | ⚪ Optional                                                   | ⚪ Optional | Defaults to 3001                               |
+| `HOST`                  | ⚪ Optional                                                   | ⚪ Optional | Defaults to 0.0.0.0                            |
+| `TZ`                    | ⚪ Optional                                                   | ⚪ Optional | Timezone (default: Australia/Sydney)           |
+
+**Legend:**
+
+- ✅ Required - Application will fail to start if not set
+- ⚪ Optional - Has default value or is not needed
+
+**Production Validation:** The application performs environment-aware validation
+at startup (`src/lib/env.ts`):
+
+- `INGESTION_SERVICE_URL` is validated as required in production
+- `AUTH_SECRET` cannot use the default development value in production
+- All required variables must be set and valid
 
 ---
 
@@ -563,12 +656,14 @@ TZ=UTC
 ```
 
 **Security Requirements:**
+
 - All secrets MUST be strong and randomly generated
 - Database connection MUST use SSL (`sslmode=require`)
 - Passwords MUST be unique and not reused
 - Secrets MUST be stored in secure secret management (not in code)
 
-**Note:** Replace placeholders with actual production values. Use a secret management service (e.g., AWS Secrets Manager, HashiCorp Vault) in production.
+**Note:** Replace placeholders with actual production values. Use a secret
+management service (e.g., AWS Secrets Manager, HashiCorp Vault) in production.
 
 ---
 
@@ -611,20 +706,25 @@ The following variables contain sensitive information and MUST be protected:
 ### Validation Rules
 
 **DATABASE_URL:**
+
 - Must be a valid PostgreSQL connection string
 - Must include user, password, host, port, and database
-- Format: `postgresql://[user]:[password]@[host]:[port]/[database]?schema=public`
+- Format:
+  `postgresql://[user]:[password]@[host]:[port]/[database]?schema=public`
 
 **AUTH_SECRET:**
+
 - Minimum 32 characters (recommended)
 - Should be randomly generated
 - Must be unique per environment
 
 **NODE_ENV:**
+
 - Must be one of: `development`, `production`, `test`
 - Affects application behavior and security
 
 **Placeholder for future documentation:**
+
 - Environment variable validation scripts
 - Secret rotation procedures
 - Security audit checklist
@@ -645,7 +745,8 @@ NODE_ENV=development
 APP_URL=http://localhost:3001
 ```
 
-**Note:** AUTH_SECRET must be at least 32 characters. The build will fail if this requirement is not met.
+**Note:** AUTH_SECRET must be at least 32 characters. The build will fail if
+this requirement is not met.
 
 ### Complete Development Setup
 
@@ -655,40 +756,41 @@ See [Development](#development) section above for complete example.
 
 ## Variable Reference Table
 
-| Variable | Required | Default | Group | Security Sensitive |
-|----------|----------|---------|-------|-------------------|
-| `DATABASE_URL` | Yes | None | Database | Yes |
-| `POSTGRES_USER` | No | `pacetracer` | Database | No |
-| `POSTGRES_PASSWORD` | No | `change-me` | Database | Yes |
-| `POSTGRES_DB` | No | `pacetracer` | Database | No |
-| `NODE_ENV` | Yes | `development` | Application | No |
-| `PORT` | No | `3001` | Application | No |
-| `APP_PORT` | No | `3001` | Application | No |
-| `APP_URL` | No | `http://localhost:3001` | Application | No |
-| `HOST` | No | `0.0.0.0` | Application | No |
-| `AUTH_SECRET` | Yes | None (min 32 chars) | Authentication | Yes |
-| `NEXTAUTH_SECRET` | No | Falls back to `AUTH_SECRET` | Authentication | Yes |
-| `INGESTION_SERVICE_URL` | No | `http://liverc-ingestion-service:8000` | Ingestion | No |
-| `INGESTION_PORT` | No | `8000` | Ingestion | No |
-| `LOG_LEVEL` | No | `INFO` | Ingestion | No |
-| `TRACK_SYNC_REPORT_RETENTION_DAYS` | No | `30` | Ingestion | No |
-| `INGESTION_BUILD_TARGET` | No | `development` | Docker | No |
-| `PERF_THRESHOLD_API` | No | `300` | Performance | No |
-| `PERF_THRESHOLD_DB` | No | `100` | Performance | No |
-| `PERF_THRESHOLD_EXTERNAL` | No | `500` | Performance | No |
-| `PYTHONUNBUFFERED` | No | `1` | Ingestion | No |
-| `TZ` | No | `Australia/Sydney` | System | No |
+| Variable                           | Required | Default                                | Group          | Security Sensitive |
+| ---------------------------------- | -------- | -------------------------------------- | -------------- | ------------------ |
+| `DATABASE_URL`                     | Yes      | None                                   | Database       | Yes                |
+| `POSTGRES_USER`                    | No       | `pacetracer`                           | Database       | No                 |
+| `POSTGRES_PASSWORD`                | No       | `change-me`                            | Database       | Yes                |
+| `POSTGRES_DB`                      | No       | `pacetracer`                           | Database       | No                 |
+| `NODE_ENV`                         | Yes      | `development`                          | Application    | No                 |
+| `PORT`                             | No       | `3001`                                 | Application    | No                 |
+| `APP_PORT`                         | No       | `3001`                                 | Application    | No                 |
+| `APP_URL`                          | No       | `http://localhost:3001`                | Application    | No                 |
+| `HOST`                             | No       | `0.0.0.0`                              | Application    | No                 |
+| `AUTH_SECRET`                      | Yes      | None (min 32 chars)                    | Authentication | Yes                |
+| `NEXTAUTH_SECRET`                  | No       | Falls back to `AUTH_SECRET`            | Authentication | Yes                |
+| `INGESTION_SERVICE_URL`            | No       | `http://liverc-ingestion-service:8000` | Ingestion      | No                 |
+| `INGESTION_PORT`                   | No       | `8000`                                 | Ingestion      | No                 |
+| `LOG_LEVEL`                        | No       | `INFO`                                 | Ingestion      | No                 |
+| `TRACK_SYNC_REPORT_RETENTION_DAYS` | No       | `30`                                   | Ingestion      | No                 |
+| `INGESTION_BUILD_TARGET`           | No       | `development`                          | Docker         | No                 |
+| `PERF_THRESHOLD_API`               | No       | `300`                                  | Performance    | No                 |
+| `PERF_THRESHOLD_DB`                | No       | `100`                                  | Performance    | No                 |
+| `PERF_THRESHOLD_EXTERNAL`          | No       | `500`                                  | Performance    | No                 |
+| `PYTHONUNBUFFERED`                 | No       | `1`                                    | Ingestion      | No                 |
+| `TZ`                               | No       | `Australia/Sydney`                     | System         | No                 |
 
 ---
 
 ## Related Documentation
 
-- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup and configuration
+- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup and
+  configuration
 - [Deployment Guide](./deployment-guide.md) - Production deployment procedures
-- [Security Overview](../security/security-overview.md) - Security best practices
+- [Security Overview](../security/security-overview.md) - Security best
+  practices
 - [README.md](../../README.md) - Basic setup instructions
 
 ---
 
 **End of Environment Variables Reference**
-

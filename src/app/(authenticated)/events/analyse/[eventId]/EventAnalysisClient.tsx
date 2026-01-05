@@ -1,15 +1,15 @@
 /**
  * @fileoverview Event Analysis client component - handles client-side state
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Client component for managing tab state and driver selection
- * 
+ *
  * @purpose Separates client-side interactivity from server component.
  *          Manages tab navigation and driver selection state.
- * 
+ *
  * @relatedFiles
  * - src/app/events/analyse/[eventId]/page.tsx (parent server component)
  */
@@ -29,9 +29,7 @@ export interface EventAnalysisClientProps {
   initialData: EventAnalysisData
 }
 
-export default function EventAnalysisClient({
-  initialData,
-}: EventAnalysisClientProps) {
+export default function EventAnalysisClient({ initialData }: EventAnalysisClientProps) {
   const [activeTab, setActiveTab] = useState<TabId>("overview")
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
 
@@ -39,19 +37,15 @@ export default function EventAnalysisClient({
 
   const availableTabs = [
     { id: "overview" as TabId, label: "Overview" },
-    { id: "drivers" as TabId, label: "Drivers" },
-    { id: "entry-list" as TabId, label: "Entry List" },
     { id: "sessions" as TabId, label: "Sessions / Heats" },
     { id: "comparisons" as TabId, label: "Comparisons" },
+    { id: "entry-list" as TabId, label: "Entry List" },
+    { id: "drivers" as TabId, label: "Drivers" },
   ]
 
   return (
     <div className="space-y-6">
-      <TabNavigation
-        tabs={availableTabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      <TabNavigation tabs={availableTabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
       {activeTab === "overview" && (
         <OverviewTab
@@ -69,15 +63,10 @@ export default function EventAnalysisClient({
         />
       )}
 
-      {activeTab === "entry-list" && (
-        <EntryListTab data={initialData} />
-      )}
+      {activeTab === "entry-list" && <EntryListTab data={initialData} />}
 
       {activeTab === "sessions" && (
-        <SessionsTab
-          data={initialData}
-          selectedDriverIds={selectedDriverIds}
-        />
+        <SessionsTab data={initialData} selectedDriverIds={selectedDriverIds} />
       )}
 
       {activeTab === "comparisons" && <ComparisonsTab />}

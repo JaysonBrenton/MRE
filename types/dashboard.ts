@@ -38,6 +38,21 @@ export interface EventAnalysisSummary {
     className: string
     raceId: string
   }>
+  mostImprovedDrivers?: Array<{
+    driverId: string
+    driverName: string
+    className: string
+    firstRacePosition: number
+    lastRacePosition: number
+    positionImprovement: number
+    firstRaceFastLap: number | null
+    lastRaceFastLap: number | null
+    lapTimeImprovement: number | null
+    improvementScore: number
+    firstRaceId: string
+    lastRaceId: string
+    raceLabel: string
+  }>
   userBestLap?: {
     lapTime: number
     position: number // position among all drivers (1-based)

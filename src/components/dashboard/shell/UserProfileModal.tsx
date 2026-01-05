@@ -1,17 +1,17 @@
 /**
  * @fileoverview User profile modal component
- * 
+ *
  * @created 2025-01-28
  * @creator System
  * @lastModified 2025-01-28
- * 
+ *
  * @description Modal component displaying comprehensive user profile information
- * 
+ *
  * @purpose Provides a modal interface for viewing user profile data including
  *          basic information, activity statistics, driver linking status, UI
  *          preferences, account settings, and team information. Includes sign-out
  *          functionality in the footer.
- * 
+ *
  * @relatedFiles
  * - src/components/ui/Modal.tsx (modal component)
  * - src/components/LogoutButton.tsx (sign-out button)
@@ -24,7 +24,8 @@
 import { useEffect, useState } from "react"
 import Modal from "@/components/ui/Modal"
 import LogoutButton from "@/components/LogoutButton"
-import { useDashboardContext } from "@/components/dashboard/context/DashboardContext"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { setDensity } from "@/store/slices/uiSlice"
 import type { UserProfile } from "@/core/users/profile"
 
 interface UserProfileModalProps {
@@ -40,13 +41,13 @@ interface UserProfileModalProps {
 
 type ProfileData = UserProfile | null
 
-export default function UserProfileModal({
-  isOpen,
-  onClose,
-  userId,
-  user,
-}: UserProfileModalProps) {
-  const { density, setDensity } = useDashboardContext()
+export default function UserProfileModal({ isOpen, onClose, userId, user }: UserProfileModalProps) {
+  const dispatch = useAppDispatch()
+  const density = useAppSelector((state) => state.ui.density)
+
+  const handleSetDensity = (value: Parameters<typeof setDensity>[0]) => {
+    dispatch(setDensity(value))
+  }
   const [profileData, setProfileData] = useState<ProfileData>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -102,7 +103,7 @@ export default function UserProfileModal({
   const toggleTheme = (theme: "light" | "dark") => {
     const newIsLight = theme === "light"
     setIsLight(newIsLight)
-    
+
     if (newIsLight) {
       document.documentElement.classList.add("light")
       localStorage.setItem("mre-theme", "light")
@@ -183,9 +184,7 @@ export default function UserProfileModal({
                   </span>
                 )}
               </div>
-              <p className="text-sm text-[var(--token-text-muted)]">
-                {profileData.user.email}
-              </p>
+              <p className="text-sm text-[var(--token-text-muted)]">{profileData.user.email}</p>
             </div>
 
             <div className="h-px bg-[var(--token-border-muted)]" />
@@ -327,18 +326,20 @@ export default function UserProfileModal({
                       { id: "comfortable", label: "Comfort" },
                       { id: "spacious", label: "Spacious" },
                     ].map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setDensity(option.id as "compact" | "comfortable" | "spacious")}
-                      className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-wide transition ${
-                        density === option.id
-                          ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)]"
-                          : "border border-[var(--token-border-default)] text-[var(--token-text-muted)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() =>
+                          handleSetDensity(option.id as "compact" | "comfortable" | "spacious")
+                        }
+                        className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-wide transition ${
+                          density === option.id
+                            ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)]"
+                            : "border border-[var(--token-border-default)] text-[var(--token-text-muted)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -423,4 +424,3 @@ export default function UserProfileModal({
     </Modal>
   )
 }
-

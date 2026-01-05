@@ -1,0 +1,23 @@
+{
+  "output": "docs/development/CHANGELOG.md",
+  "template": "keepachangelog",
+  "unreleased": true,
+  "commitLimit": false,
+  "backfillLimit": false,
+  "hideCredit": true,
+  "issuePattern": "#([0-9]+)",
+  "issueUrl": "https://github.com/your-org/mre/issues",
+  "types": [
+    { "type": "feat", "section": "Added" },
+    { "type": "fix", "section": "Fixed" },
+    { "type": "perf", "section": "Changed" },
+    { "type": "refactor", "section": "Changed" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "style", "section": "Changed" },
+    { "type": "chore", "hidden": true },
+    { "type": "test", "hidden": true },
+    { "type": "build", "hidden": true },
+    { "type": "ci", "hidden": true }
+  ]
+}
+

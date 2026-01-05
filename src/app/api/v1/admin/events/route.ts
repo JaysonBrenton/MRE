@@ -1,12 +1,12 @@
 /**
  * @fileoverview Admin events API endpoint (v1)
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Handles GET requests for event management (admin only)
- * 
+ *
  * @relatedFiles
  * - src/core/admin/events.ts (core business logic)
  * - src/lib/admin-auth.ts (admin authorization)
@@ -16,15 +16,15 @@
 import { NextRequest } from "next/server"
 import { requireAdmin } from "@/lib/admin-auth"
 import { getEvents } from "@/core/admin/events"
-import { successResponse } from "@/lib/api-utils"
+import { successResponse, errorResponse } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
 
 /**
  * GET /api/v1/admin/events
- * 
+ *
  * Get all events with pagination and filtering (admin only)
- * 
+ *
  * Query params:
  * - trackId (optional): Filter by track ID
  * - startDate (optional): Filter by start date (ISO string)
@@ -35,7 +35,7 @@ import { generateRequestId } from "@/lib/request-context"
  */
 export async function GET(request: NextRequest) {
   const requestId = generateRequestId()
-  
+
   try {
     // Verify admin access
     const authResult = await requireAdmin()
@@ -65,6 +65,6 @@ export async function GET(request: NextRequest) {
     return successResponse(result, 200, "Events retrieved successfully")
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorInfo.response
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

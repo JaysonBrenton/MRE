@@ -1,7 +1,6 @@
 "use client"
 
-import { usePathname } from "next/navigation"
-import { DashboardContextProvider, useDashboardContext } from "@/components/dashboard/context/DashboardContext"
+import { useAppSelector } from "@/store/hooks"
 import AdaptiveNavigationRail from "@/components/dashboard/shell/AdaptiveNavigationRail"
 import TopStatusBar from "@/components/dashboard/shell/TopStatusBar"
 import CommandPalette from "@/components/dashboard/shell/CommandPalette"
@@ -18,15 +17,24 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, user, userId }: DashboardLayoutProps) {
   return (
-    <DashboardContextProvider>
-      <DashboardShell user={user} userId={userId}>{children}</DashboardShell>
-    </DashboardContextProvider>
+    <DashboardShell user={user} userId={userId}>
+      {children}
+    </DashboardShell>
   )
 }
 
-function DashboardShell({ children, user, userId }: { children: React.ReactNode; user?: DashboardLayoutProps["user"]; userId: string }) {
-  const { density, isNavCollapsed } = useDashboardContext()
-  
+function DashboardShell({
+  children,
+  user,
+  userId,
+}: {
+  children: React.ReactNode
+  user?: DashboardLayoutProps["user"]
+  userId: string
+}) {
+  const density = useAppSelector((state) => state.ui.density)
+  const isNavCollapsed = useAppSelector((state) => state.ui.isNavCollapsed)
+
   // Adjust margin based on sidebar collapse state
   const sidebarMargin = isNavCollapsed ? "lg:ml-[80px]" : "lg:ml-64"
 
@@ -36,11 +44,11 @@ function DashboardShell({ children, user, userId }: { children: React.ReactNode;
       data-density={density}
     >
       <AdaptiveNavigationRail user={user ?? null} />
-      <div className={`flex min-h-screen flex-1 flex-col transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarMargin}`}>
+      <div
+        className={`flex min-h-screen flex-1 flex-col transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarMargin}`}
+      >
         <TopStatusBar user={user ?? null} userId={userId} />
-        <div className="flex-1 overflow-y-auto px-4 py-6 pb-12 sm:px-6 lg:px-10">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-6 pb-12 sm:px-6 lg:px-10">{children}</div>
       </div>
       <CommandPalette />
     </div>

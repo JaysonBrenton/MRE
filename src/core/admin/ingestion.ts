@@ -1,26 +1,27 @@
 /**
  * @fileoverview Admin ingestion control operations
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Functions for controlling LiveRC ingestion from admin console
- * 
+ *
  * @purpose Provides ingestion control functionality for administrators,
  *          including triggering ingestion jobs and viewing ingestion status.
- * 
+ *
  * @relatedFiles
  * - src/core/admin/audit.ts (audit logging)
  * - ingestion/ (Python ingestion service)
  */
 
 import { env } from "@/lib/env"
+import { assertScrapingEnabled } from "@/lib/site-policy"
 import { createAuditLog } from "./audit"
 
 /**
  * Trigger track sync ingestion
- * 
+ *
  * @param adminUserId - Admin user ID performing the action
  * @param ipAddress - IP address of the admin
  * @param userAgent - User agent of the admin
@@ -31,8 +32,9 @@ export async function triggerTrackSync(
   ipAddress?: string,
   userAgent?: string
 ): Promise<{ success: boolean; message: string }> {
+  assertScrapingEnabled()
   const ingestionServiceUrl = env.INGESTION_SERVICE_URL || "http://localhost:8000"
-  
+
   try {
     const response = await fetch(`${ingestionServiceUrl}/api/v1/tracks/sync`, {
       method: "POST",
@@ -84,7 +86,7 @@ export async function triggerTrackSync(
 
 /**
  * Trigger event ingestion for a specific event
- * 
+ *
  * @param eventId - Event ID to ingest
  * @param adminUserId - Admin user ID performing the action
  * @param ipAddress - IP address of the admin
@@ -97,8 +99,9 @@ export async function triggerEventIngestion(
   ipAddress?: string,
   userAgent?: string
 ): Promise<{ success: boolean; message: string }> {
+  assertScrapingEnabled()
   const ingestionServiceUrl = env.INGESTION_SERVICE_URL || "http://localhost:8000"
-  
+
   try {
     const response = await fetch(`${ingestionServiceUrl}/api/v1/events/${eventId}/ingest`, {
       method: "POST",
@@ -150,7 +153,7 @@ export async function triggerEventIngestion(
 
 /**
  * Get ingestion service health status
- * 
+ *
  * @returns Health status
  */
 export async function getIngestionServiceHealth(): Promise<{
@@ -159,7 +162,7 @@ export async function getIngestionServiceHealth(): Promise<{
   responseTime?: number
 }> {
   const ingestionServiceUrl = env.INGESTION_SERVICE_URL || "http://localhost:8000"
-  
+
   try {
     const startTime = Date.now()
     const response = await fetch(`${ingestionServiceUrl}/health`, {
@@ -193,4 +196,3 @@ export async function getIngestionServiceHealth(): Promise<{
     }
   }
 }
-

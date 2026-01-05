@@ -23,6 +23,9 @@
 # misc
 .DS_Store
 *.pem
+# SSL certificates (development only - do not commit)
+/certs/*.pem
+!/certs/README.md
 
 # debug
 npm-debug.log*
@@ -43,5 +46,9 @@ next-env.d.ts
 /app/generated/prisma
 
 # reports (keep directory structure, ignore report files)
-/reports/*.md
-!/reports/.gitkeep
+/docs/reports/*.md
+!/docs/reports/.gitkeep
+
+# test artifacts
+/playwright-report/
+/test-results/

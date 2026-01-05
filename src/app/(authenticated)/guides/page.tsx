@@ -1,15 +1,15 @@
 /**
  * @fileoverview Guides index page
- * 
+ *
  * @created 2025-01-28
  * @creator Jayson Brenton
  * @lastModified 2025-01-28
- * 
+ *
  * @description Guides index page listing all available user guides
- * 
+ *
  * @purpose Provides a central location for users to discover and access
  *          all available guides and documentation.
- * 
+ *
  * @relatedFiles
  * - src/components/Breadcrumbs.tsx (breadcrumb navigation)
  * - src/app/(authenticated)/guides/getting-started/page.tsx (getting started guide)
@@ -23,18 +23,14 @@ export default async function GuidesPage() {
     {
       title: "Getting Started",
       href: "/guides/getting-started",
-      description: "Welcome to My Race Engineer. This guide will help you get started with the platform.",
+      description:
+        "Welcome to My Race Engineer. This guide will help you get started with the platform.",
     },
   ]
 
   return (
     <section className="content-wrapper w-full min-w-0">
-      <Breadcrumbs
-        items={[
-          { label: "Home", href: "/welcome" },
-          { label: "Guides" },
-        ]}
-      />
+      <Breadcrumbs items={[{ label: "Home", href: "/dashboard" }, { label: "Guides" }]} />
       <header className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">User Guides</h1>
         <p className="text-sm text-[var(--token-text-secondary)]">
@@ -59,4 +55,3 @@ export default async function GuidesPage() {
     </section>
   )
 }
-

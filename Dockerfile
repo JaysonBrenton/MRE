@@ -77,9 +77,16 @@ RUN apk add --no-cache openssl libc6-compat wget
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Copy package files and install production dependencies only
+# Copy package files and Prisma schema (needed for Prisma client generation)
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
+
+# Install production dependencies only
 RUN npm install --legacy-peer-deps --only=production && npm cache clean --force
+
+# Explicitly generate Prisma client (belt-and-suspenders approach)
+# postinstall hook also runs prisma generate, but explicit step ensures it happens
+RUN npx prisma generate
 
 # Copy built application
 COPY --from=builder /app/.next ./.next

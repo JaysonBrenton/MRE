@@ -1,14 +1,14 @@
 /**
  * @fileoverview Sessions table - table view of all sessions with results
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Full results table showing sessions with expandable rows for detailed results
- * 
+ *
  * @purpose Provides table view of sessions with sorting, filtering, and links to detailed results.
- * 
+ *
  * @relatedFiles
  * - src/components/event-analysis/SessionsTab.tsx (parent)
  * - src/core/events/get-sessions-data.ts (data source)
@@ -18,6 +18,7 @@
 
 import { useState, useMemo } from "react"
 import type { SessionData } from "@/core/events/get-sessions-data"
+import ListPagination from "../ListPagination"
 
 export interface SessionsTableProps {
   sessions: SessionData[]
@@ -69,6 +70,8 @@ export default function SessionsTable({
 }: SessionsTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   // Sort sessions by race label
   const sortedSessions = useMemo(() => {
@@ -83,6 +86,19 @@ export default function SessionsTable({
     })
     return sorted
   }, [sessions, sortDirection])
+
+  // Paginate sessions
+  const totalSessions = sortedSessions.length
+  const totalPages = Math.ceil(totalSessions / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedSessions = sortedSessions.slice(startIndex, endIndex)
+
+  // Reset to page 1 when items per page changes
+  const handleRowsPerPageChange = (newRowsPerPage: number) => {
+    setItemsPerPage(newRowsPerPage)
+    setCurrentPage(1)
+  }
 
   const toggleRow = (sessionId: string) => {
     const newExpanded = new Set(expandedRows)
@@ -101,16 +117,12 @@ export default function SessionsTable({
   // Check if session has selected drivers
   const hasSelectedDrivers = (session: SessionData): boolean => {
     if (selectedDriverIds.length === 0) return false
-    return session.results.some((result) =>
-      selectedDriverIds.includes(result.driverId)
-    )
+    return session.results.some((result) => selectedDriverIds.includes(result.driverId))
   }
 
   if (sessions.length === 0) {
     return (
-      <div
-        className={`text-center py-12 text-[var(--token-text-secondary)] ${className}`}
-      >
+      <div className={`text-center py-12 text-[var(--token-text-secondary)] ${className}`}>
         No sessions available
       </div>
     )
@@ -129,9 +141,7 @@ export default function SessionsTable({
                   className="flex items-center gap-2 hover:text-[var(--token-accent)] transition-colors"
                 >
                   Race Label
-                  <span className="text-xs">
-                    {sortDirection === "asc" ? "↑" : "↓"}
-                  </span>
+                  <span className="text-xs">{sortDirection === "asc" ? "↑" : "↓"}</span>
                 </button>
               </th>
               <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--token-text-primary)]">
@@ -155,7 +165,7 @@ export default function SessionsTable({
             </tr>
           </thead>
           <tbody>
-            {sortedSessions.map((session) => {
+            {paginatedSessions.map((session) => {
               const isExpanded = expandedRows.has(session.id)
               const hasSelected = hasSelectedDrivers(session)
 
@@ -175,9 +185,7 @@ export default function SessionsTable({
                       className="flex items-center gap-2 hover:text-[var(--token-accent)] transition-colors"
                     >
                       <span>{session.raceLabel}</span>
-                      <span className="text-xs">
-                        {isExpanded ? "▼" : "▶"}
-                      </span>
+                      <span className="text-xs">{isExpanded ? "▼" : "▶"}</span>
                     </button>
                   </td>
                   <td className="py-3 px-4 text-sm text-[var(--token-text-secondary)]">
@@ -212,7 +220,7 @@ export default function SessionsTable({
       </div>
 
       {/* Expanded rows for full results */}
-      {sortedSessions.map((session) => {
+      {paginatedSessions.map((session) => {
         if (!expandedRows.has(session.id)) {
           return null
         }
@@ -251,16 +259,12 @@ export default function SessionsTable({
                 </thead>
                 <tbody>
                   {session.results.map((result) => {
-                    const isSelected = selectedDriverIds.includes(
-                      result.driverId
-                    )
+                    const isSelected = selectedDriverIds.includes(result.driverId)
                     return (
                       <tr
                         key={result.raceResultId}
                         className={`border-b border-[var(--token-border-default)] ${
-                          isSelected
-                            ? "bg-[var(--token-surface-elevated)]"
-                            : ""
+                          isSelected ? "bg-[var(--token-surface-elevated)]" : ""
                         }`}
                       >
                         <td className="py-2 px-3 text-[var(--token-text-secondary)]">
@@ -292,7 +296,20 @@ export default function SessionsTable({
           </div>
         )
       })}
+
+      {/* Pagination */}
+      {totalSessions > 0 && (
+        <ListPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={totalSessions}
+          itemLabel="sessions"
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          onRowsPerPageChange={handleRowsPerPageChange}
+        />
+      )}
     </div>
   )
 }
-

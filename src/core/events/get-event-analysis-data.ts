@@ -1,15 +1,15 @@
 /**
  * @fileoverview Get event analysis data - aggregates event data for analysis
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Fetches and aggregates event data including races, results, drivers, and lap data
- * 
+ *
  * @purpose Provides structured data for event analysis charts and visualizations.
  *          All database access is delegated to repo.ts following mobile-safe architecture.
- * 
+ *
  * @relatedFiles
  * - src/core/events/repo.ts (database access)
  * - src/core/events/calculate-driver-stats.ts (driver statistics)
@@ -21,6 +21,7 @@ import {
   isValidLapTime,
   type RaceResultForValidation,
 } from "./validate-lap-times"
+import { calculateMostImprovedDrivers } from "./calculate-driver-improvement"
 
 function sanitizeLapTime(value: number | null | undefined): number | null {
   if (typeof value !== "number") {
@@ -107,6 +108,21 @@ export interface EventSummary {
     className: string
     raceId: string
   }>
+  mostImprovedDrivers?: Array<{
+    driverId: string
+    driverName: string
+    className: string
+    firstRacePosition: number
+    lastRacePosition: number
+    positionImprovement: number
+    firstRaceFastLap: number | null
+    lastRaceFastLap: number | null
+    lapTimeImprovement: number | null
+    improvementScore: number
+    firstRaceId: string
+    lastRaceId: string
+    raceLabel: string
+  }>
   userBestLap?: {
     lapTime: number
     position: number
@@ -150,12 +166,7 @@ export interface EventAnalysisData {
       fastLapTime: number | null
       avgLapTime: number | null
       consistency: number | null
-      laps: Array<{
-        lapNumber: number
-        lapTimeSeconds: number
-        elapsedRaceTime: number
-        positionOnLap: number
-      }>
+      // laps array removed - not used by any components, only needed for metric derivation
     }>
   }>
   drivers: Array<{
@@ -187,10 +198,10 @@ export interface EventAnalysisData {
 
 /**
  * Get lightweight event summary using database aggregations
- * 
+ *
  * This function uses Prisma aggregations to compute summary statistics
  * without loading the full event graph (races, results, laps).
- * 
+ *
  * @param eventId - Event's unique identifier
  * @param userId - Optional user ID to include user's best lap comparison
  * @returns Event summary with aggregated statistics or null if event not found
@@ -281,12 +292,10 @@ export async function getEventSummary(
   })
 
   // Calculate class thresholds for validation
-  const resultsForValidation: RaceResultForValidation[] = allResults.map(
-    (result) => ({
-      fastLapTime: result.fastLapTime,
-      className: result.race.className,
-    })
-  )
+  const resultsForValidation: RaceResultForValidation[] = allResults.map((result) => ({
+    fastLapTime: result.fastLapTime,
+    className: result.race.className,
+  }))
   const classThresholds = calculateClassThresholds(resultsForValidation)
 
   // Group by driverId to get each driver's best lap
@@ -307,9 +316,7 @@ export async function getEventSummary(
     if (lapTime === null) continue
 
     // Validate lap time against class threshold
-    if (
-      !isValidLapTime(lapTime, result.race.className, classThresholds)
-    ) {
+    if (!isValidLapTime(lapTime, result.race.className, classThresholds)) {
       continue
     }
 
@@ -371,7 +378,7 @@ export async function getEventSummary(
     className: string
     raceId: string
   }> = []
-  
+
   for (const classData of topClasses) {
     // Take top 3 drivers from each class
     const topDriversFromClass = classData.drivers.slice(0, 3)
@@ -499,6 +506,9 @@ export async function getEventSummary(
     .sort((a, b) => a.avgLapTime - b.avgLapTime)
     .slice(0, 3)
 
+  // Get most improved drivers
+  const mostImprovedDrivers = await calculateMostImprovedDrivers(eventId)
+
   // Get user's best lap if userId provided
   let userBestLap: { lapTime: number; position: number; gapToFastest: number } | undefined
   let userBestConsistency: { consistency: number; position: number; gapToBest: number } | undefined
@@ -562,9 +572,7 @@ export async function getEventSummary(
           if (lapTime === null) continue
 
           // Validate lap time against class threshold
-          if (
-            !isValidLapTime(lapTime, result.race.className, classThresholds)
-          ) {
+          if (!isValidLapTime(lapTime, result.race.className, classThresholds)) {
             continue
           }
 
@@ -578,11 +586,11 @@ export async function getEventSummary(
           const allDriverTimes = Array.from(driverBestLaps.values())
             .map((d) => d.fastestLapTime)
             .sort((a, b) => a - b)
-          
+
           // Count how many drivers have faster lap times
           const fasterCount = allDriverTimes.filter((time) => time < userBestLapTime!).length
           const position = fasterCount + 1
-          
+
           const fastestLapTime = topDrivers[0]?.fastestLapTime ?? userBestLapTime
           const gapToFastest = userBestLapTime - fastestLapTime
 
@@ -612,7 +620,10 @@ export async function getEventSummary(
         let userBestConsistencyScore: number | null = null
         for (const result of userConsistencyResults) {
           if (result.consistency !== null) {
-            if (userBestConsistencyScore === null || result.consistency > userBestConsistencyScore) {
+            if (
+              userBestConsistencyScore === null ||
+              result.consistency > userBestConsistencyScore
+            ) {
               userBestConsistencyScore = result.consistency
             }
           }
@@ -623,11 +634,13 @@ export async function getEventSummary(
           const allDriverConsistencies = Array.from(driverBestConsistency.values())
             .map((d) => d.consistency)
             .sort((a, b) => b - a) // Sort descending for consistency
-          
+
           // Count how many drivers have higher consistency scores
-          const betterCount = allDriverConsistencies.filter((consistency) => consistency > userBestConsistencyScore!).length
+          const betterCount = allDriverConsistencies.filter(
+            (consistency) => consistency > userBestConsistencyScore!
+          ).length
           const position = betterCount + 1
-          
+
           const bestConsistency = mostConsistentDrivers[0]?.consistency ?? userBestConsistencyScore
           const gapToBest = bestConsistency - userBestConsistencyScore
 
@@ -669,11 +682,13 @@ export async function getEventSummary(
           const allDriverAvgLaps = Array.from(driverBestAvgLap.values())
             .map((d) => d.avgLapTime)
             .sort((a, b) => a - b) // Sort ascending for lap times
-          
+
           // Count how many drivers have better (lower) average lap times
-          const betterCount = allDriverAvgLaps.filter((avgLap) => avgLap < userBestAvgLapTime!).length
+          const betterCount = allDriverAvgLaps.filter(
+            (avgLap) => avgLap < userBestAvgLapTime!
+          ).length
           const position = betterCount + 1
-          
+
           const bestAvgLap = bestAvgLapDrivers[0]?.avgLapTime ?? userBestAvgLapTime
           const gapToBest = userBestAvgLapTime - bestAvgLap
 
@@ -706,6 +721,7 @@ export async function getEventSummary(
     topDrivers: topDrivers.length > 0 ? topDrivers : undefined,
     mostConsistentDrivers: mostConsistentDrivers.length > 0 ? mostConsistentDrivers : undefined,
     bestAvgLapDrivers: bestAvgLapDrivers.length > 0 ? bestAvgLapDrivers : undefined,
+    mostImprovedDrivers: mostImprovedDrivers.length > 0 ? mostImprovedDrivers : undefined,
     userBestLap,
     userBestConsistency,
     userBestAvgLap,
@@ -714,13 +730,11 @@ export async function getEventSummary(
 
 /**
  * Get comprehensive event analysis data
- * 
+ *
  * @param eventId - Event's unique identifier
  * @returns Structured event analysis data or null if event not found
  */
-export async function getEventAnalysisData(
-  eventId: string
-): Promise<EventAnalysisData | null> {
+export async function getEventAnalysisData(eventId: string): Promise<EventAnalysisData | null> {
   // Fetch event with all related data
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -781,8 +795,19 @@ export async function getEventAnalysisData(
     }
   >()
 
-  let totalLaps = 0
   const raceDates: Date[] = []
+
+  // Get total laps count using database aggregation (more efficient than loading all laps)
+  const totalLapsResult = await prisma.lap.count({
+    where: {
+      raceResult: {
+        race: {
+          eventId: eventId,
+        },
+      },
+    },
+  })
+  const totalLaps = totalLapsResult
 
   // Process each race
   const racesData = event.races.map((race) => {
@@ -791,13 +816,10 @@ export async function getEventAnalysisData(
     }
 
     const resultsData = race.results.map((result) => {
-      totalLaps += result.laps.length
-
       // Derive lap metrics when LiveRC omits aggregate columns
       const derivedMetrics = deriveLapMetrics(result.laps)
-      let normalizedFastLap =
-        sanitizeLapTime(result.fastLapTime) ?? derivedMetrics.bestLap
-      
+      let normalizedFastLap = sanitizeLapTime(result.fastLapTime) ?? derivedMetrics.bestLap
+
       // Validate fast lap time against class threshold
       if (
         normalizedFastLap !== null &&
@@ -805,15 +827,14 @@ export async function getEventAnalysisData(
       ) {
         normalizedFastLap = null
       }
-      
-      const normalizedAvgLap =
-        sanitizeLapTime(result.avgLapTime) ?? derivedMetrics.averageLap
+
+      const normalizedAvgLap = sanitizeLapTime(result.avgLapTime) ?? derivedMetrics.averageLap
 
       // Track driver stats using normalized Driver ID (not raceDriverId)
       const driverId = result.raceDriver.driverId
       // Use denormalized displayName from RaceDriver (no need to join Driver table)
       const driverName = result.raceDriver.displayName
-      
+
       if (!driverMap.has(driverId)) {
         driverMap.set(driverId, {
           driverId: driverId,
@@ -829,10 +850,7 @@ export async function getEventAnalysisData(
       driverData.racesParticipated++
 
       if (normalizedFastLap !== null) {
-        if (
-          driverData.bestLapTime === null ||
-          normalizedFastLap < driverData.bestLapTime
-        ) {
+        if (driverData.bestLapTime === null || normalizedFastLap < driverData.bestLapTime) {
           driverData.bestLapTime = normalizedFastLap
         }
       }
@@ -856,12 +874,9 @@ export async function getEventAnalysisData(
         fastLapTime: normalizedFastLap,
         avgLapTime: normalizedAvgLap,
         consistency: result.consistency,
-        laps: result.laps.map((lap) => ({
-          lapNumber: lap.lapNumber,
-          lapTimeSeconds: lap.lapTimeSeconds,
-          elapsedRaceTime: lap.elapsedRaceTime,
-          positionOnLap: lap.positionOnLap,
-        })),
+        // Note: laps array removed from response to reduce payload size
+        // Individual lap data is not used by any components
+        // Laps are only loaded to derive metrics when aggregates are missing
       }
     })
 
@@ -881,14 +896,12 @@ export async function getEventAnalysisData(
   const driversData = Array.from(driverMap.values()).map((driver) => {
     const avgLapTime =
       driver.avgLapTimes.length > 0
-        ? driver.avgLapTimes.reduce((a, b) => a + b, 0) /
-          driver.avgLapTimes.length
+        ? driver.avgLapTimes.reduce((a, b) => a + b, 0) / driver.avgLapTimes.length
         : null
 
     const consistency =
       driver.consistencies.length > 0
-        ? driver.consistencies.reduce((a, b) => a + b, 0) /
-          driver.consistencies.length
+        ? driver.consistencies.reduce((a, b) => a + b, 0) / driver.consistencies.length
         : null
 
     return {
@@ -902,8 +915,10 @@ export async function getEventAnalysisData(
   })
 
   // Calculate date range
-  const earliestDate = raceDates.length > 0 ? new Date(Math.min(...raceDates.map(d => d.getTime()))) : null
-  const latestDate = raceDates.length > 0 ? new Date(Math.max(...raceDates.map(d => d.getTime()))) : null
+  const earliestDate =
+    raceDates.length > 0 ? new Date(Math.min(...raceDates.map((d) => d.getTime()))) : null
+  const latestDate =
+    raceDates.length > 0 ? new Date(Math.max(...raceDates.map((d) => d.getTime()))) : null
 
   // Fetch entry list (EventEntry records)
   const eventEntries = await prisma.eventEntry.findMany({

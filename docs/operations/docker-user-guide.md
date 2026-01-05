@@ -2,10 +2,13 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Comprehensive Docker user guide for MRE application architecture and usage
-purpose: Provides complete Docker architecture documentation, setup instructions, usage guide,
-         development workflow, troubleshooting, and production considerations. This is the
-         authoritative guide for understanding and working with the MRE Docker environment.
+description:
+  Comprehensive Docker user guide for MRE application architecture and usage
+purpose:
+  Provides complete Docker architecture documentation, setup instructions, usage
+  guide, development workflow, troubleshooting, and production considerations.
+  This is the authoritative guide for understanding and working with the MRE
+  Docker environment.
 relatedFiles:
   - docker-compose.yml (container configuration)
   - Dockerfile (Next.js application build configuration)
@@ -20,9 +23,12 @@ relatedFiles:
 
 **Document Type:** User Guide  
 **Status:** Authoritative  
-**Scope:** Docker architecture, setup, usage, development workflow, troubleshooting, and production considerations
+**Scope:** Docker architecture, setup, usage, development workflow,
+troubleshooting, and production considerations
 
-This guide provides comprehensive documentation for understanding and working with the MRE Docker environment. It consolidates architecture details, setup instructions, daily usage patterns, and troubleshooting procedures.
+This guide provides comprehensive documentation for understanding and working
+with the MRE Docker environment. It consolidates architecture details, setup
+instructions, daily usage patterns, and troubleshooting procedures.
 
 ---
 
@@ -46,11 +52,14 @@ This guide provides comprehensive documentation for understanding and working wi
 
 ## Overview
 
-The MRE application runs as a containerized microservices architecture using Docker Compose. The environment consists of:
+The MRE application runs as a containerized microservices architecture using
+Docker Compose. The environment consists of:
 
 - **Next.js Application** (`mre-app`) - Main web application and API server
-- **Python Ingestion Service** (`mre-liverc-ingestion-service`) - LiveRC data ingestion microservice
-- **PostgreSQL Database** (`mre-postgres`) - External database container (managed separately)
+- **Python Ingestion Service** (`mre-liverc-ingestion-service`) - LiveRC data
+  ingestion microservice
+- **PostgreSQL Database** (`mre-postgres`) - External database container
+  (managed separately)
 
 ### Goals
 
@@ -61,7 +70,8 @@ The Docker setup provides:
 - **Reproducible Behavior** - Eliminates machine-specific configuration issues
 - **LLM-Safe** - Predictable environment for AI-assisted development
 - **Hot Reload** - Development-friendly with live code updates
-- **Production-Ready** - Multi-stage builds support both development and production
+- **Production-Ready** - Multi-stage builds support both development and
+  production
 
 ---
 
@@ -93,11 +103,11 @@ The Docker setup provides:
 
 ### Service Overview
 
-| Service | Container Name | Port | Technology | Purpose |
-|---------|---------------|------|------------|---------|
-| Next.js App | `mre-app` | 3001 | Node.js 20, Next.js | Web application and API server |
-| Ingestion Service | `mre-liverc-ingestion-service` | 8000 | Python 3.11, FastAPI | LiveRC data ingestion |
-| Database | `mre-postgres` | 5432 | PostgreSQL 16 | Data persistence |
+| Service           | Container Name                 | Port | Technology           | Purpose                        |
+| ----------------- | ------------------------------ | ---- | -------------------- | ------------------------------ |
+| Next.js App       | `mre-app`                      | 3001 | Node.js 20, Next.js  | Web application and API server |
+| Ingestion Service | `mre-liverc-ingestion-service` | 8000 | Python 3.11, FastAPI | LiveRC data ingestion          |
+| Database          | `mre-postgres`                 | 5432 | PostgreSQL 16        | Data persistence               |
 
 ### Network Architecture
 
@@ -109,6 +119,7 @@ All containers communicate through a Docker bridge network:
 - **Persistence:** Network persists between container restarts
 
 **Service Discovery:**
+
 - Containers resolve each other by container name
 - Example: `mre-app` connects to `mre-postgres` using hostname `mre-postgres`
 
@@ -164,7 +175,8 @@ docker network create my-race-engineer_mre-network
 
 ### Step 3: Set Up PostgreSQL Container
 
-The application connects to an existing PostgreSQL container. Set it up if it doesn't exist:
+The application connects to an existing PostgreSQL container. Set it up if it
+doesn't exist:
 
 ```bash
 docker run -d \
@@ -177,7 +189,8 @@ docker run -d \
   postgres:16
 ```
 
-**Note:** The PostgreSQL container is managed separately from the compose file to allow persistence across rebuilds.
+**Note:** The PostgreSQL container is managed separately from the compose file
+to allow persistence across rebuilds.
 
 ### Step 4: Configure Environment Variables
 
@@ -195,7 +208,8 @@ APP_PORT=3001
 INGESTION_PORT=8000
 ```
 
-See `docs/operations/environment-variables.md` for complete environment variable reference.
+See `docs/operations/environment-variables.md` for complete environment variable
+reference.
 
 ### Step 5: Build Docker Images
 
@@ -206,6 +220,7 @@ docker compose build
 ```
 
 This may take several minutes on first run as it:
+
 - Downloads base images (Node.js 20, Python 3.11)
 - Installs dependencies (npm packages, Python packages)
 - Sets up Playwright browsers (for ingestion service)
@@ -229,6 +244,7 @@ docker compose ps
 ```
 
 You should see:
+
 - `mre-app` - Status: Up, Ports: 0.0.0.0:3001->3001/tcp
 - `mre-liverc-ingestion-service` - Status: Up, Ports: 0.0.0.0:8000->8000/tcp
 
@@ -253,6 +269,7 @@ curl http://localhost:8000/health
 ```
 
 Expected responses:
+
 ```json
 // Next.js app
 {
@@ -378,9 +395,11 @@ docker ps --format "table {{.Names}}\t{{.Status}}"
 The development environment supports hot reload:
 
 - **Next.js App:** Code changes automatically trigger rebuilds
-- **Ingestion Service:** Code changes require container restart (or use volume mounts)
+- **Ingestion Service:** Code changes require container restart (or use volume
+  mounts)
 
 **Volume Mounts:**
+
 - Source code is mounted as volumes for live updates
 - `node_modules` and `.next` are excluded to use container versions
 
@@ -402,18 +421,26 @@ docker exec -it mre-app npx prisma studio
 
 ### Running Python CLI Commands
 
-**All Python CLI commands MUST be executed inside the Docker container.** This is the primary and recommended method for running ingestion CLI commands.
+**All Python CLI commands MUST be executed inside the Docker container.** This
+is the primary and recommended method for running ingestion CLI commands.
 
 **Why Docker?**
-- **No local Python setup required** - Python 3.11, dependencies, and Playwright are pre-installed
-- **Pre-configured environment** - Database connection and environment variables already set
-- **Consistent environment** - Same Python version and dependencies for all developers
+
+- **No local Python setup required** - Python 3.11, dependencies, and Playwright
+  are pre-installed
+- **Pre-configured environment** - Database connection and environment variables
+  already set
+- **Consistent environment** - Same Python version and dependencies for all
+  developers
 - **No virtual environment management** - Avoids Python version conflicts
 
 **Prerequisites:**
-- Ensure ingestion service is running: `docker compose up -d liverc-ingestion-service`
+
+- Ensure ingestion service is running:
+  `docker compose up -d liverc-ingestion-service`
 
 **Basic CLI Commands:**
+
 ```bash
 # List all tracks
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
@@ -438,18 +465,20 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 ```
 
 **Command Format:**
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc <command> [options]
 ```
 
 The `-it` flags enable interactive terminal mode with proper output formatting.
 
-**Complete Documentation:**
-See `docs/operations/liverc-operations-guide.md` for complete CLI command reference, examples, and workflows.
+**Complete Documentation:** See `docs/operations/liverc-operations-guide.md` for
+complete CLI command reference, examples, and workflows.
 
 ### Running Tests
 
 **Python Ingestion Service:**
+
 ```bash
 # Enter container
 docker exec -it mre-liverc-ingestion-service sh
@@ -465,6 +494,7 @@ pytest tests/unit/test_validator.py
 ```
 
 Or run tests directly without entering the container:
+
 ```bash
 # Run tests in container
 docker exec -it mre-liverc-ingestion-service pytest
@@ -474,6 +504,7 @@ docker exec -it mre-liverc-ingestion-service pytest --cov=ingestion
 ```
 
 **Next.js Application:**
+
 ```bash
 # Run linting
 docker exec -it mre-app npm run lint
@@ -485,18 +516,33 @@ docker exec -it mre-app npm run type-check
 ### Installing Dependencies
 
 **Next.js App:**
+
+The container's entrypoint script (`docker-entrypoint.sh`) automatically checks
+and installs dependencies on startup. It verifies critical packages
+(`@visx/group`, `react-window`, `react-redux`) are present and runs
+`npm install --legacy-peer-deps` if needed.
+
+**Manual Installation:**
+
 ```bash
 # Install new package
-docker exec -it mre-app npm install <package-name>
+docker exec -it mre-app npm install <package-name> --legacy-peer-deps
 
 # Install all dependencies
-docker exec -it mre-app npm install
+docker exec -it mre-app npm install --legacy-peer-deps
 
-# Rebuild container to persist changes
+# Rebuild container to persist changes (recommended for new packages)
 docker compose build app
+docker compose up -d app
 ```
 
+**Note:** After adding a new package to `package.json`, rebuild the container to
+ensure it's included in the Docker image's dependency layer. The entrypoint
+script will handle installation on container start, but rebuilding ensures the
+package is included in the image cache.
+
 **Ingestion Service:**
+
 ```bash
 # Add to requirements.txt, then rebuild
 docker compose build liverc-ingestion-service
@@ -522,6 +568,7 @@ docker compose up -d liverc-ingestion-service
 **Technology:** Node.js 20 (Alpine), Next.js
 
 **Dockerfile Stages:**
+
 1. **deps** - Install dependencies
 2. **development** - Development environment with hot reload
 3. **builder** - Production build
@@ -530,13 +577,27 @@ docker compose up -d liverc-ingestion-service
 **Current Stage:** `development`
 
 **Features:**
+
 - Hot reload enabled
 - Source code mounted as volume
 - Node modules excluded from volume (uses container version)
 - Health check configured
 - Non-root user in production stage
+- Automatic dependency checking via entrypoint script
+
+**Entrypoint Script:** The container uses `docker-entrypoint.sh` to
+automatically check and install dependencies on startup. The script:
+
+- Verifies that `node_modules` exists and is up to date
+- Checks if `package.json` or `package-lock.json` is newer than `node_modules`
+- Verifies critical packages are present: `@visx/group`, `react-window`,
+  `react-redux`
+- Automatically runs `npm install --legacy-peer-deps` if dependencies are
+  missing or outdated
+- Regenerates Prisma client if the schema has changed
 
 **Environment Variables:**
+
 - `DATABASE_URL` - PostgreSQL connection string
 - `NODE_ENV` - Environment (development/production)
 - `PORT` - Application port (3001)
@@ -544,9 +605,18 @@ docker compose up -d liverc-ingestion-service
 - `APP_URL` - Application URL
 
 **Health Check:**
+
 ```yaml
 healthcheck:
-  test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+  test:
+    [
+      "CMD",
+      "wget",
+      "--quiet",
+      "--tries=1",
+      "--spider",
+      "http://localhost:3001/api/health",
+    ]
   interval: 30s
   timeout: 10s
   retries: 3
@@ -561,6 +631,7 @@ healthcheck:
 **Technology:** Python 3.11 (slim), FastAPI, Playwright
 
 **Features:**
+
 - FastAPI application
 - Playwright for web scraping
 - PostgreSQL client tools
@@ -568,18 +639,23 @@ healthcheck:
 - Health check endpoint
 
 **Environment Variables:**
+
 - `DATABASE_URL` - PostgreSQL connection string
 - `PYTHONUNBUFFERED` - Disable Python output buffering
 - `LOG_LEVEL` - Logging level (INFO, DEBUG, etc.)
 - `TZ` - Timezone
-- `SITE_POLICY_PATH` - Path to site policy configuration file (default: `/app/policies/site_policy/policy.json`)
+- `SITE_POLICY_PATH` - Path to site policy configuration file (default:
+  `/app/policies/site_policy/policy.json`)
 
 **Volume Mounts:**
+
 - `./ingestion:/app/ingestion` - Source code for hot reload
 - `./docs/reports:/app/docs/reports` - Persist sync reports
-- `./policies:/app/policies:ro` - Site policy configuration (read-only, required for LiveRC discovery)
+- `./policies:/app/policies:ro` - Site policy configuration (read-only, required
+  for LiveRC discovery)
 
 **Health Check:**
+
 ```yaml
 healthcheck:
   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -596,9 +672,11 @@ healthcheck:
 **Port:** 5432 (mapped to host)  
 **Technology:** PostgreSQL 16
 
-**Note:** This container is managed separately from docker-compose.yml to allow persistence across rebuilds.
+**Note:** This container is managed separately from docker-compose.yml to allow
+persistence across rebuilds.
 
 **Connection Details:**
+
 - **Host:** `mre-postgres` (container name)
 - **Port:** 5432
 - **Database:** `pacetracer`
@@ -606,6 +684,7 @@ healthcheck:
 - **Password:** `change-me` (configured in `.env.docker`)
 
 **Connection String:**
+
 ```
 postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?schema=public
 ```
@@ -647,13 +726,14 @@ docker network rm my-race-engineer_mre-network
 
 ### Port Mapping
 
-| Container | Container Port | Host Port | Access |
-|-----------|---------------|------------|--------|
-| mre-app | 3001 | 3001 (configurable) | http://localhost:3001 |
-| mre-liverc-ingestion-service | 8000 | 8000 (configurable) | http://localhost:8000 |
-| mre-postgres | 5432 | 5432 | localhost:5432 |
+| Container                    | Container Port | Host Port           | Access                |
+| ---------------------------- | -------------- | ------------------- | --------------------- |
+| mre-app                      | 3001           | 3001 (configurable) | http://localhost:3001 |
+| mre-liverc-ingestion-service | 8000           | 8000 (configurable) | http://localhost:8000 |
+| mre-postgres                 | 5432           | 5432                | localhost:5432        |
 
-**Configuration:** Port mappings are configured in `docker-compose.yml` and can be overridden via environment variables (`APP_PORT`, `INGESTION_PORT`).
+**Configuration:** Port mappings are configured in `docker-compose.yml` and can
+be overridden via environment variables (`APP_PORT`, `INGESTION_PORT`).
 
 ---
 
@@ -711,7 +791,9 @@ docker volume rm <volume-name>
 
 **Primary File:** `.env.docker`
 
-This file contains all environment variables used by Docker Compose. It should be:
+This file contains all environment variables used by Docker Compose. It should
+be:
+
 - Created from `.env.docker.example` (if exists)
 - Added to `.gitignore` (never commit secrets)
 - Configured per developer/environment
@@ -719,12 +801,14 @@ This file contains all environment variables used by Docker Compose. It should b
 ### Key Environment Variables
 
 **Database:**
+
 - `DATABASE_URL` - Full PostgreSQL connection string
 - `POSTGRES_USER` - Database user
 - `POSTGRES_PASSWORD` - Database password
 - `POSTGRES_DB` - Database name
 
 **Application:**
+
 - `NODE_ENV` - Environment (development/production)
 - `PORT` - Application port (3001)
 - `APP_PORT` - Host port mapping
@@ -732,6 +816,7 @@ This file contains all environment variables used by Docker Compose. It should b
 - `AUTH_SECRET` - NextAuth secret
 
 **Ingestion Service:**
+
 - `INGESTION_PORT` - Host port mapping
 - `LOG_LEVEL` - Logging level
 - `TZ` - Timezone
@@ -744,7 +829,8 @@ This file contains all environment variables used by Docker Compose. It should b
 
 ### Complete Reference
 
-See `docs/operations/environment-variables.md` for complete environment variable documentation.
+See `docs/operations/environment-variables.md` for complete environment variable
+documentation.
 
 ---
 
@@ -757,6 +843,7 @@ See `docs/operations/environment-variables.md` for complete environment variable
 **Error:** `network my-race-engineer_mre-network not found`
 
 **Solution:**
+
 ```bash
 docker network create my-race-engineer_mre-network
 ```
@@ -766,6 +853,7 @@ docker network create my-race-engineer_mre-network
 **Error:** `could not translate host name "mre-postgres" to address`
 
 **Solution:**
+
 ```bash
 # Check if container exists
 docker ps -a | grep mre-postgres
@@ -788,16 +876,18 @@ docker run -d \
 **Solutions:**
 
 1. **Change port in `.env.docker`:**
+
    ```bash
    APP_PORT=3002
    ```
 
 2. **Find and stop process using port:**
+
    ```bash
    # macOS/Linux
    lsof -i :3001
    kill -9 <PID>
-   
+
    # Windows
    netstat -ano | findstr :3001
    taskkill /PID <PID> /F
@@ -810,17 +900,20 @@ docker run -d \
 **Solutions:**
 
 1. **Verify PostgreSQL container is running:**
+
    ```bash
    docker ps | grep mre-postgres
    ```
 
 2. **Check DATABASE_URL in `.env.docker`:**
+
    ```bash
    # Should match container name and network
    DATABASE_URL=postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?schema=public
    ```
 
 3. **Test database connection:**
+
    ```bash
    docker exec -it mre-postgres psql -U pacetracer -d pacetracer -c "SELECT 1"
    ```
@@ -835,6 +928,7 @@ docker run -d \
 **Error:** `@prisma/client did not initialize yet`
 
 **Solution:**
+
 ```bash
 docker exec -it mre-app npx prisma generate
 ```
@@ -846,16 +940,19 @@ docker exec -it mre-app npx prisma generate
 **Solutions:**
 
 1. **Verify volume mounts:**
+
    ```bash
    docker inspect mre-app | grep -A 10 Mounts
    ```
 
 2. **Restart container:**
+
    ```bash
    docker compose restart app
    ```
 
 3. **Check file permissions (Linux/WSL):**
+
    ```bash
    chmod -R 755 .
    ```
@@ -872,30 +969,35 @@ docker exec -it mre-app npx prisma generate
 **Solutions:**
 
 1. **Verify service is running:**
+
    ```bash
    docker ps | grep liverc-ingestion-service
    ```
 
 2. **Check service logs:**
+
    ```bash
    docker logs mre-liverc-ingestion-service
    ```
 
 3. **Test health endpoint:**
+
    ```bash
    curl http://localhost:8000/health
    ```
 
 4. **Restart service:**
+
    ```bash
    docker compose restart liverc-ingestion-service
    ```
 
 5. **Verify site policy configuration is mounted:**
+
    ```bash
    # Check if policy file is accessible
    docker exec mre-liverc-ingestion-service ls -la /app/policies/site_policy/policy.json
-   
+
    # If missing, recreate container to apply volume mount
    docker compose up -d --force-recreate liverc-ingestion-service
    ```
@@ -906,19 +1008,40 @@ docker exec -it mre-app npx prisma generate
 
 **Solutions:**
 
-1. **Rebuild images:**
+1. **Restart container (entrypoint script will auto-install):**
+
    ```bash
-   docker compose build --no-cache
+   docker compose restart app
    ```
 
-2. **Reinstall dependencies (Next.js):**
+   The entrypoint script automatically checks for missing dependencies and
+   installs them. It verifies critical packages (`@visx/group`, `react-window`,
+   `react-redux`) are present.
+
+2. **Rebuild images (if restart doesn't work):**
+
    ```bash
-   docker exec -it mre-app npm install
+   docker compose build --no-cache app
+   docker compose up -d app
    ```
 
-3. **Check package.json:**
+3. **Manually reinstall dependencies:**
+
+   ```bash
+   docker exec -it mre-app npm install --legacy-peer-deps
+   ```
+
+4. **Check package.json:**
+
    ```bash
    docker exec -it mre-app cat package.json
+   ```
+
+5. **Verify critical packages exist:**
+   ```bash
+   docker exec mre-app test -d node_modules/react-redux && echo "react-redux installed" || echo "react-redux missing"
+   docker exec mre-app test -d node_modules/@visx/group && echo "@visx/group installed" || echo "@visx/group missing"
+   docker exec mre-app test -d node_modules/react-window && echo "react-window installed" || echo "react-window missing"
    ```
 
 #### Issue: Container Won't Start
@@ -928,16 +1051,19 @@ docker exec -it mre-app npx prisma generate
 **Solutions:**
 
 1. **Check logs:**
+
    ```bash
    docker logs mre-app
    ```
 
 2. **Check container status:**
+
    ```bash
    docker ps -a | grep mre-app
    ```
 
 3. **Start in foreground to see errors:**
+
    ```bash
    docker compose up app
    ```
@@ -954,16 +1080,17 @@ docker exec -it mre-app npx prisma generate
 **Solutions:**
 
 1. **Clean up Docker resources:**
+
    ```bash
    # Remove unused containers
    docker container prune
-   
+
    # Remove unused images
    docker image prune -a
-   
+
    # Remove unused volumes
    docker volume prune
-   
+
    # Remove build cache
    docker builder prune
    ```
@@ -997,12 +1124,14 @@ docker run -d \
 ### Production Differences
 
 **Development:**
+
 - Hot reload enabled
 - Source code mounted as volumes
 - Dev dependencies included
 - Debug logging enabled
 
 **Production:**
+
 - Pre-built Next.js application
 - No volume mounts
 - Production dependencies only
@@ -1032,11 +1161,13 @@ docker run -d \
 ### Scaling Considerations
 
 **Horizontal Scaling:**
+
 - Multiple app containers behind load balancer
 - Shared database connection pool
 - Stateless application design
 
 **Vertical Scaling:**
+
 - Increase container resources
 - Optimize database queries
 - Cache frequently accessed data
@@ -1044,16 +1175,19 @@ docker run -d \
 ### Monitoring
 
 **Health Checks:**
+
 - Container health checks configured
 - Application health endpoints available
 - Monitor health status in production
 
 **Logging:**
+
 - Centralized logging solution recommended
 - Structured logging format
 - Log aggregation and analysis
 
 **Metrics:**
+
 - Container resource usage
 - Application performance metrics
 - Database connection pool metrics
@@ -1109,30 +1243,34 @@ docker stats
 
 - **Docker Compose:** `docker-compose.yml`
 - **Next.js Dockerfile:** `Dockerfile`
+- **Next.js Entrypoint Script:** `docker-entrypoint.sh`
 - **Ingestion Dockerfile:** `ingestion/Dockerfile`
 - **Environment Variables:** `.env.docker`
 - **Docker Review:** `docs/reviews/DOCKER_REVIEW_REPORT.md`
 
 ### Related Documentation
 
-- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker evaluation and review
+- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker evaluation
+  and review
 - [Quick Start Guide](../development/quick-start.md) - Developer onboarding
 - [Deployment Guide](./deployment-guide.md) - Deployment procedures
-- [Environment Variables](./environment-variables.md) - Complete environment variable reference
-- [LiveRC Operations Guide](./liverc-operations-guide.md) - Ingestion service operations
+- [Environment Variables](./environment-variables.md) - Complete environment
+  variable reference
+- [LiveRC Operations Guide](./liverc-operations-guide.md) - Ingestion service
+  operations
 
 ### Docker Compose File Structure
 
 ```yaml
 services:
-  app:                    # Next.js application
+  app: # Next.js application
     build: ...
     ports: ...
     volumes: ...
     networks: ...
     healthcheck: ...
-  
-  liverc-ingestion-service:      # Python ingestion service
+
+  liverc-ingestion-service: # Python ingestion service
     build: ...
     ports: ...
     volumes: ...
@@ -1140,7 +1278,7 @@ services:
     healthcheck: ...
 
 networks:
-  mre-network:            # Shared network
+  mre-network: # Shared network
     driver: bridge
     name: my-race-engineer_mre-network
 ```
@@ -1176,15 +1314,19 @@ networks:
 
 ## Summary
 
-This guide provides comprehensive documentation for the MRE Docker environment. Key takeaways:
+This guide provides comprehensive documentation for the MRE Docker environment.
+Key takeaways:
 
-1. **Architecture:** Three-container setup (Next.js app, Python ingestion service, PostgreSQL database) on shared Docker network
-2. **Development:** Hot reload enabled, source code mounted as volumes, easy debugging
+1. **Architecture:** Three-container setup (Next.js app, Python ingestion
+   service, PostgreSQL database) on shared Docker network
+2. **Development:** Hot reload enabled, source code mounted as volumes, easy
+   debugging
 3. **Production:** Multi-stage builds, optimized images, security best practices
 4. **Operations:** Standard Docker Compose commands for daily operations
 5. **Troubleshooting:** Common issues and solutions documented
 
 For specific questions or advanced scenarios, refer to:
+
 - Docker Review Report for architectural evaluation
 - Deployment Guide for production deployment
 - Environment Variables Guide for configuration details
@@ -1192,4 +1334,3 @@ For specific questions or advanced scenarios, refer to:
 ---
 
 **End of Docker User Guide**
-

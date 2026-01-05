@@ -1,20 +1,21 @@
 /**
  * @fileoverview Admin audit log table component with filters, expandable rows, and pagination
- * 
+ *
  * @created 2025-01-29
  * @creator System
  * @lastModified 2025-01-29
- * 
+ *
  * @description Displays audit logs in a table with filtering and expandable details
- * 
+ *
  * @purpose Provides comprehensive audit log viewing with search, filters, and detailed view
- * 
+ *
  * @relatedFiles
  * - src/app/api/v1/admin/audit/route.ts (API endpoint)
  */
 
 "use client"
 import { useEffect, useState, useCallback } from "react"
+import ListPagination from "../event-analysis/ListPagination"
 
 interface AuditLog {
   id: string
@@ -34,19 +35,19 @@ export default function AuditLogTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [itemsPerPage, setItemsPerPage] = useState(50)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [actionFilter, setActionFilter] = useState("")
   const [resourceTypeFilter, setResourceTypeFilter] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const pageSize = 50
 
   const fetchLogs = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        pageSize: pageSize.toString(),
+        pageSize: itemsPerPage.toString(),
       })
 
       if (actionFilter) {
@@ -80,7 +81,7 @@ export default function AuditLogTable() {
     } finally {
       setLoading(false)
     }
-  }, [page, actionFilter, resourceTypeFilter, startDate, endDate])
+  }, [page, itemsPerPage, actionFilter, resourceTypeFilter, startDate, endDate])
 
   useEffect(() => {
     fetchLogs()
@@ -232,7 +233,10 @@ export default function AuditLogTable() {
           <tbody>
             {logs.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[var(--token-text-secondary)]">
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center text-[var(--token-text-secondary)]"
+                >
                   No audit logs found.
                 </td>
               </tr>
@@ -269,7 +273,10 @@ export default function AuditLogTable() {
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr key={`${log.id}-details`} className="border-b border-[var(--token-border-muted)]">
+                      <tr
+                        key={`${log.id}-details`}
+                        className="border-b border-[var(--token-border-muted)]"
+                      >
                         <td colSpan={5} className="px-4 py-4 bg-[var(--token-surface-elevated)]">
                           <div className="space-y-2">
                             <div>
@@ -298,33 +305,19 @@ export default function AuditLogTable() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-[var(--token-text-secondary)]">
-            Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} logs
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <span className="flex items-center px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <ListPagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        itemsPerPage={itemsPerPage}
+        totalItems={total}
+        itemLabel="logs"
+        rowsPerPageOptions={[25, 50, 100, 200]}
+        onRowsPerPageChange={(newRowsPerPage) => {
+          setItemsPerPage(newRowsPerPage)
+          setPage(1)
+        }}
+      />
     </div>
   )
 }
-
