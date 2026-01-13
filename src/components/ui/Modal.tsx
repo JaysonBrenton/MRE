@@ -133,7 +133,7 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 backdrop-blur-[2px] p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
@@ -146,13 +146,13 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`max-h-[calc(100vh-2rem)] my-4 bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col`}
+        className={`max-h-[calc(100vh-2rem)] my-4 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]`}
         onClick={(e) => e.stopPropagation()}
         style={getModalContainerStyles(maxWidthInRem[maxWidth])}
       >
         {/* Header */}
         <div 
-          className="flex items-center justify-between px-4 py-4 border-b border-[var(--token-border-default)]"
+          className="flex items-center justify-between px-4 py-4 border-b border-[var(--token-border-accent-soft)]"
           style={{ minWidth: 0, width: '100%', boxSizing: 'border-box' }}
         >
           <h2 
@@ -199,7 +199,7 @@ export default function Modal({
         {/* Footer */}
         {footer && (
           <div 
-            className="px-4 py-4 border-t border-[var(--token-border-default)]"
+            className="px-4 py-4 border-t border-[var(--token-border-accent-soft)]"
             style={{ minWidth: 0, width: '100%', boxSizing: 'border-box' }}
           >
             {footer}

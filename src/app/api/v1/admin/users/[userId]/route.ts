@@ -19,6 +19,7 @@ import { updateUser, deleteUser, setAdminStatus } from "@/core/admin/users"
 import { successResponse, errorResponse, parseRequestBody } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
+import { isValidUUID } from "@/lib/uuid-validation"
 
 /**
  * PATCH /api/v1/admin/users/[userId]
@@ -47,6 +48,16 @@ export async function PATCH(
     }
 
     const { userId } = await params
+
+    // Validate userId format
+    if (!isValidUUID(userId)) {
+      return errorResponse(
+        "VALIDATION_ERROR",
+        "userId must be a valid UUID format",
+        { field: "userId" },
+        400
+      )
+    }
 
     const bodyResult = await parseRequestBody<{
       driverName?: string
@@ -120,9 +131,19 @@ export async function DELETE(
 
     const { userId } = await params
 
+    // Validate userId format
+    if (!isValidUUID(userId)) {
+      return errorResponse(
+        "VALIDATION_ERROR",
+        "userId must be a valid UUID format",
+        { field: "userId" },
+        400
+      )
+    }
+
     const ipAddress =
       request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined
-    const userAgent = request.headers.get("user-agent") || undefined
+      const userAgent = request.headers.get("user-agent") || undefined
 
     await deleteUser(userId, authResult.userId, ipAddress, userAgent)
 

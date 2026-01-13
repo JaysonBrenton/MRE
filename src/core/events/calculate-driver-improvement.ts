@@ -273,12 +273,12 @@ export async function calculateMostImprovedDrivers(eventId: string): Promise<Mos
     improvementsByClass.get(improvement.className)!.push(improvement)
   }
 
-  // Sort within each class by improvement score (descending) and take top 3
+  // Sort within each class by improvement score (descending) and take top 4
   const topImprovements: MostImprovedDriver[] = []
 
   for (const [className, classImprovements] of improvementsByClass.entries()) {
     const sorted = classImprovements.sort((a, b) => b.improvementScore - a.improvementScore)
-    topImprovements.push(...sorted.slice(0, 3))
+    topImprovements.push(...sorted.slice(0, 4))
   }
 
   // Sort all by improvement score for consistent ordering

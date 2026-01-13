@@ -19,32 +19,58 @@ import { env } from "@/lib/env"
 import { assertScrapingEnabled } from "@/lib/site-policy"
 import { createAuditLog } from "./audit"
 
+export type TrackSyncJobStatus = {
+  jobId: string
+  status: string
+  stage: string
+  processed: number
+  total: number
+  error?: string
+  reportPath?: string
+  metadataFailures?: number
+  tracksAdded?: number
+  tracksUpdated?: number
+  tracksDeactivated?: number
+  metadataEnabled?: boolean
+  durationSeconds?: number | null
+  startedAt?: string | null
+  completedAt?: string | null
+}
+
 /**
  * Trigger track sync ingestion
  *
  * @param adminUserId - Admin user ID performing the action
  * @param ipAddress - IP address of the admin
  * @param userAgent - User agent of the admin
- * @returns Ingestion job status
+ * @returns Ingestion job status with statistics
  */
 export async function triggerTrackSync(
   adminUserId: string,
   ipAddress?: string,
   userAgent?: string
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ jobId: string }> {
   assertScrapingEnabled()
   const ingestionServiceUrl = env.INGESTION_SERVICE_URL || "http://localhost:8000"
 
   try {
-    const response = await fetch(`${ingestionServiceUrl}/api/v1/tracks/sync`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
+    const response = await fetch(
+      `${ingestionServiceUrl}/api/v1/tracks/sync?include_metadata=true`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    )
 
     if (!response.ok) {
       throw new Error(`Ingestion service returned ${response.status}`)
+    }
+
+    const payload = (await response.json()) as { jobId?: string }
+    if (!payload.jobId) {
+      throw new Error("Ingestion service did not return a jobId")
     }
 
     await createAuditLog({
@@ -54,15 +80,13 @@ export async function triggerTrackSync(
       resourceId: null,
       details: {
         serviceUrl: ingestionServiceUrl,
+        jobId: payload.jobId,
       },
       ipAddress,
       userAgent,
     })
 
-    return {
-      success: true,
-      message: "Track sync triggered successfully",
-    }
+    return { jobId: payload.jobId }
   } catch (error) {
     await createAuditLog({
       userId: adminUserId,
@@ -82,6 +106,24 @@ export async function triggerTrackSync(
         : "Failed to trigger track sync"
     )
   }
+}
+
+export async function getTrackSyncJobStatus(jobId: string): Promise<TrackSyncJobStatus> {
+  const ingestionServiceUrl = env.INGESTION_SERVICE_URL || "http://localhost:8000"
+
+  const response = await fetch(`${ingestionServiceUrl}/api/v1/tracks/sync/${jobId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    throw new Error(`Ingestion service returned ${response.status}`)
+  }
+
+  return (await response.json()) as TrackSyncJobStatus
 }
 
 /**

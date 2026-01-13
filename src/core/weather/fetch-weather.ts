@@ -16,6 +16,9 @@
  * - docs/architecture/mobile-safe-architecture-guidelines.md (architecture patterns)
  */
 
+import * as https from 'https'
+import type { IncomingMessage } from 'http'
+
 export interface WeatherData {
   condition: string
   windSpeed: number // km/h
@@ -138,13 +141,53 @@ export async function fetchWeather(
     })
     
     const apiUrl = `${baseUrl}?${params.toString()}`
-    const response = await fetch(apiUrl)
     
-    if (!response.ok) {
-      throw new Error(`Open-Meteo API returned status ${response.status}`)
-    }
+    // Use Node.js https module with IPv4 preference to avoid IPv6 DNS issues in Docker/Alpine
+    // Node.js fetch API doesn't support IPv4/IPv6 preference, so we use https.request directly
+    const url = new URL(apiUrl)
     
-    const data: OpenMeteoResponse = await response.json()
+    const data: OpenMeteoResponse = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: url.hostname,
+        path: url.pathname + url.search,
+        method: 'GET',
+        timeout: 15000, // 15 second timeout
+        family: 4, // Force IPv4 to avoid IPv6 DNS issues in Docker/Alpine
+      }
+      
+      const req = https.request(options, (res: IncomingMessage) => {
+        let responseData = ''
+        
+        res.on('data', (chunk: Buffer) => {
+          responseData += chunk.toString()
+        })
+        
+        res.on('end', () => {
+          try {
+            if (res.statusCode && res.statusCode !== 200) {
+              reject(new Error(`Open-Meteo API returned status ${res.statusCode}`))
+              return
+            }
+            
+            const jsonData: OpenMeteoResponse = JSON.parse(responseData)
+            resolve(jsonData)
+          } catch (parseError) {
+            reject(new Error(`Failed to parse Open-Meteo response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`))
+          }
+        })
+      })
+      
+      req.on('error', (error: Error) => {
+        reject(error)
+      })
+      
+      req.on('timeout', () => {
+        req.destroy()
+        reject(new Error(`Open-Meteo API request timed out - network connectivity issue`))
+      })
+      
+      req.end()
+    })
     
     // Find the hour that matches the event date/time
     // Open-Meteo returns hourly data, so we need to find the closest hour

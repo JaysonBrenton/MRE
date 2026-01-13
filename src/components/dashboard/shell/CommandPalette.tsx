@@ -8,10 +8,11 @@ import { closeCommandPalette } from "@/store/slices/uiSlice"
 const COMMANDS = [
   { id: "dashboard", label: "Go to Dashboard", action: "/dashboard" },
   { id: "event", label: "View My Event", action: "/dashboard/my-event" },
-  { id: "search", label: "Open Event Search", action: "/event-search" },
+  { id: "search", label: "Open Search", action: "/search" },
   { id: "telemetry", label: "Telemetry Workspace", action: "/dashboard/my-telemetry" },
   { id: "engineer", label: "My Engineer", action: "/dashboard/my-engineer" },
   { id: "team", label: "My Team", action: "/under-development" },
+  { id: "club", label: "My Club", action: "/under-development" },
 ]
 
 export default function CommandPalette() {
@@ -107,7 +108,7 @@ function PaletteDialog({ onRequestClose }: { onRequestClose: () => void }) {
               key={command.id}
               type="button"
               onClick={() => execute(command.action)}
-              className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-left transition hover:border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
+              className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-left transition hover:border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]"
             >
               <span className="text-sm font-semibold text-[var(--token-text-primary)]">
                 {command.label}

@@ -26,9 +26,21 @@ const MAX_DATE_RANGE_DAYS = 90 // 3 months
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
 /**
+ * UUID v4 validation regex
+ */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+/**
+ * Validate UUID format
+ */
+function isValidUUID(value: string): boolean {
+  return UUID_REGEX.test(value)
+}
+
+/**
  * Validate event search parameters
  * 
- * @param trackId - Track ID (required)
+ * @param trackId - Track ID (required, must be valid UUID)
  * @param startDate - Start date string (ISO format, optional)
  * @param endDate - End date string (ISO format, optional)
  * @returns Validation error or null if valid
@@ -42,6 +54,15 @@ export function validateEventSearchParams(
     return {
       code: "VALIDATION_ERROR",
       message: "track_id is required",
+      field: "track_id",
+    }
+  }
+
+  // Validate trackId is a valid UUID format
+  if (!isValidUUID(trackId)) {
+    return {
+      code: "VALIDATION_ERROR",
+      message: "track_id must be a valid UUID format",
       field: "track_id",
     }
   }

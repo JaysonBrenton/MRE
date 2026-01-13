@@ -2,6 +2,17 @@ My Race Engineer (MRE) — Version 0.1.1 (Enterprise Architecture)
 
 A Next.js application running in Docker, connected to PostgreSQL.
 
+## ⚠️ CRITICAL: Docker-Only Environment
+
+**IMPORTANT FOR ALL CONTRIBUTORS (INCLUDING LLMs):** This application runs **EXCLUSIVELY in Docker containers**. There is no local development server. All commands, dependency installations, and script executions must be performed inside Docker containers. See `docs/AGENTS.md` Section 1 for complete Docker environment guidelines.
+
+**Key Points:**
+- The application runs in Docker containers (`mre-app` for Next.js, `mre-liverc-ingestion-service` for Python)
+- All npm/node commands must run inside the container: `docker exec -it mre-app <command>`
+- All Python commands must run inside the container: `docker exec -it mre-liverc-ingestion-service <command>`
+- Dependencies are automatically installed by the Docker entrypoint script when containers start
+- Local `node_modules` is excluded from Docker volumes and not used by the running application
+
 1. Purpose of This Repository
 
 My Race Engineer (MRE) is an enterprise-grade RC racing telemetry platform.
@@ -359,19 +370,29 @@ MRE runs in Docker using PostgreSQL.
 
 Prerequisites
 
-Docker + Docker Compose
+**Docker Runtime:** Choose one:
+- **Docker Desktop** (version 20.10 or later) - https://www.docker.com/products/docker-desktop
+- **Colima** (macOS recommended) - `brew install colima` - See `docs/operations/docker-user-guide.md` for setup
 
-Docker network: my-race-engineer_mre-network
+**Docker Compose** (version 2.0 or later) - Included with Docker Desktop or installed separately
 
-If the network doesn't exist, create it:
+**Docker network:** `my-race-engineer_mre-network` (external network - must be created separately)
+
+Create the network if it doesn't exist:
 ```bash
 docker network create my-race-engineer_mre-network
 ```
 
-Existing mre-postgres container on my-race-engineer_mre-network
+**PostgreSQL Container:** The `mre-postgres` container must be created separately (not managed by docker-compose). See `docs/operations/docker-user-guide.md` Step 3 for setup instructions.
 
 Start App
+```bash
 docker compose up -d
+```
+
+**For complete setup instructions, see:**
+- `docs/operations/docker-user-guide.md` - Comprehensive Docker setup guide
+- `docs/development/quick-start.md` - Developer onboarding guide
 
 Logs
 docker logs -f mre-app
@@ -520,7 +541,7 @@ The MRE application exposes the following API endpoints:
 - GET /api/v1/admin/logs/sources - Get available log sources
 
 **Health Check:**
-- GET /api/health - Application health check
+- GET /api/v1/health - Application health check
 
 **Note:** All data endpoints require authentication. Admin endpoints require admin privileges (`isAdmin: true`). Rate limiting is applied to authentication and ingestion endpoints.
 

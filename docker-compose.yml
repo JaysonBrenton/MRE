@@ -18,13 +18,20 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: mre-app
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    dns_search: []
     env_file:
       - .env.docker
     environment:
       # Database connection (connects to existing postgres container)
-      DATABASE_URL: postgresql://${POSTGRES_USER:-pacetracer}:${POSTGRES_PASSWORD:-change-me}@mre-postgres:5432/${POSTGRES_DB:-pacetracer}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pacetracer}:${POSTGRES_PASSWORD:-change-me}@mre-postgres:5432/${POSTGRES_DB:-pacetracer}?connection_limit=10&pool_timeout=10
       # Node environment
       NODE_ENV: ${NODE_ENV:-development}
+      # Prefer IPv4 over IPv6 for DNS resolution (fixes Alpine Linux IPv6 timeout issues)
+      NODE_OPTIONS: ${NODE_OPTIONS:---dns-result-order=ipv4first}
       # Application configuration
       HOST: ${HOST:-0.0.0.0}
       PORT: ${PORT:-3001}
@@ -49,11 +56,20 @@ services:
     stdin_open: true
     tty: true
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          # Maximum memory allocation for Next.js app (adjust based on available Docker Desktop RAM)
+          # Set to 12G to allow maximum usage while leaving room for other containers
+          memory: 12G
+        reservations:
+          # Minimum guaranteed memory
+          memory: 512M
 
   # Python ingestion service
   liverc-ingestion-service:
@@ -62,11 +78,16 @@ services:
       dockerfile: Dockerfile
       target: ${INGESTION_BUILD_TARGET:-development}
     container_name: mre-liverc-ingestion-service
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    dns_search: []
     env_file:
       - .env.docker
     environment:
       # Database connection (connects to existing postgres container)
-      DATABASE_URL: postgresql://${POSTGRES_USER:-pacetracer}:${POSTGRES_PASSWORD:-change-me}@mre-postgres:5432/${POSTGRES_DB:-pacetracer}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pacetracer}:${POSTGRES_PASSWORD:-change-me}@mre-postgres:5432/${POSTGRES_DB:-pacetracer}?connection_limit=10&pool_timeout=10
       # Python environment
       PYTHONUNBUFFERED: 1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -102,10 +123,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          # Maximum memory allocation for Python ingestion service
+          # Set to 8G to allow maximum usage for heavy ingestion workloads
+          memory: 8G
+        reservations:
+          # Minimum guaranteed memory
+          memory: 256M
 
 networks:
-  # Development network (created automatically if doesn't exist)
-  # For production, this can be changed to external: true with name: my-race-engineer_mre-network
+  # Development network (external - created separately to allow postgres container persistence)
+  # The network is created manually: docker network create my-race-engineer_mre-network
   mre-network:
-    driver: bridge
+    external: true
     name: my-race-engineer_mre-network

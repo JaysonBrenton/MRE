@@ -19,15 +19,177 @@
  */
 
 /**
- * Persist log entry to database (async, non-blocking)
+ * Log entry to be persisted
+ */
+interface PendingLogEntry {
+  level: string
+  message: string
+  context?: LogContext
+}
+
+/**
+ * Log buffer for batching database writes
+ */
+class LogBuffer {
+  private buffer: PendingLogEntry[] = []
+  private flushInterval: NodeJS.Timeout | null = null
+  private flushPromise: Promise<void> | null = null
+  private readonly maxBufferSize = 50
+  private readonly flushIntervalMs = 5000 // 5 seconds
+
+  constructor() {
+    // Start periodic flush
+    this.startFlushInterval()
+  }
+
+  private startFlushInterval(): void {
+    if (this.flushInterval) {
+      return
+    }
+    this.flushInterval = setInterval(() => {
+      this.flush().catch(() => {
+        // Ignore errors - logging should never break the application
+      })
+    }, this.flushIntervalMs)
+  }
+
+  /**
+   * Add log entry to buffer
+   */
+  add(level: string, message: string, context?: LogContext): void {
+    this.buffer.push({ level, message, context })
+    
+    // Flush if buffer is full
+    if (this.buffer.length >= this.maxBufferSize) {
+      this.flush().catch(() => {
+        // Ignore errors - logging should never break the application
+      })
+    }
+  }
+
+  /**
+   * Flush all buffered logs to database
+   */
+  async flush(): Promise<void> {
+    // If already flushing, wait for it to complete
+    if (this.flushPromise) {
+      return this.flushPromise
+    }
+
+    if (this.buffer.length === 0) {
+      return
+    }
+
+    // Create a new promise for this flush operation
+    this.flushPromise = this.doFlush()
+    
+    try {
+      await this.flushPromise
+    } finally {
+      this.flushPromise = null
+    }
+  }
+
+  private async doFlush(): Promise<void> {
+    const logsToFlush = this.buffer.splice(0)
+    
+    if (logsToFlush.length === 0) {
+      return
+    }
+
+    // Skip persistence in client context
+    if (typeof window !== "undefined") {
+      return
+    }
+
+    // Additional runtime check - ensure we're in Node.js environment
+    if (typeof process === "undefined" || !process.versions?.node) {
+      return
+    }
+
+    try {
+      // Use dynamic import to prevent webpack from bundling Prisma on client side
+      // Wrap in try-catch to handle synchronous errors from import
+      let prismaModule
+      try {
+        prismaModule = await import("./prisma")
+      } catch (importError) {
+        // Handle import errors (e.g., module not found, webpack issues)
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to import Prisma module for logging:", importError)
+        }
+        return
+      }
+
+      const { prisma } = prismaModule
+
+      // Batch insert logs with error handling
+      try {
+        await prisma.applicationLog.createMany({
+          data: logsToFlush.map((log) => ({
+            level: log.level.toLowerCase(),
+            message: log.message.substring(0, 5000), // Limit message length
+            service: (log.context?.service as string) || "nextjs",
+            context: log.context ? (log.context as Record<string, unknown>) : null,
+            requestId: log.context?.requestId || null,
+            userId: log.context?.userId || null,
+            ip: log.context?.ip || null,
+            path: log.context?.path || null,
+            method: log.context?.method || null,
+            userAgent: log.context?.userAgent || null,
+          })),
+          skipDuplicates: true, // Skip duplicates if any
+        })
+      } catch (dbError) {
+        // Handle database errors (connection issues, schema problems, etc.)
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to persist logs to database:", dbError)
+        }
+        // Don't rethrow - logging failures should not break the application
+      }
+    } catch (error) {
+      // Catch any other unexpected errors
+      // Silently fail - don't break application if logging fails
+      // Only log to console in development
+      if (process.env.NODE_ENV === "development") {
+        console.error("Unexpected error in log flush:", error)
+      }
+    }
+  }
+
+  /**
+   * Force flush and cleanup (for graceful shutdown)
+   */
+  async shutdown(): Promise<void> {
+    if (this.flushInterval) {
+      clearInterval(this.flushInterval)
+      this.flushInterval = null
+    }
+    await this.flush()
+  }
+}
+
+// Singleton log buffer instance
+let logBuffer: LogBuffer | null = null
+
+function getLogBuffer(): LogBuffer {
+  if (!logBuffer) {
+    logBuffer = new LogBuffer()
+  }
+  return logBuffer
+}
+
+/**
+ * Persist log entry to database (async, non-blocking, buffered)
  * Uses dynamic import to avoid bundling Prisma client on the client side
  * This function is only called from server-side code paths
+ * Logs are buffered and flushed in batches to reduce database write load
  */
-async function persistLog(
+function persistLog(
   level: string,
   message: string,
   context?: LogContext
-): Promise<void> {
+): void {
   // Skip persistence in client context - multiple checks to ensure webpack doesn't optimize
   if (typeof window !== "undefined") {
     return
@@ -38,36 +200,14 @@ async function persistLog(
     return
   }
 
+  // Add to buffer instead of writing immediately
   try {
-    // Use dynamic import to prevent webpack from bundling Prisma on client side
-    // The import is only executed on the server, so env.ts validation won't run on client
-    // Using a simple string literal - webpack externals config prevents client bundling
-    const prismaModule = await import("./prisma")
-    const { prisma } = prismaModule
-
-    // Extract service from context or default to "nextjs"
-    const service = (context?.service as string) || "nextjs"
-
-    // Persist asynchronously without blocking
-    await prisma.applicationLog.create({
-      data: {
-        level: level.toLowerCase(),
-        message: message.substring(0, 5000), // Limit message length
-        service,
-        context: context ? (context as Record<string, unknown>) : null,
-        requestId: context?.requestId || null,
-        userId: context?.userId || null,
-        ip: context?.ip || null,
-        path: context?.path || null,
-        method: context?.method || null,
-        userAgent: context?.userAgent || null,
-      },
-    })
+    getLogBuffer().add(level, message, context)
   } catch (error) {
     // Silently fail - don't break application if logging fails
     // Only log to console in development
     if (process.env.NODE_ENV === "development") {
-      console.error("Failed to persist log to database:", error)
+      console.error("Failed to add log to buffer:", error)
     }
   }
 }
@@ -152,10 +292,8 @@ function createLoggerInstance(baseContext?: LogContext): Logger {
         }
         console.debug(formatLogEntry(entry))
       }
-      // Persist to database (async, non-blocking)
-      persistLog("debug", message, mergeContext(baseContext, context) as LogContext).catch(() => {
-        // Ignore errors - logging should never break the application
-      })
+      // Persist to database (async, non-blocking, buffered)
+      persistLog("debug", message, mergeContext(baseContext, context) as LogContext)
     },
 
     /**
@@ -169,10 +307,8 @@ function createLoggerInstance(baseContext?: LogContext): Logger {
         timestamp: new Date().toISOString(),
       }
       console.info(formatLogEntry(entry))
-      // Persist to database (async, non-blocking)
-      persistLog("info", message, mergeContext(baseContext, context) as LogContext).catch(() => {
-        // Ignore errors - logging should never break the application
-      })
+      // Persist to database (async, non-blocking, buffered)
+      persistLog("info", message, mergeContext(baseContext, context) as LogContext)
     },
 
     /**
@@ -186,10 +322,8 @@ function createLoggerInstance(baseContext?: LogContext): Logger {
         timestamp: new Date().toISOString(),
       }
       console.warn(formatLogEntry(entry))
-      // Persist to database (async, non-blocking)
-      persistLog("warn", message, mergeContext(baseContext, context) as LogContext).catch(() => {
-        // Ignore errors - logging should never break the application
-      })
+      // Persist to database (async, non-blocking, buffered)
+      persistLog("warn", message, mergeContext(baseContext, context) as LogContext)
     },
 
     /**
@@ -203,8 +337,11 @@ function createLoggerInstance(baseContext?: LogContext): Logger {
         timestamp: new Date().toISOString(),
       }
       console.error(formatLogEntry(entry))
-      // Persist to database (async, non-blocking)
-      persistLog("error", message, mergeContext(baseContext, context) as LogContext).catch(() => {
+      // Persist to database (async, non-blocking, buffered)
+      // Errors are flushed immediately to ensure they're not lost
+      persistLog("error", message, mergeContext(baseContext, context) as LogContext)
+      // Force flush for errors to ensure they're persisted quickly
+      getLogBuffer().flush().catch(() => {
         // Ignore errors - logging should never break the application
       })
       

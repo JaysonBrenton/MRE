@@ -10,51 +10,47 @@
  * @purpose Manages active chart state and renders appropriate chart based on active tab.
  * 
  * @relatedFiles
- * - src/components/event-analysis/sessions/OverviewChart.tsx
- * - src/components/event-analysis/sessions/HeatProgressionChart.tsx
- * - src/components/event-analysis/sessions/DriverPerformanceChart.tsx
+ * - src/components/event-analysis/sessions/SessionsTable.tsx
  */
 
 "use client"
 
 import { useState, KeyboardEvent } from "react"
-import OverviewChart from "./OverviewChart"
-import HeatProgressionChart from "./HeatProgressionChart"
-import DriverPerformanceChart from "./DriverPerformanceChart"
+import SessionsTable from "./SessionsTable"
+import LapDataTable from "./LapDataTable"
 import type { SessionData, DriverLapTrend, HeatProgressionData } from "@/core/events/get-sessions-data"
 
-export type ChartTabId = "overview" | "progression" | "driver-performance"
+export type ChartTabId = "overview" | "driver-performance" | "driver-bump-ups"
 
 export interface SessionChartTabsProps {
   sessions: SessionData[]
   driverLapTrends: DriverLapTrend[]
   heatProgression: HeatProgressionData[]
+  eventId: string
+  selectedClass: string | null
   height?: number
   className?: string
 }
 
 const defaultTabs: Array<{ id: ChartTabId; label: string }> = [
-  { id: "overview", label: "Overview" },
-  { id: "progression", label: "Heat Progression" },
-  { id: "driver-performance", label: "Driver Performance" },
+  { id: "overview", label: "Race Overview" },
+  { id: "driver-performance", label: "Race Details" },
+  { id: "driver-bump-ups", label: "Driver Bump-Ups" },
 ]
 
 export default function SessionChartTabs({
   sessions,
   driverLapTrends,
   heatProgression,
+  eventId,
+  selectedClass,
   height = 500,
   className = "",
 }: SessionChartTabsProps) {
   const [activeTab, setActiveTab] = useState<ChartTabId>("overview")
 
   // Determine which tabs to show
-  const availableTabs = defaultTabs.filter((tab) => {
-    if (tab.id === "driver-performance") {
-      return driverLapTrends.length > 0
-    }
-    return true
-  })
+  const availableTabs = defaultTabs
 
   const handleKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
@@ -115,25 +111,23 @@ export default function SessionChartTabs({
       {/* Chart Content */}
       <div role="tabpanel" aria-labelledby={`charttab-${activeTab}`}>
         {activeTab === "overview" && (
-          <OverviewChart
+          <SessionsTable
             sessions={sessions}
-            driverLapTrends={driverLapTrends}
-            height={height}
+            selectedDriverIds={driverLapTrends.map((trend) => trend.driverId)}
           />
         )}
 
-        {activeTab === "progression" && (
-          <HeatProgressionChart
-            progressionData={heatProgression}
-            height={height}
+        {activeTab === "driver-performance" && (
+          <LapDataTable
+            eventId={eventId}
+            selectedClass={selectedClass}
           />
         )}
 
-        {activeTab === "driver-performance" && driverLapTrends.length > 0 && (
-          <DriverPerformanceChart
-            driverLapTrends={driverLapTrends}
-            height={height}
-          />
+        {activeTab === "driver-bump-ups" && (
+          <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
+            Under Development
+          </div>
         )}
       </div>
     </div>

@@ -18,13 +18,13 @@
 
 "use client"
 
-import { useState, useMemo, useEffect, useCallback, startTransition, useRef } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import EventStats from "./EventStats"
 import ChartControls from "./ChartControls"
-import ChartTypeSelector from "./ChartTypeSelector"
-import BestLapBarChart from "./BestLapBarChart"
-import AvgVsFastestChart from "./AvgVsFastestChart"
+import UnifiedPerformanceChart from "./UnifiedPerformanceChart"
 import ChartSection from "./ChartSection"
+import ClassDetailsModal from "./ClassDetailsModal"
+import type { DriverPerformanceData } from "./UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 import ChartDataNotice from "./ChartDataNotice"
@@ -34,38 +34,39 @@ import {
   getUnselectedDriversInClass,
 } from "@/core/events/event-analysis-notices"
 import { clientLogger } from "@/lib/client-logger"
+import { getValidClasses } from "@/core/events/class-validator"
 
 export interface OverviewTabProps {
   data: EventAnalysisData
   selectedDriverIds: string[]
   onDriverSelectionChange: (driverIds: string[]) => void
+  selectedClass: string | null
+  onClassChange: (className: string | null) => void
 }
 
-type ChartType = "best-lap" | "avg-vs-fastest"
+// Debug: Verify onClassChange prop
+let onClassChangeCallCount = 0
 
-const STORAGE_KEY_CHART_TYPE = "mre-overview-chart-type"
+type ClassChangeCallback = ((className: string | null) => void) & { __CALLBACK_ID?: string; __IS_OUR_FUNCTION?: boolean }
 
 export default function OverviewTab({
   data,
   selectedDriverIds,
   onDriverSelectionChange,
+  selectedClass,
+  onClassChange,
 }: OverviewTabProps) {
-  // Initialize with deterministic default and hydrate from localStorage on client
-  const [chartType, setChartType] = useState<ChartType>("best-lap")
-  const [selectedClass, setSelectedClass] = useState<string | null>(null)
+  // Log the prop immediately when component receives it
+  console.log("[OverviewTab] ====== COMPONENT RENDERED ======")
+  console.log("[OverviewTab] onClassChange prop received:", onClassChange)
+  console.log("[OverviewTab] onClassChange type:", typeof onClassChange)
+  console.log("[OverviewTab] onClassChange.__CALLBACK_ID:", (onClassChange as ClassChangeCallback)?.__CALLBACK_ID)
+  console.log("[OverviewTab] onClassChange.name:", onClassChange?.name)
+  console.log("[OverviewTab] onClassChange.toString():", onClassChange?.toString?.()?.substring(0, 100))
+  
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalClassName, setModalClassName] = useState<string | null>(null)
   const lastLoggedMissingState = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-    const storedChartType = window.localStorage.getItem(STORAGE_KEY_CHART_TYPE)
-    if (storedChartType && ["best-lap", "avg-vs-fastest"].includes(storedChartType)) {
-      startTransition(() => {
-        setChartType(storedChartType as ChartType)
-      })
-    }
-  }, [])
 
   const [paginationState, setPaginationState] = useState({
     page: 1,
@@ -75,12 +76,8 @@ export default function OverviewTab({
   const currentPage = paginationState.selectionKey === selectionKey ? paginationState.page : 1
   const driversPerPage = 25
 
-  // Persist chart type to localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY_CHART_TYPE, chartType)
-    }
-  }, [chartType])
+  // Get race classes from entry list
+  const validClasses = useMemo(() => getValidClasses(data), [data])
 
   // Filter races by selected class
   const filteredRaces = useMemo(() => {
@@ -165,6 +162,7 @@ export default function OverviewTab({
         driverId: string
         driverName: string
         bestLapTime: number | null
+        bestLapRaceLabel: string | null
         avgLapTimes: number[]
       }
     >()
@@ -185,16 +183,18 @@ export default function OverviewTab({
             driverId,
             driverName,
             bestLapTime: null,
+            bestLapRaceLabel: null,
             avgLapTimes: [],
           })
         }
 
         const driverData = driverMap.get(driverId)!
 
-        // Update best lap time
+        // Update best lap time and track the race label
         if (result.fastLapTime !== null) {
           if (driverData.bestLapTime === null || result.fastLapTime < driverData.bestLapTime) {
             driverData.bestLapTime = result.fastLapTime
+            driverData.bestLapRaceLabel = race.raceLabel
           }
         }
 
@@ -216,33 +216,23 @@ export default function OverviewTab({
         driverId: driver.driverId,
         driverName: driver.driverName,
         bestLapTime: driver.bestLapTime,
+        bestLapRaceLabel: driver.bestLapRaceLabel,
         avgLapTime,
       }
     })
   }, [filteredRaces])
 
-  // Prepare chart data
-  const bestLapData = useMemo(() => {
+  // Prepare unified chart data
+  const unifiedChartData = useMemo<DriverPerformanceData[]>(() => {
     return driverStatsByClass
-      .filter((d) => d.bestLapTime !== null && d.bestLapTime > 0 && isFinite(d.bestLapTime))
       .map((d) => ({
         driverId: d.driverId,
         driverName: d.driverName,
-        bestLapTime: d.bestLapTime!,
+        bestLapTime: d.bestLapTime,
+        bestLapRaceLabel: d.bestLapRaceLabel,
+        averageLapTime: d.avgLapTime,
+        consistency: null, // Future metric
       }))
-      .sort((a, b) => a.bestLapTime - b.bestLapTime)
-  }, [driverStatsByClass])
-
-  const avgVsFastestData = useMemo(() => {
-    return driverStatsByClass
-      .filter((d) => d.bestLapTime !== null && d.avgLapTime !== null)
-      .map((d) => ({
-        driverId: d.driverId,
-        driverName: d.driverName,
-        fastestLap: d.bestLapTime!,
-        averageLap: d.avgLapTime!,
-      }))
-      .sort((a, b) => a.fastestLap - b.fastestLap)
   }, [driverStatsByClass])
 
   // Build driver options from allDriverStats (not filtered by class)
@@ -406,8 +396,8 @@ export default function OverviewTab({
     const classDrivers: Array<{ driverId: string }> = []
 
     data.races.forEach((race) => {
-      if (race.className === selectedClass) {
-        race.results.forEach((result) => {
+        if (race.className === selectedClass) {
+          race.results.forEach((result) => {
           // Only include drivers that are in driverOptions (have performance data)
           if (driverOptionsSet.has(result.driverId)) {
             // Avoid duplicates
@@ -463,7 +453,8 @@ export default function OverviewTab({
 
   const handleClassChange = useCallback(
     (className: string | null) => {
-      setSelectedClass(className)
+      console.log("[OverviewTab] handleClassChange called with:", className)
+      
       // Reset pagination when class changes
       setPaginationState({
         page: 1,
@@ -493,8 +484,43 @@ export default function OverviewTab({
         const allDriverIds = driverOptions.map((driver) => driver.driverId)
         handleSelectionChange(allDriverIds)
       }
+
+      // Call the parent's onClassChange callback
+      onClassChangeCallCount++
+      console.log("[OverviewTab] ====== CALLING onClassChange ======")
+      console.log("[OverviewTab] Call #", onClassChangeCallCount)
+      console.log("[OverviewTab] className to pass:", className, "Type:", typeof className)
+      console.log("[OverviewTab] onClassChange function:", onClassChange)
+      console.log("[OverviewTab] onClassChange type:", typeof onClassChange)
+      console.log("[OverviewTab] onClassChange is defined:", !!onClassChange)
+      type ClassChangeCallback = ((className: string | null) => void) & { __CALLBACK_ID?: string; __IS_OUR_FUNCTION?: boolean }
+      console.log("[OverviewTab] onClassChange.__CALLBACK_ID:", (onClassChange as ClassChangeCallback)?.__CALLBACK_ID)
+      console.log("[OverviewTab] onClassChange.name:", onClassChange?.name)
+      
+      if (!onClassChange) {
+        console.error("[OverviewTab] CRITICAL ERROR: onClassChange is undefined or null!")
+        return
+      }
+      
+      // Normalize the value before passing
+      const normalized = (className && typeof className === "string" && className.trim() !== "") 
+        ? className.trim() 
+        : null
+      
+      try {
+        console.log("[OverviewTab] About to call onClassChange with normalized value:", normalized)
+        
+        // Call onClassChange with normalized value
+        // Even if it's setSelectedClass directly, this should update the state
+        onClassChange(normalized)
+        
+        console.log("[OverviewTab] onClassChange called successfully")
+      } catch (error) {
+        console.error("[OverviewTab] ERROR calling onClassChange:", error)
+        throw error
+      }
     },
-    [data.races, driverOptions, handleSelectionChange]
+    [data.races, driverOptions, handleSelectionChange, onClassChange]
   )
 
   useEffect(() => {
@@ -567,12 +593,21 @@ export default function OverviewTab({
           selectedDriverIds={selectedDriverIds}
           onDriverSelectionChange={handleSelectionChange}
           onClassChange={handleClassChange}
+          selectedClass={selectedClass}
+          eventId={data.event.id}
+          raceClasses={data.raceClasses}
         />
 
         {selectedClass && unselectedDriversInClassNames.length > 0 && (
           <ChartDataNotice
             title="Some drivers in this class are not selected"
-            description="These drivers are in the selected class but were not included in your selection. They will not appear in the chart."
+            description={
+              <>
+                These drivers are in the selected class but were not included in your selection. 
+                They may have been manually deselected or were not included when the class was selected. 
+                You can select them in the driver selection panel above to include them in the chart.
+              </>
+            }
             driverNames={unselectedDriversInClassNames}
             eventId={data.event.id}
             noticeType="unselected-drivers"
@@ -582,32 +617,31 @@ export default function OverviewTab({
 
       {/* Chart Visualization */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--token-border-default)] pb-4">
+        <div className="border-b border-[var(--token-border-default)] pb-4">
           <div>
             <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
               Performance Visualization
             </h2>
             <p className="text-sm text-[var(--token-text-secondary)]">
-              Interactive chart showing selected drivers&rsquo; performance metrics.
+              Interactive chart showing selected drivers&rsquo; performance metrics. Toggle metrics on/off using the legend below the chart.
             </p>
           </div>
-          <ChartTypeSelector chartType={chartType} onChartTypeChange={setChartType} />
         </div>
 
-        {chartType === "best-lap" && missingBestLapDriverNames.length > 0 && (
+        {missingBestLapDriverNames.length > 0 && (
           <ChartDataNotice
-            title="Some selected drivers have no recorded fastest lap"
-            description="LiveRC did not publish a fastest lap for these drivers in the selected class, so they are hidden from the chart."
+            title="Some selected drivers have no recorded best lap"
+            description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
             driverNames={missingBestLapDriverNames}
             eventId={data.event.id}
             noticeType="best-lap"
           />
         )}
 
-        {chartType === "avg-vs-fastest" && missingAvgVsFastestDriverNames.length > 0 && (
+        {missingAvgVsFastestDriverNames.length > 0 && (
           <ChartDataNotice
             title="Missing average lap telemetry"
-            description="These drivers were selected, but the data feed does not include both fastest and average lap times for them."
+            description="These drivers were selected, but the data feed does not include both best and average lap times for them."
             driverNames={missingAvgVsFastestDriverNames}
             eventId={data.event.id}
             noticeType="avg-vs-fastest"
@@ -616,31 +650,48 @@ export default function OverviewTab({
 
         {/* Chart Section */}
         <ChartSection>
-          {chartType === "best-lap" && (
-            <BestLapBarChart
-              data={bestLapData}
-              selectedDriverIds={expandedSelectedDriverIds}
-              currentPage={currentPage}
-              driversPerPage={driversPerPage}
-              onPageChange={handlePageChange}
-              onDriverToggle={handleDriverToggle}
-              chartInstanceId={`overview-${data.event.id}-best-lap`}
-            />
-          )}
-
-          {chartType === "avg-vs-fastest" && (
-            <AvgVsFastestChart
-              data={avgVsFastestData}
-              selectedDriverIds={expandedSelectedDriverIds}
-              currentPage={currentPage}
-              driversPerPage={driversPerPage}
-              onPageChange={handlePageChange}
-              onDriverToggle={handleDriverToggle}
-              chartInstanceId={`overview-${data.event.id}-avg-vs-fastest`}
-            />
-          )}
+          <UnifiedPerformanceChart
+            data={unifiedChartData}
+            selectedDriverIds={expandedSelectedDriverIds}
+            currentPage={currentPage}
+            driversPerPage={driversPerPage}
+            onPageChange={handlePageChange}
+            onDriverToggle={handleDriverToggle}
+            chartInstanceId={`overview-${data.event.id}-unified`}
+            selectedClass={selectedClass}
+          />
         </ChartSection>
       </section>
+      
+      {/* Class Details Modal */}
+      {data.event.id && modalClassName && data.raceClasses && (
+        <ClassDetailsModal
+          isOpen={modalOpen}
+          onClose={() => {
+            setModalOpen(false)
+            setModalClassName(null)
+          }}
+          eventId={data.event.id}
+          className={modalClassName}
+          vehicleType={data.raceClasses.get(modalClassName)?.vehicleType ?? null}
+          vehicleTypeNeedsReview={data.raceClasses.get(modalClassName)?.vehicleTypeNeedsReview ?? true}
+          onSave={async (vehicleType, acceptInference) => {
+            const response = await fetch(
+              `/api/v1/events/${data.event.id}/race-classes/${encodeURIComponent(modalClassName)}/vehicle-type`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ vehicleType, acceptInference }),
+              }
+            )
+            if (!response.ok) {
+              throw new Error("Failed to save vehicle type")
+            }
+            // Refresh the page to show updated data
+            window.location.reload()
+          }}
+        />
+      )}
     </div>
   )
 }

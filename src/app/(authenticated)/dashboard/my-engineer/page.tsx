@@ -7,7 +7,7 @@ export default function MyEngineerPage() {
   const router = useRouter()
   
   useEffect(() => {
-    router.replace("/under-development")
+    router.replace(`/under-development?from=${encodeURIComponent("/dashboard/my-engineer")}`)
   }, [router])
   
   return null

@@ -39,12 +39,44 @@ model User {
   driverLinks       UserDriverLink[]
   persona           Persona?          @relation(fields: [personaId], references: [id])
   auditLogs         AuditLog[]
+  carProfiles       CarProfile[]
+  driverProfiles    DriverProfile[]
 
   @@index([normalizedName])
   @@index([transponderNumber])
   @@index([personaId])
   @@index([isTeamManager, teamName], map: "users_is_team_manager_team_name_idx")
   @@map("users")
+}
+
+model CarProfile {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  name        String
+  carType     String   @map("car_type")
+  vehicleType String   @map("vehicle_type")
+  setupInfo   Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("car_profiles")
+}
+
+model DriverProfile {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  name              String
+  displayName       String   @map("display_name")
+  transponderNumber String?  @map("transponder_number")
+  preferences       Json?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("driver_profiles")
 }
 
 model Track {
@@ -104,6 +136,7 @@ model Event {
   races                Race[]
   transponderOverrides TransponderOverride[]
   weatherData          WeatherData[]
+  raceClasses          EventRaceClass[]
 
   @@unique([source, sourceEventId])
   @@index([source, sourceEventId])
@@ -115,22 +148,44 @@ model Event {
 }
 
 model EventEntry {
-  id                String   @id @default(uuid())
-  eventId           String   @map("event_id")
-  driverId          String   @map("driver_id")
-  className         String   @map("class_name")
-  transponderNumber String?  @map("transponder_number")
-  carNumber         String?  @map("car_number")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-  driver            Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  event             Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id                String          @id @default(uuid())
+  eventId           String          @map("event_id")
+  driverId          String          @map("driver_id")
+  className         String          @map("class_name")
+  transponderNumber String?         @map("transponder_number")
+  carNumber         String?         @map("car_number")
+  eventRaceClassId  String?         @map("event_race_class_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  driver            Driver          @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  event             Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventRaceClass    EventRaceClass? @relation(fields: [eventRaceClassId], references: [id], onDelete: SetNull)
 
   @@unique([eventId, driverId, className])
   @@index([eventId])
   @@index([driverId])
   @@index([className])
+  @@index([eventRaceClassId])
   @@map("event_entries")
+}
+
+model EventRaceClass {
+  id                       String       @id @default(uuid())
+  eventId                  String       @map("event_id")
+  className                 String       @map("class_name")
+  vehicleType              String?      @map("vehicle_type")
+  vehicleTypeNeedsReview   Boolean      @default(true) @map("vehicle_type_needs_review")
+  vehicleTypeReviewedAt    DateTime?    @map("vehicle_type_reviewed_at")
+  vehicleTypeReviewedBy    String?      @map("vehicle_type_reviewed_by")
+  createdAt                DateTime     @default(now()) @map("created_at")
+  updatedAt                DateTime     @updatedAt @map("updated_at")
+  event                    Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  entries                  EventEntry[]
+
+  @@unique([eventId, className])
+  @@index([eventId])
+  @@index([eventId, className])
+  @@map("event_race_classes")
 }
 
 model Race {
@@ -144,6 +199,7 @@ model Race {
   raceUrl                  String                @map("race_url")
   startTime                DateTime?             @map("start_time")
   durationSeconds          Int?                  @map("duration_seconds")
+  sessionType              SessionType?          @map("session_type")
   createdAt                DateTime              @default(now()) @map("created_at")
   updatedAt                DateTime              @updatedAt @map("updated_at")
   drivers                  RaceDriver[]
@@ -155,6 +211,8 @@ model Race {
   @@index([eventId, sourceRaceId])
   @@index([eventId])
   @@index([raceOrder])
+  @@index([sessionType])
+  @@index([eventId, sessionType])
   @@map("races")
 }
 
@@ -340,6 +398,12 @@ enum EventDriverLinkMatchType {
   transponder
   exact
   fuzzy
+}
+
+enum SessionType {
+  race
+  practice
+  qualifying
 }
 
 model WeatherData {

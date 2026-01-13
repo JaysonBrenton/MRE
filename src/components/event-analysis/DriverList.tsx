@@ -40,6 +40,8 @@ export interface DriverListProps {
       driverId: string
     }>
   }>
+  raceClasses?: Map<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
+  eventId?: string
 }
 
 type SortField = "driverName" | "bestLapTime" | "avgLapTime" | "consistency" | "racesParticipated"
@@ -63,24 +65,26 @@ export default function DriverList({
   selectedDriverIds,
   onSelectionChange,
   races = [],
+  raceClasses,
+  eventId,
 }: DriverListProps) {
   const [sortField, setSortField] = useState<SortField>("bestLapTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
 
   // Build a map of driverId -> classes they participated in
   const driverClassesMap = useMemo(() => {
     const map = new Map<string, Set<string>>()
     races.forEach((race) => {
-      race.results.forEach((result) => {
-        if (!map.has(result.driverId)) {
-          map.set(result.driverId, new Set())
-        }
-        map.get(result.driverId)!.add(race.className)
+        race.results.forEach((result) => {
+          if (!map.has(result.driverId)) {
+            map.set(result.driverId, new Set())
+          }
+          map.get(result.driverId)!.add(race.className)
+        })
       })
-    })
     return map
   }, [races])
 
@@ -88,8 +92,8 @@ export default function DriverList({
   const availableClasses = useMemo(() => {
     const classes = new Set<string>()
     races.forEach((race) => {
-      classes.add(race.className)
-    })
+        classes.add(race.className)
+      })
     return Array.from(classes).sort()
   }, [races])
 
@@ -172,7 +176,10 @@ export default function DriverList({
 
   // Reset to page 1 when sort, filter, or itemsPerPage changes
   useEffect(() => {
-    setCurrentPage(1)
+    // Use setTimeout to avoid synchronous setState in effect
+    setTimeout(() => {
+      setCurrentPage(1)
+    }, 0)
   }, [sortField, sortDirection, selectedClass, itemsPerPage])
 
   return (
@@ -183,6 +190,11 @@ export default function DriverList({
           classes={availableClasses}
           selectedClass={selectedClass}
           onClassChange={setSelectedClass}
+          onClassInfoClick={eventId ? (className) => {
+            // Could open modal here if needed
+            console.log("Class info clicked:", className)
+          } : undefined}
+          raceClasses={raceClasses}
         />
       </div>
 
@@ -299,7 +311,7 @@ export default function DriverList({
               return (
                 <div
                   key={driver.driverId}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)] transition-colors items-center"
+                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] transition-colors items-center"
                 >
                   <div className="py-3 px-4">
                     <input
@@ -354,7 +366,7 @@ export default function DriverList({
         itemsPerPage={itemsPerPage}
         totalItems={sortedDrivers.length}
         itemLabel="drivers"
-        rowsPerPageOptions={[10, 25, 50, 100]}
+        rowsPerPageOptions={[5, 10, 25, 50, 100]}
         onRowsPerPageChange={handleRowsPerPageChange}
       />
     </div>

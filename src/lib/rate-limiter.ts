@@ -3,15 +3,29 @@
  * 
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-27
+ * @lastModified 2025-02-07
  * 
  * @description Provides rate limiting functionality for API endpoints
  * 
  * @purpose Protects authentication and resource-intensive endpoints from abuse
  *          by limiting the number of requests per time window. Uses an in-memory
  *          sliding window algorithm with automatic cleanup of expired entries.
- *          Note: In-memory storage resets on server restart - use Redis for
- *          persistent rate limiting in production clusters.
+ *          Includes LRU eviction to prevent unbounded memory growth.
+ * 
+ * @limitations
+ * - In-memory storage resets on server restart
+ * - Per-instance rate limiting (not shared across multiple Next.js instances)
+ * - For production multi-instance deployments, consider implementing Redis-based
+ *   rate limiting. See TODO below for implementation guidance.
+ * 
+ * @todo Redis Support for Multi-Instance Deployments
+ * For production environments with multiple Next.js instances, implement Redis-based
+ * rate limiting:
+ * 1. Create a RedisRateLimiter class that uses Redis sorted sets (ZSET) for sliding window
+ * 2. Use Redis commands: ZADD, ZREMRANGEBYSCORE, ZCARD for rate limit checks
+ * 3. Add environment variable REDIS_URL to enable Redis mode
+ * 4. Fall back to in-memory limiter if Redis is unavailable
+ * 5. Example: const limiter = REDIS_URL ? new RedisRateLimiter(REDIS_URL) : getRateLimiter()
  * 
  * @relatedFiles
  * - middleware.ts (applies rate limiting to routes)
@@ -78,11 +92,19 @@ export const RATE_LIMIT_CONFIGS = {
 } as const satisfies Record<string, RateLimitConfig>
 
 /**
+ * Maximum number of entries in the rate limiter store
+ * When exceeded, oldest entries are evicted (LRU)
+ */
+const MAX_STORE_SIZE = 10000
+
+/**
  * In-memory rate limiter using sliding window algorithm
  * 
  * Uses a Map to store request timestamps per key (typically IP + route).
  * Implements sliding window by keeping track of individual request timestamps
  * and counting only those within the current window.
+ * 
+ * Includes LRU eviction to prevent unbounded memory growth.
  * 
  * @example
  * ```typescript
@@ -99,10 +121,43 @@ export const RATE_LIMIT_CONFIGS = {
 export class RateLimiter {
   private store: Map<string, RequestRecord> = new Map()
   private cleanupInterval: ReturnType<typeof setInterval> | null = null
+  // Track access order for LRU eviction
+  private accessOrder: string[] = []
 
   constructor() {
     // Start automatic cleanup every 5 minutes
     this.startCleanup()
+  }
+
+  /**
+   * Evict oldest entries if store exceeds maximum size (LRU)
+   */
+  private evictIfNeeded(): void {
+    if (this.store.size <= MAX_STORE_SIZE) {
+      return
+    }
+
+    // Remove oldest entries (those accessed least recently)
+    const entriesToRemove = this.store.size - MAX_STORE_SIZE
+    for (let i = 0; i < entriesToRemove; i++) {
+      const oldestKey = this.accessOrder.shift()
+      if (oldestKey) {
+        this.store.delete(oldestKey)
+      }
+    }
+  }
+
+  /**
+   * Update access order for LRU tracking
+   */
+  private updateAccessOrder(key: string): void {
+    // Remove key from current position if it exists
+    const index = this.accessOrder.indexOf(key)
+    if (index !== -1) {
+      this.accessOrder.splice(index, 1)
+    }
+    // Add to end (most recently used)
+    this.accessOrder.push(key)
   }
 
   /**
@@ -113,7 +168,7 @@ export class RateLimiter {
    * @returns Rate limit result with allowed status and metadata
    */
   check(key: string, config: RateLimitConfig): RateLimitResult {
-  const now = Date.now()
+    const now = Date.now()
     const windowStart = now - config.windowMs
 
     // Get or create record for this key
@@ -121,7 +176,12 @@ export class RateLimiter {
     if (!record) {
       record = { timestamps: [] }
       this.store.set(key, record)
+      // Evict if needed when adding new entry
+      this.evictIfNeeded()
     }
+
+    // Update access order for LRU tracking
+    this.updateAccessOrder(key)
 
     // Filter out timestamps outside the current window (sliding window)
     record.timestamps = record.timestamps.filter((ts) => ts > windowStart)
@@ -164,6 +224,11 @@ export class RateLimiter {
    */
   reset(key: string): void {
     this.store.delete(key)
+    // Also remove from access order
+    const index = this.accessOrder.indexOf(key)
+    if (index !== -1) {
+      this.accessOrder.splice(index, 1)
+    }
   }
 
   /**
@@ -172,6 +237,7 @@ export class RateLimiter {
    */
   clear(): void {
     this.store.clear()
+    this.accessOrder = []
   }
 
   /**
@@ -200,15 +266,30 @@ export class RateLimiter {
     const maxWindowMs = RATE_LIMIT_CONFIGS.REGISTER.windowMs
     const cleanupThreshold = now - maxWindowMs
 
+    const keysToRemove: string[] = []
+
     for (const [key, record] of this.store.entries()) {
       // Remove entries where all timestamps are expired
       const hasValidTimestamps = record.timestamps.some(
         (ts) => ts > cleanupThreshold
       )
       if (!hasValidTimestamps) {
-        this.store.delete(key)
+        keysToRemove.push(key)
       }
     }
+
+    // Remove expired entries
+    for (const key of keysToRemove) {
+      this.store.delete(key)
+      // Also remove from access order
+      const index = this.accessOrder.indexOf(key)
+      if (index !== -1) {
+        this.accessOrder.splice(index, 1)
+      }
+    }
+
+    // Also evict if still over limit (defensive)
+    this.evictIfNeeded()
   }
 
   /**

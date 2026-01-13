@@ -21,6 +21,7 @@ import {
   waitForIngestionCompletion,
 } from "@/lib/ingestion-status";
 import { toHttpErrorPayload } from "@/lib/ingestion-error-map";
+import { tryAcquireLock, releaseLock } from "@/lib/ingestion-lock";
 
 const COMPLETION_POLL_ATTEMPTS = 3
 const COMPLETION_POLL_DELAY_MS = 2000
@@ -74,16 +75,37 @@ export async function POST(
       depth,
     })
 
-    const result = await ingestionClient.ingestEvent(eventId, depth);
+    // Try to acquire lock to prevent concurrent ingestion requests
+    const lockAcquired = tryAcquireLock(eventId)
+    if (!lockAcquired) {
+      requestLogger.info("Ingestion already in progress (locked)", {
+        eventId,
+      })
+      return errorResponse(
+        "INGESTION_IN_PROGRESS",
+        "Event ingestion is already in progress. Please wait for it to complete.",
+        {},
+        409
+      )
+    }
 
-    requestLogger.info("Event ingestion completed", {
-      eventId,
-      depth,
-      racesIngested: result?.races_ingested,
-    })
+    try {
+      const result = await ingestionClient.ingestEvent(eventId, depth);
 
-    return successResponse(result);
+      requestLogger.info("Event ingestion completed", {
+        eventId,
+        depth,
+        racesIngested: result?.races_ingested,
+      })
+
+      return successResponse(result);
+    } finally {
+      // Always release lock when done
+      releaseLock(eventId)
+    }
   } catch (error: unknown) {
+    // Release lock on error
+    releaseLock(eventId)
     if (error instanceof IngestionServiceError) {
       const payload = toHttpErrorPayload(error, { eventId })
       const logContext = {

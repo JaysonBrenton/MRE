@@ -1,25 +1,26 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2025-01-29
 description: Domain model for RC racing classes, vehicle types, and skill groupings
-purpose: Defines the taxonomy of racing classes that MRE ingests, including car classes (vehicle types),
-         modification rules (Modified/Stock), and skill groupings (Junior/Pro/Expert). This document
-         serves as the authoritative reference for understanding what racing classes mean in the MRE
+purpose: Defines the taxonomy of racing classes that MRE ingests, including race classes (what LiveRC defines),
+         vehicle types (inferred car classes), modification rules (Modified/Stock), and skill groupings (Junior/Pro/Expert).
+         This document serves as the authoritative reference for understanding what racing classes mean in the MRE
          domain and how they are extracted from LiveRC data.
 relatedFiles:
   - docs/database/schema.md
   - docs/architecture/liverc-ingestion/04-data-model.md
   - docs/architecture/liverc-ingestion/26-html-parsing-architecture.md
-  - ingestion/connectors/liverc/parsers/race_list_parser.py
+  - ingestion/connectors/liverc/parsers/entry_list_parser.py
+  - src/core/events/infer-vehicle-type.ts
 ---
 
 # Racing Classes Domain Model
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2025-01-29  
 **Status:** Complete
 
-This document defines the domain model for racing classes in the My Race Engineer (MRE) application. It provides the authoritative taxonomy of car classes (vehicle types), modification rules, and skill groupings that are ingested from LiveRC and stored in the MRE database.
+This document defines the domain model for racing classes in the My Race Engineer (MRE) application. It provides the authoritative taxonomy of race classes (what LiveRC defines), vehicle types (inferred car classes), modification rules, and skill groupings that are ingested from LiveRC and stored in the MRE database.
 
 ---
 
@@ -27,11 +28,12 @@ This document defines the domain model for racing classes in the My Race Enginee
 
 Racing classes in RC racing represent different categories of competition. In MRE, we distinguish between:
 
-1. **Car Classes (Vehicle Types)** - The type of RC vehicle being raced
-2. **Modification Rules** - Rules governing vehicle modifications (Modified vs Stock)
-3. **Skill Groupings** - Driver skill/experience levels (Junior, Pro, Expert)
+1. **Race Classes** - What LiveRC defines (e.g., "40+ Electric Buggy", "Pro Electric Buggy") - primary identifier
+2. **Vehicle Types** - Inferred car classes with scale (e.g., "1/8 Electric Buggy", "1/10 Electric Truck") - derived field
+3. **Modification Rules** - Rules governing vehicle modifications (Modified vs Stock)
+4. **Skill Groupings** - Driver skill/experience levels (Junior, Pro, Expert)
 
-The `Race.className` field in the database stores the class name as extracted from LiveRC race labels. This field is currently free-form text but may be normalized in future versions.
+The `EventEntry.className` field stores the race class name as extracted from LiveRC entry list pages. The `EventRaceClass.vehicleType` field stores the inferred vehicle type, which is derived from the race class name using heuristics.
 
 ---
 
@@ -198,13 +200,15 @@ LiveRC class names may vary in:
 
 ## Database Storage
 
-### Race.className Field
+### EventEntry.className Field
 
-The `className` field in the `Race` model stores the extracted class name:
+The `className` field in the `EventEntry` model stores the race class name from the entry list:
 
 ```prisma
-model Race {
+model EventEntry {
   className String @map("class_name")
+  eventRaceClassId String? @map("event_race_class_id")
+  eventRaceClass EventRaceClass? @relation(...)
   // ... other fields
 }
 ```
@@ -213,16 +217,33 @@ model Race {
 - Type: `String` (text)
 - Required: Yes
 - Normalization: Minimal (whitespace trimming only)
-- Validation: Basic (non-empty string)
+- Validation: None (all race classes accepted)
 
 **Storage Examples:**
-- `"1/8 Nitro Buggy"`
-- `"1/8 Electric Buggy"`
-- `"1/10 2WD Buggy Modified"`
-- `"1/10 4WD Buggy Stock"`
-- `"Junior"`
-- `"Pro"`
-- `"Expert"`
+- `"40+ Electric Buggy"`
+- `"Pro Electric Buggy"`
+- `"Spt. Nitro Truck"`
+- `"Int. 2WD Buggy"`
+
+### EventRaceClass Model
+
+The `EventRaceClass` model stores vehicle type information for each unique race class in an event:
+
+```prisma
+model EventRaceClass {
+  eventId String
+  className String
+  vehicleType String? @map("vehicle_type")
+  vehicleTypeNeedsReview Boolean @default(true) @map("vehicle_type_needs_review")
+  vehicleTypeReviewedAt DateTime? @map("vehicle_type_reviewed_at")
+  vehicleTypeReviewedBy String? @map("vehicle_type_reviewed_by")
+  // ... other fields
+}
+```
+
+**Storage Examples:**
+- `className: "40+ Electric Buggy"`, `vehicleType: "1/8 Electric Buggy"`, `vehicleTypeNeedsReview: true`
+- `className: "Pro Nitro Buggy"`, `vehicleType: "1/8 Nitro Buggy"`, `vehicleTypeNeedsReview: false`
 
 ---
 
@@ -273,13 +294,50 @@ Future features may include:
 
 ---
 
+## Race Class Usage
+
+### Class Extraction
+
+Race classes are extracted from the LiveRC entry list page using `getValidClasses()` in `src/core/events/class-validator.ts`. This function:
+
+- Uses `EventEntry.className` as the source (race classes from entry list)
+- Returns all unique race class names (no validation filtering)
+- Sorts alphabetically for display
+
+### Vehicle Type Review
+
+Users can review and edit inferred vehicle types through the ClassDetailsModal component:
+
+- **Location**: Available from class dropdowns and entry list
+- **Functionality**: 
+  - View inferred vehicle type
+  - Accept inference (marks as reviewed)
+  - Edit vehicle type (select from dropdown of related options)
+- **Storage**: Updates are saved to `EventRaceClass` record
+
+### Implementation
+
+Race class extraction is used in:
+- **ChartControls**: Groups drivers by race class
+- **OverviewTab**: Filters races by race class
+- **SessionsTab**: Filters available classes in session analysis
+- **DriverList**: Filters classes when displaying driver class information
+- **EntryList**: Displays race classes with vehicle type information
+
 ## Summary
 
-- **Car Classes** are vehicle types: 1/8 buggies/truggies (Nitro/Electric), 1/10 buggies (2WD/4WD)
-- **Modified/Stock** are modification rules for 1/10 scale buggies, not car classes
-- **Junior/Pro/Expert** are skill groupings, not car classes
-- **Class names** are currently stored as free-form text extracted from LiveRC
+- **Race Classes** are what LiveRC defines (e.g., "40+ Electric Buggy", "Pro Electric Buggy") - primary identifier
+- **Vehicle Types** are inferred car classes with scale (e.g., "1/8 Electric Buggy", "1/10 Electric Truck") - derived field
+- **All race classes** from the entry list are accepted and displayed (no validation filtering)
+- **Vehicle type inference** extracts vehicle type from race class names using heuristics
+- **Vehicle types** are stored in `EventRaceClass` with a "needs review" flag requiring user confirmation
+- **Users can review/edit** vehicle types through the ClassDetailsModal component
+- **Modified/Stock** are modification rules for 1/10 scale buggies, not race classes
+- **Junior/Pro/Expert** are skill groupings that appear in race class names
+- **Age groupings** (e.g., "40+", "50+") appear in race class names
+- **Race class names** are stored as free-form text extracted from LiveRC entry list
 - **Future normalization** may provide structured class representation and validation
+- **Future vehicle types** beyond Buggy/Truggy will be supported in later versions
 
 This document is the **authoritative reference** for understanding racing classes in the MRE domain.
 

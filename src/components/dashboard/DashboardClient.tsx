@@ -2,14 +2,16 @@
 
 import { useState, useRef, useEffect, useMemo } from "react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { fetchEventData, fetchRecentEvents } from "@/store/slices/dashboardSlice"
+import { fetchEventData, fetchRecentEvents, selectEvent } from "@/store/slices/dashboardSlice"
 import { formatDateLong, formatLapTime } from "@/lib/date-utils"
 import type { EventAnalysisSummary, ImportedEventSummary } from "@root-types/dashboard"
 import ImprovementDriverCard from "./ImprovementDriverCard"
+import ChartContainer from "../event-analysis/ChartContainer"
+import EventSearchModal from "./shell/EventSearchModal"
 // EventAnalysisClient removed - dashboard now uses summary endpoint only
 // Full analysis data is only loaded on /events/analyse/[eventId] page
 // import EventAnalysisClient from "@/app/(authenticated)/events/analyse/[eventId]/EventAnalysisClient"
-// import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 interface WeatherData {
   condition: string
@@ -54,9 +56,7 @@ export default function DashboardClient() {
   const dispatch = useAppDispatch()
   const selectedEventId = useAppSelector((state) => state.dashboard.selectedEventId)
   const eventData = useAppSelector((state) => state.dashboard.eventData)
-  const isEventLoading = useAppSelector((state) => state.dashboard.isEventLoading)
   const eventError = useAppSelector((state) => state.dashboard.eventError)
-  const recentEvents = useAppSelector((state) => state.dashboard.recentEvents)
 
   // Extract event data fields
   const selectedEvent = eventData?.event ?? null
@@ -72,10 +72,11 @@ export default function DashboardClient() {
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [weatherError, setWeatherError] = useState<string | null>(null)
+  const [isEventSearchModalOpen, setIsEventSearchModalOpen] = useState(false)
   // analysisData removed - dashboard now uses summary data from Redux store only
   // Full analysis data is only loaded on /events/analyse/[eventId] page
 
-  // Fetch recent events on mount
+  // Fetch recent events on mount (runs in background, doesn't block UI)
   useEffect(() => {
     dispatch(fetchRecentEvents("all"))
   }, [dispatch])
@@ -109,13 +110,25 @@ export default function DashboardClient() {
       return
     }
 
+    // Create AbortController to cancel request if event changes
+    const abortController = new AbortController()
+    const eventId = selectedEvent.id
+
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWeatherLoading(true)
 
     setWeatherError(null)
 
-    fetch(`/api/v1/events/${selectedEvent.id}/weather`, { cache: "no-store" })
+    fetch(`/api/v1/events/${eventId}/weather`, { 
+      cache: "no-store",
+      signal: abortController.signal,
+    })
       .then(async (response) => {
+        // Check if request was aborted
+        if (abortController.signal.aborted) {
+          return
+        }
+
         if (!response.ok) {
           if (response.status === 404) {
             setWeatherError("Event not found")
@@ -127,54 +140,90 @@ export default function DashboardClient() {
         }
 
         const result = await response.json()
-        if (result.success && result.data) {
-          setWeather(result.data)
-        } else {
-          setWeatherError("Invalid response from server")
+        
+        // Check again if request was aborted before updating state
+        if (abortController.signal.aborted) {
+          return
+        }
+
+        // Verify this response is for the current event
+        if (selectedEvent?.id === eventId) {
+          if (result.success && result.data) {
+            setWeather(result.data)
+          } else {
+            setWeatherError("Invalid response from server")
+          }
         }
       })
       .catch((error) => {
+        // Ignore abort errors
+        if (error.name === "AbortError") {
+          return
+        }
         console.error("Error fetching weather data", error)
-        setWeatherError("Failed to fetch weather data")
+        // Only set error if this is still the active event
+        if (selectedEvent?.id === eventId) {
+          setWeatherError("Failed to fetch weather data")
+        }
       })
       .finally(() => {
-        setWeatherLoading(false)
+        // Only update loading state if this is still the active event
+        if (selectedEvent?.id === eventId) {
+          setWeatherLoading(false)
+        }
       })
+
+    // Cleanup: abort request if event changes or component unmounts
+    return () => {
+      abortController.abort()
+    }
   }, [selectedEvent?.id])
 
   // Full analysis data fetching removed - dashboard now uses summary endpoint only
   // Summary data is provided by Redux store (fetches from /api/v1/events/[eventId]/summary)
   // Full analysis data is only loaded on /events/analyse/[eventId] page
 
-  if (isEventLoading) {
-    return <DashboardLoadingState />
-  }
-
-  if (eventError && !selectedEvent) {
-    return <DashboardEmptyState recentEvents={recentEvents} message={eventError} />
-  }
-
+  // Empty state - no event selected (show immediately, no skeleton cards)
   if (!selectedEvent) {
-    return <DashboardEmptyState recentEvents={recentEvents} />
+    return (
+      <>
+        <DashboardEmptyState
+          onOpenEventSearch={() => setIsEventSearchModalOpen(true)}
+        />
+        <EventSearchModal
+          isOpen={isEventSearchModalOpen}
+          onClose={() => setIsEventSearchModalOpen(false)}
+          onSelectEvent={(eventId) => {
+            dispatch(selectEvent(eventId))
+          }}
+          selectedEventId={selectedEventId}
+        />
+      </>
+    )
+  }
+
+  // Error state - show empty state with error message
+  if (eventError && !selectedEvent) {
+    return (
+      <>
+        <DashboardEmptyState
+          onOpenEventSearch={() => setIsEventSearchModalOpen(true)}
+          error={eventError}
+        />
+        <EventSearchModal
+          isOpen={isEventSearchModalOpen}
+          onClose={() => setIsEventSearchModalOpen(false)}
+          onSelectEvent={(eventId) => {
+            dispatch(selectEvent(eventId))
+          }}
+          selectedEventId={selectedEventId}
+        />
+      </>
+    )
   }
 
   return (
     <div className="flex flex-col gap-[var(--dashboard-gap)]">
-      <DashboardHero
-        event={selectedEvent}
-        summary={eventSummary}
-        topDrivers={topDrivers}
-        mostConsistentDrivers={mostConsistentDrivers}
-        bestAvgLapDrivers={bestAvgLapDrivers}
-        mostImprovedDrivers={mostImprovedDrivers}
-        userBestLap={userBestLap}
-        userBestConsistency={userBestConsistency}
-        userBestAvgLap={userBestAvgLap}
-        weather={weather}
-        weatherLoading={weatherLoading}
-        weatherError={weatherError}
-      />
-
       {/* Event Analysis Features removed from dashboard
           Full analysis is only available on /events/analyse/[eventId] page
           Dashboard uses summary data from Redux store for performance */}
@@ -182,55 +231,35 @@ export default function DashboardClient() {
   )
 }
 
-function DashboardLoadingState() {
-  return (
-    <div className="grid animate-pulse grid-cols-12 gap-4 lg:gap-6">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div
-          key={index}
-          className="col-span-12 rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/60 p-6 sm:col-span-6 xl:col-span-4"
-        />
-      ))}
-    </div>
-  )
-}
-
 function DashboardEmptyState({
-  recentEvents,
-  message,
+  onOpenEventSearch,
+  error,
 }: {
-  recentEvents: ImportedEventSummary[]
-  message?: string
+  onOpenEventSearch: () => void
+  error?: string | null
 }) {
   return (
-    <div className="rounded-3xl border border-dashed border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 p-10 text-center">
-      <p className="text-sm uppercase tracking-[0.5em] text-[var(--token-text-muted)]">
-        No event selected
-      </p>
-      <h2 className="mt-4 text-2xl font-semibold text-[var(--token-text-primary)]">
-        {message ?? "Choose a race to unlock telemetry"}
-      </h2>
-      <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
-        Use the event selector above to load telemetry, KPIs, and weather for your mission control
-        view.
-      </p>
-      {recentEvents.length > 0 && (
-        <div className="mt-8 space-y-3">
-          <p className="text-xs uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
-            Recent circuits
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {recentEvents.slice(0, 4).map((event) => (
-              <div
-                key={event.id}
-                className="rounded-full border border-[var(--token-border-default)] px-4 py-2 text-xs font-semibold text-[var(--token-text-secondary)]"
-              >
-                {event.track.trackName}
-              </div>
-            ))}
+    <div className="flex flex-col gap-6 mt-6">
+      <div className="rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-8 text-center">
+        <h2 className="text-2xl font-bold text-[var(--token-text-primary)] mb-2">
+          Select an Event
+        </h2>
+        <p className="text-sm text-[var(--token-text-secondary)] mb-6">
+          Search for an event to view analysis and insights
+        </p>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-[var(--token-status-error-bg)] border border-[var(--token-status-error-text)]/20">
+            <p className="text-sm text-[var(--token-status-error-text)]">{error}</p>
           </div>
-        </div>
-      )}
+        )}
+        <button
+          type="button"
+          onClick={onOpenEventSearch}
+          className="px-6 py-3 rounded-lg bg-[var(--token-accent)] text-[var(--token-text-on-accent)] font-semibold hover:opacity-90 transition"
+        >
+          Search for Events
+        </button>
+      </div>
     </div>
   )
 }
@@ -238,6 +267,25 @@ function DashboardEmptyState({
 function DashboardHero({
   event,
   summary,
+  weather,
+  weatherLoading,
+  weatherError,
+}: {
+  event: EventAnalysisSummary["event"]
+  summary: EventAnalysisSummary["summary"] | null
+  weather: WeatherData | null
+  weatherLoading: boolean
+  weatherError: string | null
+}) {
+  const eventDate = event?.eventDate ? new Date(event.eventDate) : null
+
+  return null
+}
+
+// DriverCardsAndWeatherGrid component - moved from DashboardHero
+// This component contains the driver cards carousel and weather panel grid
+export function DriverCardsAndWeatherGrid({
+  event,
   topDrivers,
   mostConsistentDrivers,
   bestAvgLapDrivers,
@@ -248,9 +296,10 @@ function DashboardHero({
   weather,
   weatherLoading,
   weatherError,
+  selectedClass,
+  races,
 }: {
   event: EventAnalysisSummary["event"]
-  summary: EventAnalysisSummary["summary"] | null
   topDrivers?: EventAnalysisSummary["topDrivers"]
   mostConsistentDrivers?: EventAnalysisSummary["mostConsistentDrivers"]
   bestAvgLapDrivers?: EventAnalysisSummary["bestAvgLapDrivers"]
@@ -261,6 +310,8 @@ function DashboardHero({
   weather: WeatherData | null
   weatherLoading: boolean
   weatherError: string | null
+  selectedClass?: string | null
+  races?: EventAnalysisData["races"]
 }) {
   const eventDate = event?.eventDate ? new Date(event.eventDate) : null
   const [currentSection, setCurrentSection] = useState(0)
@@ -293,20 +344,119 @@ function DashboardHero({
     bestAvgLapDrivers?.length ||
     mostImprovedDrivers?.length
 
-  // Get intersection of classes from all sections (only classes that appear in all four)
+  // Get union of all classes from all sections (all classes that appear in any section)
   const getAllClasses = (): string[] => {
-    const fastestClasses = new Set(topDrivers?.map((d) => d.className) || [])
-    const consistentClasses = new Set(mostConsistentDrivers?.map((d) => d.className) || [])
-    const avgLapClasses = new Set(bestAvgLapDrivers?.map((d) => d.className) || [])
-    const improvedClasses = new Set(mostImprovedDrivers?.map((d) => d.className) || [])
+    const allClassesSet = new Set<string>()
+    
+    // Add all classes from each section
+    topDrivers?.forEach((d) => allClassesSet.add(d.className))
+    mostConsistentDrivers?.forEach((d) => allClassesSet.add(d.className))
+    bestAvgLapDrivers?.forEach((d) => allClassesSet.add(d.className))
+    mostImprovedDrivers?.forEach((d) => allClassesSet.add(d.className))
 
-    // Intersection: classes that appear in all four
-    return Array.from(fastestClasses)
-      .filter((c) => consistentClasses.has(c) && avgLapClasses.has(c) && improvedClasses.has(c))
-      .sort()
+    // Add all classes from races data
+    races?.forEach((race) => {
+      if (race.className) {
+        allClassesSet.add(race.className)
+      }
+    })
+
+    // Return sorted array of all unique classes
+    return Array.from(allClassesSet).sort()
   }
 
   const allClasses = getAllClasses()
+
+  // Calculate top drivers for a class from race data
+  const calculateTopDriversForClass = useMemo(() => {
+    return (className: string): NonNullable<EventAnalysisSummary["topDrivers"]> => {
+      if (!races) return []
+      
+      const classRaces = races.filter((r) => r.className === className)
+      const driverMap = new Map<string, { fastestLapTime: number; driverName: string; driverId: string; className: string; raceLabel: string }>()
+      
+      classRaces.forEach((race) => {
+        race.results.forEach((result) => {
+          if (result.fastLapTime !== null && result.fastLapTime !== undefined) {
+            const existing = driverMap.get(result.driverId)
+            if (!existing || result.fastLapTime < existing.fastestLapTime) {
+              driverMap.set(result.driverId, {
+                fastestLapTime: result.fastLapTime,
+                driverName: result.driverName,
+                driverId: result.driverId,
+                className: race.className,
+                raceLabel: race.raceLabel,
+              })
+            }
+          }
+        })
+      })
+      
+      return Array.from(driverMap.values())
+        .sort((a, b) => a.fastestLapTime - b.fastestLapTime)
+        .slice(0, 4)
+    }
+  }, [races])
+
+  const calculateMostConsistentForClass = useMemo(() => {
+    return (className: string): NonNullable<EventAnalysisSummary["mostConsistentDrivers"]> => {
+      if (!races) return []
+      
+      const classRaces = races.filter((r) => r.className === className)
+      const driverMap = new Map<string, { consistency: number; driverName: string; driverId: string; className: string; raceLabel: string }>()
+      
+      classRaces.forEach((race) => {
+        race.results.forEach((result) => {
+          if (result.consistency !== null && result.consistency !== undefined) {
+            const existing = driverMap.get(result.driverId)
+            if (!existing || result.consistency > existing.consistency) {
+              driverMap.set(result.driverId, {
+                consistency: result.consistency,
+                driverName: result.driverName,
+                driverId: result.driverId,
+                className: race.className,
+                raceLabel: race.raceLabel,
+              })
+            }
+          }
+        })
+      })
+      
+      return Array.from(driverMap.values())
+        .sort((a, b) => b.consistency - a.consistency)
+        .slice(0, 4)
+    }
+  }, [races])
+
+  const calculateBestAvgLapForClass = useMemo(() => {
+    return (className: string): NonNullable<EventAnalysisSummary["bestAvgLapDrivers"]> => {
+      if (!races) return []
+      
+      const classRaces = races.filter((r) => r.className === className)
+      const driverMap = new Map<string, { avgLapTime: number; driverName: string; driverId: string; className: string; raceLabel: string }>()
+      
+      classRaces.forEach((race) => {
+        race.results.forEach((result) => {
+          if (result.avgLapTime !== null && result.avgLapTime !== undefined) {
+            const existing = driverMap.get(result.driverId)
+            if (!existing || result.avgLapTime < existing.avgLapTime) {
+              driverMap.set(result.driverId, {
+                avgLapTime: result.avgLapTime,
+                driverName: result.driverName,
+                driverId: result.driverId,
+                className: race.className,
+                raceLabel: race.raceLabel,
+              })
+            }
+          }
+        })
+      })
+      
+      return Array.from(driverMap.values())
+        .sort((a, b) => a.avgLapTime - b.avgLapTime)
+        .slice(0, 4)
+    }
+  }, [races])
 
   // Group drivers by className for each section
   const groupDriversByClass = (
@@ -364,26 +514,48 @@ function DashboardHero({
     return grouped
   }
 
-  // Get current class drivers for a section (using global class index)
+  // Get current class drivers for a section (using selectedClass prop or cycling)
   const getCurrentClassDrivers = (section: (typeof sections)[number]): DriverCardData[] => {
-    if (!section.data || section.data.length === 0) return []
+    // Use selectedClass prop when provided, otherwise use cycling with currentClassIndex
+    const currentClass = selectedClass !== null && selectedClass !== undefined
+      ? selectedClass
+      : allClasses[currentClassIndex % allClasses.length]
 
-    // If no classes in intersection, show all drivers (top 3)
-    if (allClasses.length === 0) {
-      return section.data.slice(0, 3) as DriverCardData[]
+    if (!currentClass) {
+      // If no class selected and no classes available, show all drivers (top 4)
+      if (allClasses.length === 0 && section.data) {
+        return section.data.slice(0, 4) as DriverCardData[]
+      }
+      return []
     }
 
-    // Ensure currentClassIndex is within bounds
-    const safeClassIndex = currentClassIndex % allClasses.length
-    const currentClass = allClasses[safeClassIndex]
+    // When a class is selected, always calculate from race data
+    if (selectedClass !== null && selectedClass !== undefined && races) {
+      let calculatedDrivers: DriverCardData[] = []
+      
+      if (section.type === "fastest") {
+        calculatedDrivers = calculateTopDriversForClass(currentClass) as DriverCardData[]
+      } else if (section.type === "consistency") {
+        calculatedDrivers = calculateMostConsistentForClass(currentClass) as DriverCardData[]
+      } else if (section.type === "avgLap") {
+        calculatedDrivers = calculateBestAvgLapForClass(currentClass) as DriverCardData[]
+      } else if (section.type === "improvement") {
+        // For improvement, still use the summary data as it's calculated differently
+        const grouped = groupDriversByClass(section.data, section.type)
+        calculatedDrivers = (grouped[currentClass] || []).slice(0, 4) as DriverCardData[]
+      }
+      
+      return calculatedDrivers.slice(0, 4)
+    }
 
-    if (!currentClass) return []
+    // When cycling (no class selected), use summary data
+    if (!section.data || section.data.length === 0) return []
 
     const grouped = groupDriversByClass(section.data, section.type)
     if (!grouped[currentClass]) return []
 
-    // Return top 3 drivers from current class
-    return grouped[currentClass].slice(0, 3) as DriverCardData[]
+    // Return top 4 drivers from current class
+    return grouped[currentClass].slice(0, 4) as DriverCardData[]
   }
 
   const scrollToSection = (index: number, isUserAction = false) => {
@@ -462,7 +634,8 @@ function DashboardHero({
         // Detect cycle completion: when going from last section (2) to first (0)
         const isCycleComplete = currentSectionIndex === sections.length - 1 && nextSection === 0
 
-        if (isCycleComplete && allClasses.length > 0) {
+        // Only advance class index when cycling automatically (selectedClass is null/undefined)
+        if (isCycleComplete && allClasses.length > 0 && (selectedClass === null || selectedClass === undefined)) {
           // Advance to next class when cycle completes
           setCurrentClassIndex((prev) => {
             const nextIndex = (prev + 1) % allClasses.length
@@ -502,7 +675,7 @@ function DashboardHero({
         programmaticScrollTimeoutRef.current = null
       }
     }
-  }, [hasData, sections.length, currentSection, allClasses.length])
+  }, [hasData, sections.length, currentSection, allClasses.length, selectedClass])
 
   // Update current section based on scroll position
   useEffect(() => {
@@ -537,36 +710,21 @@ function DashboardHero({
   }, [currentSection, sections.length])
 
   return (
-    <>
-      <div className="border-b border-[var(--token-border-default)] pb-4">
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)]">Event Highlights</h2>
-      </div>
-      <section className="grid grid-cols-12 gap-4 lg:gap-6">
-        <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] lg:col-span-8">
-          <div className="mb-6">
-            <p className="text-[10px] uppercase tracking-[0.5em] text-[var(--token-text-muted)]">
-              Event
-            </p>
-            <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">
-              {event.eventName}
-            </h1>
-            <p className="text-sm text-[var(--token-text-secondary)]">
-              {event.trackName} • {eventDate ? formatDateLong(event.eventDate) : "Date TBD"}
-            </p>
-          </div>
+    <section className="grid grid-cols-12 gap-4 lg:gap-6">
+        <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] py-[var(--dashboard-card-padding)] px-4 lg:col-span-8 lg:pr-0">
 
           {hasData ? (
             <>
               <div className="mb-6">
-                {/* Navigation header with chevrons */}
-                <div className="flex items-center gap-4 mb-4">
+                {/* Navigation header with chevrons and section indicators */}
+                <div className="flex items-center gap-3 mb-5 max-w-full md:max-w-[880px] mx-auto">
                   <button
                     onClick={handlePrev}
                     disabled={currentSection === 0}
-                    className={`flex items-center justify-center w-8 h-8 rounded-full border transition ${
+                    className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all duration-200 ${
                       currentSection === 0
-                        ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed"
-                        : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] hover:border-[var(--token-border-default)] hover:text-[var(--token-text-primary)] cursor-pointer"
+                        ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed bg-[var(--token-surface)]"
+                        : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)] hover:text-[var(--token-accent)] hover:bg-[var(--token-surface-raised)] active:scale-95 cursor-pointer"
                     }`}
                     aria-label="Previous section"
                   >
@@ -575,32 +733,52 @@ function DashboardHero({
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth={2}
+                      strokeWidth={2.5}
                     >
                       <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
-                  <div className="flex-1">
-                    <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-text-secondary)]">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-text-secondary)] font-medium">
                       {sections[currentSection]?.title}
                     </p>
                     {allClasses.length > 0 ? (
-                      <p className="text-xs text-[var(--token-text-primary)] mt-1 font-medium">
-                        {allClasses[currentClassIndex % allClasses.length]}
+                      <p className="text-sm text-[var(--token-text-primary)] mt-1.5 font-semibold truncate">
+                        {selectedClass !== null && selectedClass !== undefined
+                          ? selectedClass
+                          : allClasses[currentClassIndex % allClasses.length]}
                       </p>
                     ) : (
-                      <p className="text-xs text-[var(--token-text-muted)] mt-1 italic">
-                        No classes in common across all sections
+                      <p className="text-xs text-[var(--token-text-muted)] mt-1.5 italic">
+                        No classes available
                       </p>
                     )}
                   </div>
+                  
+                  {/* Section indicators */}
+                  <div className="flex items-center gap-1.5 mx-2">
+                    {sections.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => scrollToSection(index, true)}
+                        className={`transition-all duration-200 rounded-full ${
+                          index === currentSection
+                            ? "w-2 h-2 bg-[var(--token-accent)]"
+                            : "w-1.5 h-1.5 bg-[var(--token-border-default)] hover:bg-[var(--token-text-muted)]"
+                        }`}
+                        aria-label={`Go to section ${index + 1}`}
+                        aria-current={index === currentSection ? "true" : "false"}
+                      />
+                    ))}
+                  </div>
+
                   <button
                     onClick={handleNext}
                     disabled={currentSection === sections.length - 1}
-                    className={`flex items-center justify-center w-8 h-8 rounded-full border transition ${
+                    className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all duration-200 ${
                       currentSection === sections.length - 1
-                        ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed"
-                        : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] hover:border-[var(--token-border-default)] hover:text-[var(--token-text-primary)] cursor-pointer"
+                        ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed bg-[var(--token-surface)]"
+                        : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)] hover:text-[var(--token-accent)] hover:bg-[var(--token-surface-raised)] active:scale-95 cursor-pointer"
                     }`}
                     aria-label="Next section"
                   >
@@ -609,7 +787,7 @@ function DashboardHero({
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth={2}
+                      strokeWidth={2.5}
                     >
                       <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -636,40 +814,23 @@ function DashboardHero({
                           (() => {
                             const currentClassDrivers = getCurrentClassDrivers(section)
                             if (currentClassDrivers.length === 0) {
-                              return (
-                                <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-6 text-center">
-                                  <p className="text-sm text-[var(--token-text-muted)]">
-                                    No drivers available for this class
-                                  </p>
-                                </div>
-                              )
+                                return (
+                                  <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-6 py-8 text-center">
+                                    <p className="text-sm text-[var(--token-text-muted)]">
+                                      No drivers available for this class
+                                    </p>
+                                  </div>
+                                )
                             }
-                            // Get the original index for proper ranking display
-                            let allClassDrivers: DriverCardData[]
-                            if (allClasses.length === 0) {
-                              // No intersection - use all drivers from section (already sorted by metric)
-                              allClassDrivers = section.data.slice(0, 3) as DriverCardData[]
-                            } else {
-                              // Use drivers from the current class
-                              const grouped = groupDriversByClass(section.data, section.type)
-                              const safeClassIndex = currentClassIndex % allClasses.length
-                              const currentClass = allClasses[safeClassIndex]
-                              allClassDrivers = (
-                                currentClass ? grouped[currentClass] || [] : []
-                              ) as DriverCardData[]
-                            }
-
                             return (
-                              <div className="flex gap-6 justify-start md:justify-start">
+                              <div className="flex gap-4 justify-start items-stretch max-w-full md:max-w-[880px] mx-auto">
                                 {currentClassDrivers.map((driver, driverIndex) => {
-                                  // Find the original index in the group for proper ranking
-                                  const originalIndex = allClassDrivers.findIndex(
-                                    (d) => d.driverId === driver.driverId
-                                  )
+                                  // Use driverIndex directly since currentClassDrivers is already sorted by metric
+                                  // Position will be driverIndex + 1 (1, 2, 3, 4)
                                   return (
                                     <div
                                       key={driver.driverId}
-                                      className="flex-shrink-0 w-full md:w-auto md:flex-1 max-w-[220px]"
+                                      className="flex-shrink-0 w-full md:w-[208px] flex transition-transform duration-200 hover:scale-[1.02]"
                                     >
                                       {section.type === "improvement" &&
                                       "improvementScore" in driver ? (
@@ -679,14 +840,14 @@ function DashboardHero({
                                               EventAnalysisSummary["mostImprovedDrivers"]
                                             >[number]
                                           }
-                                          index={originalIndex >= 0 ? originalIndex : driverIndex}
+                                          index={driverIndex}
                                         />
                                       ) : (
                                         <DriverCard
                                           driver={driver}
-                                          index={originalIndex >= 0 ? originalIndex : driverIndex}
+                                          index={driverIndex}
                                           type={section.type}
-                                          sectionData={allClassDrivers as typeof section.data}
+                                          sectionData={currentClassDrivers as typeof section.data}
                                         />
                                       )}
                                     </div>
@@ -696,7 +857,7 @@ function DashboardHero({
                             )
                           })()
                         ) : (
-                          <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-6 text-center">
+                          <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-6 py-8 text-center">
                             <p className="text-sm text-[var(--token-text-muted)]">
                               No data available for {section.title.toLowerCase()}
                             </p>
@@ -750,16 +911,16 @@ function DashboardHero({
                 if (!userMetric) return null
 
                 return (
-                  <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/30 bg-[var(--token-accent)]/10 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-2">
+                  <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/40 bg-gradient-to-br from-[var(--token-accent)]/10 to-[var(--token-accent)]/5 px-5 py-5 transition-all duration-200 hover:border-[var(--token-accent)]/60">
+                    <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-3 font-medium">
                       {userMetric.label}
                     </p>
-                    <div className="flex items-baseline justify-between">
-                      <div>
-                        <p className="text-2xl font-bold text-[var(--token-text-primary)]">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-3xl font-bold text-[var(--token-text-primary)] leading-tight">
                           {userMetric.value}
                         </p>
-                        <p className="text-xs text-[var(--token-text-secondary)] mt-1">
+                        <p className="text-xs text-[var(--token-text-secondary)] mt-2 font-medium">
                           Position #{userMetric.position}
                         </p>
                       </div>
@@ -772,11 +933,11 @@ function DashboardHero({
                         (currentSection === 2 &&
                           userBestAvgLap?.gapToBest &&
                           userBestAvgLap.gapToBest > 0)) && (
-                        <div className="text-right">
-                          <p className="text-sm text-[var(--token-text-muted)]">
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs text-[var(--token-text-muted)] mb-1 font-medium">
                             {userMetric.gapLabel}
                           </p>
-                          <p className="text-lg font-semibold text-[var(--token-text-primary)]">
+                          <p className="text-xl font-bold text-[var(--token-text-primary)]">
                             {userMetric.gapValue}
                           </p>
                         </div>
@@ -787,7 +948,7 @@ function DashboardHero({
               })()}
             </>
           ) : (
-            <div className="mb-6 rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-4 py-6 text-center">
+            <div className="mb-6 rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-6 py-8 text-center">
               <p className="text-sm text-[var(--token-text-muted)]">
                 No lap time data available for this event
               </p>
@@ -811,7 +972,6 @@ function DashboardHero({
           <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-[var(--dashboard-card-padding)] lg:col-span-4" />
         )}
       </section>
-    </>
   )
 }
 
@@ -852,7 +1012,7 @@ function DriverCard({
       const gapToFastest = index > 0 && sameClass ? driver.fastestLapTime - fastestLapTime : 0
       if (gapToFastest > 0) {
         gapDisplay = (
-          <span className="text-[10px] text-[var(--token-text-muted)]">
+          <span className="text-[10px] font-medium text-[var(--token-text-muted)] bg-[var(--token-surface)] px-2 py-0.5 rounded-full">
             +{formatLapTime(gapToFastest)}
           </span>
         )
@@ -867,17 +1027,21 @@ function DriverCard({
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[var(--token-text-muted)]">#{index + 1}</span>
+    <div className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 py-5 h-full w-full transition-all duration-200 hover:border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] hover:shadow-lg">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold text-[var(--token-text-primary)] bg-[var(--token-surface)] px-2.5 py-1 rounded-full border border-[var(--token-border-default)]">
+          #{index + 1}
+        </span>
         {gapDisplay}
       </div>
-      <p className="text-base font-semibold text-[var(--token-text-primary)] mb-1">
+      <p className="text-base font-bold text-[var(--token-text-primary)] mb-2 truncate">
         {driver.driverName}
       </p>
-      <p className="text-2xl font-bold text-[var(--token-text-primary)] mb-2">{valueDisplay}</p>
-      <p className="text-[10px] text-[var(--token-text-muted)]">{driver.raceLabel}</p>
-      <p className="text-[10px] text-[var(--token-text-muted)]">{driver.className}</p>
+      <p className="text-2xl font-bold text-[var(--token-text-primary)] mb-3 leading-tight">{valueDisplay}</p>
+      <div className="space-y-1">
+        <p className="text-[10px] text-[var(--token-text-muted)] font-medium truncate">{driver.raceLabel}</p>
+        <p className="text-[10px] text-[var(--token-text-muted)] truncate">{driver.className}</p>
+      </div>
     </div>
   )
 }
@@ -1199,14 +1363,13 @@ function DataQualityHeatmap({
 }) {
   const channels = ["Speed", "Throttle", "Brake", "Gear", "GPS", "Temp"]
   return (
-    <article
-      className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-[var(--dashboard-card-padding)] ${className}`}
+    <ChartContainer
+      title="Channel completeness"
+      description="Data quality"
+      className={className}
+      aria-label="Data quality heatmap showing channel completeness by lap"
     >
-      <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
-        Data quality
-      </p>
-      <h3 className="mt-2 text-lg font-semibold">Channel completeness</h3>
-      <div className="mt-4 overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
@@ -1242,7 +1405,7 @@ function DataQualityHeatmap({
           </tbody>
         </table>
       </div>
-    </article>
+    </ChartContainer>
   )
 }
 
@@ -1374,6 +1537,10 @@ function WeatherLoadingState({ className }: { className?: string }) {
 function WeatherErrorState({ className, error }: { className?: string; error: string }) {
   // Parse error message to show user-friendly version
   const getUserFriendlyError = (errorMsg: string): string => {
+    // Check for network connectivity issues first
+    if (errorMsg.includes("Network error") || errorMsg.includes("network connectivity") || errorMsg.includes("Unable to reach")) {
+      return "Unable to load weather data - network connectivity issue"
+    }
     if (errorMsg.includes("geocode") || errorMsg.includes("Geocoding")) {
       return "Weather data unavailable for this location"
     }

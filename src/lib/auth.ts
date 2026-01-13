@@ -40,6 +40,7 @@ export const publicApiPrefixes = [
   "/api/v1/auth/login",
   "/api/v1/auth/register",
   "/api/health",
+  "/api/v1/health",
 ] as const
 
 /**

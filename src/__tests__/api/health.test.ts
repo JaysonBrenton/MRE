@@ -12,9 +12,9 @@
  */
 
 import { describe, it, expect } from "vitest"
-import { GET } from "@/app/api/health/route"
+import { GET } from "@/app/api/v1/health/route"
 
-describe("GET /api/health", () => {
+describe("GET /api/v1/health", () => {
   describe("response format validation", () => {
     it("should return success response in standardized format", async () => {
       const response = await GET()

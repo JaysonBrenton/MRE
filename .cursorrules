@@ -1,0 +1,29 @@
+# MRE Project Rules for LLM Assistants
+
+## CRITICAL: Docker-Only Environment
+
+**THE APPLICATION ONLY RUNS IN DOCKER. NEVER ASSUME A LOCAL DEVELOPMENT ENVIRONMENT.**
+
+- The MRE application runs exclusively in Docker containers
+- Container names: `mre-app` (Next.js) and `mre-liverc-ingestion-service` (Python)
+- All commands must be prefixed with `docker exec -it mre-app` or `docker exec -it mre-liverc-ingestion-service`
+- Never suggest running `npm install`, `npm run dev`, `pytest`, etc. directly on the host
+- Local `node_modules` is excluded from Docker volumes and not used
+- Dependencies are automatically installed by the Docker entrypoint script when containers start
+- To manually install: `docker exec -it mre-app npm install --legacy-peer-deps`
+- To restart containers: `docker compose restart app`
+- To rebuild: `docker compose build` or `docker compose up -d --build`
+
+## Documentation
+
+- All LLM guidelines are in `docs/AGENTS.md` - READ THIS FIRST
+- Architecture docs are in `docs/architecture/`
+- Operations guides are in `docs/operations/`
+- Always check `docs/AGENTS.md` Section 1 for Docker environment rules
+
+## When Troubleshooting
+
+1. Check if dependencies exist in container: `docker exec mre-app ls node_modules | grep <package>`
+2. Restart container to trigger auto-install: `docker compose restart app`
+3. Rebuild if needed: `docker compose build app`
+

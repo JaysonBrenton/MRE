@@ -14,7 +14,8 @@
  */
 
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import type { TrackSyncJobStatus } from "@/core/admin/ingestion"
 
 export default function IngestionControls() {
   const [trackSyncLoading, setTrackSyncLoading] = useState(false)
@@ -22,19 +23,21 @@ export default function IngestionControls() {
   const [trackSyncMessage, setTrackSyncMessage] = useState<string | null>(null)
   const [eventIngestionMessage, setEventIngestionMessage] = useState<string | null>(null)
   const [eventId, setEventId] = useState("")
+  const [trackSyncJobId, setTrackSyncJobId] = useState<string | null>(null)
+  const [trackSyncStatus, setTrackSyncStatus] = useState<TrackSyncJobStatus | null>(null)
 
   async function triggerTrackSync() {
     setTrackSyncLoading(true)
     setTrackSyncMessage(null)
+    setTrackSyncStatus(null)
     try {
       const res = await fetch("/api/v1/admin/ingestion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "track_sync" }),
       })
-      
+
       if (!res.ok) {
-        // Try to parse error response
         try {
           const errorData = await res.json()
           const errorMessage = errorData.error?.message || `Error: ${res.status} ${res.statusText}`
@@ -44,15 +47,22 @@ export default function IngestionControls() {
         }
         return
       }
-      
+
       const data = await res.json()
       if (!data.success) {
         setTrackSyncMessage(data.error?.message || "Failed to trigger track sync")
         return
       }
-      setTrackSyncMessage(data.message || "Track sync triggered successfully")
+
+      const jobId = data.data?.jobId as string | undefined
+      if (!jobId) {
+        setTrackSyncMessage("Track sync response missing jobId")
+        return
+      }
+
+      setTrackSyncJobId(jobId)
+      setTrackSyncMessage("Track sync job queued. Monitoring progress…")
     } catch (error) {
-      // Network error or other fetch errors
       const errorMessage = error instanceof Error ? error.message : "Unknown error"
       setTrackSyncMessage(`Error triggering track sync: ${errorMessage}`)
     } finally {
@@ -108,6 +118,54 @@ export default function IngestionControls() {
     }
   }
 
+  useEffect(() => {
+    if (!trackSyncJobId) {
+      return
+    }
+
+    let cancelled = false
+
+    const pollJob = async () => {
+      try {
+        const res = await fetch(`/api/v1/admin/track-sync/jobs/${trackSyncJobId}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        })
+        if (!res.ok) {
+          throw new Error(`Status ${res.status}`)
+        }
+        const payload = await res.json()
+        if (!payload.success) {
+          throw new Error(payload.error?.message || "Failed to fetch job status")
+        }
+        if (cancelled) return
+        const status = payload.data as TrackSyncJobStatus
+        setTrackSyncStatus(status)
+        if (status.status === "success") {
+          setTrackSyncMessage(
+            `Track sync completed. Added ${status.tracksAdded ?? 0}, Updated ${status.tracksUpdated ?? 0}, Deactivated ${status.tracksDeactivated ?? 0}`
+          )
+          setTrackSyncJobId(null)
+        } else if (status.status === "error") {
+          setTrackSyncMessage(status.error || "Track sync failed")
+          setTrackSyncJobId(null)
+        }
+      } catch (error) {
+        if (cancelled) return
+        const message = error instanceof Error ? error.message : "Unknown error"
+        setTrackSyncMessage(`Failed to fetch track sync status: ${message}`)
+      }
+    }
+
+    pollJob()
+    const interval = setInterval(pollJob, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [trackSyncJobId])
+
   return (
     <div className="space-y-6">
       {/* Track Sync */}
@@ -123,19 +181,31 @@ export default function IngestionControls() {
         >
           {trackSyncLoading ? "Triggering..." : "Trigger Track Sync"}
         </button>
-        {trackSyncMessage && (
-          <p
-            className={`mt-2 text-sm ${
-              trackSyncMessage.includes("Error") || 
-              trackSyncMessage.includes("Failed") ||
-              trackSyncMessage.includes("Cannot read") ||
-              trackSyncMessage.includes("undefined")
-                ? "text-[var(--token-text-error)]"
-                : "text-[var(--token-text-success)]"
-            }`}
-          >
-            {trackSyncMessage}
-          </p>
+        {(trackSyncMessage || trackSyncStatus) && (
+          <div className="mt-3 space-y-1 text-sm">
+            {trackSyncMessage && (
+              <p
+                className={
+                  trackSyncMessage.includes("Error") || trackSyncMessage.includes("Failed")
+                    ? "text-[var(--token-text-error)]"
+                    : "text-[var(--token-text-success)]"
+                }
+              >
+                {trackSyncMessage}
+              </p>
+            )}
+            {trackSyncStatus && (
+              <div className="text-[var(--token-text-secondary)]">
+                <p>
+                  Status: {trackSyncStatus.status} ({trackSyncStatus.stage})
+                  {trackSyncStatus.total ? ` — ${trackSyncStatus.processed}/${trackSyncStatus.total}` : null}
+                </p>
+                {trackSyncStatus.reportPath && trackSyncStatus.status === "success" && (
+                  <p>Report: {trackSyncStatus.reportPath}</p>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

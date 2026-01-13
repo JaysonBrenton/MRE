@@ -178,9 +178,11 @@ Via the LiveRCConnector:
 7. For each race:
    - Fetch driver results.
    - Match race result drivers to EventEntry records (by driver ID or name)
+   - **Skip unmatched drivers**: If a race result driver does not match any EventEntry for the race's class, skip that result (log warning, continue processing)
    - Update Driver `sourceDriverId` from temporary to real ID if matched
-   - Upsert Race, RaceDriver, RaceResult.
+   - Upsert Race, RaceDriver, RaceResult (only for matched drivers).
    - Note: Transponder numbers are stored in EventEntry (source of truth), not RaceDriver.
+   - Note: Multi-class drivers will still be processed correctly - they're only skipped in classes they're not entered in.
 8. For each race result:
    - Fetch lap data using connector.
    - Upsert Lap rows (with safe dedupe by race_result_id + lap_number).

@@ -7,7 +7,7 @@ export default function ProfilePage() {
   const router = useRouter()
   
   useEffect(() => {
-    router.replace("/under-development")
+    router.replace(`/under-development?from=${encodeURIComponent("/dashboard/profile")}`)
   }, [router])
   
   return null

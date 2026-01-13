@@ -43,6 +43,7 @@ export async function GET() {
       userId: session.user.id,
       email: session.user.email,
       name: session.user.name,
+      isAdmin: session.user.isAdmin || false,
     })
   } catch {
     return errorResponse("INTERNAL_ERROR", "Failed to fetch user information", undefined, 500)

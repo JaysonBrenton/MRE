@@ -3,7 +3,7 @@
  *
  * @created 2025-01-28
  * @creator Jayson Brenton
- * @lastModified 2025-01-28
+ * @lastModified 2026-01-27
  *
  * @description Getting Started guide for My Race Engineer users
  *
@@ -13,6 +13,7 @@
  * @relatedFiles
  * - src/components/Breadcrumbs.tsx (breadcrumb navigation)
  * - src/components/dashboard/shell/AdaptiveNavigationRail.tsx (navigation)
+ * - docs/user-guides/getting-started.md (markdown documentation)
  */
 
 import Breadcrumbs from "@/components/Breadcrumbs"
@@ -37,13 +38,68 @@ export default async function GettingStartedPage() {
       <div className="space-y-6">
         <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
           <h2 className="mb-4 text-xl font-semibold text-[var(--token-text-primary)]">
-            Welcome to My Race Engineer
+            Introduction
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            My Race Engineer (MRE) is your comprehensive RC racing telemetry platform. This guide
-            will walk you through the essential features and help you get the most out of the
-            platform.
+            My Race Engineer (MRE) is a comprehensive RC racing telemetry platform that helps you
+            discover, import, and analyze race event data from LiveRC. Whether you&apos;re a casual racer
+            or a competitive driver, MRE provides the tools you need to understand your performance and
+            improve your racing.
           </p>
+        </section>
+
+        <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
+          <h2 className="mb-4 text-xl font-semibold text-[var(--token-text-primary)]">
+            Creating Your Account
+          </h2>
+          <p className="mb-4 text-[var(--token-text-secondary)]">
+            To create an account, navigate to the registration page and fill out the form with:
+          </p>
+          <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
+            <li><strong className="text-[var(--token-text-primary)]">Email or Username</strong> (required): Enter your email address or choose a username</li>
+            <li><strong className="text-[var(--token-text-primary)]">Password</strong> (required): Create a secure password (minimum 8 characters)</li>
+            <li><strong className="text-[var(--token-text-primary)]">Driver Name</strong> (required): Enter your racing name as it appears in race results</li>
+            <li><strong className="text-[var(--token-text-primary)]">Team Name</strong> (optional): Enter your team name if applicable</li>
+          </ul>
+          <p className="mt-4 text-[var(--token-text-secondary)]">
+            <strong className="text-[var(--token-text-primary)]">Important:</strong> Your driver name is used to automatically discover events where you participated. Make sure it matches how your name appears in race results.
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
+          <h2 className="mb-4 text-xl font-semibold text-[var(--token-text-primary)]">
+            Logging In
+          </h2>
+          <p className="mb-4 text-[var(--token-text-secondary)]">
+            After creating your account, you&apos;ll be automatically logged in. On future visits, enter your{" "}
+            <strong className="text-[var(--token-text-primary)]">Email or Username</strong> and{" "}
+            <strong className="text-[var(--token-text-primary)]">Password</strong>, then click{" "}
+            <strong className="text-[var(--token-text-primary)]">Sign In</strong>. If you have trouble logging in, verify your credentials, check that caps lock is off, and ensure your account hasn&apos;t been locked.
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
+          <h2 className="mb-4 text-xl font-semibold text-[var(--token-text-primary)]">
+            Understanding the Welcome Page
+          </h2>
+          <p className="mb-4 text-[var(--token-text-secondary)]">
+            After logging in, you&apos;ll see the Welcome page with the message{" "}
+            <strong className="text-[var(--token-text-primary)]">&quot;Welcome back [Your Driver Name]&quot;</strong>. This page confirms you&apos;re successfully logged in and ready to start using MRE. From here, you can navigate to Dashboard, Event Search, My Events, or Guides.
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
+          <h2 className="mb-4 text-xl font-semibold text-[var(--token-text-primary)]">
+            Basic Navigation
+          </h2>
+          <p className="mb-4 text-[var(--token-text-secondary)]">
+            MRE uses several navigation patterns:
+          </p>
+          <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
+            <li><strong className="text-[var(--token-text-primary)]">Breadcrumb Navigation:</strong> Shows your current location (e.g., Home &gt; Guides &gt; Getting Started)</li>
+            <li><strong className="text-[var(--token-text-primary)]">Main Navigation Menu:</strong> Provides access to Dashboard, Event Search, My Events, and Guides</li>
+            <li><strong className="text-[var(--token-text-primary)]">Tab Navigation:</strong> Some pages use tabs to organize related content</li>
+          </ul>
         </section>
 
         <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
@@ -92,8 +148,24 @@ export default async function GettingStartedPage() {
             </li>
             <li>
               <strong className="text-[var(--token-text-primary)]">Telemetry Integration:</strong>{" "}
-              Connect data sources and view telemetry traces (coming soon).
+              Connect data sources and view telemetry traces. This feature will allow you to configure
+              telemetry data sources, import trace data, and visualize your racing telemetry (coming soon).
             </li>
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
+          <h2 className="mb-4 text-xl font-semibold text-[var(--token-text-primary)]">
+            Next Steps
+          </h2>
+          <p className="mb-4 text-[var(--token-text-secondary)]">
+            Now that you understand the basics, explore these guides to learn more:
+          </p>
+          <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
+            <li><a href="/guides/event-search" className="text-[var(--token-accent)] hover:underline">Event Search Guide</a>: Learn how to search for and import race events</li>
+            <li><a href="/guides/event-analysis" className="text-[var(--token-accent)] hover:underline">Event Analysis Guide</a>: Discover how to analyze event data and compare drivers</li>
+            <li><a href="/guides/dashboard" className="text-[var(--token-accent)] hover:underline">Dashboard Guide</a>: Understand how to use your dashboard and customize widgets</li>
+            <li><a href="/guides/navigation" className="text-[var(--token-accent)] hover:underline">Navigation Guide</a>: Master navigation patterns and keyboard shortcuts</li>
           </ul>
         </section>
 
@@ -102,8 +174,8 @@ export default async function GettingStartedPage() {
             Need Help?
           </h2>
           <p className="text-[var(--token-text-secondary)]">
-            For more detailed information, explore the other guides in the User Guides section of
-            the sidebar. If you have questions or need assistance, please contact support.
+            If you have questions or need assistance, explore the other guides in the User Guides section,
+            check the <a href="/guides/troubleshooting" className="text-[var(--token-accent)] hover:underline">Troubleshooting Guide</a> for common issues, or contact support if you need additional help.
           </p>
         </section>
       </div>

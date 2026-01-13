@@ -55,7 +55,7 @@ export default function ChartTypeSelector({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-2 px-2.5 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] whitespace-nowrap"
+        className="inline-flex items-center gap-2 px-2.5 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] whitespace-nowrap"
         aria-label="Select chart type"
         aria-expanded={isOpen}
       >
@@ -77,7 +77,7 @@ export default function ChartTypeSelector({
               onChartTypeChange("best-lap")
               setIsOpen(false)
             }}
-            className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
+            className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
               chartType === "best-lap"
                 ? "bg-[var(--token-surface)] border-l-2 border-l-[var(--token-accent)]"
                 : ""
@@ -96,7 +96,7 @@ export default function ChartTypeSelector({
               onChartTypeChange("avg-vs-fastest")
               setIsOpen(false)
             }}
-            className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
+            className={`w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
               chartType === "avg-vs-fastest"
                 ? "bg-[var(--token-surface)] border-l-2 border-l-[var(--token-accent)]"
                 : ""

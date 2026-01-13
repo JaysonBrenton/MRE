@@ -7,7 +7,7 @@ export default function MyTelemetryPage() {
   const router = useRouter()
   
   useEffect(() => {
-    router.replace("/under-development")
+    router.replace(`/under-development?from=${encodeURIComponent("/dashboard/my-telemetry")}`)
   }, [router])
   
   return null

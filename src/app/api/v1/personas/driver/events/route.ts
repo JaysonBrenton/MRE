@@ -3,7 +3,7 @@
  * 
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-27
+ * @lastModified 2025-01-28
  * 
  * @description API endpoint for getting events where Driver persona participated
  * 
@@ -49,9 +49,18 @@ export async function GET(request: Request) {
     // Verify user has Driver persona
     const persona = await getUserPersona(session.user.id)
     if (!persona || persona.type !== "driver") {
+      // Allow admins to access even without Driver persona
+      if (session.user.isAdmin) {
+        return successResponse({
+          events: [],
+          participationDetails: []
+        })
+      }
+      
+      // For non-admin users, return a more user-friendly error message
       return errorResponse(
         "INVALID_PERSONA",
-        "User does not have Driver persona",
+        "This feature is only available to drivers. Please set up your driver profile to view your events.",
         undefined,
         400
       )

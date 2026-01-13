@@ -19,7 +19,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 
-export type SeriesName = "primary" | "fastest" | "average"
+export type SeriesName = "primary" | "fastest" | "average" | "bestLap" | "averageLap" | "consistency"
 
 const STORAGE_PREFIX = "mre-chart-color"
 
@@ -100,11 +100,16 @@ export function useChartColor(
     return readColorFromStorage(chartInstanceId, seriesName, defaultValue)
   })
 
-  // Hydrate from localStorage on mount (client-side only)
+  // Hydrate from localStorage when dependencies change (client-side only)
+  // Use setTimeout to avoid synchronous setState in effect
   useEffect(() => {
     const stored = readColorFromStorage(chartInstanceId, seriesName, defaultValue)
-    setColorState(stored)
-  }, [chartInstanceId, seriesName, defaultValue])
+    if (stored !== color) {
+      setTimeout(() => {
+        setColorState(stored)
+      }, 0)
+    }
+  }, [chartInstanceId, seriesName, defaultValue, color])
 
   const setColor = useCallback(
     (newColor: string) => {

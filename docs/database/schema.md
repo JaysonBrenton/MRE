@@ -16,7 +16,7 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2025-01-29 (Added AuditLog and ApplicationLog models; removed duplicate UserDriverLink and EventDriverLink sections; updated schema overview)  
+**Last Updated:** 2026-01-16 (Added SessionType enum documentation; added sessionType field to Race model documentation; previous updates: Added AuditLog and ApplicationLog models; removed duplicate UserDriverLink and EventDriverLink sections; updated schema overview)  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -46,10 +46,11 @@ The MRE database schema consists of:
 
 - **1 User model** - User accounts and authentication
 - **1 Persona model** - Persona definitions and user personas
-- **10 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry, Race, Driver, RaceDriver, RaceResult, Lap, TransponderOverride, WeatherData)
+- **11 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry, EventRaceClass, Race, Driver, RaceDriver, RaceResult, Lap, TransponderOverride, WeatherData)
 - **2 User-Driver Link models** - User-driver matching and linking (UserDriverLink, EventDriverLink)
 - **2 System models** - Audit logging and application logging (AuditLog, ApplicationLog)
-- **4 Enum types** - IngestDepth, PersonaType, UserDriverLinkStatus, EventDriverLinkMatchType
+- **2 Profile models** - User profiles (CarProfile, DriverProfile)
+- **5 Enum types** - IngestDepth, PersonaType, UserDriverLinkStatus, EventDriverLinkMatchType, SessionType
 
 All models use UUID primary keys and include `createdAt` and `updatedAt` timestamps.
 
@@ -72,10 +73,11 @@ Track (1) ─┼──< (many) Event ──< (many) Race ──< (many) RaceDriv
 
 **Text-based ERD:**
 
-- **User** - Standalone, no foreign keys
+- **User** - Standalone, has many CarProfiles and DriverProfiles
 - **Track** - Has many Events
-- **Event** - Belongs to Track, has many EventEntries and Races
-- **EventEntry** - Belongs to Event and Driver, links drivers to classes
+- **Event** - Belongs to Track, has many EventEntries, EventRaceClasses, and Races
+- **EventEntry** - Belongs to Event and Driver, optionally belongs to EventRaceClass
+- **EventRaceClass** - Belongs to Event, has many EventEntries
 - **Driver** - Has many EventEntries and RaceDrivers
 - **Race** - Belongs to Event, has many RaceDrivers and RaceResults
 - **RaceDriver** - Belongs to Race and Driver, has many RaceResults
@@ -84,6 +86,8 @@ Track (1) ─┼──< (many) Event ──< (many) Race ──< (many) RaceDriv
 - **UserDriverLink** - Belongs to User and Driver (one-to-one with Driver), has many EventDriverLinks
 - **EventDriverLink** - Belongs to User, Event, Driver, and optionally UserDriverLink
 - **Persona** - Has many Users
+- **CarProfile** - Belongs to User
+- **DriverProfile** - Belongs to User
 
 **Note:** For a visual ERD, use Prisma Studio (`npx prisma studio`) or generate a diagram using a tool like `prisma-erd-generator`.
 
@@ -125,6 +129,71 @@ User accounts for authentication and user management.
 - Index on `transponderNumber`
 - Index on `personaId`
 - Index on `[isTeamManager, teamName]`
+
+---
+
+### CarProfile
+
+User-defined car profiles with setup information. Allows users to store car configurations and setup details.
+
+**Table:** `car_profiles`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique car profile identifier |
+| `userId` | String (UUID) | Foreign Key, Required | Reference to User |
+| `name` | String | Required | Profile name (e.g., "My Buggy") |
+| `carType` | String | Required | Car type (e.g., "Buggy", "Truggy") |
+| `vehicleType` | String | Required | Vehicle type (e.g., "1/8 Nitro", "1/10 Electric") |
+| `setupInfo` | Json | Optional | Flexible setup information (JSON) |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- Users can only access their own car profiles
+- `setupInfo` is stored as JSON for flexibility (shock oil, tires, suspension settings, etc.)
+- Deleted when parent User is deleted (cascade delete)
+- Used for storing user's car configurations and setup preferences
+
+**Indexes:**
+- Primary key on `id`
+- Index on `userId` (for filtering by user)
+
+**Relationships:**
+- Belongs to `User` (cascade delete)
+
+---
+
+### DriverProfile
+
+User-defined driver profiles with preferences and transponder numbers. Allows users to store driver-specific information and preferences.
+
+**Table:** `driver_profiles`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique driver profile identifier |
+| `userId` | String (UUID) | Foreign Key, Required | Reference to User |
+| `name` | String | Required | Profile name |
+| `displayName` | String | Required | Display name for the profile |
+| `transponderNumber` | String | Optional | Transponder number for this profile |
+| `preferences` | Json | Optional | User preferences (JSON) |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- Users can only access their own driver profiles
+- `preferences` is stored as JSON for flexibility (default views, chart preferences, etc.)
+- `transponderNumber` is optional
+- Deleted when parent User is deleted (cascade delete)
+- Used for storing user's driver-specific information and preferences
+
+**Indexes:**
+- Primary key on `id`
+- Index on `userId` (for filtering by user)
+
+**Relationships:**
+- Belongs to `User` (cascade delete)
 
 ---
 
@@ -230,6 +299,7 @@ Race events associated with tracks.
 - Has many `EventEntry` records (cascade delete)
 - Has many `Race` records (cascade delete)
 - Has many `WeatherData` records (cascade delete)
+- Has many `EventRaceClass` records (cascade delete)
 
 ---
 
@@ -247,6 +317,7 @@ Driver entries in classes for an event. Links drivers to racing classes and stor
 | `className` | String | Required | Racing class name |
 | `transponderNumber` | String | Optional | Transponder number from entry list |
 | `carNumber` | String | Optional | Car number from entry list |
+| `eventRaceClassId` | String (UUID) | Foreign Key, Optional | Reference to EventRaceClass |
 | `createdAt` | DateTime | Auto-generated | Record creation timestamp |
 | `updatedAt` | DateTime | Auto-updated | Last update timestamp |
 
@@ -264,10 +335,55 @@ Driver entries in classes for an event. Links drivers to racing classes and stor
 - Index on `eventId` (for filtering by event)
 - Index on `driverId` (for filtering by driver)
 - Index on `className` (for filtering by class)
+- Index on `eventRaceClassId` (for filtering by event race class)
 
 **Relationships:**
 - Belongs to `Event` (cascade delete)
 - Belongs to `Driver` (cascade delete)
+- Belongs to `EventRaceClass` (optional, via `eventRaceClassId`, set null on delete)
+
+---
+
+### EventRaceClass
+
+Race class definitions for events with vehicle type management. Tracks vehicle type assignments and review status for each class within an event.
+
+**Table:** `event_race_classes`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String (UUID) | Primary Key | Unique event race class identifier |
+| `eventId` | String (UUID) | Foreign Key, Required | Reference to Event |
+| `className` | String | Required | Racing class name (e.g., "1/8 Nitro Buggy") |
+| `vehicleType` | String | Optional | Vehicle type assigned to this class (e.g., "1/8 Nitro Buggy", "1/10 2WD Buggy") |
+| `vehicleTypeNeedsReview` | Boolean | Default: `true` | Whether vehicle type needs review |
+| `vehicleTypeReviewedAt` | DateTime | Optional | Timestamp when vehicle type was reviewed |
+| `vehicleTypeReviewedBy` | String (UUID) | Optional | User ID who reviewed the vehicle type |
+| `createdAt` | DateTime | Auto-generated | Record creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
+
+**Business Rules:**
+- `eventId` + `className` must be unique (one record per class per event)
+- Created during event ingestion when classes are discovered
+- Vehicle type can be inferred automatically or set manually
+- `vehicleTypeNeedsReview` is `true` by default until manually reviewed
+- Deleted when parent Event is deleted (cascade delete)
+- Used for vehicle type management and review workflow
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `[eventId, className]`
+- Index on `eventId` (for filtering by event)
+- Index on `[eventId, className]` (for lookups)
+
+**Relationships:**
+- Belongs to `Event` (cascade delete)
+- Has many `EventEntry` records (via `eventRaceClassId`)
+
+**Notes:**
+- Vehicle type management allows users to review and correct inferred vehicle types
+- Vehicle type can be set via API endpoint: `PUT /api/v1/events/[eventId]/race-classes/[className]/vehicle-type`
+- Used to normalize class names and improve data quality
 
 ---
 
@@ -326,6 +442,7 @@ Individual races within an event.
 | `raceUrl` | String | Required | LiveRC race page URL |
 | `startTime` | DateTime | Optional | Race start time |
 | `durationSeconds` | Int | Optional | Race duration in seconds |
+| `sessionType` | SessionType | Optional | Type of session (race, practice, qualifying) |
 | `createdAt` | DateTime | Auto-generated | Record creation timestamp |
 | `updatedAt` | DateTime | Auto-updated | Last update timestamp |
 
@@ -343,6 +460,8 @@ Individual races within an event.
 - Index on `[eventId, sourceRaceId]` (for lookups)
 - Index on `eventId` (for filtering by event)
 - Index on `raceOrder` (for ordering races within event)
+- Index on `sessionType` (for filtering by session type)
+- Index on `[eventId, sessionType]` (for filtering events by session type)
 
 **Relationships:**
 - Belongs to `Event` (cascade delete)
@@ -893,6 +1012,28 @@ Type of matching algorithm used to create event-driver links.
 
 ---
 
+### SessionType
+
+Type of racing session (race, practice, or qualifying).
+
+**Values:**
+- `race` - Race session (main competition)
+- `practice` - Practice session
+- `qualifying` - Qualifying session
+
+**Usage:**
+- Used in Race model `sessionType` field
+- Allows filtering and searching by session type
+- Used in unified search feature to filter sessions
+- Nullable field (existing races may not have session type set)
+
+**Notes:**
+- Session type can be inferred from race label (e.g., "Qualifier" → `qualifying`, "Practice" → `practice`)
+- Default behavior: if not set, race is treated as a race session
+- Used for session-based search and filtering in the unified search feature
+
+---
+
 ## Indexes
 
 ### Summary of All Indexes
@@ -932,6 +1073,13 @@ Type of matching algorithm used to create event-driver links.
 - Index: `eventId`
 - Index: `driverId`
 - Index: `className`
+- Index: `eventRaceClassId`
+
+**EventRaceClass:**
+- Primary key: `id`
+- Unique: `[eventId, className]`
+- Index: `eventId`
+- Index: `[eventId, className]`
 
 **Driver:**
 - Primary key: `id`
@@ -1011,6 +1159,14 @@ Type of matching algorithm used to create event-driver links.
 - Index: `requestId`
 - Index: `userId`
 
+**CarProfile:**
+- Primary key: `id`
+- Index: `userId` (for filtering by user)
+
+**DriverProfile:**
+- Primary key: `id`
+- Index: `userId` (for filtering by user)
+
 ---
 
 ## Relationships
@@ -1025,43 +1181,51 @@ Type of matching algorithm used to create event-driver links.
    - Foreign key: `EventEntry.eventId`
    - Cascade delete: EventEntries deleted when Event deleted
 
-3. **Driver → EventEntry** (One-to-Many)
+3. **Event → EventRaceClass** (One-to-Many)
+   - Foreign key: `EventRaceClass.eventId`
+   - Cascade delete: EventRaceClasses deleted when Event deleted
+
+4. **EventRaceClass → EventEntry** (One-to-Many)
+   - Foreign key: `EventEntry.eventRaceClassId`
+   - Set null on delete: EventEntry.eventRaceClassId set to null when EventRaceClass deleted
+
+5. **Driver → EventEntry** (One-to-Many)
    - Foreign key: `EventEntry.driverId`
    - Cascade delete: EventEntries deleted when Driver deleted
 
-4. **Event → Race** (One-to-Many)
+6. **Event → Race** (One-to-Many)
    - Foreign key: `Race.eventId`
    - Cascade delete: Races deleted when Event deleted
 
-5. **Driver → RaceDriver** (One-to-Many)
+7. **Driver → RaceDriver** (One-to-Many)
    - Foreign key: `RaceDriver.driverId`
    - Restrict delete: RaceDrivers prevent Driver deletion
 
-6. **Race → RaceDriver** (One-to-Many)
+8. **Race → RaceDriver** (One-to-Many)
    - Foreign key: `RaceDriver.raceId`
    - Cascade delete: RaceDrivers deleted when Race deleted
 
-7. **Race → RaceResult** (One-to-Many)
+9. **Race → RaceResult** (One-to-Many)
    - Foreign key: `RaceResult.raceId`
    - Cascade delete: RaceResults deleted when Race deleted
 
-8. **RaceDriver → RaceResult** (One-to-Many)
-   - Foreign key: `RaceResult.raceDriverId`
-   - Cascade delete: RaceResults deleted when RaceDriver deleted
+10. **RaceDriver → RaceResult** (One-to-Many)
+    - Foreign key: `RaceResult.raceDriverId`
+    - Cascade delete: RaceResults deleted when RaceDriver deleted
 
-9. **RaceResult → Lap** (One-to-Many)
-   - Foreign key: `Lap.raceResultId`
-   - Cascade delete: Laps deleted when RaceResult deleted
+11. **RaceResult → Lap** (One-to-Many)
+    - Foreign key: `Lap.raceResultId`
+    - Cascade delete: Laps deleted when RaceResult deleted
 
-10. **Event → TransponderOverride** (One-to-Many)
+12. **Event → TransponderOverride** (One-to-Many)
     - Foreign key: `TransponderOverride.eventId`
     - Cascade delete: TransponderOverrides deleted when Event deleted
 
-11. **Driver → TransponderOverride** (One-to-Many)
+13. **Driver → TransponderOverride** (One-to-Many)
     - Foreign key: `TransponderOverride.driverId`
     - Restrict delete: TransponderOverrides prevent Driver deletion
 
-12. **Race → TransponderOverride** (One-to-Many)
+14. **Race → TransponderOverride** (One-to-Many)
     - Foreign key: `TransponderOverride.effectiveFromRaceId`
     - Set null on delete: If race is deleted, override applies from first race
 
@@ -1081,17 +1245,25 @@ Type of matching algorithm used to create event-driver links.
     - Foreign key: `EventDriverLink.userId`
     - Cascade delete: EventDriverLinks deleted when User deleted
 
-17. **Event → EventDriverLink** (One-to-Many)
+19. **Event → EventDriverLink** (One-to-Many)
     - Foreign key: `EventDriverLink.eventId`
     - Cascade delete: EventDriverLinks deleted when Event deleted
 
-18. **Driver → EventDriverLink** (One-to-Many)
+20. **Driver → EventDriverLink** (One-to-Many)
     - Foreign key: `EventDriverLink.driverId`
     - Cascade delete: EventDriverLinks deleted when Driver deleted
 
-19. **UserDriverLink → EventDriverLink** (One-to-Many)
+21. **UserDriverLink → EventDriverLink** (One-to-Many)
     - Foreign key: `EventDriverLink.userDriverLinkId`
     - Set null on delete: If UserDriverLink is deleted, EventDriverLink.userDriverLinkId is set to null
+
+22. **User → CarProfile** (One-to-Many)
+    - Foreign key: `CarProfile.userId`
+    - Cascade delete: CarProfiles deleted when User deleted
+
+23. **User → DriverProfile** (One-to-Many)
+    - Foreign key: `DriverProfile.userId`
+    - Cascade delete: DriverProfiles deleted when User deleted
 
 ### Cascade Delete Behavior
 
@@ -1104,7 +1276,7 @@ Most relationships use cascade delete to maintain referential integrity:
 - Deleting a RaceResult deletes all associated Laps
 - Deleting an Event deletes all associated TransponderOverrides and EventDriverLinks
 - Deleting a Driver deletes all associated TransponderOverrides, UserDriverLinks, and EventDriverLinks
-- Deleting a User deletes all associated EventDriverLinks and UserDriverLinks
+- Deleting a User deletes all associated EventDriverLinks, UserDriverLinks, CarProfiles, and DriverProfiles
 
 **Restrict Delete:**
 - RaceDrivers prevent Driver deletion (onDelete: Restrict) to maintain referential integrity

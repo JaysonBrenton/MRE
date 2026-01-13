@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import DeleteConfirmationDialog from "./DeleteConfirmationDialog"
 import Modal from "@/components/ui/Modal"
 import ListPagination from "../event-analysis/ListPagination"
+import ChartContainer from "../event-analysis/ChartContainer"
 
 interface Event {
   id: string
@@ -74,7 +75,7 @@ export default function EventsTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(20)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
   const [reingestEvent, setReingestEvent] = useState<Event | null>(null)
   const [deleteEvent, setDeleteEvent] = useState<Event | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -210,22 +211,31 @@ export default function EventsTable() {
 
   if (loading && events.length === 0) {
     return (
-      <div className="py-8 text-center text-[var(--token-text-secondary)] w-full min-w-0">
-        Loading events...
-      </div>
+      <ChartContainer
+        title="Events"
+        aria-label="Events table - loading"
+      >
+        <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
+          Loading events...
+        </div>
+      </ChartContainer>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
-          <p className="text-sm text-[var(--token-text-error)]">{error}</p>
-        </div>
-      )}
+    <ChartContainer
+      title="Events"
+      aria-label="Events table with search, filtering, sorting, and management actions"
+    >
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
+            <p className="text-sm text-[var(--token-text-error)]">{error}</p>
+          </div>
+        )}
 
-      {/* Search and Filters */}
-      <div className="flex items-center justify-between gap-4">
+        {/* Search and Filters */}
+        <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
           <label htmlFor="events-search" className="sr-only">
             Search events or tracks
@@ -269,7 +279,7 @@ export default function EventsTable() {
           <thead>
             <tr className="border-b border-[var(--token-border-default)]">
               <th
-                className="px-4 py-3 text-left"
+                className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 aria-sort={
                   sortField === "eventName"
                     ? sortDirection === "asc"
@@ -293,7 +303,7 @@ export default function EventsTable() {
                 </button>
               </th>
               <th
-                className="px-4 py-3 text-left"
+                className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 aria-sort={
                   sortField === "trackName"
                     ? sortDirection === "asc"
@@ -317,7 +327,7 @@ export default function EventsTable() {
                 </button>
               </th>
               <th
-                className="px-4 py-3 text-left"
+                className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 aria-sort={
                   sortField === "eventDate"
                     ? sortDirection === "asc"
@@ -341,7 +351,7 @@ export default function EventsTable() {
                 </button>
               </th>
               <th
-                className="px-4 py-3 text-left"
+                className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 aria-sort={
                   sortField === "ingestDepth"
                     ? sortDirection === "asc"
@@ -364,7 +374,7 @@ export default function EventsTable() {
                   )}
                 </button>
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Actions
               </th>
             </tr>
@@ -383,19 +393,19 @@ export default function EventsTable() {
               filteredAndSortedEvents.map((e) => (
                 <tr
                   key={e.id}
-                  className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
+                  className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]"
                 >
-                  <td className="px-4 py-3 text-[var(--token-text-primary)]">{e.eventName}</td>
-                  <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">{e.eventName}</td>
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
                     {e.track.trackName}
                   </td>
-                  <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
                     {new Date(e.eventDate).toLocaleDateString()}
                   </td>
-                  <td className={`px-4 py-3 ${getStatusColor(e.ingestDepth)}`}>
+                  <td className={`px-4 py-3 text-sm font-normal ${getStatusColor(e.ingestDepth)}`}>
                     {getStatusLabel(e.ingestDepth)}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-sm font-normal">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setReingestEvent(e)}
@@ -428,7 +438,7 @@ export default function EventsTable() {
         itemsPerPage={itemsPerPage}
         totalItems={total}
         itemLabel="events"
-        rowsPerPageOptions={[10, 20, 50, 100]}
+        rowsPerPageOptions={[5, 10, 25, 50, 100]}
         onRowsPerPageChange={(newRowsPerPage) => {
           setItemsPerPage(newRowsPerPage)
           setPage(1)
@@ -494,6 +504,7 @@ export default function EventsTable() {
         }
         loading={actionLoading}
       />
-    </div>
+      </div>
+    </ChartContainer>
   )
 }

@@ -17,13 +17,8 @@
 
 "use client"
 
-import { useMemo, useState, useCallback } from "react"
-import SessionControls, {
-  type ViewMode,
-  type PresetView,
-} from "./sessions/SessionControls"
+import { useMemo } from "react"
 import SessionChartTabs from "./sessions/SessionChartTabs"
-import SessionsTable from "./sessions/SessionsTable"
 import {
   getSessionsData,
   getDriverLapTrends,
@@ -34,15 +29,16 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 export interface SessionsTabProps {
   data: EventAnalysisData
   selectedDriverIds: string[]
+  selectedClass: string | null
 }
 
 export default function SessionsTab({
   data,
   selectedDriverIds,
+  selectedClass: selectedClassProp,
 }: SessionsTabProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("chart")
-  const [selectedClass, setSelectedClass] = useState<string | null>(null)
-  const [presetView, setPresetView] = useState<PresetView>("overview")
+  // Normalize undefined to null
+  const selectedClass = selectedClassProp ?? null
 
   // Get sessions data with filters applied
   const sessionsData = useMemo(
@@ -64,12 +60,6 @@ export default function SessionsTab({
     [data]
   )
 
-  const handleClassChange = useCallback((className: string | null) => {
-    setSelectedClass(className)
-  }, [])
-
-  const isFilteringByDrivers = selectedDriverIds.length > 0
-
   return (
     <div
       className="space-y-6"
@@ -82,52 +72,39 @@ export default function SessionsTab({
         <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
           Sessions / Heats
         </h2>
-        <p className="text-sm text-[var(--token-text-secondary)]">
-          Analyze race sessions and heats with interactive charts and detailed
-          results tables.
-        </p>
       </div>
 
-      {/* Controls */}
-      <SessionControls
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        selectedClass={selectedClass}
-        availableClasses={sessionsData.availableClasses}
-        onClassChange={handleClassChange}
-        presetView={presetView}
-        onPresetViewChange={setPresetView}
-        isFilteringByDrivers={isFilteringByDrivers}
-        selectedDriverCount={selectedDriverIds.length}
-      />
+      {/* Class Selection and Driver Filter Display */}
+      <div className="flex flex-wrap items-center gap-4">
+        {selectedClass && typeof selectedClass === "string" && selectedClass.trim() !== "" ? (
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-[var(--token-text-primary)]">
+              Class:
+            </label>
+            <div className="px-3 py-1.5 text-sm border border-[var(--token-border-default)] rounded bg-[var(--token-surface)] text-[var(--token-text-primary)]">
+              {selectedClass}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-4 py-2 bg-[var(--token-surface-elevated)] rounded border border-[var(--token-border-default)]">
+            <span className="text-sm text-[var(--token-text-secondary)]">
+              Please select a class in the Overview tab to view session data. Go to the Overview tab and use the &quot;Filter by Class&quot; dropdown to select a class.
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Content */}
-      {viewMode === "chart" && (
+      {selectedClass && selectedClass.trim() !== "" ? (
         <SessionChartTabs
           sessions={sessionsData.sessions}
           driverLapTrends={driverLapTrends}
           heatProgression={heatProgression}
+          eventId={data.event.id}
+          selectedClass={selectedClass}
           height={500}
         />
-      )}
-
-      {viewMode === "table" && (
-        <SessionsTable
-          sessions={sessionsData.sessions}
-          selectedDriverIds={selectedDriverIds}
-        />
-      )}
-
-      {/* Summary Stats */}
-      {sessionsData.sessions.length > 0 && (
-        <div className="text-sm text-[var(--token-text-secondary)]">
-          Showing {sessionsData.sessions.length} of {sessionsData.totalSessions}{" "}
-          session{sessionsData.sessions.length !== 1 ? "s" : ""}
-          {selectedClass && ` in ${selectedClass}`}
-          {isFilteringByDrivers &&
-            ` with ${selectedDriverIds.length} selected driver${selectedDriverIds.length !== 1 ? "s" : ""}`}
-        </div>
-      )}
+      ) : null}
     </div>
   )
 }

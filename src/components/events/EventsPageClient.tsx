@@ -19,6 +19,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import ChartContainer from "../event-analysis/ChartContainer"
 
 interface ImportedEvent {
   id: string
@@ -346,7 +347,7 @@ export default function EventsPageClient() {
             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
               viewMode === 'table'
                 ? 'bg-[var(--token-accent)] text-white'
-                : 'bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)]'
+                : 'bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)]'
             }`}
             aria-label="Table view"
           >
@@ -358,7 +359,7 @@ export default function EventsPageClient() {
             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
               viewMode === 'grid'
                 ? 'bg-[var(--token-accent)] text-white'
-                : 'bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)]'
+                : 'bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)]'
             }`}
             aria-label="Grid view"
           >
@@ -419,7 +420,7 @@ export default function EventsPageClient() {
                   <button
                     type="button"
                     onClick={() => handleTrackSelect(null)}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--token-surface)] focus:bg-[var(--token-surface)] focus:outline-none ${
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--token-surface-raised)] focus:bg-[var(--token-surface-raised)] focus:outline-none ${
                       !trackId ? 'bg-[var(--token-surface)]' : 'text-[var(--token-text-primary)]'
                     }`}
                   >
@@ -430,7 +431,7 @@ export default function EventsPageClient() {
                       key={track.id}
                       type="button"
                       onClick={() => handleTrackSelect(track)}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--token-surface)] focus:bg-[var(--token-surface)] focus:outline-none ${
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--token-surface-raised)] focus:bg-[var(--token-surface-raised)] focus:outline-none ${
                         selectedTrackIndex === index
                           ? 'bg-[var(--token-surface)]'
                           : trackId === track.id
@@ -478,7 +479,7 @@ export default function EventsPageClient() {
                   setOrderDirection(orderDirection === 'asc' ? 'desc' : 'asc')
                   handleFilterChange()
                 }}
-                className="px-3 py-2 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+                className="px-3 py-2 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
                 aria-label={`Sort ${orderDirection === 'asc' ? 'ascending' : 'descending'}`}
               >
                 {orderDirection === 'asc' ? '↑' : '↓'}
@@ -545,7 +546,7 @@ export default function EventsPageClient() {
           {!nameSearch && (
             <Link
               href="/event-search"
-              className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
             >
               Search for events
             </Link>
@@ -555,9 +556,13 @@ export default function EventsPageClient() {
 
       {/* Table View */}
       {!loading && !error && filteredEvents.length > 0 && viewMode === 'table' && (
-        <div className="space-y-4">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+        <ChartContainer
+          title="Events"
+          aria-label="Events table with sorting, filtering, and pagination"
+        >
+          <div className="space-y-4">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-[var(--token-border-default)]">
                   <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
@@ -584,7 +589,7 @@ export default function EventsPageClient() {
                 {filteredEvents.map((event) => (
                   <tr
                     key={event.id}
-                    className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)] cursor-pointer"
+                    className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] cursor-pointer"
                     onClick={() => handleEventClick(event.id)}
                   >
                     <td className="px-4 py-3 text-[var(--token-text-primary)]">{event.eventName}</td>
@@ -615,7 +620,7 @@ export default function EventsPageClient() {
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -626,14 +631,15 @@ export default function EventsPageClient() {
                   type="button"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
               </div>
             </div>
           )}
-        </div>
+          </div>
+        </ChartContainer>
       )}
 
       {/* Grid View */}
@@ -687,7 +693,7 @@ export default function EventsPageClient() {
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -698,7 +704,7 @@ export default function EventsPageClient() {
                   type="button"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

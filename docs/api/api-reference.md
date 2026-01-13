@@ -16,7 +16,7 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2025-01-29 (Added missing admin endpoints; fixed response formats for GET /api/v1/tracks, GET /api/v1/events/[eventId], GET /api/v1/events/search; added GET /api/v1/admin/tracks; expanded GET /api/v1/events query parameters; added GET /api/v1/users/[userId]/profile endpoint; fixed GET /api/v1/races/[raceId] to include transponder_number and transponder_source; fixed response wrapper format for GET /api/v1/races/[raceId]/laps and GET /api/v1/race-results/[raceResultId]/laps)  
+**Last Updated:** 2026-01-16 (Added missing endpoints: GET /api/v1/search, car profiles endpoints (5 endpoints), driver profiles endpoints (5 endpoints), GET/PUT /api/v1/events/[eventId]/race-classes/[className]/vehicle-type, GET /api/v1/admin/track-sync/jobs/[jobId], PATCH /api/v1/users/[userId]/driver-links/events/[eventId]; previous updates: Added missing admin endpoints; fixed response formats for GET /api/v1/tracks, GET /api/v1/events/[eventId], GET /api/v1/events/search; added GET /api/v1/admin/tracks; expanded GET /api/v1/events query parameters; added GET /api/v1/users/[userId]/profile endpoint; fixed GET /api/v1/races/[raceId] to include transponder_number and transponder_source; fixed response wrapper format for GET /api/v1/races/[raceId]/laps and GET /api/v1/race-results/[raceResultId]/laps; added GET /api/v1/tracks/[trackId]/performance-trends endpoint for track performance trend analysis)  
 **API Version:** v1  
 **Base URL:** `/api/v1/` (relative to application root)
 
@@ -33,12 +33,15 @@ This document provides a complete reference for all API endpoints in the My Race
 5. [Transponder Override Endpoints](#transponder-override-endpoints)
 6. [Weather Endpoints](#weather-endpoints)
 7. [Personas Endpoints](#personas-endpoints)
-8. [User Endpoints](#user-endpoints)
-9. [Admin Endpoints](#admin-endpoints)
-10. [Health Check](#health-check)
-11. [Error Handling](#error-handling)
-12. [Authentication Requirements](#authentication-requirements)
-13. [Rate Limiting](#rate-limiting)
+8. [Search Endpoints](#search-endpoints)
+9. [Car Profiles Endpoints](#car-profiles-endpoints)
+10. [Driver Profiles Endpoints](#driver-profiles-endpoints)
+11. [User Endpoints](#user-endpoints)
+12. [Admin Endpoints](#admin-endpoints)
+13. [Health Check](#health-check)
+14. [Error Handling](#error-handling)
+15. [Authentication Requirements](#authentication-requirements)
+16. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -46,7 +49,7 @@ This document provides a complete reference for all API endpoints in the My Race
 
 ### Base Path
 
-All versioned API endpoints are prefixed with `/api/v1/`. The health check endpoint uses `/api/health` (unversioned).
+All API endpoints are prefixed with `/api/v1/`, including the health check endpoint at `/api/v1/health`. The only exception is the NextAuth framework route at `/api/auth/[...nextauth]`.
 
 ### Response Format
 
@@ -230,6 +233,68 @@ Returns the list of known tracks from the database.
 **Example:**
 ```bash
 curl "http://localhost:3001/api/v1/tracks?followed=true&active=true"
+```
+
+---
+
+### GET /api/v1/tracks/[trackId]/performance-trends
+
+Gets performance trends for the logged-in user across all events at a specific track. Returns lap times, positions, and performance metrics for each event where the user participated.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `trackId` (string, required) - Track UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "eventId": "uuid",
+      "eventName": "Event Name",
+      "eventDate": "2025-01-27T00:00:00.000Z",
+      "trackId": "uuid",
+      "trackName": "Track Name",
+      "bestLapTime": 45.123,
+      "avgLapTime": 46.456,
+      "consistency": 0.95,
+      "position": 5,
+      "racesParticipated": 3,
+      "classes": ["1/8 Nitro Buggy"]
+    }
+  ]
+}
+```
+
+**Response Fields:**
+- `eventId` (string) - Event UUID
+- `eventName` (string) - Event name
+- `eventDate` (string) - Event date in ISO 8601 format
+- `trackId` (string) - Track UUID
+- `trackName` (string) - Track name
+- `bestLapTime` (number | null) - Best lap time in seconds for this event
+- `avgLapTime` (number | null) - Average lap time in seconds across all races in this event
+- `consistency` (number | null) - Best consistency score from any race in this event
+- `position` (number | null) - Best position achieved in this event (1 = first place)
+- `racesParticipated` (number) - Number of races the user participated in for this event
+- `classes` (string[]) - Array of class names the user raced in this event
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `NOT_FOUND` (404) - Track not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Notes:**
+- Only returns data for events where the user has a confirmed driver link (UserDriverLink status = "confirmed")
+- Events are sorted by event date (earliest to most recent)
+- If user has no confirmed driver link, returns empty array
+- Lap times are validated against class thresholds to filter invalid data
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/tracks/uuid/performance-trends"
 ```
 
 ---
@@ -809,6 +874,113 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/even
 
 ---
 
+### GET /api/v1/events/[eventId]/race-classes/[className]/vehicle-type
+
+Gets the vehicle type for a specific race class in an event.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `eventId` (string, required) - Event UUID
+- `className` (string, required) - Race class name (URL-encoded)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "vehicleType": "1/8 Nitro Buggy",
+    "needsReview": true,
+    "reviewedAt": null,
+    "reviewedBy": null
+  }
+}
+```
+
+**Response (200 OK) - No vehicle type set:**
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+**Response Fields:**
+- `vehicleType` (string | null) - Vehicle type for the race class, or null if not set
+- `needsReview` (boolean) - Whether the vehicle type needs review
+- `reviewedAt` (string | null) - ISO 8601 timestamp when vehicle type was reviewed
+- `reviewedBy` (string | null) - User ID who reviewed the vehicle type
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing eventId or className
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events/uuid/race-classes/1.8%20Nitro%20Buggy/vehicle-type"
+```
+
+---
+
+### PUT /api/v1/events/[eventId]/race-classes/[className]/vehicle-type
+
+Updates the vehicle type for a specific race class in an event. Used for vehicle type review and editing functionality.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `eventId` (string, required) - Event UUID
+- `className` (string, required) - Race class name (URL-encoded)
+
+**Request Body:**
+```json
+{
+  "vehicleType": "1/8 Nitro Buggy", // required - Vehicle type (use "Unknown" to set to null)
+  "acceptInference": false // optional - Whether to accept inferred vehicle type (default: false)
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "vehicleType": "1/8 Nitro Buggy",
+    "needsReview": false,
+    "reviewedAt": "2025-01-27T10:00:00.000Z",
+    "reviewedBy": "uuid"
+  }
+}
+```
+
+**Response Fields:**
+- `vehicleType` (string | null) - Updated vehicle type for the race class
+- `needsReview` (boolean) - Whether the vehicle type still needs review (false after manual update)
+- `reviewedAt` (string) - ISO 8601 timestamp when vehicle type was reviewed
+- `reviewedBy` (string) - User ID who reviewed/updated the vehicle type
+
+**Notes:**
+- Setting `vehicleType` to `"Unknown"` will set it to `null`
+- Setting `acceptInference` to `true` accepts an inferred vehicle type without marking it as manually reviewed
+- Manual updates (without `acceptInference`) mark the vehicle type as reviewed
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing eventId, className, or vehicleType
+- `NOT_FOUND` (404) - Event or race class not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X PUT "http://localhost:3001/api/v1/events/uuid/race-classes/1.8%20Nitro%20Buggy/vehicle-type" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"vehicleType": "1/8 Nitro Buggy"}'
+```
+
+---
+
 ### GET /api/v1/events/[eventId]/summary
 
 Gets lightweight event summary data including metadata and aggregated statistics. This endpoint is optimized for performance and does not load the full event graph, making it faster than the analysis endpoint.
@@ -1380,6 +1552,608 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/pers
 
 ---
 
+## Search Endpoints
+
+### GET /api/v1/search
+
+Performs unified search across events and sessions (races, practice, qualifying) with optional filtering by driver name, session type, and date range.
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `q` (string, optional) - General search query (searches event names, track names, session labels, class names)
+- `driver_name` (string, optional) - Filter by driver name (exact match with fuzzy fallback, only drivers with valid lap times)
+- `session_type` (string, optional) - Filter by session type: `race`, `practice`, or `qualifying`
+- `start_date` (string, optional) - Start date in ISO 8601 format (YYYY-MM-DD)
+- `end_date` (string, optional) - End date in ISO 8601 format (YYYY-MM-DD)
+- `page` (number, optional, default: `1`) - Page number (must be positive integer)
+- `items_per_page` (number, optional, default: `10`, max: `100`) - Items per page (must be between 1 and 100)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "events": [
+      {
+        "id": "uuid",
+        "eventName": "Event Name",
+        "eventDate": "2025-01-27T00:00:00.000Z",
+        "trackName": "Track Name",
+        "trackId": "uuid",
+        "source": "liverc",
+        "sourceEventId": "event-id",
+        "eventUrl": "https://liverc.com/event/...",
+        "ingestDepth": "laps_full"
+      }
+    ],
+    "sessions": [
+      {
+        "id": "uuid",
+        "raceId": "uuid",
+        "raceLabel": "A-Main",
+        "className": "1.8 Nitro Buggy",
+        "sessionType": "race",
+        "eventId": "uuid",
+        "eventName": "Event Name",
+        "eventDate": "2025-01-27T00:00:00.000Z",
+        "trackName": "Track Name",
+        "startTime": "2025-01-27T10:00:00.000Z",
+        "durationSeconds": 3600,
+        "raceOrder": 1
+      }
+    ],
+    "totalEvents": 42,
+    "totalSessions": 15,
+    "currentPage": 1,
+    "totalPages": 3,
+    "itemsPerPage": 10
+  }
+}
+```
+
+**Response Fields:**
+- `events` (array) - Array of event search results
+- `sessions` (array) - Array of session (race/practice/qualifying) search results
+- `totalEvents` (number) - Total number of matching events
+- `totalSessions` (number) - Total number of matching sessions
+- `currentPage` (number) - Current page number
+- `totalPages` (number) - Total number of pages (calculated from combined events + sessions)
+- `itemsPerPage` (number) - Number of items per page
+
+**Session Type Values:**
+- `race` - Race sessions
+- `practice` - Practice sessions
+- `qualifying` - Qualifying sessions
+
+**Notes:**
+- If `driver_name` is provided, the search finds matching drivers first (exact match, then fuzzy match)
+- Only drivers with at least one valid lap time are included in driver filtering
+- If no drivers match the `driver_name` filter, returns empty results
+- Date range filtering applies to both events and sessions
+- Search is performed in parallel for events and sessions
+- Pagination is unified across events and sessions
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Invalid query parameters (invalid date format, invalid session_type, invalid page/items_per_page values)
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+# Search for events and sessions
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/search?q=nitro&page=1&items_per_page=20"
+
+# Search filtered by driver name
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/search?driver_name=John%20Doe"
+
+# Search filtered by session type and date range
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/search?session_type=race&start_date=2025-01-01&end_date=2025-12-31"
+```
+
+---
+
+## Car Profiles Endpoints
+
+### GET /api/v1/car-profiles
+
+Gets all car profiles for the authenticated user.
+
+**Authentication:** Required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profiles": [
+      {
+        "id": "uuid",
+        "userId": "uuid",
+        "name": "My Buggy",
+        "carType": "Buggy",
+        "vehicleType": "1/8 Nitro",
+        "setupInfo": {
+          "shockOil": "35wt",
+          "tires": "Pro-Line Blockade"
+        },
+        "createdAt": "2025-01-27T00:00:00.000Z",
+        "updatedAt": "2025-01-27T00:00:00.000Z"
+      }
+    ]
+  },
+  "message": "Car profiles retrieved successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/car-profiles"
+```
+
+---
+
+### POST /api/v1/car-profiles
+
+Creates a new car profile for the authenticated user.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "name": "My Buggy", // required
+  "carType": "Buggy", // required
+  "vehicleType": "1/8 Nitro", // required
+  "setupInfo": { // optional
+    "shockOil": "35wt",
+    "tires": "Pro-Line Blockade"
+  }
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "uuid",
+      "userId": "uuid",
+      "name": "My Buggy",
+      "carType": "Buggy",
+      "vehicleType": "1/8 Nitro",
+      "setupInfo": {
+        "shockOil": "35wt",
+        "tires": "Pro-Line Blockade"
+      },
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T00:00:00.000Z"
+    }
+  },
+  "message": "Car profile created successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing required fields (name, carType, vehicleType)
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X POST "http://localhost:3001/api/v1/car-profiles" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{
+    "name": "My Buggy",
+    "carType": "Buggy",
+    "vehicleType": "1/8 Nitro",
+    "setupInfo": {"shockOil": "35wt"}
+  }'
+```
+
+---
+
+### GET /api/v1/car-profiles/[id]
+
+Gets a single car profile by ID. Users can only access their own car profiles.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `id` (string, required) - Car profile UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "uuid",
+      "userId": "uuid",
+      "name": "My Buggy",
+      "carType": "Buggy",
+      "vehicleType": "1/8 Nitro",
+      "setupInfo": {
+        "shockOil": "35wt",
+        "tires": "Pro-Line Blockade"
+      },
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T00:00:00.000Z"
+    }
+  },
+  "message": "Car profile retrieved successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Invalid UUID format
+- `NOT_FOUND` (404) - Car profile not found or does not belong to user
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/car-profiles/uuid"
+```
+
+---
+
+### PUT /api/v1/car-profiles/[id]
+
+Updates an existing car profile. Users can only update their own car profiles.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `id` (string, required) - Car profile UUID
+
+**Request Body:**
+```json
+{
+  "name": "Updated Buggy Name", // optional
+  "carType": "Truggy", // optional
+  "vehicleType": "1/8 Electric", // optional
+  "setupInfo": { // optional
+    "shockOil": "40wt",
+    "tires": "Pro-Line M3"
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "uuid",
+      "userId": "uuid",
+      "name": "Updated Buggy Name",
+      "carType": "Truggy",
+      "vehicleType": "1/8 Electric",
+      "setupInfo": {
+        "shockOil": "40wt",
+        "tires": "Pro-Line M3"
+      },
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T01:00:00.000Z"
+    }
+  },
+  "message": "Car profile updated successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Invalid UUID format
+- `NOT_FOUND` (404) - Car profile not found or does not belong to user
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X PUT "http://localhost:3001/api/v1/car-profiles/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"name": "Updated Buggy Name", "carType": "Truggy"}'
+```
+
+---
+
+### DELETE /api/v1/car-profiles/[id]
+
+Deletes a car profile. Users can only delete their own car profiles.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `id` (string, required) - Car profile UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "uuid",
+      "userId": "uuid",
+      "name": "My Buggy",
+      "carType": "Buggy",
+      "vehicleType": "1/8 Nitro",
+      "setupInfo": null,
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T00:00:00.000Z"
+    }
+  },
+  "message": "Car profile deleted successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Invalid UUID format
+- `NOT_FOUND` (404) - Car profile not found or does not belong to user
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/car-profiles/uuid"
+```
+
+---
+
+## Driver Profiles Endpoints
+
+### GET /api/v1/driver-profiles
+
+Gets all driver profiles for the authenticated user.
+
+**Authentication:** Required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profiles": [
+      {
+        "id": "uuid",
+        "userId": "uuid",
+        "name": "John Doe",
+        "displayName": "John D.",
+        "transponderNumber": "12345",
+        "preferences": {
+          "defaultView": "lap-times"
+        },
+        "createdAt": "2025-01-27T00:00:00.000Z",
+        "updatedAt": "2025-01-27T00:00:00.000Z"
+      }
+    ]
+  },
+  "message": "Driver profiles retrieved successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/driver-profiles"
+```
+
+---
+
+### POST /api/v1/driver-profiles
+
+Creates a new driver profile for the authenticated user.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "name": "John Doe", // required
+  "displayName": "John D.", // required
+  "transponderNumber": "12345", // optional
+  "preferences": { // optional
+    "defaultView": "lap-times"
+  }
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "uuid",
+      "userId": "uuid",
+      "name": "John Doe",
+      "displayName": "John D.",
+      "transponderNumber": "12345",
+      "preferences": {
+        "defaultView": "lap-times"
+      },
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T00:00:00.000Z"
+    }
+  },
+  "message": "Driver profile created successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing required fields (name, displayName)
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X POST "http://localhost:3001/api/v1/driver-profiles" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{
+    "name": "John Doe",
+    "displayName": "John D.",
+    "transponderNumber": "12345"
+  }'
+```
+
+---
+
+### GET /api/v1/driver-profiles/[id]
+
+Gets a single driver profile by ID. Users can only access their own driver profiles.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `id` (string, required) - Driver profile UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "uuid",
+      "userId": "uuid",
+      "name": "John Doe",
+      "displayName": "John D.",
+      "transponderNumber": "12345",
+      "preferences": {
+        "defaultView": "lap-times"
+      },
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T00:00:00.000Z"
+    }
+  },
+  "message": "Driver profile retrieved successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Invalid UUID format
+- `NOT_FOUND` (404) - Driver profile not found or does not belong to user
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/driver-profiles/uuid"
+```
+
+---
+
+### PUT /api/v1/driver-profiles/[id]
+
+Updates an existing driver profile. Users can only update their own driver profiles.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `id` (string, required) - Driver profile UUID
+
+**Request Body:**
+```json
+{
+  "name": "John Smith", // optional
+  "displayName": "John S.", // optional
+  "transponderNumber": "67890", // optional
+  "preferences": { // optional
+    "defaultView": "results"
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "uuid",
+      "userId": "uuid",
+      "name": "John Smith",
+      "displayName": "John S.",
+      "transponderNumber": "67890",
+      "preferences": {
+        "defaultView": "results"
+      },
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T01:00:00.000Z"
+    }
+  },
+  "message": "Driver profile updated successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Invalid UUID format
+- `NOT_FOUND` (404) - Driver profile not found or does not belong to user
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X PUT "http://localhost:3001/api/v1/driver-profiles/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"displayName": "John S.", "transponderNumber": "67890"}'
+```
+
+---
+
+### DELETE /api/v1/driver-profiles/[id]
+
+Deletes a driver profile. Users can only delete their own driver profiles.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `id` (string, required) - Driver profile UUID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "uuid",
+      "userId": "uuid",
+      "name": "John Doe",
+      "displayName": "John D.",
+      "transponderNumber": "12345",
+      "preferences": null,
+      "createdAt": "2025-01-27T00:00:00.000Z",
+      "updatedAt": "2025-01-27T00:00:00.000Z"
+    }
+  },
+  "message": "Driver profile deleted successfully"
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Invalid UUID format
+- `NOT_FOUND` (404) - Driver profile not found or does not belong to user
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/driver-profiles/uuid"
+```
+
+---
+
 ## User Endpoints
 
 ### GET /api/v1/users/me/persona
@@ -1462,6 +2236,74 @@ curl -X POST "http://localhost:3001/api/v1/users/me/persona" \
   -H "Content-Type: application/json" \
   -H "Cookie: next-auth.session-token=..." \
   -d '{"personaId": "uuid"}'
+```
+
+---
+
+### PATCH /api/v1/users/[userId]/driver-links/events/[eventId]
+
+Updates driver link status for a specific event. This endpoint allows users to confirm or reject driver link suggestions for specific events. The status update applies to the UserDriverLink, affecting all events for that driver link.
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId` (string, required) - User UUID (must match authenticated user)
+- `eventId` (string, required) - Event UUID
+
+**Request Body:**
+```json
+{
+  "status": "confirmed" // required - Either "confirmed" or "rejected"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "link": {
+      "id": "uuid",
+      "userId": "uuid",
+      "driverId": "uuid",
+      "status": "confirmed",
+      "similarityScore": 0.95,
+      "matchedAt": "2025-01-27T00:00:00.000Z",
+      "confirmedAt": "2025-01-27T10:00:00.000Z",
+      "rejectedAt": null,
+      "matcherId": "uuid",
+      "matcherVersion": "1.0.0"
+    }
+  },
+  "message": "Driver link confirmed successfully"
+}
+```
+
+**Response Fields:**
+- `link` (object) - Updated UserDriverLink object with status change
+- `status` (string) - New status: `confirmed` or `rejected`
+- `confirmedAt` (string | null) - ISO 8601 timestamp when confirmed (null if rejected)
+- `rejectedAt` (string | null) - ISO 8601 timestamp when rejected (null if confirmed)
+
+**Notes:**
+- Users can only update their own driver links (userId must match authenticated user)
+- Status update affects the UserDriverLink, which applies to all events for that driver
+- Confirming a link makes it available for all events where the driver appears
+- Rejecting a link prevents it from being used in future event matching
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - User can only update their own driver links
+- `VALIDATION_ERROR` (400) - Missing status or invalid status value (must be "confirmed" or "rejected")
+- `NOT_FOUND` (404) - User, event, or driver link not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -X PATCH "http://localhost:3001/api/v1/users/uuid/driver-links/events/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"status": "confirmed"}'
 ```
 
 ---
@@ -2198,6 +3040,57 @@ curl -X PATCH "http://localhost:3001/api/v1/admin/tracks/uuid" \
 
 ---
 
+### GET /api/v1/admin/track-sync/jobs/[jobId]
+
+Gets the status of a track sync job.
+
+**Authentication:** Required (Admin only)
+
+**Path Parameters:**
+- `jobId` (string, required) - Track sync job ID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "jobId": "job-uuid",
+    "status": "completed",
+    "startedAt": "2025-01-27T10:00:00.000Z",
+    "completedAt": "2025-01-27T10:05:00.000Z",
+    "tracksProcessed": 150,
+    "tracksUpdated": 12,
+    "tracksCreated": 3,
+    "errors": []
+  },
+  "message": "Job status fetched"
+}
+```
+
+**Response Fields:**
+- `jobId` (string) - Track sync job ID
+- `status` (string) - Job status: `pending`, `running`, `completed`, `failed`
+- `startedAt` (string) - ISO 8601 timestamp when job started
+- `completedAt` (string | null) - ISO 8601 timestamp when job completed (null if still running)
+- `tracksProcessed` (number) - Total number of tracks processed
+- `tracksUpdated` (number) - Number of tracks updated
+- `tracksCreated` (number) - Number of new tracks created
+- `errors` (array) - Array of error messages (if any)
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+- `BAD_REQUEST` (400) - Missing jobId
+- `NOT_FOUND` (404) - Job not found
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/track-sync/jobs/job-uuid"
+```
+
+---
+
 ### GET /api/v1/admin/tracks
 
 Gets all tracks with pagination and filtering (admin-only endpoint).
@@ -2260,7 +3153,7 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admi
 
 ## Health Check
 
-### GET /api/health
+### GET /api/v1/health
 
 Health check endpoint for Docker health checks and monitoring.
 
@@ -2276,7 +3169,7 @@ Health check endpoint for Docker health checks and monitoring.
 
 **Example:**
 ```bash
-curl "http://localhost:3001/api/health"
+curl "http://localhost:3001/api/v1/health"
 ```
 
 **Note:** This endpoint is unversioned and used by Docker health checks. It does not follow the standard API response format.

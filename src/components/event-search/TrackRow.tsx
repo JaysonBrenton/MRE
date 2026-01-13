@@ -42,7 +42,7 @@ export default function TrackRow({ track, isFavourite, onSelect, onToggleFavouri
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[var(--token-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
       onClick={handleRowClick}
       role="button"
       tabIndex={0}

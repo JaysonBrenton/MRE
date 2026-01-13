@@ -17,6 +17,7 @@
 "use client"
 
 import EntryList from "./EntryList"
+import ChartContainer from "./ChartContainer"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface EntryListTabProps {
@@ -26,23 +27,18 @@ export interface EntryListTabProps {
 export default function EntryListTab({ data }: EntryListTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-entry-list" aria-labelledby="tab-entry-list">
-      <div>
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
-          Entry List
-        </h2>
-        <p className="text-sm text-[var(--token-text-secondary)] mb-4">
-          Complete list of drivers entered in this event
-        </p>
-      </div>
-
       {data.entryList.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-[var(--token-text-secondary)]">
+        <ChartContainer
+          title="Entry List"
+          description="Complete list of drivers entered in this event"
+          aria-label="Entry list - no data available"
+        >
+          <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
             No entry list data available for this event.
-          </p>
-        </div>
+          </div>
+        </ChartContainer>
       ) : (
-        <EntryList entries={data.entryList} />
+        <EntryList entries={data.entryList} raceClasses={data.raceClasses} eventId={data.event.id} />
       )}
     </div>
   )

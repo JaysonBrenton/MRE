@@ -41,7 +41,7 @@ export default function ListPagination({
   itemsPerPage,
   totalItems,
   itemLabel = "items",
-  rowsPerPageOptions = [10, 25, 50, 100],
+  rowsPerPageOptions = [5, 10, 25, 50, 100],
   onRowsPerPageChange,
 }: ListPaginationProps) {
   const startItem = (currentPage - 1) * itemsPerPage + 1
@@ -71,13 +71,6 @@ export default function ListPagination({
     }
   }
 
-  const handlePageInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const page = parseInt(e.target.value, 10)
-    if (page >= 1 && page <= totalPages) {
-      onPageChange(page)
-    }
-  }
-
   const handleRowsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newRowsPerPage = parseInt(e.target.value, 10)
     if (onRowsPerPageChange) {
@@ -91,25 +84,19 @@ export default function ListPagination({
   }
 
   return (
-    <nav
-      className="flex items-center justify-between gap-4 mt-4 mb-16 px-2"
-      aria-label="List pagination"
-    >
-      <div className="text-sm text-[var(--token-text-secondary)]" aria-live="polite">
-        Showing {startItem}-{endItem} of {totalItems} {itemLabel}
-      </div>
-
+    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between mb-16">
+      {/* Left side: Rows per page selector and showing text */}
       <div className="flex items-center gap-2">
-        {/* Rows per page selector */}
         {onRowsPerPageChange && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-[var(--token-text-secondary)]">
+          <>
+            <label htmlFor="pageSize" className="text-sm text-[var(--token-text-secondary)]">
               Rows per page:
-            </span>
+            </label>
             <select
+              id="pageSize"
               value={itemsPerPage}
               onChange={handleRowsPerPageChange}
-              className="px-3 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Rows per page"
             >
               {rowsPerPageOptions.map((option) => (
@@ -118,126 +105,58 @@ export default function ListPagination({
                 </option>
               ))}
             </select>
-          </div>
-        )}
-
-        {/* Page navigation controls - only show when there are multiple pages */}
-        {totalPages > 1 && (
-          <>
-            {/* First button */}
-            <button
-              type="button"
-              onClick={handleFirst}
-              disabled={currentPage === 1}
-              className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label="First page"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                />
-              </svg>
-            </button>
-
-            {/* Previous button */}
-            <button
-              type="button"
-              onClick={handlePrev}
-              disabled={currentPage === 1}
-              className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label="Previous page"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-
-            {/* Page input */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[var(--token-text-secondary)]">
-                Page
-              </span>
-              <input
-                type="number"
-                min={1}
-                max={totalPages}
-                value={currentPage}
-                onChange={handlePageInput}
-                className="w-16 px-2 py-2 text-center text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                aria-label="Current page"
-              />
-              <span className="text-sm text-[var(--token-text-secondary)]">
-                of {totalPages}
-              </span>
-            </div>
-
-            {/* Next button */}
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={currentPage === totalPages}
-              className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label="Next page"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-
-            {/* Last button */}
-            <button
-              type="button"
-              onClick={handleLast}
-              disabled={currentPage === totalPages}
-              className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label="Last page"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                />
-              </svg>
-            </button>
           </>
         )}
+        <span className="text-sm text-[var(--token-text-secondary)] ml-4" aria-live="polite">
+          Showing {startItem}-{endItem} of {totalItems} {itemLabel}
+        </span>
       </div>
-    </nav>
+
+      {/* Right side: Page navigation controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleFirst}
+            disabled={currentPage === 1}
+            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            aria-label="First page"
+          >
+            First
+          </button>
+          <button
+            type="button"
+            onClick={handlePrev}
+            disabled={currentPage === 1}
+            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            aria-label="Previous page"
+          >
+            Previous
+          </button>
+          <span className="px-4 py-1 text-sm text-[var(--token-text-primary)]">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            aria-label="Next page"
+          >
+            Next
+          </button>
+          <button
+            type="button"
+            onClick={handleLast}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            aria-label="Last page"
+          >
+            Last
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 

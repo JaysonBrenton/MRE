@@ -16,8 +16,6 @@
 
 "use client"
 
-import { formatDateLong } from "@/lib/date-utils"
-
 export interface EventAnalysisHeaderProps {
   eventName: string
   eventDate: Date | string
@@ -34,11 +32,6 @@ export default function EventAnalysisHeader({
       <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
         {eventName}
       </h1>
-      <div className="flex items-center gap-4 text-sm text-[var(--token-text-secondary)]">
-        <span>{formatDateLong(eventDate)}</span>
-        <span>•</span>
-        <span>{trackName}</span>
-      </div>
     </div>
   )
 }

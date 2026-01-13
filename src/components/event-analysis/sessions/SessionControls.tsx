@@ -23,7 +23,6 @@ export interface SessionControlsProps {
   onViewModeChange: (mode: ViewMode) => void
   selectedClass: string | null
   availableClasses: string[]
-  onClassChange: (className: string | null) => void
   presetView: PresetView
   onPresetViewChange: (preset: PresetView) => void
   isFilteringByDrivers: boolean
@@ -35,7 +34,6 @@ export default function SessionControls({
   onViewModeChange,
   selectedClass,
   availableClasses,
-  onClassChange,
   presetView,
   onPresetViewChange,
   isFilteringByDrivers,
@@ -76,29 +74,17 @@ export default function SessionControls({
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
-        {/* Class Filter */}
+        {/* Class Filter (Read-only) */}
         <div className="flex items-center gap-2">
-          <label
-            htmlFor="class-filter"
-            className="text-sm font-medium text-[var(--token-text-primary)]"
-          >
+          <label className="text-sm font-medium text-[var(--token-text-primary)]">
             Class:
           </label>
-          <select
-            id="class-filter"
-            value={selectedClass || ""}
-            onChange={(e) =>
-              onClassChange(e.target.value === "" ? null : e.target.value)
-            }
-            className="px-3 py-1.5 text-sm border border-[var(--token-border-default)] rounded bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-          >
-            <option value="">All Classes</option>
-            {availableClasses.map((className) => (
-              <option key={className} value={className}>
-                {className}
-              </option>
-            ))}
-          </select>
+          <div className="px-3 py-1.5 text-sm border border-[var(--token-border-default)] rounded bg-[var(--token-surface)] text-[var(--token-text-secondary)]">
+            {selectedClass || "All Classes"}
+          </div>
+          <span className="text-xs text-[var(--token-text-secondary)]">
+            (Set in Overview tab)
+          </span>
         </div>
 
         {/* Preset View Selector */}

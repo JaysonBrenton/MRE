@@ -17,6 +17,7 @@
 "use client"
 import { useEffect, useState, useCallback } from "react"
 import ListPagination from "../event-analysis/ListPagination"
+import ChartContainer from "../event-analysis/ChartContainer"
 
 interface Track {
   id: string
@@ -34,7 +35,7 @@ export default function TracksTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(50)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
   const [searchQuery, setSearchQuery] = useState("")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
   const [isFollowedFilter, setIsFollowedFilter] = useState<string>("all")
@@ -120,22 +121,31 @@ export default function TracksTable() {
 
   if (loading && tracks.length === 0) {
     return (
-      <div className="py-8 text-center text-[var(--token-text-secondary)] w-full min-w-0">
-        Loading tracks...
-      </div>
+      <ChartContainer
+        title="Tracks"
+        aria-label="Tracks table - loading"
+      >
+        <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
+          Loading tracks...
+        </div>
+      </ChartContainer>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
-          <p className="text-sm text-[var(--token-text-error)]">{error}</p>
-        </div>
-      )}
+    <ChartContainer
+      title="Tracks"
+      aria-label="Tracks table with search, filtering, and management actions"
+    >
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
+            <p className="text-sm text-[var(--token-text-error)]">{error}</p>
+          </div>
+        )}
 
-      {/* Search and Filters */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        {/* Search and Filters */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
         <div className="flex-1">
           <label htmlFor="track-search" className="sr-only">
             Search tracks
@@ -213,22 +223,22 @@ export default function TracksTable() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[var(--token-border-default)]">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Track
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Source
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Events
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Followed
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Active
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Actions
               </th>
             </tr>
@@ -247,32 +257,32 @@ export default function TracksTable() {
               filteredTracks.map((track) => (
                 <tr
                   key={track.id}
-                  className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface)]"
+                  className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface-raised)]"
                 >
-                  <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
                     {track.trackName}
                   </td>
-                  <td className="px-4 py-3 text-sm text-[var(--token-text-secondary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
                     {track.source}
                   </td>
-                  <td className="px-4 py-3 text-sm text-[var(--token-text-secondary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
                     {track.eventCount}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-sm font-normal">
                     {track.isFollowed ? (
                       <span className="text-[var(--token-text-success)]">Yes</span>
                     ) : (
                       <span className="text-[var(--token-text-secondary)]">No</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-sm font-normal">
                     {track.isActive ? (
                       <span className="text-[var(--token-text-success)]">Yes</span>
                     ) : (
                       <span className="text-[var(--token-text-secondary)]">No</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-sm font-normal">
                     <button
                       onClick={() => handleToggleFollow(track)}
                       disabled={updatingTrack === track.id}
@@ -301,12 +311,13 @@ export default function TracksTable() {
         itemsPerPage={itemsPerPage}
         totalItems={total}
         itemLabel="tracks"
-        rowsPerPageOptions={[10, 25, 50, 100]}
+        rowsPerPageOptions={[5, 10, 25, 50, 100]}
         onRowsPerPageChange={(newRowsPerPage) => {
           setItemsPerPage(newRowsPerPage)
           setPage(1)
         }}
       />
-    </div>
+      </div>
+    </ChartContainer>
   )
 }

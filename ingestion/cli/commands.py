@@ -11,10 +11,8 @@
 import asyncio
 import sys
 import os
-import glob
 from typing import Optional, List, Dict, Callable, Any
 from uuid import UUID
-from pathlib import Path
 
 import click
 
@@ -35,6 +33,7 @@ from ingestion.ingestion.errors import (
 from ingestion.ingestion.pipeline import IngestionPipeline
 from ingestion.ingestion.auto_confirm import check_and_confirm_links
 from ingestion.common.site_policy import SitePolicy, ScrapingDisabledError
+from ingestion.services.track_sync_service import TrackSyncService
 
 logger = get_logger(__name__)
 
@@ -46,166 +45,6 @@ def _ensure_scraping_enabled(command: str) -> None:
     except ScrapingDisabledError as exc:
         logger.warning("scraping_disabled", command=command)
         raise click.ClickException(str(exc))
-
-
-def get_reports_directory() -> Path:
-    """
-    Get the reports directory path.
-    
-    Returns:
-        Path to reports directory
-    """
-    # Check if we're in Docker (reports mounted at /app/docs/reports)
-    if os.path.exists("/app/docs/reports"):
-        return Path("/app/docs/reports")
-    # Otherwise, use relative path from repo root
-    return Path(__file__).parent.parent.parent / "docs" / "reports"
-
-
-def generate_track_sync_report(
-    start_time: datetime,
-    duration_seconds: float,
-    total_tracks: int,
-    tracks_added: int,
-    tracks_updated: int,
-    tracks_deactivated: int,
-    new_tracks: List[Dict[str, str]],
-    updated_tracks: List[Dict[str, str]],
-    deactivated_tracks: List[Dict[str, str]],
-) -> str:
-    """
-    Generate markdown report for track sync operation.
-    
-    Args:
-        start_time: When the sync started
-        duration_seconds: How long it took
-        total_tracks: Total number of tracks
-        tracks_added: Number of new tracks
-        tracks_updated: Number of updated tracks
-        tracks_deactivated: Number of deactivated tracks
-        new_tracks: List of new track details
-        updated_tracks: List of updated track details
-        deactivated_tracks: List of deactivated track details
-    
-    Returns:
-        Path to the generated report file
-    """
-    reports_dir = get_reports_directory()
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Generate filename with timestamp
-    timestamp_str = start_time.strftime("%Y-%m-%d-%H-%M-%S")
-    report_filename = f"track-sync-{timestamp_str}.md"
-    report_path = reports_dir / report_filename
-    
-    # Generate report content
-    report_lines = [
-        "# Track Catalogue Sync Report",
-        "",
-        f"**Execution Time**: {start_time.strftime('%Y-%m-%d %H:%M:%S')} UTC",
-        f"**Duration**: {duration_seconds:.2f}s",
-        "",
-        "## Summary",
-        f"- Total Tracks: {total_tracks}",
-        f"- New Tracks: {tracks_added}",
-        f"- Updated Tracks: {tracks_updated}",
-        f"- Deactivated Tracks: {tracks_deactivated}",
-        "",
-    ]
-    
-    # New tracks section
-    if new_tracks:
-        report_lines.extend([
-            "## New Tracks",
-        ])
-        for i, track in enumerate(new_tracks, 1):
-            report_lines.append(
-                f"{i}. {track['name']} | {track['slug']} | {track['url']}"
-            )
-        report_lines.append("")
-    else:
-        report_lines.extend([
-            "## New Tracks",
-            "*No new tracks*",
-            "",
-        ])
-    
-    # Updated tracks section
-    if updated_tracks:
-        report_lines.extend([
-            "## Updated Tracks",
-        ])
-        for i, track in enumerate(updated_tracks, 1):
-            report_lines.append(
-                f"{i}. {track['name']} | {track['slug']} | Updated: {track['changes']}"
-            )
-        report_lines.append("")
-    else:
-        report_lines.extend([
-            "## Updated Tracks",
-            "*No tracks updated*",
-            "",
-        ])
-    
-    # Deactivated tracks section
-    if deactivated_tracks:
-        report_lines.extend([
-            "## Deactivated Tracks",
-        ])
-        for i, track in enumerate(deactivated_tracks, 1):
-            report_lines.append(
-                f"{i}. {track['name']} | {track['slug']} | No longer in LiveRC catalogue"
-            )
-        report_lines.append("")
-    else:
-        report_lines.extend([
-            "## Deactivated Tracks",
-            "*No tracks deactivated*",
-            "",
-        ])
-    
-    # Write report
-    report_content = "\n".join(report_lines)
-    report_path.write_text(report_content, encoding="utf-8")
-    
-    logger.info("track_sync_report_generated", report_path=str(report_path))
-    
-    return str(report_path)
-
-
-def cleanup_old_reports() -> None:
-    """
-    Clean up old track sync reports.
-    
-    Deletes reports older than TRACK_SYNC_REPORT_RETENTION_DAYS (default 30).
-    """
-    retention_days = int(os.getenv("TRACK_SYNC_REPORT_RETENTION_DAYS", "30"))
-    reports_dir = get_reports_directory()
-    
-    if not reports_dir.exists():
-        return
-    
-    cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
-    deleted_count = 0
-    
-    # Find all track-sync-*.md files
-    pattern = str(reports_dir / "track-sync-*.md")
-    for report_path in glob.glob(pattern):
-        try:
-            # Extract timestamp from filename: track-sync-YYYY-MM-DD-HH-MM-SS.md
-            filename = Path(report_path).name
-            timestamp_str = filename.replace("track-sync-", "").replace(".md", "")
-            report_date = datetime.strptime(timestamp_str, "%Y-%m-%d-%H-%M-%S")
-            
-            if report_date < cutoff_date:
-                os.remove(report_path)
-                deleted_count += 1
-                logger.debug("old_report_deleted", report_path=report_path, report_date=report_date.isoformat())
-        except (ValueError, OSError) as e:
-            logger.warning("failed_to_delete_report", report_path=report_path, error=str(e))
-    
-    if deleted_count > 0:
-        logger.info("old_reports_cleaned", deleted_count=deleted_count, retention_days=retention_days)
 
 
 def _refresh_events_for_track(
@@ -364,165 +203,56 @@ def list_tracks():
 
 
 @liverc.command("refresh-tracks")
-def refresh_tracks():
-    """Re-scrape the global LiveRC track list."""
+@click.option(
+    "--metadata/--no-metadata",
+    default=True,
+    show_default=True,
+    help="Enable or disable dashboard metadata enrichment",
+)
+def refresh_tracks(metadata: bool) -> None:
+    """Re-scrape the global LiveRC track list using the shared service."""
     _ensure_scraping_enabled("refresh-tracks")
     start_time = datetime.utcnow()
-    logger.info("refresh_tracks_start", timestamp=start_time.isoformat())
-    
+    logger.info(
+        "refresh_tracks_start",
+        timestamp=start_time.isoformat(),
+        include_metadata=metadata,
+    )
+
+    metadata_concurrency = int(os.getenv("TRACK_SYNC_METADATA_CONCURRENCY", "6"))
+
+    def _progress(stage: str, processed: int, total: int) -> None:
+        if total <= 0:
+            return
+        if processed == total or processed % 50 == 0:
+            click.echo(f"[{stage}] {processed}/{total}")
+
     try:
         connector = LiveRCConnector()
-        
-        # Fetch tracks from LiveRC
-        tracks = asyncio.run(connector.list_tracks())
-        
-        new_tracks: List[Dict[str, str]] = []
-        updated_tracks: List[Dict[str, str]] = []
-        deactivated_tracks: List[Dict[str, str]] = []
-        
         with db_session() as session:
             repository = Repository(session)
-            tracks_added = 0
-            tracks_updated = 0
-            seen_slugs = set()
-            
-            # Upsert each track
-            for track_summary in tracks:
-                seen_slugs.add(track_summary.source_track_slug)
-                
-                # Fetch dashboard metadata for this track
-                dashboard_metadata = None
-                try:
-                    dashboard_metadata = asyncio.run(connector.fetch_track_metadata(track_summary.source_track_slug))
-                except Exception as e:
-                    # Log error but continue - graceful degradation
-                    logger.warning(
-                        "track_dashboard_fetch_error",
-                        slug=track_summary.source_track_slug,
-                        error=str(e)
-                    )
-                
-                # Check if track exists
-                existing = session.query(Track).filter(
-                    Track.source == track_summary.source,
-                    Track.source_track_slug == track_summary.source_track_slug
-                ).first()
-                
-                if existing:
-                    # Track what changed
-                    changes = []
-                    if existing.track_name != track_summary.track_name:
-                        changes.append("track_name")
-                    if existing.track_url != track_summary.track_url:
-                        changes.append("track_url")
-                    if existing.events_url != track_summary.events_url:
-                        changes.append("events_url")
-                    if existing.liverc_track_last_updated != track_summary.liverc_track_last_updated:
-                        changes.append("liverc_track_last_updated")
-                    if existing.is_active != True:
-                        changes.append("is_active")
-                    
-                    if changes:
-                        tracks_updated += 1
-                        updated_tracks.append({
-                            "name": track_summary.track_name,
-                            "slug": track_summary.source_track_slug,
-                            "url": track_summary.track_url,
-                            "changes": ", ".join(changes)
-                        })
-                else:
-                    tracks_added += 1
-                    new_tracks.append({
-                        "name": track_summary.track_name,
-                        "slug": track_summary.source_track_slug,
-                        "url": track_summary.track_url
-                    })
-                
-                # Prepare metadata parameters
-                metadata_kwargs = {}
-                if dashboard_metadata:
-                    metadata_kwargs = {
-                        "latitude": dashboard_metadata.latitude,
-                        "longitude": dashboard_metadata.longitude,
-                        "address": dashboard_metadata.address,
-                        "city": dashboard_metadata.city,
-                        "state": dashboard_metadata.state,
-                        "country": dashboard_metadata.country,
-                        "postal_code": dashboard_metadata.postal_code,
-                        "phone": dashboard_metadata.phone,
-                        "website": dashboard_metadata.website,
-                        "email": dashboard_metadata.email,
-                        "description": dashboard_metadata.description,
-                        "logo_url": dashboard_metadata.logo_url,
-                        "facebook_url": dashboard_metadata.facebook_url,
-                        "total_laps": dashboard_metadata.total_laps,
-                        "total_races": dashboard_metadata.total_races,
-                        "total_events": dashboard_metadata.total_events,
-                    }
-                
-                repository.upsert_track(
-                    source=track_summary.source,
-                    source_track_slug=track_summary.source_track_slug,
-                    track_name=track_summary.track_name,
-                    track_url=track_summary.track_url,
-                    events_url=track_summary.events_url,
-                    liverc_track_last_updated=track_summary.liverc_track_last_updated,
-                    is_active=True,
-                    **metadata_kwargs,
+            service = TrackSyncService(
+                db=session,
+                repository=repository,
+                connector=connector,
+                metadata_concurrency=metadata_concurrency,
+            )
+            result = asyncio.run(
+                service.run(
+                    include_metadata=metadata,
+                    progress_cb=_progress,
+                    generate_report=True,
                 )
-            
-            # Mark tracks not in latest sync as inactive
-            all_tracks = session.query(Track).filter(Track.source == "liverc").all()
-            tracks_deactivated = 0
-            
-            for track in all_tracks:
-                if track.source_track_slug not in seen_slugs:
-                    track.is_active = False
-                    tracks_deactivated += 1
-                    deactivated_tracks.append({
-                        "name": track.track_name,
-                        "slug": track.source_track_slug,
-                        "url": track.track_url
-                    })
-            
-            session.commit()
-        
-        duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-        duration_seconds = duration_ms / 1000.0
-        
-        # Generate markdown report
-        report_path = generate_track_sync_report(
-            start_time,
-            duration_seconds,
-            len(tracks),
-            tracks_added,
-            tracks_updated,
-            tracks_deactivated,
-            new_tracks,
-            updated_tracks,
-            deactivated_tracks
-        )
-        
-        # Cleanup old reports
-        cleanup_old_reports()
-        
-        logger.info(
-            "refresh_tracks_success",
-            command="refresh-tracks",
-            tracks_added=tracks_added,
-            tracks_updated=tracks_updated,
-            tracks_deactivated=tracks_deactivated,
-            status="success",
-            duration_ms=duration_ms,
-            report_path=report_path,
-        )
-        
-        click.echo(f"Track refresh completed:")
-        click.echo(f"  Added: {tracks_added}")
-        click.echo(f"  Updated: {tracks_updated}")
-        click.echo(f"  Deactivated: {tracks_deactivated}")
-        click.echo(f"  Total: {len(tracks)}")
-        click.echo(f"  Report: {report_path}")
+            )
+
+        click.echo("Track refresh completed:")
+        click.echo(f"  Added: {result.tracks_added}")
+        click.echo(f"  Updated: {result.tracks_updated}")
+        click.echo(f"  Deactivated: {result.tracks_deactivated}")
+        click.echo(f"  Total: {result.total_tracks}")
+        click.echo(f"  Metadata failures: {result.metadata_failures}")
+        if result.report_path:
+            click.echo(f"  Report: {result.report_path}")
         sys.exit(0)
     
     except ConnectorHTTPError as e:

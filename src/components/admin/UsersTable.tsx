@@ -15,6 +15,7 @@ import EditUserModal from "./EditUserModal"
 import DeleteConfirmationDialog from "./DeleteConfirmationDialog"
 import Modal from "@/components/ui/Modal"
 import ListPagination from "../event-analysis/ListPagination"
+import ChartContainer from "../event-analysis/ChartContainer"
 
 interface User {
   id: string
@@ -32,7 +33,7 @@ export default function UsersTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(50)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
   const [searchQuery, setSearchQuery] = useState("")
   const [isAdminFilter, setIsAdminFilter] = useState<string>("all")
   const [teamNameFilter, setTeamNameFilter] = useState("")
@@ -156,22 +157,31 @@ export default function UsersTable() {
 
   if (loading && users.length === 0) {
     return (
-      <div className="text-center py-8 text-[var(--token-text-secondary)] w-full min-w-0">
-        Loading users...
-      </div>
+      <ChartContainer
+        title="Users"
+        aria-label="Users table - loading"
+      >
+        <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
+          Loading users...
+        </div>
+      </ChartContainer>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
-          <p className="text-sm text-[var(--token-text-error)]">{error}</p>
-        </div>
-      )}
+    <ChartContainer
+      title="Users"
+      aria-label="Users table with search, filtering, and management actions"
+    >
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
+            <p className="text-sm text-[var(--token-text-error)]">{error}</p>
+          </div>
+        )}
 
-      {/* Search and Filters */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        {/* Search and Filters */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
         <div className="flex-1">
           <label htmlFor="user-search" className="sr-only">
             Search users
@@ -213,22 +223,22 @@ export default function UsersTable() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[var(--token-border-default)]">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Email
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Driver Name
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Team
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Admin
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Created
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Actions
               </th>
             </tr>
@@ -247,28 +257,28 @@ export default function UsersTable() {
               users.map((user) => (
                 <tr
                   key={user.id}
-                  className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface)]"
+                  className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface-raised)]"
                 >
-                  <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
                     {user.email}
                   </td>
-                  <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
                     {user.driverName}
                   </td>
-                  <td className="px-4 py-3 text-sm text-[var(--token-text-secondary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
                     {user.teamName || "-"}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-sm font-normal">
                     {user.isAdmin ? (
                       <span className="text-[var(--token-text-success)]">Yes</span>
                     ) : (
                       <span className="text-[var(--token-text-secondary)]">No</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-[var(--token-text-secondary)]">
+                  <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-sm font-normal">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEdit(user)}
@@ -308,7 +318,7 @@ export default function UsersTable() {
         itemsPerPage={itemsPerPage}
         totalItems={total}
         itemLabel="users"
-        rowsPerPageOptions={[10, 25, 50, 100]}
+        rowsPerPageOptions={[5, 10, 25, 50, 100]}
         onRowsPerPageChange={(newRowsPerPage) => {
           setItemsPerPage(newRowsPerPage)
           setPage(1)
@@ -376,6 +386,7 @@ export default function UsersTable() {
           )}
         </div>
       </Modal>
-    </div>
+      </div>
+    </ChartContainer>
   )
 }

@@ -161,6 +161,17 @@ Normalisation responsibilities:
 
 Normalisation MUST NOT touch the DB.
 
+### 6.1 Entry List Validation During Normalisation
+
+During the normalisation phase, race result drivers MUST be validated against the event entry list:
+
+- Each race result driver is matched to an `EventEntry` for the race's `class_name`
+- Unmatched drivers are **skipped** (not persisted) with warning logs
+- This ensures data integrity: drivers only appear in classes they're entered in
+- Multi-class drivers are still processed correctly - they're only skipped in classes they're not entered in
+
+This validation occurs in the `_batch_write_races_data` method before database writes.
+
 ---
 
 ## 7. Persistence Layer

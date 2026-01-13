@@ -134,7 +134,7 @@ This document defines performance goals, performance budgets, database performan
 
 | Endpoint | Target (p95) | Target (p99) |
 |----------|--------------|--------------|
-| `GET /api/health` | < 100ms | < 200ms |
+| `GET /api/v1/health` | < 100ms | < 200ms |
 | `POST /api/v1/auth/register` | < 500ms | < 1s |
 | `POST /api/v1/auth/login` | < 500ms | < 1s |
 | `GET /api/v1/tracks` | < 500ms | < 1s |

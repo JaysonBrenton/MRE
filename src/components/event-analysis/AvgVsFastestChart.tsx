@@ -47,6 +47,7 @@ export interface AvgVsFastestChartProps {
   onPageChange?: (page: number) => void
   onDriverToggle?: (driverId: string) => void
   chartInstanceId?: string
+  selectedClass?: string | null
 }
 
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
@@ -106,6 +107,7 @@ export default function AvgVsFastestChart({
   onPageChange,
   onDriverToggle,
   chartInstanceId,
+  selectedClass,
 }: AvgVsFastestChartProps) {
   const chartDescId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -192,6 +194,7 @@ export default function AvgVsFastestChart({
         height={height}
         className={className}
         aria-label="Average vs fastest lap comparison chart - no data available"
+        selectedClass={selectedClass}
       >
         <div className="flex items-center justify-center h-full text-[var(--token-text-secondary)]">
           No data available
@@ -208,6 +211,7 @@ export default function AvgVsFastestChart({
         className={className}
         aria-label="Average vs fastest lap comparison bar chart"
         chartInstanceId={chartInstanceId}
+        selectedClass={selectedClass}
       >
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>

@@ -42,12 +42,19 @@ Before starting, ensure you have the following installed:
 
 ### Required Software
 
-- **Docker** (version 20.10 or later)
-  - Download: https://www.docker.com/products/docker-desktop
-  - Verify: `docker --version`
+- **Docker Runtime** (choose one):
+  - **Option 1: Colima** (Recommended for macOS - Primary Setup)
+    - Install: `brew install colima`
+    - Setup: See `docs/operations/docker-user-guide.md#colima-setup` or run `./scripts/start-colima.sh`
+    - Verify: `colima status`
+    - **Note:** Colima is the recommended Docker runtime for macOS. It provides better command-line control and is lighter than Docker Desktop.
+  - **Option 2: Docker Desktop** (Alternative - version 20.10 or later)
+    - Download: https://www.docker.com/products/docker-desktop
+    - Verify: `docker --version`
+    - **Note:** Docker Desktop can be used as an alternative, but Colima is recommended.
 
 - **Docker Compose** (version 2.0 or later)
-  - Usually included with Docker Desktop
+  - Included with Docker Desktop or installed separately with Colima
   - Verify: `docker compose version`
 
 - **Git** (version 2.30 or later)
@@ -183,7 +190,7 @@ docker logs -f mre-liverc-ingestion-service
 Verify the application is healthy:
 
 ```bash
-curl http://localhost:3001/api/health
+curl http://localhost:3001/api/v1/health
 ```
 
 Expected response:

@@ -14,6 +14,7 @@ import {
 import storage from "redux-persist/lib/storage"
 import dashboardReducer from "./slices/dashboardSlice"
 import uiReducer from "./slices/uiSlice"
+import searchReducer from "./slices/searchSlice"
 
 // Create a noop storage for SSR (server-side rendering)
 const createNoopStorage = () => {
@@ -73,10 +74,21 @@ const dashboardPersistConfig = {
 const persistedUiReducer = persistReducer(uiPersistConfig, uiReducer)
 const persistedDashboardReducer = persistReducer(dashboardPersistConfig, dashboardReducer)
 
+// Configure persistence for search slice (sessionStorage)
+const searchPersistConfig = {
+  key: "search",
+  storage: sessionStorageAdapter,
+  whitelist: ["query", "driverName", "sessionType", "startDate", "endDate", "currentPage", "itemsPerPage"],
+}
+
+// Create persisted reducers
+const persistedSearchReducer = persistReducer(searchPersistConfig, searchReducer)
+
 // Combine reducers
 const rootReducer = combineReducers({
   ui: persistedUiReducer,
   dashboard: persistedDashboardReducer,
+  search: persistedSearchReducer,
 })
 
 export const store = configureStore({

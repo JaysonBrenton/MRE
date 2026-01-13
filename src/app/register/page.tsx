@@ -387,7 +387,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mobile-button w-full flex justify-center items-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-6 py-3 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90"
+                  className="mobile-button w-full flex justify-center items-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-6 py-3 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90"
                 >
                   {loading ? "Creating account..." : "Create account"}
                 </button>

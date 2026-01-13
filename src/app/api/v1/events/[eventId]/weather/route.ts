@@ -69,7 +69,13 @@ export async function GET(
     }
 
     // For service unavailable (API failures with no cache), return 503
-    if (errorInfo.message.includes("no cache available") || errorInfo.message.includes("Failed to fetch")) {
+    if (
+      errorInfo.message.includes("no cache available") || 
+      errorInfo.message.includes("Failed to fetch") ||
+      errorInfo.message.includes("Network error") ||
+      errorInfo.message.includes("network connectivity") ||
+      errorInfo.message.includes("Unable to reach")
+    ) {
       return errorResponse(
         "SERVICE_UNAVAILABLE",
         "Weather service unavailable",

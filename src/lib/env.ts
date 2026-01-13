@@ -74,12 +74,32 @@ const envSchema = z
   })
 
 /**
- * Validated environment variables
- * Throws error at import time if validation fails
+ * Lazy validation cache
  */
-export const env = (() => {
+let validatedEnv: z.infer<typeof envSchema> | null = null
+let validationError: Error | null = null
+
+/**
+ * Validate environment variables (lazy evaluation)
+ * Validates on first access, caches result for subsequent accesses
+ * 
+ * @returns Validated environment variables
+ * @throws Error if validation fails
+ */
+function validateEnv(): z.infer<typeof envSchema> {
+  // Return cached result if already validated
+  if (validatedEnv) {
+    return validatedEnv
+  }
+
+  // Return cached error if validation already failed
+  if (validationError) {
+    throw validationError
+  }
+
+  // Perform validation
   try {
-    return envSchema.parse({
+    validatedEnv = envSchema.parse({
       DATABASE_URL: process.env.DATABASE_URL,
       AUTH_SECRET: process.env.AUTH_SECRET,
       NODE_ENV: process.env.NODE_ENV || "development",
@@ -89,6 +109,7 @@ export const env = (() => {
       TZ: process.env.TZ,
       INGESTION_SERVICE_URL: process.env.INGESTION_SERVICE_URL,
     })
+    return validatedEnv
   } catch (error) {
     // Handle ZodError - check for errors array in multiple ways for compatibility
     if (error && typeof error === "object") {
@@ -113,14 +134,28 @@ export const env = (() => {
             return "validation failed"
           })
           .join("\n")
-        throw new Error(`Environment variable validation failed:\n${errorMessages}`)
+        validationError = new Error(`Environment variable validation failed:\n${errorMessages}`)
+        throw validationError
       }
     }
 
-    // Re-throw non-Zod errors as-is
-    throw error
+    // Cache and re-throw non-Zod errors
+    validationError = error instanceof Error ? error : new Error(String(error))
+    throw validationError
   }
-})()
+}
+
+/**
+ * Validated environment variables (lazy validation)
+ * Validates on first access instead of at import time
+ * This allows environment variables to be set up asynchronously in test environments
+ */
+export const env = new Proxy({} as z.infer<typeof envSchema>, {
+  get(_target, prop: string | symbol) {
+    const validated = validateEnv()
+    return validated[prop as keyof typeof validated]
+  },
+})
 
 /**
  * Type-safe environment variable access

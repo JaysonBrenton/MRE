@@ -53,6 +53,8 @@ export default function DriversTab({
           selectedDriverIds={selectedDriverIds}
           onSelectionChange={onSelectionChange}
           races={data.races}
+          raceClasses={data.raceClasses}
+          eventId={data.event.id}
         />
       )}
     </div>

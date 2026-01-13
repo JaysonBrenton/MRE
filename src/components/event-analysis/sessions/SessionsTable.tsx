@@ -1,315 +1,371 @@
 /**
- * @fileoverview Sessions table - table view of all sessions with results
- *
- * @created 2025-01-27
- * @creator Jayson Brenton
- * @lastModified 2025-01-27
- *
- * @description Full results table showing sessions with expandable rows for detailed results
- *
- * @purpose Provides table view of sessions with sorting, filtering, and links to detailed results.
+ * @fileoverview Professional sessions table with sorting, filtering, and grouping
+ * 
+ * @created 2025-01-07
+ * @creator System
+ * @lastModified 2025-01-07
+ * 
+ * @description Main sessions table component with full feature set
+ * 
+ * @purpose Replaces OverviewChart with a sortable, filterable, expandable table view
  *
  * @relatedFiles
- * - src/components/event-analysis/SessionsTab.tsx (parent)
- * - src/core/events/get-sessions-data.ts (data source)
+ * - src/components/event-analysis/sessions/SessionsTableRow.tsx
+ * - src/components/event-analysis/sessions/SessionChartTabs.tsx
  */
 
 "use client"
 
-import { useState, useMemo } from "react"
-import type { SessionData } from "@/core/events/get-sessions-data"
+import { useState, useMemo, useCallback, Fragment } from "react"
+import ChartContainer from "../ChartContainer"
+import SessionsTableRow from "./SessionsTableRow"
 import ListPagination from "../ListPagination"
+import type { SessionData } from "@/core/events/get-sessions-data"
 
 export interface SessionsTableProps {
   sessions: SessionData[]
-  selectedDriverIds: string[]
+  selectedDriverIds?: string[]
   className?: string
+  onNavigate?: (sessionId: string) => void
 }
 
+type SortField = "raceLabel" | "className" | "startTime" | "durationSeconds" | "participantCount"
 type SortDirection = "asc" | "desc"
 
-/**
- * Format duration in seconds to MM:SS format
- */
-function formatDuration(seconds: number | null): string {
-  if (seconds === null) return "N/A"
-  const minutes = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${minutes}:${secs.toString().padStart(2, "0")}`
-}
-
-/**
- * Format date/time
- */
-function formatDateTime(date: Date | null): string {
-  if (date === null) return "N/A"
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date)
-}
-
-/**
- * Format lap time in seconds to MM:SS.mmm format
- */
-function formatLapTime(seconds: number | null): string {
-  if (seconds === null) return "N/A"
-  const minutes = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  const wholeSecs = Math.floor(secs)
-  const millis = Math.floor((secs - wholeSecs) * 1000)
-  return `${minutes}:${wholeSecs.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`
+interface GroupedSessions {
+  className: string
+  sessions: SessionData[]
+  isExpanded: boolean
 }
 
 export default function SessionsTable({
   sessions,
-  selectedDriverIds,
+  selectedDriverIds = [],
   className = "",
+  onNavigate,
 }: SessionsTableProps) {
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [sortField, setSortField] = useState<SortField>("startTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isGrouped, setIsGrouped] = useState(false)
+  const [groupExpanded, setGroupExpanded] = useState<Record<string, boolean>>({})
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [pageSize, setPageSize] = useState(5)
 
-  // Sort sessions by race label
+  // Filter sessions
+  const filteredSessions = useMemo(() => {
+    let filtered = [...sessions]
+
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter((session) =>
+        session.raceLabel.toLowerCase().includes(searchLower) ||
+        session.className.toLowerCase().includes(searchLower)
+      )
+    }
+
+    return filtered
+  }, [sessions, searchTerm])
+
+  // Sort sessions
   const sortedSessions = useMemo(() => {
-    const sorted = [...sessions].sort((a, b) => {
-      const labelA = a.raceLabel || ""
-      const labelB = b.raceLabel || ""
-      const comparison = labelA.localeCompare(labelB, undefined, {
+    const sorted = [...filteredSessions]
+
+    sorted.sort((a, b) => {
+      let comparison = 0
+
+      switch (sortField) {
+        case "raceLabel":
+          comparison = a.raceLabel.localeCompare(b.raceLabel, undefined, {
         numeric: true,
         sensitivity: "base",
       })
+          break
+        case "className":
+          comparison = a.className.localeCompare(b.className)
+          break
+        case "startTime":
+          comparison = (a.startTime?.getTime() ?? 0) - (b.startTime?.getTime() ?? 0)
+          break
+        case "durationSeconds":
+          comparison = (a.durationSeconds ?? 0) - (b.durationSeconds ?? 0)
+          break
+        case "participantCount":
+          comparison = a.participantCount - b.participantCount
+          break
+      }
+
       return sortDirection === "asc" ? comparison : -comparison
     })
+
     return sorted
-  }, [sessions, sortDirection])
+  }, [filteredSessions, sortField, sortDirection])
 
-  // Paginate sessions
-  const totalSessions = sortedSessions.length
-  const totalPages = Math.ceil(totalSessions / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedSessions = sortedSessions.slice(startIndex, endIndex)
+  // Group sessions by class
+  const groupedSessions = useMemo<GroupedSessions[]>(() => {
+    if (!isGrouped) return []
 
-  // Reset to page 1 when items per page changes
-  const handleRowsPerPageChange = (newRowsPerPage: number) => {
-    setItemsPerPage(newRowsPerPage)
+    const groups = new Map<string, SessionData[]>()
+
+    sortedSessions.forEach((session) => {
+      if (!groups.has(session.className)) {
+        groups.set(session.className, [])
+      }
+      groups.get(session.className)!.push(session)
+    })
+
+    return Array.from(groups.entries()).map(([className, sessions]) => ({
+      className,
+      sessions,
+      isExpanded: groupExpanded[className] ?? true,
+    }))
+  }, [isGrouped, sortedSessions, groupExpanded])
+
+  // Pagination
+  const totalPages = Math.ceil(sortedSessions.length / pageSize)
+  const paginatedSessions = useMemo(() => {
+    if (isGrouped) return sortedSessions // No pagination when grouped
+    
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return sortedSessions.slice(startIndex, endIndex)
+  }, [sortedSessions, currentPage, pageSize, isGrouped])
+
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
+    setCurrentPage(1)
+  }, [sortField, sortDirection])
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return "↕"
+    }
+    return sortDirection === "asc" ? "↑" : "↓"
+  }
+
+  const handleToggleGroup = (className: string) => {
+    setGroupExpanded((prev) => ({
+      ...prev,
+      [className]: !prev[className],
+    }))
+  }
+
+  const handleClearFilters = () => {
+    setSearchTerm("")
     setCurrentPage(1)
   }
 
-  const toggleRow = (sessionId: string) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(sessionId)) {
-      newExpanded.delete(sessionId)
-    } else {
-      newExpanded.add(sessionId)
-    }
-    setExpandedRows(newExpanded)
-  }
-
-  const toggleSort = () => {
-    setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-  }
-
-  // Check if session has selected drivers
-  const hasSelectedDrivers = (session: SessionData): boolean => {
-    if (selectedDriverIds.length === 0) return false
-    return session.results.some((result) => selectedDriverIds.includes(result.driverId))
-  }
+  const activeFilterCount = searchTerm ? 1 : 0
 
   if (sessions.length === 0) {
     return (
-      <div className={`text-center py-12 text-[var(--token-text-secondary)] ${className}`}>
+      <ChartContainer
+        title="Sessions Overview"
+        className={className}
+        aria-label="Sessions table - no data available"
+      >
+        <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
         No sessions available
       </div>
+      </ChartContainer>
     )
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-[var(--token-border-default)]">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--token-text-primary)]">
+    <ChartContainer
+      title="Sessions Overview"
+      className={className}
+      aria-label="Sessions table with sorting, filtering, and expandable rows"
+    >
+      <div className="space-y-4">
+        {/* Controls Bar */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          {/* Left side: Search */}
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-1">
+            <input
+              type="text"
+              placeholder="Search sessions..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] w-full sm:w-64"
+            />
+          </div>
+
+          {/* Right side: Filters and pagination controls */}
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            {activeFilterCount > 0 && (
                 <button
                   type="button"
-                  onClick={toggleSort}
-                  className="flex items-center gap-2 hover:text-[var(--token-accent)] transition-colors"
+                onClick={handleClearFilters}
+                className="px-3 py-2 text-sm font-medium text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] rounded"
+              >
+                Clear Filters ({activeFilterCount})
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
+          <table
+            className="w-full min-w-[900px]"
+            aria-label="Sessions table"
+          >
+            <thead className="bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)]">
+              <tr>
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 >
-                  Race Label
-                  <span className="text-xs">{sortDirection === "asc" ? "↑" : "↓"}</span>
-                </button>
+                  Session Name
               </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--token-text-primary)]">
-                Class
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
+                >
+                  Class
               </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--token-text-primary)]">
-                Start Time
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
+                >
+                  Start Time
               </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--token-text-primary)]">
-                Duration
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
+                >
+                  Duration
               </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--token-text-primary)]">
-                Participants
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-center text-sm font-medium text-[var(--token-text-secondary)]"
+                >
+                  Participants
               </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--token-text-primary)]">
-                Top Finishers
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
+                >
+                  Top 3 Finishers
               </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-[var(--token-text-primary)]">
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
+                >
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody>
-            {paginatedSessions.map((session) => {
-              const isExpanded = expandedRows.has(session.id)
-              const hasSelected = hasSelectedDrivers(session)
-
-              return (
-                <tr
-                  key={session.id}
-                  className={`border-b border-[var(--token-border-default)] ${
-                    hasSelected
-                      ? "bg-[var(--token-surface-elevated)]"
-                      : "hover:bg-[var(--token-surface-elevated)]"
-                  } transition-colors`}
-                >
-                  <td className="py-3 px-4 text-sm text-[var(--token-text-primary)]">
-                    <button
-                      type="button"
-                      onClick={() => toggleRow(session.id)}
-                      className="flex items-center gap-2 hover:text-[var(--token-accent)] transition-colors"
+            <tbody className="bg-[var(--token-surface)]">
+              {isGrouped ? (
+                groupedSessions.map((group) => (
+                  <Fragment key={`group-${group.className}`}>
+                    <tr
+                      className="bg-[var(--token-surface-raised)] border-b border-[var(--token-border-default)] cursor-pointer hover:bg-[var(--token-surface-elevated)] transition-colors"
+                      onClick={() => handleToggleGroup(group.className)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          handleToggleGroup(group.className)
+                        }
+                      }}
+                      aria-expanded={group.isExpanded}
+                      aria-label={`${group.className} - ${group.sessions.length} sessions - Click to ${group.isExpanded ? "collapse" : "expand"}`}
                     >
-                      <span>{session.raceLabel}</span>
-                      <span className="text-xs">{isExpanded ? "▼" : "▶"}</span>
-                    </button>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-[var(--token-text-secondary)]">
-                    {session.className}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-[var(--token-text-secondary)]">
-                    {formatDateTime(session.startTime)}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-[var(--token-text-secondary)]">
-                    {formatDuration(session.durationSeconds)}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-[var(--token-text-secondary)]">
-                    {session.participantCount}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-[var(--token-text-secondary)]">
-                    <div className="space-y-1">
-                      {session.topFinishers.slice(0, 3).map((finisher) => (
-                        <div key={finisher.driverId}>
-                          {finisher.position}. {finisher.driverName}
+                      <td colSpan={7} className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-[var(--token-text-secondary)] transition-transform"
+                            style={{
+                              transform: group.isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                              display: "inline-block",
+                            }}
+                            aria-hidden="true"
+                          >
+                            ▶
+                          </span>
+                          <span className="text-[var(--token-text-primary)]">
+                            {group.className}
+                          </span>
+                          <span className="text-sm text-[var(--token-text-secondary)]">
+                            ({group.sessions.length} session{group.sessions.length !== 1 ? "s" : ""})
+                          </span>
                         </div>
+                      </td>
+                    </tr>
+                    {group.isExpanded &&
+                      group.sessions.map((session) => (
+                        <SessionsTableRow
+                          key={session.id}
+                          session={session}
+                          selectedDriverIds={selectedDriverIds}
+                          onNavigate={onNavigate}
+                        />
                       ))}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-[var(--token-text-secondary)]">
-                    Click to expand
-                  </td>
-                </tr>
-              )
-            })}
+                  </Fragment>
+                ))
+              ) : (
+                paginatedSessions.map((session) => (
+                  <SessionsTableRow
+                    key={session.id}
+                    session={session}
+                    selectedDriverIds={selectedDriverIds}
+                    onNavigate={onNavigate}
+                  />
+                ))
+              )}
           </tbody>
         </table>
+
+          {filteredSessions.length === 0 && (
+            <div className="flex items-center justify-center py-12 text-[var(--token-text-secondary)]">
+              No sessions match your filters
+            </div>
+          )}
       </div>
 
-      {/* Expanded rows for full results */}
-      {paginatedSessions.map((session) => {
-        if (!expandedRows.has(session.id)) {
-          return null
-        }
+        {/* Pagination (only show when not grouped) */}
+        {!isGrouped && (
+          <ListPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={pageSize}
+            totalItems={sortedSessions.length}
+            itemLabel="sessions"
+            rowsPerPageOptions={[5, 10, 25, 50, 100]}
+            onRowsPerPageChange={(newRowsPerPage) => {
+              setPageSize(newRowsPerPage)
+              setCurrentPage(1)
+            }}
+          />
+        )}
 
-        return (
-          <div
-            key={`expanded-${session.id}`}
-            className="border border-[var(--token-border-default)] rounded p-4 bg-[var(--token-surface-elevated)]"
-          >
-            <h4 className="text-sm font-semibold text-[var(--token-text-primary)] mb-3">
-              Full Results - {session.raceLabel}
-            </h4>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--token-border-default)]">
-                    <th className="text-left py-2 px-3 font-semibold text-[var(--token-text-primary)]">
-                      Position
-                    </th>
-                    <th className="text-left py-2 px-3 font-semibold text-[var(--token-text-primary)]">
-                      Driver
-                    </th>
-                    <th className="text-left py-2 px-3 font-semibold text-[var(--token-text-primary)]">
-                      Laps
-                    </th>
-                    <th className="text-left py-2 px-3 font-semibold text-[var(--token-text-primary)]">
-                      Best Lap
-                    </th>
-                    <th className="text-left py-2 px-3 font-semibold text-[var(--token-text-primary)]">
-                      Avg Lap
-                    </th>
-                    <th className="text-left py-2 px-3 font-semibold text-[var(--token-text-primary)]">
-                      Consistency
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {session.results.map((result) => {
-                    const isSelected = selectedDriverIds.includes(result.driverId)
-                    return (
-                      <tr
-                        key={result.raceResultId}
-                        className={`border-b border-[var(--token-border-default)] ${
-                          isSelected ? "bg-[var(--token-surface-elevated)]" : ""
-                        }`}
-                      >
-                        <td className="py-2 px-3 text-[var(--token-text-secondary)]">
-                          {result.positionFinal}
-                        </td>
-                        <td className="py-2 px-3 text-[var(--token-text-primary)]">
-                          {result.driverName}
-                        </td>
-                        <td className="py-2 px-3 text-[var(--token-text-secondary)]">
-                          {result.lapsCompleted}
-                        </td>
-                        <td className="py-2 px-3 text-[var(--token-text-secondary)]">
-                          {formatLapTime(result.fastLapTime)}
-                        </td>
-                        <td className="py-2 px-3 text-[var(--token-text-secondary)]">
-                          {formatLapTime(result.avgLapTime)}
-                        </td>
-                        <td className="py-2 px-3 text-[var(--token-text-secondary)]">
-                          {result.consistency !== null
-                            ? `${result.consistency.toFixed(1)}%`
-                            : "N/A"}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )
-      })}
-
-      {/* Pagination */}
-      {totalSessions > 0 && (
-        <ListPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          totalItems={totalSessions}
-          itemLabel="sessions"
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          onRowsPerPageChange={handleRowsPerPageChange}
-        />
+        {/* Results summary */}
+        <div className="text-sm text-[var(--token-text-secondary)] text-center">
+          {isGrouped ? (
+            <span>
+              Showing {filteredSessions.length} session{filteredSessions.length !== 1 ? "s" : ""} in {groupedSessions.length} class{groupedSessions.length !== 1 ? "es" : ""}
+            </span>
+          ) : (
+            <span>
+              Total: {sortedSessions.length} session{sortedSessions.length !== 1 ? "s" : ""}
+            </span>
       )}
     </div>
+      </div>
+    </ChartContainer>
   )
 }

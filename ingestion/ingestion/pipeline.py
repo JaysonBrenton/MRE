@@ -664,6 +664,9 @@ class IngestionPipeline:
         race_drivers_to_write: List[Dict[str, Any]] = []
         race_results_to_write: List[Dict[str, Any]] = []
         
+        # Track skipped drivers for logging
+        skipped_drivers: List[Dict[str, Any]] = []
+        
         # Mapping structures to track relationships
         race_id_map: Dict[str, str] = {}  # source_race_id -> race.id
         race_driver_id_map: Dict[Tuple[str, str], str] = {}  # (race_id, source_driver_id) -> race_driver.id
@@ -718,6 +721,33 @@ class IngestionPipeline:
                 if event_entries:
                     metrics.record_event_entry_cache_hit(str(event_id))
                 
+                # SKIP unmatched drivers - they don't belong in this class
+                # This ensures data integrity: drivers only appear in classes they're entered in.
+                # Multi-class drivers will still be processed when we encounter them in their actual classes.
+                if not matched_event_entry:
+                    skipped_drivers.append({
+                        "driver_id": normalized_result["source_driver_id"],
+                        "driver_name": normalized_result["display_name"],
+                        "class_name": class_name,
+                        "race_id": normalized_race["source_race_id"],
+                        "race_label": normalized_race["race_label"],
+                    })
+                    logger.warning(
+                        "race_result_driver_not_in_class",
+                        event_id=str(event_id),
+                        race_id=normalized_race["source_race_id"],
+                        race_label=normalized_race["race_label"],
+                        class_name=class_name,
+                        driver_id=normalized_result["source_driver_id"],
+                        driver_name=normalized_result["display_name"],
+                        message=(
+                            f"Skipping race result - driver '{normalized_result['display_name']}' "
+                            f"not found in entry list for class '{class_name}'. "
+                            f"This driver will still be processed if they appear in races for classes they ARE entered in."
+                        )
+                    )
+                    continue  # Skip this result - don't process unmatched drivers
+                
                 # Handle driver updates
                 driver_id = None
                 if matched_event_entry:
@@ -744,15 +774,6 @@ class IngestionPipeline:
                             driver_id = driver.id
                     else:
                         driver_id = driver.id
-                else:
-                    # Create driver from race result (fallback)
-                    driver = repo.upsert_driver(
-                        source="liverc",
-                        source_driver_id=normalized_result["source_driver_id"],
-                        display_name=normalized_result["display_name"],
-                        transponder_number=None,
-                    )
-                    driver_id = driver.id
                 
                 # Collect race_driver data (will write after races)
                 race_drivers_to_write.append({
@@ -789,6 +810,28 @@ class IngestionPipeline:
                     lap_copy["_source_driver_id"] = driver_source_id
                     accumulated_laps.append(lap_copy)
         
+        # Log summary of skipped drivers if any
+        if skipped_drivers:
+            # Group by class for summary
+            skipped_by_class: Dict[str, List[Dict[str, Any]]] = {}
+            for skipped in skipped_drivers:
+                class_name = skipped["class_name"]
+                if class_name not in skipped_by_class:
+                    skipped_by_class[class_name] = []
+                skipped_by_class[class_name].append(skipped)
+            
+            logger.info(
+                "race_results_skipped_summary",
+                event_id=str(event_id),
+                total_skipped=len(skipped_drivers),
+                skipped_by_class={class_name: len(drivers) for class_name, drivers in skipped_by_class.items()},
+                message=(
+                    f"Skipped {len(skipped_drivers)} race results from drivers not in entry lists. "
+                    f"These drivers will still be processed in classes they ARE entered in. "
+                    f"Classes affected: {', '.join(skipped_by_class.keys())}"
+                )
+            )
+        
         # Step 2: Bulk write races
         if races_to_write:
             races = repo.bulk_upsert_races(races_to_write)
@@ -816,6 +859,20 @@ class IngestionPipeline:
                 rr_data["race_driver_id"] = race_driver_id_map[(race_id, source_driver_id)]
             race_results = repo.bulk_upsert_race_results(race_results_to_write)
             results_ingested = len(race_results)
+            
+            # Step 4.5: Calculate and update race durations from results
+            # Calculate duration for all races that have results (only updates if duration_seconds is null)
+            if race_results_to_write:
+                # Get unique race IDs from results
+                unique_race_ids = list(set(UUID(race_id) for race_id in race_id_map.values()))
+                if unique_race_ids:
+                    updated_count = repo.calculate_and_update_race_durations(unique_race_ids)
+                    if updated_count > 0:
+                        logger.info(
+                            "race_durations_updated_from_results",
+                            updated_count=updated_count,
+                            total_races=len(unique_race_ids),
+                        )
             
             # Step 5: Update laps with race_result IDs
             for lap in accumulated_laps:
@@ -991,6 +1048,8 @@ class IngestionPipeline:
         This method:
         1. Creates/updates Driver records from entry list
         2. Creates EventEntry records linking drivers to classes
+        3. Creates EventRaceClass records with inferred vehicle types
+        4. Links EventEntry records to EventRaceClass records
         
         Args:
             entry_list: Entry list from connector
@@ -1000,6 +1059,8 @@ class IngestionPipeline:
         Returns:
             Dictionary with processing statistics
         """
+        from ingestion.ingestion.infer_vehicle_type import infer_vehicle_type
+        
         drivers_created = 0
         drivers_updated = 0
         entries_created = 0
@@ -1009,6 +1070,7 @@ class IngestionPipeline:
         # This will be updated when we match race results
         import hashlib
         
+        # First pass: Create drivers and entries
         for class_name, entry_drivers in entry_list.entries_by_class.items():
             for entry_driver in entry_drivers:
                 # Generate temporary source_driver_id from driver name
@@ -1040,6 +1102,28 @@ class IngestionPipeline:
                     car_number=entry_driver.car_number,
                 )
                 entries_created += 1
+        
+        # Second pass: Create EventRaceClass records and link entries
+        for class_name in entry_list.entries_by_class.keys():
+            # Infer vehicle type from race class name
+            inferred_vehicle_type = infer_vehicle_type(class_name)
+            
+            # Create or update EventRaceClass record
+            event_race_class = repo.upsert_event_race_class(
+                event_id=event_id,
+                class_name=class_name,
+                vehicle_type=inferred_vehicle_type if inferred_vehicle_type != "Unknown" else None,
+                vehicle_type_needs_review=True,
+            )
+            
+            # Update all EventEntry records with this className to reference the EventRaceClass
+            # We need to get all entries for this class and update them
+            entries = repo.get_event_entries_by_class(event_id, class_name)
+            for entry in entries:
+                if entry.event_race_class_id != event_race_class.id:
+                    entry.event_race_class_id = event_race_class.id
+                    entry.updated_at = datetime.utcnow()
+            # Session flush will happen when the transaction commits
         
         logger.info(
             "entry_list_processed",

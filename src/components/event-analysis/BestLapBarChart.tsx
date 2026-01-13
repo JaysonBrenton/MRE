@@ -46,6 +46,7 @@ export interface BestLapBarChartProps {
   onPageChange?: (page: number) => void
   onDriverToggle?: (driverId: string) => void
   chartInstanceId?: string
+  selectedClass?: string | null
 }
 
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
@@ -159,6 +160,7 @@ export default function BestLapBarChart({
   onPageChange,
   onDriverToggle,
   chartInstanceId,
+  selectedClass,
 }: BestLapBarChartProps) {
   const chartDescId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -263,6 +265,7 @@ export default function BestLapBarChart({
         height={height}
         className={className}
         aria-label="Best lap times chart - no data available"
+        selectedClass={selectedClass}
       >
         <div className="flex items-center justify-center h-full text-[var(--token-text-secondary)]">
           {validData.length === 0
@@ -282,6 +285,7 @@ export default function BestLapBarChart({
         aria-label="Best lap times per driver bar chart"
         chartInstanceId={chartInstanceId}
         onTitleClick={handleTitleClick}
+        selectedClass={selectedClass}
       >
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>

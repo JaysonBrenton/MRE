@@ -26,6 +26,7 @@ from ingestion.db.models import (
     Track,
     Event,
     EventEntry,
+    EventRaceClass,
     Race,
     Driver,
     RaceDriver,
@@ -522,6 +523,12 @@ class Repository:
         # First, ensure the normalized Driver exists
         driver = self.upsert_driver(source, source_driver_id, display_name)
         
+        # Fallback to Driver.display_name if display_name is empty or whitespace
+        # This ensures RaceDriver always has a valid display name
+        effective_display_name = display_name.strip() if display_name else ""
+        if not effective_display_name:
+            effective_display_name = driver.display_name.strip() if driver.display_name else "Unknown Driver"
+        
         # Now upsert the RaceDriver
         stmt = select(RaceDriver).where(
             and_(
@@ -533,7 +540,7 @@ class Repository:
         
         if race_driver:
             # Update existing (denormalized fields)
-            race_driver.display_name = display_name
+            race_driver.display_name = effective_display_name
             # Update transponder_number if provided (race-specific override always takes precedence)
             if transponder_number is not None:
                 race_driver.transponder_number = transponder_number
@@ -549,7 +556,7 @@ class Repository:
                 driver_id=_uuid_to_str(driver.id),  # Link to normalized Driver
                 source=source,  # Denormalized for query performance
                 source_driver_id=source_driver_id,  # Denormalized for query performance
-                display_name=display_name,  # Denormalized for query performance
+                display_name=effective_display_name,  # Denormalized for query performance (with fallback)
                 transponder_number=transponder_number,
             )
             # Set timestamps explicitly for new records
@@ -620,6 +627,59 @@ class Repository:
             metrics.record_db_insert("event_entries")
         
         return event_entry
+    
+    def upsert_event_race_class(
+        self,
+        event_id: UUID,
+        class_name: str,
+        vehicle_type: Optional[str] = None,
+        vehicle_type_needs_review: bool = True,
+    ) -> EventRaceClass:
+        """
+        Upsert event race class by natural key (event_id, class_name).
+        
+        Args:
+            event_id: Event ID
+            class_name: Race class name
+            vehicle_type: Inferred vehicle type (optional)
+            vehicle_type_needs_review: Whether vehicle type needs review (default: True)
+        
+        Returns:
+            EventRaceClass model instance
+        """
+        stmt = select(EventRaceClass).where(
+            and_(
+                EventRaceClass.event_id == _uuid_to_str(event_id),
+                EventRaceClass.class_name == class_name,
+            )
+        )
+        event_race_class = self.session.scalar(stmt)
+        
+        if event_race_class:
+            # Update existing
+            if vehicle_type is not None:
+                event_race_class.vehicle_type = vehicle_type
+            event_race_class.vehicle_type_needs_review = vehicle_type_needs_review
+            event_race_class.updated_at = datetime.utcnow()
+            logger.debug("event_race_class_updated", event_race_class_id=str(event_race_class.id), event_id=str(event_id), class_name=class_name)
+            metrics.record_db_update("event_race_classes")
+        else:
+            # Insert new
+            now = datetime.utcnow()
+            event_race_class = EventRaceClass(
+                event_id=_uuid_to_str(event_id),
+                class_name=class_name,
+                vehicle_type=vehicle_type,
+                vehicle_type_needs_review=vehicle_type_needs_review,
+            )
+            event_race_class.created_at = now
+            event_race_class.updated_at = now
+            self.session.add(event_race_class)
+            self.session.flush()
+            logger.debug("event_race_class_created", event_id=str(event_id), class_name=class_name, vehicle_type=vehicle_type)
+            metrics.record_db_insert("event_race_classes")
+        
+        return event_race_class
     
     def get_event_entries_by_event(
         self,
@@ -986,7 +1046,61 @@ class Repository:
         metrics.record_db_insert("race_drivers", len(race_drivers_data))
         logger.debug("bulk_upsert_race_drivers_complete", count=len(race_drivers_data))
         
+        # Fix empty display_names by falling back to Driver.display_name
+        self._fix_empty_race_driver_display_names(race_drivers_data)
+        
         return race_drivers
+    
+    def _fix_empty_race_driver_display_names(
+        self,
+        race_drivers_data: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Fix empty or whitespace-only display_names in RaceDriver records
+        by falling back to the related Driver.display_name.
+        
+        Args:
+            race_drivers_data: List of race driver data dictionaries
+            
+        Returns:
+            Number of records updated
+        """
+        if not race_drivers_data:
+            return 0
+        
+        # Use SQL to update empty display_names with Driver.display_name
+        stmt = text("""
+            UPDATE race_drivers rd
+            SET 
+                display_name = COALESCE(
+                    NULLIF(TRIM(d.display_name), ''),
+                    'Unknown Driver'
+                ),
+                updated_at = NOW()
+            FROM drivers d
+            WHERE 
+                rd.driver_id = d.id
+                AND (
+                    rd.display_name IS NULL 
+                    OR TRIM(rd.display_name) = ''
+                )
+                AND (
+                    d.display_name IS NOT NULL 
+                    AND TRIM(d.display_name) != ''
+                )
+        """)
+        
+        result = self.session.execute(stmt)
+        updated_count = result.rowcount
+        
+        if updated_count > 0:
+            logger.info(
+                "race_driver_display_names_fixed",
+                updated_count=updated_count,
+            )
+            metrics.record_db_update("race_drivers", updated_count)
+        
+        return updated_count
     
     def bulk_upsert_race_results(
         self,
@@ -1070,6 +1184,67 @@ class Repository:
         logger.debug("bulk_upsert_race_results_complete", count=len(race_results_data))
         
         return race_results
+    
+    def calculate_and_update_race_durations(
+        self,
+        race_ids: List[UUID],
+    ) -> int:
+        """
+        Calculate race duration from race results and update race records.
+        
+        For each race, calculates duration as the maximum total_time_seconds
+        from all race results. Only updates races where duration_seconds is null
+        and valid total_time_seconds exist in results.
+        
+        Args:
+            race_ids: List of race IDs to update
+            
+        Returns:
+            Number of races updated
+        """
+        if not race_ids:
+            return 0
+        
+        # Convert UUIDs to strings for query
+        race_id_strs = [_uuid_to_str(rid) for rid in race_ids]
+        
+        # Query to get max total_time_seconds for each race
+        # Only consider results with valid (non-null, positive) total_time_seconds
+        stmt = text("""
+            WITH race_durations AS (
+                SELECT 
+                    rr.race_id,
+                    MAX(rr.total_time_seconds)::INTEGER AS calculated_duration
+                FROM race_results rr
+                WHERE 
+                    rr.race_id = ANY(:race_ids)
+                    AND rr.total_time_seconds IS NOT NULL
+                    AND rr.total_time_seconds > 0
+                GROUP BY rr.race_id
+            )
+            UPDATE races r
+            SET 
+                duration_seconds = rd.calculated_duration,
+                updated_at = NOW()
+            FROM race_durations rd
+            WHERE 
+                r.id = rd.race_id
+                AND r.duration_seconds IS NULL
+            RETURNING r.id
+        """)
+        
+        result = self.session.execute(stmt, {"race_ids": race_id_strs})
+        updated_count = result.rowcount
+        
+        if updated_count > 0:
+            logger.info(
+                "race_durations_calculated",
+                race_count=updated_count,
+                total_races=len(race_ids),
+            )
+            metrics.record_db_update("races", updated_count)
+        
+        return updated_count
     
     def bulk_upsert_laps(
         self,

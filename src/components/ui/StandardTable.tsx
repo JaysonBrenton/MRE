@@ -67,7 +67,7 @@ export function StandardTableHeader({ children, className = "" }: StandardTableH
 
 export function StandardTableRow({ children, className = "", onClick }: StandardTableRowProps) {
   const baseClasses = "border-b border-[var(--token-border-default)]"
-  const interactiveClasses = onClick ? "hover:bg-[var(--token-surface)] cursor-pointer" : "hover:bg-[var(--token-surface)]"
+  const interactiveClasses = onClick ? "hover:bg-[var(--token-surface-raised)] cursor-pointer" : "hover:bg-[var(--token-surface-raised)]"
   
   return (
     <tr
@@ -82,7 +82,7 @@ export function StandardTableRow({ children, className = "", onClick }: Standard
 export function StandardTableCell({ children, className = "", header = false }: StandardTableCellProps) {
   const baseClasses = header
     ? "px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-    : "px-4 py-3 text-[var(--token-text-primary)]"
+    : "px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]"
   
   const Component = header ? "th" : "td"
   

@@ -31,6 +31,8 @@
   /* Border colors */
   --token-border-default: #26272e;
   --token-border-muted: #1a1b20;
+  --token-border-aluminium: #a8aeb8;
+  --token-border-accent-soft: rgba(58, 142, 255, 0.75);
   
   /* Interactive colors */
   --token-interactive-focus: #6b7280;
@@ -100,6 +102,13 @@
   --token-font-size-3xl: 1.875rem;  /* 30px */
   --token-font-size-4xl: 2.25rem;   /* 36px */
   --token-font-size-5xl: 3rem;      /* 48px */
+  
+  /* Glass effect tokens for chart containers */
+  --glass-bg: rgba(17, 18, 20, 0.6); /* --token-surface-elevated with 60% opacity */
+  --glass-border: rgba(38, 39, 46, 0.3); /* --token-border-default with 30% opacity */
+  --glass-blur: blur(12px) saturate(180%);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass-shadow-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Light theme overrides */
@@ -116,6 +125,8 @@
   /* Border colors */
   --token-border-default: #d4d4d4;
   --token-border-muted: #e5e5e5;
+  --token-border-aluminium: #808080;
+  --token-border-accent-soft: rgba(37, 99, 235, 0.65);
   
   /* Interactive colors */
   --token-interactive-focus: #737373;
@@ -153,6 +164,12 @@
   --token-status-warning-text: #ca8a04;
   --token-status-error-bg: rgba(239, 68, 68, 0.12);
   --token-status-error-text: #dc2626;
+  
+  /* Glass effect tokens for light theme */
+  --glass-bg: rgba(245, 245, 245, 0.7); /* --token-surface-elevated with 70% opacity */
+  --glass-border: rgba(212, 212, 212, 0.3); /* --token-border-default with 30% opacity */
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  --glass-shadow-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
 }
 
 /* ============================================================================

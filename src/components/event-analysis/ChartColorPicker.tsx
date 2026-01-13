@@ -18,6 +18,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useLayoutEffect } from "react"
+import { createPortal } from "react-dom"
 
 /**
  * Preset color palette optimized for dark theme
@@ -63,7 +64,10 @@ export default function ChartColorPicker({
   // Adjust position to stay within viewport bounds
   useLayoutEffect(() => {
     if (!position || !popoverRef.current) {
-      setAdjustedPosition(position || null)
+      // Use requestAnimationFrame to avoid synchronous setState
+      requestAnimationFrame(() => {
+        setAdjustedPosition(position || null)
+      })
       return
     }
 
@@ -101,7 +105,10 @@ export default function ChartColorPicker({
       adjustedTop = padding
     }
 
-    setAdjustedPosition({ top: adjustedTop, left: adjustedLeft })
+    // Use requestAnimationFrame to avoid synchronous setState
+    requestAnimationFrame(() => {
+      setAdjustedPosition({ top: adjustedTop, left: adjustedLeft })
+    })
   }, [position])
 
   // Handle clicks outside the popover to close it
@@ -163,24 +170,24 @@ export default function ChartColorPicker({
         position: "fixed",
         top: `${adjustedPosition.top}px`,
         left: `${adjustedPosition.left}px`,
-        zIndex: 1000,
+        zIndex: 9999,
       }
     : position
     ? {
         position: "fixed",
         top: `${position.top}px`,
         left: `${position.left}px`,
-        zIndex: 1000,
+        zIndex: 9999,
       }
     : {
         position: "absolute",
         top: "100%",
         left: 0,
         marginTop: "8px",
-        zIndex: 1000,
+        zIndex: 9999,
       }
 
-  return (
+  const popoverContent = (
     <div
       ref={popoverRef}
       className="bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-lg shadow-lg p-4 min-w-[280px]"
@@ -259,5 +266,14 @@ export default function ChartColorPicker({
       </div>
     </div>
   )
+
+  // Render using portal to avoid stacking context issues
+  // This ensures the popover appears above all other content
+  if (typeof window !== "undefined" && document.body) {
+    return createPortal(popoverContent, document.body)
+  }
+
+  // Fallback for SSR (shouldn't happen in practice since this is a client component)
+  return popoverContent
 }
 

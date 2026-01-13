@@ -48,7 +48,7 @@ function DashboardShell({
         className={`flex min-h-screen flex-1 flex-col transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarMargin}`}
       >
         <TopStatusBar user={user ?? null} userId={userId} />
-        <div className="flex-1 overflow-y-auto px-4 py-6 pb-12 sm:px-6 lg:px-10">{children}</div>
+        <div className="flex-1 overflow-y-auto px-1 py-6 pb-12 sm:px-2 md:px-2 lg:px-2 xl:px-4 2xl:px-6">{children}</div>
       </div>
       <CommandPalette />
     </div>

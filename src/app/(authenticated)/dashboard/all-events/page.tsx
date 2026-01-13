@@ -7,7 +7,7 @@ export default function AllEventsPage() {
   const router = useRouter()
   
   useEffect(() => {
-    router.replace("/under-development")
+    router.replace(`/under-development?from=${encodeURIComponent("/dashboard/all-events")}`)
   }, [router])
   
   return null

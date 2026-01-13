@@ -8,6 +8,8 @@
 # 
 # @purpose Exposes ingestion operations via REST API
 
+import asyncio
+import os
 from datetime import datetime, date
 from typing import Dict, Any, Optional
 from uuid import UUID
@@ -19,7 +21,7 @@ from sqlalchemy.orm import Session
 from ingestion.common.logging import get_logger
 from ingestion.connectors.liverc.connector import LiveRCConnector
 from ingestion.db.repository import Repository
-from ingestion.db.session import get_db
+from ingestion.db.session import SessionLocal, get_db
 from ingestion.ingestion.errors import (
     IngestionError,
     IngestionInProgressError,
@@ -28,6 +30,8 @@ from ingestion.ingestion.errors import (
 )
 from ingestion.common.site_policy import RobotsDisallowedError
 from ingestion.ingestion.pipeline import IngestionPipeline
+from ingestion.services.track_sync_service import TrackSyncService
+from ingestion.api.jobs import TRACK_SYNC_JOBS
 
 logger = get_logger(__name__)
 
@@ -72,123 +76,55 @@ class EntryListRequest(BaseModel):
 
 
 @router.post("/tracks/sync")
-async def sync_tracks(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """
-    Sync track catalogue from LiveRC.
-    
-    Returns:
-        Sync summary with counts of tracks added, updated, and deactivated
-    """
-    logger.info("sync_tracks_start")
-    
+async def sync_tracks(include_metadata: bool = True) -> Dict[str, Any]:
+    """Kick off asynchronous track sync job."""
+    job = TRACK_SYNC_JOBS.create()
+    logger.info(
+        "sync_tracks_job_created",
+        job_id=job.id,
+        include_metadata=include_metadata,
+    )
+    asyncio.create_task(_run_track_sync_job(job.id, include_metadata))
+    return {"jobId": job.id}
+
+
+@router.get("/tracks/sync/{job_id}")
+async def get_track_sync_job(job_id: str) -> Dict[str, Any]:
+    job = TRACK_SYNC_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail={"error": "JOB_NOT_FOUND"})
+    return job.to_dict()
+
+
+async def _run_track_sync_job(job_id: str, include_metadata: bool) -> None:
+    TRACK_SYNC_JOBS.set_running(job_id)
+    session = SessionLocal()
     try:
+        repository = Repository(session)
         connector = LiveRCConnector()
-        repository = Repository(db)
-        
-        # Fetch tracks from LiveRC
-        tracks = await connector.list_tracks()
-        
-        # Track sync statistics
-        tracks_added = 0
-        tracks_updated = 0
-        seen_slugs = set()
-        
-        # Upsert each track
-        for track_summary in tracks:
-            seen_slugs.add(track_summary.source_track_slug)
-            
-            # Upsert track (repository handles insert vs update)
-            from ingestion.db.models import Track
-            existing = db.query(Track).filter(
-                Track.source == track_summary.source,
-                Track.source_track_slug == track_summary.source_track_slug
-            ).first()
-            
-            if existing:
-                tracks_updated += 1
-            else:
-                tracks_added += 1
-            
-            repository.upsert_track(
-                source=track_summary.source,
-                source_track_slug=track_summary.source_track_slug,
-                track_name=track_summary.track_name,
-                track_url=track_summary.track_url,
-                events_url=track_summary.events_url,
-                liverc_track_last_updated=track_summary.liverc_track_last_updated,
-                is_active=True,
-            )
-        
-        # Mark tracks not in latest sync as inactive
-        from ingestion.db.models import Track
-        all_tracks = db.query(Track).filter(Track.source == "liverc").all()
-        tracks_deactivated = 0
-        
-        for track in all_tracks:
-            if track.source_track_slug not in seen_slugs:
-                track.is_active = False
-                tracks_deactivated += 1
-        
-        db.commit()
-        
-        logger.info(
-            "sync_tracks_success",
-            tracks_added=tracks_added,
-            tracks_updated=tracks_updated,
-            tracks_deactivated=tracks_deactivated,
+        metadata_concurrency = int(os.getenv("TRACK_SYNC_METADATA_CONCURRENCY", "6"))
+        service = TrackSyncService(
+            db=session,
+            repository=repository,
+            connector=connector,
+            metadata_concurrency=metadata_concurrency,
         )
-        
-        return {
-            "tracks_added": tracks_added,
-            "tracks_updated": tracks_updated,
-            "tracks_deactivated": tracks_deactivated,
-            "total_tracks": len(tracks),
-        }
-    
-    except ConnectorHTTPError as e:
-        logger.error("sync_tracks_http_error", error=str(e))
-        db.rollback()
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "error": {
-                    "code": "CONNECTOR_HTTP_ERROR",
-                    "source": "connector",
-                    "message": str(e),
-                    "details": {},
-                }
-            },
+
+        def progress(stage: str, processed: int, total: int) -> None:
+            TRACK_SYNC_JOBS.update_progress(job_id, stage, processed, total)
+
+        result = await service.run(
+            include_metadata=include_metadata,
+            progress_cb=progress,
+            generate_report=True,
         )
-    
-    except EventPageFormatError as e:
-        logger.error("sync_tracks_parse_error", error=str(e))
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": {
-                    "code": "PAGE_FORMAT_ERROR",
-                    "source": "connector",
-                    "message": str(e),
-                    "details": {},
-                }
-            },
-        )
-    
-    except Exception as e:
-        logger.error("sync_tracks_error", error=str(e), exc_info=True)
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": {
-                    "code": "INTERNAL_ERROR",
-                    "source": "api",
-                    "message": "Internal server error",
-                    "details": {},
-                }
-            },
-        )
+        TRACK_SYNC_JOBS.complete(job_id, result)
+    except Exception as exc:  # pragma: no cover - background execution
+        session.rollback()
+        TRACK_SYNC_JOBS.fail(job_id, str(exc))
+        logger.error("track_sync_job_failed", job_id=job_id, error=str(exc), exc_info=True)
+    finally:
+        session.close()
 
 
 @router.post("/events/sync")
@@ -859,4 +795,3 @@ async def get_ingestion_status(
         "ingest_depth": event.ingest_depth.value,
         "last_ingested_at": event.last_ingested_at.isoformat() if event.last_ingested_at else None,
     }
-

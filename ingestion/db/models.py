@@ -143,6 +143,7 @@ class Event(Base):
     races = relationship("Race", back_populates="event", cascade="all, delete-orphan")
     entries = relationship("EventEntry", back_populates="event", cascade="all, delete-orphan")
     driver_links = relationship("EventDriverLink", back_populates="event", cascade="all, delete-orphan")
+    race_classes = relationship("EventRaceClass", back_populates="event", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("source", "source_event_id", name="events_source_source_event_id_key"),
@@ -163,17 +164,44 @@ class EventEntry(Base):
     class_name = Column("class_name", String, nullable=False)
     transponder_number = Column("transponder_number", String, nullable=True)
     car_number = Column("car_number", String, nullable=True)
+    event_race_class_id = Column("event_race_class_id", String, ForeignKey("event_race_classes.id", ondelete="SET NULL"), nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     event = relationship("Event", back_populates="entries")
     driver = relationship("Driver", back_populates="event_entries")
+    event_race_class = relationship("EventRaceClass", back_populates="entries")
 
     __table_args__ = (
         UniqueConstraint("event_id", "driver_id", "class_name", name="event_entries_event_id_driver_id_class_name_key"),
         Index("event_entries_event_id_idx", "event_id"),
         Index("event_entries_driver_id_idx", "driver_id"),
         Index("event_entries_class_name_idx", "class_name"),
+        Index("event_entries_event_race_class_id_idx", "event_race_class_id"),
+    )
+
+
+class EventRaceClass(Base):
+    """EventRaceClass model representing race class metadata for an event."""
+    __tablename__ = "event_race_classes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    event_id = Column("event_id", String, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    class_name = Column("class_name", String, nullable=False)
+    vehicle_type = Column("vehicle_type", String, nullable=True)
+    vehicle_type_needs_review = Column("vehicle_type_needs_review", Boolean, default=True, nullable=False)
+    vehicle_type_reviewed_at = Column("vehicle_type_reviewed_at", DateTime(timezone=True), nullable=True)
+    vehicle_type_reviewed_by = Column("vehicle_type_reviewed_by", String, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    event = relationship("Event", back_populates="race_classes")
+    entries = relationship("EventEntry", back_populates="event_race_class")
+
+    __table_args__ = (
+        UniqueConstraint("event_id", "class_name", name="event_race_classes_event_id_class_name_key"),
+        Index("event_race_classes_event_id_idx", "event_id"),
+        Index("event_race_classes_event_id_class_name_idx", "event_id", "class_name"),
     )
 
 

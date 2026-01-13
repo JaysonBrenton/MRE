@@ -23,6 +23,7 @@ import { redirect } from "next/navigation"
 import DashboardLayout from "@/components/dashboard/DashboardLayout"
 import ReduxProvider from "@/components/store/ReduxProvider"
 import Footer from "@/components/Footer"
+import EventAnalysisHeaderWrapper from "@/components/dashboard/EventAnalysisHeaderWrapper"
 
 export default async function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -35,6 +36,7 @@ export default async function AuthenticatedLayout({ children }: { children: Reac
     <ReduxProvider>
       <DashboardLayout user={session.user} userId={session.user.id}>
         <div className="flex min-h-full flex-col">
+          <EventAnalysisHeaderWrapper />
           <main id="main-content" className="page-container w-full min-w-0 flex-1" tabIndex={-1}>
             {children}
           </main>

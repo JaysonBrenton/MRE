@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useMemo, useState, type ReactElement } from "react"
+import Tooltip from "@/components/ui/Tooltip"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { toggleNavCollapsed } from "@/store/slices/uiSlice"
 
@@ -55,9 +56,9 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/event-search",
-    label: "Event Search",
-    description: "Find and import events",
+    href: "/search",
+    label: "Search",
+    description: "Search events and sessions",
     icon: (active) => (
       <svg
         className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
@@ -90,6 +91,60 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    href: "/dashboard/car-profiles",
+    label: "My Car Profiles",
+    description: "Manage car profiles & setups",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="m12 15 2 2 4-4"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 9h6M9 12h6M9 15h3"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/dashboard/driver-profiles",
+    label: "My Driver Profiles",
+    description: "Manage driver profiles",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth={1.5} />
+      </svg>
+    ),
+  },
+  {
     href: "/dashboard/my-engineer",
     label: "My Engineer",
     description: "Racing intelligence hub",
@@ -110,7 +165,35 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/under-development",
+    href: "/under-development?from=/dashboard/my-club",
+    label: "My Club",
+    description: "Home club dashboard & community",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M3 21h18M5 21V7l7-4 7 4v14"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 9v6m6-6v6"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="4" r="1.5" stroke="currentColor" strokeWidth={1.5} />
+      </svg>
+    ),
+  },
+  {
+    href: "/under-development?from=/dashboard/my-team",
     label: "My Team",
     description: "Team dashboard & insights",
     icon: (active) => (
@@ -165,6 +248,140 @@ const GUIDE_ITEMS: GuideItem[] = [
       </svg>
     ),
   },
+  {
+    href: "/guides/event-search",
+    label: "Event Search",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth={1.5} />
+        <path d="m20 20-4-4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/guides/event-analysis",
+    label: "Event Analysis",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M3 3v18h18M7 16l4-4 4 4 6-6"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/guides/dashboard",
+    label: "Dashboard",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/guides/driver-features",
+    label: "Driver Features",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M12 14a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 0c-5 0-7 3-7 5v1h14v-1c0-2-2-5-7-5z"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/guides/navigation",
+    label: "Navigation",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M3 12h18M3 6h18M3 18h18"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/guides/account-management",
+    label: "Account Management",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/guides/troubleshooting",
+    label: "Troubleshooting",
+    icon: (active) => (
+      <svg
+        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={1.5} />
+        <path
+          d="M12 16v-4M12 8h.01"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
 ]
 
 const STORAGE_KEY_GUIDES_EXPANDED = "mre-user-guides-expanded"
@@ -214,6 +431,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     const stored = window.localStorage.getItem(STORAGE_KEY_GUIDES_EXPANDED)
     return stored === "true"
   })
+  const [isGuidesMenuExpanded, setIsGuidesMenuExpanded] = useState(false)
 
   const navWidth = isNavCollapsed ? "w-[80px]" : "w-64"
 
@@ -278,13 +496,12 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
           const active = isExternal
             ? false
             : pathname === item.href || pathname.startsWith(`${item.href}/`)
-          return (
+          const linkElement = (
             <Link
-              key={item.href}
               href={item.href}
-              className={`group flex flex-col ${isNavCollapsed ? "items-center" : "items-stretch"} rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
-              title={item.label}
+              className={`group flex flex-col ${isNavCollapsed ? "items-center" : "items-stretch"} rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
               aria-current={active ? "page" : undefined}
+              aria-label={item.label}
             >
               <div className={`flex items-center ${isNavCollapsed ? "justify-center" : "gap-3"}`}>
                 {item.icon(active)}
@@ -303,6 +520,19 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
               )}
             </Link>
           )
+
+          // Only show tooltip when nav is collapsed (icon-only mode)
+          return (
+            <div key={item.label}>
+              {isNavCollapsed ? (
+                <Tooltip text={item.label} position="right">
+                  {linkElement}
+                </Tooltip>
+              ) : (
+                linkElement
+              )}
+            </div>
+          )
         })}
       </nav>
 
@@ -310,27 +540,78 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
       <div className="border-t border-[var(--token-border-muted)] px-2 py-4">
         {isNavCollapsed ? (
           <div className="space-y-1">
-            {GUIDE_ITEMS.map((guide) => {
-              const active = isGuideActive(guide.href)
-              return (
-                <Link
-                  key={guide.href}
-                  href={guide.href}
-                  className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
-                  title={guide.label}
-                  aria-current={active ? "page" : undefined}
+            {/* Guides menu toggle - links to /guides and expands menu on click */}
+            {(() => {
+              const guidesIndexActive = pathname === "/guides" || pathname.startsWith("/guides/")
+              const guidesIcon = (
+                <svg
+                  className={`h-5 w-5 transition-transform ${guidesIndexActive ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"} ${isGuidesMenuExpanded ? "rotate-90" : ""}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
                 >
-                  {guide.icon(active)}
-                </Link>
+                  <path
+                    d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               )
-            })}
+              return (
+                <div>
+                  <Link
+                    href="/guides"
+                    onClick={(e) => {
+                      // Toggle menu on left click instead of navigating
+                      e.preventDefault()
+                      setIsGuidesMenuExpanded(!isGuidesMenuExpanded)
+                    }}
+                    className={`group flex w-full items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                      isGuidesMenuExpanded ? "bg-[var(--token-surface-raised)]/50" : ""
+                    }`}
+                    aria-label="Guides"
+                    aria-expanded={isGuidesMenuExpanded}
+                  >
+                    <Tooltip text="Guides" position="right">
+                      {guidesIcon}
+                    </Tooltip>
+                  </Link>
+                  {isGuidesMenuExpanded && (
+                    <div className="mt-1 space-y-1">
+                      {GUIDE_ITEMS.map((guide) => {
+                        const active = isGuideActive(guide.href)
+                        const linkContent = (
+                          <Link
+                            key={guide.href}
+                            href={guide.href}
+                            className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                              active ? "bg-[var(--token-surface-raised)]/30" : ""
+                            }`}
+                            aria-current={active ? "page" : undefined}
+                            aria-label={guide.label}
+                          >
+                            {guide.icon(active)}
+                          </Link>
+                        )
+                        return (
+                          <Tooltip key={guide.href} text={guide.label} position="right">
+                            {linkContent}
+                          </Tooltip>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         ) : (
           <>
             <button
               type="button"
               onClick={toggleGuidesExpanded}
-              className="group flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+              className="group flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
               aria-label="User Guides"
               aria-expanded={isGuidesExpanded}
             >
@@ -374,7 +655,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
                     <Link
                       key={guide.href}
                       href={guide.href}
-                      className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                      className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
                         active
                           ? "font-medium text-[var(--token-text-primary)]"
                           : "text-[var(--token-text-secondary)]"

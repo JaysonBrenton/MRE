@@ -20,7 +20,6 @@
  */
 
 import Breadcrumbs from "@/components/Breadcrumbs"
-import EventAnalysisHeader from "@/components/event-analysis/EventAnalysisHeader"
 import { getEventAnalysisData } from "@/core/events/get-event-analysis-data"
 import EventAnalysisClient from "./EventAnalysisClient"
 
@@ -39,7 +38,7 @@ export default async function EventAnalysisPage({ params }: EventAnalysisPagePro
   if (!analysisData) {
     return (
       <section className="content-wrapper mx-auto w-full min-w-0 max-w-4xl">
-        <div className="text-center space-y-4">
+        <div className="w-full text-center space-y-4">
           <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
             Event Not Found
           </h1>
@@ -59,11 +58,6 @@ export default async function EventAnalysisPage({ params }: EventAnalysisPagePro
           { label: "Event Search", href: "/event-search" },
           { label: analysisData.event.eventName },
         ]}
-      />
-      <EventAnalysisHeader
-        eventName={analysisData.event.eventName}
-        eventDate={analysisData.event.eventDate}
-        trackName={analysisData.event.trackName}
       />
 
       <EventAnalysisClient initialData={analysisData} />

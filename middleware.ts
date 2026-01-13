@@ -173,7 +173,8 @@ export async function middleware(request: NextRequest) {
     // Handle /welcome redirect in middleware to prevent page component from rendering
     // This avoids Next.js performance measurement errors when components redirect immediately
     if (pathname === "/welcome" || pathname.startsWith("/welcome/")) {
-      const session = await auth(request as unknown as Request)
+      // Call auth() without arguments to get the session object
+      const session = await auth()
       
       if (!session?.user) {
         // Not authenticated - redirect to login
@@ -208,21 +209,24 @@ export async function middleware(request: NextRequest) {
     }
 
     // Delegate to NextAuth for authentication on protected routes
-    // The auth() function handles:
+    // The auth() function with request parameter handles:
     // - Session validation
     // - Redirects for unauthenticated users
     // - Admin role checks
-    // Note: NextAuth's auth() expects a Request, but NextRequest extends Request
-    const authResponse = await auth(request as unknown as Request)
+    // Note: auth(request) returns a Response if there's a redirect/error, or session object if authorized
+    const authResult = await auth(request as unknown as Request)
     
-    // Add security headers to auth response
-    // auth() returns NextResponse or Response, so we need to handle both
-    if (authResponse instanceof NextResponse) {
-      return addSecurityHeaders(authResponse, isProduction)
+    // If auth() returned a Response (redirect, 401, etc.), return it directly
+    // This preserves the status code, headers, cookies, and body that NextAuth set
+    if (authResult instanceof Response) {
+      // Use NextResponse.from() to properly convert the Response while preserving all properties
+      const nextResponse = NextResponse.from(authResult)
+      return addSecurityHeaders(nextResponse, isProduction)
     }
     
-    // If auth() returns a Response (not NextResponse), convert it
-    const nextResponse = NextResponse.next(authResponse)
+    // If auth() returned a session object (not a Response), the user is authorized
+    // Continue with the request
+    const nextResponse = NextResponse.next()
     return addSecurityHeaders(nextResponse, isProduction)
   } catch (error) {
     // Log middleware errors

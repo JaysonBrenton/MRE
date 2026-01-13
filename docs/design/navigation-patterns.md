@@ -144,6 +144,60 @@ Simplified hamburger menus provide a basic navigation toggle for mobile devices 
 
 ---
 
+## Sidebar Navigation
+
+### Purpose
+
+Sidebar navigation provides persistent access to main application sections. The sidebar can be collapsed to icon-only mode for a more compact view, or expanded to show full labels and descriptions.
+
+### Implementation Guidelines
+
+**Collapsed Mode (Icon-Only):**
+- Sidebar width: 80px
+- Only icons visible
+- Tooltips appear on hover to show item labels
+- All main navigation items remain accessible
+- Guides section has special expandable menu behavior
+
+**Expanded Mode:**
+- Sidebar width: 256px (w-64)
+- Icons, labels, and descriptions visible
+- Full navigation context available
+- Guides section shows collapsible "User Guides" button
+
+### Guides Menu Behavior
+
+**Collapsed Sidebar:**
+- Guides icon appears at bottom of sidebar
+- Clicking the icon expands an inline menu showing all guide items
+- Icon rotates 90 degrees when menu is expanded
+- Each guide item appears as an icon with tooltip
+- Menu stays open when navigating to a guide
+- Click icon again to collapse menu
+- Icon links to `/guides` (guides index page)
+
+**Expanded Sidebar:**
+- "User Guides" button with expand/collapse functionality
+- Expanded state persisted in localStorage
+- All guides listed with full names
+- Click button to toggle expanded state
+
+**Design Requirements:**
+- Smooth transitions when expanding/collapsing
+- Visual feedback for expanded state (icon rotation, background highlight)
+- Consistent spacing and styling with rest of sidebar
+- Tooltips for all guide items in collapsed mode
+- Active state highlighting for current guide
+
+**Accessibility:**
+- ARIA expanded state: `aria-expanded="true"` / `aria-expanded="false"`
+- Proper ARIA labels for guides menu button
+- Tooltip support for icon-only items
+- Keyboard navigation support
+- Screen reader announcements for menu state changes
+
+---
+
 ## Multi-Level Dropdown Menus (Secondary Pattern)
 
 ### Purpose

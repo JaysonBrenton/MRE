@@ -60,12 +60,28 @@ export async function POST(request: NextRequest) {
 
     // Get driver name from session
     const driverName = session.user.name
-    if (!driverName) {
-      requestLogger.warn("No driver name in session")
+    if (!driverName || typeof driverName !== "string" || driverName.trim().length === 0) {
+      requestLogger.warn("No driver name in session or invalid format")
       return errorResponse(
         "VALIDATION_ERROR",
-        "Driver name not found in session",
+        "Driver name not found in session or invalid format",
         {},
+        400
+      )
+    }
+
+    // Validate driver name format (max length, basic character validation)
+    const trimmedDriverName = driverName.trim()
+    const MAX_DRIVER_NAME_LENGTH = 100
+    if (trimmedDriverName.length > MAX_DRIVER_NAME_LENGTH) {
+      requestLogger.warn("Driver name exceeds maximum length", {
+        length: trimmedDriverName.length,
+        maxLength: MAX_DRIVER_NAME_LENGTH,
+      })
+      return errorResponse(
+        "VALIDATION_ERROR",
+        `Driver name exceeds maximum length of ${MAX_DRIVER_NAME_LENGTH} characters`,
+        { field: "driverName" },
         400
       )
     }
@@ -116,31 +132,62 @@ export async function POST(request: NextRequest) {
     // Add overall timeout for the entire operation (5 minutes max)
     // This prevents the API route from hanging indefinitely
     const overallTimeoutMs = 5 * 60 * 1000 // 5 minutes
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Entry list check timed out after ${overallTimeoutMs / 1000} seconds. Some events may still be processing.`))
-      }, overallTimeoutMs)
-    })
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => {
+      abortController.abort()
+    }, overallTimeoutMs)
 
-    // Call core business logic function with timeout
-    const result = await Promise.race([
-      checkEntryListsForDriver(livercEvents, dbEvents, driverName),
-      timeoutPromise,
-    ])
+    try {
+      // Call core business logic function with abort signal
+      const result = await checkEntryListsForDriver(
+        livercEvents,
+        dbEvents,
+        driverName,
+        abortController.signal
+      )
 
-    requestLogger.info("Entry list check completed", {
-      driverName,
-      checkedEvents: livercEvents.length,
-      foundInEvents: Object.values(result.driverInEvents).filter(Boolean).length,
-      errors: Object.keys(result.errors).length,
-    })
+      // Clear timeout if operation completes successfully
+      clearTimeout(timeoutId)
 
-    return successResponse({
-      driver_in_events: result.driverInEvents,
-      errors: result.errors,
-    })
-  } catch (error: unknown) {
-    // Handle unexpected errors
+      requestLogger.info("Entry list check completed", {
+        driverName,
+        checkedEvents: livercEvents.length,
+        foundInEvents: Object.values(result.driverInEvents).filter(Boolean).length,
+        errors: Object.keys(result.errors).length,
+      })
+
+      return successResponse({
+        driver_in_events: result.driverInEvents,
+        errors: result.errors,
+      })
+    } catch (error: unknown) {
+      // Clear timeout on error
+      clearTimeout(timeoutId)
+      
+      // Check if error was due to timeout/abort
+      if (error instanceof Error && (error.name === "AbortError" || error.message.includes("timeout"))) {
+        requestLogger.warn("Entry list check timed out", {
+          driverName,
+          timeoutMs: overallTimeoutMs,
+        })
+        return errorResponse(
+          "TIMEOUT",
+          `Entry list check timed out after ${overallTimeoutMs / 1000} seconds. Some events may still be processing.`,
+          {},
+          408
+        )
+      }
+      // Handle unexpected errors
+      const errorInfo = handleApiError(error, request, requestId)
+      return errorResponse(
+        errorInfo.code,
+        errorInfo.message,
+        undefined,
+        errorInfo.statusCode
+      )
+    }
+  } catch (error) {
+    // Handle unexpected errors at the outer level
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(
       errorInfo.code,

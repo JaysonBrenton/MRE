@@ -59,7 +59,11 @@ export async function POST(request: NextRequest) {
         ipAddress,
         userAgent
       )
-      return successResponse(result, 200, "Track sync triggered successfully")
+      return successResponse(
+        { jobId: result.jobId },
+        200,
+        "Track sync job created"
+      )
     } else if (bodyResult.data.type === "event_ingestion") {
       if (!bodyResult.data.eventId) {
         return successResponse(

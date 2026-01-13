@@ -33,6 +33,16 @@ function sanitizeLapTime(value: number | null | undefined): number | null {
   return value
 }
 
+function sanitizeDuration(value: number | null | undefined): number | null {
+  if (typeof value !== "number") {
+    return null
+  }
+  if (!Number.isFinite(value) || value <= 0) {
+    return null
+  }
+  return value
+}
+
 function deriveLapMetrics(
   laps: Array<{
     lapTimeSeconds: number
@@ -66,6 +76,32 @@ function deriveLapMetrics(
     bestLap: Number.isFinite(best) ? best : null,
     averageLap: total / count,
   }
+}
+
+function calculateTotalTimeFromLaps(
+  laps: Array<{ lapTimeSeconds: number }>
+): number | null {
+  if (!laps || laps.length === 0) {
+    return null
+  }
+
+  let total = 0
+  let hasValidLap = false
+
+  for (const lap of laps) {
+    const sanitized = sanitizeLapTime(lap.lapTimeSeconds)
+    if (sanitized === null) {
+      continue
+    }
+    hasValidLap = true
+    total += sanitized
+  }
+
+  if (!hasValidLap) {
+    return null
+  }
+
+  return total
 }
 
 export interface EventSummary {
@@ -184,6 +220,10 @@ export interface EventAnalysisData {
     className: string
     transponderNumber: string | null
     carNumber: string | null
+  }>
+  raceClasses: Map<string, {
+    vehicleType: string | null
+    vehicleTypeNeedsReview: boolean
   }>
   summary: {
     totalRaces: number
@@ -744,7 +784,20 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
         include: {
           results: {
             include: {
-              raceDriver: true,
+              raceDriver: {
+                select: {
+                  id: true,
+                  raceId: true,
+                  driverId: true,
+                  displayName: true,
+                  sourceDriverId: true,
+                  driver: {
+                    select: {
+                      displayName: true,
+                    },
+                  },
+                },
+              },
               laps: {
                 orderBy: {
                   lapNumber: "asc",
@@ -830,10 +883,61 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
 
       const normalizedAvgLap = sanitizeLapTime(result.avgLapTime) ?? derivedMetrics.averageLap
 
+      const derivedTotalTime = calculateTotalTimeFromLaps(result.laps)
+      const totalTimeSeconds = sanitizeDuration(result.totalTimeSeconds) ?? derivedTotalTime
+
       // Track driver stats using normalized Driver ID (not raceDriverId)
       const driverId = result.raceDriver.driverId
-      // Use denormalized displayName from RaceDriver (no need to join Driver table)
-      const driverName = result.raceDriver.displayName
+      const linkedDriverName = result.raceDriver.driver?.displayName?.trim()
+      const raceDriverName = result.raceDriver.displayName?.trim()
+      
+      // CRITICAL: Use raceDriverName FIRST (actual race data from RaceDriver.displayName)
+      // This is the name that was actually used in the race, not a fuzzy-matched lookup
+      // Only fall back to linkedDriverName (Driver.displayName) if race data is missing
+      let driverName: string
+      if (raceDriverName && raceDriverName.length > 0) {
+        driverName = raceDriverName
+      } else if (linkedDriverName && linkedDriverName.length > 0) {
+        driverName = linkedDriverName
+        console.warn('[get-event-analysis-data] Using linked driver name (fuzzy match) instead of race data:', {
+          raceId: result.race.id,
+          raceLabel: result.race.raceLabel,
+          driverId: driverId,
+          raceDriverName: raceDriverName,
+          linkedDriverName: linkedDriverName,
+        })
+      } else {
+        driverName = "Unknown Driver"
+      }
+      
+      // Fix any malformed duplicated names (e.g., "TURNER, HARRISONHARRISON TURNER")
+      const fixMalformedName = (name: string): string => {
+        // Pattern: "LASTNAME, FIRSTNAMEFIRSTNAME LASTNAME"
+        const pattern = /^([A-Z][A-Z\s,]+?),\s*([A-Z]+)\2\s+\1$/
+        const match = name.match(pattern)
+        if (match && match[1] && match[2]) {
+          return `${match[1]}, ${match[2]}`
+        }
+        // Pattern 2: First name duplicated
+        const pattern2 = /^([A-Z][A-Z\s,]+?),\s*([A-Z]+)\2/
+        const match2 = name.match(pattern2)
+        if (match2 && match2[1] && match2[2]) {
+          return `${match2[1]}, ${match2[2]}`
+        }
+        return name
+      }
+      
+      const originalName = driverName
+      driverName = fixMalformedName(driverName)
+      if (driverName !== originalName) {
+        console.warn('[get-event-analysis-data] Fixed malformed driver name:', {
+          original: originalName,
+          fixed: driverName,
+          raceId: result.race.id,
+          raceLabel: result.race.raceLabel,
+          driverId: driverId,
+        })
+      }
 
       if (!driverMap.has(driverId)) {
         driverMap.set(driverId, {
@@ -870,7 +974,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
         driverName: driverName,
         positionFinal: result.positionFinal,
         lapsCompleted: result.lapsCompleted,
-        totalTimeSeconds: result.totalTimeSeconds,
+        totalTimeSeconds,
         fastLapTime: normalizedFastLap,
         avgLapTime: normalizedAvgLap,
         consistency: result.consistency,
@@ -934,6 +1038,25 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     orderBy: { className: "asc" },
   })
 
+  // Fetch EventRaceClass records for vehicle type information
+  const eventRaceClasses = await prisma.eventRaceClass.findMany({
+    where: { eventId },
+    select: {
+      className: true,
+      vehicleType: true,
+      vehicleTypeNeedsReview: true,
+    },
+  })
+
+  // Create map of race classes to vehicle type info
+  const raceClassesMap = new Map<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>()
+  eventRaceClasses.forEach((rc) => {
+    raceClassesMap.set(rc.className, {
+      vehicleType: rc.vehicleType,
+      vehicleTypeNeedsReview: rc.vehicleTypeNeedsReview,
+    })
+  })
+
   // Sort by className first, then by driver name
   const sortedEntries = [...eventEntries].sort((a, b) => {
     const classNameCompare = a.className.localeCompare(b.className)
@@ -960,6 +1083,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     races: racesData,
     drivers: driversData,
     entryList: entryListData,
+    raceClasses: raceClassesMap,
     summary: {
       totalRaces: event.races.length,
       totalDrivers: driversData.length,

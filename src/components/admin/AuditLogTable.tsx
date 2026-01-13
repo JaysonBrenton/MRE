@@ -16,6 +16,7 @@
 "use client"
 import { useEffect, useState, useCallback } from "react"
 import ListPagination from "../event-analysis/ListPagination"
+import ChartContainer from "../event-analysis/ChartContainer"
 
 interface AuditLog {
   id: string
@@ -35,7 +36,7 @@ export default function AuditLogTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(50)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [actionFilter, setActionFilter] = useState("")
   const [resourceTypeFilter, setResourceTypeFilter] = useState("")
@@ -103,22 +104,31 @@ export default function AuditLogTable() {
 
   if (loading && logs.length === 0) {
     return (
-      <div className="py-8 text-center text-[var(--token-text-secondary)] w-full min-w-0">
-        Loading audit logs...
-      </div>
+      <ChartContainer
+        title="Audit Log"
+        aria-label="Audit log table - loading"
+      >
+        <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
+          Loading audit logs...
+        </div>
+      </ChartContainer>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
-          <p className="text-sm text-[var(--token-text-error)]">{error}</p>
-        </div>
-      )}
+    <ChartContainer
+      title="Audit Log"
+      aria-label="Audit log table with filtering and expandable details"
+    >
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
+            <p className="text-sm text-[var(--token-text-error)]">{error}</p>
+          </div>
+        )}
 
-      {/* Filters */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Filters */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div>
           <label
             htmlFor="action-filter"
@@ -213,19 +223,19 @@ export default function AuditLogTable() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[var(--token-border-default)]">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Time
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 User
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Action
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Resource
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--token-text-primary)]">
+              <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                 Details
               </th>
             </tr>
@@ -247,23 +257,23 @@ export default function AuditLogTable() {
                   <>
                     <tr
                       key={log.id}
-                      className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface)] cursor-pointer"
+                      className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface-raised)] cursor-pointer"
                       onClick={() => toggleRow(log.id)}
                     >
-                      <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">
+                      <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
                         {new Date(log.createdAt).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">
+                      <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
                         {log.user?.email || "System"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-[var(--token-text-primary)]">
+                      <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
                         {log.action}
                       </td>
-                      <td className="px-4 py-3 text-sm text-[var(--token-text-secondary)]">
+                      <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
                         {log.resourceType}
                         {log.resourceId ? ` (${log.resourceId.substring(0, 8)}...)` : ""}
                       </td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-3 text-sm font-normal">
                         <button
                           className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                           aria-label={isExpanded ? "Collapse details" : "Expand details"}
@@ -312,12 +322,13 @@ export default function AuditLogTable() {
         itemsPerPage={itemsPerPage}
         totalItems={total}
         itemLabel="logs"
-        rowsPerPageOptions={[25, 50, 100, 200]}
+        rowsPerPageOptions={[5, 25, 50, 100, 200]}
         onRowsPerPageChange={(newRowsPerPage) => {
           setItemsPerPage(newRowsPerPage)
           setPage(1)
         }}
       />
-    </div>
+      </div>
+    </ChartContainer>
   )
 }

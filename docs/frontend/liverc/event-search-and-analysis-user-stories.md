@@ -452,6 +452,146 @@ This document provides user stories and acceptance criteria for the Event Search
 
 ---
 
+## User Story 23: Analyze Performance Trends Across Events at a Track
+
+**As a** Driver  
+**I want to** analyze my lap times and performance trends across all events at a selected track  
+**So that** I can track my improvement over time and identify patterns in my performance
+
+### Acceptance Criteria
+
+1. **Track Selection for Trend Analysis**
+   - [ ] Track selector available in Event Analysis section (dashboard or event analysis page)
+   - [ ] Track selector displays track name for currently selected event (if available)
+   - [ ] User can change track selection to view trends for different tracks
+   - [ ] Track selector uses same searchable modal pattern as Event Search (User Story 2)
+   - [ ] Track selection persists during session (localStorage or sessionStorage)
+
+2. **Performance Trends Display**
+   - [ ] When a track is selected, "Track Performance Trends" section appears in Event Analysis
+   - [ ] Section displays summary statistics:
+     - Total number of events at this track
+     - Best lap time across all events
+     - Improvement (time difference between first and most recent event)
+     - Best position achieved at this track
+   - [ ] Summary statistics are clearly labeled and formatted
+
+3. **Lap Time Trend Visualization**
+   - [ ] Best lap time trend chart displays lap times across all events chronologically
+   - [ ] Chart shows event dates on X-axis and lap times on Y-axis
+   - [ ] Each event is represented as a data point on the chart
+   - [ ] Chart visually indicates improvement trend (line connecting data points)
+   - [ ] Chart is interactive (hover/tap shows event name, date, and lap time)
+   - [ ] Chart is responsive (scales to mobile width)
+   - [ ] Chart uses accessible color scheme and meets WCAG 2.1 AA standards
+
+4. **Event History List**
+   - [ ] Event history table/list displays all events at selected track
+   - [ ] Each event row shows:
+     - Event name
+     - Event date (formatted)
+     - Best lap time for that event
+     - Position in event (if available)
+     - Number of races participated
+     - Classes raced (if multiple)
+   - [ ] Events are sorted by date (earliest to most recent) by default
+   - [ ] Table/list format on desktop, card format on mobile
+   - [ ] Each event row is clickable and navigates to that event's analysis page
+
+5. **Performance Metrics**
+   - [ ] Average lap time trend displayed (optional secondary chart or metric)
+   - [ ] Consistency scores displayed per event (if available)
+   - [ ] Improvement percentage calculated and displayed (time improvement from first to last event)
+   - [ ] Metrics clearly indicate if data is missing (N/A display)
+
+6. **Data Filtering and Sorting**
+   - [ ] Events can be sorted by date (ascending/descending)
+   - [ ] Events can be sorted by best lap time (fastest/slowest)
+   - [ ] Events can be filtered by date range (optional)
+   - [ ] Filter and sort controls meet 44px touch target requirement
+
+7. **Empty States**
+   - [ ] If no events found for selected track, friendly message displayed: "No performance data available for this track yet. Race at this track and import events to see your trends."
+   - [ ] If user has no confirmed driver link, message displayed: "Link your driver profile to view performance trends."
+   - [ ] Empty states use secondary text color and are accessible
+
+8. **Loading States**
+   - [ ] Loading indicator shown while fetching track performance data
+   - [ ] Loading state announced to screen readers ("Loading track performance trends...")
+   - [ ] Skeleton loader or spinner used during data fetch
+
+9. **Error Handling**
+   - [ ] Error message displayed if API request fails
+   - [ ] Error message is user-friendly and actionable
+   - [ ] Retry button available on error state
+   - [ ] Error states are accessible (announced to screen readers)
+
+10. **API Integration**
+    - [ ] API endpoint: `GET /api/v1/tracks/[trackId]/performance-trends`
+    - [ ] Endpoint requires authentication (user must be logged in)
+    - [ ] Endpoint returns performance data for logged-in user's confirmed driver link
+    - [ ] API response includes all events at track where user participated
+    - [ ] API response includes best lap time, average lap time, consistency, position for each event
+    - [ ] API follows standard response format (success/error structure)
+
+11. **Mobile Responsiveness**
+    - [ ] Track selector works on mobile (full-screen modal)
+    - [ ] Trend chart scales to mobile width
+    - [ ] Event history uses card format on mobile (not table)
+    - [ ] All touch targets meet 44px minimum height
+    - [ ] No horizontal scrolling required
+
+12. **Accessibility**
+    - [ ] Chart has text alternative (data table or description)
+    - [ ] Chart data accessible via keyboard navigation
+    - [ ] Track selector modal is keyboard accessible
+    - [ ] Event history table has proper table headers (`<th>` elements on desktop)
+    - [ ] All interactive elements have ARIA labels
+    - [ ] Loading and error states announced to screen readers
+    - [ ] Color is not the only indicator (icons, text labels used)
+
+13. **Integration with Event Analysis**
+    - [ ] Track Performance Trends section appears in Event Analysis section on dashboard
+    - [ ] Section can be collapsed/expanded (optional)
+    - [ ] Section appears below or alongside standard event analysis tabs
+    - [ ] Track selection can be derived from currently selected event (if event is selected)
+    - [ ] Clicking event in history navigates to that event's analysis page
+
+### Dependencies
+
+- User Story 2: Select Track via Searchable Modal (for track selection UI pattern)
+- User Story 10: View Event Analysis Overview (for integration with event analysis)
+- User driver link must be confirmed (UserDriverLink status = "confirmed")
+- Events must be ingested and stored in database
+
+### Definition of Done
+
+- [ ] Track selector integrated into Event Analysis section
+- [ ] API endpoint created: `GET /api/v1/tracks/[trackId]/performance-trends`
+- [ ] Core function created: `getTrackPerformanceTrends(trackId, userId)`
+- [ ] Track Performance Trends component created and integrated
+- [ ] Best lap time trend chart displays correctly
+- [ ] Event history list/table displays all events with performance data
+- [ ] Summary statistics calculate and display correctly
+- [ ] Empty states handled gracefully
+- [ ] Loading and error states implemented
+- [ ] Mobile layout verified on multiple screen sizes
+- [ ] Accessibility requirements met (WCAG 2.1 AA)
+- [ ] Screen reader compatibility verified
+- [ ] API endpoint tested and documented
+- [ ] Code reviewed
+- [ ] Documentation updated
+
+### Related Documentation
+
+- [Event Search and Event Analysis User Stories](./event-search-and-analysis-user-stories.md)
+- [Mobile-Safe Architecture Guidelines](../../architecture/mobile-safe-architecture-guidelines.md)
+- [MRE UX Principles](../../design/mre-ux-principles.md)
+- [MRE Dark Theme Guidelines](../../design/mre-dark-theme-guidelines.md)
+- [Chart Design Standards](../../design/chart-design-standards.md)
+
+---
+
 ## Summary
 
 These user stories define the complete Driver experience for Event Search and Event Analysis features. Each story includes detailed acceptance criteria that serve as:

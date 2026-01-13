@@ -272,7 +272,7 @@ docker exec -it mre-postgres pg_restore -U pacetracer -d pacetracer backup_file.
 
 ### Application Health Check
 
-**Endpoint:** `GET /api/health`
+**Endpoint:** `GET /api/v1/health`
 
 **Authentication:** This endpoint is **public** and does not require
 authentication. It is configured as a public API endpoint to allow Docker health
@@ -296,13 +296,13 @@ credentials.
 
 ```bash
 # Works without authentication
-curl http://localhost:3001/api/health
+curl http://localhost:3001/api/v1/health
 ```
 
 ### Container Health Checks
 
 **Docker Compose Configuration:** The `docker-compose.yml` file includes a
-health check configuration that uses the public `/api/health` endpoint:
+health check configuration that uses the public `/api/v1/health` endpoint:
 
 ```yaml
 healthcheck:
@@ -313,7 +313,7 @@ healthcheck:
       "--quiet",
       "--tries=1",
       "--spider",
-      "http://localhost:3001/api/health",
+      "http://localhost:3001/api/v1/health",
     ]
   interval: 30s
   timeout: 10s
@@ -330,7 +330,7 @@ healthcheck:
 
 **Public API Endpoints:** The following endpoints do not require authentication:
 
-- `/api/health` - Health check endpoint (for Docker/orchestration)
+- `/api/v1/health` - Health check endpoint (for Docker/orchestration)
 - `/api/v1/auth/login` - User authentication
 - `/api/v1/auth/register` - User registration
 - `/api/auth/*` - NextAuth internal routes

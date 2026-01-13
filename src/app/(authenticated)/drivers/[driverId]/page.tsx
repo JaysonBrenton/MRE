@@ -23,7 +23,8 @@ interface DriverDetailsPageProps {
 
 export default async function DriverDetailsPage({ params, searchParams }: DriverDetailsPageProps) {
   // Properly await and resolve the Promises immediately to avoid serialization errors
-  await params
+  const { driverId } = await params
+  // searchParams is available but not currently used - await it if needed in the future
   await searchParams
 
   const session = await auth()
@@ -32,5 +33,6 @@ export default async function DriverDetailsPage({ params, searchParams }: Driver
     redirect("/login")
   }
 
-  redirect("/under-development")
+  const driverRoute = `/drivers/${driverId}`
+  redirect(`/under-development?from=${encodeURIComponent(driverRoute)}`)
 }

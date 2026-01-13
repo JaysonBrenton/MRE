@@ -21,13 +21,12 @@
 
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { getUserPersona } from "@/core/personas/repo"
+import { getUserPersona, getPersonaById } from "@/core/personas/repo"
 import { assignRaceEngineerPersona } from "@/core/personas/assign"
 import { discoverDriverEvents } from "@/core/personas/driver-events"
 import { getTeamMembers } from "@/core/personas/team-manager-teams"
 import { successResponse, errorResponse, parseRequestBody } from "@/lib/api-utils"
 import { logger } from "@/lib/logger"
-import { prisma } from "@/lib/prisma"
 
 /**
  * GET /api/v1/users/me/persona
@@ -132,9 +131,7 @@ export async function POST(request: Request) {
     }
 
     // Get the persona to verify it exists and is selectable
-    const persona = await prisma.persona.findUnique({
-      where: { id: personaId }
-    })
+    const persona = await getPersonaById(personaId)
 
     if (!persona) {
       return errorResponse(

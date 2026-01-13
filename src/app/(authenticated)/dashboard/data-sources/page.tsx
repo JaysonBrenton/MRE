@@ -7,7 +7,7 @@ export default function DataSourcesPage() {
   const router = useRouter()
   
   useEffect(() => {
-    router.replace("/under-development")
+    router.replace(`/under-development?from=${encodeURIComponent("/dashboard/data-sources")}`)
   }, [router])
   
   return null

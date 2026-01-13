@@ -59,7 +59,16 @@ src/
   lib/             # Shared libraries
 ```
 
-All Prisma queries must exist only in `src/core/<domain>/repo.ts` files.
+**Database Access Rules:**
+
+- **API Routes**: API routes must never contain Prisma queries. All database access must go through core functions.
+- **Repository Files**: Simple CRUD operations and reusable query functions must exist in `src/core/<domain>/repo.ts` files.
+- **Core Business Logic Files**: Core business logic files (`src/core/<domain>/*.ts`) may use Prisma directly for complex queries that:
+  - Combine multiple entities with joins
+  - Perform aggregations across multiple tables
+  - Require complex query logic that is part of business logic rather than simple data access
+  - Examples: `src/core/users/driver-links.ts`, `src/core/personas/driver-events.ts`, `src/core/events/get-event-analysis-data.ts`
+- **Preference**: When possible, core business logic files should prefer delegating to repo functions. Direct Prisma usage is acceptable for complex multi-entity operations that are inherently part of the business logic.
 
 All validation must occur in `src/core/<domain>/validate-*.ts` files.
 
@@ -108,12 +117,16 @@ This ADR requires:
 
 1. Restructuring existing codebase to match `src/` folder structure
 2. Extracting business logic from API routes and components to `src/core/`
-3. Creating repository pattern files (`repo.ts`) for all database access
-4. Versioning API routes to `/api/v1/...`
-5. Updating all import paths throughout the codebase
-6. Adding file headers per `docs/standards/file-headers-and-commenting-guidelines.md`
+3. Creating repository pattern files (`repo.ts`) for simple CRUD operations and reusable queries
+4. Core business logic files may use Prisma directly for complex multi-entity queries
+5. Versioning API routes to `/api/v1/...` (except framework-required exceptions like NextAuth)
+6. Updating all import paths throughout the codebase
+7. Adding file headers per `docs/standards/file-headers-and-commenting-guidelines.md`
 
-The implementation will be completed as part of the documentation and codebase alignment effort.
+**Current Status:**
+- Core business logic files using Prisma directly for complex queries is an accepted pattern
+- All API routes must be under `/api/v1/` except NextAuth (`/api/auth/[...nextauth]`)
+- Health endpoint has been migrated to `/api/v1/health`
 
 ## References
 

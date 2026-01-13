@@ -3,7 +3,7 @@ import type { EventAnalysisSummary, ImportedEventSummary } from "@root-types/das
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 // API response type with ISO string dates (as returned from API)
-type EventAnalysisDataApiResponse = Omit<EventAnalysisData, "event" | "races" | "summary"> & {
+type EventAnalysisDataApiResponse = Omit<EventAnalysisData, "event" | "races" | "summary" | "raceClasses"> & {
   event: {
     id: string
     eventName: string
@@ -32,6 +32,7 @@ type EventAnalysisDataApiResponse = Omit<EventAnalysisData, "event" | "races" | 
       // laps array removed - not used by any components
     }>
   }>
+  raceClasses: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
   summary: {
     totalRaces: number
     totalDrivers: number
@@ -53,6 +54,7 @@ interface DashboardState {
   analysisData: EventAnalysisDataApiResponse | null
   isAnalysisLoading: boolean
   analysisError: string | null
+  currentFetchRequestId: string | null // Track current fetch to ignore stale responses
 }
 
 interface FetchEventError {
@@ -66,10 +68,11 @@ const initialState: DashboardState = {
   isEventLoading: false,
   eventError: null,
   recentEvents: [],
-  isRecentLoading: true,
+  isRecentLoading: false,
   analysisData: null,
   isAnalysisLoading: false,
   analysisError: null,
+  currentFetchRequestId: null,
 }
 
 // Async thunk for fetching event data
@@ -84,6 +87,11 @@ export const fetchEventData = createAsyncThunk<
       signal,
     })
 
+    // Check if request was aborted before processing
+    if (signal?.aborted) {
+      throw new Error("Request aborted")
+    }
+
     if (!response.ok) {
       if (response.status === 404) {
         return rejectWithValue({ message: "Event not found", code: "NOT_FOUND" })
@@ -92,6 +100,11 @@ export const fetchEventData = createAsyncThunk<
     }
 
     const result = await response.json()
+
+    // Check again if request was aborted before processing result
+    if (signal?.aborted) {
+      throw new Error("Request aborted")
+    }
 
     if (result.success && result.data) {
       return result.data
@@ -126,7 +139,18 @@ export const fetchRecentEvents = createAsyncThunk<
     })
 
     if (!response.ok) {
-      return rejectWithValue("Failed to load recent events")
+      // Try to get error message from response
+      let errorMessage = "Failed to load recent events"
+      try {
+        const errorData = await response.json()
+        if (errorData.error?.message) {
+          errorMessage = errorData.error.message
+        }
+      } catch {
+        // If response is not JSON, use status text
+        errorMessage = response.statusText || errorMessage
+      }
+      return rejectWithValue(errorMessage)
     }
 
     const json = await response.json()
@@ -160,7 +184,18 @@ export const fetchEventAnalysisData = createAsyncThunk<
       if (response.status === 404) {
         return rejectWithValue({ message: "Event not found", code: "NOT_FOUND" })
       }
-      return rejectWithValue({ message: "Failed to load event analysis data", code: "UNKNOWN" })
+      // Try to get error message from response
+      let errorMessage = "Failed to load event analysis data"
+      try {
+        const errorData = await response.json()
+        if (errorData.error?.message) {
+          errorMessage = errorData.error.message
+        }
+      } catch {
+        // If response is not JSON, use status text
+        errorMessage = response.statusText || errorMessage
+      }
+      return rejectWithValue({ message: errorMessage, code: "UNKNOWN" })
     }
 
     const result = await response.json()
@@ -198,11 +233,18 @@ const dashboardSlice = createSlice({
       }
 
       if (!nextSelected) {
+        // Clear all event-related state when deselecting
+        state.eventData = null
+        state.eventError = null
+        state.analysisData = null
+        state.analysisError = null
         state.isEventLoading = false
         state.isAnalysisLoading = false
+        state.currentFetchRequestId = null
       } else if (nextSelected !== prevSelected) {
         state.isEventLoading = true
         state.isAnalysisLoading = true
+        state.currentFetchRequestId = null
       }
     },
     clearEvent: (state) => {
@@ -213,28 +255,49 @@ const dashboardSlice = createSlice({
       state.analysisData = null
       state.analysisError = null
       state.isAnalysisLoading = false
+      state.currentFetchRequestId = null
     },
   },
   extraReducers: (builder) => {
     // Fetch event data
     builder
-      .addCase(fetchEventData.pending, (state) => {
+      .addCase(fetchEventData.pending, (state, action) => {
         state.isEventLoading = true
         state.eventError = null
+        // Track the requestId to ignore stale responses
+        state.currentFetchRequestId = action.meta.requestId
       })
       .addCase(fetchEventData.fulfilled, (state, action) => {
-        state.isEventLoading = false
-        state.eventData = action.payload
-        state.eventError = null
+        // Only update state if this is the most recent request
+        if (state.currentFetchRequestId === action.meta.requestId) {
+          state.isEventLoading = false
+          state.eventData = action.payload
+          state.eventError = null
+          state.currentFetchRequestId = null
+        }
       })
       .addCase(fetchEventData.rejected, (state, action) => {
-        state.isEventLoading = false
-        state.eventError =
-          action.payload?.message || action.error.message || "Failed to fetch event data"
+        // Don't set error if request was aborted (normal behavior on navigation/reload)
+        if (action.error.name === "AbortError") {
+          // Only clear loading if this was the current request
+          if (state.currentFetchRequestId === action.meta.requestId) {
+            state.isEventLoading = false
+            state.currentFetchRequestId = null
+          }
+          return
+        }
+        
+        // Only update state if this is the most recent request
+        if (state.currentFetchRequestId === action.meta.requestId) {
+          state.isEventLoading = false
+          state.eventError =
+            action.payload?.message || action.error.message || "Failed to fetch event data"
+          state.currentFetchRequestId = null
 
-        if (action.payload?.code === "NOT_FOUND") {
-          state.selectedEventId = null
-          state.eventData = null
+          if (action.payload?.code === "NOT_FOUND") {
+            state.selectedEventId = null
+            state.eventData = null
+          }
         }
       })
 
@@ -265,6 +328,12 @@ const dashboardSlice = createSlice({
         state.analysisError = null
       })
       .addCase(fetchEventAnalysisData.rejected, (state, action) => {
+        // Don't set error if request was aborted (normal behavior on navigation/reload)
+        if (action.error.name === "AbortError") {
+          state.isAnalysisLoading = false
+          return
+        }
+        
         state.isAnalysisLoading = false
         state.analysisError =
           action.payload?.message || action.error.message || "Failed to fetch event analysis data"

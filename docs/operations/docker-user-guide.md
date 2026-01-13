@@ -61,6 +61,8 @@ Docker Compose. The environment consists of:
 - **PostgreSQL Database** (`mre-postgres`) - External database container
   (managed separately)
 
+**Docker Runtime:** On macOS, **Colima is the recommended and primary Docker runtime** for this project. It provides better command-line control, lighter resource usage, and easier memory/CPU configuration. Docker Desktop is supported as an alternative. See the [Prerequisites](#prerequisites) section for setup instructions.
+
 ### Goals
 
 The Docker setup provides:
@@ -129,13 +131,29 @@ All containers communicate through a Docker bridge network:
 
 ### Required Software
 
-- **Docker** (version 20.10 or later)
-  - Download: https://www.docker.com/products/docker-desktop
-  - Verify: `docker --version`
+You need a Docker runtime environment. **Colima is the recommended and primary Docker runtime for macOS.** Docker Desktop is supported as an alternative.
 
-- **Docker Compose** (version 2.0 or later)
-  - Usually included with Docker Desktop
-  - Verify: `docker compose version`
+#### Option 1: Colima (Recommended for macOS - Primary Setup)
+
+- **Colima** - Lightweight Docker runtime for macOS
+  - Installation: `brew install colima` (requires Homebrew)
+  - Start with custom memory: `colima start --memory 14 --cpu 4`
+  - Verify: `colima status`
+  - **Benefits:** Command-line memory configuration, lighter than Docker Desktop, no GUI required, better resource control
+  - **See:** [Colima Setup](#colima-setup) section below for complete setup instructions
+  - **Helper Script:** Use `./scripts/start-colima.sh` to start with recommended settings
+
+- **Docker** and **Docker Compose** (installed separately with Colima)
+  - Verify: `docker --version` and `docker compose version`
+  - **Note:** After installing Colima, ensure Docker context is set: `docker context use colima`
+
+#### Option 2: Docker Desktop (Alternative)
+
+- **Docker Desktop** (version 20.10 or later)
+  - Download: https://www.docker.com/products/docker-desktop
+  - Includes Docker Engine and Docker Compose
+  - Verify: `docker --version` and `docker compose version`
+  - **Note:** Docker Desktop can be used as an alternative to Colima, but Colima is recommended for better command-line control and lighter resource usage.
 
 ### System Requirements
 
@@ -149,6 +167,148 @@ All containers communicate through a Docker bridge network:
 - **Node.js** (version 20 or later) - For running scripts and Prisma CLI locally
 - **Git** (version 2.30 or later) - For version control
 - **VS Code** or **Cursor** - Recommended IDE with TypeScript support
+
+---
+
+## Colima Setup (macOS - Primary Docker Runtime)
+
+**Colima is the recommended Docker runtime for macOS.** It provides better control over resource allocation via command line and is lighter than Docker Desktop. This section covers setup and configuration.
+
+### Installation
+
+```bash
+# Install Colima via Homebrew
+brew install colima
+
+# Verify installation
+colima --version
+```
+
+**Important:** If you're on Apple Silicon (M1/M2/M3), ensure you use the ARM-native Homebrew installation at `/opt/homebrew/bin/brew`. If you have both Intel and ARM Homebrew installed, use the ARM version:
+
+```bash
+/opt/homebrew/bin/brew install colima
+```
+
+### Starting Colima
+
+Start Colima with your desired memory and CPU allocation:
+
+```bash
+# Start with 14GB RAM and 4 CPUs (adjust based on your system)
+colima start --memory 14 --cpu 4
+
+# Check status
+colima status
+```
+
+**Recommended Settings:**
+- **18GB system:** Use 14GB for Colima (leave 4GB for macOS)
+- **16GB system:** Use 12GB for Colima (leave 4GB for macOS)
+- **8GB system:** Use 4-6GB for Colima (leave 2-4GB for macOS)
+
+### Switching Docker Context
+
+After starting Colima, switch Docker to use it:
+
+```bash
+# Create Colima context (if not automatically created)
+docker context create colima --docker "host=unix://$HOME/.colima/default/docker.sock" 2>/dev/null || true
+
+# Switch to Colima
+docker context use colima
+
+# Verify Docker is using Colima
+docker info | grep "Total Memory"
+```
+
+### Auto-Start Configuration
+
+**Colima does NOT auto-start by default** after a system restart. To enable auto-start:
+
+#### Option 1: Manual Start (Recommended)
+
+Start Colima manually when needed:
+```bash
+colima start --memory 14 --cpu 4
+```
+
+Or use the helper script:
+```bash
+./scripts/start-colima.sh
+```
+
+#### Option 2: Auto-Start with Login Script
+
+Add to your `~/.zshrc` or `~/.bash_profile`:
+```bash
+# Auto-start Colima if not running
+if ! colima status 2>/dev/null | grep -q "Running"; then
+    /path/to/mre/scripts/start-colima.sh
+fi
+```
+
+#### Option 3: Homebrew Services (Uses Default Settings)
+
+**Note:** `brew services` will start Colima with default settings (not custom memory/CPU):
+```bash
+# Enable auto-start (uses defaults - not recommended)
+brew services start colima
+
+# Disable auto-start
+brew services stop colima
+```
+
+If you use Homebrew services, you'll need to stop and restart with custom settings manually.
+
+### Managing Colima
+
+```bash
+# Stop Colima
+colima stop
+
+# Start Colima with custom settings
+colima start --memory 14 --cpu 4
+
+# Or use helper script
+./scripts/start-colima.sh
+
+# Start with different settings
+colima stop
+colima start --memory 16 --cpu 6
+
+# List Colima instances
+colima list
+
+# View Colima logs
+colima logs
+
+# Check if Colima is running
+colima status
+```
+
+### Switching Back to Docker Desktop
+
+If you need to switch back to Docker Desktop:
+
+```bash
+# Switch to Docker Desktop context
+docker context use desktop-linux
+
+# Verify
+docker info | grep "Total Memory"
+```
+
+### Troubleshooting Colima
+
+**Issue: Architecture mismatch error**
+- **Solution:** Ensure you're using ARM-native Homebrew on Apple Silicon: `/opt/homebrew/bin/brew install colima`
+
+**Issue: DNS resolution errors**
+- **Solution:** Restart Colima: `colima stop && colima start --memory 14 --cpu 4`
+
+**Issue: Docker commands not working**
+- **Solution:** Ensure Docker context is set: `docker context use colima`
 
 ---
 
@@ -262,7 +422,7 @@ Check that services are healthy:
 
 ```bash
 # Next.js application
-curl http://localhost:3001/api/health
+curl http://localhost:3001/api/v1/health
 
 # Ingestion service
 curl http://localhost:8000/health
@@ -552,7 +712,7 @@ docker compose up -d liverc-ingestion-service
 ### Accessing the Application
 
 - **Web Application:** http://localhost:3001
-- **API Health Check:** http://localhost:3001/api/health
+- **API Health Check:** http://localhost:3001/api/v1/health
 - **Ingestion Service:** http://localhost:8000
 - **Ingestion Health:** http://localhost:8000/health
 
@@ -615,7 +775,7 @@ healthcheck:
       "--quiet",
       "--tries=1",
       "--spider",
-      "http://localhost:3001/api/health",
+      "http://localhost:3001/api/v1/health",
     ]
   interval: 30s
   timeout: 10s
@@ -1229,7 +1389,7 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
 
 # Check health
-curl http://localhost:3001/api/health
+curl http://localhost:3001/api/v1/health
 curl http://localhost:8000/health
 
 # View container status

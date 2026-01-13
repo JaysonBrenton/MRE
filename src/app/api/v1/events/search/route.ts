@@ -58,12 +58,28 @@ export async function GET(request: NextRequest) {
       trackId,
       startDate,
       endDate,
+      trackIdType: typeof trackId,
+      trackIdLength: trackId?.length,
     })
+
+    // Validate track_id is provided before proceeding
+    if (!trackId || trackId.trim() === "") {
+      requestLogger.warn("Event search validation error - missing track_id", {
+        trackId,
+        hasTrackId: !!trackId,
+      })
+      return errorResponse(
+        "VALIDATION_ERROR",
+        "track_id is required",
+        { field: "track_id" },
+        400
+      )
+    }
 
     // Call core business logic function (will validate and throw if invalid)
     // Only include dates if they are provided (not empty strings)
     const searchInput: SearchEventsInput = {
-      trackId: trackId || "",
+      trackId: trackId.trim(),
     }
     
     if (startDate && startDate.trim() !== "") {
@@ -110,13 +126,14 @@ export async function GET(request: NextRequest) {
 
     // Handle "Track not found" error from repo
     if (error instanceof Error && error.message === "Track not found") {
+      const requestedTrackId = request.nextUrl.searchParams.get("track_id")
       requestLogger.warn("Track not found", {
-        trackId: request.nextUrl.searchParams.get("track_id"),
+        trackId: requestedTrackId,
       })
       return errorResponse(
         "NOT_FOUND",
         "Track not found",
-        {},
+        { trackId: requestedTrackId || null },
         404
       );
     }

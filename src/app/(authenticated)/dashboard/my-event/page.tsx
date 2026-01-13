@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Breadcrumbs from "@/components/Breadcrumbs"
 import ListPagination from "@/components/event-analysis/ListPagination"
+import ChartContainer from "@/components/event-analysis/ChartContainer"
 
 interface Event {
   id: string
@@ -86,12 +87,14 @@ export default function MyEventPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
   const [filter, setFilter] = useState<"all" | "suggested">("all")
   const [userId, setUserId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState<boolean>(false)
+  const [hasNoDriverPersona, setHasNoDriverPersona] = useState<boolean>(false)
   const [updatingEvents, setUpdatingEvents] = useState<Set<string>>(new Set())
 
-  // Fetch current user ID
+  // Fetch current user ID and admin status
   useEffect(() => {
     async function fetchUserId() {
       try {
@@ -100,6 +103,9 @@ export default function MyEventPage() {
           const data = await response.json()
           if (data.success && data.data?.userId) {
             setUserId(data.data.userId)
+          }
+          if (data.success && data.data?.isAdmin !== undefined) {
+            setIsAdmin(data.data.isAdmin)
           }
         }
       } catch (err) {
@@ -146,13 +152,39 @@ export default function MyEventPage() {
         if (!response.ok) {
           // Parse error response from API
           if (data && data.success === false && data.error) {
-            throw new Error(data.error.message || "Failed to fetch events")
+            const errorMessage = data.error.message || "Failed to fetch events"
+            // Check if this is a persona-related error
+            if (
+              response.status === 400 &&
+              (errorMessage.includes("Driver persona") ||
+                errorMessage.includes("only available to drivers") ||
+                errorMessage.includes("driver profile"))
+            ) {
+              // Set flag to show persona-specific empty state instead of error
+              setHasNoDriverPersona(true)
+              setEvents([])
+              setParticipationDetails([])
+              return
+            }
+            throw new Error(errorMessage)
           }
           if (response.status === 401) {
             throw new Error("Authentication required")
           }
           if (response.status === 400) {
-            throw new Error(data?.error?.message || "User does not have Driver persona")
+            const errorMessage = data?.error?.message || "User does not have Driver persona"
+            // Check if this is a persona-related error
+            if (
+              errorMessage.includes("Driver persona") ||
+              errorMessage.includes("only available to drivers") ||
+              errorMessage.includes("driver profile")
+            ) {
+              setHasNoDriverPersona(true)
+              setEvents([])
+              setParticipationDetails([])
+              return
+            }
+            throw new Error(errorMessage)
           }
           throw new Error(data?.error?.message || `Failed to fetch events (${response.status})`)
         }
@@ -299,6 +331,47 @@ export default function MyEventPage() {
     }
   }
 
+  const handleBulkReject = async () => {
+    if (!userId) return
+
+    const suggestedEvents = events.filter((event) => {
+      const detail = participationMap.get(event.id)
+      return detail?.userDriverLinkStatus === "suggested"
+    })
+
+    if (suggestedEvents.length === 0) return
+
+    setUpdatingEvents(new Set(suggestedEvents.map((e) => e.id)))
+    try {
+      const rejectPromises = suggestedEvents.map((event) =>
+        fetch(`/api/v1/users/${userId}/driver-links/events/${event.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: "rejected" }),
+        })
+      )
+
+      await Promise.all(rejectPromises)
+
+      // Refresh events to get updated status
+      const refreshResponse = await fetch("/api/v1/personas/driver/events")
+      if (refreshResponse.ok) {
+        const refreshData = await refreshResponse.json()
+        if (refreshData.success) {
+          setEvents(refreshData.data.events)
+          setParticipationDetails(refreshData.data.participationDetails)
+        }
+      }
+    } catch (err) {
+      console.error("Error bulk rejecting links:", err)
+      setError(err instanceof Error ? err.message : "Failed to reject links")
+    } finally {
+      setUpdatingEvents(new Set())
+    }
+  }
+
   // Create a map of eventId -> participation details for quick lookup
   const participationMap = useMemo(() => {
     const map = new Map<string, ParticipationDetail>()
@@ -367,13 +440,6 @@ export default function MyEventPage() {
               Events matched to your driver name
             </p>
           </div>
-          {suggestedCount > 0 && (
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                {suggestedCount} suggestion{suggestedCount !== 1 ? "s" : ""} pending
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -385,14 +451,14 @@ export default function MyEventPage() {
       )}
 
       {/* Error State */}
-      {error && !loading && (
+      {error && !loading && !hasNoDriverPersona && (
         <div className="text-center py-12">
           <p className="text-red-500">Error: {error}</p>
         </div>
       )}
 
       {/* Empty State */}
-      {!loading && !error && events.length === 0 && (
+      {!loading && !error && !hasNoDriverPersona && events.length === 0 && (
         <div className="text-center py-12 space-y-4">
           <p className="text-[var(--token-text-muted)]">
             No events found that match your driver name.
@@ -402,10 +468,65 @@ export default function MyEventPage() {
           </p>
           <Link
             href="/event-search"
-            className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
+            className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
           >
             Search for events
           </Link>
+        </div>
+      )}
+
+      {/* Empty State - No Driver Persona */}
+      {!loading && !error && hasNoDriverPersona && events.length === 0 && (
+        <div className="text-center py-12 space-y-4">
+          {isAdmin ? (
+            <>
+              <p className="text-[var(--token-text-muted)] text-lg">
+                This page is for drivers to view their race events.
+              </p>
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                As an administrator, you can manage events and view data through other pages. Events will appear here
+                once you have a Driver persona set up.
+              </p>
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <Link
+                  href="/event-search"
+                  className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
+                >
+                  Search for events
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
+                >
+                  Go to Dashboard
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[var(--token-text-muted)] text-lg">
+                This page shows events where you participated as a driver.
+              </p>
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                To view your events, you&apos;ll need to set up your driver profile. Once configured, events where your
+                driver name appears will be displayed here.
+              </p>
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <Link
+                  href="/event-search"
+                  className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
+                >
+                  Search for events
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
+                >
+                  Go to Dashboard
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -439,13 +560,22 @@ export default function MyEventPage() {
               )}
             </div>
             {filter === "suggested" && suggestedCount > 0 && (
-              <button
-                onClick={handleBulkConfirm}
-                disabled={updatingEvents.size > 0}
-                className="px-4 py-2 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {updatingEvents.size > 0 ? "Confirming..." : `Confirm All (${suggestedCount})`}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBulkReject}
+                  disabled={updatingEvents.size > 0}
+                  className="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {updatingEvents.size > 0 ? "Rejecting..." : `Reject All (${suggestedCount})`}
+                </button>
+                <button
+                  onClick={handleBulkConfirm}
+                  disabled={updatingEvents.size > 0}
+                  className="px-4 py-2 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {updatingEvents.size > 0 ? "Confirming..." : `Confirm All (${suggestedCount})`}
+                </button>
+              </div>
             )}
           </div>
 
@@ -456,8 +586,13 @@ export default function MyEventPage() {
           )}
 
           {filteredEvents.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+            <ChartContainer
+              title="My Events"
+              aria-label="Events table with similarity scores and status"
+            >
+              <div className="space-y-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--token-border-default)]">
                     <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
@@ -468,9 +603,6 @@ export default function MyEventPage() {
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                       Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Match Type
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
                       Similarity Score
@@ -486,7 +618,7 @@ export default function MyEventPage() {
                     return (
                       <tr
                         key={event.id}
-                        className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface)] cursor-pointer"
+                        className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] cursor-pointer"
                         onClick={() => handleEventClick(event.id)}
                       >
                         <td className="px-4 py-3 text-[var(--token-text-primary)]">
@@ -499,31 +631,11 @@ export default function MyEventPage() {
                           {formatEventDate(event.eventDate)}
                         </td>
                         <td className="px-4 py-3 text-[var(--token-text-secondary)]">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              detail?.matchType === "exact"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : detail?.matchType === "transponder"
-                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                            }`}
-                          >
-                            {detail?.matchType === "exact"
-                              ? "Exact Match"
-                              : detail?.matchType === "transponder"
-                                ? "Transponder Match"
-                                : "Fuzzy Match"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
                           {detail ? formatSimilarityScore(detail.similarityScore) : "N/A"}
                         </td>
                         <td className="px-4 py-3 text-[var(--token-text-secondary)]">
                           {detail?.userDriverLinkStatus === "suggested" ? (
                             <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                Suggested
-                              </span>
                               <button
                                 onClick={(e) => handleConfirm(event.id, e)}
                                 disabled={updatingEvents.has(event.id)}
@@ -561,22 +673,22 @@ export default function MyEventPage() {
                     )
                   })}
                 </tbody>
-              </table>
-            </div>
-          )}
+                  </table>
+                </div>
 
-          {/* Pagination */}
-          {filteredEvents.length > 0 && (
-            <ListPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              itemsPerPage={itemsPerPage}
-              totalItems={totalItems}
-              itemLabel="events"
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
-              onRowsPerPageChange={handleRowsPerPageChange}
-            />
+                {/* Pagination */}
+                <ListPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={totalItems}
+                  itemLabel="events"
+                  rowsPerPageOptions={[5, 10, 25, 50, 100]}
+                  onRowsPerPageChange={handleRowsPerPageChange}
+                />
+              </div>
+            </ChartContainer>
           )}
         </div>
       )}

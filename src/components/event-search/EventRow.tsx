@@ -222,7 +222,7 @@ export default function EventRow({
       className={`grid grid-cols-4 items-center gap-4 px-4 py-4 border-b transition-colors duration-200 ${
         isSelected 
           ? "bg-[var(--token-surface-elevated)] border-2 border-[var(--token-accent)]" 
-          : "border-[var(--token-border-default)] hover:bg-[var(--token-surface)]"
+          : "border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]"
       }`}
     >
       {/* Mobile: Stacked layout, Desktop: Column 1 - Checkbox */}
@@ -317,7 +317,7 @@ export default function EventRow({
             <button
               type="button"
               onClick={handleSelect}
-              className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
+              className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
             >
               Analyse event
             </button>

@@ -17,6 +17,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import { normalizeDriverName } from "@/core/users/name-normalizer"
 
 export type DriverLinkStatus = {
   driverId: string
@@ -363,6 +364,11 @@ export async function updateDriverLinkStatus(
  * This is a convenience function that finds the driver associated with an event
  * and updates the UserDriverLink status for that driver.
  *
+ * Handles two cases:
+ * 1. If an EventDriverLink exists, use it directly
+ * 2. If no EventDriverLink exists but there's an EventEntry matching the user's driver name,
+ *    create an EventDriverLink based on the EventEntry
+ *
  * @param userId - User ID
  * @param eventId - Event ID
  * @param status - New status ("confirmed" or "rejected")
@@ -374,15 +380,59 @@ export async function updateDriverLinkStatusByEvent(
   status: "confirmed" | "rejected"
 ): Promise<DriverLinkStatus> {
   // Find EventDriverLink for this user and event
-  const eventDriverLink = await prisma.eventDriverLink.findFirst({
+  let eventDriverLink = await prisma.eventDriverLink.findFirst({
     where: {
       userId,
       eventId,
     },
   })
 
+  // If no EventDriverLink exists, try to find one through EventEntry
   if (!eventDriverLink) {
-    throw new Error("No driver link found for this user and event")
+    // Get user's normalized driver name
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        driverName: true,
+        normalizedName: true,
+      },
+    })
+
+    if (!user) {
+      throw new Error("User not found")
+    }
+
+    const normalizedDriverName = user.normalizedName || normalizeDriverName(user.driverName)
+
+    // Find EventEntry for this event with matching driver name
+    const eventEntry = await prisma.eventEntry.findFirst({
+      where: {
+        eventId,
+        driver: {
+          normalizedName: normalizedDriverName,
+        },
+      },
+      include: {
+        driver: true,
+      },
+    })
+
+    if (!eventEntry) {
+      throw new Error("No driver link found for this user and event")
+    }
+
+    // Create EventDriverLink based on EventEntry
+    // Use "exact" match type and similarity score 1.0 for EventEntry matches
+    eventDriverLink = await prisma.eventDriverLink.create({
+      data: {
+        userId,
+        eventId,
+        driverId: eventEntry.driverId,
+        matchType: "exact",
+        similarityScore: 1.0,
+        matchedAt: new Date(),
+      },
+    })
   }
 
   // Update using the driverId from EventDriverLink

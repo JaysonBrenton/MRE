@@ -15,6 +15,28 @@ relatedDocs:
 This repository is intentionally built for multi-agent collaboration (human specialists + LLM assistants). Every contributor must understand the agents in play, their domains, and the guardrails defined by the version 0.1.1 program.
 
 ## 1. Global Guardrails (Apply to All Agents)
+
+### ⚠️ CRITICAL: Docker-Only Environment
+**THE APPLICATION ONLY RUNS IN DOCKER. NEVER ASSUME A LOCAL DEVELOPMENT ENVIRONMENT.**
+
+- **Docker is Required** – The MRE application runs exclusively in Docker containers. There is no local development server. The application is accessed via Docker containers (`mre-app` for Next.js, `mre-liverc-ingestion-service` for Python ingestion).
+  - **Docker Runtime:** On macOS, **Colima is the recommended and primary Docker runtime** (see `docs/operations/docker-user-guide.md` for Colima setup). Colima provides command-line memory configuration, is lighter than Docker Desktop, and offers better resource control. Docker Desktop is supported as an alternative option.
+- **All Commands Run in Docker** – When suggesting commands, always prefix with `docker exec -it mre-app` (for Next.js) or `docker exec -it mre-liverc-ingestion-service` (for Python). Never suggest running `npm install`, `npm run dev`, `pytest`, or similar commands directly on the host unless explicitly for updating `package.json` or `package-lock.json`.
+- **Dependencies Install in Container** – When dependencies are missing or need updating:
+  - The Docker entrypoint script (`docker-entrypoint.sh`) automatically installs dependencies when the container starts if `package.json` or `package-lock.json` is newer than `node_modules`.
+  - To manually trigger: `docker exec -it mre-app npm install --legacy-peer-deps` (inside container)
+  - To rebuild: `docker compose build` or `docker compose up -d --build`
+- **Local node_modules is Not Used** – The host's `node_modules` directory is excluded from Docker volumes. The container has its own isolated `node_modules`. Changes to local `node_modules` do not affect the running application.
+- **Port 3001 is Docker** – If port 3001 is in use, it's the Docker container, not a local process. Check with `docker ps` to see running containers.
+- **Scripts Run in Container** – All utility scripts in `scripts/` must be executed inside the Docker container: `docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' scripts/<script-name>.ts`
+- **Python Commands Run in Container** – All Python CLI commands must run in the ingestion container: `docker exec -it mre-liverc-ingestion-service python -m ingestion.cli <command>`
+
+**When troubleshooting build or runtime errors:**
+1. First check if dependencies are installed in the container: `docker exec mre-app ls node_modules | grep <package-name>`
+2. Restart the container to trigger automatic dependency installation: `docker compose restart app`
+3. If needed, rebuild the image: `docker compose build app`
+
+### Other Global Guardrails
 - **Version 0.1.1 Scope Only** – Follow the feature list in `README.md` and `docs/specs/mre-v0.1-feature-scope.md#6-llm-guardrails`. Reject any change outside registration, login, welcome/admin pages, LiveRC ingestion, navigation features, table components, dashboard systems, and telemetry visualizations.
 - **Docs Are Canon** – Architecture, ops, security, and UX documents under `docs/` outrank code comments. Quote them when defending design decisions.
 - **All Documentation in `docs/`** – **ALL documentation files must live under `docs/`**. This includes reports, reviews, ADRs, architecture docs, operations guides, and any other documentation. The only exception is `README.md` at the root, which serves as the entry point. Any documentation found outside `docs/` must be moved there.

@@ -93,9 +93,12 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
 
     if (hasStoredCoordinates) {
       // Use stored coordinates directly - skip geocoding
+      // TypeScript: We've already verified these are not null above
+      const storedLat = event.track.latitude as number
+      const storedLng = event.track.longitude as number
       geocodeResult = {
-        latitude: event.track.latitude,
-        longitude: event.track.longitude,
+        latitude: storedLat,
+        longitude: storedLng,
         displayName: event.track.trackName,
       }
     } else {

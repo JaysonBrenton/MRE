@@ -147,6 +147,32 @@ Each result row MUST satisfy:
 - `consistency`  
   MAY be null, but if present MUST be a float between 0 and 100 inclusive.
 
+### 4.1 Entry List Validation (Data Integrity Rule)
+
+**CRITICAL:** Race result drivers MUST be validated against the event entry list for the race's class.
+
+- Each race result driver MUST match an `EventEntry` record for the race's `class_name`.
+- Matching is performed by:
+  1. `source_driver_id` (if available in EventEntry's driver)
+  2. Normalized driver name (exact match)
+- If a race result driver does NOT match any `EventEntry` for the race's class:
+  - The race result MUST be **skipped** (not written to database)
+  - A warning log MUST be emitted with driver and class details
+  - Ingestion MUST continue processing other results
+  - The driver will still be processed if they appear in races for classes they ARE entered in
+
+**Rationale:** This ensures data integrity by preventing drivers from appearing in classes they're not entered in. This can occur due to:
+- LiveRC incorrectly labeling races
+- Race label parsing extracting wrong class names
+- Mixed-class races (shouldn't happen but might)
+
+**Multi-Class Driver Support:** Drivers who enter multiple classes will still be processed correctly:
+- When processing a race for Class A → if driver is entered in Class A → processed
+- When processing a race for Class B → if driver is NOT entered in Class B → skipped (with log)
+- When processing a race for Class C → if driver is entered in Class C → processed
+
+This ensures drivers only appear in classes they're actually entered in, while preserving their data in all valid classes.
+
 Additional required relationships:
 
 - If `laps_completed` > 0, then lap series MUST exist and MUST contain exactly

@@ -29,6 +29,7 @@ import EntryListTab from "@/components/event-analysis/EntryListTab"
 import SessionsTab from "@/components/event-analysis/SessionsTab"
 import ComparisonsTab from "@/components/event-analysis/ComparisonsTab"
 import EventAnalysisHeader from "@/components/event-analysis/EventAnalysisHeader"
+import { DriverCardsAndWeatherGrid } from "@/components/dashboard/DashboardClient"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 // Type for API response with ISO string dates (matches what's stored in Redux)
@@ -77,6 +78,7 @@ type EventAnalysisDataApiResponse = {
     transponderNumber: string | null
     carNumber: string | null
   }>
+  raceClasses: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
   summary: {
     totalRaces: number
     totalDrivers: number
@@ -94,6 +96,14 @@ type EventAnalysisDataApiResponse = {
 function transformApiResponseToEventAnalysisData(
   apiData: EventAnalysisDataApiResponse
 ): EventAnalysisData {
+  // Convert raceClasses object back to Map
+  const raceClassesMap = new Map<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>()
+  if (apiData.raceClasses) {
+    Object.entries(apiData.raceClasses).forEach(([key, value]) => {
+      raceClassesMap.set(key, value)
+    })
+  }
+
   return {
     event: {
       id: apiData.event.id,
@@ -107,6 +117,7 @@ function transformApiResponseToEventAnalysisData(
     })),
     drivers: apiData.drivers,
     entryList: apiData.entryList,
+    raceClasses: raceClassesMap,
     summary: {
       totalRaces: apiData.summary.totalRaces,
       totalDrivers: apiData.summary.totalDrivers,
@@ -129,9 +140,72 @@ export default function EventAnalysisSection() {
   const analysisData = useAppSelector((state) => state.dashboard.analysisData)
   const isAnalysisLoading = useAppSelector((state) => state.dashboard.isAnalysisLoading)
   const analysisError = useAppSelector((state) => state.dashboard.analysisError)
+  const eventData = useAppSelector((state) => state.dashboard.eventData)
+  
+  // Weather state - moved from DashboardClient
+  const [weather, setWeather] = useState<{
+    condition: string
+    wind: string
+    humidity: number
+    air: number
+    track: number
+    precip: number
+    forecast: Array<{ label: string; detail: string }>
+    cachedAt?: string
+    isCached?: boolean
+  } | null>(null)
+  const [weatherLoading, setWeatherLoading] = useState(false)
+  const [weatherError, setWeatherError] = useState<string | null>(null)
+  
+  // Fetch weather data when event is selected
+  useEffect(() => {
+    if (!selectedEventId) {
+      // Reset weather state when no event is selected
+      // Using setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setWeather(null)
+        setWeatherError(null)
+      }, 0)
+      return
+    }
+
+    // Use setTimeout to avoid synchronous setState in effect
+    setTimeout(() => {
+      setWeatherLoading(true)
+      setWeatherError(null)
+    }, 0)
+
+    fetch(`/api/v1/events/${selectedEventId}/weather`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          if (response.status === 404) {
+            setWeatherError("Event not found")
+            return
+          }
+          const errorData = await response.json().catch(() => ({}))
+          setWeatherError(errorData.error?.message || "Failed to load weather data")
+          return
+        }
+
+        const result = await response.json()
+        if (result.success && result.data) {
+          setWeather(result.data)
+        } else {
+          setWeatherError("Invalid response from server")
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching weather data", error)
+        setWeatherError("Failed to fetch weather data")
+      })
+      .finally(() => {
+        setWeatherLoading(false)
+      })
+  }, [selectedEventId])
 
   const [activeTab, setActiveTab] = useState<TabId>("overview")
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
+  const [selectedClass, setSelectedClass] = useState<string | null>(null)
   const [hasInitiatedFetch, setHasInitiatedFetch] = useState(false)
   const sectionRef = useRef<HTMLElement>(null)
   const lastFetchedEventId = useRef<string | null>(null)
@@ -243,36 +317,22 @@ export default function EventAnalysisSection() {
   }, [analysisData])
 
   const availableTabs = [
-    { id: "overview" as TabId, label: "Overview" },
+    { id: "overview" as TabId, label: "Event Overview" },
     { id: "sessions" as TabId, label: "Sessions / Heats" },
     { id: "comparisons" as TabId, label: "Comparisons" },
     { id: "entry-list" as TabId, label: "Entry List" },
     { id: "drivers" as TabId, label: "Drivers" },
   ]
 
-  // Empty state - no event selected
+  // Empty state - no event selected (handled by DashboardClient)
   if (!selectedEventId) {
-    return (
-      <section ref={sectionRef} className="mt-12 space-y-4">
-        <div className="border-b border-[var(--token-border-default)] pb-4">
-          <h2 className="text-xl font-semibold text-[var(--token-text-primary)]">Event Analysis</h2>
-        </div>
-        <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-          <p className="text-[var(--token-text-secondary)]">
-            Select an event above to view analysis
-          </p>
-        </div>
-      </section>
-    )
+    return null
   }
 
   // Loading state
   if (isAnalysisLoading) {
     return (
-      <section ref={sectionRef} className="mt-12 space-y-4">
-        <div className="border-b border-[var(--token-border-default)] pb-4">
-          <h2 className="text-xl font-semibold text-[var(--token-text-primary)]">Event Analysis</h2>
-        </div>
+      <section ref={sectionRef} className="mt-6 space-y-4">
         <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
           <p className="text-[var(--token-text-secondary)]">Loading event analysis data...</p>
         </div>
@@ -283,10 +343,7 @@ export default function EventAnalysisSection() {
   // Error state
   if (analysisError) {
     return (
-      <section ref={sectionRef} className="mt-12 space-y-4">
-        <div className="border-b border-[var(--token-border-default)] pb-4">
-          <h2 className="text-xl font-semibold text-[var(--token-text-primary)]">Event Analysis</h2>
-        </div>
+      <section ref={sectionRef} className="mt-6 space-y-4">
         <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
           <p className="text-[var(--token-text-error)] mb-4">{analysisError}</p>
           <button
@@ -309,10 +366,7 @@ export default function EventAnalysisSection() {
   // No data state - show lazy loading prompt if we haven't initiated fetch yet
   if (!transformedData) {
     return (
-      <section ref={sectionRef} className="mt-12 space-y-4">
-        <div className="border-b border-[var(--token-border-default)] pb-4">
-          <h2 className="text-xl font-semibold text-[var(--token-text-primary)]">Event Analysis</h2>
-        </div>
+      <section ref={sectionRef} className="mt-6 space-y-4">
         <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
           {!hasInitiatedFetch ? (
             <p className="text-[var(--token-text-secondary)]">
@@ -328,11 +382,7 @@ export default function EventAnalysisSection() {
 
   // Render analysis content
   return (
-    <section ref={sectionRef} className="mt-12 space-y-6">
-      <div className="border-b border-[var(--token-border-default)] pb-4">
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)]">Event Analysis</h2>
-      </div>
-
+    <section ref={sectionRef} className="mt-6 space-y-6">
       {transformedData && (
         <>
           <EventAnalysisHeader
@@ -340,6 +390,11 @@ export default function EventAnalysisSection() {
             eventDate={transformedData.event.eventDate}
             trackName={transformedData.event.trackName}
           />
+        </>
+      )}
+
+      {transformedData && (
+        <>
 
           <div className="space-y-6">
             <TabNavigation
@@ -349,11 +404,33 @@ export default function EventAnalysisSection() {
             />
 
             {activeTab === "overview" && (
-              <OverviewTab
-                data={transformedData}
-                selectedDriverIds={selectedDriverIds}
-                onDriverSelectionChange={setSelectedDriverIds}
-              />
+              <>
+                <OverviewTab
+                  data={transformedData}
+                  selectedDriverIds={selectedDriverIds}
+                  onDriverSelectionChange={setSelectedDriverIds}
+                  selectedClass={selectedClass}
+                  onClassChange={setSelectedClass}
+                />
+                {/* Driver Cards and Weather Grid - moved from DashboardHero */}
+                {eventData && transformedData && (
+                  <DriverCardsAndWeatherGrid
+                    event={eventData.event}
+                    topDrivers={eventData.topDrivers}
+                    mostConsistentDrivers={eventData.mostConsistentDrivers}
+                    bestAvgLapDrivers={eventData.bestAvgLapDrivers}
+                    mostImprovedDrivers={eventData.mostImprovedDrivers}
+                    userBestLap={eventData.userBestLap}
+                    userBestConsistency={eventData.userBestConsistency}
+                    userBestAvgLap={eventData.userBestAvgLap}
+                    weather={weather}
+                    weatherLoading={weatherLoading}
+                    weatherError={weatherError}
+                    selectedClass={selectedClass}
+                    races={transformedData.races}
+                  />
+                )}
+              </>
             )}
 
             {activeTab === "drivers" && (
@@ -367,7 +444,11 @@ export default function EventAnalysisSection() {
             {activeTab === "entry-list" && <EntryListTab data={transformedData} />}
 
             {activeTab === "sessions" && (
-              <SessionsTab data={transformedData} selectedDriverIds={selectedDriverIds} />
+              <SessionsTab
+                data={transformedData}
+                selectedDriverIds={selectedDriverIds}
+                selectedClass={selectedClass}
+              />
             )}
 
             {activeTab === "comparisons" && <ComparisonsTab />}

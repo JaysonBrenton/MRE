@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-01-27
 description: Specification for the /under-development placeholder page
 purpose: Defines the complete, strict specification for the Under Development Page used
          throughout the My Race Engineer (MRE) application. Ensures consistent behaviour
@@ -66,6 +66,18 @@ We're still building this feature, the pit crew is working on it!
 
 This text cannot be modified, stylised with emojis, expanded, shortened, or contextualised.
 
+### 3.1 Feature-Specific Descriptions
+
+When route information is provided via the `from` query parameter, the page may display additional feature-specific information below the core message. This information must:
+
+* Be displayed in a separate section below the core message
+* Include the feature name as a heading
+* Include a description of what the feature will provide
+* Use consistent styling with existing design tokens
+* Not replace or modify the core message
+
+If no route information is provided, only the core message should be displayed.
+
 ---
 
 # 4. Layout Requirements (Consistent Wrapper)
@@ -124,15 +136,20 @@ Since this page contains no controls, there are no interactive accessibility con
 ### 6.2 Forbidden Components
 
 * Buttons
-* Links
+* Links (except as part of breadcrumbs)
 * Forms
 * Images
-* Icons
-* Cards
-* Lists
+* Icons (except as part of breadcrumbs)
+* Interactive elements
 * Navigation to features other than the landing page
 
-This page must remain minimal for clarity and consistency.
+### 6.3 Allowed Additional Content
+
+* Feature description text (when route information is provided)
+* Feature name headings (for context)
+* Informational cards or sections displaying feature descriptions (non-interactive)
+
+This page must remain minimal for clarity and consistency, but may include descriptive text to help users understand upcoming features.
 
 ---
 
@@ -155,6 +172,16 @@ All future feature links must:
 * either navigate directly to `/under-development`, or
 * redirect server-side to `/under-development`.
 
+### 7.4 Route Information Passing
+
+When redirecting to `/under-development`, pages should pass route information via the `from` query parameter:
+
+* Client-side redirects: `router.replace(\`/under-development?from=\${encodeURIComponent(route)}\`)`
+* Server-side redirects: `redirect(\`/under-development?from=\${encodeURIComponent(route)}\`)`
+* Direct navigation links: `/under-development?from=/dashboard/my-feature`
+
+The `from` parameter should contain the route path that the user was attempting to access (e.g., `/dashboard/my-telemetry`). This allows the under-development page to display feature-specific descriptions.
+
 ---
 
 # 8. Testing Requirements
@@ -166,7 +193,9 @@ Tests must verify that:
 * the global layout wrapper is applied,
 * the page passes mobile breakpoints,
 * the page uses dark theme tokens,
-* no interactive elements appear.
+* no interactive elements appear,
+* feature descriptions appear when route information is provided via query parameter,
+* feature descriptions do not appear when no route information is provided.
 
 ---
 
@@ -188,11 +217,13 @@ These must not be implemented in Alpha.
 LLMs must:
 
 * follow this specification exactly,
-* refuse to add additional elements,
-* refuse to add buttons or interaction,
-* refuse to introduce feature-specific placeholders,
-* enforce the exact message,
-* validate that the layout uses global wrappers and tokens.
+* refuse to add additional elements beyond feature descriptions,
+* refuse to add buttons or interactive elements,
+* refuse to introduce feature-specific placeholders that replace the core message,
+* enforce the exact core message (section 3),
+* allow feature descriptions as specified in section 3.1,
+* validate that the layout uses global wrappers and tokens,
+* ensure feature descriptions are sourced from `src/lib/feature-descriptions.ts`.
 
 ---
 

@@ -167,6 +167,8 @@ src/
 
 ## 3.1 Versioned Endpoints
 
+**Requirement:** All API routes must be under `/api/v1/` except framework-required exceptions.
+
 All APIs must be under:
 
 ```
@@ -179,6 +181,7 @@ Examples:
 src/app/api/v1/auth/register/route.ts
 src/app/api/v1/auth/login/route.ts
 src/app/api/v1/tracks/route.ts
+src/app/api/v1/health/route.ts
 ```
 
 These routes are accessible at:
@@ -187,7 +190,20 @@ These routes are accessible at:
 /api/v1/auth/register
 /api/v1/auth/login
 /api/v1/tracks
+/api/v1/health
 ```
+
+### 3.1.1 Framework-Required Exceptions
+
+The following routes are exceptions to the `/api/v1/` requirement due to framework constraints:
+
+**NextAuth Authentication Route:**
+- **Path:** `/api/auth/[...nextauth]`
+- **File:** `src/app/api/auth/[...nextauth]/route.ts`
+- **Reason:** NextAuth framework requires this exact path structure for its callback handling and authentication endpoints
+- **Status:** This is the only acceptable exception to the v1 requirement
+
+All other routes must be under `/api/v1/`.
 
 ## 3.2 API Format
 
@@ -252,11 +268,25 @@ All authentication must remain minimalistic for version 0.1.1.
 
 ## 5.1 Location of DB Access
 
-All Prisma queries must exist only in:
+**API Routes:** API routes must never contain Prisma queries. All database access must go through core functions.
+
+**Repository Files:** Simple CRUD operations and reusable query functions must exist in:
 
 ```
 src/core/<domain>/repo.ts
 ```
+
+**Core Business Logic Files:** Core business logic files (`src/core/<domain>/*.ts`) may use Prisma directly for complex queries that:
+- Combine multiple entities with joins
+- Perform aggregations across multiple tables
+- Require complex query logic that is part of business logic rather than simple data access
+
+**Examples of acceptable Prisma usage in core business logic:**
+- `src/core/users/driver-links.ts` - Complex joins across UserDriverLink, Driver, and EventDriverLink
+- `src/core/personas/driver-events.ts` - Multi-entity queries combining EventDriverLink, EventEntry, and Event
+- `src/core/events/get-event-analysis-data.ts` - Aggregations and complex joins for event analysis
+
+**Preference:** When possible, core business logic files should prefer delegating to repo functions. Direct Prisma usage is acceptable for complex multi-entity operations that are inherently part of the business logic.
 
 ## 5.2 Entities
 

@@ -35,19 +35,41 @@ function isPerformanceMeasurementError(message: string): boolean {
 }
 
 /**
+ * Check if an error message is a Next.js async params/searchParams warning
+ * These are non-critical warnings from React DevTools trying to serialize
+ * async props. The code correctly uses await, so these warnings are harmless.
+ */
+function isAsyncParamsWarning(message: string): boolean {
+  return (
+    message.includes("params are being enumerated") ||
+    message.includes("params` is a Promise and must be unwrapped") ||
+    message.includes("The keys of `searchParams` were accessed directly") ||
+    message.includes("searchParams` is a Promise and must be unwrapped") ||
+    message.includes("sync-dynamic-apis")
+  )
+}
+
+/**
  * Override console.error to filter out Next.js performance measurement errors
  * This needs to run early, before Next.js error overlay intercepts the errors
  */
 if (typeof window !== "undefined") {
   const originalConsoleError = console.error
   console.error = (...args: unknown[]) => {
-    // Check if any argument contains the performance measurement error
+    // Check if any argument contains errors we want to filter out
     const message = args
       .map((arg) => (typeof arg === "string" ? arg : String(arg)))
       .join(" ")
 
     if (isPerformanceMeasurementError(message)) {
       // Silently ignore these errors - they're not actual application errors
+      return
+    }
+
+    if (isAsyncParamsWarning(message)) {
+      // Silently ignore React DevTools warnings about async params/searchParams
+      // These occur when DevTools tries to serialize component props.
+      // The code correctly uses await, so these warnings are harmless.
       return
     }
 
@@ -71,7 +93,7 @@ export default function GlobalErrorHandler() {
      * Handle uncaught JavaScript errors
      */
     const handleError = (event: ErrorEvent) => {
-      // Filter out Next.js performance measurement errors
+      // Filter out non-critical errors
       const errorMessage = event.message || event.error?.message || ""
 
       if (isPerformanceMeasurementError(errorMessage)) {
@@ -80,6 +102,15 @@ export default function GlobalErrorHandler() {
         event.stopPropagation()
         event.stopImmediatePropagation()
         // Silently ignore these errors - they're not actual application errors
+        return false
+      }
+
+      if (isAsyncParamsWarning(errorMessage)) {
+        // Prevent React DevTools warnings about async params/searchParams
+        event.preventDefault()
+        event.stopPropagation()
+        event.stopImmediatePropagation()
+        // Silently ignore these warnings - they're not actual application errors
         return false
       }
 

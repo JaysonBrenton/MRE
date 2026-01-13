@@ -18,6 +18,7 @@ import { successResponse, errorResponse } from "@/lib/api-utils";
 import { createRequestLogger, generateRequestId } from "@/lib/request-context";
 import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
 import { IngestionServiceError } from "@/lib/ingestion-client";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId()
@@ -36,6 +37,22 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Check rate limit for discovery endpoint (expensive operation)
+    const rateLimitResult = checkRateLimit(request, RATE_LIMITS.discovery)
+    if (!rateLimitResult.allowed) {
+      requestLogger.warn("Rate limit exceeded for event discovery", {
+        resetTime: rateLimitResult.resetTime,
+      })
+      return errorResponse(
+        "RATE_LIMIT_EXCEEDED",
+        "Too many discovery requests. Please try again later.",
+        {
+          resetTime: rateLimitResult.resetTime,
+        },
+        429
+      )
+    }
+
     const body = await request.json();
     const { track_id, start_date, end_date, existing_event_source_ids, track: trackData } = body;
 

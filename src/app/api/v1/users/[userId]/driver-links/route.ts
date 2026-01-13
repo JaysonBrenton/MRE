@@ -22,6 +22,7 @@ import { getUserDriverLinks, getUserDriverLinksByStatus } from "@/core/users/dri
 import { successResponse, errorResponse } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
+import { isValidUUID } from "@/lib/uuid-validation"
 
 /**
  * GET /api/v1/users/[userId]/driver-links
@@ -47,6 +48,16 @@ export async function GET(
   try {
     // Await params (Next.js 15)
     const { userId } = await params
+    
+    // Validate userId format
+    if (!isValidUUID(userId)) {
+      return errorResponse(
+        "VALIDATION_ERROR",
+        "userId must be a valid UUID format",
+        { field: "userId" },
+        400
+      )
+    }
     
     // Verify authentication
     const session = await auth()

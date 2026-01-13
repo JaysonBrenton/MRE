@@ -3,7 +3,7 @@
  *
  * @created 2025-01-28
  * @creator Jayson Brenton
- * @lastModified 2025-01-28
+ * @lastModified 2026-01-27
  *
  * @description Guides index page listing all available user guides
  *
@@ -13,6 +13,7 @@
  * @relatedFiles
  * - src/components/Breadcrumbs.tsx (breadcrumb navigation)
  * - src/app/(authenticated)/guides/getting-started/page.tsx (getting started guide)
+ * - docs/user-guides/README.md (user guides documentation index)
  */
 
 import Breadcrumbs from "@/components/Breadcrumbs"
@@ -25,6 +26,48 @@ export default async function GuidesPage() {
       href: "/guides/getting-started",
       description:
         "Welcome to My Race Engineer. This guide will help you get started with the platform.",
+    },
+    {
+      title: "Event Search",
+      href: "/guides/event-search",
+      description:
+        "Complete guide to searching for race events, selecting tracks, importing events from LiveRC, and understanding event status indicators.",
+    },
+    {
+      title: "Event Analysis",
+      href: "/guides/event-analysis",
+      description:
+        "Learn how to analyze race event data, view interactive charts, compare drivers, explore sessions, and export data.",
+    },
+    {
+      title: "Dashboard",
+      href: "/guides/dashboard",
+      description:
+        "Guide to using your personal dashboard, understanding widgets, customizing layouts, and viewing statistics.",
+    },
+    {
+      title: "Driver Features",
+      href: "/guides/driver-features",
+      description:
+        "Learn how MRE automatically discovers events where you participated, understand match types, and confirm participation.",
+    },
+    {
+      title: "Navigation",
+      href: "/guides/navigation",
+      description:
+        "Master navigation patterns including breadcrumbs, menus, tabs, keyboard shortcuts, and finding features.",
+    },
+    {
+      title: "Account Management",
+      href: "/guides/account-management",
+      description:
+        "Complete guide to managing your account, including registration, login, password management, and account security.",
+    },
+    {
+      title: "Troubleshooting",
+      href: "/guides/troubleshooting",
+      description:
+        "Find solutions to common problems including login issues, event import failures, search problems, and performance issues.",
     },
   ]
 

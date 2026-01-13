@@ -43,12 +43,14 @@ export interface CheckEntryListsResult {
  * @param livercEvents - Array of liverc events to check (must have sourceEventId and trackSlug)
  * @param dbEvents - Array of database events to check (must have eventId)
  * @param driverName - Driver name to search for
+ * @param abortSignal - Optional AbortSignal to cancel the operation
  * @returns Map of event source IDs (for LiveRC) or event IDs (for DB) to boolean (true if driver found, false if not found, undefined if error)
  */
 export async function checkEntryListsForDriver(
   livercEvents: LiveRCEvent[],
   dbEvents: DbEvent[],
-  driverName: string
+  driverName: string,
+  abortSignal?: AbortSignal
 ): Promise<CheckEntryListsResult> {
   const driverInEvents: Record<string, boolean> = {}
   const errors: Record<string, string> = {}
@@ -73,19 +75,37 @@ export async function checkEntryListsForDriver(
     dbEventCount: dbEvents.length,
   })
 
+  // Check if already aborted
+  if (abortSignal?.aborted) {
+    logger.debug("Entry list check aborted before starting")
+    return { driverInEvents, errors }
+  }
+
   // Check LiveRC events in parallel
   const livercCheckPromises = livercEvents.map(async (event) => {
     try {
+      // Check if aborted before each check
+      if (abortSignal?.aborted) {
+        return
+      }
+
       logger.debug("Starting entry list check for LiveRC event", {
         sourceEventId: event.sourceEventId,
         trackSlug: event.trackSlug,
       })
 
       // Fetch entry list from ingestion service
+      // Note: ingestionClient.getEventEntryList would need to support AbortSignal
+      // For now, we check the signal before and after the call
       const entryListData = await ingestionClient.getEventEntryList(
         event.trackSlug,
         event.sourceEventId
       )
+
+      // Check if aborted after fetch
+      if (abortSignal?.aborted) {
+        return
+      }
 
       logger.debug("Entry list fetched for LiveRC event", {
         sourceEventId: event.sourceEventId,
@@ -131,12 +151,23 @@ export async function checkEntryListsForDriver(
     }
   })
 
+  // Check if aborted before DB checks
+  if (abortSignal?.aborted) {
+    logger.debug("Entry list check aborted before DB checks")
+    return { driverInEvents, errors }
+  }
+
   // Check DB events
   let dbResults: Record<string, boolean> = {}
   if (dbEvents.length > 0) {
     try {
       const dbEventIds = dbEvents.map(e => e.eventId)
       dbResults = await checkDbEventsForDriver(dbEventIds, normalizedDriverName)
+      
+      // Check if aborted after DB check
+      if (abortSignal?.aborted) {
+        return { driverInEvents, errors }
+      }
       
       // Merge DB results into driverInEvents
       for (const [eventId, found] of Object.entries(dbResults)) {

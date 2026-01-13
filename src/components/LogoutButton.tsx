@@ -32,7 +32,7 @@ export default function LogoutButton({ variant = "default" }: LogoutButtonProps)
         type="submit"
         className={`flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] ${
           isCompact ? "w-full px-3 py-2 text-xs" : "px-4 text-sm"
-        } font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] active:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]`}
+        } font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] active:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]`}
       >
         Sign out
       </button>

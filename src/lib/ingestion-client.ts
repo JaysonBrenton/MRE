@@ -495,10 +495,12 @@ export class IngestionClient {
       requestBody.end_date = endDate
     }
 
-    // Reduced timeout from 5 minutes to 60 seconds for better UX
-    // Backend still has 5 minute timeout, but we fail fast on client side
+    // Increased timeout to 120 seconds (2 minutes) for web scraping operations
+    // LiveRC discovery involves web scraping which can be slow, especially
+    // for tracks with many events. The backend has a 5 minute timeout, but
+    // we use a shorter client timeout to provide better UX feedback.
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 60 * 1000) // 60 seconds
+    const timeoutId = setTimeout(() => controller.abort(), 120 * 1000) // 120 seconds (2 minutes)
 
     try {
       const response = await fetch(url, {
@@ -550,10 +552,10 @@ export class IngestionClient {
           // Timeout - record failure
           this.circuitBreaker.recordFailure()
           throw new Error(
-            "Discovery timeout: The LiveRC discovery is taking longer than expected. The ingestion service may be busy processing other requests. Please try again in a few moments."
+            "Discovery timeout: The LiveRC discovery is taking longer than expected (over 2 minutes). The ingestion service may be busy processing other requests or the track may have many events. Please try again in a few moments."
           )
         }
-        // Handle network errors
+        // Handle network errors with improved diagnostics
         const isConnectionError =
           error.message.includes("fetch failed") ||
           error.message.includes("ECONNREFUSED") ||
@@ -562,6 +564,7 @@ export class IngestionClient {
           error.message.includes("EAI_AGAIN") ||
           error.message.includes("network") ||
           error.message.includes("socket") ||
+          error.message.includes("Failed to fetch") ||
           (error.cause instanceof Error &&
             (error.cause.message.includes("ECONNREFUSED") ||
               error.cause.message.includes("ENOTFOUND") ||
@@ -571,14 +574,21 @@ export class IngestionClient {
           this.circuitBreaker.recordFailure()
           console.error("[IngestionClient] Discovery connection error:", {
             url,
+            baseUrl: this.baseUrl,
             errorName: error.name,
             errorMessage: error.message,
             errorCause:
               error.cause instanceof Error ? error.cause.message : String(error.cause || "none"),
             circuitState: this.circuitBreaker.getState(),
+            trackSlug,
           })
+          // Provide more helpful error message with troubleshooting steps
           throw new Error(
-            `Cannot connect to ingestion service at ${url}. Please ensure the ingestion service is running. Error: ${error.message}`
+            `Cannot connect to ingestion service at ${url}. ` +
+            `Please ensure the ingestion service is running. ` +
+            `You can check the service status with: docker ps | grep liverc-ingestion-service ` +
+            `or restart it with: docker compose restart liverc-ingestion-service. ` +
+            `Error: ${error.message}`
           )
         }
       }

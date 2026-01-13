@@ -36,28 +36,32 @@ export default function ImprovementDriverCard({ driver, index }: ImprovementDriv
   const lapTimeDisplay = formatLapTimeImprovement(driver.lapTimeImprovement)
 
   return (
-    <div className="rounded-2xl border border-[var(--token-status-success-border)] bg-[var(--token-surface-elevated)] px-4 py-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[var(--token-status-success-text)]">
+    <div className="rounded-2xl border border-[var(--token-status-success-text)]/40 bg-[var(--token-surface-elevated)] px-5 py-5 h-full w-full transition-all duration-200 hover:border-[var(--token-status-success-text)]/60 hover:bg-[var(--token-surface-raised)] hover:shadow-lg">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold text-[var(--token-status-success-text)] bg-[var(--token-surface)] px-2.5 py-1 rounded-full border border-[var(--token-status-success-text)]/40">
           #{index + 1}
         </span>
-        <span className="text-[10px] text-[var(--token-status-success-text)]">↑ Improved</span>
+        <span className="text-[10px] font-medium text-[var(--token-status-success-text)] bg-[var(--token-status-success-bg)] px-2 py-0.5 rounded-full">
+          ↑ Improved
+        </span>
       </div>
-      <p className="text-base font-semibold text-[var(--token-text-primary)] mb-1">
+      <p className="text-base font-bold text-[var(--token-text-primary)] mb-2 truncate">
         {driver.driverName}
       </p>
-      <div className="mb-2">
-        <p className="text-sm font-medium text-[var(--token-text-primary)] mb-1">
-          Position: {positionDisplay}
+      <div className="mb-3">
+        <p className="text-sm font-semibold text-[var(--token-text-primary)] mb-1.5 leading-tight">
+          Position: <span className="text-[var(--token-status-success-text)]">{positionDisplay}</span>
         </p>
         {driver.lapTimeImprovement !== null && (
-          <p className="text-sm font-medium text-[var(--token-text-primary)]">
-            Lap Time: {lapTimeDisplay}
+          <p className="text-sm font-semibold text-[var(--token-text-primary)] leading-tight">
+            Lap Time: <span className="text-[var(--token-status-success-text)]">{lapTimeDisplay}</span>
           </p>
         )}
       </div>
-      <p className="text-[10px] text-[var(--token-text-muted)]">{driver.raceLabel}</p>
-      <p className="text-[10px] text-[var(--token-text-muted)]">{driver.className}</p>
+      <div className="space-y-1">
+        <p className="text-[10px] text-[var(--token-text-muted)] font-medium truncate">{driver.raceLabel}</p>
+        <p className="text-[10px] text-[var(--token-text-muted)] truncate">{driver.className}</p>
+      </div>
     </div>
   )
 }

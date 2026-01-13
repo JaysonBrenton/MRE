@@ -63,6 +63,12 @@ export async function searchEvents(params: SearchEventsParams): Promise<SearchEv
   })
 
   if (!track) {
+    // Log the track ID that wasn't found for debugging
+    console.error("Track not found in database", {
+      trackId,
+      trackIdType: typeof trackId,
+      trackIdLength: trackId?.length,
+    })
     throw new Error("Track not found")
   }
 
@@ -253,6 +259,9 @@ export interface GetAllImportedEventsResult {
   total: number
 }
 
+// Maximum limit for pagination to prevent memory issues
+const MAX_PAGINATION_LIMIT = 1000
+
 /**
  * Get events with filtering, sorting, and pagination
  * 
@@ -263,7 +272,7 @@ export async function getAllImportedEvents(
   params?: GetAllImportedEventsParams
 ): Promise<GetAllImportedEventsResult> {
   const { 
-    limit = 20, 
+    limit: requestedLimit = 20, 
     offset = 0,
     trackId,
     startDate,
@@ -274,7 +283,15 @@ export async function getAllImportedEvents(
     userId
   } = params || {}
 
+  // Enforce maximum limit to prevent memory issues and slow queries
+  const limit = Math.min(requestedLimit, MAX_PAGINATION_LIMIT)
+
   // If userId is provided, get event IDs from EventDriverLink
+  // Note: This uses two separate queries (EventDriverLink, then Event) which may
+  // result in eventual consistency if database state changes between queries.
+  // This is acceptable for read operations where slight inconsistencies are tolerable.
+  // For strict consistency requirements, consider using a single query with joins
+  // or database transactions.
   let userEventIds: string[] | undefined
   if (userId) {
     const eventDriverLinks = await prisma.eventDriverLink.findMany({
@@ -338,35 +355,49 @@ export async function getAllImportedEvents(
     where: whereClause,
   })
 
-  // Build orderBy clause
-  // Note: trackName ordering is handled in-memory after fetching
-  let orderByClause: Prisma.EventOrderByWithRelationInput
-  let needsInMemorySort = false
+  // Validate orderBy and orderDirection parameters
+  const validOrderBy = ['eventDate', 'eventName', 'trackName', 'eventEntries', 'eventDrivers'] as const
+  const validOrderDirection = ['asc', 'desc'] as const
   
-  switch (orderBy) {
+  const validatedOrderBy = validOrderBy.includes(orderBy as typeof validOrderBy[number])
+    ? (orderBy as typeof validOrderBy[number])
+    : 'eventDate'
+  
+  const validatedOrderDirection = validOrderDirection.includes(orderDirection as typeof validOrderDirection[number])
+    ? (orderDirection as typeof validOrderDirection[number])
+    : 'desc'
+
+  // Build orderBy clause
+  // For trackName, we need to use Prisma's nested ordering or fetch all and sort
+  let orderByClause: Prisma.EventOrderByWithRelationInput | Prisma.EventOrderByWithRelationInput[]
+  
+  switch (validatedOrderBy) {
     case 'eventName':
-      orderByClause = { eventName: orderDirection }
+      orderByClause = { eventName: validatedOrderDirection }
       break
     case 'trackName':
-      // Prisma doesn't support ordering by nested fields directly
-      // We'll sort in memory after fetching
-      orderByClause = { eventDate: 'desc' } // Default ordering
-      needsInMemorySort = true
+      // Use Prisma's nested ordering capability
+      // This allows proper pagination with track name sorting
+      orderByClause = [
+        { track: { trackName: validatedOrderDirection } },
+        { eventDate: 'desc' } // Secondary sort for consistent pagination
+      ]
       break
     case 'eventEntries':
-      orderByClause = { eventEntries: orderDirection }
+      orderByClause = { eventEntries: validatedOrderDirection }
       break
     case 'eventDrivers':
-      orderByClause = { eventDrivers: orderDirection }
+      orderByClause = { eventDrivers: validatedOrderDirection }
       break
     case 'eventDate':
     default:
-      orderByClause = { eventDate: orderDirection }
+      orderByClause = { eventDate: validatedOrderDirection }
       break
   }
 
   // Fetch paginated events with all required fields
-  let events = await prisma.event.findMany({
+  // For trackName sorting, Prisma will handle the nested ordering correctly
+  const events = await prisma.event.findMany({
     where: whereClause,
     select: {
       id: true,
@@ -387,14 +418,6 @@ export async function getAllImportedEvents(
     take: limit,
     skip: offset,
   })
-
-  // Handle trackName sorting in memory
-  if (needsInMemorySort) {
-    events = [...events].sort((a, b) => {
-      const comparison = a.track.trackName.localeCompare(b.track.trackName)
-      return orderDirection === 'asc' ? comparison : -comparison
-    })
-  }
 
   return {
     events: events.map((event) => ({

@@ -62,6 +62,12 @@ export async function GET(
     })
 
     // Convert Date objects to ISO strings for JSON serialization
+    // Convert raceClasses Map to plain object for JSON serialization
+    const raceClassesObject: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }> = {}
+    analysisData.raceClasses.forEach((value, key) => {
+      raceClassesObject[key] = value
+    })
+
     return successResponse({
       event: {
         id: analysisData.event.id,
@@ -75,6 +81,7 @@ export async function GET(
       })),
       drivers: analysisData.drivers,
       entryList: analysisData.entryList,
+      raceClasses: raceClassesObject,
       summary: {
         totalRaces: analysisData.summary.totalRaces,
         totalDrivers: analysisData.summary.totalDrivers,
@@ -86,6 +93,14 @@ export async function GET(
       },
     })
   } catch (error) {
+    // Log the error with more context for debugging
+    requestLogger.error("Error in event analysis API", {
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : String(error),
+    })
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(
       errorInfo.code,
