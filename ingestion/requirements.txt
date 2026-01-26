@@ -11,6 +11,7 @@ httpx>=0.27.0
 
 # HTML parsing
 selectolax>=0.3.0
+beautifulsoup4>=4.12.0
 
 # Browser automation
 playwright>=1.40.0

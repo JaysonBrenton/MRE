@@ -61,6 +61,46 @@ class EventDriverLinkMatchType(PyEnum):
     FUZZY = "fuzzy"
 
 
+class SessionType(PyEnum):
+    """Session type for races."""
+    RACE = "race"
+    PRACTICE = "practice"
+    QUALIFYING = "qualifying"
+    PRACTICEDAY = "practiceday"
+
+
+class SessionTypeType(TypeDecorator):
+    """Type decorator to ensure enum values are used instead of names for SessionType."""
+    impl = PG_ENUM(SessionType, name="SessionType", create_type=False, values_callable=lambda x: [e.value for e in x])
+    cache_ok = True
+    
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, SessionType):
+            return value.value
+        # If it's already a string, normalize to lowercase
+        if isinstance(value, str):
+            return value.lower()
+        return value
+    
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        # Convert string value back to enum by value (not name)
+        if isinstance(value, str):
+            # Find enum member by value
+            for member in SessionType:
+                if member.value == value:
+                    return member
+            # If not found, try to create from value directly
+            try:
+                return SessionType(value)
+            except ValueError:
+                return None
+        return value
+
+
 class IngestDepthType(TypeDecorator):
     """Type decorator to ensure enum values are used instead of names."""
     impl = String
@@ -136,6 +176,7 @@ class Event(Base):
     event_url = Column("event_url", String, nullable=False)
     ingest_depth = Column("ingest_depth", IngestDepthType(), default=IngestDepth.NONE, nullable=False)
     last_ingested_at = Column("last_ingested_at", DateTime(timezone=True), nullable=True)
+    event_metadata = Column("metadata", JSONB, nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -219,6 +260,7 @@ class Race(Base):
     race_url = Column("race_url", String, nullable=False)
     start_time = Column("start_time", DateTime(timezone=True), nullable=True)
     duration_seconds = Column("duration_seconds", Integer, nullable=True)
+    session_type = Column("session_type", SessionTypeType(), nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

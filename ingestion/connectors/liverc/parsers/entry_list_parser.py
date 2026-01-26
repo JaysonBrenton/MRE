@@ -139,17 +139,31 @@ class EntryListParser:
                                     car_number = car_number_text
                             
                             # Extract driver name (second column)
+                            # HTML structure can be:
+                            #   1. <td><span class="hidden">ADCROFT, ANDY</span>ANDY ADCROFT</td>
+                            #   2. <td>BRIGUGLIO, MICHAEL<br>MICHAEL BRIGUGLIO</td>
                             driver_name_elem = row.css_first("td:nth-child(2)")
                             if not driver_name_elem:
                                 logger.warning("entry_list_row_missing_driver_name", class_name=class_name, url=url)
                                 continue
+                            
+                            # Remove hidden spans before extracting text
+                            # LiveRC uses <span class="hidden"> for sorting data that shouldn't be displayed
+                            for hidden_span in driver_name_elem.css("span.hidden"):
+                                hidden_span.decompose()
+                            
+                            # Replace <br> tags with newlines before extracting text
+                            # This handles HTML like: <td>BRIGUGLIO, MICHAEL<br>MICHAEL BRIGUGLIO</td>
+                            for br in driver_name_elem.css("br"):
+                                br.replace_with("\n")
                             
                             driver_name_text = driver_name_elem.text().strip()
                             if not driver_name_text:
                                 logger.warning("entry_list_row_empty_driver_name", class_name=class_name, url=url)
                                 continue
                             
-                            # Clean up driver name (may contain multiple lines, take first line or join)
+                            # Clean up driver name (may contain multiple lines, take first line)
+                            # The first line is typically "LAST, FIRST" format from the entry list
                             driver_name_lines = [line.strip() for line in driver_name_text.split("\n") if line.strip()]
                             driver_name = driver_name_lines[0] if driver_name_lines else driver_name_text.strip()
                             

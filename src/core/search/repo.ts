@@ -21,6 +21,7 @@ import type {
   SearchSessionsResult,
   EventSearchResult,
   SessionSearchResult,
+  SessionType,
 } from "./types"
 
 /**
@@ -257,7 +258,7 @@ export async function searchSessions(params: SearchSessionsParams): Promise<Sear
     raceId: race.id,
     raceLabel: race.raceLabel,
     className: race.className,
-    sessionType: race.sessionType,
+      sessionType: (race.sessionType ?? "race") as SessionType, // Backward compatibility: default to "race" if null in database
     eventId: race.event.id,
     eventName: race.event.eventName,
     eventDate: race.event.eventDate ? race.event.eventDate.toISOString() : null,

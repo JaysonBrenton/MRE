@@ -34,7 +34,7 @@ export interface SessionChartTabsProps {
 
 const defaultTabs: Array<{ id: ChartTabId; label: string }> = [
   { id: "overview", label: "Race Overview" },
-  { id: "driver-performance", label: "Race Details" },
+  { id: "driver-performance", label: "Lap Data" },
   { id: "driver-bump-ups", label: "Driver Bump-Ups" },
 ]
 
@@ -93,7 +93,11 @@ export default function SessionChartTabs({
                 aria-selected={isActive}
                 aria-controls={`chartpanel-${tab.id}`}
                 id={`charttab-${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setActiveTab(tab.id)
+                }}
                 onKeyDown={(e) => handleKeyDown(e, tab.id)}
                 className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] ${
                   isActive
@@ -109,7 +113,11 @@ export default function SessionChartTabs({
       </div>
 
       {/* Chart Content */}
-      <div role="tabpanel" aria-labelledby={`charttab-${activeTab}`}>
+      <div 
+        role="tabpanel" 
+        id={`chartpanel-${activeTab}`}
+        aria-labelledby={`charttab-${activeTab}`}
+      >
         {activeTab === "overview" && (
           <SessionsTable
             sessions={sessions}

@@ -10,6 +10,7 @@
 #          utility module to prevent duplication."
 
 from typing import Optional
+from datetime import date
 from urllib.parse import urlparse, urljoin
 
 
@@ -150,4 +151,48 @@ def normalize_race_url(race_url: str, track_slug: Optional[str] = None) -> str:
         return f"https://{track_slug}.liverc.com{race_url}"
     else:
         return f"https://{track_slug}.liverc.com/{race_url}"
+
+
+def build_practice_month_url(track_slug: str, year: int, month: int) -> str:
+    """
+    Build practice month view URL.
+    
+    Args:
+        track_slug: Track subdomain slug
+        year: Year (e.g., 2025)
+        month: Month (1-12)
+    
+    Returns:
+        Full practice month URL (e.g., "https://canberraoffroad.liverc.com/practice/?y=2025&m=10")
+    """
+    return f"https://{track_slug}.liverc.com/practice/?y={year}&m={month}"
+
+
+def build_practice_day_url(track_slug: str, practice_date: date) -> str:
+    """
+    Build practice day overview URL.
+    
+    Args:
+        track_slug: Track subdomain slug
+        practice_date: Date of practice day
+    
+    Returns:
+        Full practice day URL (e.g., "https://canberraoffroad.liverc.com/practice/?p=session_list&d=2025-10-25")
+    """
+    date_str = practice_date.strftime("%Y-%m-%d")
+    return f"https://{track_slug}.liverc.com/practice/?p=session_list&d={date_str}"
+
+
+def build_practice_session_url(track_slug: str, session_id: str) -> str:
+    """
+    Build practice session detail URL.
+    
+    Args:
+        track_slug: Track subdomain slug
+        session_id: Practice session ID
+    
+    Returns:
+        Full practice session URL (e.g., "https://canberraoffroad.liverc.com/practice/?p=view_session&id=21290331")
+    """
+    return f"https://{track_slug}.liverc.com/practice/?p=view_session&id={session_id}"
 

@@ -174,6 +174,16 @@ export interface EventSummary {
     position: number
     gapToBest: number
   }
+  userBestImprovement?: {
+    positionImprovement: number
+    lapTimeImprovement: number | null
+    position: number
+    gapToBest: number
+    firstRacePosition: number
+    lastRacePosition: number
+    className: string
+    raceLabel: string
+  }
 }
 
 export interface EventAnalysisData {
@@ -553,6 +563,7 @@ export async function getEventSummary(
   let userBestLap: { lapTime: number; position: number; gapToFastest: number } | undefined
   let userBestConsistency: { consistency: number; position: number; gapToBest: number } | undefined
   let userBestAvgLap: { avgLapTime: number; position: number; gapToBest: number } | undefined
+  let userBestImprovement: { positionImprovement: number; lapTimeImprovement: number | null; position: number; gapToBest: number; firstRacePosition: number; lastRacePosition: number; className: string; raceLabel: string } | undefined
 
   if (userId) {
     // Find user's driver link for this event
@@ -739,6 +750,117 @@ export async function getEventSummary(
           }
         }
       }
+
+      // Calculate user's improvement - always show if user has race data
+      // First check if user is in the top improved drivers list
+      const userInMostImproved = mostImprovedDrivers.find(
+        (d) => d.driverId === userDriverLink.driverId
+      )
+
+      if (userInMostImproved) {
+        // User is in the top improved list - calculate their position
+        const allImprovedSorted = [...mostImprovedDrivers].sort(
+          (a, b) => b.positionImprovement - a.positionImprovement
+        )
+        const userPosition = allImprovedSorted.findIndex(
+          (d) => d.driverId === userDriverLink.driverId
+        ) + 1
+
+        const bestImprovement = allImprovedSorted[0]?.positionImprovement ?? userInMostImproved.positionImprovement
+        const gapToBest = bestImprovement - userInMostImproved.positionImprovement
+
+        userBestImprovement = {
+          positionImprovement: userInMostImproved.positionImprovement,
+          lapTimeImprovement: userInMostImproved.lapTimeImprovement,
+          position: userPosition,
+          gapToBest,
+          firstRacePosition: userInMostImproved.firstRacePosition,
+          lastRacePosition: userInMostImproved.lastRacePosition,
+          className: userInMostImproved.className,
+          raceLabel: userInMostImproved.raceLabel,
+        }
+      } else {
+        // User is not in top improved - calculate their improvement from race data
+        // Get all user's race results ordered by race time to find first and last races
+        const userRaceResults = await prisma.raceResult.findMany({
+          where: {
+            raceDriver: {
+              driverId: userDriverLink.driverId,
+              race: { eventId },
+            },
+          },
+          select: {
+            positionFinal: true,
+            fastLapTime: true,
+            race: {
+              select: {
+                id: true,
+                startTime: true,
+                raceOrder: true,
+                className: true,
+                raceLabel: true,
+              },
+            },
+          },
+          orderBy: [
+            { race: { raceOrder: "asc" } },
+            { race: { startTime: "asc" } },
+          ],
+        })
+
+        if (userRaceResults.length >= 2) {
+          // Sort by raceOrder, then by startTime as fallback (some events have all raceOrder=1)
+          const sortedResults = [...userRaceResults].sort((a, b) => {
+            const orderA = a.race.raceOrder ?? 0
+            const orderB = b.race.raceOrder ?? 0
+            if (orderA !== orderB) {
+              return orderA - orderB
+            }
+            // Fallback to startTime when raceOrder is the same
+            const timeA = a.race.startTime?.getTime() ?? 0
+            const timeB = b.race.startTime?.getTime() ?? 0
+            return timeA - timeB
+          })
+
+          const firstRace = sortedResults[0]
+          const lastRace = sortedResults[sortedResults.length - 1]
+
+          const positionImprovement = firstRace.positionFinal - lastRace.positionFinal
+          
+          // Only calculate lap time improvement if both have valid lap times
+          let lapTimeImprovement: number | null = null
+          if (firstRace.fastLapTime !== null && lastRace.fastLapTime !== null) {
+            lapTimeImprovement = firstRace.fastLapTime - lastRace.fastLapTime
+          }
+
+          // Always show improvement data (positive, zero, or negative)
+          // Find position among all improved drivers (only count those with positive improvement)
+          const allImprovedSorted = [...mostImprovedDrivers].sort(
+            (a, b) => b.positionImprovement - a.positionImprovement
+          )
+          
+          // Count how many drivers have better improvement than user
+          const betterCount = allImprovedSorted.filter(
+            (d) => d.positionImprovement > positionImprovement
+          ).length
+          // Position is betterCount + 1, but if user didn't improve, they're after all improved drivers
+          const position = positionImprovement > 0 ? betterCount + 1 : allImprovedSorted.length + 1
+
+          const bestImprovement = allImprovedSorted[0]?.positionImprovement ?? Math.max(0, positionImprovement)
+          const gapToBest = bestImprovement - positionImprovement
+
+          userBestImprovement = {
+            positionImprovement,
+            lapTimeImprovement,
+            position,
+            gapToBest,
+            firstRacePosition: firstRace.positionFinal,
+            lastRacePosition: lastRace.positionFinal,
+            className: lastRace.race.className,
+            raceLabel: lastRace.race.raceLabel,
+          }
+        }
+      }
     }
   }
 
@@ -765,6 +887,7 @@ export async function getEventSummary(
     userBestLap,
     userBestConsistency,
     userBestAvgLap,
+    userBestImprovement,
   }
 }
 

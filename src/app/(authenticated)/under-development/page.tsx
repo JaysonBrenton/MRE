@@ -34,7 +34,7 @@ export default function UnderDevelopmentPage() {
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl flex-shrink-0">
       <Breadcrumbs
-        items={[{ label: "Home", href: "/dashboard" }, { label: "Under Development" }]}
+        items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Under Development" }]}
       />
       <div className="w-full min-w-0 flex flex-col items-center text-center space-y-6">
         <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">

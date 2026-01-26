@@ -12,8 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { getVehicleType, updateVehicleType } from "@/core/events/update-vehicle-type"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 
 /**
  * GET /api/v1/events/[eventId]/race-classes/[className]/vehicle-type
@@ -22,11 +21,11 @@ import { authOptions } from "@/lib/auth"
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string; className: string } }
+  { params }: { params: Promise<{ eventId: string; className: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
+    const session = await auth()
+    if (!session?.user) {
       return NextResponse.json(
         {
           success: false,
@@ -39,7 +38,7 @@ export async function GET(
       )
     }
 
-    const { eventId, className } = params
+    const { eventId, className } = await params
 
     if (!eventId || !className) {
       return NextResponse.json(
@@ -92,11 +91,11 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; className: string } }
+  { params }: { params: Promise<{ eventId: string; className: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
+    const session = await auth()
+    if (!session?.user) {
       return NextResponse.json(
         {
           success: false,
@@ -109,7 +108,7 @@ export async function PUT(
       )
     }
 
-    const { eventId, className } = params
+    const { eventId, className } = await params
 
     if (!eventId || !className) {
       return NextResponse.json(
@@ -127,6 +126,18 @@ export async function PUT(
     const body = await request.json()
     const { vehicleType, acceptInference } = body
 
+    // Decode className - Next.js may already decode it, but decodeURIComponent is idempotent for non-encoded strings
+    const decodedClassName = decodeURIComponent(className)
+
+    console.log("[API] PUT vehicle-type request:", {
+      eventId,
+      classNameRaw: className,
+      classNameDecoded: decodedClassName,
+      vehicleType,
+      acceptInference,
+      userId: session.user?.id,
+    })
+
     if (vehicleType === undefined) {
       return NextResponse.json(
         {
@@ -142,10 +153,18 @@ export async function PUT(
 
     const result = await updateVehicleType({
       eventId,
-      className: decodeURIComponent(className),
+      className: decodedClassName,
       vehicleType: vehicleType === "Unknown" ? null : vehicleType,
       acceptInference: acceptInference === true,
-      reviewedBy: session.user.id,
+      reviewedBy: session.user?.id ?? null,
+    })
+
+    console.log("[API] PUT vehicle-type result:", {
+      id: result.id,
+      eventId: result.eventId,
+      className: result.className,
+      vehicleType: result.vehicleType,
+      vehicleTypeNeedsReview: result.vehicleTypeNeedsReview,
     })
 
     return NextResponse.json({

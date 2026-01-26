@@ -19,7 +19,7 @@
 
 import { KeyboardEvent } from "react"
 
-export type TabId = "overview" | "drivers" | "entry-list" | "sessions" | "comparisons"
+export type TabId = "overview" | "drivers" | "entry-list" | "sessions" | "comparisons" | "comparison-test"
 
 export interface Tab {
   id: TabId
@@ -36,8 +36,9 @@ const defaultTabs: Tab[] = [
   { id: "overview", label: "Event Overview" },
   { id: "drivers", label: "Drivers" },
   { id: "entry-list", label: "Entry List" },
-  { id: "sessions", label: "Sessions / Heats" },
+  { id: "sessions", label: "Event Sessions" },
   { id: "comparisons", label: "Comparisons" },
+  { id: "comparison-test", label: "Comparison Test" },
 ]
 
 export default function TabNavigation({

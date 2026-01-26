@@ -20,7 +20,7 @@ export default function CarProfilesPage() {
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl flex-shrink-0">
       <Breadcrumbs
-        items={[{ label: "Home", href: "/dashboard" }, { label: "My Car Profiles" }]}
+        items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "My Car Profiles" }]}
       />
       <div className="w-full min-w-0 flex flex-col space-y-6">
         <div>

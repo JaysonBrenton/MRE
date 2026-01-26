@@ -10,7 +10,7 @@ export default async function AdminIngestionPage() {
     <div className="mx-auto w-full min-w-0 max-w-5xl">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/dashboard" },
           { label: "Admin Console", href: "/admin" },
           { label: "Ingestion Controls" },
         ]}

@@ -22,7 +22,7 @@ export default async function DriverFeaturesGuidePage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/dashboard" },
           { label: "Guides", href: "/guides" },
           { label: "Driver Features" },
         ]}
@@ -66,7 +66,7 @@ export default async function DriverFeaturesGuidePage() {
             Viewing Discovered Events
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            Access discovered events from your Dashboard or My Events page. Events show status indicators:
+            Access discovered events from your My Event Analysis or My Events page. Events show status indicators:
           </p>
           <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
             <li><strong className="text-[var(--token-text-primary)]">Confirmed</strong> (Green): You&apos;ve confirmed participation OR system matched via transponder/exact name</li>

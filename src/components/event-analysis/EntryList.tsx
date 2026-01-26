@@ -162,136 +162,134 @@ export default function EntryList({ entries, raceClasses, eventId }: EntryListPr
 
       {/* Table layout */}
       <div className="overflow-x-auto">
-        <div className="w-full">
+        <table className="w-full border-collapse">
           {/* Table header */}
-          <div className={`grid ${raceClasses ? 'grid-cols-[1fr_auto_auto_auto_auto]' : 'grid-cols-[1fr_auto_auto_auto]'} border-b border-[var(--token-border-default)]`}>
-            <div className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-              <button
-                type="button"
-                onClick={() => handleSort("driverName")}
-                className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              >
-                Driver Name
-                <SortIcon
-                  field="driverName"
-                  activeField={sortField}
-                  direction={sortDirection}
-                />
-              </button>
-            </div>
-            <div className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-              <button
-                type="button"
-                onClick={() => handleSort("className")}
-                className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              >
-                Class
-                <SortIcon
-                  field="className"
-                  activeField={sortField}
-                  direction={sortDirection}
-                />
-              </button>
-            </div>
-            {raceClasses && (
-              <div className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-                Vehicle Type
-              </div>
-            )}
-            <div className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-              <button
-                type="button"
-                onClick={() => handleSort("transponderNumber")}
-                className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              >
-                Transponder
-                <SortIcon
-                  field="transponderNumber"
-                  activeField={sortField}
-                  direction={sortDirection}
-                />
-              </button>
-            </div>
-            <div className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-              <button
-                type="button"
-                onClick={() => handleSort("carNumber")}
-                className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              >
-                Car Number
-                <SortIcon
-                  field="carNumber"
-                  activeField={sortField}
-                  direction={sortDirection}
-                />
-              </button>
-            </div>
-          </div>
+          <thead>
+            <tr className="border-b border-[var(--token-border-default)]">
+              <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                <button
+                  type="button"
+                  onClick={() => handleSort("driverName")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Driver Name
+                  <SortIcon
+                    field="driverName"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
+                </button>
+              </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                <button
+                  type="button"
+                  onClick={() => handleSort("className")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Class
+                  <SortIcon
+                    field="className"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
+                </button>
+              </th>
+              {raceClasses && (
+                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                  Vehicle Type
+                </th>
+              )}
+              <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                <button
+                  type="button"
+                  onClick={() => handleSort("transponderNumber")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Transponder
+                  <SortIcon
+                    field="transponderNumber"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
+                </button>
+              </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                <button
+                  type="button"
+                  onClick={() => handleSort("carNumber")}
+                  className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Car Number
+                  <SortIcon
+                    field="carNumber"
+                    activeField={sortField}
+                    direction={sortDirection}
+                  />
+                </button>
+              </th>
+            </tr>
+          </thead>
           {/* Table body */}
-          <div>
+          <tbody>
             {paginatedEntries.map((entry) => {
               const raceClassInfo = raceClasses?.get(entry.className)
               const vehicleType = raceClassInfo?.vehicleType
-              const needsReview = raceClassInfo?.vehicleTypeNeedsReview ?? false
               
               return (
-                <div
+                <tr
                   key={entry.id}
-                  className={`grid ${raceClasses ? 'grid-cols-[1fr_auto_auto_auto_auto]' : 'grid-cols-[1fr_auto_auto_auto]'} border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] transition-colors items-center`}
+                  className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] transition-colors"
                 >
-                  <div className="py-3 px-4 text-sm font-normal text-[var(--token-text-primary)]">
+                  <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-primary)]">
                     {entry.driverName}
-                  </div>
-                  <div className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)] flex items-center gap-2">
-                    <span>{entry.className}</span>
-                    {eventId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModalClassName(entry.className)
-                          setModalOpen(true)
-                        }}
-                        className="p-1 text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
-                        aria-label={`View details for ${entry.className}`}
-                        title="View class details"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                  </td>
+                  <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    <div className="flex items-center gap-2">
+                      <span>{entry.className}</span>
+                      {eventId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModalClassName(entry.className)
+                            setModalOpen(true)
+                          }}
+                          className="p-1 text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                          aria-label={`View details for ${entry.className}`}
+                          title="View class details"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      </button>
-                    )}
-                    {needsReview && (
-                      <span className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded" title="Vehicle type needs review">
-                        ⚠
-                      </span>
-                    )}
-                  </div>
-                  {raceClasses && (
-                    <div className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
-                      {vehicleType || "Not determined"}
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </button>
+                      )}
                     </div>
+                  </td>
+                  {raceClasses && (
+                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                      {vehicleType || "Not determined"}
+                    </td>
                   )}
-                  <div className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                  <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
                     {entry.transponderNumber || "N/A"}
-                  </div>
-                  <div className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                  </td>
+                  <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
                     {entry.carNumber || "N/A"}
-                  </div>
-                </div>
+                  </td>
+                </tr>
               )
             })}
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
 
       {/* Pagination */}
@@ -320,17 +318,51 @@ export default function EntryList({ entries, raceClasses, eventId }: EntryListPr
           vehicleType={raceClasses.get(modalClassName)?.vehicleType ?? null}
           vehicleTypeNeedsReview={raceClasses.get(modalClassName)?.vehicleTypeNeedsReview ?? true}
           onSave={async (vehicleType, acceptInference) => {
-            const response = await fetch(
-              `/api/v1/events/${eventId}/race-classes/${encodeURIComponent(modalClassName)}/vehicle-type`,
-              {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ vehicleType, acceptInference }),
-              }
-            )
+            const url = `/api/v1/events/${eventId}/race-classes/${encodeURIComponent(modalClassName)}/vehicle-type`
+            console.log("[EntryList] Saving vehicle type:", {
+              eventId,
+              className: modalClassName,
+              vehicleType,
+              acceptInference,
+              url,
+            })
+
+            const response = await fetch(url, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ vehicleType, acceptInference }),
+              credentials: "include",
+              cache: "no-store",
+            })
+
             if (!response.ok) {
-              throw new Error("Failed to save vehicle type")
+              // Parse error response to get actual error message
+              let errorMessage = "Failed to save vehicle type"
+              try {
+                const errorData = await response.json()
+                console.error("[EntryList] Save failed:", errorData)
+                if (errorData.error?.message) {
+                  errorMessage = errorData.error.message
+                } else if (errorData.error?.code) {
+                  errorMessage = `${errorData.error.code}: ${errorMessage}`
+                }
+              } catch {
+                // If response is not JSON, use status text
+                errorMessage = response.statusText || errorMessage
+              }
+              throw new Error(errorMessage)
             }
+
+            // Verify response body indicates success
+            const result = await response.json()
+            console.log("[EntryList] Save response:", result)
+            if (!result.success) {
+              const errorMessage = result.error?.message || "Save operation failed"
+              console.error("[EntryList] Save returned success:false:", result)
+              throw new Error(errorMessage)
+            }
+
+            console.log("[EntryList] Save successful, reloading page...")
             // Refresh the page to show updated data
             window.location.reload()
           }}

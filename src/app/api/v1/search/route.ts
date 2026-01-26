@@ -60,7 +60,7 @@ function parseSearchParams(searchParams: URLSearchParams): {
   // Session type parameter
   const sessionType = searchParams.get("session_type")
   if (sessionType) {
-    const validTypes: SessionType[] = ["race", "practice", "qualifying"]
+    const validTypes: SessionType[] = ["race", "practice", "qualifying", "practiceday"]
     if (validTypes.includes(sessionType as SessionType)) {
       params.sessionType = sessionType as SessionType
     } else {

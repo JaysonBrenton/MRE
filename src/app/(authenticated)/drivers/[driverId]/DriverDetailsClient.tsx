@@ -250,7 +250,7 @@ export default function DriverDetailsClient({ driver, eventId }: DriverDetailsCl
                   </p>
                 </div>
                 <a
-                  href={`/events/analyse/${entry.eventId}`}
+                  href={`/dashboard?eventId=${entry.eventId}`}
                   className="text-sm text-[var(--token-accent)] hover:underline"
                 >
                   View Event →

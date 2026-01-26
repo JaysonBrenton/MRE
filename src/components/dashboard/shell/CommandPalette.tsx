@@ -6,7 +6,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { closeCommandPalette } from "@/store/slices/uiSlice"
 
 const COMMANDS = [
-  { id: "dashboard", label: "Go to Dashboard", action: "/dashboard" },
+  { id: "dashboard", label: "Go to My Event Analysis", action: "/dashboard" },
   { id: "event", label: "View My Event", action: "/dashboard/my-event" },
   { id: "search", label: "Open Search", action: "/search" },
   { id: "telemetry", label: "Telemetry Workspace", action: "/dashboard/my-telemetry" },

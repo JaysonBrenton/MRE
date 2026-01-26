@@ -300,6 +300,39 @@ class Normalizer:
         return normalized, race_order
     
     @staticmethod
+    def infer_session_type(race_label: str, race_url: str = "") -> Optional[str]:
+        """
+        Infer session type from race label and URL.
+        
+        Returns: "practice", "qualifying", "race", or None (defaults to "race" in pipeline)
+        
+        Note: Practice day sessions will have sessionType = "practiceday" set explicitly
+        during practice day ingestion (not inferred).
+        
+        Args:
+            race_label: Race label string
+            race_url: Race URL string (optional)
+        
+        Returns:
+            Inferred session type string or None
+        """
+        label_lower = race_label.lower()
+        url_lower = race_url.lower() if race_url else ""
+        
+        # Practice sessions (within race events)
+        if "practice" in label_lower or "/practice/" in url_lower:
+            return "practice"
+        
+        # Qualifying sessions
+        if any(term in label_lower for term in ["qualifying", "qualify", "q1", "q2", "q3"]):
+            # Use word boundaries to avoid false positives
+            if re.search(r'\b(q1|q2|q3|qualifying|qualify)\b', label_lower):
+                return "qualifying"
+        
+        # Default to race (or None, which will default to "race" in pipeline)
+        return "race"
+    
+    @staticmethod
     def normalize_event(event: ConnectorEventSummary) -> dict:
         """
         Normalize event data.
@@ -331,6 +364,9 @@ class Normalizer:
         """
         normalized_label, race_order = Normalizer.parse_race_label(race.race_label)
         
+        # Infer session type from label and URL
+        session_type = Normalizer.infer_session_type(race.race_label, race.race_url)
+        
         return {
             "source_race_id": race.source_race_id,
             "class_name": Normalizer.normalize_string(race.class_name),
@@ -339,6 +375,7 @@ class Normalizer:
             "race_url": race.race_url,
             "start_time": race.start_time,
             "duration_seconds": race.duration_seconds,
+            "session_type": session_type,
         }
     
     @staticmethod

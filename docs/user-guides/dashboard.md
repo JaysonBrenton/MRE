@@ -9,30 +9,30 @@ relatedFiles:
   - docs/specs/mre-v0.1-feature-scope.md
 ---
 
-# Dashboard Guide
+# My Event Analysis Guide
 
-Learn how to use your personal dashboard in My Race Engineer to view statistics, customize widgets, and track your racing performance over time.
+Learn how to use your personal event analysis in My Race Engineer to view statistics, customize widgets, and track your racing performance over time.
 
 ## Introduction
 
-Your dashboard is your personal command center in MRE. It provides quick access to your statistics, recent events, and key actions. You can customize the dashboard to show the information most important to you.
+My Event Analysis is your personal command center in MRE. It provides quick access to your statistics, recent events, and key actions. You can customize your event analysis to show the information most important to you.
 
 ## Prerequisites
 
 - You must be logged into MRE
 - You should have imported at least one event (for meaningful statistics)
 
-## Accessing Your Dashboard
+## Accessing My Event Analysis
 
 1. Log into your MRE account
-2. Click **"Dashboard"** in the main navigation menu
+2. Click **"My Event Analysis"** in the main navigation menu
 3. Or click **"Home"** from any breadcrumb navigation
 
-The dashboard is typically the first page you see after logging in (after the welcome page).
+My Event Analysis is typically the first page you see after logging in (after the welcome page).
 
-## Dashboard Overview
+## My Event Analysis Overview
 
-Your dashboard displays:
+Your event analysis displays:
 
 - **Statistics Cards**: Key metrics and counts
 - **Recent Activity**: Your latest events and actions
@@ -135,7 +135,7 @@ Some widgets can be resized:
 
 ### Personal Statistics
 
-Your dashboard shows statistics relevant to you:
+My Event Analysis shows statistics relevant to you:
 
 - **Events Imported**: Total number of events you've imported
 - **Events Analyzed**: Number of events you've viewed analysis for
@@ -161,7 +161,7 @@ Track your usage:
 
 ## Quick Actions
 
-Your dashboard provides quick access to common tasks:
+My Event Analysis provides quick access to common tasks:
 
 ### Search for Events
 
@@ -187,28 +187,28 @@ Your dashboard provides quick access to common tasks:
 2. Navigate to User Guides section
 3. Find help for specific features
 
-## Dashboard Navigation
+## My Event Analysis Navigation
 
 ### Breadcrumb Navigation
 
-Dashboard breadcrumbs show:
+My Event Analysis breadcrumbs show:
 
 **Home** (current page)
 
-Click "Home" to return to dashboard from other pages.
+Click "Home" to return to My Event Analysis from other pages.
 
 ### Navigation Menu
 
 Access other sections:
 
-- **Dashboard**: Return to dashboard
+- **My Event Analysis**: Return to event analysis
 - **Event Search**: Search for events
 - **My Events**: View your events
 - **Guides**: User guides and help
 
 ## Tips and Best Practices
 
-### Organizing Your Dashboard
+### Organizing My Event Analysis
 
 1. **Prioritize Important Widgets**: Place most-used widgets at the top
 2. **Group Related Widgets**: Put similar widgets together
@@ -226,7 +226,7 @@ Access other sections:
 
 1. **Customize Actions**: Show only actions you use frequently
 2. **Learn Shortcuts**: Use keyboard shortcuts when available
-3. **Stay Organized**: Use dashboard as your starting point
+3. **Stay Organized**: Use My Event Analysis as your starting point
 
 ## Common Issues
 

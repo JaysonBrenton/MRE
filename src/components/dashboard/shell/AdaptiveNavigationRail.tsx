@@ -1,11 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useMemo, useState, type ReactElement } from "react"
+import { usePathname, useSearchParams } from "next/navigation"
+import { useMemo, useState, useRef, useEffect, type ReactElement } from "react"
 import Tooltip from "@/components/ui/Tooltip"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { toggleNavCollapsed } from "@/store/slices/uiSlice"
+import { useEventActionsOptional } from "@/components/dashboard/EventActionsContext"
+import DashboardActionsPopover from "./DashboardActionsPopover"
 
 interface NavItem {
   href: string
@@ -17,7 +19,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   {
     href: "/dashboard",
-    label: "Dashboard",
+    label: "My Event Analysis",
     description: "Mission control overview",
     icon: (active) => (
       <svg
@@ -57,7 +59,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/search",
-    label: "Search",
+    label: "Global Search",
     description: "Search events and sessions",
     icon: (active) => (
       <svg
@@ -65,8 +67,13 @@ const NAV_ITEMS: NavItem[] = [
         viewBox="0 0 24 24"
         fill="none"
       >
-        <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth={1.5} />
-        <path d="m20 20-4-4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={1.5} />
+        <path
+          d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        />
+        <path d="M2 12h20" stroke="currentColor" strokeWidth={1.5} />
       </svg>
     ),
   },
@@ -283,7 +290,7 @@ const GUIDE_ITEMS: GuideItem[] = [
   },
   {
     href: "/guides/dashboard",
-    label: "Dashboard",
+    label: "My Event Analysis",
     icon: (active) => (
       <svg
         className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
@@ -385,6 +392,8 @@ const GUIDE_ITEMS: GuideItem[] = [
 ]
 
 const STORAGE_KEY_GUIDES_EXPANDED = "mre-user-guides-expanded"
+const STORAGE_KEY_DASHBOARD_ACTIONS_EXPANDED = "mre-dashboard-actions-expanded"
+const STORAGE_KEY_MY_CLUB_EXPANDED = "mre-my-club-expanded"
 
 const ADMIN_NAV_ITEM: NavItem = {
   href: "/admin",
@@ -422,8 +431,10 @@ interface AdaptiveNavigationRailProps {
 
 export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const dispatch = useAppDispatch()
   const isNavCollapsed = useAppSelector((state) => state.ui.isNavCollapsed)
+  const eventActions = useEventActionsOptional()
   const [isGuidesExpanded, setIsGuidesExpanded] = useState(() => {
     if (typeof window === "undefined") {
       return false
@@ -432,6 +443,27 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     return stored === "true"
   })
   const [isGuidesMenuExpanded, setIsGuidesMenuExpanded] = useState(false)
+  const [isDashboardActionsExpanded, setIsDashboardActionsExpanded] = useState(() => {
+    if (typeof window === "undefined") {
+      return false
+    }
+    const stored = window.localStorage.getItem(STORAGE_KEY_DASHBOARD_ACTIONS_EXPANDED)
+    return stored === "true"
+  })
+  const [isMyClubExpanded, setIsMyClubExpanded] = useState(() => {
+    if (typeof window === "undefined") {
+      return false
+    }
+    const stored = window.localStorage.getItem(STORAGE_KEY_MY_CLUB_EXPANDED)
+    return stored === "true"
+  })
+
+  // Hover state for collapsed sidebar popover
+  const [isHoveringDashboard, setIsHoveringDashboard] = useState(false)
+  const [showPopover, setShowPopover] = useState(false)
+  const dashboardIconRef = useRef<HTMLElement | null>(null)
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const navWidth = isNavCollapsed ? "w-[80px]" : "w-64"
 
@@ -457,6 +489,89 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
 
   const isGuideActive = (href: string) => {
     return pathname === href || pathname.startsWith(`${href}/`)
+  }
+
+  const toggleDashboardActionsExpanded = () => {
+    const newState = !isDashboardActionsExpanded
+    setIsDashboardActionsExpanded(newState)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY_DASHBOARD_ACTIONS_EXPANDED, String(newState))
+    }
+  }
+
+  const toggleMyClubExpanded = () => {
+    const newState = !isMyClubExpanded
+    setIsMyClubExpanded(newState)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY_MY_CLUB_EXPANDED, String(newState))
+    }
+  }
+
+  // Get selected driver count for badge
+  const selectedDriverCount = eventActions?.selectedDriverIds.length ?? 0
+  const hasEventSelected = eventActions?.hasEventSelected ?? false
+
+  // Handle hover state with delays to prevent flickering
+  useEffect(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current)
+    }
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+    }
+
+    if (isHoveringDashboard && isNavCollapsed && eventActions) {
+      // Delay showing popover to prevent accidental triggers
+      hoverTimeoutRef.current = setTimeout(() => {
+        setShowPopover(true)
+      }, 150)
+    } else {
+      // Delay hiding popover to allow mouse movement to popover
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowPopover(false)
+      }, 50)
+    }
+
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current)
+      }
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current)
+      }
+    }
+  }, [isHoveringDashboard, isNavCollapsed, eventActions])
+
+  const handleDashboardMouseEnter = () => {
+    setIsHoveringDashboard(true)
+  }
+
+  const handleDashboardMouseLeave = () => {
+    // Don't immediately set to false - let the timeout handle it
+    // This allows mouse to move to popover without closing
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+    }
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsHoveringDashboard(false)
+    }, 100) // Give more time to move to popover
+  }
+
+  const handlePopoverMouseEnter = () => {
+    // Cancel any pending hide when mouse enters popover
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+    }
+    setIsHoveringDashboard(true)
+  }
+
+  const handlePopoverMouseLeave = () => {
+    setIsHoveringDashboard(false)
+  }
+
+  const handlePopoverClose = () => {
+    setShowPopover(false)
+    setIsHoveringDashboard(false)
   }
 
   return (
@@ -491,6 +606,324 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
 
       <nav className="flex-1 space-y-1 px-2 py-4">
         {navItems.map((item) => {
+          // Special handling for My Club with sub-menu
+          if (item.href === "/under-development?from=/dashboard/my-club" || item.href.startsWith("/dashboard/my-club")) {
+            const isExternal = false
+            const fromParam = searchParams.get("from")
+            const myClubActive = (pathname === "/under-development" && fromParam === "/dashboard/my-club") || pathname.startsWith("/dashboard/my-club")
+            const trackMapsActive = pathname === "/dashboard/my-club/track-maps" || pathname.startsWith("/dashboard/my-club/track-maps")
+            
+            if (isNavCollapsed) {
+              // Collapsed: Show My Club icon only
+              return (
+                <Tooltip key={item.label} text={item.label} position="right">
+                  <Link
+                    href={item.href}
+                    className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+                    aria-current={myClubActive ? "page" : undefined}
+                    aria-label={item.label}
+                  >
+                    {item.icon(myClubActive)}
+                  </Link>
+                </Tooltip>
+              )
+            }
+
+            // Expanded: Show My Club with expandable sub-menu
+            return (
+              <div key={item.label} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={item.href}
+                    className={`group flex flex-1 flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+                    aria-current={myClubActive ? "page" : undefined}
+                    aria-label={item.label}
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.icon(myClubActive)}
+                      <span
+                        className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${myClubActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
+                      >
+                        {item.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+                      {item.description}
+                    </p>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={toggleMyClubExpanded}
+                    className="rounded-lg p-1.5 text-[var(--token-text-muted)] hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    aria-label={isMyClubExpanded ? "Collapse My Club menu" : "Expand My Club menu"}
+                    aria-expanded={isMyClubExpanded}
+                  >
+                    <svg
+                      className={`h-4 w-4 transition-transform ${isMyClubExpanded ? "rotate-180" : ""}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <path
+                        d="m6 9 6 6 6-6"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                {isMyClubExpanded && (
+                  <div className="ml-4 space-y-1 border-l-2 border-[var(--token-border-muted)] pl-3">
+                    <Link
+                      href="/dashboard/my-club/track-maps"
+                      className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                        trackMapsActive
+                          ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
+                          : "text-[var(--token-text-secondary)]"
+                      }`}
+                      aria-current={trackMapsActive ? "page" : undefined}
+                      aria-label="Track Maps"
+                    >
+                      <svg
+                        className="h-4 w-4 text-[var(--token-text-muted)]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M3 12h18M3 6h18M3 18h18"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M9 3v18M15 3v18"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <circle cx="6" cy="9" r="1.5" stroke="currentColor" strokeWidth={1.5} />
+                        <circle cx="18" cy="15" r="1.5" stroke="currentColor" strokeWidth={1.5} />
+                      </svg>
+                      <span>Track Maps</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          // Special handling for Dashboard with nested actions
+          if (item.href === "/dashboard") {
+            const isExternal = false
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+            
+            if (isNavCollapsed) {
+              // Collapsed: Show Dashboard icon only with popover on hover
+              return (
+                <div key={item.label}>
+                  <Tooltip text={item.label} position="right">
+                    <Link
+                      ref={dashboardIconRef as React.RefObject<HTMLAnchorElement>}
+                      href={item.href}
+                      className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+                      aria-current={active ? "page" : undefined}
+                      aria-label={item.label}
+                      onMouseEnter={handleDashboardMouseEnter}
+                      onMouseLeave={handleDashboardMouseLeave}
+                    >
+                      {item.icon(active)}
+                    </Link>
+                  </Tooltip>
+                  {showPopover && eventActions && (
+                    <DashboardActionsPopover
+                      anchorRef={dashboardIconRef}
+                      isOpen={showPopover}
+                      onClose={handlePopoverClose}
+                      onMouseEnter={handlePopoverMouseEnter}
+                      onMouseLeave={handlePopoverMouseLeave}
+                    />
+                  )}
+                </div>
+              )
+            }
+
+            // Expanded: Show Dashboard with expandable actions
+            return (
+              <div key={item.label} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={item.href}
+                    className={`group flex flex-1 flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.icon(active)}
+                      <span
+                        className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${active ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
+                      >
+                        {item.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+                      {item.description}
+                    </p>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={toggleDashboardActionsExpanded}
+                    className="rounded-lg p-1.5 text-[var(--token-text-muted)] hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    aria-label={isDashboardActionsExpanded ? "Collapse actions" : "Expand actions"}
+                    aria-expanded={isDashboardActionsExpanded}
+                  >
+                    <svg
+                      className={`h-4 w-4 transition-transform ${isDashboardActionsExpanded ? "rotate-180" : ""}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <path
+                        d="m6 9 6 6 6-6"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                {isDashboardActionsExpanded && eventActions && (
+                  <div className="ml-4 space-y-1 border-l-2 border-[var(--token-border-muted)] pl-3">
+                    {/* Find Events */}
+                    <button
+                      type="button"
+                      onClick={eventActions.openEventSearch}
+                      className="group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)]/70 hover:text-[var(--token-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                      aria-label="Find and Import Events (⌘E)"
+                    >
+                      <svg
+                        className="h-4 w-4 text-[var(--token-text-muted)]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span>Find and Import Events</span>
+                    </button>
+
+                    {/* Refresh */}
+                    {hasEventSelected && (
+                      <button
+                        type="button"
+                        onClick={eventActions.handleRefreshEventData}
+                        disabled={eventActions.isRefreshing}
+                        className="group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)]/70 hover:text-[var(--token-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Refresh event data (⌘⌥R)"
+                      >
+                        {eventActions.isRefreshing ? (
+                          <svg
+                            className="h-4 w-4 animate-spin text-[var(--token-text-muted)]"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
+                              stroke="currentColor"
+                              strokeWidth={1.5}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            className="h-4 w-4 text-[var(--token-text-muted)]"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M3 21v-5h5"
+                              stroke="currentColor"
+                              strokeWidth={1.5}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                        <span>Refresh Event Data</span>
+                      </button>
+                    )}
+
+                    {/* Select a Class */}
+                    {hasEventSelected && (
+                      <button
+                        type="button"
+                        onClick={eventActions.openDriverSelection}
+                        disabled={!hasEventSelected}
+                        className="group relative flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)]/70 hover:text-[var(--token-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={`Select a Class (⌘D) - ${selectedDriverCount > 0 ? `${selectedDriverCount} selected` : "No drivers selected"}`}
+                        aria-haspopup="dialog"
+                        aria-expanded={eventActions.isDriverModalOpen}
+                      >
+                        <svg
+                          className="h-4 w-4 flex-shrink-0 text-[var(--token-text-muted)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <path
+                            d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span className="min-w-0 truncate">Select a Class</span>
+                        {selectedDriverCount > 0 && (
+                          <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--token-accent)] px-1.5 text-[10px] font-medium text-[var(--token-text-primary)]">
+                            {selectedDriverCount}
+                          </span>
+                        )}
+                      </button>
+                    )}
+
+                    {/* Clear Event */}
+                    {hasEventSelected && (
+                      <button
+                        type="button"
+                        onClick={eventActions.clearEvent}
+                        className="group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)]/70 hover:text-[var(--token-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                        aria-label="Clear selected event (⌘⇧E)"
+                      >
+                        <svg
+                          className="h-4 w-4 text-[var(--token-text-muted)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <path
+                            d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span>Clear Event</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
           // For external URLs, don't check active state
           const isExternal = item.href.startsWith("http://") || item.href.startsWith("https://")
           const active = isExternal

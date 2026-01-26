@@ -128,7 +128,7 @@ function EventResultRow({ event }: { event: EventSearchResult }) {
       <StandardTableCell>{formatDate(event.eventDate)}</StandardTableCell>
       <StandardTableCell>
         <Link
-          href={`/events/analyse/${event.id}`}
+          href={`/dashboard?eventId=${event.id}`}
           className="text-[var(--token-accent)] hover:underline"
         >
           View Event
@@ -148,7 +148,7 @@ function SessionResultRow({ session }: { session: SessionSearchResult }) {
       <StandardTableCell>{formatDate(session.eventDate)}</StandardTableCell>
       <StandardTableCell>
         <Link
-          href={`/events/analyse/${session.eventId}`}
+          href={`/dashboard?eventId=${session.eventId}`}
           className="text-[var(--token-accent)] hover:underline"
         >
           View Event

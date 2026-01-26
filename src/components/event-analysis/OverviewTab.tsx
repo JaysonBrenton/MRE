@@ -23,7 +23,6 @@ import EventStats from "./EventStats"
 import ChartControls from "./ChartControls"
 import UnifiedPerformanceChart from "./UnifiedPerformanceChart"
 import ChartSection from "./ChartSection"
-import ClassDetailsModal from "./ClassDetailsModal"
 import type { DriverPerformanceData } from "./UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
@@ -64,14 +63,15 @@ export default function OverviewTab({
   console.log("[OverviewTab] onClassChange.name:", onClassChange?.name)
   console.log("[OverviewTab] onClassChange.toString():", onClassChange?.toString?.()?.substring(0, 100))
   
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalClassName, setModalClassName] = useState<string | null>(null)
   const lastLoggedMissingState = useRef<string | null>(null)
 
   const [paginationState, setPaginationState] = useState({
     page: 1,
     selectionKey: "",
   })
+  const [selectAllClickedForCurrentClass, setSelectAllClickedForCurrentClass] = useState(false)
+  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
+  const classDropdownRef = useRef<HTMLDivElement>(null)
   const selectionKey = selectedDriverIds.join("|")
   const currentPage = paginationState.selectionKey === selectionKey ? paginationState.page : 1
   const driversPerPage = 25
@@ -164,6 +164,7 @@ export default function OverviewTab({
         bestLapTime: number | null
         bestLapRaceLabel: string | null
         avgLapTimes: number[]
+        positions: number[]
       }
     >()
 
@@ -185,6 +186,7 @@ export default function OverviewTab({
             bestLapTime: null,
             bestLapRaceLabel: null,
             avgLapTimes: [],
+            positions: [],
           })
         }
 
@@ -202,15 +204,42 @@ export default function OverviewTab({
         if (result.avgLapTime !== null) {
           driverData.avgLapTimes.push(result.avgLapTime)
         }
+
+        // Collect positions
+        driverData.positions.push(result.positionFinal)
       })
     })
 
-    // Calculate final averages
+    // Find the fastest lap time in the class (for gap calculation)
+    let fastestLapInClass: number | null = null
+    for (const driver of driverMap.values()) {
+      if (driver.bestLapTime !== null) {
+        if (fastestLapInClass === null || driver.bestLapTime < fastestLapInClass) {
+          fastestLapInClass = driver.bestLapTime
+        }
+      }
+    }
+
+    // Calculate final averages and additional metrics
     return Array.from(driverMap.values()).map((driver) => {
       const avgLapTime =
         driver.avgLapTimes.length > 0
           ? driver.avgLapTimes.reduce((a, b) => a + b, 0) / driver.avgLapTimes.length
           : null
+
+      const averagePosition =
+        driver.positions.length > 0
+          ? driver.positions.reduce((a, b) => a + b, 0) / driver.positions.length
+          : null
+
+      // Calculate gap to fastest
+      const gapToFastest =
+        driver.bestLapTime !== null && fastestLapInClass !== null
+          ? driver.bestLapTime - fastestLapInClass
+          : null
+
+      // Count podium finishes (positions 1, 2, or 3)
+      const podiumFinishes = driver.positions.filter((pos) => pos >= 1 && pos <= 3).length
 
       return {
         driverId: driver.driverId,
@@ -218,6 +247,9 @@ export default function OverviewTab({
         bestLapTime: driver.bestLapTime,
         bestLapRaceLabel: driver.bestLapRaceLabel,
         avgLapTime,
+        averagePosition,
+        gapToFastest,
+        podiumFinishes,
       }
     })
   }, [filteredRaces])
@@ -232,6 +264,9 @@ export default function OverviewTab({
         bestLapRaceLabel: d.bestLapRaceLabel,
         averageLapTime: d.avgLapTime,
         consistency: null, // Future metric
+        averagePosition: d.averagePosition,
+        gapToFastest: d.gapToFastest,
+        podiumFinishes: d.podiumFinishes,
       }))
   }, [driverStatsByClass])
 
@@ -248,6 +283,31 @@ export default function OverviewTab({
   const driverOptionsLookup = useMemo(() => {
     return new Map(driverOptions.map((driver) => [driver.driverId, driver.driverName]))
   }, [driverOptions])
+
+  // Class dropdown: driver count per class (races-based, drivers with laps > 0)
+  const classesWithCounts = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    const validIds = new Set(driverOptions.map((d) => d.driverId))
+    data.races.forEach((race) => {
+      if (!map.has(race.className)) map.set(race.className, new Set())
+      const s = map.get(race.className)!
+      race.results.forEach((r) => {
+        if (validIds.has(r.driverId) && (r.lapsCompleted ?? 0) > 0) s.add(r.driverId)
+      })
+    })
+    const result = new Map<string, number>()
+    map.forEach((driverIds, className) => result.set(className, driverIds.size))
+    return result
+  }, [data.races, driverOptions])
+
+  const classesSorted = useMemo(
+    () =>
+      Array.from(classesWithCounts.entries()).sort((a, b) => b[1] - a[1]),
+    [classesWithCounts]
+  )
+  const displayClass = selectedClass
+    ? `${selectedClass} (${classesWithCounts.get(selectedClass) ?? 0})`
+    : "All Classes"
 
   const driverNameLookup = useMemo(() => {
     const map = new Map<string, string>()
@@ -421,6 +481,28 @@ export default function OverviewTab({
     [mapDriverIdsToNames, unselectedDriversInClassIds]
   )
 
+  const allDriversInClassSelected = useMemo(() => {
+    if (!selectedClass || driverStatsByClass.length === 0) {
+      return false
+    }
+    return driverStatsByClass.every((d) => selectedDriverIds.includes(d.driverId))
+  }, [selectedClass, driverStatsByClass, selectedDriverIds])
+
+  // Clear "Select All clicked" when user deselects a driver
+  // Only clear if we previously had all selected and now we don't (user explicitly deselected)
+  const prevAllDriversInClassSelected = useRef(false)
+  useEffect(() => {
+    if (prevAllDriversInClassSelected.current && !allDriversInClassSelected) {
+      // User had all drivers selected, but now they don't - clear the flag
+      setSelectAllClickedForCurrentClass(false)
+    }
+    prevAllDriversInClassSelected.current = allDriversInClassSelected
+  }, [allDriversInClassSelected])
+
+  const handleSelectAllClick = useCallback(() => {
+    setSelectAllClickedForCurrentClass(true)
+  }, [])
+
   // Handle driver toggle from chart click
   const handleSelectionChange = useCallback(
     (driverIds: string[]) => {
@@ -451,11 +533,46 @@ export default function OverviewTab({
     [selectionKey]
   )
 
+  // Auto-select all drivers when "All Classes" is the default on initial load
+  // This ensures charts show all classes data when event is first loaded
+  const hasAutoSelectedOnLoad = useRef<string | null>(null)
+  useEffect(() => {
+    const eventId = data.event.id
+    if (
+      driverOptions.length > 0 &&
+      selectedClass === null &&
+      hasAutoSelectedOnLoad.current !== eventId &&
+      (selectedDriverIds.length === 0 || selectedDriverIds.length !== driverOptions.length)
+    ) {
+      const allDriverIds = driverOptions.map((driver) => driver.driverId)
+      const allSelected = allDriverIds.every((id) => selectedDriverIds.includes(id))
+      if (!allSelected) {
+        hasAutoSelectedOnLoad.current = eventId
+        handleSelectionChange(allDriverIds)
+      }
+    }
+  }, [driverOptions, selectedClass, selectedDriverIds, handleSelectionChange, data.event.id])
+
+  // Reset auto-select flag when event changes or when switching to "All Classes"
+  const prevSelectedClass = useRef<string | null>(null)
+  const prevEventId = useRef<string | null>(null)
+  useEffect(() => {
+    const eventId = data.event.id
+    if (prevEventId.current !== eventId) {
+      hasAutoSelectedOnLoad.current = null
+      prevEventId.current = eventId
+    }
+    if (prevSelectedClass.current !== selectedClass && selectedClass === null) {
+      hasAutoSelectedOnLoad.current = null
+    }
+    prevSelectedClass.current = selectedClass
+  }, [selectedClass, data.event.id])
+
   const handleClassChange = useCallback(
     (className: string | null) => {
       console.log("[OverviewTab] handleClassChange called with:", className)
       
-      // Reset pagination when class changes
+      setSelectAllClickedForCurrentClass(false)
       setPaginationState({
         page: 1,
         selectionKey: "",
@@ -523,6 +640,19 @@ export default function OverviewTab({
     [data.races, driverOptions, handleSelectionChange, onClassChange]
   )
 
+  // Close class dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (classDropdownRef.current && !classDropdownRef.current.contains(event.target as Node)) {
+        setIsClassDropdownOpen(false)
+      }
+    }
+    if (isClassDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isClassDropdownOpen])
+
   useEffect(() => {
     if (!shouldShowSelectionNotices) {
       lastLoggedMissingState.current = null
@@ -561,6 +691,18 @@ export default function OverviewTab({
     expandedSelectedDriverIds.length,
   ])
 
+  // Debug: Log when selections change to help diagnose chart update issues
+  useEffect(() => {
+    console.log("[OverviewTab] Selection state changed:", {
+      selectedDriverIds: selectedDriverIds.length,
+      expandedSelectedDriverIds: expandedSelectedDriverIds.length,
+      selectedClass,
+      unifiedChartDataLength: unifiedChartData.length,
+      driverStatsByClassLength: driverStatsByClass.length,
+      filteredRacesLength: filteredRaces.length,
+    })
+  }, [selectedDriverIds, expandedSelectedDriverIds, selectedClass, unifiedChartData.length, driverStatsByClass.length, filteredRaces.length])
+
   return (
     <div
       className="space-y-6"
@@ -569,24 +711,25 @@ export default function OverviewTab({
       aria-labelledby="tab-overview"
     >
       {/* Event Statistics */}
-      <EventStats
-        totalRaces={data.summary.totalRaces}
-        totalDrivers={data.summary.totalDrivers}
-        totalLaps={data.summary.totalLaps}
-        dateRange={data.summary.dateRange}
-      />
+      <section className="space-y-4">
+        <div className="border-b border-[var(--token-border-default)] pb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
+              Event Statistics
+            </h2>
+          </div>
+        </div>
+
+        <EventStats
+          totalRaces={data.summary.totalRaces}
+          totalDrivers={data.summary.totalDrivers}
+          totalLaps={data.summary.totalLaps}
+          dateRange={data.summary.dateRange}
+        />
+      </section>
 
       {/* Chart Configuration Section */}
       <section className="space-y-4">
-        <div className="border-b border-[var(--token-border-default)] pb-4">
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
-            Chart Configuration
-          </h2>
-          <p className="text-sm text-[var(--token-text-secondary)]">
-            Select drivers to visualize race performance data.
-          </p>
-        </div>
-
         <ChartControls
           drivers={driverOptions}
           races={data.races}
@@ -596,6 +739,7 @@ export default function OverviewTab({
           selectedClass={selectedClass}
           eventId={data.event.id}
           raceClasses={data.raceClasses}
+          onSelectAllClick={handleSelectAllClick}
         />
 
         {selectedClass && unselectedDriversInClassNames.length > 0 && (
@@ -618,13 +762,68 @@ export default function OverviewTab({
       {/* Chart Visualization */}
       <section className="space-y-4">
         <div className="border-b border-[var(--token-border-default)] pb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
-              Performance Visualization
-            </h2>
-            <p className="text-sm text-[var(--token-text-secondary)]">
-              Interactive chart showing selected drivers&rsquo; performance metrics. Toggle metrics on/off using the legend below the chart.
-            </p>
+          <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
+            Driver Statistics
+          </h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 mt-3">
+          <h3 className="text-sm font-medium text-[var(--token-text-secondary)] ml-1">
+            Select Class:
+          </h3>
+          <div className="relative flex-initial max-w-[300px]" ref={classDropdownRef}>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
+                className="flex items-center justify-between w-full px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                aria-label="Filter by class"
+                aria-expanded={isClassDropdownOpen}
+              >
+                <span className="truncate">{displayClass}</span>
+                <svg
+                  className={`ml-2 w-4 h-4 shrink-0 transition-transform ${
+                    isClassDropdownOpen ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            </div>
+            {isClassDropdownOpen && (
+              <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsClassDropdownOpen(false)
+                    handleClassChange(null)
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
+                >
+                  All Classes
+                </button>
+                {classesSorted.map(([className, count]) => (
+                  <button
+                    key={className}
+                    type="button"
+                    onClick={() => {
+                      setIsClassDropdownOpen(false)
+                      handleClassChange(className)
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
+                  >
+                    {className} ({count})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -659,39 +858,10 @@ export default function OverviewTab({
             onDriverToggle={handleDriverToggle}
             chartInstanceId={`overview-${data.event.id}-unified`}
             selectedClass={selectedClass}
+            allDriversInClassSelected={allDriversInClassSelected && selectAllClickedForCurrentClass}
           />
         </ChartSection>
       </section>
-      
-      {/* Class Details Modal */}
-      {data.event.id && modalClassName && data.raceClasses && (
-        <ClassDetailsModal
-          isOpen={modalOpen}
-          onClose={() => {
-            setModalOpen(false)
-            setModalClassName(null)
-          }}
-          eventId={data.event.id}
-          className={modalClassName}
-          vehicleType={data.raceClasses.get(modalClassName)?.vehicleType ?? null}
-          vehicleTypeNeedsReview={data.raceClasses.get(modalClassName)?.vehicleTypeNeedsReview ?? true}
-          onSave={async (vehicleType, acceptInference) => {
-            const response = await fetch(
-              `/api/v1/events/${data.event.id}/race-classes/${encodeURIComponent(modalClassName)}/vehicle-type`,
-              {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ vehicleType, acceptInference }),
-              }
-            )
-            if (!response.ok) {
-              throw new Error("Failed to save vehicle type")
-            }
-            // Refresh the page to show updated data
-            window.location.reload()
-          }}
-        />
-      )}
     </div>
   )
 }

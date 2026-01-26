@@ -80,6 +80,41 @@ _EVENT_ENTRY_CACHE_LOOKUPS = Counter(
     registry=REGISTRY,
 )
 
+_PRACTICE_DAY_DISCOVERY_DURATION = Histogram(
+    "practice_day_discovery_duration_seconds",
+    "Time spent discovering practice days",
+    labelnames=("track_slug", "result"),
+    registry=REGISTRY,
+)
+
+_PRACTICE_DAY_INGESTION_DURATION = Histogram(
+    "practice_day_ingestion_duration_seconds",
+    "Time spent ingesting a practice day",
+    labelnames=("track_slug", "date", "result"),
+    registry=REGISTRY,
+)
+
+_PRACTICE_DAY_DISCOVERY_REQUESTS = Counter(
+    "practice_day_discovery_requests_total",
+    "Total practice day discovery requests",
+    labelnames=("track_slug", "result"),
+    registry=REGISTRY,
+)
+
+_PRACTICE_DAY_INGESTION_REQUESTS = Counter(
+    "practice_day_ingestion_requests_total",
+    "Total practice day ingestion requests",
+    labelnames=("track_slug", "result"),
+    registry=REGISTRY,
+)
+
+_PRACTICE_DAY_SESSIONS_INGESTED = Counter(
+    "practice_day_sessions_ingested_total",
+    "Total practice day sessions ingested",
+    labelnames=("track_slug",),
+    registry=REGISTRY,
+)
+
 
 def record_db_insert(table: str, count: int = 1) -> None:
     """Increment the DB insert counter."""
@@ -182,6 +217,22 @@ def observe_lap_extraction(event_id: str, race_id: str, duration_seconds: float)
     ).observe(duration_seconds)
 
 
+def record_practice_day_discovery(track_slug: str, duration_seconds: float, success: bool) -> None:
+    """Record practice day discovery operation."""
+    result = "success" if success else "failure"
+    _PRACTICE_DAY_DISCOVERY_DURATION.labels(track_slug=track_slug, result=result).observe(duration_seconds)
+    _PRACTICE_DAY_DISCOVERY_REQUESTS.labels(track_slug=track_slug, result=result).inc()
+
+
+def record_practice_day_ingestion(track_slug: str, date: str, duration_seconds: float, success: bool, sessions_ingested: int = 0) -> None:
+    """Record practice day ingestion operation."""
+    result = "success" if success else "failure"
+    _PRACTICE_DAY_INGESTION_DURATION.labels(track_slug=track_slug, date=date, result=result).observe(duration_seconds)
+    _PRACTICE_DAY_INGESTION_REQUESTS.labels(track_slug=track_slug, result=result).inc()
+    if success and sessions_ingested > 0:
+        _PRACTICE_DAY_SESSIONS_INGESTED.labels(track_slug=track_slug).inc(sessions_ingested)
+
+
 __all__ = [
     "IngestionDurationTracker",
     "record_db_insert",
@@ -191,6 +242,8 @@ __all__ = [
     "record_event_entry_cache_hit",
     "record_event_entry_cache_lookup",
     "record_lock_timeout",
+    "record_practice_day_discovery",
+    "record_practice_day_ingestion",
     "start_race_fetch_timer",
     "start_lap_extraction_timer",
     "observe_race_fetch",

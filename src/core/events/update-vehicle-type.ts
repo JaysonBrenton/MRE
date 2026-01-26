@@ -53,6 +53,14 @@ export async function updateVehicleType(
 ): Promise<UpdateVehicleTypeResult> {
   const { eventId, className, vehicleType, acceptInference = false, reviewedBy = null } = params
 
+  console.log("[updateVehicleType] Starting update:", {
+    eventId,
+    className,
+    vehicleType,
+    acceptInference,
+    reviewedBy,
+  })
+
   // Find or create EventRaceClass record
   const eventRaceClass = await prisma.eventRaceClass.upsert({
     where: {
@@ -65,20 +73,22 @@ export async function updateVehicleType(
       eventId,
       className,
       vehicleType,
-      vehicleTypeNeedsReview: !acceptInference,
-      vehicleTypeReviewedAt: acceptInference ? new Date() : null,
+      // If user accepts inference OR manually saves a value, they've reviewed it
+      vehicleTypeNeedsReview: false,
+      vehicleTypeReviewedAt: vehicleType ? new Date() : null,
       vehicleTypeReviewedBy: reviewedBy,
     },
     update: {
       vehicleType,
-      vehicleTypeNeedsReview: !acceptInference,
-      vehicleTypeReviewedAt: acceptInference ? new Date() : vehicleType ? new Date() : null,
+      // If user accepts inference OR manually saves a value, they've reviewed it
+      vehicleTypeNeedsReview: false,
+      vehicleTypeReviewedAt: vehicleType ? new Date() : null,
       vehicleTypeReviewedBy: reviewedBy,
     },
   })
 
   // Update all EventEntry records with this className to reference the EventRaceClass
-  await prisma.eventEntry.updateMany({
+  const updateResult = await prisma.eventEntry.updateMany({
     where: {
       eventId,
       className,
@@ -86,6 +96,13 @@ export async function updateVehicleType(
     data: {
       eventRaceClassId: eventRaceClass.id,
     },
+  })
+
+  console.log("[updateVehicleType] Updated EventEntry records:", {
+    count: updateResult.count,
+    eventId,
+    className,
+    eventRaceClassId: eventRaceClass.id,
   })
 
   return {

@@ -10,6 +10,7 @@
 #          clients and parsers to extract structured data from LiveRC pages.
 
 import asyncio
+from datetime import date
 from typing import List, Optional, Dict
 
 from ingestion.common.logging import get_logger
@@ -32,6 +33,11 @@ from ingestion.connectors.liverc.parsers.race_results_parser import RaceResultsP
 from ingestion.connectors.liverc.parsers.race_lap_parser import RaceLapParser
 from ingestion.connectors.liverc.parsers.entry_list_parser import EntryListParser
 from ingestion.connectors.liverc.parsers.track_dashboard_parser import TrackDashboardParser, TrackDashboardData
+from ingestion.connectors.liverc.parsers.practice_day_parser import PracticeDayParser
+from ingestion.connectors.liverc.models import (
+    PracticeDaySummary,
+    PracticeSessionDetail,
+)
 from ingestion.connectors.liverc.utils import (
     build_event_url,
     build_events_url,
@@ -39,6 +45,9 @@ from ingestion.connectors.liverc.utils import (
     build_entry_list_url,
     normalize_race_url,
     parse_track_slug_from_url,
+    build_practice_month_url,
+    build_practice_day_url,
+    build_practice_session_url,
 )
 from ingestion.ingestion.errors import (
     ConnectorHTTPError,
@@ -660,3 +669,155 @@ class LiveRCConnector:
             # Log error but don't fail - graceful degradation
             logger.warning("fetch_track_metadata_error", url=url, track_slug=track_slug, error=str(e))
             return None
+    
+    async def fetch_practice_month_view(
+        self,
+        track_slug: str,
+        year: int,
+        month: int,
+    ) -> List[date]:
+        """
+        Fetch and parse practice month view to get list of dates with practice days.
+        
+        Args:
+            track_slug: Track subdomain slug
+            year: Year (e.g., 2025)
+            month: Month (1-12)
+        
+        Returns:
+            List of date objects for dates that have practice days
+        
+        Raises:
+            EventPageFormatError: If page structure is unexpected
+        """
+        self._ensure_enabled()
+        url = build_practice_month_url(track_slug, year, month)
+        logger.debug("fetch_practice_month_view_start", url=url, track_slug=track_slug, year=year, month=month)
+        
+        try:
+            # Try HTTPX first
+            async with HTTPXClient(self._site_policy) as client:
+                response = await client.get(url)
+                html = response.text
+                
+                parser = PracticeDayParser()
+                dates = parser.parse_practice_month_view(html, track_slug, year, month)
+                
+                logger.info("fetch_practice_month_view_success", url=url, date_count=len(dates))
+                return dates
+        
+        except EventPageFormatError as err:
+            self._record_error("fetch_practice_month_view", err)
+            raise
+        
+        except ConnectorHTTPError as err:
+            self._record_error("fetch_practice_month_view", err)
+            raise
+        
+        except Exception as e:
+            self._record_error("fetch_practice_month_view", e)
+            logger.error("fetch_practice_month_view_error", url=url, error=str(e))
+            raise EventPageFormatError(
+                f"Failed to fetch practice month view: {str(e)}",
+                url=url,
+            )
+    
+    async def fetch_practice_day_overview(
+        self,
+        track_slug: str,
+        practice_date: date,
+    ) -> PracticeDaySummary:
+        """
+        Fetch and parse practice day overview page.
+        
+        Args:
+            track_slug: Track subdomain slug
+            practice_date: Date of practice day
+        
+        Returns:
+            PracticeDaySummary object
+        
+        Raises:
+            EventPageFormatError: If page structure is unexpected
+        """
+        self._ensure_enabled()
+        url = build_practice_day_url(track_slug, practice_date)
+        logger.debug("fetch_practice_day_overview_start", url=url, track_slug=track_slug, date=practice_date)
+        
+        try:
+            # Try HTTPX first
+            async with HTTPXClient(self._site_policy) as client:
+                response = await client.get(url)
+                html = response.text
+                
+                parser = PracticeDayParser()
+                summary = parser.parse_practice_day_overview(html, track_slug, practice_date)
+                
+                logger.info("fetch_practice_day_overview_success", url=url, session_count=summary.session_count)
+                return summary
+        
+        except EventPageFormatError as err:
+            self._record_error("fetch_practice_day_overview", err)
+            raise
+        
+        except ConnectorHTTPError as err:
+            self._record_error("fetch_practice_day_overview", err)
+            raise
+        
+        except Exception as e:
+            self._record_error("fetch_practice_day_overview", e)
+            logger.error("fetch_practice_day_overview_error", url=url, error=str(e))
+            raise EventPageFormatError(
+                f"Failed to fetch practice day overview: {str(e)}",
+                url=url,
+            )
+    
+    async def fetch_practice_session_detail(
+        self,
+        track_slug: str,
+        session_id: str,
+    ) -> PracticeSessionDetail:
+        """
+        Fetch and parse individual practice session detail page.
+        
+        Args:
+            track_slug: Track subdomain slug
+            session_id: Practice session ID
+        
+        Returns:
+            PracticeSessionDetail object
+        
+        Raises:
+            EventPageFormatError: If page structure is unexpected
+        """
+        self._ensure_enabled()
+        url = build_practice_session_url(track_slug, session_id)
+        logger.debug("fetch_practice_session_detail_start", url=url, session_id=session_id)
+        
+        try:
+            # Try HTTPX first
+            async with HTTPXClient(self._site_policy) as client:
+                response = await client.get(url)
+                html = response.text
+                
+                parser = PracticeDayParser()
+                detail = parser.parse_practice_session_detail(html, session_id)
+                
+                logger.info("fetch_practice_session_detail_success", url=url, session_id=session_id)
+                return detail
+        
+        except EventPageFormatError as err:
+            self._record_error("fetch_practice_session_detail", err)
+            raise
+        
+        except ConnectorHTTPError as err:
+            self._record_error("fetch_practice_session_detail", err)
+            raise
+        
+        except Exception as e:
+            self._record_error("fetch_practice_session_detail", e)
+            logger.error("fetch_practice_session_detail_error", url=url, error=str(e))
+            raise EventPageFormatError(
+                f"Failed to fetch practice session detail: {str(e)}",
+                url=url,
+            )

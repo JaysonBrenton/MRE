@@ -51,22 +51,32 @@ export default function Tooltip({ text, children, position = "top" }: TooltipPro
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 })
   const [actualPosition, setActualPosition] = useState<"top" | "bottom">(position)
 
-  // Create ref callback that handles both our ref and the original ref
+  // Store any ref that might be in the child's props (for forwardRef components)
+  // In React 19, we cannot access element.ref directly. For forwardRef components,
+  // refs are passed as props, so we can check for them here.
+  const originalRefFromProps = React.isValidElement(children) 
+    ? (children.props as { ref?: React.Ref<HTMLElement> })?.ref 
+    : undefined
+
+  // Create ref callback that handles both our ref and preserves any original ref
+  // In React 19, refs are regular props for forwardRef components, so we can
+  // access them from props. For DOM elements, refs are special and cannot be
+  // preserved when cloning with a new ref (this is a React 19 limitation).
   const refCallback = useCallback((node: HTMLElement | null) => {
+    // Set our internal ref for tooltip positioning
     elementRef.current = node
-    // Handle original ref if it exists - use type assertion to access ref safely
-    const childElement = children as React.ReactElement & { ref?: React.Ref<HTMLElement> }
-    const originalRef = childElement.ref
-    if (typeof originalRef === "function") {
-      originalRef(node)
-    } else if (originalRef && typeof originalRef === "object" && "current" in originalRef) {
-      // Create a new ref object to avoid mutating the prop directly
-      const refObject = originalRef as React.MutableRefObject<HTMLElement | null>
-      // This is necessary for ref forwarding - we need to update the ref
-      // eslint-disable-next-line react-hooks/immutability
-      refObject.current = node
+    
+    // Preserve original ref if it exists (for forwardRef components)
+    if (originalRefFromProps) {
+      if (typeof originalRefFromProps === "function") {
+        originalRefFromProps(node)
+      } else if (originalRefFromProps && typeof originalRefFromProps === "object" && "current" in originalRefFromProps) {
+        // For ref objects, update the current property
+        // eslint-disable-next-line react-hooks/immutability
+        ;(originalRefFromProps as React.MutableRefObject<HTMLElement | null>).current = node
+      }
     }
-  }, [children])
+  }, [originalRefFromProps])
 
   // Clone the child element to attach event handlers and ref
   const childWithProps = React.cloneElement(children, {

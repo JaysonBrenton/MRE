@@ -501,6 +501,11 @@ The MRE application exposes the following API endpoints:
 - POST /api/v1/events/ingest - Ingest event by source_event_id and track_id
 - POST /api/v1/events/check-entry-lists - Check if driver name appears in entry lists
 
+**Practice Days Endpoints:**
+- GET /api/v1/practice-days/search - Search practice days in database by track and date range
+- POST /api/v1/practice-days/discover - Discover practice days from LiveRC for a track and month
+- POST /api/v1/practice-days/ingest - Ingest practice day data for a specific track and date
+
 **Race Data Endpoints:**
 - GET /api/v1/races/[raceId] - Get race details with results
 - GET /api/v1/races/[raceId]/laps - Get lap data for all drivers in a race

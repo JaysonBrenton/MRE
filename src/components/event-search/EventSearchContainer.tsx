@@ -24,11 +24,13 @@ import { type Track } from "./TrackRow"
 import EventTable from "./EventTable"
 import { type Event } from "./EventRow"
 import { type EventStatus } from "./EventStatusBadge"
-import BulkImportBar from "./BulkImportBar"
 import ErrorDisplay from "./ErrorDisplay"
 import ListPagination from "../event-analysis/ListPagination"
+import PracticeDaySearchContainer from "../practice-days/PracticeDaySearchContainer"
 import { parseApiResponse } from "@/lib/api-response-helper"
 import { clientLogger } from "@/lib/client-logger"
+import { isPracticeDaysEnabled } from "@/lib/feature-flags"
+import { isEventInFuture, formatDateLong } from "@/lib/date-utils"
 
 /** API response type for track data */
 interface ApiTrack {
@@ -71,7 +73,6 @@ const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
 const LAST_DATE_RANGE_STORAGE_KEY = "mre_last_date_range"
 const LAST_TRACK_STORAGE_KEY = "mre_last_track"
 const USE_DATE_FILTER_STORAGE_KEY = "mre_use_date_filter"
-const SELECTED_EVENT_IDS_STORAGE_KEY = "mre_selected_event_ids"
 const PAGINATION_STORAGE_KEY = "mre_event_search_pagination"
 const PENDING_REFRESH_DELAY_MS = 5000
 
@@ -96,6 +97,14 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
   const [useDateFilter, setUseDateFilter] = useState<boolean>(false)
+  const [searchMode, setSearchMode] = useState<"events" | "practice-days">("events")
+  const practiceDaysEnabled = isPracticeDaysEnabled()
+  
+  // Practice days month/year selection
+  const currentDate = new Date()
+  const [practiceYear, setPracticeYear] = useState<number>(currentDate.getFullYear())
+  const [practiceMonth, setPracticeMonth] = useState<number>(currentDate.getMonth() + 1)
+  const [practiceDaysSearchTrigger, setPracticeDaysSearchTrigger] = useState<number>(0)
   const [favourites, setFavourites] = useState<string[]>([])
   const [tracks, setTracks] = useState<Track[]>([])
   const [events, setEvents] = useState<Event[]>([])
@@ -107,9 +116,6 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
   const keptLoadingForEmptyDB = useRef(false)
   const [eventStatusOverrides, setEventStatusOverrides] = useState<Record<string, EventStatus>>({})
   const [eventErrorMessages, setEventErrorMessages] = useState<Record<string, string>>({})
-  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set())
-  const [isImportingBulk, setIsImportingBulk] = useState(false)
-  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
   const [eventImportProgress, setEventImportProgress] = useState<Record<string, { stage?: string; counts?: { races: number; results: number; laps: number } }>>({})
   const pollingIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({}) // Track polling intervals per event
   const [searchKey, setSearchKey] = useState(0) // Key to force EventTable remount on new search
@@ -124,6 +130,8 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
     track?: string
     startDate?: string
     endDate?: string
+    year?: string
+    month?: string
   }>({})
   const [apiError, setApiError] = useState<{
     message: string
@@ -189,6 +197,15 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
         delete next[eventId]
         return next
       }
+      
+      // Don't allow setting status override for scheduled events (except to clear it)
+      // Find the event to check if it's scheduled
+      const event = events.find((e) => e.id === eventId)
+      if (event && isEventInFuture(event.eventDate) && status !== "scheduled") {
+        // If trying to set a non-scheduled status on a scheduled event, set it to scheduled instead
+        return { ...prev, [eventId]: "scheduled" }
+      }
+      
       return { ...prev, [eventId]: status }
     })
   }
@@ -369,20 +386,6 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
     }
 
 
-    // Load persisted selected event IDs from sessionStorage
-    // Note: We'll filter out invalid IDs after events are loaded
-    try {
-      const storedSelectedIds = sessionStorage.getItem(SELECTED_EVENT_IDS_STORAGE_KEY)
-      if (storedSelectedIds) {
-        const ids = JSON.parse(storedSelectedIds) as string[]
-        setSelectedEventIds(new Set(ids))
-      }
-    } catch (error) {
-      clientLogger.error("Failed to load selected event IDs from sessionStorage", {
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-
     // Load persisted pagination state from localStorage
     try {
       const storedPagination = localStorage.getItem(PAGINATION_STORAGE_KEY)
@@ -428,64 +431,6 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
       }
     }
   }, [tracks, selectedTrack])
-
-  // Restore selected event IDs from sessionStorage when events are loaded
-  // This ensures selections persist when switching between tracks
-  useEffect(() => {
-    if (events.length > 0 && hasSearched) {
-      try {
-        const storedSelectedIds = sessionStorage.getItem(SELECTED_EVENT_IDS_STORAGE_KEY)
-        if (storedSelectedIds) {
-          const ids = JSON.parse(storedSelectedIds) as string[]
-          const validEventIds = new Set(events.map((e) => e.id))
-          const validStoredIds = ids.filter((id) => validEventIds.has(id))
-          
-          // Only update if there are valid stored IDs that aren't already selected
-          if (validStoredIds.length > 0) {
-            setSelectedEventIds((prev) => {
-              const newSet = new Set(prev)
-              let hasChanges = false
-              for (const id of validStoredIds) {
-                if (!newSet.has(id)) {
-                  newSet.add(id)
-                  hasChanges = true
-                }
-              }
-              return hasChanges ? newSet : prev
-            })
-          }
-        }
-      } catch (error) {
-        clientLogger.error("Failed to restore selected event IDs from sessionStorage", {
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events.length, hasSearched]) // Only depend on events.length and hasSearched to avoid loops
-
-  // Filter out persisted event IDs that no longer exist in current results
-  useEffect(() => {
-    if (events.length > 0 && selectedEventIds.size > 0) {
-      const validEventIds = new Set(events.map((e) => e.id))
-      const filteredIds = Array.from(selectedEventIds).filter((id) => validEventIds.has(id))
-      
-      if (filteredIds.length !== selectedEventIds.size) {
-        setSelectedEventIds(new Set(filteredIds))
-        try {
-          if (filteredIds.length > 0) {
-            sessionStorage.setItem(SELECTED_EVENT_IDS_STORAGE_KEY, JSON.stringify(filteredIds))
-          } else {
-            sessionStorage.removeItem(SELECTED_EVENT_IDS_STORAGE_KEY)
-          }
-        } catch (error) {
-          clientLogger.error("Failed to update selected event IDs in sessionStorage", {
-            error: error instanceof Error ? error.message : String(error),
-          })
-        }
-      }
-    }
-  }, [events, selectedEventIds])
 
   // Cleanup polling intervals on unmount
   useEffect(() => {
@@ -638,12 +583,35 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
     if (trackOverride && trackOverride.id !== selectedTrack?.id) {
       setSelectedTrack(trackOverride)
     }
-    clientLogger.debug("EventSearchContainer: handleSearch called", { 
-      selectedTrack: trackToUse, 
-      startDate, 
-      endDate, 
-      useDateFilter 
+    clientLogger.debug("EventSearchContainer: handleSearch called", {
+      selectedTrack: trackToUse,
+      startDate,
+      endDate,
+      useDateFilter,
+      searchMode
     })
+    
+    // For practice days mode, validation is handled by PracticeDaySearchContainer
+    if (searchMode === "practice-days") {
+      // Just ensure track, year, and month are set - PracticeDaySearchContainer will handle the rest
+      // Check for valid values: year must be > 0, month must be between 1-12
+      const hasValidYear = practiceYear && practiceYear > 0
+      const hasValidMonth = practiceMonth && practiceMonth >= 1 && practiceMonth <= 12
+      
+      if (!trackToUse || !hasValidYear || !hasValidMonth) {
+        setErrors({
+          track: !trackToUse ? "Please select a track" : undefined,
+          year: !hasValidYear ? "Please select a year" : undefined,
+          month: !hasValidMonth ? "Please select a month" : undefined,
+        })
+        return
+      }
+      // Clear errors and trigger search by incrementing search trigger
+      setErrors({})
+      setPracticeDaysSearchTrigger((prev) => prev + 1)
+      return
+    }
+    
     if (!validateForm() || !trackToUse) {
       clientLogger.debug("EventSearchContainer: Validation failed or no track selected", {
         validationPassed: validateForm(),
@@ -1091,13 +1059,26 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
         })
         // Convert discovered events to Event format
         // Store sourceEventId for import later
-        const newEvents = result.data.new_events.map((event) => ({
-          id: event.id || `liverc-${event.sourceEventId}`,
-          eventName: event.eventName,
-          eventDate: event.eventDate,
-          ingestDepth: "none", // Not imported yet
-          sourceEventId: event.sourceEventId, // Store for import
-        }))
+        const newEvents = result.data.new_events.map((event) => {
+          // Debug: Log first few future events to see date format
+          const isFuture = event.eventDate ? isEventInFuture(event.eventDate) : false
+          if (result.data.new_events.indexOf(event) < 5) {
+            clientLogger.info("LiveRC event date check", {
+              eventName: event.eventName,
+              eventDate: event.eventDate,
+              eventDateType: typeof event.eventDate,
+              parsedDate: event.eventDate ? new Date(event.eventDate).toISOString() : null,
+              isFuture,
+            })
+          }
+          return {
+            id: event.id || `liverc-${event.sourceEventId}`,
+            eventName: event.eventName,
+            eventDate: event.eventDate,
+            ingestDepth: "none", // Not imported yet
+            sourceEventId: event.sourceEventId, // Store for import
+          }
+        })
 
         setNewEventsFromLiveRC(newEvents)
         
@@ -1543,6 +1524,22 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
       return false
     }
 
+    // Validate that event is not in the future (Option 4: validation before API call)
+    if (isEventInFuture(event.eventDate)) {
+      const eventDateFormatted = event.eventDate ? formatDateLong(event.eventDate) : "a future date"
+      const errorMessage = `This event is scheduled for ${eventDateFormatted}. Import will be available after the event occurs.`
+      
+      clientLogger.warn("Attempted to import future event", {
+        eventId: event.id,
+        eventName: event.eventName,
+        eventDate: event.eventDate,
+      })
+      
+      updateEventStatusOverride(event.id, "scheduled")
+      updateEventErrorMessage(event.id, errorMessage)
+      return false
+    }
+
       updateEventStatusOverride(event.id, "importing")
       updateEventErrorMessage(event.id) // Clear any previous error
 
@@ -1974,7 +1971,6 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
     setEventStatusOverrides({})
     setEventErrorMessages({})
     setCurrentPage(1) // Reset pagination to first page
-    handleClearSelection()
 
     // Clear localStorage
     try {
@@ -2019,14 +2015,19 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
 
   // Helper function to check if an event is importable
   const isEventImportable = (event: Event): boolean => {
+    // Check if event is in the future - scheduled events cannot be imported
+    if (isEventInFuture(event.eventDate)) {
+      return false
+    }
+    
     const overrideStatus = eventStatusOverrides[event.id]
     if (overrideStatus) {
       // Only "new" status makes an event importable
-      // "importing", "imported", "failed", etc. make it not importable
+      // "importing", "imported", "failed", "scheduled", etc. make it not importable
       if (overrideStatus === "new") {
         return true
       }
-      // For any other override status (importing, imported, failed), event is not importable
+      // For any other override status (importing, imported, failed, scheduled), event is not importable
       return false
     }
     // Check if LiveRC-only event
@@ -2036,181 +2037,6 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
     // Check ingest depth
     const normalizedDepth = event.ingestDepth?.trim().toLowerCase() || ""
     return normalizedDepth !== "laps_full" && normalizedDepth !== "lapsfull"
-  }
-
-  // Handle event selection toggle
-  const handleEventSelect = (event: Event, selected: boolean) => {
-    setSelectedEventIds((prev) => {
-      const newSet = new Set(prev)
-      if (selected) {
-        newSet.add(event.id)
-      } else {
-        newSet.delete(event.id)
-      }
-      
-      // Persist to sessionStorage
-      try {
-        sessionStorage.setItem(SELECTED_EVENT_IDS_STORAGE_KEY, JSON.stringify(Array.from(newSet)))
-      } catch (error) {
-        clientLogger.error("Failed to save selected event IDs to sessionStorage", {
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
-      
-      return newSet
-    })
-  }
-
-  // Handle select all importable events
-  const handleSelectAllImportable = () => {
-    const importableEvents = events.filter(isEventImportable)
-    const newSet = new Set(importableEvents.map((e) => e.id))
-    setSelectedEventIds(newSet)
-    
-    // Persist to sessionStorage
-    try {
-      sessionStorage.setItem(SELECTED_EVENT_IDS_STORAGE_KEY, JSON.stringify(Array.from(newSet)))
-    } catch (error) {
-      clientLogger.error("Failed to save selected event IDs to sessionStorage", {
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-
-  // Handle clear selection
-  const handleClearSelection = () => {
-    setSelectedEventIds(new Set())
-    try {
-      sessionStorage.removeItem(SELECTED_EVENT_IDS_STORAGE_KEY)
-    } catch (error) {
-      clientLogger.error("Failed to clear selected event IDs from sessionStorage", {
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-
-  // Handle bulk import
-  const handleBulkImport = async () => {
-    if (selectedEventIds.size === 0) return
-    if (!selectedTrack) return
-
-    // Filter to only importable events
-    const eventsToImport = events.filter(
-      (e) => selectedEventIds.has(e.id) && isEventImportable(e)
-    )
-
-    if (eventsToImport.length === 0) return
-
-    setIsImportingBulk(true)
-    setImportProgress({ current: 0, total: eventsToImport.length })
-
-
-    for (let i = 0; i < eventsToImport.length; i++) {
-      const event = eventsToImport[i]
-      setImportProgress({ current: i + 1, total: eventsToImport.length })
-      
-      // Set status to importing
-      updateEventStatusOverride(event.id, "importing")
-
-      const success = await importEvent(event, { refreshAfter: false })
-      
-      if (success) {
-        updateEventStatusOverride(event.id, "imported")
-        // Note: The importEvent function already updates the event in place
-      } else {
-        updateEventStatusOverride(event.id, "failed")
-      }
-    }
-
-    // After all imports complete, fetch updated event data and update in place
-    // This ensures we have the latest data for all imported events
-    try {
-      const params = new URLSearchParams({
-        track_id: selectedTrack.id,
-      })
-
-      if (useDateFilter) {
-        if (startDate && startDate.trim() !== "") {
-          params.append("start_date", startDate)
-        }
-        if (endDate && endDate.trim() !== "") {
-          params.append("end_date", endDate)
-        }
-      }
-
-      const response = await fetch(`/api/v1/events/search?${params.toString()}`)
-      const result = await parseApiResponse<{
-        track: { id: string; source: string; source_track_slug: string; track_name: string }
-        events: ApiEvent[]
-      }>(response)
-
-      if (result.success) {
-        // Update all imported events in place
-        setEvents((prevEvents) => {
-          const updatedEvents = [...prevEvents]
-          let hasChanges = false
-
-          for (const event of eventsToImport) {
-            // Try to find the updated event by old ID first
-            let updatedEvent = result.data.events.find((e) => e.id === event.id)
-            
-            // If not found and we have a sourceEventId, try finding by sourceEventId
-            if (!updatedEvent && event.sourceEventId) {
-              updatedEvent = result.data.events.find(
-                (e) => e.sourceEventId === event.sourceEventId || e.source_event_id === event.sourceEventId
-              )
-            }
-
-            if (updatedEvent) {
-              const eventIndex = updatedEvents.findIndex((e) => e.id === event.id)
-              
-              if (eventIndex !== -1) {
-                // Update existing event
-                updatedEvents[eventIndex] = {
-                  id: updatedEvent.id,
-                  eventName: updatedEvent.eventName,
-                  eventDate: updatedEvent.eventDate || updatedEvent.event_date || "",
-                  ingestDepth: (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim(),
-                  sourceEventId: updatedEvent.sourceEventId || updatedEvent.source_event_id,
-                }
-                hasChanges = true
-              } else if (event.id.startsWith("liverc-") && updatedEvent.id !== event.id) {
-                // LiveRC event got a new DB ID - find and replace it
-                const livercIndex = updatedEvents.findIndex((e) => e.id === event.id)
-                if (livercIndex !== -1) {
-                  updatedEvents[livercIndex] = {
-                    id: updatedEvent.id,
-                    eventName: updatedEvent.eventName,
-                    eventDate: updatedEvent.eventDate || updatedEvent.event_date || "",
-                    ingestDepth: (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim(),
-                    sourceEventId: updatedEvent.sourceEventId || updatedEvent.source_event_id,
-                  }
-                  hasChanges = true
-                }
-              }
-            }
-          }
-
-          return hasChanges ? updatedEvents : prevEvents
-        })
-
-        // Clear status overrides for all imported events
-        for (const event of eventsToImport) {
-          updateEventStatusOverride(event.id)
-        }
-      }
-    } catch (error) {
-      clientLogger.warn("Failed to fetch updated event data after bulk import", {
-        error: error instanceof Error ? error.message : String(error),
-      })
-      // Continue anyway - individual event updates may have already happened
-    }
-
-    // Clear selection
-    handleClearSelection()
-
-    setIsImportingBulk(false)
-    setImportProgress(null)
   }
 
   // Handle check entry lists for driver
@@ -2402,112 +2228,170 @@ export default function EventSearchContainer({ onSelectForDashboard }: EventSear
   }
 
   return (
-    <div className="space-y-8 w-full min-w-0">
-      <div aria-live="polite" aria-atomic="true" className="sr-only">
+    <div
+      className="flex flex-col flex-1 min-h-0 w-full"
+      style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div className="sr-only">
         {isLoadingEvents
           ? "Loading events..."
           : isCheckingLiveRC
             ? "Checking LiveRC for additional events..."
             : ""}
       </div>
-      
-      {/* API Error Display */}
-      {apiError && (
-        <ErrorDisplay
-          message={apiError.message}
-          errorId={apiError.errorId}
-          details={apiError.details as string | Record<string, unknown> | undefined}
-          onRetry={apiError.onRetry}
-          retryLabel="Retry Search"
-        />
-      )}
-      
-      <EventSearchForm
-        selectedTrack={selectedTrack}
-        startDate={startDate}
-        endDate={endDate}
-        useDateFilter={useDateFilter}
-        favourites={favourites}
-        tracks={tracks}
-        errors={errors}
-        isLoading={isLoadingEvents}
-        onTrackSelect={setSelectedTrack}
-        onStartDateChange={setStartDate}
-        onEndDateChange={setEndDate}
-        onUseDateFilterChange={handleUseDateFilterToggle}
-        onToggleFavourite={handleToggleFavourite}
-        onSearch={handleSearch}
-        onReset={handleReset}
-        livercEventsCount={totalEventsCount}
-        hasSearched={hasSearched}
-        isCheckingEntryLists={isCheckingEntryLists}
-        isImportingBulk={isImportingBulk}
-        driverInEvents={driverInEvents}
-        onCheckEntryLists={handleCheckEntryLists}
-      />
 
-      {/* Bulk Import Bar */}
-      <BulkImportBar
-        selectedCount={selectedEventIds.size}
-        importableCount={events.filter(isEventImportable).length}
-        isImporting={isImportingBulk}
-        importProgress={importProgress}
-        onImport={handleBulkImport}
-        onSelectAll={handleSelectAllImportable}
-        onClearSelection={handleClearSelection}
-      />
-
-      {/* Driver in events count display - Only show when there are results */}
-      {Object.keys(driverInEvents).length > 0 && (
-        <div className="mt-4 flex items-center gap-2">
-          <span className="text-sm text-[var(--token-text-secondary)]">
-            {Object.values(driverInEvents).filter(Boolean).length} event{Object.values(driverInEvents).filter(Boolean).length === 1 ? "" : "s"} found
-          </span>
-        </div>
-      )}
-
-      {/* Event Table - Hide during search transition to prevent flash of old data */}
-      {!isStartingSearch && (
-        <>
-          <EventTable 
-            key={searchKey}
-            events={paginatedEvents} 
-            isLoading={isLoadingEvents}
-            hasSearched={hasSearched}
-            isCheckingLiveRC={isCheckingLiveRC}
-            onImportEvent={handleImportSingle}
-            statusOverrides={eventStatusOverrides}
-            errorMessages={eventErrorMessages}
-            selectedEventIds={selectedEventIds}
-            onEventSelect={handleEventSelect}
-            isBulkImporting={isImportingBulk}
-            onSelectAll={handleSelectAllImportable}
-            driverInEvents={driverInEvents}
-            eventImportProgress={eventImportProgress}
-            onSelectForDashboard={onSelectForDashboard}
-          />
-          
-          {/* Pagination - Only show if there are events */}
-          {hasSearched && events.length > 0 && (
-            <ListPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              itemsPerPage={itemsPerPage}
-              totalItems={totalItems}
-              itemLabel="events"
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
-              onRowsPerPageChange={handleRowsPerPageChange}
+      {/* Form section: fixed, does not scroll */}
+      <section className="flex-shrink-0 pb-6 border-b border-[var(--token-border-accent-soft)]" aria-label="Search filters">
+        <p className="text-sm text-[var(--token-text-secondary)] mb-4">
+          Choose a track and optional date range, then search. Results appear below.
+        </p>
+        {apiError && (
+          <div className="mb-4">
+            <ErrorDisplay
+              message={apiError.message}
+              errorId={apiError.errorId}
+              details={apiError.details as string | Record<string, unknown> | undefined}
+              onRetry={apiError.onRetry}
+              retryLabel="Retry Search"
             />
-          )}
-        </>
-      )}
-      {/* Show loading state during transition */}
-      {isStartingSearch && (
-        <div className="mt-8 text-center py-8 w-full min-w-0" role="status" aria-live="polite">
-          <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
-        </div>
-      )}
+          </div>
+        )}
+        <EventSearchForm
+          searchMode={searchMode}
+          onSearchModeChange={practiceDaysEnabled ? (mode) => {
+            setSearchMode(mode)
+            setErrors({})
+            setApiError(null)
+          } : undefined}
+          selectedTrack={selectedTrack}
+          startDate={startDate}
+          endDate={endDate}
+          useDateFilter={useDateFilter}
+          favourites={favourites}
+          tracks={tracks}
+          errors={errors}
+          isLoading={isLoadingEvents}
+          onTrackSelect={setSelectedTrack}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          onUseDateFilterChange={handleUseDateFilterToggle}
+          onToggleFavourite={handleToggleFavourite}
+          onSearch={handleSearch}
+          onReset={handleReset}
+          livercEventsCount={totalEventsCount}
+          hasSearched={hasSearched}
+          isCheckingEntryLists={isCheckingEntryLists}
+          driverInEvents={driverInEvents}
+          onCheckEntryLists={handleCheckEntryLists}
+          practiceYear={practiceYear}
+          practiceMonth={practiceMonth}
+          onPracticeYearChange={setPracticeYear}
+          onPracticeMonthChange={setPracticeMonth}
+        />
+      </section>
+
+      {/* Results section: scrollable */}
+      <section
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-6"
+        style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}
+        aria-label="Search results"
+      >
+        {isStartingSearch && (
+          <div
+            className="text-center py-8"
+            style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
+          </div>
+        )}
+
+        {!isStartingSearch && searchMode === "practice-days" && practiceDaysEnabled && (
+          <PracticeDaySearchContainer
+            selectedTrack={selectedTrack}
+            year={practiceYear}
+            month={practiceMonth}
+            onSelectForDashboard={onSelectForDashboard}
+            searchTrigger={practiceDaysSearchTrigger}
+          />
+        )}
+
+        {!isStartingSearch && (searchMode !== "practice-days" || !practiceDaysEnabled) && (
+          <>
+            {!hasSearched && (
+              <div
+                className="py-8 flex-shrink-0"
+                style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}
+              >
+                <div
+                  className="mx-auto px-4 space-y-3 text-center"
+                  style={{
+                    minWidth: '20rem',
+                    maxWidth: '28rem',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <p className="text-[var(--token-text-primary)] font-medium">
+                    Select a track and click Search to find events
+                  </p>
+                  <p className="text-sm text-[var(--token-text-secondary)]">
+                    Use the filters above to choose a track and optional date range, then run your search.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {hasSearched && (
+              <>
+                {Object.keys(driverInEvents).length > 0 && (
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="text-sm text-[var(--token-text-secondary)]">
+                      {Object.values(driverInEvents).filter(Boolean).length} event{Object.values(driverInEvents).filter(Boolean).length === 1 ? "" : "s"} found with your participation
+                    </span>
+                  </div>
+                )}
+
+                {events.length > 0 && (
+                  <p className="text-sm text-[var(--token-text-secondary)] mb-3">
+                    {totalItems} event{totalItems === 1 ? "" : "s"} found
+                  </p>
+                )}
+
+                <EventTable
+                  key={searchKey}
+                  events={paginatedEvents}
+                  isLoading={isLoadingEvents}
+                  hasSearched={hasSearched}
+                  isCheckingLiveRC={isCheckingLiveRC}
+                  onImportEvent={handleImportSingle}
+                  statusOverrides={eventStatusOverrides}
+                  errorMessages={eventErrorMessages}
+                  driverInEvents={driverInEvents}
+                  eventImportProgress={eventImportProgress}
+                  onSelectForDashboard={onSelectForDashboard}
+                />
+
+                {hasSearched && events.length > 0 && (
+                  <ListPagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={totalItems}
+                    itemLabel="events"
+                    rowsPerPageOptions={[5, 10, 25, 50, 100]}
+                    onRowsPerPageChange={handleRowsPerPageChange}
+                  />
+                )}
+              </>
+            )}
+          </>
+        )}
+      </section>
     </div>
   )
 }

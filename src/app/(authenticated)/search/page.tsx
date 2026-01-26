@@ -47,7 +47,7 @@ export default function SearchPage() {
 
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl flex-shrink-0">
-      <Breadcrumbs items={[{ label: "Home", href: "/dashboard" }, { label: "Search" }]} />
+      <Breadcrumbs items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Search" }]} />
       <div className="mb-6">
         <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">Search</h1>
         <p className="mt-2 text-sm text-[var(--token-text-secondary)]">

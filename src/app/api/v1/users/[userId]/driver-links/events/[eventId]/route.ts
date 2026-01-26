@@ -41,6 +41,58 @@ import { generateRequestId } from "@/lib/request-context"
  *   }
  * }
  */
+export async function handleDriverLinkStatusPatch(
+  request: NextRequest,
+  userId: string,
+  eventId: string
+) {
+  console.log("[handleDriverLinkStatusPatch] Called with:", { userId, eventId })
+  
+  // Parse request body
+  const bodyResult = await parseRequestBody<{
+    status: "confirmed" | "rejected"
+  }>(request)
+
+  console.log("[handleDriverLinkStatusPatch] Body parse result:", {
+    success: bodyResult.success,
+    status: bodyResult.success ? bodyResult.data.status : "N/A",
+  })
+
+  if (!bodyResult.success) {
+    console.log("[handleDriverLinkStatusPatch] Body parse failed, returning error")
+    return bodyResult.response
+  }
+
+  const { status } = bodyResult.data
+
+  if (status !== "confirmed" && status !== "rejected") {
+    console.log("[handleDriverLinkStatusPatch] Invalid status:", status)
+    return errorResponse(
+      "INVALID_INPUT",
+      "Status must be 'confirmed' or 'rejected'",
+      undefined,
+      400
+    )
+  }
+
+  console.log("[handleDriverLinkStatusPatch] Calling updateDriverLinkStatusByEvent:", {
+    userId,
+    eventId,
+    status,
+  })
+
+  // Update driver link status
+  const updatedLink = await updateDriverLinkStatusByEvent(userId, eventId, status)
+
+  console.log("[handleDriverLinkStatusPatch] Update result:", {
+    hasUpdatedLink: !!updatedLink,
+    linkId: updatedLink?.id,
+    linkStatus: updatedLink?.status,
+  })
+
+  return successResponse({ link: updatedLink }, 200, `Driver link ${status} successfully`)
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string; eventId: string }> }
@@ -61,30 +113,7 @@ export async function PATCH(
       return errorResponse("FORBIDDEN", "Access denied", undefined, 403)
     }
 
-    // Parse request body
-    const bodyResult = await parseRequestBody<{
-      status: "confirmed" | "rejected"
-    }>(request)
-
-    if (!bodyResult.success) {
-      return bodyResult.response
-    }
-
-    const { status } = bodyResult.data
-
-    if (status !== "confirmed" && status !== "rejected") {
-      return errorResponse(
-        "INVALID_INPUT",
-        "Status must be 'confirmed' or 'rejected'",
-        undefined,
-        400
-      )
-    }
-
-    // Update driver link status
-    const updatedLink = await updateDriverLinkStatusByEvent(userId, eventId, status)
-
-    return successResponse({ link: updatedLink }, 200, `Driver link ${status} successfully`)
+    return handleDriverLinkStatusPatch(request, userId, eventId)
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)

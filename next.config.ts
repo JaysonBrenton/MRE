@@ -7,11 +7,14 @@
  * 
  * @description Next.js build and runtime configuration
  * 
- * @purpose Configures Next.js build settings, specifically excluding argon2
- *          from Edge Runtime and client-side bundling. Argon2 is a native Node.js
- *          module that cannot run in Edge Runtime or browser environments. This
- *          configuration ensures argon2 is only used in Node.js runtime contexts
- *          (API routes and server components) where it's needed for password hashing.
+ * @purpose Configures Next.js build settings, including:
+ *          - Webpack polling for file watching (enables hot reload in Docker/Colima)
+ *          - Excluding argon2 from Edge Runtime and client-side bundling
+ *          - Request size limits for DoS protection
+ *          Argon2 is a native Node.js module that cannot run in Edge Runtime or
+ *          browser environments. This configuration ensures argon2 is only used
+ *          in Node.js runtime contexts (API routes and server components) where
+ *          it's needed for password hashing.
  * 
  * @relatedFiles
  * - src/core/auth/register.ts (uses argon2 for password hashing)
@@ -31,6 +34,14 @@ const nextConfig: NextConfig = {
   // It should only be used in API routes and server components (Node.js runtime)
   serverExternalPackages: ["argon2"],
   webpack: (config, { isServer }) => {
+    // Enable polling for file watching (required for Docker/Colima environments)
+    // Polling is more reliable than native file system events in containerized environments
+    config.watchOptions = {
+      poll: 1000, // Check for file changes every 1 second
+      aggregateTimeout: 300, // Wait 300ms after detecting changes before rebuilding (batches rapid edits)
+      ignored: /node_modules/, // Ignore node_modules to reduce polling overhead
+    }
+
     // Exclude argon2 and Prisma from client-side bundling
     if (!isServer) {
       config.resolve.fallback = {

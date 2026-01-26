@@ -53,6 +53,7 @@ This repository is intentionally built for multi-agent collaboration (human spec
   - Never access Prisma directly from React components; use `src/core/.../repo.ts` per architecture rules.
   - Follow the theme system guidelines (dark theme is default, but experimentation is encouraged) and mobile UX constraints noted in the README.
   - Tests for UI logic belong in `src/__tests__` and must mirror the documented behaviours.
+  - **⚠️ CRITICAL: Flexbox Horizontal Compression** - When creating scrollable flex layouts (e.g., "form fixed, results scroll"), you **MUST** add inline `style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}` to **all content blocks** (empty states, messages, etc.), not just containers. See `docs/development/FLEXBOX_LAYOUT_CHECKLIST.md` section "Content Blocks in Scrollable Flex Containers". This is the #1 recurring layout bug - always check this checklist when adding flex + scroll layouts.
 
 ### 2.2 LiveRC Ingestion Agent (Python Service)
 - **Scope**: Python microservice under `ingestion/` handling track/event discovery, ingestion pipeline, and CLI.

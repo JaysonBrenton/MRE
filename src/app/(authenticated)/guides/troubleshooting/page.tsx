@@ -22,7 +22,7 @@ export default async function TroubleshootingGuidePage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/dashboard" },
           { label: "Guides", href: "/guides" },
           { label: "Troubleshooting" },
         ]}

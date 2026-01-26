@@ -3,7 +3,7 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-28
+ * @lastModified 2026-01-21
  *
  * @description Functions for retrieving and updating user-driver link status
  *
@@ -328,6 +328,23 @@ export async function updateDriverLinkStatus(
         },
       },
     })
+
+    // Link any orphaned EventDriverLink records to this UserDriverLink
+    // This ensures events added after the UserDriverLink was created are properly linked
+    const linkResult = await prisma.eventDriverLink.updateMany({
+      where: {
+        userId,
+        driverId,
+        userDriverLinkId: null,
+      },
+      data: {
+        userDriverLinkId: userDriverLink.id,
+      },
+    })
+
+    if (linkResult.count > 0) {
+      console.log(`[updateDriverLinkStatus] Linked ${linkResult.count} orphaned EventDriverLink records to UserDriverLink ${userDriverLink.id}`)
+    }
   }
 
   // Get match type from events
@@ -359,15 +376,16 @@ export async function updateDriverLinkStatus(
 }
 
 /**
- * Update UserDriverLink status based on event ID.
+ * Update EventDriverLink status based on event ID.
  *
- * This is a convenience function that finds the driver associated with an event
- * and updates the UserDriverLink status for that driver.
+ * This function updates the per-event status for a specific user-event link.
+ * Each event can have its own status (confirmed/rejected/suggested) independent
+ * of other events for the same driver.
  *
  * Handles two cases:
- * 1. If an EventDriverLink exists, use it directly
+ * 1. If an EventDriverLink exists, update its status directly
  * 2. If no EventDriverLink exists but there's an EventEntry matching the user's driver name,
- *    create an EventDriverLink based on the EventEntry
+ *    create an EventDriverLink with the requested status
  *
  * @param userId - User ID
  * @param eventId - Event ID
@@ -379,16 +397,31 @@ export async function updateDriverLinkStatusByEvent(
   eventId: string,
   status: "confirmed" | "rejected"
 ): Promise<DriverLinkStatus> {
+  console.log("[updateDriverLinkStatusByEvent] Called with:", { userId, eventId, status })
+  
   // Find EventDriverLink for this user and event
   let eventDriverLink = await prisma.eventDriverLink.findFirst({
     where: {
       userId,
       eventId,
     },
+    include: {
+      driver: true,
+    },
+  })
+  
+  console.log("[updateDriverLinkStatusByEvent] EventDriverLink lookup result:", {
+    found: !!eventDriverLink,
+    eventDriverLinkId: eventDriverLink?.id,
+    driverId: eventDriverLink?.driverId,
+    matchType: eventDriverLink?.matchType,
+    currentStatus: eventDriverLink?.status,
   })
 
   // If no EventDriverLink exists, try to find one through EventEntry
   if (!eventDriverLink) {
+    console.log("[updateDriverLinkStatusByEvent] No EventDriverLink found, trying EventEntry lookup")
+    
     // Get user's normalized driver name
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -398,11 +431,19 @@ export async function updateDriverLinkStatusByEvent(
       },
     })
 
+    console.log("[updateDriverLinkStatusByEvent] User lookup result:", {
+      found: !!user,
+      driverName: user?.driverName,
+      normalizedName: user?.normalizedName,
+    })
+
     if (!user) {
+      console.error("[updateDriverLinkStatusByEvent] User not found")
       throw new Error("User not found")
     }
 
     const normalizedDriverName = user.normalizedName || normalizeDriverName(user.driverName)
+    console.log("[updateDriverLinkStatusByEvent] Normalized driver name:", normalizedDriverName)
 
     // Find EventEntry for this event with matching driver name
     const eventEntry = await prisma.eventEntry.findFirst({
@@ -417,12 +458,18 @@ export async function updateDriverLinkStatusByEvent(
       },
     })
 
+    console.log("[updateDriverLinkStatusByEvent] EventEntry lookup result:", {
+      found: !!eventEntry,
+      driverId: eventEntry?.driverId,
+      driverName: eventEntry?.driver?.displayName,
+    })
+
     if (!eventEntry) {
+      console.error("[updateDriverLinkStatusByEvent] No EventEntry found for user and event")
       throw new Error("No driver link found for this user and event")
     }
 
-    // Create EventDriverLink based on EventEntry
-    // Use "exact" match type and similarity score 1.0 for EventEntry matches
+    // Create EventDriverLink based on EventEntry with the requested status
     eventDriverLink = await prisma.eventDriverLink.create({
       data: {
         userId,
@@ -431,10 +478,67 @@ export async function updateDriverLinkStatusByEvent(
         matchType: "exact",
         similarityScore: 1.0,
         matchedAt: new Date(),
+        status: status,
+        confirmedAt: status === "confirmed" ? new Date() : null,
+        rejectedAt: status === "rejected" ? new Date() : null,
       },
+      include: {
+        driver: true,
+      },
+    })
+    
+    console.log("[updateDriverLinkStatusByEvent] Created new EventDriverLink:", {
+      id: eventDriverLink.id,
+      status: eventDriverLink.status,
+    })
+  } else {
+    // Update the existing EventDriverLink's per-event status
+    const updateData: {
+      status: "confirmed" | "rejected"
+      confirmedAt?: Date | null
+      rejectedAt?: Date | null
+    } = {
+      status: status,
+    }
+
+    if (status === "confirmed") {
+      updateData.confirmedAt = new Date()
+      updateData.rejectedAt = null
+    } else {
+      updateData.rejectedAt = new Date()
+      updateData.confirmedAt = null
+    }
+
+    eventDriverLink = await prisma.eventDriverLink.update({
+      where: {
+        id: eventDriverLink.id,
+      },
+      data: updateData,
+      include: {
+        driver: true,
+      },
+    })
+    
+    console.log("[updateDriverLinkStatusByEvent] Updated EventDriverLink:", {
+      id: eventDriverLink.id,
+      status: eventDriverLink.status,
+      confirmedAt: eventDriverLink.confirmedAt,
+      rejectedAt: eventDriverLink.rejectedAt,
     })
   }
 
-  // Update using the driverId from EventDriverLink
-  return updateDriverLinkStatus(userId, eventDriverLink.driverId, status)
+  // Return a DriverLinkStatus object for API compatibility
+  // Note: This returns the per-event status, not the overall driver link status
+  return {
+    driverId: eventDriverLink.driverId,
+    driverName: eventDriverLink.driver.displayName,
+    status: eventDriverLink.status.toLowerCase() as DriverLinkStatus["status"],
+    similarityScore: eventDriverLink.similarityScore,
+    matchedAt: eventDriverLink.matchedAt,
+    confirmedAt: eventDriverLink.confirmedAt,
+    rejectedAt: eventDriverLink.rejectedAt,
+    conflictReason: null,
+    eventCount: 1, // This is for a single event
+    matchType: eventDriverLink.matchType as DriverLinkStatus["matchType"],
+  }
 }

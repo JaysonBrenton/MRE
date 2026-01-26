@@ -53,6 +53,7 @@
     "@visx/shape": "^3.12.0",
     "@visx/tooltip": "^3.12.0",
     "argon2": "^0.44.0",
+    "date-fns": "^3.6.0",
     "next": "16.0.5",
     "next-auth": "^5.0.0-beta.30",
     "prisma": "^6.19.0",

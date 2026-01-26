@@ -41,6 +41,7 @@ model User {
   auditLogs         AuditLog[]
   carProfiles       CarProfile[]
   driverProfiles    DriverProfile[]
+  trackMaps         TrackMap[]
 
   @@index([normalizedName])
   @@index([transponderNumber])
@@ -109,6 +110,7 @@ model Track {
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
   events                 Event[]
+  trackMaps              TrackMap[]
 
   @@unique([source, sourceTrackSlug])
   @@index([source, sourceTrackSlug])
@@ -128,6 +130,7 @@ model Event {
   eventUrl             String                @map("event_url")
   ingestDepth          IngestDepth           @default(none) @map("ingest_depth")
   lastIngestedAt       DateTime?             @map("last_ingested_at")
+  metadata             Json?                 @map("metadata")
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
   driverLinks          EventDriverLink[]
@@ -351,26 +354,30 @@ model UserDriverLink {
 }
 
 model EventDriverLink {
-  id                String                   @id @default(uuid())
-  userId            String                   @map("user_id")
-  eventId           String                   @map("event_id")
-  driverId          String                   @map("driver_id")
-  userDriverLinkId  String?                  @map("user_driver_link_id")
-  matchType         EventDriverLinkMatchType @map("match_type")
-  similarityScore   Float                    @map("similarity_score")
-  transponderNumber String?                  @map("transponder_number")
-  matchedAt         DateTime                 @map("matched_at")
-  createdAt         DateTime                 @default(now()) @map("created_at")
-  updatedAt         DateTime                 @updatedAt @map("updated_at")
-  driver            Driver                   @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  event             Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userDriverLink    UserDriverLink?          @relation(fields: [userDriverLinkId], references: [id])
-  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String                    @id @default(uuid())
+  userId            String                    @map("user_id")
+  eventId           String                    @map("event_id")
+  driverId          String                    @map("driver_id")
+  userDriverLinkId  String?                   @map("user_driver_link_id")
+  matchType         EventDriverLinkMatchType  @map("match_type")
+  similarityScore   Float                     @map("similarity_score")
+  transponderNumber String?                   @map("transponder_number")
+  matchedAt         DateTime                  @map("matched_at")
+  status            EventDriverLinkStatus     @default(suggested) @map("status")
+  confirmedAt       DateTime?                 @map("confirmed_at")
+  rejectedAt        DateTime?                 @map("rejected_at")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  driver            Driver                    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  event             Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userDriverLink    UserDriverLink?           @relation(fields: [userDriverLinkId], references: [id])
+  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId, driverId])
   @@index([userId, driverId, transponderNumber])
   @@index([eventId, driverId])
   @@index([userDriverLinkId])
+  @@index([status])
   @@map("event_driver_links")
 }
 
@@ -400,10 +407,17 @@ enum EventDriverLinkMatchType {
   fuzzy
 }
 
+enum EventDriverLinkStatus {
+  suggested
+  confirmed
+  rejected
+}
+
 enum SessionType {
   race
   practice
   qualifying
+  practiceday
 }
 
 model WeatherData {
@@ -476,4 +490,25 @@ model ApplicationLog {
   @@index([requestId])
   @@index([userId])
   @@map("application_logs")
+}
+
+model TrackMap {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  trackId     String   @map("track_id")
+  name        String
+  description String?
+  mapData     Json     @map("map_data") // Array of shape objects
+  isPublic    Boolean  @default(false) @map("is_public")
+  shareToken    String?  @unique @map("share_token") // For shareable links
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, trackId])
+  @@index([isPublic])
+  @@index([shareToken])
+  @@map("track_maps")
 }

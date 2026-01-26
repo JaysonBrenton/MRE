@@ -23,7 +23,7 @@ export default async function GettingStartedPage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/dashboard" },
           { label: "Guides", href: "/guides" },
           { label: "Getting Started" },
         ]}
@@ -84,7 +84,7 @@ export default async function GettingStartedPage() {
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
             After logging in, you&apos;ll see the Welcome page with the message{" "}
-            <strong className="text-[var(--token-text-primary)]">&quot;Welcome back [Your Driver Name]&quot;</strong>. This page confirms you&apos;re successfully logged in and ready to start using MRE. From here, you can navigate to Dashboard, Event Search, My Events, or Guides.
+            <strong className="text-[var(--token-text-primary)]">&quot;Welcome back [Your Driver Name]&quot;</strong>. This page confirms you&apos;re successfully logged in and ready to start using MRE. From here, you can navigate to My Event Analysis, Event Search, My Events, or Guides.
           </p>
         </section>
 
@@ -97,7 +97,7 @@ export default async function GettingStartedPage() {
           </p>
           <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
             <li><strong className="text-[var(--token-text-primary)]">Breadcrumb Navigation:</strong> Shows your current location (e.g., Home &gt; Guides &gt; Getting Started)</li>
-            <li><strong className="text-[var(--token-text-primary)]">Main Navigation Menu:</strong> Provides access to Dashboard, Event Search, My Events, and Guides</li>
+            <li><strong className="text-[var(--token-text-primary)]">Main Navigation Menu:</strong> Provides access to My Event Analysis, Event Search, My Events, and Guides</li>
             <li><strong className="text-[var(--token-text-primary)]">Tab Navigation:</strong> Some pages use tabs to organize related content</li>
           </ul>
         </section>
@@ -124,7 +124,7 @@ export default async function GettingStartedPage() {
             </li>
             <li>
               <strong className="text-[var(--token-text-primary)]">Track your progress:</strong>{" "}
-              Monitor your performance over time using the Dashboard and My Events pages.
+              Monitor your performance over time using My Event Analysis and My Events pages.
             </li>
           </ol>
         </section>
@@ -164,7 +164,7 @@ export default async function GettingStartedPage() {
           <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
             <li><a href="/guides/event-search" className="text-[var(--token-accent)] hover:underline">Event Search Guide</a>: Learn how to search for and import race events</li>
             <li><a href="/guides/event-analysis" className="text-[var(--token-accent)] hover:underline">Event Analysis Guide</a>: Discover how to analyze event data and compare drivers</li>
-            <li><a href="/guides/dashboard" className="text-[var(--token-accent)] hover:underline">Dashboard Guide</a>: Understand how to use your dashboard and customize widgets</li>
+            <li><a href="/guides/dashboard" className="text-[var(--token-accent)] hover:underline">My Event Analysis Guide</a>: Understand how to use your event analysis and customize widgets</li>
             <li><a href="/guides/navigation" className="text-[var(--token-accent)] hover:underline">Navigation Guide</a>: Master navigation patterns and keyboard shortcuts</li>
           </ul>
         </section>

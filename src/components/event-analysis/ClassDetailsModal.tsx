@@ -82,6 +82,10 @@ export default function ClassDetailsModal({
   }
 
   const handleCancel = () => {
+    // Prevent closing during save
+    if (isSaving) {
+      return
+    }
     setVehicleType(initialVehicleType || "Unknown")
     setError(null)
     onClose()
@@ -90,7 +94,7 @@ export default function ClassDetailsModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={handleCancel}
+      onClose={isSaving ? () => {} : handleCancel}
       title="Race Class Details"
       maxWidth="md"
       footer={

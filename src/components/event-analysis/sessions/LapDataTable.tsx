@@ -22,6 +22,7 @@
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react"
 import ChartContainer from "../ChartContainer"
 import DriverNameFilter from "./DriverNameFilter"
+import ViewModeToggle from "./ViewModeToggle"
 import ListPagination from "../ListPagination"
 import { formatLapTime } from "@/lib/format-session-data"
 import type { DriverLapData, RaceLapData, LapData } from "@/core/events/get-lap-data"
@@ -415,7 +416,7 @@ export default function LapDataTable({
         {/* Controls Bar */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           {/* Left side: Driver filter */}
-          <div className="flex-1 w-full sm:w-auto">
+          <div className="w-full sm:flex-1 sm:max-w-sm sm:min-w-[280px]">
             <DriverNameFilter
               driverNames={driverNames}
               value={driverFilter}
@@ -425,20 +426,16 @@ export default function LapDataTable({
           </div>
           {/* Right side: View toggle */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setViewMode((prev) => (prev === "driver" ? "race" : "driver"))
+            <ViewModeToggle
+              value={viewMode}
+              onChange={(newMode) => {
+                setViewMode(newMode)
                 setCurrentPage(1)
                 // Reset expansion states when switching views
                 setExpanded({ drivers: new Set(), races: new Set() })
                 setExpandedRaces(new Set())
               }}
-              className="px-3 py-2 text-sm font-medium rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              aria-label={`Switch to ${viewMode === "driver" ? "Race" : "Driver"} View`}
-            >
-              {viewMode === "driver" ? "Race View" : "Driver View"}
-            </button>
+            />
           </div>
         </div>
 
@@ -691,7 +688,7 @@ export default function LapDataTable({
                     <Fragment key={race.raceId}>
                       {/* Race Row */}
                       <tr
-                        className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] transition-colors cursor-pointer bg-[var(--token-surface-raised)]"
+                        className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] transition-colors cursor-pointer"
                         onClick={() => toggleRaceView(race.raceId)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {

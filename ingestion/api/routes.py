@@ -10,12 +10,12 @@
 
 import asyncio
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from ingestion.common.logging import get_logger
@@ -31,6 +31,10 @@ from ingestion.ingestion.errors import (
 from ingestion.common.site_policy import RobotsDisallowedError
 from ingestion.ingestion.pipeline import IngestionPipeline
 from ingestion.services.track_sync_service import TrackSyncService
+from ingestion.services.practice_day_discovery import (
+    discover_practice_days,
+    search_practice_days,
+)
 from ingestion.api.jobs import TRACK_SYNC_JOBS
 
 logger = get_logger(__name__)
@@ -73,6 +77,33 @@ class EntryListRequest(BaseModel):
     """Request body for entry list endpoint."""
     source_event_id: str
     track_slug: str
+
+
+class DiscoverPracticeDaysRequest(BaseModel):
+    """Request body for practice day discovery endpoint."""
+    track_slug: str
+    year: int
+    month: int
+    
+    @field_validator('month')
+    @classmethod
+    def validate_month(cls, v: int) -> int:
+        if v < 1 or v > 12:
+            raise ValueError('Month must be between 1 and 12')
+        return v
+
+
+class SearchPracticeDaysRequest(BaseModel):
+    """Request body for practice day search endpoint."""
+    track_id: str
+    start_date: Optional[str] = None  # YYYY-MM-DD format
+    end_date: Optional[str] = None  # YYYY-MM-DD format
+
+
+class IngestPracticeDayRequest(BaseModel):
+    """Request body for practice day ingestion endpoint."""
+    track_id: str
+    date: str  # YYYY-MM-DD format
 
 
 @router.post("/tracks/sync")
@@ -795,3 +826,380 @@ async def get_ingestion_status(
         "ingest_depth": event.ingest_depth.value,
         "last_ingested_at": event.last_ingested_at.isoformat() if event.last_ingested_at else None,
     }
+
+
+@router.post("/practice-days/discover")
+async def discover_practice_days_endpoint(
+    request: DiscoverPracticeDaysRequest,
+) -> Dict[str, Any]:
+    """
+    Discover practice days from LiveRC for a track and date range.
+    
+    Args:
+        request: Discovery request with track_slug, start_date, and end_date
+    
+    Returns:
+        Standard envelope: { "success": true, "data": { "practice_days": [...] } }
+        or { "success": false, "error": { ... } }
+    """
+    # Validate month range
+    if request.month < 1 or request.month > 12:
+        return {
+            "success": False,
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Month must be between 1 and 12",
+                "details": None,
+                "source": "practice_day_discovery",
+            },
+        }
+    
+    # Calculate date range from year/month
+    start_date_obj = date(request.year, request.month, 1)
+    # Get last day of month
+    if request.month == 12:
+        end_date_obj = date(request.year + 1, 1, 1) - timedelta(days=1)
+    else:
+        end_date_obj = date(request.year, request.month + 1, 1) - timedelta(days=1)
+    
+    logger.info(
+        "discover_practice_days_start",
+        track_slug=request.track_slug,
+        year=request.year,
+        month=request.month,
+        calculated_start_date=start_date_obj.isoformat(),
+        calculated_end_date=end_date_obj.isoformat(),
+    )
+    
+    try:
+        # Discover practice days
+        practice_days = await discover_practice_days(
+            track_slug=request.track_slug,
+            start_date=start_date_obj,
+            end_date=end_date_obj,
+        )
+        
+        # Convert to dicts for JSON serialization
+        practice_days_data = []
+        for pd in practice_days:
+            practice_days_data.append({
+                "date": pd.date.isoformat(),
+                "track_slug": pd.track_slug,
+                "session_count": pd.session_count,
+                "total_laps": pd.total_laps,
+                "total_track_time_seconds": pd.total_track_time_seconds,
+                "unique_drivers": pd.unique_drivers,
+                "unique_classes": pd.unique_classes,
+                "time_range_start": pd.time_range_start.isoformat() if pd.time_range_start else None,
+                "time_range_end": pd.time_range_end.isoformat() if pd.time_range_end else None,
+                "sessions": [
+                    {
+                        "session_id": s.session_id,
+                        "driver_name": s.driver_name,
+                        "class_name": s.class_name,
+                        "transponder_number": s.transponder_number,
+                        "start_time": s.start_time.isoformat(),
+                        "duration_seconds": s.duration_seconds,
+                        "lap_count": s.lap_count,
+                        "fastest_lap": s.fastest_lap,
+                        "average_lap": s.average_lap,
+                        "session_url": s.session_url,
+                    }
+                    for s in pd.sessions
+                ],
+            })
+        
+        logger.info(
+            "discover_practice_days_success",
+            track_slug=request.track_slug,
+            practice_day_count=len(practice_days_data),
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "practice_days": practice_days_data,
+            },
+        }
+    
+    except ValueError as e:
+        logger.error("discover_practice_days_validation_error", error=str(e))
+        return {
+            "success": False,
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": str(e),
+                "details": None,
+                "source": "practice_day_discovery",
+            },
+        }
+    
+    except Exception as e:
+        logger.error("discover_practice_days_error", error=str(e), exc_info=True)
+        return {
+            "success": False,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Internal server error during practice day discovery",
+                "details": None,
+                "source": "practice_day_discovery",
+            },
+        }
+
+
+@router.get("/practice-days/search")
+async def search_practice_days_endpoint(
+    track_id: str = Query(..., description="Track ID (UUID string)"),
+    start_date: Optional[str] = Query(None, description="Start date filter (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date filter (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Search for already-ingested practice days in database.
+    
+    Args:
+        track_id: Track ID (UUID string)
+        start_date: Optional start date filter (YYYY-MM-DD)
+        end_date: Optional end date filter (YYYY-MM-DD)
+    
+    Returns:
+        Standard envelope: { "success": true, "data": { "practice_days": [...] } }
+        or { "success": false, "error": { ... } }
+    """
+    logger.info(
+        "search_practice_days_start",
+        track_id=track_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    try:
+        # Validate track_id
+        try:
+            track_uuid = UUID(track_id)
+        except ValueError:
+            return {
+                "success": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": f"Invalid track_id format: {track_id}",
+                    "details": None,
+                    "source": "practice_day_search",
+                },
+            }
+        
+        # Parse dates if provided
+        start_date_obj = None
+        end_date_obj = None
+        if start_date:
+            try:
+                start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+            except ValueError:
+                return {
+                    "success": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": f"Invalid start_date format: {start_date}. Use YYYY-MM-DD format.",
+                        "details": None,
+                        "source": "practice_day_search",
+                    },
+                }
+        
+        if end_date:
+            try:
+                end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+            except ValueError:
+                return {
+                    "success": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": f"Invalid end_date format: {end_date}. Use YYYY-MM-DD format.",
+                        "details": None,
+                        "source": "practice_day_search",
+                    },
+                }
+        
+        # Search practice days
+        events = await search_practice_days(
+            track_id=track_uuid,
+            start_date=start_date_obj,
+            end_date=end_date_obj,
+        )
+        
+        # Convert to dicts for JSON serialization
+        practice_days_data = []
+        for event in events:
+            practice_days_data.append({
+                "id": str(event.id),
+                "event_name": event.event_name,
+                "event_date": event.event_date.isoformat() if event.event_date else None,
+                "source_event_id": event.source_event_id,
+                "track_id": str(event.track_id),
+                "ingest_depth": event.ingest_depth.value,
+            })
+        
+        logger.info(
+            "search_practice_days_success",
+            track_id=track_id,
+            practice_day_count=len(practice_days_data),
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "practice_days": practice_days_data,
+            },
+        }
+    
+    except Exception as e:
+        logger.error("search_practice_days_error", error=str(e), exc_info=True)
+        return {
+            "success": False,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Internal server error during practice day search",
+                "details": None,
+                "source": "practice_day_search",
+            },
+        }
+
+
+@router.post("/practice-days/ingest")
+async def ingest_practice_day_endpoint(
+    request: IngestPracticeDayRequest,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Ingest a practice day (all sessions for a date).
+    
+    Args:
+        request: Ingestion request with track_id and date
+    
+    Returns:
+        Standard envelope: { "success": true, "data": { ...ingestion_result... } }
+        or { "success": false, "error": { ... } }
+    """
+    logger.info(
+        "ingest_practice_day_start",
+        track_id=request.track_id,
+        date=request.date,
+    )
+    
+    try:
+        # Parse date
+        try:
+            practice_date = datetime.strptime(request.date, "%Y-%m-%d").date()
+        except ValueError:
+            return {
+                "success": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": f"Invalid date format: {request.date}. Use YYYY-MM-DD format.",
+                    "details": None,
+                    "source": "practice_day_ingestion",
+                },
+            }
+        
+        # Validate track_id
+        try:
+            track_uuid = UUID(request.track_id)
+        except ValueError:
+            return {
+                "success": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": f"Invalid track_id format: {request.track_id}",
+                    "details": None,
+                    "source": "practice_day_ingestion",
+                },
+            }
+        
+        # Ingest practice day
+        pipeline = IngestionPipeline()
+        result = await pipeline.ingest_practice_day(
+            track_id=track_uuid,
+            practice_date=practice_date,
+        )
+        
+        return {
+            "success": True,
+            "data": result,
+        }
+    
+    except IngestionInProgressError as e:
+        return {
+            "success": False,
+            "error": {
+                "code": "INGESTION_IN_PROGRESS",
+                "source": "practice_day_ingestion",
+                "message": str(e),
+                "details": {},
+            },
+        }
+    
+    except IngestionError as e:
+        error_dict = e.to_dict()
+        return {
+            "success": False,
+            "error": {
+                "code": error_dict.get("error", {}).get("code", "INGESTION_ERROR"),
+                "source": "practice_day_ingestion",
+                "message": error_dict.get("error", {}).get("message", str(e)),
+                "details": error_dict.get("error", {}).get("details", {}),
+            },
+        }
+    
+    except ValueError as e:
+        return {
+            "success": False,
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "source": "practice_day_ingestion",
+                "message": str(e),
+                "details": {},
+            },
+        }
+    
+    except ConnectorHTTPError as e:
+        logger.error("ingest_practice_day_http_error", error=str(e))
+        return {
+            "success": False,
+            "error": {
+                "code": "CONNECTOR_HTTP_ERROR",
+                "source": "practice_day_ingestion",
+                "message": str(e),
+                "details": {},
+            },
+        }
+    
+    except EventPageFormatError as e:
+        logger.error("ingest_practice_day_parse_error", error=str(e))
+        return {
+            "success": False,
+            "error": {
+                "code": "PAGE_FORMAT_ERROR",
+                "source": "practice_day_ingestion",
+                "message": str(e),
+                "details": {},
+            },
+        }
+    
+    except Exception as e:
+        logger.error("ingest_practice_day_error", error=str(e), exc_info=True)
+        # Return a more descriptive error message if available
+        error_message = "Internal server error during practice day ingestion"
+        if isinstance(e, (EventPageFormatError, ConnectorHTTPError)):
+            error_message = str(e)
+        else:
+            # Include the actual error message for debugging
+            error_message = f"Internal server error: {str(e)}"
+        
+        return {
+            "success": False,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "source": "practice_day_ingestion",
+                "message": error_message,
+                "details": {"error_type": type(e).__name__},
+            },
+        }

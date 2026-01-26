@@ -94,25 +94,61 @@ export const config = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        console.log("[NextAuth JWT] Setting token from user:", {
+          userId: user.id,
+          userIdType: typeof user.id,
+          email: user.email,
+          name: user.name,
+          isAdmin: (user as User).isAdmin,
+        })
         token.id = user.id
         token.email = user.email
         token.name = user.name
         // Type assertion is safe because authorizeCredentials returns User with isAdmin
         token.isAdmin = (user as User).isAdmin ?? false
+      } else {
+        console.log("[NextAuth JWT] No user, token.id:", {
+          tokenId: token.id,
+          tokenIdType: typeof token.id,
+          tokenIdLength: token.id?.length,
+          hasTokenId: !!token.id,
+        })
       }
       return token
     },
     async session({ session, token }) {
+      console.log("[NextAuth Session] Creating session from token:", {
+        tokenId: token.id,
+        tokenIdType: typeof token.id,
+        tokenIdLength: token.id?.length,
+        hasTokenId: !!token.id,
+        tokenEmail: token.email,
+        tokenName: token.name,
+        tokenIsAdmin: token.isAdmin,
+      })
+      
+      const sessionUser = {
+        id: String(token.id || ""),
+        email: String(token.email || ""),
+        name: String(token.name || ""),
+        isAdmin: Boolean(token.isAdmin || false),
+      }
+      
+      console.log("[NextAuth Session] Session user:", {
+        id: sessionUser.id,
+        idType: typeof sessionUser.id,
+        idLength: sessionUser.id.length,
+        isEmpty: sessionUser.id === "",
+        email: sessionUser.email,
+        name: sessionUser.name,
+        isAdmin: sessionUser.isAdmin,
+      })
+      
       // Return session with user data from token
       // Use Object.create to avoid prototype issues
       return {
         expires: session.expires,
-        user: {
-          id: String(token.id || ""),
-          email: String(token.email || ""),
-          name: String(token.name || ""),
-          isAdmin: Boolean(token.isAdmin || false),
-        },
+        user: sessionUser,
       }
     },
     authorized({ auth, request: { nextUrl } }) {

@@ -68,6 +68,16 @@ export interface EventAnalysisSummary {
     position: number // position among all drivers (1-based)
     gapToBest: number // seconds behind best average lap time
   }
+  userBestImprovement?: {
+    positionImprovement: number // e.g., improved by 5 positions
+    lapTimeImprovement: number | null // seconds improved (negative = faster)
+    position: number // rank among all improved drivers (1-based)
+    gapToBest: number // positions behind most improved driver
+    firstRacePosition: number // starting position in first race
+    lastRacePosition: number // ending position in last race
+    className: string // class the user competed in
+    raceLabel: string // race label for context
+  }
 }
 
 export interface ImportedEventSummary {

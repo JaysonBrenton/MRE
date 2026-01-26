@@ -9,7 +9,7 @@
 # @purpose Defines the canonical data structures returned by the LiveRC
 #          connector, forming the contract between connector and ingestion layers.
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional, Dict
 
 from pydantic import BaseModel, Field
@@ -88,6 +88,58 @@ class ConnectorEntryList(BaseModel):
         default_factory=dict,
         description="Dictionary keyed by class_name -> list of ConnectorEntryDriver"
     )
+
+
+# Practice Day Models
+class PracticeSessionSummary(BaseModel):
+    """Practice session summary from practice day overview."""
+    session_id: str
+    driver_name: str
+    class_name: str
+    transponder_number: Optional[str] = None
+    start_time: datetime
+    duration_seconds: int
+    lap_count: int
+    fastest_lap: Optional[float] = None
+    average_lap: Optional[float] = None
+    session_url: str
+
+
+class PracticeDaySummary(BaseModel):
+    """Practice day overview with session summaries and statistics."""
+    date: date  # Date of practice day
+    track_slug: str
+    session_count: int
+    total_laps: int
+    total_track_time_seconds: int
+    unique_drivers: int
+    unique_classes: int
+    time_range_start: Optional[datetime] = None
+    time_range_end: Optional[datetime] = None
+    sessions: List[PracticeSessionSummary] = Field(default_factory=list)
+
+
+class PracticeSessionDetail(BaseModel):
+    """Complete practice session detail with lap data."""
+    session_id: str
+    driver_name: str
+    class_name: str
+    transponder_number: Optional[str] = None
+    date: date
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    duration_seconds: int
+    lap_count: int
+    fastest_lap: Optional[float] = None
+    top_3_consecutive: Optional[float] = None
+    average_lap: Optional[float] = None
+    avg_top_5: Optional[float] = None
+    avg_top_10: Optional[float] = None
+    avg_top_15: Optional[float] = None
+    std_deviation: Optional[float] = None
+    consistency: Optional[float] = None
+    valid_lap_range: Optional[tuple[int, int]] = None
+    laps: List[ConnectorLap] = Field(default_factory=list)
 
 
 # Update forward references

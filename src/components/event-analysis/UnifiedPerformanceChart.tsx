@@ -35,7 +35,7 @@ import ChartColorPicker from "./ChartColorPicker"
 import { useChartColors } from "@/hooks/useChartColors"
 
 // Metric types - extensible for future metrics
-export type MetricType = "bestLap" | "averageLap" | "consistency"
+export type MetricType = "bestLap" | "averageLap" | "consistency" | "averagePosition" | "gapToFastest" | "podiumFinishes"
 
 export interface DriverPerformanceData {
   driverId: string
@@ -44,6 +44,9 @@ export interface DriverPerformanceData {
   averageLapTime: number | null
   bestLapRaceLabel?: string | null
   consistency?: number | null // Future metric
+  averagePosition?: number | null
+  gapToFastest?: number | null // Time difference in seconds from fastest lap in class
+  podiumFinishes?: number | null // Count of finishes in positions 1, 2, or 3
 }
 
 export interface UnifiedPerformanceChartProps {
@@ -57,6 +60,7 @@ export interface UnifiedPerformanceChartProps {
   onDriverToggle?: (driverId: string) => void
   chartInstanceId?: string
   selectedClass?: string | null
+  allDriversInClassSelected?: boolean
 }
 
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
@@ -64,6 +68,9 @@ const defaultColors = {
   bestLap: "var(--token-accent)",
   averageLap: "#5aa2ff",
   consistency: "#4ecdc4", // Future metric color
+  averagePosition: "#ff6b6b", // Red color for position metric
+  gapToFastest: "#ffa500", // Orange color for gap metric
+  podiumFinishes: "#9b59b6", // Purple color for podium metric
 }
 const textColor = "var(--token-text-primary)"
 const textSecondaryColor = "var(--token-text-secondary)"
@@ -148,11 +155,52 @@ function formatLapTime(seconds: number): string {
   return `${minutes}:${wholeSecs.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`
 }
 
+/**
+ * Format position as a number with appropriate suffix (1st, 2nd, 3rd, etc.)
+ * Always rounds to the nearest whole number since positions are discrete values
+ */
+function formatPosition(position: number): string {
+  // Round to nearest whole number (positions are discrete, not continuous)
+  const wholePosition = Math.round(position)
+  const lastDigit = wholePosition % 10
+  const lastTwoDigits = wholePosition % 100
+  
+  let suffix = "th"
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+    suffix = "th"
+  } else if (lastDigit === 1) {
+    suffix = "st"
+  } else if (lastDigit === 2) {
+    suffix = "nd"
+  } else if (lastDigit === 3) {
+    suffix = "rd"
+  }
+  
+  return `${wholePosition}${suffix}`
+}
+
+/**
+ * Format gap to fastest as a time difference (e.g., "+0:05.234" or "-0:00.123")
+ * Positive values indicate slower than fastest, negative values are not expected but handled
+ */
+function formatGapToFastest(gapSeconds: number): string {
+  const sign = gapSeconds >= 0 ? "+" : "-"
+  const absGap = Math.abs(gapSeconds)
+  const minutes = Math.floor(absGap / 60)
+  const secs = absGap % 60
+  const wholeSecs = Math.floor(secs)
+  const millis = Math.floor((secs - wholeSecs) * 1000)
+  return `${sign}${minutes}:${wholeSecs.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`
+}
+
 // Metric configuration
-const metricConfig: Record<MetricType, { label: string; key: keyof DriverPerformanceData }> = {
-  bestLap: { label: "Best Lap", key: "bestLapTime" },
-  averageLap: { label: "Average Lap", key: "averageLapTime" },
-  consistency: { label: "Consistency", key: "consistency" },
+const metricConfig: Record<MetricType, { label: string; key: keyof DriverPerformanceData; isTimeBased?: boolean }> = {
+  bestLap: { label: "Best Lap", key: "bestLapTime", isTimeBased: true },
+  averageLap: { label: "Average Lap", key: "averageLapTime", isTimeBased: true },
+  consistency: { label: "Consistency", key: "consistency", isTimeBased: false },
+  averagePosition: { label: "Avg Position", key: "averagePosition", isTimeBased: false },
+  gapToFastest: { label: "Gap to Fastest", key: "gapToFastest", isTimeBased: true },
+  podiumFinishes: { label: "Podium Finishes", key: "podiumFinishes", isTimeBased: false },
 }
 
 export default function UnifiedPerformanceChart({
@@ -166,6 +214,7 @@ export default function UnifiedPerformanceChart({
   onDriverToggle,
   chartInstanceId,
   selectedClass,
+  allDriversInClassSelected,
 }: UnifiedPerformanceChartProps) {
   const chartDescId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -208,6 +257,9 @@ export default function UnifiedPerformanceChart({
       if (driver.bestLapTime !== null && driver.bestLapTime > 0) available.add("bestLap")
       if (driver.averageLapTime !== null && driver.averageLapTime > 0) available.add("averageLap")
       if (driver.consistency !== null && driver.consistency !== undefined && driver.consistency > 0) available.add("consistency")
+      if (driver.averagePosition !== null && driver.averagePosition !== undefined && driver.averagePosition > 0) available.add("averagePosition")
+      if (driver.gapToFastest !== null && driver.gapToFastest !== undefined && isFinite(driver.gapToFastest)) available.add("gapToFastest")
+      if (driver.podiumFinishes !== null && driver.podiumFinishes !== undefined && driver.podiumFinishes >= 0) available.add("podiumFinishes")
     })
     return available
   }, [data])
@@ -219,7 +271,15 @@ export default function UnifiedPerformanceChart({
       return Array.from(visibleMetrics).some((metric) => {
         const key = metricConfig[metric].key
         const value = d[key]
-        return value !== null && value !== undefined && isFinite(value as number) && (value as number) > 0
+        if (value === null || value === undefined || !isFinite(value as number)) {
+          return false
+        }
+        // For gapToFastest and podiumFinishes, 0 is a valid value
+        if (metric === "gapToFastest" || metric === "podiumFinishes") {
+          return (value as number) >= 0
+        }
+        // For other metrics, require > 0
+        return (value as number) > 0
       })
     })
   }, [data, visibleMetrics])
@@ -293,6 +353,29 @@ export default function UnifiedPerformanceChart({
     return result
   }, [colors])
 
+  // Determine if Y-axis should be formatted as time, gap, position, or count
+  const yAxisFormatType = useMemo(() => {
+    const hasGapToFastest = Array.from(visibleMetrics).includes("gapToFastest")
+    const hasOtherTimeMetrics = Array.from(visibleMetrics).some(
+      (m) => m === "bestLap" || m === "averageLap"
+    )
+    const visiblePositionMetrics = Array.from(visibleMetrics).filter(
+      (metric) => metric === "averagePosition"
+    )
+    const visibleCountMetrics = Array.from(visibleMetrics).filter(
+      (metric) => metric === "podiumFinishes"
+    )
+    
+    // If gapToFastest is visible and no other time metrics, use gap formatting
+    // Otherwise, if gapToFastest is visible with other time metrics, still use gap (scale will be mixed)
+    if (hasGapToFastest && !hasOtherTimeMetrics) return "gap"
+    if (hasGapToFastest && hasOtherTimeMetrics) return "gap" // Mixed scale, but format as gap
+    if (hasOtherTimeMetrics) return "time"
+    if (visiblePositionMetrics.length > 0) return "position"
+    if (visibleCountMetrics.length > 0) return "count"
+    return "time" // Default fallback
+  }, [visibleMetrics])
+
   // Calculate Y scale domain based on visible metrics (must be before conditional return)
   const yScaleDomain = useMemo(() => {
     if (paginatedData.length === 0) {
@@ -300,12 +383,25 @@ export default function UnifiedPerformanceChart({
     }
     
     const allValues: number[] = []
+    const hasGapToFastest = Array.from(visibleMetrics).includes("gapToFastest")
+    
     paginatedData.forEach((d) => {
       visibleMetrics.forEach((metric) => {
         const key = metricConfig[metric].key
         const value = d[key]
-        if (value !== null && value !== undefined && isFinite(value as number) && (value as number) > 0) {
-          allValues.push(value as number)
+        if (value === null || value === undefined || !isFinite(value as number)) {
+          return
+        }
+        // For gapToFastest and podiumFinishes, 0 is valid
+        if (metric === "gapToFastest" || metric === "podiumFinishes") {
+          if ((value as number) >= 0) {
+            allValues.push(value as number)
+          }
+        } else {
+          // For other metrics, require > 0
+          if ((value as number) > 0) {
+            allValues.push(value as number)
+          }
         }
       })
     })
@@ -317,18 +413,28 @@ export default function UnifiedPerformanceChart({
     const min = Math.min(...allValues)
     const max = Math.max(...allValues)
     const padding = (max - min) * 0.1
-    return [Math.max(0, min - padding), max + padding]
+    // For gapToFastest, allow negative values (though they shouldn't occur)
+    const minDomain = hasGapToFastest ? min - padding : Math.max(0, min - padding)
+    return [minDomain, max + padding]
   }, [paginatedData, visibleMetrics])
 
   // Early return for empty data (after all hooks)
+  // Show "All Classes" when:
+  // 1. selectedClass is null (user selected "All Classes" from dropdown)
+  // 2. A class is selected AND all drivers in that class are selected AND user clicked "Select All"
+  const chartTitle = selectedClass === null
+    ? "All Classes"
+    : selectedClass
+      ? (allDriversInClassSelected ? "All Classes" : selectedClass)
+      : undefined
+
   if (displayData.length === 0) {
     return (
       <ChartContainer
-        title="Performance Metrics"
+        title={chartTitle}
         height={height}
         className={className}
         aria-label="Performance metrics chart - no data available"
-        selectedClass={selectedClass}
       >
         <div className="flex items-center justify-center h-full text-[var(--token-text-secondary)]">
           {validData.length === 0
@@ -342,12 +448,11 @@ export default function UnifiedPerformanceChart({
   return (
     <div ref={containerRef} className="relative">
       <ChartContainer
-        title="Performance Metrics"
+        title={chartTitle}
         height={height}
         className={className}
         aria-label="Unified performance metrics chart"
         chartInstanceId={chartInstanceId}
-        selectedClass={selectedClass}
       >
         <div className="relative w-full" style={{ height: `${height}px` }}>
           <ParentSize>
@@ -442,8 +547,20 @@ export default function UnifiedPerformanceChart({
                             const key = metricConfig[metric].key
                             const value = d[key]
                             
-                            if (value === null || value === undefined || !isFinite(value as number) || (value as number) <= 0) {
+                            if (value === null || value === undefined || !isFinite(value as number)) {
                               return null
+                            }
+                            
+                            // For gapToFastest and podiumFinishes, 0 is a valid value
+                            if (metric === "gapToFastest" || metric === "podiumFinishes") {
+                              if ((value as number) < 0) {
+                                return null
+                              }
+                            } else {
+                              // For other metrics, require > 0
+                              if ((value as number) <= 0) {
+                                return null
+                              }
                             }
 
                             const metricValue = value as number
@@ -496,7 +613,17 @@ export default function UnifiedPerformanceChart({
                                   handleBarClickForColorPicker(metric, syntheticEvent)
                                 }}
                                 style={{ cursor: "pointer" }}
-                                aria-label={`${d.driverName}: ${metricConfig[metric].label} ${formatLapTime(metricValue)}. Click to customize color, right-click to toggle driver selection`}
+                                aria-label={`${d.driverName}: ${metricConfig[metric].label} ${
+                                  metric === "gapToFastest"
+                                    ? formatGapToFastest(metricValue)
+                                    : metricConfig[metric].isTimeBased 
+                                    ? formatLapTime(metricValue) 
+                                    : metric === "averagePosition"
+                                    ? formatPosition(metricValue)
+                                    : metric === "podiumFinishes"
+                                    ? Math.round(metricValue).toString()
+                                    : metricValue.toFixed(2)
+                                }. Click to customize color, right-click to toggle driver selection`}
                                 role="button"
                                 tabIndex={0}
                                 onKeyDown={(e) => {
@@ -516,7 +643,18 @@ export default function UnifiedPerformanceChart({
                     {/* Y-axis */}
                     <AxisLeft
                       scale={yScale}
-                      tickFormat={(value) => formatLapTime(Number(value))}
+                      tickFormat={(value) => {
+                        if (yAxisFormatType === "gap") {
+                          return formatGapToFastest(Number(value))
+                        }
+                        if (yAxisFormatType === "position") {
+                          return formatPosition(Number(value))
+                        }
+                        if (yAxisFormatType === "count") {
+                          return Math.round(Number(value)).toString()
+                        }
+                        return formatLapTime(Number(value))
+                      }}
                       stroke={borderColor}
                       tickStroke={borderColor}
                       tickLabelProps={() => ({
@@ -570,9 +708,21 @@ export default function UnifiedPerformanceChart({
                   const key = metricConfig[metric].key
                   const value = tooltipData[key]
                   if (value === null || value === undefined) return null
+                  let formattedValue: string
+                  if (metric === "gapToFastest") {
+                    formattedValue = formatGapToFastest(value as number)
+                  } else if (metric === "podiumFinishes") {
+                    formattedValue = Math.round(value as number).toString()
+                  } else if (metric === "averagePosition") {
+                    formattedValue = formatPosition(value as number)
+                  } else if (metricConfig[metric].isTimeBased) {
+                    formattedValue = formatLapTime(value as number)
+                  } else {
+                    formattedValue = (value as number).toFixed(2)
+                  }
                   return (
                     <div key={metric} className="text-sm text-[var(--token-text-secondary)]">
-                      {metricConfig[metric].label}: {formatLapTime(value as number)}
+                      {metricConfig[metric].label}: {formattedValue}
                       {metric === "bestLap" && tooltipData.bestLapRaceLabel && (
                         <span className="text-xs text-[var(--token-text-muted)] ml-2">
                           ({tooltipData.bestLapRaceLabel})

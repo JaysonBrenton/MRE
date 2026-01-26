@@ -28,11 +28,12 @@
 
 import React from "react"
 
-export type EventStatus = "stored" | "imported" | "new" | "importing" | "failed"
+export type EventStatus = "stored" | "imported" | "new" | "importing" | "failed" | "scheduled"
 
 export interface EventStatusBadgeProps {
   status: EventStatus
   progress?: number // Optional progress percentage (0-100) for importing status
+  stage?: string // Optional import stage text to display beneath the badge
 }
 
 const statusConfig: Record<EventStatus, { label: string; description: string; bgColor: string; textColor: string }> = {
@@ -65,6 +66,12 @@ const statusConfig: Record<EventStatus, { label: string; description: string; bg
     description: "Import failed - click Retry to try again",
     bgColor: "bg-[var(--token-status-error-bg)]",
     textColor: "text-[var(--token-status-error-text)]",
+  },
+  scheduled: {
+    label: "Scheduled",
+    description: "This event is scheduled for a future date. Import will be available after the event occurs.",
+    bgColor: "bg-[var(--token-status-info-bg)]",
+    textColor: "text-[var(--token-status-info-text)]",
   },
 }
 
@@ -152,7 +159,7 @@ function interpolateColor(color1: string, color2: string, progress: number, isBa
   return `rgb(${r}, ${g}, ${b})`
 }
 
-export default function EventStatusBadge({ status, progress }: EventStatusBadgeProps) {
+export default function EventStatusBadge({ status, progress, stage }: EventStatusBadgeProps) {
   const config = statusConfig[status]
   const [dynamicColors, setDynamicColors] = React.useState<{ bg: string; text: string } | null>(null)
   const badgeRef = React.useRef<HTMLSpanElement>(null)
@@ -259,17 +266,29 @@ export default function EventStatusBadge({ status, progress }: EventStatusBadgeP
   const progressText = progress !== undefined ? ` (${Math.round(progress)}% complete)` : ""
 
   return (
-    <span
-      ref={badgeRef}
-      className={className}
-      style={containerStyle}
-      aria-label={`Event status: ${displayLabel}. ${config.description}${progressText}`}
-      title={`${config.description}${progressText}`}
-    >
-      {/* Progress bar fill element */}
-      <span style={progressBarStyle} aria-hidden="true" />
-      {/* Label text */}
-      <span className="relative z-10">{displayLabel}</span>
-    </span>
+    <div className="flex flex-col items-center gap-1">
+      <span
+        ref={badgeRef}
+        className={className}
+        style={containerStyle}
+        aria-label={`Event status: ${displayLabel}. ${config.description}${progressText}`}
+        title={`${config.description}${progressText}`}
+      >
+        {/* Progress bar fill element */}
+        <span style={progressBarStyle} aria-hidden="true" />
+        {/* Label text */}
+        <span className="relative z-10">{displayLabel}</span>
+      </span>
+      {/* Stage text displayed beneath the badge when importing */}
+      {status === "importing" && stage && (
+        <span
+          className="text-xs text-[var(--token-text-secondary)] text-center"
+          title={stage}
+          aria-label={`Import stage: ${stage}`}
+        >
+          {stage}
+        </span>
+      )}
+    </div>
   )
 }

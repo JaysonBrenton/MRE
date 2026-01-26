@@ -13,7 +13,7 @@ import asyncio
 import math
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, date
 from typing import Dict, Any, List, Tuple, Optional
 from uuid import UUID
 
@@ -27,6 +27,8 @@ from ingestion.connectors.liverc.models import (
     ConnectorRacePackage,
     ConnectorRaceSummary,
     ConnectorEntryList,
+    PracticeDaySummary,
+    PracticeSessionDetail,
 )
 from ingestion.connectors.liverc.utils import build_event_url
 from ingestion.db.models import (
@@ -691,6 +693,7 @@ class IngestionPipeline:
                     "race_url": normalized_race["race_url"],
                     "start_time": normalized_race["start_time"],
                     "duration_seconds": normalized_race["duration_seconds"],
+                    "session_type": normalized_race.get("session_type", "race"),  # Default to "race" if not inferred
                 })
                 continue
             
@@ -705,6 +708,7 @@ class IngestionPipeline:
                 "race_url": normalized_race["race_url"],
                 "start_time": normalized_race["start_time"],
                 "duration_seconds": normalized_race["duration_seconds"],
+                "session_type": normalized_race.get("session_type", "race"),  # Default to "race" if not inferred
             })
             
             # Process results to collect driver and race_driver/result data
@@ -1618,3 +1622,205 @@ class IngestionPipeline:
             event_data=event_data,
             entry_list=entry_list,
         )
+    
+    async def ingest_practice_day(
+        self,
+        track_id: UUID,
+        practice_date: date,
+    ) -> Dict[str, Any]:
+        """
+        Ingest a practice day (all sessions for a date).
+        
+        Args:
+            track_id: Track UUID
+            practice_date: Date of practice day
+        
+        Returns:
+            Dictionary with ingestion result including event_id and session counts
+        
+        Raises:
+            IngestionInProgressError: If ingestion is already in progress
+            IngestionError: On ingestion failures
+        """
+        logger.info(
+            "ingest_practice_day_start",
+            track_id=str(track_id),
+            practice_date=practice_date.isoformat(),
+        )
+        
+        start_time = time.time()
+        success = False
+        
+        # Get track to get track_slug
+        with db_session() as session:
+            repo = Repository(session)
+            from ingestion.db.models import Track
+            track = session.get(Track, str(track_id))
+            if not track:
+                raise ValueError(f"Track not found: {track_id}")
+            
+            track_slug = track.source_track_slug
+        
+        # Fetch practice day overview
+        practice_day_summary = await self.connector.fetch_practice_day_overview(
+            track_slug=track_slug,
+            practice_date=practice_date,
+        )
+        
+        # Create source_event_id for practice day: {track-slug}-practice-{YYYY-MM-DD}
+        source_event_id = f"{track_slug}-practice-{practice_date.strftime('%Y-%m-%d')}"
+        
+        # Use source_event_id lock to prevent concurrent ingestion
+        with db_session() as session:
+            repo = Repository(session)
+            
+            # Acquire advisory lock using source_event_id
+            lock_acquired = repo.acquire_source_event_lock(source_event_id)
+            if not lock_acquired:
+                raise IngestionInProgressError(
+                    f"Practice day ingestion already in progress: {source_event_id}",
+                    source_event_id=source_event_id,
+                )
+            
+            try:
+                # Check if Event already exists
+                from ingestion.db.models import Event
+                existing_event = session.query(Event).filter(
+                    Event.source == "liverc",
+                    Event.source_event_id == source_event_id,
+                ).first()
+                
+                # Create or update Event record
+                event_date = datetime.combine(practice_date, datetime.min.time())
+                if existing_event:
+                    event_id = existing_event.id
+                    # Update event metadata with practice day stats
+                    # Handle metadata - it might be None, dict, or a JSONB object
+                    if existing_event.event_metadata is None:
+                        metadata = {}
+                    elif isinstance(existing_event.event_metadata, dict):
+                        metadata = dict(existing_event.event_metadata)  # Create a copy
+                    else:
+                        # If it's a JSONB object or other type, convert to dict
+                        metadata = dict(existing_event.event_metadata) if hasattr(existing_event.event_metadata, '__iter__') and not isinstance(existing_event.event_metadata, str) else {}
+                    
+                    metadata["practiceDayStats"] = {
+                        "totalLaps": practice_day_summary.total_laps,
+                        "totalTrackTimeSeconds": practice_day_summary.total_track_time_seconds,
+                        "uniqueDrivers": practice_day_summary.unique_drivers,
+                        "uniqueClasses": practice_day_summary.unique_classes,
+                        "timeRangeStart": practice_day_summary.time_range_start.isoformat() if practice_day_summary.time_range_start else None,
+                        "timeRangeEnd": practice_day_summary.time_range_end.isoformat() if practice_day_summary.time_range_end else None,
+                    }
+                    existing_event.event_metadata = metadata
+                    existing_event.updated_at = datetime.utcnow()
+                    session.commit()
+                else:
+                    # Create new Event
+                    event = repo.upsert_event(
+                        source="liverc",
+                        source_event_id=source_event_id,
+                        track_id=track_id,
+                        event_name=f"Practice Day - {practice_date.strftime('%Y-%m-%d')}",
+                        event_date=event_date,
+                        event_entries=0,  # Practice days don't have entry lists
+                        event_drivers=practice_day_summary.unique_drivers,
+                        event_url=f"https://{track_slug}.liverc.com/practice/?p=session_list&d={practice_date.strftime('%Y-%m-%d')}",
+                    )
+                    # Set metadata
+                    event.event_metadata = {
+                        "practiceDayStats": {
+                            "totalLaps": practice_day_summary.total_laps,
+                            "totalTrackTimeSeconds": practice_day_summary.total_track_time_seconds,
+                            "uniqueDrivers": practice_day_summary.unique_drivers,
+                            "uniqueClasses": practice_day_summary.unique_classes,
+                            "timeRangeStart": practice_day_summary.time_range_start.isoformat() if practice_day_summary.time_range_start else None,
+                            "timeRangeEnd": practice_day_summary.time_range_end.isoformat() if practice_day_summary.time_range_end else None,
+                        }
+                    }
+                    event_id = event.id
+                    session.commit()
+                
+                # Ingest each practice session
+                sessions_ingested = 0
+                sessions_failed = 0
+                
+                for session_summary in practice_day_summary.sessions:
+                    try:
+                        # Create Race record with sessionType = "practiceday"
+                        race_data = {
+                            "event_id": UUID(event_id),
+                            "source": "liverc",
+                            "source_race_id": session_summary.session_id,
+                            "class_name": session_summary.class_name,
+                            "race_label": f"Practice - {session_summary.driver_name}",
+                            "race_order": None,
+                            "race_url": session_summary.session_url,
+                            "start_time": session_summary.start_time,
+                            "duration_seconds": session_summary.duration_seconds,
+                            "session_type": "practiceday",
+                        }
+                        
+                        # Use repository to upsert race
+                        races_to_write = [race_data]
+                        races = repo.bulk_upsert_races(races_to_write)
+                        sessions_ingested += 1
+                        
+                    except Exception as e:
+                        logger.warning(
+                            "practice_session_ingestion_error",
+                            session_id=session_summary.session_id,
+                            error=str(e),
+                        )
+                        sessions_failed += 1
+                        continue
+                
+                session.commit()
+                
+                success = True
+                duration = time.time() - start_time
+                
+                logger.info(
+                    "ingest_practice_day_success",
+                    event_id=event_id,
+                    sessions_ingested=sessions_ingested,
+                    sessions_failed=sessions_failed,
+                    duration_seconds=duration,
+                )
+                
+                metrics.record_practice_day_ingestion(
+                    track_slug=track_slug,
+                    date=practice_date.isoformat(),
+                    duration_seconds=duration,
+                    success=success,
+                    sessions_ingested=sessions_ingested,
+                )
+                
+                return {
+                    "event_id": event_id,
+                    "sessions_ingested": sessions_ingested,
+                    "sessions_failed": sessions_failed,
+                    "status": "completed",
+                }
+            
+            except Exception as e:
+                duration = time.time() - start_time
+                logger.error(
+                    "ingest_practice_day_error",
+                    track_id=str(track_id),
+                    practice_date=practice_date.isoformat(),
+                    error=str(e),
+                    duration_seconds=duration,
+                )
+                metrics.record_practice_day_ingestion(
+                    track_slug=track_slug,
+                    date=practice_date.isoformat(),
+                    duration_seconds=duration,
+                    success=success,
+                    sessions_ingested=0,
+                )
+                raise
+            
+            finally:
+                # Release advisory lock
+                repo.release_source_event_lock(source_event_id)

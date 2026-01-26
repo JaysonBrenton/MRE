@@ -16,7 +16,7 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-01-16 (Added SessionType enum documentation; added sessionType field to Race model documentation; previous updates: Added AuditLog and ApplicationLog models; removed duplicate UserDriverLink and EventDriverLink sections; updated schema overview)  
+**Last Updated:** 2026-01-13 (Added practiceday value to SessionType enum documentation; previous updates: Added SessionType enum documentation; added sessionType field to Race model documentation; added AuditLog and ApplicationLog models; removed duplicate UserDriverLink and EventDriverLink sections; updated schema overview)  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -1014,12 +1014,13 @@ Type of matching algorithm used to create event-driver links.
 
 ### SessionType
 
-Type of racing session (race, practice, or qualifying).
+Type of racing session (race, practice, qualifying, or practiceday).
 
 **Values:**
 - `race` - Race session (main competition)
 - `practice` - Practice session
 - `qualifying` - Qualifying session
+- `practiceday` - Practice day session (standalone practice day events)
 
 **Usage:**
 - Used in Race model `sessionType` field
@@ -1029,6 +1030,7 @@ Type of racing session (race, practice, or qualifying).
 
 **Notes:**
 - Session type can be inferred from race label (e.g., "Qualifier" → `qualifying`, "Practice" → `practice`)
+- `practiceday` session type is used for practice day events discovered from LiveRC
 - Default behavior: if not set, race is treated as a race session
 - Used for session-based search and filtering in the unified search feature
 

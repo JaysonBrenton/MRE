@@ -21,8 +21,9 @@
 import { useState } from "react"
 import EventRow, { type Event } from "./EventRow"
 import type { EventStatus } from "./EventStatusBadge"
+import { isEventInFuture } from "@/lib/date-utils"
 
-export type SortField = "date" | "name"
+export type SortField = "date" | "name" | "status"
 export type SortDirection = "asc" | "desc"
 
 export interface EventTableProps {
@@ -33,10 +34,6 @@ export interface EventTableProps {
   onImportEvent?: (event: Event) => void
   statusOverrides?: Record<string, EventStatus>
   errorMessages?: Record<string, string>
-  selectedEventIds?: Set<string>
-  onEventSelect?: (event: Event, selected: boolean) => void
-  isBulkImporting?: boolean
-  onSelectAll?: () => void
   driverInEvents?: Record<string, boolean> // Map of sourceEventId to boolean
   eventImportProgress?: Record<string, { stage?: string; counts?: { races: number; results: number; laps: number } }> // Progress information per event
   onSelectForDashboard?: (eventId: string) => void // Callback for selecting an event for dashboard context
@@ -50,10 +47,6 @@ export default function EventTable({
   onImportEvent, 
   statusOverrides,
   errorMessages = {},
-  selectedEventIds = new Set(),
-  onEventSelect,
-  isBulkImporting = false,
-  onSelectAll,
   driverInEvents = {},
   eventImportProgress = {},
   onSelectForDashboard,
@@ -61,8 +54,61 @@ export default function EventTable({
   const [sortField, setSortField] = useState<SortField>("date")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
+  // Helper function to get event status for sorting (matches logic in EventRow)
+  function getEventStatus(event: Event, statusOverrides?: Record<string, EventStatus>): EventStatus {
+    // Check if event is scheduled (future) - this takes precedence
+    if (isEventInFuture(event.eventDate)) {
+      return "scheduled"
+    }
+
+    // Check for status override
+    const overrideStatus = statusOverrides?.[event.id]
+    if (overrideStatus) {
+      return overrideStatus
+    }
+
+    // Check if this is a LiveRC-only event (ID starts with "liverc-")
+    if (event.id.startsWith("liverc-")) {
+      return "new"
+    }
+
+    // Normalize ingestDepth: trim whitespace and convert to lowercase
+    const normalizedDepth = event.ingestDepth?.trim().toLowerCase() || ""
+
+    switch (normalizedDepth) {
+      case "laps_full":
+      case "lapsfull": // Handle potential variations
+        return "imported"
+      case "none":
+      case "": // Empty or null means not imported
+        return "new"
+      default:
+        // For any other value, check if it contains "full" or "laps" as a hint
+        if (normalizedDepth.includes("full") || normalizedDepth.includes("laps")) {
+          return "imported"
+        }
+        // Default to new for unknown values
+        return "new"
+    }
+  }
+
+  // Status sort order: scheduled < new < importing < failed < imported/stored
+  const statusSortOrder: Record<EventStatus, number> = {
+    scheduled: 0,
+    new: 1,
+    importing: 2,
+    failed: 3,
+    imported: 4,
+    stored: 4,
+  }
+
   // Helper to check if event is importable
+  // Excludes scheduled (future) events and already imported events
   const isEventImportable = (event: Event): boolean => {
+    // Check if event is in the future - scheduled events cannot be imported
+    if (isEventInFuture(event.eventDate)) {
+      return false
+    }
     const overrideStatus = statusOverrides?.[event.id]
     if (overrideStatus) {
       return overrideStatus === "new"
@@ -75,12 +121,6 @@ export default function EventTable({
     const normalizedDepth = event.ingestDepth?.trim().toLowerCase() || ""
     return normalizedDepth !== "laps_full" && normalizedDepth !== "lapsfull"
   }
-
-  // Check if all importable events are selected
-  const importableEvents = events.filter(isEventImportable)
-  const allImportableSelected =
-    importableEvents.length > 0 &&
-    importableEvents.every((e) => selectedEventIds.has(e.id))
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -111,8 +151,18 @@ export default function EventTable({
       if (isNaN(dateB)) return -1
       
       comparison = dateA - dateB
-    } else {
+    } else if (sortField === "name") {
       comparison = a.eventName.localeCompare(b.eventName)
+    } else if (sortField === "status") {
+      const statusA = getEventStatus(a, statusOverrides)
+      const statusB = getEventStatus(b, statusOverrides)
+      const orderA = statusSortOrder[statusA] ?? 99
+      const orderB = statusSortOrder[statusB] ?? 99
+      comparison = orderA - orderB
+      // If same status order, sort by name as secondary
+      if (comparison === 0) {
+        comparison = a.eventName.localeCompare(b.eventName)
+      }
     }
 
     return sortDirection === "asc" ? comparison : -comparison
@@ -158,24 +208,7 @@ export default function EventTable({
   return (
     <div className="mt-8 w-full min-w-0">
       {/* Desktop: Table Header (hidden on mobile) */}
-      <div className="grid grid-cols-4 gap-4 px-4 py-3 border-b border-[var(--token-border-default)]">
-        {/* Checkbox column header */}
-        <div className="flex items-center justify-center">
-          {onSelectAll ? (
-            <button
-              type="button"
-              onClick={onSelectAll}
-              disabled={importableEvents.length === 0 || allImportableSelected}
-              className="text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50"
-            >
-              Select All
-            </button>
-          ) : (
-            <div className="text-sm font-medium text-[var(--token-text-secondary)]">
-              Analyse Event
-            </div>
-          )}
-        </div>
+      <div className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr] gap-4 px-4 py-3 border-b border-[var(--token-border-default)]">
         <div
           className="text-left"
           aria-sort={sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
@@ -193,13 +226,29 @@ export default function EventTable({
           </button>
         </div>
         <div
-          className="text-left"
+          className="text-center"
+          aria-sort={sortField === "status" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+        >
+          <button
+            type="button"
+            onClick={() => handleSort("status")}
+            className="text-center text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+            aria-label={`Sort by event status ${sortField === "status" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
+          >
+            Event Status
+            {sortField === "status" && (
+              <span className="ml-2" aria-hidden="true">{sortDirection === "asc" ? "↑" : "↓"}</span>
+            )}
+          </button>
+        </div>
+        <div
+          className="text-center"
           aria-sort={sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
         >
           <button
             type="button"
             onClick={() => handleSort("date")}
-            className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+            className="text-center text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
             aria-label={`Sort by event date ${sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
           >
             Event Date
@@ -208,8 +257,8 @@ export default function EventTable({
             )}
           </button>
         </div>
-        <div className="text-sm font-medium text-[var(--token-text-secondary)]">
-          <span aria-label="Event status column">Status</span>
+        <div className="text-sm font-medium text-[var(--token-text-secondary)] text-center">
+          <span aria-label="Actions column">Actions</span>
         </div>
       </div>
 
@@ -228,9 +277,6 @@ export default function EventTable({
               onImport={onImportEvent}
               statusOverride={statusOverrides?.[event.id]}
               errorMessage={errorMessages[event.id]}
-              isSelected={selectedEventIds.has(event.id)}
-              onSelect={isImportable ? onEventSelect : undefined}
-              isBulkImporting={isBulkImporting}
               containsDriver={containsDriver}
               importProgress={eventImportProgress[event.id]}
               onSelectForDashboard={onSelectForDashboard}

@@ -11,7 +11,7 @@
  *          Desktop-optimized layout following MRE design guidelines.
  * 
  * @relatedFiles
- * - src/app/events/analyse/[eventId]/page.tsx (uses this)
+ * - src/components/dashboard/EventAnalysisSection.tsx (uses this)
  */
 
 "use client"

@@ -104,9 +104,19 @@ export function formatLapTime(lapTimeSeconds: number | null | undefined): string
  * Format position improvement for display (e.g., "15th → 3rd (+12)")
  * @param first - First race position
  * @param last - Last race position
- * @returns Formatted position improvement string
+ * @returns Formatted position improvement string, or "N/A" if positions are invalid
  */
-export function formatPositionImprovement(first: number, last: number): string {
+export function formatPositionImprovement(first: number | null | undefined, last: number | null | undefined): string {
+  // Handle null/undefined values
+  if (first == null || last == null) {
+    return "N/A"
+  }
+
+  // Handle non-finite numbers (NaN, Infinity)
+  if (!Number.isFinite(first) || !Number.isFinite(last)) {
+    return "N/A"
+  }
+
   const improvement = first - last
   const firstSuffix = getOrdinalSuffix(first)
   const lastSuffix = getOrdinalSuffix(last)
@@ -141,6 +151,97 @@ export function formatLapTimeImprovement(improvement: number | null): string {
   } else {
     return "0.00s"
   }
+}
+
+/**
+ * Check if an event date is in the future (after today)
+ * @param dateString - ISO date string, Date object, or date string in various formats (DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY, etc.)
+ * @returns true if the date is in the future, false otherwise
+ */
+export function isEventInFuture(dateString: string | Date | null | undefined): boolean {
+  if (!dateString) {
+    return false
+  }
+
+  // If it's already a Date object, use it directly
+  if (dateString instanceof Date) {
+    if (isNaN(dateString.getTime())) {
+      return false
+    }
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const eventDate = new Date(dateString)
+    eventDate.setHours(0, 0, 0, 0)
+    return eventDate > today
+  }
+
+  let eventDate: Date | null = null
+  const dateStr = String(dateString).trim()
+  
+  // Try to parse the date string in various formats
+  // 1. ISO format (YYYY-MM-DD) - most common from APIs - try this first
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    // ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss
+    eventDate = new Date(dateStr)
+    if (isNaN(eventDate.getTime())) {
+      eventDate = null
+    }
+  }
+  // 2. DD/MM/YYYY format (Australian format with slashes)
+  else if (dateStr.includes("/") && !dateStr.includes("T")) {
+    const parts = dateStr.split("/")
+    if (parts.length === 3) {
+      const part1 = parseInt(parts[0], 10)
+      const part2 = parseInt(parts[1], 10)
+      const part3 = parseInt(parts[2], 10)
+      
+      // Determine if it's DD/MM/YYYY or MM/DD/YYYY
+      // If first part > 12, it's definitely DD/MM/YYYY
+      // If second part > 12, it's definitely MM/DD/YYYY
+      // Otherwise, assume DD/MM/YYYY (Australian format)
+      if (part1 > 12 && part2 <= 12 && part3 > 1000) {
+        // DD/MM/YYYY format
+        eventDate = new Date(part3, part2 - 1, part1) // Year, Month (0-indexed), Day
+      } else if (part2 > 12 && part1 <= 12 && part3 > 1000) {
+        // MM/DD/YYYY format
+        eventDate = new Date(part3, part1 - 1, part2)
+      } else if (part3 > 1000) {
+        // Assume DD/MM/YYYY (Australian format) if year is in third position
+        eventDate = new Date(part3, part2 - 1, part1)
+      }
+    }
+  }
+  // 3. DD-MM-YYYY format (Australian format with dashes) - only if not ISO
+  else if (dateStr.includes("-") && dateStr.split("-").length === 3 && !/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    const parts = dateStr.split("-")
+    const part1 = parseInt(parts[0], 10)
+    const part2 = parseInt(parts[1], 10)
+    const part3 = parseInt(parts[2], 10)
+    
+    if (part3 > 1000) {
+      // DD-MM-YYYY format
+      eventDate = new Date(part3, part2 - 1, part1)
+    }
+  }
+  
+  // Fallback to standard Date parsing if we haven't parsed it yet
+  // This handles edge cases and other formats
+  if (!eventDate || isNaN(eventDate.getTime())) {
+    eventDate = new Date(dateStr)
+  }
+  
+  // Check if date is valid
+  if (isNaN(eventDate.getTime())) {
+    return false
+  }
+
+  // Normalize both dates to start of day (midnight) for accurate comparison
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  eventDate.setHours(0, 0, 0, 0)
+
+  // Event is in the future if its date is after today
+  return eventDate > today
 }
 
 /**

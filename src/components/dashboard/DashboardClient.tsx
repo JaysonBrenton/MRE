@@ -2,15 +2,14 @@
 
 import { useState, useRef, useEffect, useMemo } from "react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { fetchEventData, fetchRecentEvents, selectEvent } from "@/store/slices/dashboardSlice"
-import { formatDateLong, formatLapTime } from "@/lib/date-utils"
+import { fetchEventData, fetchRecentEvents } from "@/store/slices/dashboardSlice"
+import { formatDateLong, formatLapTime, formatPositionImprovement, formatLapTimeImprovement } from "@/lib/date-utils"
 import type { EventAnalysisSummary, ImportedEventSummary } from "@root-types/dashboard"
 import ImprovementDriverCard from "./ImprovementDriverCard"
 import ChartContainer from "../event-analysis/ChartContainer"
-import EventSearchModal from "./shell/EventSearchModal"
-// EventAnalysisClient removed - dashboard now uses summary endpoint only
-// Full analysis data is only loaded on /events/analyse/[eventId] page
-// import EventAnalysisClient from "@/app/(authenticated)/events/analyse/[eventId]/EventAnalysisClient"
+import { useDashboardEventSearch } from "./DashboardEventSearchProvider"
+// Event analysis functionality is now handled by EventAnalysisSection component
+// which uses the same analysis data endpoints but displays in the dashboard
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 interface WeatherData {
@@ -57,6 +56,15 @@ export default function DashboardClient() {
   const selectedEventId = useAppSelector((state) => state.dashboard.selectedEventId)
   const eventData = useAppSelector((state) => state.dashboard.eventData)
   const eventError = useAppSelector((state) => state.dashboard.eventError)
+  const isEventLoading = useAppSelector((state) => state.dashboard.isEventLoading)
+  // Check if Redux has rehydrated from sessionStorage
+  // This prevents showing empty states during the brief rehydration window after hard reload
+  const isRehydrated = useAppSelector(
+    (state) => {
+      const dashboardState = state.dashboard as typeof state.dashboard & { _persist?: { rehydrated?: boolean } }
+      return dashboardState._persist?.rehydrated ?? true
+    }
+  )
 
   // Extract event data fields
   const selectedEvent = eventData?.event ?? null
@@ -72,9 +80,9 @@ export default function DashboardClient() {
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [weatherError, setWeatherError] = useState<string | null>(null)
-  const [isEventSearchModalOpen, setIsEventSearchModalOpen] = useState(false)
+  const { openEventSearch } = useDashboardEventSearch()
   // analysisData removed - dashboard now uses summary data from Redux store only
-  // Full analysis data is only loaded on /events/analyse/[eventId] page
+  // Full analysis data is loaded by EventAnalysisSection component on the dashboard
 
   // Fetch recent events on mount (runs in background, doesn't block UI)
   useEffect(() => {
@@ -181,51 +189,54 @@ export default function DashboardClient() {
 
   // Full analysis data fetching removed - dashboard now uses summary endpoint only
   // Summary data is provided by Redux store (fetches from /api/v1/events/[eventId]/summary)
-  // Full analysis data is only loaded on /events/analyse/[eventId] page
+  // Full analysis data is loaded by EventAnalysisSection component on the dashboard
 
-  // Empty state - no event selected (show immediately, no skeleton cards)
+  // Show loading state during rehydration (prevents showing empty state when event is being restored)
+  // This is the only loading message shown during initial page load
+  if (!isRehydrated) {
+    return (
+      <div className="flex flex-col gap-6 mt-6">
+        <div className="rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.15),0_0_1px_rgba(255,255,255,0.05)]">
+          <p className="text-sm text-[var(--token-text-secondary)]">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state when event is selected but data is still loading
+  if (selectedEventId && !selectedEvent && isEventLoading) {
+    return (
+      <div className="flex flex-col gap-6 mt-6">
+        <div className="rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.15),0_0_1px_rgba(255,255,255,0.05)]">
+          <p className="text-sm text-[var(--token-text-secondary)]">Loading event data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Empty state - no event selected (only show after rehydration confirms no event)
   if (!selectedEvent) {
     return (
-      <>
-        <DashboardEmptyState
-          onOpenEventSearch={() => setIsEventSearchModalOpen(true)}
-        />
-        <EventSearchModal
-          isOpen={isEventSearchModalOpen}
-          onClose={() => setIsEventSearchModalOpen(false)}
-          onSelectEvent={(eventId) => {
-            dispatch(selectEvent(eventId))
-          }}
-          selectedEventId={selectedEventId}
-        />
-      </>
+      <DashboardEmptyState
+        onOpenEventSearch={openEventSearch}
+      />
     )
   }
 
   // Error state - show empty state with error message
   if (eventError && !selectedEvent) {
     return (
-      <>
-        <DashboardEmptyState
-          onOpenEventSearch={() => setIsEventSearchModalOpen(true)}
-          error={eventError}
-        />
-        <EventSearchModal
-          isOpen={isEventSearchModalOpen}
-          onClose={() => setIsEventSearchModalOpen(false)}
-          onSelectEvent={(eventId) => {
-            dispatch(selectEvent(eventId))
-          }}
-          selectedEventId={selectedEventId}
-        />
-      </>
+      <DashboardEmptyState
+        onOpenEventSearch={openEventSearch}
+        error={eventError}
+      />
     )
   }
 
   return (
     <div className="flex flex-col gap-[var(--dashboard-gap)]">
       {/* Event Analysis Features removed from dashboard
-          Full analysis is only available on /events/analyse/[eventId] page
+          Full analysis is available in the Event Analysis section below
           Dashboard uses summary data from Redux store for performance */}
     </div>
   )
@@ -240,7 +251,7 @@ function DashboardEmptyState({
 }) {
   return (
     <div className="flex flex-col gap-6 mt-6">
-      <div className="rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-8 text-center">
+      <div className="rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.15),0_0_1px_rgba(255,255,255,0.05)]">
         <h2 className="text-2xl font-bold text-[var(--token-text-primary)] mb-2">
           Select an Event
         </h2>
@@ -255,7 +266,7 @@ function DashboardEmptyState({
         <button
           type="button"
           onClick={onOpenEventSearch}
-          className="px-6 py-3 rounded-lg bg-[var(--token-accent)] text-[var(--token-text-on-accent)] font-semibold hover:opacity-90 transition"
+          className="px-6 py-3 rounded-lg bg-[var(--token-accent)] text-[var(--token-text-on-accent)] font-semibold hover:opacity-90 transition shadow-[0_2px_8px_rgba(58,142,255,0.3)] hover:shadow-[0_4px_12px_rgba(58,142,255,0.4)]"
         >
           Search for Events
         </button>
@@ -293,10 +304,12 @@ export function DriverCardsAndWeatherGrid({
   userBestLap,
   userBestConsistency,
   userBestAvgLap,
+  userBestImprovement,
   weather,
   weatherLoading,
   weatherError,
   selectedClass,
+  selectedDriverIds,
   races,
 }: {
   event: EventAnalysisSummary["event"]
@@ -307,10 +320,12 @@ export function DriverCardsAndWeatherGrid({
   userBestLap?: EventAnalysisSummary["userBestLap"]
   userBestConsistency?: EventAnalysisSummary["userBestConsistency"]
   userBestAvgLap?: EventAnalysisSummary["userBestAvgLap"]
+  userBestImprovement?: EventAnalysisSummary["userBestImprovement"]
   weather: WeatherData | null
   weatherLoading: boolean
   weatherError: string | null
   selectedClass?: string | null
+  selectedDriverIds?: string[]
   races?: EventAnalysisData["races"]
 }) {
   const eventDate = event?.eventDate ? new Date(event.eventDate) : null
@@ -344,6 +359,12 @@ export function DriverCardsAndWeatherGrid({
     bestAvgLapDrivers?.length ||
     mostImprovedDrivers?.length
 
+  // Only show driver cards if a class is selected OR more than 1 driver is selected
+  const shouldShowDriverCards =
+    hasData &&
+    ((selectedClass !== null && selectedClass !== undefined) ||
+      (selectedDriverIds && selectedDriverIds.length > 1))
+
   // Get union of all classes from all sections (all classes that appear in any section)
   const getAllClasses = (): string[] => {
     const allClassesSet = new Set<string>()
@@ -366,6 +387,423 @@ export function DriverCardsAndWeatherGrid({
   }
 
   const allClasses = getAllClasses()
+
+  // Calculate user metrics filtered by selected class
+  const filteredUserMetrics = useMemo(() => {
+    // If no class is selected (null, undefined, or empty string), use original metrics (show all classes)
+    // Don't require races or userBestLap when no class is selected - always show original metrics
+    if (!selectedClass || selectedClass === "" || selectedClass === null || selectedClass === undefined) {
+      return {
+        userBestLap,
+        userBestConsistency,
+        userBestAvgLap,
+        userBestImprovement,
+      }
+    }
+
+    // If class is selected but we don't have races data, return original metrics (fallback)
+    // This ensures the card still shows even if races data isn't loaded yet
+    if (!races || races.length === 0) {
+      return {
+        userBestLap,
+        userBestConsistency,
+        userBestAvgLap,
+        userBestImprovement,
+      }
+    }
+
+    // If class is selected but we don't have userBestLap data, return null (hide card)
+    // This means the user has no lap data at all
+    if (!userBestLap) {
+      return {
+        userBestLap: null,
+        userBestConsistency: null,
+        userBestAvgLap: null,
+        userBestImprovement: null,
+      }
+    }
+
+    // Find user's driverId by matching userBestLap time in races
+    // We search ALL races (not just selected class) to find the user's driverId
+    // Then we filter by class to get their metrics for that class
+    let userDriverId: string | null = null
+    
+    // First pass: exact match (within floating point precision)
+    for (const race of races) {
+      for (const result of race.results) {
+        if (
+          result.fastLapTime !== null &&
+          Math.abs(result.fastLapTime - userBestLap.lapTime) < 0.0001
+        ) {
+          userDriverId = result.driverId
+          break
+        }
+      }
+      if (userDriverId) break
+    }
+
+    // Second pass: if no exact match, try with tolerance (0.01s)
+    if (!userDriverId) {
+      for (const race of races) {
+        for (const result of race.results) {
+          if (
+            result.fastLapTime !== null &&
+            Math.abs(result.fastLapTime - userBestLap.lapTime) < 0.01
+          ) {
+            userDriverId = result.driverId
+            break
+          }
+        }
+        if (userDriverId) break
+      }
+    }
+
+    // Third pass: if still no match, find the driver with the closest lap time
+    if (!userDriverId) {
+      let closestDriverId: string | null = null
+      let closestDiff = Infinity
+      for (const race of races) {
+        for (const result of race.results) {
+          if (result.fastLapTime !== null) {
+            const diff = Math.abs(result.fastLapTime - userBestLap.lapTime)
+            if (diff < closestDiff) {
+              closestDiff = diff
+              closestDriverId = result.driverId
+            }
+          }
+        }
+      }
+      // Only use closest match if it's within 0.1s (reasonable tolerance)
+      if (closestDiff < 0.1 && closestDriverId) {
+        userDriverId = closestDriverId
+      }
+    }
+
+    // If we still couldn't find the user's driverId, fall back to showing original metrics
+    // This ensures the card still shows even if matching fails (better UX than hiding it)
+    if (!userDriverId) {
+      return {
+        userBestLap,
+        userBestConsistency,
+        userBestAvgLap,
+        userBestImprovement,
+      }
+    }
+
+    // Filter races by selected class
+    const classRaces = races.filter((r) => r.className === selectedClass)
+
+    // Check if user has any results in the selected class
+    const userHasResultsInClass = classRaces.some((race) =>
+      race.results.some((result) => result.driverId === userDriverId)
+    )
+
+    // If user has no results in selected class, return null metrics (hide card)
+    if (!userHasResultsInClass) {
+      return {
+        userBestLap: null,
+        userBestConsistency: null,
+        userBestAvgLap: null,
+        userBestImprovement: null,
+      }
+    }
+
+    // Calculate user's best lap in selected class
+    let userBestLapInClass: number | null = null
+    let userBestLapRaceLabel: string | null = null
+    for (const race of classRaces) {
+      for (const result of race.results) {
+        if (
+          result.driverId === userDriverId &&
+          result.fastLapTime !== null &&
+          (userBestLapInClass === null || result.fastLapTime < userBestLapInClass)
+        ) {
+          userBestLapInClass = result.fastLapTime
+          userBestLapRaceLabel = race.raceLabel
+        }
+      }
+    }
+
+    // Calculate user's best consistency in selected class
+    let userBestConsistencyInClass: number | null = null
+    for (const race of classRaces) {
+      for (const result of race.results) {
+        if (
+          result.driverId === userDriverId &&
+          result.consistency !== null &&
+          (userBestConsistencyInClass === null ||
+            result.consistency > userBestConsistencyInClass)
+        ) {
+          userBestConsistencyInClass = result.consistency
+        }
+      }
+    }
+
+    // Calculate user's best average lap in selected class
+    let userBestAvgLapInClass: number | null = null
+    for (const race of classRaces) {
+      for (const result of race.results) {
+        if (
+          result.driverId === userDriverId &&
+          result.avgLapTime !== null &&
+          (userBestAvgLapInClass === null ||
+            result.avgLapTime < userBestAvgLapInClass)
+        ) {
+          userBestAvgLapInClass = result.avgLapTime
+        }
+      }
+    }
+
+    // Calculate user's improvement in selected class
+    let userImprovementInClass: {
+      positionImprovement: number
+      lapTimeImprovement: number | null
+      firstRacePosition: number
+      lastRacePosition: number
+      className: string
+      raceLabel: string
+    } | null = null
+
+    // Get all user's results in selected class, sorted by race order
+    const userResultsInClass: Array<{
+      positionFinal: number
+      fastLapTime: number | null
+      raceOrder: number | null
+      startTime: Date | null
+      raceLabel: string
+    }> = []
+
+    for (const race of classRaces) {
+      for (const result of race.results) {
+        if (result.driverId === userDriverId) {
+          userResultsInClass.push({
+            positionFinal: result.positionFinal,
+            fastLapTime: result.fastLapTime,
+            raceOrder: race.raceOrder,
+            startTime: race.startTime,
+            raceLabel: race.raceLabel,
+          })
+        }
+      }
+    }
+
+    // Sort by raceOrder, then by startTime
+    userResultsInClass.sort((a, b) => {
+      const orderA = a.raceOrder ?? 0
+      const orderB = b.raceOrder ?? 0
+      if (orderA !== orderB) {
+        return orderA - orderB
+      }
+      const timeA = a.startTime?.getTime() ?? 0
+      const timeB = b.startTime?.getTime() ?? 0
+      return timeA - timeB
+    })
+
+    if (userResultsInClass.length >= 2) {
+      const firstRace = userResultsInClass[0]
+      const lastRace = userResultsInClass[userResultsInClass.length - 1]
+      const positionImprovement = firstRace.positionFinal - lastRace.positionFinal
+      const lapTimeImprovement =
+        firstRace.fastLapTime !== null && lastRace.fastLapTime !== null
+          ? firstRace.fastLapTime - lastRace.fastLapTime
+          : null
+
+      userImprovementInClass = {
+        positionImprovement,
+        lapTimeImprovement,
+        firstRacePosition: firstRace.positionFinal,
+        lastRacePosition: lastRace.positionFinal,
+        className: selectedClass,
+        raceLabel: lastRace.raceLabel,
+      }
+    }
+
+    // Calculate positions and gaps relative to other drivers in the class
+    // For best lap: find position among all drivers' best laps in class
+    let userBestLapPosition = 1
+    let fastestLapInClass: number | null = null
+    if (userBestLapInClass !== null) {
+      const driverBestLaps = new Map<string, number>()
+      for (const race of classRaces) {
+        for (const result of race.results) {
+          if (result.fastLapTime !== null) {
+            const existing = driverBestLaps.get(result.driverId)
+            if (!existing || result.fastLapTime < existing) {
+              driverBestLaps.set(result.driverId, result.fastLapTime)
+            }
+          }
+        }
+      }
+      const sortedBestLaps = Array.from(driverBestLaps.values()).sort((a, b) => a - b)
+      fastestLapInClass = sortedBestLaps[0] ?? userBestLapInClass
+      userBestLapPosition =
+        sortedBestLaps.filter((time) => time < userBestLapInClass!).length + 1
+    }
+
+    // For consistency: find position among all drivers' best consistency in class
+    let userConsistencyPosition = 1
+    let bestConsistencyInClass: number | null = null
+    if (userBestConsistencyInClass !== null) {
+      const driverBestConsistencies = new Map<string, number>()
+      for (const race of classRaces) {
+        for (const result of race.results) {
+          if (result.consistency !== null) {
+            const existing = driverBestConsistencies.get(result.driverId)
+            if (!existing || result.consistency > existing) {
+              driverBestConsistencies.set(result.driverId, result.consistency)
+            }
+          }
+        }
+      }
+      const sortedConsistencies = Array.from(driverBestConsistencies.values()).sort(
+        (a, b) => b - a
+      )
+      bestConsistencyInClass = sortedConsistencies[0] ?? userBestConsistencyInClass
+      userConsistencyPosition =
+        sortedConsistencies.filter((consistency) => consistency > userBestConsistencyInClass!)
+          .length + 1
+    }
+
+    // For average lap: find position among all drivers' best average lap in class
+    let userAvgLapPosition = 1
+    let bestAvgLapInClass: number | null = null
+    if (userBestAvgLapInClass !== null) {
+      const driverBestAvgLaps = new Map<string, number>()
+      for (const race of classRaces) {
+        for (const result of race.results) {
+          if (result.avgLapTime !== null) {
+            const existing = driverBestAvgLaps.get(result.driverId)
+            if (!existing || result.avgLapTime < existing) {
+              driverBestAvgLaps.set(result.driverId, result.avgLapTime)
+            }
+          }
+        }
+      }
+      const sortedAvgLaps = Array.from(driverBestAvgLaps.values()).sort((a, b) => a - b)
+      bestAvgLapInClass = sortedAvgLaps[0] ?? userBestAvgLapInClass
+      userAvgLapPosition =
+        sortedAvgLaps.filter((avgLap) => avgLap < userBestAvgLapInClass!).length + 1
+    }
+
+    // For improvement: find position among all drivers' improvements in class
+    let userImprovementPosition = 1
+    let bestImprovementInClass = 0
+    if (userImprovementInClass !== null) {
+      // Calculate improvement for all drivers in class
+      const driverImprovements = new Map<
+        string,
+        {
+          positionImprovement: number
+          firstRacePosition: number
+          lastRacePosition: number
+        }
+      >()
+
+      for (const driverId of new Set(
+        classRaces.flatMap((race) => race.results.map((r) => r.driverId))
+      )) {
+        const driverResults: Array<{
+          positionFinal: number
+          raceOrder: number | null
+          startTime: Date | null
+        }> = []
+
+        for (const race of classRaces) {
+          for (const result of race.results) {
+            if (result.driverId === driverId) {
+              driverResults.push({
+                positionFinal: result.positionFinal,
+                raceOrder: race.raceOrder,
+                startTime: race.startTime,
+              })
+            }
+          }
+        }
+
+        driverResults.sort((a, b) => {
+          const orderA = a.raceOrder ?? 0
+          const orderB = b.raceOrder ?? 0
+          if (orderA !== orderB) {
+            return orderA - orderB
+          }
+          const timeA = a.startTime?.getTime() ?? 0
+          const timeB = b.startTime?.getTime() ?? 0
+          return timeA - timeB
+        })
+
+        if (driverResults.length >= 2) {
+          const firstRace = driverResults[0]
+          const lastRace = driverResults[driverResults.length - 1]
+          const positionImprovement = firstRace.positionFinal - lastRace.positionFinal
+
+          driverImprovements.set(driverId, {
+            positionImprovement,
+            firstRacePosition: firstRace.positionFinal,
+            lastRacePosition: lastRace.positionFinal,
+          })
+        }
+      }
+
+      const sortedImprovements = Array.from(driverImprovements.values()).sort(
+        (a, b) => b.positionImprovement - a.positionImprovement
+      )
+      bestImprovementInClass = sortedImprovements[0]?.positionImprovement ?? userImprovementInClass.positionImprovement
+      userImprovementPosition =
+        sortedImprovements.filter(
+          (imp) => imp.positionImprovement > userImprovementInClass!.positionImprovement
+        ).length + 1
+    }
+
+    return {
+      userBestLap:
+        userBestLapInClass !== null
+          ? {
+              lapTime: userBestLapInClass,
+              position: userBestLapPosition,
+              gapToFastest:
+                fastestLapInClass !== null
+                  ? userBestLapInClass - fastestLapInClass
+                  : 0,
+            }
+          : null,
+      userBestConsistency:
+        userBestConsistencyInClass !== null
+          ? {
+              consistency: userBestConsistencyInClass,
+              position: userConsistencyPosition,
+              gapToBest:
+                bestConsistencyInClass !== null
+                  ? bestConsistencyInClass - userBestConsistencyInClass
+                  : 0,
+            }
+          : null,
+      userBestAvgLap:
+        userBestAvgLapInClass !== null
+          ? {
+              avgLapTime: userBestAvgLapInClass,
+              position: userAvgLapPosition,
+              gapToBest:
+                bestAvgLapInClass !== null
+                  ? userBestAvgLapInClass - bestAvgLapInClass
+                  : 0,
+            }
+          : null,
+      userBestImprovement: userImprovementInClass
+        ? {
+            ...userImprovementInClass,
+            position: userImprovementPosition,
+            gapToBest: bestImprovementInClass - userImprovementInClass.positionImprovement,
+          }
+        : null,
+    }
+  }, [
+    selectedClass,
+    races,
+    userBestLap,
+    userBestConsistency,
+    userBestAvgLap,
+    userBestImprovement,
+  ])
 
   // Calculate top drivers for a class from race data
   const calculateTopDriversForClass = useMemo(() => {
@@ -598,7 +1036,7 @@ export function DriverCardsAndWeatherGrid({
 
   // Auto-scroll functionality
   useEffect(() => {
-    if (!hasData || sections.length === 0) return
+    if (!shouldShowDriverCards || sections.length === 0) return
 
     // Initialize the ref with current section
     currentSectionRef.current = currentSection
@@ -675,7 +1113,7 @@ export function DriverCardsAndWeatherGrid({
         programmaticScrollTimeoutRef.current = null
       }
     }
-  }, [hasData, sections.length, currentSection, allClasses.length, selectedClass])
+  }, [shouldShowDriverCards, sections.length, currentSection, allClasses.length, selectedClass])
 
   // Update current section based on scroll position
   useEffect(() => {
@@ -711,9 +1149,41 @@ export function DriverCardsAndWeatherGrid({
 
   return (
     <section className="grid grid-cols-12 gap-4 lg:gap-6">
-        <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] py-[var(--dashboard-card-padding)] px-4 lg:col-span-8 lg:pr-0">
+        <div 
+          className="col-span-12 lg:col-span-8 relative"
+          style={{
+            borderRadius: "24px",
+            border: "1px solid var(--glass-border)",
+            backgroundColor: "var(--glass-bg)",
+            backdropFilter: "var(--glass-blur)",
+            WebkitBackdropFilter: "var(--glass-blur)",
+            boxShadow: "var(--glass-shadow), var(--glass-shadow-inset)",
+            padding: "var(--dashboard-card-padding)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Subtle gradient overlay for extra glass depth */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%)",
+              borderRadius: "24px",
+            }}
+          />
+          {/* Subtle top highlight for glass edge effect */}
+          <div
+            className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)",
+              borderRadius: "24px 24px 0 0",
+            }}
+          />
+          {/* Content wrapper */}
+          <div className="relative z-10">
 
-          {hasData ? (
+          {shouldShowDriverCards ? (
             <>
               <div className="mb-6">
                 {/* Navigation header with chevrons and section indicators */}
@@ -724,7 +1194,7 @@ export function DriverCardsAndWeatherGrid({
                     className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all duration-200 ${
                       currentSection === 0
                         ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed bg-[var(--token-surface)]"
-                        : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)] hover:text-[var(--token-accent)] hover:bg-[var(--token-surface-raised)] active:scale-95 cursor-pointer"
+                        : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)] hover:text-[var(--token-accent)] hover:bg-[var(--token-surface-raised)] hover:shadow-[0_2px_8px_rgba(58,142,255,0.2)] active:scale-95 cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
                     }`}
                     aria-label="Previous section"
                   >
@@ -778,7 +1248,7 @@ export function DriverCardsAndWeatherGrid({
                     className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all duration-200 ${
                       currentSection === sections.length - 1
                         ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed bg-[var(--token-surface)]"
-                        : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)] hover:text-[var(--token-accent)] hover:bg-[var(--token-surface-raised)] active:scale-95 cursor-pointer"
+                        : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)] hover:text-[var(--token-accent)] hover:bg-[var(--token-surface-raised)] hover:shadow-[0_2px_8px_rgba(58,142,255,0.2)] active:scale-95 cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
                     }`}
                     aria-label="Next section"
                   >
@@ -870,6 +1340,14 @@ export function DriverCardsAndWeatherGrid({
               </div>
 
               {(() => {
+                // Use filtered user metrics (filtered by selected class)
+                const {
+                  userBestLap: filteredUserBestLap,
+                  userBestConsistency: filteredUserBestConsistency,
+                  userBestAvgLap: filteredUserBestAvgLap,
+                  userBestImprovement: filteredUserBestImprovement,
+                } = filteredUserMetrics
+
                 // Determine which user metric to display based on current section
                 let userMetric: {
                   label: string
@@ -879,81 +1357,151 @@ export function DriverCardsAndWeatherGrid({
                   gapValue: string
                 } | null = null
 
-                if (currentSection === 0 && userBestLap) {
+                if (currentSection === 0 && filteredUserBestLap) {
                   // Top Performers section - show fastest lap
                   userMetric = {
                     label: "Your Best Lap",
-                    value: formatLapTime(userBestLap.lapTime),
-                    position: userBestLap.position,
+                    value: formatLapTime(filteredUserBestLap.lapTime),
+                    position: filteredUserBestLap.position,
                     gapLabel: "Gap to fastest",
-                    gapValue: `+${formatLapTime(userBestLap.gapToFastest)}`,
+                    gapValue: `+${formatLapTime(filteredUserBestLap.gapToFastest)}`,
                   }
-                } else if (currentSection === 1 && userBestConsistency) {
+                } else if (currentSection === 1 && filteredUserBestConsistency) {
                   // Most Consistent Drivers section - show consistency
                   userMetric = {
                     label: "Your Consistency",
-                    value: `${userBestConsistency.consistency.toFixed(1)}%`,
-                    position: userBestConsistency.position,
+                    value: `${filteredUserBestConsistency.consistency.toFixed(1)}%`,
+                    position: filteredUserBestConsistency.position,
                     gapLabel: "Gap to best",
-                    gapValue: `-${userBestConsistency.gapToBest.toFixed(1)}%`,
+                    gapValue: `-${filteredUserBestConsistency.gapToBest.toFixed(1)}%`,
                   }
-                } else if (currentSection === 2 && userBestAvgLap) {
+                } else if (currentSection === 2 && filteredUserBestAvgLap) {
                   // Best Overall Average Lap section - show average lap
                   userMetric = {
                     label: "Your Average Lap",
-                    value: formatLapTime(userBestAvgLap.avgLapTime),
-                    position: userBestAvgLap.position,
+                    value: formatLapTime(filteredUserBestAvgLap.avgLapTime),
+                    position: filteredUserBestAvgLap.position,
                     gapLabel: "Gap to best",
-                    gapValue: `+${formatLapTime(userBestAvgLap.gapToBest)}`,
+                    gapValue: `+${formatLapTime(filteredUserBestAvgLap.gapToBest)}`,
                   }
+                } else if (currentSection === 3 && filteredUserBestImprovement) {
+                  // Most Improved section - show improvement with rich data like driver cards
+                  const positionDisplay = formatPositionImprovement(
+                    filteredUserBestImprovement.firstRacePosition,
+                    filteredUserBestImprovement.lastRacePosition
+                  )
+                  const lapTimeDisplay = filteredUserBestImprovement.lapTimeImprovement !== null
+                    ? formatLapTimeImprovement(filteredUserBestImprovement.lapTimeImprovement)
+                    : null
+
+                  userMetric = {
+                    label: "Your Improvement",
+                    value: positionDisplay,
+                    position: filteredUserBestImprovement.position,
+                    gapLabel: "Gap to best",
+                    gapValue: filteredUserBestImprovement.gapToBest > 0
+                      ? `-${filteredUserBestImprovement.gapToBest} positions`
+                      : "Best!",
+                  }
+
+                  // Return custom layout for improvement section with extra details
+                  return (
+                    <div className="max-w-full md:max-w-[880px] mx-auto">
+                      <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/40 bg-gradient-to-br from-[var(--token-accent)]/10 to-[var(--token-accent)]/5 px-5 py-5 transition-all duration-200 hover:border-[var(--token-accent)]/60 hover:shadow-[0_4px_16px_rgba(58,142,255,0.2)] shadow-[0_2px_8px_rgba(58,142,255,0.15)]">
+                        <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-3 font-medium">
+                          {userMetric.label}
+                        </p>
+                        <div className="flex items-baseline justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-3xl font-bold text-[var(--token-text-primary)] leading-tight">
+                              {userMetric.value}
+                            </p>
+                            <div className="mt-2 space-y-1">
+                              {lapTimeDisplay && (
+                                <p className="text-xs text-[var(--token-text-secondary)] font-medium">
+                                  Lap Time: {lapTimeDisplay}
+                                </p>
+                              )}
+                              <p className="text-xs text-[var(--token-text-muted)] font-medium">
+                                {filteredUserBestImprovement.raceLabel}
+                              </p>
+                              <p className="text-xs text-[var(--token-text-muted)]">
+                                {filteredUserBestImprovement.className}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs text-[var(--token-text-secondary)] mb-1 font-medium">
+                              Position #{userMetric.position}
+                            </p>
+                            {filteredUserBestImprovement.gapToBest > 0 && (
+                              <>
+                                <p className="text-xs text-[var(--token-text-muted)] mb-1 font-medium">
+                                  {userMetric.gapLabel}
+                                </p>
+                                <p className="text-xl font-bold text-[var(--token-text-primary)]">
+                                  {userMetric.gapValue}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
                 }
 
                 if (!userMetric) return null
 
                 return (
-                  <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/40 bg-gradient-to-br from-[var(--token-accent)]/10 to-[var(--token-accent)]/5 px-5 py-5 transition-all duration-200 hover:border-[var(--token-accent)]/60">
-                    <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-3 font-medium">
-                      {userMetric.label}
-                    </p>
-                    <div className="flex items-baseline justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-3xl font-bold text-[var(--token-text-primary)] leading-tight">
-                          {userMetric.value}
-                        </p>
-                        <p className="text-xs text-[var(--token-text-secondary)] mt-2 font-medium">
-                          Position #{userMetric.position}
-                        </p>
-                      </div>
-                      {((currentSection === 0 &&
-                        userBestLap?.gapToFastest &&
-                        userBestLap.gapToFastest > 0) ||
-                        (currentSection === 1 &&
-                          userBestConsistency?.gapToBest &&
-                          userBestConsistency.gapToBest > 0) ||
-                        (currentSection === 2 &&
-                          userBestAvgLap?.gapToBest &&
-                          userBestAvgLap.gapToBest > 0)) && (
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-xs text-[var(--token-text-muted)] mb-1 font-medium">
-                            {userMetric.gapLabel}
+                  <div className="max-w-full md:max-w-[880px] mx-auto">
+                    <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/40 bg-gradient-to-br from-[var(--token-accent)]/10 to-[var(--token-accent)]/5 px-5 py-5 transition-all duration-200 hover:border-[var(--token-accent)]/60 hover:shadow-[0_4px_16px_rgba(58,142,255,0.2)] shadow-[0_2px_8px_rgba(58,142,255,0.15)]">
+                      <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-3 font-medium">
+                        {userMetric.label}
+                      </p>
+                      <div className="flex items-baseline justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-3xl font-bold text-[var(--token-text-primary)] leading-tight">
+                            {userMetric.value}
                           </p>
-                          <p className="text-xl font-bold text-[var(--token-text-primary)]">
-                            {userMetric.gapValue}
+                          <p className="text-xs text-[var(--token-text-secondary)] mt-2 font-medium">
+                            Position #{userMetric.position}
                           </p>
                         </div>
-                      )}
+                        {((currentSection === 0 &&
+                          filteredUserBestLap?.gapToFastest &&
+                          filteredUserBestLap.gapToFastest > 0) ||
+                          (currentSection === 1 &&
+                            filteredUserBestConsistency?.gapToBest &&
+                            filteredUserBestConsistency.gapToBest > 0) ||
+                          (currentSection === 2 &&
+                            filteredUserBestAvgLap?.gapToBest &&
+                            filteredUserBestAvgLap.gapToBest > 0)) && (
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs text-[var(--token-text-muted)] mb-1 font-medium">
+                              {userMetric.gapLabel}
+                            </p>
+                            <p className="text-xl font-bold text-[var(--token-text-primary)]">
+                              {userMetric.gapValue}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
               })()}
             </>
+          ) : hasData ? (
+            <div className="flex items-center justify-center min-h-[200px] text-[var(--token-text-secondary)]">
+              Select a class or more than one driver to view driver cards
+            </div>
           ) : (
-            <div className="mb-6 rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-6 py-8 text-center">
-              <p className="text-sm text-[var(--token-text-muted)]">
-                No lap time data available for this event
-              </p>
+            <div className="flex items-center justify-center min-h-[200px] text-[var(--token-text-secondary)]">
+              No lap time data available for this event
             </div>
           )}
+          </div>
         </div>
 
         {weather ? (
@@ -1022,14 +1570,17 @@ function DriverCard({
     valueDisplay = `${driver.consistency.toFixed(1)}%`
   } else if (type === "avgLap" && "avgLapTime" in driver) {
     valueDisplay = formatLapTime(driver.avgLapTime)
+  } else if (type === "improvement" && "positionImprovement" in driver) {
+    const improvedDriver = driver as NonNullable<EventAnalysisSummary["mostImprovedDrivers"]>[number]
+    valueDisplay = formatPositionImprovement(improvedDriver.firstRacePosition, improvedDriver.lastRacePosition)
   } else {
     valueDisplay = "N/A"
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 py-5 h-full w-full transition-all duration-200 hover:border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] hover:shadow-lg">
+    <div className="rounded-2xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] px-5 py-5 h-full w-full transition-all duration-200 hover:border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2),0_0_1px_rgba(255,255,255,0.1)] shadow-[0_2px_8px_rgba(0,0,0,0.1),0_0_1px_rgba(255,255,255,0.05)]">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold text-[var(--token-text-primary)] bg-[var(--token-surface)] px-2.5 py-1 rounded-full border border-[var(--token-border-default)]">
+        <span className="text-xs font-bold text-[var(--token-text-primary)] bg-[var(--token-surface)] px-2.5 py-1 rounded-full border border-[var(--token-border-default)] shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
           #{index + 1}
         </span>
         {gapDisplay}
@@ -1216,8 +1767,38 @@ function WeatherPanel({
 }) {
   return (
     <article
-      className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] ${className}`}
+      className={`relative ${className || ""}`}
+      style={{
+        borderRadius: "24px",
+        border: "1px solid var(--glass-border)",
+        backgroundColor: "var(--glass-bg)",
+        backdropFilter: "var(--glass-blur)",
+        WebkitBackdropFilter: "var(--glass-blur)",
+        boxShadow: "var(--glass-shadow), var(--glass-shadow-inset)",
+        padding: "var(--dashboard-card-padding)",
+        overflow: "hidden",
+      }}
     >
+      {/* Subtle gradient overlay for extra glass depth */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%)",
+          borderRadius: "24px",
+        }}
+      />
+      {/* Subtle top highlight for glass edge effect */}
+      <div
+        className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)",
+          borderRadius: "24px 24px 0 0",
+        }}
+      />
+      {/* Content wrapper */}
+      <div className="relative z-10">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
           Track state
@@ -1255,13 +1836,14 @@ function WeatherPanel({
           </div>
         ))}
       </div>
+      </div>
     </article>
   )
 }
 
 function WeatherStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[var(--token-border-default)] px-3 py-2">
+    <div className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 shadow-[0_2px_6px_rgba(0,0,0,0.1)]">
       <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
         {label}
       </p>

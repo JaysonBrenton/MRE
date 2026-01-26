@@ -75,14 +75,22 @@ export async function searchEvents(params: SearchEventsParams): Promise<SearchEv
   // Build where clause conditionally based on whether dates are provided
   const whereClause: Prisma.EventWhereInput = {
     trackId,
-  }
-
-  // Only apply date filters if both dates are provided
-  if (startDate && endDate) {
-    whereClause.eventDate = {
-      gte: startDate,
-      lte: endDate,
-    }
+    // Exclude practice days from regular event search (they have their own search interface)
+    // Practice days have sourceEventId pattern: {track-slug}-practice-{YYYY-MM-DD}
+    sourceEventId: {
+      not: {
+        contains: "-practice-",
+      },
+    },
+    // Only apply date filters if both dates are provided
+    ...(startDate && endDate
+      ? {
+          eventDate: {
+            gte: startDate,
+            lte: endDate,
+          },
+        }
+      : {}),
   }
 
   // Query events with a reasonable limit to prevent performance issues
@@ -320,7 +328,15 @@ export async function getAllImportedEvents(
   }
 
   // Build where clause
-  const whereClause: Prisma.EventWhereInput = {}
+  const whereClause: Prisma.EventWhereInput = {
+    // Exclude practice days from regular event listings (they have their own search interface)
+    // Practice days have sourceEventId pattern: {track-slug}-practice-{YYYY-MM-DD}
+    sourceEventId: {
+      not: {
+        contains: "-practice-",
+      },
+    },
+  }
 
   // User filter: only events where user has EventDriverLink
   if (userEventIds) {

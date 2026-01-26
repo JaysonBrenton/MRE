@@ -242,8 +242,8 @@ const dashboardSlice = createSlice({
         state.isAnalysisLoading = false
         state.currentFetchRequestId = null
       } else if (nextSelected !== prevSelected) {
+        // Only set isEventLoading - isAnalysisLoading will be set when fetchEventAnalysisData actually starts
         state.isEventLoading = true
-        state.isAnalysisLoading = true
         state.currentFetchRequestId = null
       }
     },

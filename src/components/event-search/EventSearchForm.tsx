@@ -22,7 +22,9 @@ import { useState } from "react"
 import TrackSelectionModal from "./TrackSelectionModal"
 import { type Track } from "./TrackRow"
 import DateRangePicker from "./DateRangePicker"
+import MonthYearPicker from "../practice-days/MonthYearPicker"
 import { clientLogger } from "@/lib/client-logger"
+import { isPracticeDaysEnabled } from "@/lib/feature-flags"
 
 export interface EventSearchFormProps {
   selectedTrack: Track | null
@@ -47,9 +49,14 @@ export interface EventSearchFormProps {
   livercEventsCount?: number
   hasSearched?: boolean
   isCheckingEntryLists?: boolean
-  isImportingBulk?: boolean
   driverInEvents?: Record<string, boolean>
   onCheckEntryLists?: () => void
+  searchMode?: "events" | "practice-days"
+  onSearchModeChange?: (mode: "events" | "practice-days") => void
+  practiceYear?: number
+  practiceMonth?: number
+  onPracticeYearChange?: (year: number) => void
+  onPracticeMonthChange?: (month: number) => void
 }
 
 export default function EventSearchForm({
@@ -71,15 +78,30 @@ export default function EventSearchForm({
   livercEventsCount = 0,
   hasSearched = false,
   isCheckingEntryLists = false,
-  isImportingBulk = false,
   driverInEvents = {},
   onCheckEntryLists,
+  searchMode = "events",
+  onSearchModeChange,
+  practiceYear,
+  practiceMonth,
+  onPracticeYearChange,
+  onPracticeMonthChange,
 }: EventSearchFormProps) {
+  const practiceDaysEnabled = isPracticeDaysEnabled()
+  
+  // Default to current year/month if not provided
+  const currentDate = new Date()
+  const defaultYear = practiceYear ?? currentDate.getFullYear()
+  const defaultMonth = practiceMonth ?? currentDate.getMonth() + 1
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [favouritesExpanded, setFavouritesExpanded] = useState(false)
   const trackErrorId = errors?.track ? "track-selector-error" : undefined
   const favouriteTrackOptions = favourites
     .map((trackId) => tracks.find((track) => track.id === trackId))
     .filter((track): track is Track => Boolean(track))
+  const FAVOURITES_VISIBLE_CAP = 4
+  const visibleFavourites = favouritesExpanded ? favouriteTrackOptions : favouriteTrackOptions.slice(0, FAVOURITES_VISIBLE_CAP)
+  const remainingCount = favouriteTrackOptions.length - FAVOURITES_VISIBLE_CAP
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,8 +128,10 @@ export default function EventSearchForm({
   return (
     <>
       <form onSubmit={handleSearch} className="space-y-6">
-        {/* Track Selector */}
-        <div>
+        {/* Where: Track + Favourites */}
+        <div className="space-y-3" role="group" aria-labelledby="event-search-where">
+          <span id="event-search-where" className="sr-only">Where</span>
+          <div>
           <label
             htmlFor="track-selector"
             className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
@@ -135,8 +159,10 @@ export default function EventSearchForm({
             </p>
           )}
           {favouriteTrackOptions.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2" aria-label="Favourite tracks">
-              {favouriteTrackOptions.map((track) => (
+            <div>
+              <p className="text-xs font-medium text-[var(--token-text-secondary)] mb-2 mt-3">Favourite tracks</p>
+              <div className="flex flex-wrap gap-2" aria-label="Favourite tracks">
+              {visibleFavourites.map((track) => (
                 <div
                   key={track.id}
                   className="group rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] flex items-center gap-1"
@@ -178,27 +204,117 @@ export default function EventSearchForm({
                   </button>
                 </div>
               ))}
+                {!favouritesExpanded && remainingCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFavouritesExpanded(true)}
+                    className="rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] px-3 py-1 text-xs font-medium text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  >
+                    +{remainingCount} more
+                  </button>
+                )}
+              </div>
             </div>
           )}
+          </div>
         </div>
 
-        {/* Date Filter Toggle */}
-        <div>
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={useDateFilter}
-              onChange={(e) => handleUseDateFilterToggle(e.target.checked)}
-              className="w-4 h-4 rounded border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-interactive-focus-ring)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+        {/* When: Search Type, Date Filter, Date Range / Month-Year */}
+        <div className="space-y-4" role="group" aria-labelledby="event-search-when">
+          <span id="event-search-when" className="sr-only">When</span>
+
+        {/* Search Mode Toggle (Practice Days vs Events) */}
+        {practiceDaysEnabled && onSearchModeChange && (
+          <div>
+            <label className="block text-sm font-medium text-[var(--token-text-primary)] mb-2">
+              Search Type
+            </label>
+            <div className="flex items-center gap-3">
+              <span
+                className={`text-sm font-medium transition-colors ${
+                  searchMode === "events"
+                    ? "text-[var(--token-text-primary)]"
+                    : "text-[var(--token-text-secondary)]"
+                }`}
+              >
+                Events
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={searchMode === "practice-days"}
+                aria-label={`Switch to ${searchMode === "events" ? "Practice Days" : "Events"}`}
+                onClick={() => onSearchModeChange(searchMode === "events" ? "practice-days" : "events")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    onSearchModeChange(searchMode === "events" ? "practice-days" : "events")
+                  } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                    e.preventDefault()
+                    onSearchModeChange(e.key === "ArrowLeft" ? "events" : "practice-days")
+                  }
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] focus:ring-offset-[var(--token-surface)] ${
+                  searchMode === "events"
+                    ? "bg-[var(--token-surface-elevated)] border-[var(--token-border-default)]"
+                    : "bg-[var(--token-accent)]/30 border-[var(--token-accent)]/50"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-[var(--token-surface)] border border-[var(--token-border-default)] shadow-sm transition-transform duration-200 ease-in-out ${
+                    searchMode === "events" ? "translate-x-1" : "translate-x-6"
+                  }`}
+                />
+              </button>
+              <span
+                className={`text-sm font-medium transition-colors ${
+                  searchMode === "practice-days"
+                    ? "text-[var(--token-text-primary)]"
+                    : "text-[var(--token-text-secondary)]"
+                }`}
+              >
+                Practice Days
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Date Filter Toggle - Hidden for practice days (always required) */}
+        {searchMode === "events" && (
+          <div>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useDateFilter}
+                onChange={(e) => handleUseDateFilterToggle(e.target.checked)}
+                className="w-4 h-4 rounded border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-interactive-focus-ring)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              />
+              <span className="text-sm text-[var(--token-text-primary)]">
+                Filter by date range
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* Month/Year Picker - For practice days */}
+        {searchMode === "practice-days" && practiceDaysEnabled && onPracticeYearChange && onPracticeMonthChange && (
+          <div className="transition-all duration-200">
+            <MonthYearPicker
+              year={defaultYear}
+              month={defaultMonth}
+              onYearChange={onPracticeYearChange}
+              onMonthChange={onPracticeMonthChange}
+              errors={{
+                year: errors?.year,
+                month: errors?.month,
+              }}
+              required={true}
             />
-            <span className="text-sm text-[var(--token-text-primary)]">
-              Filter by date range
-            </span>
-          </label>
-        </div>
+          </div>
+        )}
 
-        {/* Date Range Picker - Only shown when useDateFilter is true */}
-        {useDateFilter && (
+        {/* Date Range Picker - For events mode */}
+        {searchMode === "events" && useDateFilter && (
           <div className="transition-all duration-200">
             <DateRangePicker
               startDate={startDate}
@@ -206,24 +322,27 @@ export default function EventSearchForm({
               onStartDateChange={onStartDateChange}
               onEndDateChange={onEndDateChange}
               errors={errors}
+              required={false}
               disabled={false}
             />
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-4">
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-4">
           <button
             type="submit"
             disabled={isLoading || !selectedTrack}
-            className="mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90 h-11"
+            className="mobile-button flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 text-sm font-medium text-white transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90 h-11"
           >
             {isLoading ? "Searching..." : "Search"}
           </button>
           <button
             type="button"
             onClick={handleReset}
-            className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
+            className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-transparent px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-elevated)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
           >
             Reset
           </button>
@@ -232,7 +351,7 @@ export default function EventSearchForm({
             <button
               type="button"
               onClick={onCheckEntryLists}
-              disabled={isCheckingEntryLists || isImportingBulk}
+              disabled={isCheckingEntryLists}
               className="flex items-center justify-center gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
               aria-label="Check for Participation"
             >

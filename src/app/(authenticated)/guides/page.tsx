@@ -40,10 +40,10 @@ export default async function GuidesPage() {
         "Learn how to analyze race event data, view interactive charts, compare drivers, explore sessions, and export data.",
     },
     {
-      title: "Dashboard",
+      title: "My Event Analysis",
       href: "/guides/dashboard",
       description:
-        "Guide to using your personal dashboard, understanding widgets, customizing layouts, and viewing statistics.",
+        "Guide to using your personal event analysis, understanding widgets, customizing layouts, and viewing statistics.",
     },
     {
       title: "Driver Features",
@@ -73,7 +73,7 @@ export default async function GuidesPage() {
 
   return (
     <section className="content-wrapper w-full min-w-0">
-      <Breadcrumbs items={[{ label: "Home", href: "/dashboard" }, { label: "Guides" }]} />
+      <Breadcrumbs items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Guides" }]} />
       <header className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">User Guides</h1>
         <p className="text-sm text-[var(--token-text-secondary)]">

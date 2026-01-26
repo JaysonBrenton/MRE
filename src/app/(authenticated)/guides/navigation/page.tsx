@@ -22,7 +22,7 @@ export default async function NavigationGuidePage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/dashboard" },
           { label: "Guides", href: "/guides" },
           { label: "Navigation" },
         ]}
@@ -66,7 +66,7 @@ export default async function NavigationGuidePage() {
             The main navigation provides access to all major sections:
           </p>
           <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
-            <li><strong className="text-[var(--token-text-primary)]">Dashboard:</strong> Your personal dashboard with statistics</li>
+            <li><strong className="text-[var(--token-text-primary)]">My Event Analysis:</strong> Your personal event analysis with statistics</li>
             <li><strong className="text-[var(--token-text-primary)]">Event Search:</strong> Search for race events</li>
             <li><strong className="text-[var(--token-text-primary)]">My Events:</strong> View all your events</li>
             <li><strong className="text-[var(--token-text-primary)]">Guides:</strong> User guides and documentation</li>
@@ -103,7 +103,7 @@ export default async function NavigationGuidePage() {
             MRE supports keyboard shortcuts for common actions:
           </p>
           <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
-            <li><strong className="text-[var(--token-text-primary)]">Alt + H:</strong> Go to Home/Dashboard</li>
+            <li><strong className="text-[var(--token-text-primary)]">Alt + H:</strong> Go to Home/My Event Analysis</li>
             <li><strong className="text-[var(--token-text-primary)]">Alt + S:</strong> Go to Event Search</li>
             <li><strong className="text-[var(--token-text-primary)]">Alt + E:</strong> Go to My Events</li>
             <li><strong className="text-[var(--token-text-primary)]">Alt + G:</strong> Go to Guides</li>
@@ -138,7 +138,7 @@ export default async function NavigationGuidePage() {
             <li>Use breadcrumbs to go back multiple levels quickly</li>
             <li>Learn keyboard shortcuts to save time</li>
             <li>Check breadcrumbs to always know where you are</li>
-            <li>Click Home to always return to dashboard</li>
+            <li>Click Home to always return to My Event Analysis</li>
             <li>Use the menu to browse all sections</li>
           </ul>
         </section>
@@ -148,7 +148,7 @@ export default async function NavigationGuidePage() {
             Related Guides
           </h2>
           <p className="text-[var(--token-text-secondary)]">
-            Learn the basics in the <a href="/guides/getting-started" className="text-[var(--token-accent)] hover:underline">Getting Started Guide</a>, explore your <a href="/guides/dashboard" className="text-[var(--token-accent)] hover:underline">Dashboard</a>, or learn about <a href="/guides/event-search" className="text-[var(--token-accent)] hover:underline">Event Search</a> navigation.
+            Learn the basics in the <a href="/guides/getting-started" className="text-[var(--token-accent)] hover:underline">Getting Started Guide</a>, explore your <a href="/guides/dashboard" className="text-[var(--token-accent)] hover:underline">My Event Analysis</a>, or learn about <a href="/guides/event-search" className="text-[var(--token-accent)] hover:underline">Event Search</a> navigation.
           </p>
         </section>
       </div>

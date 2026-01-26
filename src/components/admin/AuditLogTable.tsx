@@ -240,7 +240,7 @@ export default function AuditLogTable() {
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-[var(--token-surface)]">
             {logs.length === 0 ? (
               <tr>
                 <td
@@ -257,7 +257,7 @@ export default function AuditLogTable() {
                   <>
                     <tr
                       key={log.id}
-                      className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface-raised)] cursor-pointer"
+                      className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] cursor-pointer"
                       onClick={() => toggleRow(log.id)}
                     >
                       <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
@@ -285,7 +285,7 @@ export default function AuditLogTable() {
                     {isExpanded && (
                       <tr
                         key={`${log.id}-details`}
-                        className="border-b border-[var(--token-border-muted)]"
+                        className="border-b border-[var(--token-border-default)]"
                       >
                         <td colSpan={5} className="px-4 py-4 bg-[var(--token-surface-elevated)]">
                           <div className="space-y-2">

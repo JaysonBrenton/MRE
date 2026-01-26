@@ -30,6 +30,7 @@ export interface DateRangePickerProps {
     endDate?: string
   }
   disabled?: boolean
+  required?: boolean
 }
 
 export default function DateRangePicker({
@@ -39,6 +40,7 @@ export default function DateRangePicker({
   onEndDateChange,
   errors,
   disabled = false,
+  required = false,
 }: DateRangePickerProps) {
   const [localStartDate, setLocalStartDate] = useState(startDate)
   const [localEndDate, setLocalEndDate] = useState(endDate)
@@ -84,12 +86,12 @@ export default function DateRangePicker({
     <div className="space-y-4">
       {/* Start Date */}
       <div>
-        <label
-          htmlFor="start-date"
-          className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
-        >
-          Start Date
-        </label>
+          <label
+            htmlFor="start-date"
+            className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+          >
+            Start Date {required && <span className="text-[var(--token-status-error-text)]">*</span>}
+          </label>
         <input
           id="start-date"
           type="date"
@@ -110,12 +112,12 @@ export default function DateRangePicker({
 
       {/* End Date */}
       <div>
-        <label
-          htmlFor="end-date"
-          className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
-        >
-          End Date
-        </label>
+          <label
+            htmlFor="end-date"
+            className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+          >
+            End Date {required && <span className="text-[var(--token-status-error-text)]">*</span>}
+          </label>
         <input
           id="end-date"
           type="date"

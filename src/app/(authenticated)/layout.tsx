@@ -22,6 +22,8 @@ import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import DashboardLayout from "@/components/dashboard/DashboardLayout"
 import ReduxProvider from "@/components/store/ReduxProvider"
+import DashboardEventSearchProvider from "@/components/dashboard/DashboardEventSearchProvider"
+import EventActionsProvider from "@/components/dashboard/EventActionsProvider"
 import Footer from "@/components/Footer"
 import EventAnalysisHeaderWrapper from "@/components/dashboard/EventAnalysisHeaderWrapper"
 
@@ -34,15 +36,19 @@ export default async function AuthenticatedLayout({ children }: { children: Reac
 
   return (
     <ReduxProvider>
-      <DashboardLayout user={session.user} userId={session.user.id}>
-        <div className="flex min-h-full flex-col">
-          <EventAnalysisHeaderWrapper />
-          <main id="main-content" className="page-container w-full min-w-0 flex-1" tabIndex={-1}>
-            {children}
-          </main>
-          <Footer />
-        </div>
-      </DashboardLayout>
+      <DashboardEventSearchProvider>
+        <EventActionsProvider>
+          <DashboardLayout user={session.user} userId={session.user.id}>
+            <div className="flex min-h-full flex-col">
+              <EventAnalysisHeaderWrapper />
+              <main id="main-content" className="page-container w-full min-w-0 flex-1" tabIndex={-1}>
+                {children}
+              </main>
+              <Footer />
+            </div>
+          </DashboardLayout>
+        </EventActionsProvider>
+      </DashboardEventSearchProvider>
     </ReduxProvider>
   )
 }

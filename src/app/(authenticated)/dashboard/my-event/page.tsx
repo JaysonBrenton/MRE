@@ -3,7 +3,7 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-28
+ * @lastModified 2026-01-21
  *
  * @description Page showing events where the user's driver name was matched using fuzzy matching
  *
@@ -14,7 +14,7 @@
  * @relatedFiles
  * - src/app/api/v1/personas/driver/events/route.ts (API endpoint)
  * - src/core/personas/driver-events.ts (driver event discovery logic)
- * - src/app/api/v1/users/[userId]/driver-links/events/[eventId]/route.ts (status update endpoint)
+ * - src/app/api/v1/users/me/driver-links/events/[eventId]/route.ts (status update endpoint)
  */
 
 "use client"
@@ -41,7 +41,7 @@ interface ParticipationDetail {
   eventId: string
   matchType: "fuzzy" | "exact" | "transponder"
   similarityScore: number
-  userDriverLinkStatus: "confirmed" | "suggested" | "rejected" | "conflict"
+  userDriverLinkStatus: "confirmed" | "suggested" | "rejected"
 }
 
 type DriverEventsResponse =
@@ -89,30 +89,46 @@ export default function MyEventPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(5)
   const [filter, setFilter] = useState<"all" | "suggested">("all")
-  const [userId, setUserId] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [hasNoDriverPersona, setHasNoDriverPersona] = useState<boolean>(false)
   const [updatingEvents, setUpdatingEvents] = useState<Set<string>>(new Set())
 
-  // Fetch current user ID and admin status
+  // Fetch current user admin status
   useEffect(() => {
-    async function fetchUserId() {
+    async function fetchUserInfo() {
+      console.log("[MyEventPage] Starting fetchUserInfo")
       try {
         const response = await fetch("/api/v1/users/me")
+        console.log("[MyEventPage] Response status:", response.status, response.statusText)
+        console.log("[MyEventPage] Response ok:", response.ok)
+
         if (response.ok) {
           const data = await response.json()
-          if (data.success && data.data?.userId) {
-            setUserId(data.data.userId)
-          }
+          console.log("[MyEventPage] Response data:", {
+            success: data.success,
+            hasData: !!data.data,
+            email: data.data?.email,
+            name: data.data?.name,
+            isAdmin: data.data?.isAdmin,
+          })
+
           if (data.success && data.data?.isAdmin !== undefined) {
+            console.log("[MyEventPage] Setting isAdmin:", data.data.isAdmin)
             setIsAdmin(data.data.isAdmin)
           }
+        } else {
+          const errorText = await response.text()
+          console.error("[MyEventPage] Response not ok:", {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorText,
+          })
         }
       } catch (err) {
-        console.error("Failed to fetch user ID:", err)
+        console.error("[MyEventPage] Failed to fetch user info:", err)
       }
     }
-    fetchUserId()
+    fetchUserInfo()
   }, [])
 
   useEffect(() => {
@@ -207,16 +223,27 @@ export default function MyEventPage() {
   }, [])
 
   const handleEventClick = (eventId: string) => {
-    router.push(`/events/analyse/${eventId}`)
+    router.push(`/dashboard?eventId=${eventId}`)
   }
 
   const handleConfirm = async (eventId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!userId) return
+    console.log("[MyEventPage] handleConfirm called:", {
+      eventId,
+    })
 
+    e.stopPropagation()
+    
+    // Clear any previous error before starting the action
+    setError(null)
+
+    console.log("[MyEventPage] handleConfirm: Proceeding with confirmation")
     setUpdatingEvents((prev) => new Set(prev).add(eventId))
+    
     try {
-      const response = await fetch(`/api/v1/users/${userId}/driver-links/events/${eventId}`, {
+      const url = `/api/v1/users/me/driver-links/events/${eventId}`
+      console.log("[MyEventPage] handleConfirm: Making PATCH request to:", url)
+      
+      const response = await fetch(url, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -224,22 +251,27 @@ export default function MyEventPage() {
         body: JSON.stringify({ status: "confirmed" }),
       })
 
+      console.log("[MyEventPage] handleConfirm: Response status:", response.status, response.statusText)
+
       if (!response.ok) {
         const data = await response.json()
+        console.error("[MyEventPage] handleConfirm: Response not ok:", data)
         throw new Error(data.error?.message || "Failed to confirm link")
       }
 
+      console.log("[MyEventPage] handleConfirm: Confirmation successful, refreshing events")
       // Refresh events to get updated status
       const refreshResponse = await fetch("/api/v1/personas/driver/events")
       if (refreshResponse.ok) {
         const refreshData = await refreshResponse.json()
         if (refreshData.success) {
+          console.log("[MyEventPage] handleConfirm: Events refreshed successfully")
           setEvents(refreshData.data.events)
           setParticipationDetails(refreshData.data.participationDetails)
         }
       }
     } catch (err) {
-      console.error("Error confirming link:", err)
+      console.error("[MyEventPage] handleConfirm: Error confirming link:", err)
       setError(err instanceof Error ? err.message : "Failed to confirm link")
     } finally {
       setUpdatingEvents((prev) => {
@@ -252,11 +284,13 @@ export default function MyEventPage() {
 
   const handleReject = async (eventId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!userId) return
+    
+    // Clear any previous error before starting the action
+    setError(null)
 
     setUpdatingEvents((prev) => new Set(prev).add(eventId))
     try {
-      const response = await fetch(`/api/v1/users/${userId}/driver-links/events/${eventId}`, {
+      const response = await fetch(`/api/v1/users/me/driver-links/events/${eventId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -291,19 +325,20 @@ export default function MyEventPage() {
   }
 
   const handleBulkConfirm = async () => {
-    if (!userId) return
-
     const suggestedEvents = events.filter((event) => {
       const detail = participationMap.get(event.id)
       return detail?.userDriverLinkStatus === "suggested"
     })
 
     if (suggestedEvents.length === 0) return
+    
+    // Clear any previous error before starting the action
+    setError(null)
 
     setUpdatingEvents(new Set(suggestedEvents.map((e) => e.id)))
     try {
       const confirmPromises = suggestedEvents.map((event) =>
-        fetch(`/api/v1/users/${userId}/driver-links/events/${event.id}`, {
+        fetch(`/api/v1/users/me/driver-links/events/${event.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -332,19 +367,20 @@ export default function MyEventPage() {
   }
 
   const handleBulkReject = async () => {
-    if (!userId) return
-
     const suggestedEvents = events.filter((event) => {
       const detail = participationMap.get(event.id)
       return detail?.userDriverLinkStatus === "suggested"
     })
 
     if (suggestedEvents.length === 0) return
+    
+    // Clear any previous error before starting the action
+    setError(null)
 
     setUpdatingEvents(new Set(suggestedEvents.map((e) => e.id)))
     try {
       const rejectPromises = suggestedEvents.map((event) =>
-        fetch(`/api/v1/users/${userId}/driver-links/events/${event.id}`, {
+        fetch(`/api/v1/users/me/driver-links/events/${event.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -430,7 +466,7 @@ export default function MyEventPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
-      <Breadcrumbs items={[{ label: "Home", href: "/dashboard" }, { label: "My Events" }]} />
+      <Breadcrumbs items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "My Events" }]} />
       {/* Page Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -450,10 +486,19 @@ export default function MyEventPage() {
         </div>
       )}
 
-      {/* Error State */}
+      {/* Error State - Dismissible alert that doesn't hide the table */}
       {error && !loading && !hasNoDriverPersona && (
-        <div className="text-center py-12">
-          <p className="text-red-500">Error: {error}</p>
+        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-between">
+          <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 ml-4 flex-shrink-0"
+            aria-label="Dismiss error"
+          >
+            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
         </div>
       )}
 
@@ -498,7 +543,7 @@ export default function MyEventPage() {
                   href="/dashboard"
                   className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
                 >
-                  Go to Dashboard
+                  Go to My Event Analysis
                 </Link>
               </div>
             </>
@@ -522,7 +567,7 @@ export default function MyEventPage() {
                   href="/dashboard"
                   className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
                 >
-                  Go to Dashboard
+                  Go to My Event Analysis
                 </Link>
               </div>
             </>
@@ -530,8 +575,8 @@ export default function MyEventPage() {
         </div>
       )}
 
-      {/* Events Table */}
-      {!loading && !error && events.length > 0 && (
+      {/* Events Table - show even if there's an error so users can retry */}
+      {!loading && events.length > 0 && (
         <div className="space-y-4">
           {/* Filter and Bulk Actions */}
           <div className="flex items-center justify-between">
@@ -637,7 +682,13 @@ export default function MyEventPage() {
                           {detail?.userDriverLinkStatus === "suggested" ? (
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={(e) => handleConfirm(event.id, e)}
+                                onClick={(e) => {
+                                  console.log("[MyEventPage] Confirm button clicked:", {
+                                    eventId: event.id,
+                                    isDisabled: updatingEvents.has(event.id),
+                                  })
+                                  handleConfirm(event.id, e)
+                                }}
                                 disabled={updatingEvents.has(event.id)}
                                 className="px-2 py-1 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 title="Confirm this match"

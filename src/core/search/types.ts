@@ -8,7 +8,7 @@
  * @description TypeScript type definitions for unified search feature
  */
 
-export type SessionType = "race" | "practice" | "qualifying"
+export type SessionType = "race" | "practice" | "qualifying" | "practiceday"
 
 export interface UnifiedSearchParams {
   query?: string
@@ -37,7 +37,7 @@ export interface SessionSearchResult {
   raceId: string
   raceLabel: string
   className: string
-  sessionType: SessionType | null
+  sessionType: SessionType // Backward compatibility: defaults to "race" if null in database
   eventId: string
   eventName: string
   eventDate: string | null

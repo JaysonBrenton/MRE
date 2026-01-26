@@ -28,7 +28,7 @@ export default async function AdminUsersPage() {
     <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/dashboard" },
           { label: "Admin Console", href: "/admin" },
           { label: "Users" },
         ]}

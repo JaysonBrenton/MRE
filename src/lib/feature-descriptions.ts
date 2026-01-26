@@ -43,6 +43,10 @@ export const FEATURE_DESCRIPTIONS: Record<string, { name: string; description: s
     name: "My Club",
     description: "Home club dashboard & community",
   },
+  "/dashboard/my-club/track-maps": {
+    name: "Track Maps",
+    description: "Build and share track layouts",
+  },
   "/dashboard/my-team": {
     name: "My Team",
     description: "Team dashboard & insights",
@@ -62,6 +66,16 @@ export const FEATURE_PATTERNS: Array<{
     pattern: /^\/drivers\/[^/]+$/,
     name: "Driver Profile",
     description: "View detailed driver profile and statistics",
+  },
+  {
+    pattern: /^\/dashboard\/my-club\/track-maps\/[^/]+$/,
+    name: "Track Map Editor",
+    description: "Edit and customize track map layouts",
+  },
+  {
+    pattern: /^\/dashboard\/my-club\/track-maps\/shared\/[^/]+$/,
+    name: "Shared Track Map",
+    description: "View shared track map",
   },
 ]
 

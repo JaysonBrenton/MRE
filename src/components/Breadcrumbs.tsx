@@ -10,7 +10,7 @@
  * @purpose Provides consistent breadcrumb navigation across the application
  * 
  * @relatedFiles
- * - src/app/(authenticated)/events/analyse/[eventId]/page.tsx
+ * - src/app/(authenticated)/dashboard/page.tsx
  * - src/app/(authenticated)/event-search/page.tsx
  * - src/app/(authenticated)/events/page.tsx
  * - src/app/(authenticated)/dashboard/my-event/page.tsx

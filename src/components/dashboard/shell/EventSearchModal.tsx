@@ -139,16 +139,19 @@ export default function EventSearchModal({
           </button>
         </div>
 
-        {/* Body */}
+        {/* Body: flex column so form stays fixed, only results scroll */}
         <div 
-          className="flex-1 overflow-y-auto overflow-x-hidden"
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
           style={{ 
-            minWidth: 0,
+            minWidth: '20rem',
             width: '100%',
             boxSizing: 'border-box'
           }}
         >
-          <div className="p-6">
+          <div
+            className="flex-1 min-h-0 flex flex-col p-6"
+            style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}
+          >
             <EventSearchContainer onSelectForDashboard={handleSelectForDashboard} />
           </div>
         </div>

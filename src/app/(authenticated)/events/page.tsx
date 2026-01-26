@@ -22,7 +22,7 @@ import EventsPageClient from "@/components/events/EventsPageClient"
 export default async function EventsPage() {
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl">
-      <Breadcrumbs items={[{ label: "Home", href: "/dashboard" }, { label: "Events" }]} />
+      <Breadcrumbs items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Events" }]} />
       <EventsPageClient />
     </section>
   )

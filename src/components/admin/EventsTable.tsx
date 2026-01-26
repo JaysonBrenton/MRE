@@ -379,7 +379,7 @@ export default function EventsTable() {
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-[var(--token-surface)]">
             {filteredAndSortedEvents.length === 0 ? (
               <tr>
                 <td

@@ -28,7 +28,9 @@ import DriversTab from "@/components/event-analysis/DriversTab"
 import EntryListTab from "@/components/event-analysis/EntryListTab"
 import SessionsTab from "@/components/event-analysis/SessionsTab"
 import ComparisonsTab from "@/components/event-analysis/ComparisonsTab"
+import ComparisonTest from "@/components/event-analysis/ComparisonTest"
 import EventAnalysisHeader from "@/components/event-analysis/EventAnalysisHeader"
+import { useEventActions } from "@/components/dashboard/EventActionsContext"
 import { DriverCardsAndWeatherGrid } from "@/components/dashboard/DashboardClient"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
@@ -141,6 +143,15 @@ export default function EventAnalysisSection() {
   const isAnalysisLoading = useAppSelector((state) => state.dashboard.isAnalysisLoading)
   const analysisError = useAppSelector((state) => state.dashboard.analysisError)
   const eventData = useAppSelector((state) => state.dashboard.eventData)
+  const isEventLoading = useAppSelector((state) => state.dashboard.isEventLoading)
+  // Check if Redux has rehydrated from sessionStorage
+  // This prevents showing empty states during the brief rehydration window after hard reload
+  const isRehydrated = useAppSelector(
+    (state) => {
+      const dashboardState = state.dashboard as typeof state.dashboard & { _persist?: { rehydrated?: boolean } }
+      return dashboardState._persist?.rehydrated ?? true
+    }
+  )
   
   // Weather state - moved from DashboardClient
   const [weather, setWeather] = useState<{
@@ -204,54 +215,36 @@ export default function EventAnalysisSection() {
   }, [selectedEventId])
 
   const [activeTab, setActiveTab] = useState<TabId>("overview")
-  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
-  const [selectedClass, setSelectedClass] = useState<string | null>(null)
   const [hasInitiatedFetch, setHasInitiatedFetch] = useState(false)
+  const eventActions = useEventActions()
+  const selectedDriverIds = eventActions.selectedDriverIds
+  const selectedClass = eventActions.selectedClass
   const sectionRef = useRef<HTMLElement>(null)
   const lastFetchedEventId = useRef<string | null>(null)
 
-  // Reset fetch state when event is deselected
+  // Reset fetch state when event is deselected or changes
   useEffect(() => {
     if (!selectedEventId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasInitiatedFetch(false)
       lastFetchedEventId.current = null
+    } else if (lastFetchedEventId.current && lastFetchedEventId.current !== selectedEventId) {
+      // Event changed - selections are reset by EventActionsProvider
     }
   }, [selectedEventId])
 
-  // Lazy load: Only fetch analysis data when section becomes visible or user interacts
-  // This prevents loading heavy data when event is selected but user hasn't scrolled to analysis section
+  // Fetch analysis data when event is selected
+  // Trigger fetch immediately when event changes
   useEffect(() => {
     if (!selectedEventId) {
       return
     }
 
-    // If event changed, reset fetch state and trigger fetch if section is visible
+    // If event changed, reset fetch state
     if (lastFetchedEventId.current !== selectedEventId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasInitiatedFetch(false)
       lastFetchedEventId.current = selectedEventId
-
-      // If section is already visible, trigger fetch immediately
-      // This fixes the issue where switching events doesn't trigger a fetch
-      // if the section is already visible (IntersectionObserver won't fire again)
-      // Note: We don't check isAnalysisLoading here because selectEvent sets it to true
-      // before the fetch is dispatched, which would prevent the fetch from happening
-      // We also don't check hasInitiatedFetch because state updates are async - we use
-      // the fact that lastFetchedEventId changed to know we need to fetch
-      const section = sectionRef.current
-      if (section) {
-        const rect = section.getBoundingClientRect()
-        const isVisible = rect.top < window.innerHeight + 200 && rect.bottom > -200
-
-        // Trigger fetch if visible and we don't have data for this event
-        // We know we need to fetch because lastFetchedEventId just changed
-        if (isVisible && (!analysisData || analysisData.event.id !== selectedEventId)) {
-          setHasInitiatedFetch(true)
-          dispatch(fetchEventAnalysisData(selectedEventId))
-          return
-        }
-      }
     }
 
     // If we already have data for this event, mark as initiated
@@ -260,35 +253,29 @@ export default function EventAnalysisSection() {
       return
     }
 
-    // Use IntersectionObserver to detect when section is visible
-    const section = sectionRef.current
-    if (!section || hasInitiatedFetch) return
+    // Don't proceed if we're already loading or have initiated fetch
+    if (hasInitiatedFetch || isAnalysisLoading) {
+      return
+    }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0]
-        // When section becomes visible and we haven't fetched yet, fetch the data
-        if (
-          entry.isIntersecting &&
-          selectedEventId &&
-          !hasInitiatedFetch &&
-          !isAnalysisLoading &&
-          (!analysisData || analysisData.event.id !== selectedEventId)
-        ) {
-          setHasInitiatedFetch(true)
-          dispatch(fetchEventAnalysisData(selectedEventId))
-        }
-      },
-      {
-        rootMargin: "200px", // Start loading 200px before section is visible
-        threshold: 0.1,
+    // Trigger fetch immediately when event is selected
+    // Use a small delay to ensure component state is stable
+    const timeoutId = setTimeout(() => {
+      // Double-check we still need to fetch (state might have changed during timeout)
+      if (
+        selectedEventId &&
+        lastFetchedEventId.current === selectedEventId &&
+        !hasInitiatedFetch &&
+        !isAnalysisLoading &&
+        (!analysisData || analysisData.event.id !== selectedEventId)
+      ) {
+        setHasInitiatedFetch(true)
+        dispatch(fetchEventAnalysisData(selectedEventId))
       }
-    )
-
-    observer.observe(section)
+    }, 50)
 
     return () => {
-      observer.disconnect()
+      clearTimeout(timeoutId)
     }
   }, [selectedEventId, analysisData, isAnalysisLoading, hasInitiatedFetch, dispatch])
 
@@ -318,152 +305,145 @@ export default function EventAnalysisSection() {
 
   const availableTabs = [
     { id: "overview" as TabId, label: "Event Overview" },
-    { id: "sessions" as TabId, label: "Sessions / Heats" },
+    { id: "sessions" as TabId, label: "Event Sessions" },
     { id: "comparisons" as TabId, label: "Comparisons" },
+    { id: "comparison-test" as TabId, label: "Comparison Test" },
     { id: "entry-list" as TabId, label: "Entry List" },
     { id: "drivers" as TabId, label: "Drivers" },
   ]
 
-  // Empty state - no event selected (handled by DashboardClient)
+  // Hide section entirely during rehydration to avoid duplicate loading messages
+  // DashboardClient handles the initial loading state
+  if (!isRehydrated) {
+    return null
+  }
+
+  // Hide section when no event is selected (DashboardClient shows the empty state)
+  // This prevents duplicate empty state messages
   if (!selectedEventId) {
     return null
   }
 
-  // Loading state
-  if (isAnalysisLoading) {
-    return (
-      <section ref={sectionRef} className="mt-6 space-y-4">
-        <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-          <p className="text-[var(--token-text-secondary)]">Loading event analysis data...</p>
-        </div>
-      </section>
-    )
-  }
+  // Show section even while event data is loading - it will show its own loading state
+  // This ensures the section is visible and can start fetching analysis data
 
-  // Error state
-  if (analysisError) {
-    return (
-      <section ref={sectionRef} className="mt-6 space-y-4">
-        <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-          <p className="text-[var(--token-text-error)] mb-4">{analysisError}</p>
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedEventId) {
-                setHasInitiatedFetch(true)
-                dispatch(fetchEventAnalysisData(selectedEventId))
-              }
-            }}
-            className="px-4 py-2 rounded-lg bg-[var(--token-accent)] text-[var(--token-text-on-accent)] hover:opacity-90 transition"
-          >
-            Retry
-          </button>
-        </div>
-      </section>
-    )
-  }
-
-  // No data state - show lazy loading prompt if we haven't initiated fetch yet
-  if (!transformedData) {
-    return (
-      <section ref={sectionRef} className="mt-6 space-y-4">
-        <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-          {!hasInitiatedFetch ? (
-            <p className="text-[var(--token-text-secondary)]">
-              Scroll down or click a tab to load event analysis data
-            </p>
-          ) : (
-            <p className="text-[var(--token-text-secondary)]">No analysis data available</p>
-          )}
-        </div>
-      </section>
-    )
-  }
-
-  // Render analysis content
   return (
-    <section ref={sectionRef} className="mt-6 space-y-6">
-      {transformedData && (
-        <>
-          <EventAnalysisHeader
-            eventName={transformedData.event.eventName}
-            eventDate={transformedData.event.eventDate}
-            trackName={transformedData.event.trackName}
-          />
-        </>
-      )}
+    <section ref={sectionRef} className="-mt-[9px]">
+      <div className="space-y-6">
 
-      {transformedData && (
-        <>
+          {/* Error state */}
+          {selectedEventId && analysisError && (
+            <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
+              <p className="text-[var(--token-text-error)] mb-4">{analysisError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedEventId) {
+                    setHasInitiatedFetch(true)
+                    dispatch(fetchEventAnalysisData(selectedEventId))
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-[var(--token-accent)] text-[var(--token-text-on-accent)] hover:opacity-90 transition"
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
-          <div className="space-y-6">
-            <TabNavigation
-              tabs={availableTabs}
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-            />
+          {/* No data state - only show if we've tried to fetch and got no data */}
+          {selectedEventId && !transformedData && !isAnalysisLoading && hasInitiatedFetch && (
+            <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
+              <p className="text-[var(--token-text-secondary)]">No analysis data available</p>
+            </div>
+          )}
 
-            {activeTab === "overview" && (
-              <>
-                <OverviewTab
-                  data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  onDriverSelectionChange={setSelectedDriverIds}
-                  selectedClass={selectedClass}
-                  onClassChange={setSelectedClass}
+          {/* Render analysis content */}
+          {selectedEventId && transformedData && (
+            <>
+              <EventAnalysisHeader
+                eventName={transformedData.event.eventName}
+                eventDate={transformedData.event.eventDate}
+                trackName={transformedData.event.trackName}
+              />
+
+              <div className="space-y-6">
+                <TabNavigation
+                  tabs={availableTabs}
+                  activeTab={activeTab}
+                  onTabChange={handleTabChange}
                 />
-                {/* Driver Cards and Weather Grid - moved from DashboardHero */}
-                {eventData && transformedData && (
-                  <DriverCardsAndWeatherGrid
-                    event={eventData.event}
-                    topDrivers={eventData.topDrivers}
-                    mostConsistentDrivers={eventData.mostConsistentDrivers}
-                    bestAvgLapDrivers={eventData.bestAvgLapDrivers}
-                    mostImprovedDrivers={eventData.mostImprovedDrivers}
-                    userBestLap={eventData.userBestLap}
-                    userBestConsistency={eventData.userBestConsistency}
-                    userBestAvgLap={eventData.userBestAvgLap}
-                    weather={weather}
-                    weatherLoading={weatherLoading}
-                    weatherError={weatherError}
-                    selectedClass={selectedClass}
-                    races={transformedData.races}
+
+                {activeTab === "overview" && (
+                  <>
+                    <OverviewTab
+                      data={transformedData}
+                      selectedDriverIds={selectedDriverIds}
+                      onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                      selectedClass={selectedClass}
+                      onClassChange={eventActions.onClassChange}
+                    />
+                    {/* Driver Cards and Weather Grid - moved from DashboardHero */}
+                    {eventData && transformedData && (
+                      <DriverCardsAndWeatherGrid
+                        event={eventData.event}
+                        topDrivers={eventData.topDrivers}
+                        mostConsistentDrivers={eventData.mostConsistentDrivers}
+                        bestAvgLapDrivers={eventData.bestAvgLapDrivers}
+                        mostImprovedDrivers={eventData.mostImprovedDrivers}
+                        userBestLap={eventData.userBestLap}
+                        userBestConsistency={eventData.userBestConsistency}
+                        userBestAvgLap={eventData.userBestAvgLap}
+                        userBestImprovement={eventData.userBestImprovement}
+                        weather={weather}
+                        weatherLoading={weatherLoading}
+                        weatherError={weatherError}
+                        selectedClass={selectedClass}
+                        selectedDriverIds={selectedDriverIds}
+                        races={transformedData.races}
+                      />
+                    )}
+                  </>
+                )}
+
+                {activeTab === "drivers" && (
+                  <DriversTab
+                    data={transformedData}
+                    selectedDriverIds={selectedDriverIds}
+                    onSelectionChange={eventActions.onDriverSelectionChange}
                   />
                 )}
-              </>
-            )}
 
-            {activeTab === "drivers" && (
-              <DriversTab
-                data={transformedData}
-                selectedDriverIds={selectedDriverIds}
-                onSelectionChange={setSelectedDriverIds}
-              />
-            )}
+                {activeTab === "entry-list" && <EntryListTab data={transformedData} />}
 
-            {activeTab === "entry-list" && <EntryListTab data={transformedData} />}
+                {activeTab === "sessions" && (
+                  <SessionsTab
+                    data={transformedData}
+                    selectedDriverIds={selectedDriverIds}
+                    selectedClass={selectedClass}
+                  />
+                )}
 
-            {activeTab === "sessions" && (
-              <SessionsTab
-                data={transformedData}
-                selectedDriverIds={selectedDriverIds}
-                selectedClass={selectedClass}
-              />
-            )}
+                {activeTab === "comparisons" && transformedData && selectedEventId && (
+                  <ComparisonsTab
+                    selectedClass={selectedClass}
+                    eventId={selectedEventId}
+                    data={transformedData}
+                  />
+                )}
 
-            {activeTab === "comparisons" && <ComparisonsTab />}
-          </div>
-        </>
-      )}
+                {activeTab === "comparison-test" && transformedData && selectedEventId && (
+                  <ComparisonTest
+                    selectedClass={selectedClass}
+                    eventId={selectedEventId}
+                    data={transformedData}
+                  />
+                )}
+              </div>
+            </>
+          )}
 
-      {/* Show loading state if event is selected but data hasn't been fetched yet */}
-      {selectedEventId && !hasInitiatedFetch && !isAnalysisLoading && !analysisData && (
-        <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-          <p className="text-[var(--token-text-secondary)]">
-            Scroll down or click a tab to load event analysis data
-          </p>
-        </div>
-      )}
+      </div>
     </section>
   )
+
 }

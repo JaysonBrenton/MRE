@@ -1,7 +1,7 @@
 ---
 created: 2025-01-28
 creator: System
-lastModified: 2025-01-28
+lastModified: 2026-01-26
 description: Quick reference checklist for preventing flexbox layout bugs
 purpose: Provides a quick reference checklist to prevent horizontal compression and layout breakage issues
 relatedFiles:
@@ -86,6 +86,91 @@ If you must implement manually (not using reusable components):
 - [ ] Tested on mobile viewport (375px width)
 - [ ] Verified no horizontal scrolling occurs
 
+## ✅ Content Blocks in Scrollable Flex Containers
+
+**⚠️ CRITICAL: This is the #1 cause of horizontal compression bugs. Read this section carefully.**
+
+When you create a scrollable flex layout (e.g., "form fixed, results scroll"), you **MUST** add explicit width constraints to **all content blocks** inside the scroll container, not just the container itself.
+
+**The Problem:**
+- You add `flex-1 min-h-0 overflow-y-auto` to create a scrollable section ✅
+- You add `min-w-0` to allow flex shrinking ✅
+- But you forget to add `minWidth` to **content blocks** (empty states, messages, etc.) ❌
+- Result: Content collapses to 0 width, text wraps vertically, layout breaks
+
+**The Solution:**
+Every content block inside a scrollable flex container needs **inline styles** for width:
+
+- [ ] **Scroll container** has inline `style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}`
+- [ ] **All flex parent chain** (modal body, padded divs, container root) have inline `minWidth: '20rem'` (or match modal's minWidth)
+- [ ] **All content blocks** (empty states, loading messages, error messages) have inline `style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}`
+- [ ] **Inner content divs** (e.g., `max-w-md` containers) have inline `style={{ minWidth: '20rem', maxWidth: '28rem', width: '100%', boxSizing: 'border-box' }}`
+- [ ] **DO NOT use Tailwind `w-full min-w-0` alone** - it will compress!
+- [ ] **DO NOT assume "w-full = safe"** - if parent is 0 width, 100% of 0 is still 0
+
+**Example Pattern:**
+
+```tsx
+// ✅ CORRECT - Using utility functions (PREFERRED)
+import { getContentBlockStyles, getContentBlockStylesWithMax } from "@/lib/modal-styles"
+
+<section
+  className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-6"
+  style={getContentBlockStyles()}
+>
+  {/* Empty state wrapper - MUST have inline width */}
+  <div className="py-8" style={getContentBlockStyles()}>
+    {/* Inner content - MUST have inline width with max */}
+    <div
+      className="mx-auto px-4 space-y-3 text-center"
+      style={getContentBlockStylesWithMax('28rem')}
+    >
+      <p>Content that won't compress</p>
+    </div>
+  </div>
+</section>
+
+// ✅ CORRECT - Manual inline styles (also acceptable)
+<section
+  className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-6"
+  style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}
+>
+  <div
+    className="py-8"
+    style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}
+  >
+    <div
+      className="mx-auto px-4 space-y-3 text-center"
+      style={{
+        minWidth: '20rem',
+        maxWidth: '28rem',
+        width: '100%',
+        boxSizing: 'border-box',
+      }}
+    >
+      <p>Content that won't compress</p>
+    </div>
+  </div>
+</section>
+
+// ❌ WRONG - Tailwind only, will compress to 0 width!
+<section className="flex-1 min-h-0 overflow-y-auto min-w-0">
+  <div className="py-8 w-full min-w-0">
+    <div className="mx-auto max-w-md px-2">
+      <p>This will compress!</p>
+    </div>
+  </div>
+</section>
+```
+
+**When to Apply:**
+- Any scrollable flex container (`overflow-y-auto` or `overflow-y-scroll`)
+- Any content block inside a flex layout (empty states, loading states, messages)
+- Any nested flex column layout (modal → body → container → section)
+- Any time you use `min-w-0` - you MUST also add a positive `minWidth` somewhere in the chain
+
+**Remember:** The flexbox checklist says "DO NOT rely on Tailwind classes alone" - this applies to **content blocks** too, not just containers!
+
 ## ✅ Testing Checklist
 
 Before considering the feature complete:
@@ -111,6 +196,8 @@ If you see any of these, you have a layout bug:
 - Horizontal scrolling appears unexpectedly
 - Text overlaps with buttons/icons
 - Content appears as a thin grey bar
+- **Text wraps vertically (one word per line) in empty states or messages** ⚠️ **Most common flex compression bug**
+- **Content blocks have width: 0px in browser inspector** ⚠️ **Check inline width styles**
 - Pagination controls appear too close to footer
 - Footer overlaps pagination controls
 
@@ -122,6 +209,11 @@ If you see any of these, you have a layout bug:
 - Page Containers: `src/components/layout/PageContainer.tsx`
 - Content Wrappers: `src/components/layout/ContentWrapper.tsx`
 - Pagination: `src/components/event-analysis/ChartPagination.tsx` (reference implementation)
+
+**Width Style Utilities:**
+- Modal containers: `getModalContainerStyles(maxWidth)` from `@/lib/modal-styles`
+- Content blocks: `getContentBlockStyles(minWidth?)` from `@/lib/modal-styles`
+- Content blocks with max: `getContentBlockStylesWithMax(maxWidth, minWidth?)` from `@/lib/modal-styles`
 
 **Documentation:**
 - Full guidelines: `docs/design/mre-mobile-ux-guidelines.md` Section 5.7

@@ -915,6 +915,7 @@ class Repository:
                 - race_url: str
                 - start_time: Optional[datetime]
                 - duration_seconds: Optional[int]
+                - session_type: Optional[str] (values: "race", "practice", "qualifying", "practiceday")
         
         Returns:
             Dictionary mapping source_race_id to Race instance
@@ -924,9 +925,44 @@ class Repository:
         
         now = datetime.utcnow()
         
+        # Import SessionType enum for conversion
+        from ingestion.db.models import SessionType
+        
         # Prepare batch data
         batch_data = []
         for race_data in races_data:
+            # Convert session_type string to enum if provided
+            session_type_value = race_data.get("session_type")
+            session_type_enum = None
+            if session_type_value:
+                # If already a SessionType enum, use it directly
+                if isinstance(session_type_value, SessionType):
+                    session_type_enum = session_type_value
+                elif isinstance(session_type_value, str):
+                    # Normalize to lowercase since enum values are lowercase
+                    session_type_normalized = session_type_value.lower()
+                    try:
+                        session_type_enum = SessionType(session_type_normalized)
+                    except (ValueError, TypeError) as e:
+                        # Invalid session type, log and skip
+                        logger.warning(
+                            "invalid_session_type",
+                            session_type=session_type_value,
+                            normalized=session_type_normalized,
+                            source_race_id=race_data.get("source_race_id"),
+                            error=str(e),
+                        )
+                        session_type_enum = None
+                else:
+                    # Non-string, non-enum value - log and skip
+                    logger.warning(
+                        "invalid_session_type_type",
+                        session_type=session_type_value,
+                        session_type_type=type(session_type_value).__name__,
+                        source_race_id=race_data.get("source_race_id"),
+                    )
+                    session_type_enum = None
+            
             race_dict = {
                 "event_id": _uuid_to_str(race_data["event_id"]),
                 "source": race_data["source"],
@@ -937,6 +973,8 @@ class Repository:
                 "race_url": race_data["race_url"],
                 "start_time": race_data.get("start_time"),
                 "duration_seconds": race_data.get("duration_seconds"),
+                # Store enum object - TypeDecorator will handle conversion to value
+                "session_type": session_type_enum,
                 "created_at": now,
                 "updated_at": now,
             }
@@ -945,17 +983,30 @@ class Repository:
         # Use PostgreSQL dialect insert with ON CONFLICT
         # Unique constraint is (event_id, source_race_id) - use index_elements for unique index
         stmt = pg_insert(Race).values(batch_data)
+        
+        # Build update set - update session_type only if provided (don't overwrite existing with None)
+        update_set = {
+            "class_name": stmt.excluded.class_name,
+            "race_label": stmt.excluded.race_label,
+            "race_order": stmt.excluded.race_order,
+            "race_url": stmt.excluded.race_url,
+            "start_time": stmt.excluded.start_time,
+            "duration_seconds": stmt.excluded.duration_seconds,
+            "updated_at": now,
+        }
+        # Only update session_type if a value is provided (not None)
+        # Check if any race_data has session_type set
+        has_session_type = any(r.get("session_type") for r in races_data)
+        if has_session_type:
+            from sqlalchemy import case
+            update_set["session_type"] = case(
+                (stmt.excluded.session_type.isnot(None), stmt.excluded.session_type),
+                else_=Race.session_type,
+            )
+        
         stmt = stmt.on_conflict_do_update(
             index_elements=["event_id", "source_race_id"],
-            set_={
-                "class_name": stmt.excluded.class_name,
-                "race_label": stmt.excluded.race_label,
-                "race_order": stmt.excluded.race_order,
-                "race_url": stmt.excluded.race_url,
-                "start_time": stmt.excluded.start_time,
-                "duration_seconds": stmt.excluded.duration_seconds,
-                "updated_at": now,
-            },
+            set_=update_set,
         )
         
         self.session.execute(stmt)

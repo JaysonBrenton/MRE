@@ -70,28 +70,8 @@ export default function SessionsTab({
       {/* Header */}
       <div>
         <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
-          Sessions / Heats
+          Sessions and Heats{selectedClass && typeof selectedClass === "string" && selectedClass.trim() !== "" ? ` - ${selectedClass}` : ""}
         </h2>
-      </div>
-
-      {/* Class Selection and Driver Filter Display */}
-      <div className="flex flex-wrap items-center gap-4">
-        {selectedClass && typeof selectedClass === "string" && selectedClass.trim() !== "" ? (
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-[var(--token-text-primary)]">
-              Class:
-            </label>
-            <div className="px-3 py-1.5 text-sm border border-[var(--token-border-default)] rounded bg-[var(--token-surface)] text-[var(--token-text-primary)]">
-              {selectedClass}
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 px-4 py-2 bg-[var(--token-surface-elevated)] rounded border border-[var(--token-border-default)]">
-            <span className="text-sm text-[var(--token-text-secondary)]">
-              Please select a class in the Overview tab to view session data. Go to the Overview tab and use the &quot;Filter by Class&quot; dropdown to select a class.
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Content */}

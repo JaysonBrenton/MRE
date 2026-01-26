@@ -45,6 +45,23 @@ export interface IngestionErrorContext {
   trackId?: string
 }
 
+// Check if an error message is informative (not generic)
+function isInformativeError(message: string): boolean {
+  const genericMessages = [
+    "Internal server error",
+    "Ingestion service error",
+    "An error occurred",
+    "Error",
+    "Failed",
+  ]
+  return (
+    message &&
+    message.length > 0 &&
+    !genericMessages.some((generic) => message.toLowerCase().includes(generic.toLowerCase())) &&
+    message.length > 20 // Ensure it's not just a short generic message
+  )
+}
+
 export function toHttpErrorPayload(
   error: IngestionServiceError,
   context: IngestionErrorContext = {}
@@ -57,12 +74,16 @@ export function toHttpErrorPayload(
   // Special handling for empty entry list errors - use the detailed message from the pipeline
   if (error.code === "VALIDATION_ERROR" && isEmptyEntryListError(error.message)) {
     message = error.message
+  } else if (error.code === "INTERNAL_ERROR" || error.code === "INGESTION_ERROR") {
+    // For internal/ingestion errors, prefer the actual error message if it's informative
+    // This helps users see the real error from the Python service instead of generic message
+    if (isInformativeError(error.message)) {
+      message = error.message
+    }
+    // Otherwise, keep the custom message from CUSTOM_MESSAGE_MAP
   } else if (!message) {
     // Only use error.message if it's not a generic/default message
-    if (error.message && 
-        error.message !== "Internal server error" && 
-        error.message !== "Ingestion service error" &&
-        error.message.length > 0) {
+    if (isInformativeError(error.message)) {
       message = error.message
     } else {
       message = "Ingestion service error"

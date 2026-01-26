@@ -35,17 +35,39 @@ export async function GET() {
   try {
     const session = await auth()
 
+    console.log("[GET /api/v1/users/me] Session check:", {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      userIdType: typeof session?.user?.id,
+      userIdLength: session?.user?.id?.length,
+      email: session?.user?.email,
+      name: session?.user?.name,
+      isAdmin: session?.user?.isAdmin,
+    })
+
     if (!session || !session.user) {
+      console.log("[GET /api/v1/users/me] No session or user, returning 401")
       return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
-    return successResponse({
+    const responseData = {
       userId: session.user.id,
       email: session.user.email,
       name: session.user.name,
       isAdmin: session.user.isAdmin || false,
+    }
+
+    console.log("[GET /api/v1/users/me] Returning response:", {
+      userId: responseData.userId,
+      userIdType: typeof responseData.userId,
+      userIdLength: responseData.userId?.length,
+      hasUserId: !!responseData.userId,
     })
-  } catch {
+
+    return successResponse(responseData)
+  } catch (error) {
+    console.error("[GET /api/v1/users/me] Error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to fetch user information", undefined, 500)
   }
 }

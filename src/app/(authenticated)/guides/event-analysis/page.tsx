@@ -22,7 +22,7 @@ export default async function EventAnalysisGuidePage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/dashboard" },
           { label: "Guides", href: "/guides" },
           { label: "Event Analysis" },
         ]}
@@ -124,7 +124,7 @@ export default async function EventAnalysisGuidePage() {
             Related Guides
           </h2>
           <p className="text-[var(--token-text-secondary)]">
-            Learn how to find events in the <a href="/guides/event-search" className="text-[var(--token-accent)] hover:underline">Event Search Guide</a>, or explore the <a href="/guides/dashboard" className="text-[var(--token-accent)] hover:underline">Dashboard Guide</a> to track your progress over time.
+            Learn how to find events in the <a href="/guides/event-search" className="text-[var(--token-accent)] hover:underline">Event Search Guide</a>, or explore the <a href="/guides/dashboard" className="text-[var(--token-accent)] hover:underline">My Event Analysis Guide</a> to track your progress over time.
           </p>
         </section>
       </div>

@@ -114,7 +114,8 @@ function normalizeLapTimeImprovement(lapTimeImprovement: number, firstFastLap: n
  * @returns Array of most improved drivers, grouped by class, top 3 per class
  */
 export async function calculateMostImprovedDrivers(eventId: string): Promise<MostImprovedDriver[]> {
-  // Get all race results for the event, ordered by raceOrder
+  // Get all race results for the event, ordered by raceOrder then startTime
+  // startTime is needed as fallback since some events have all races with raceOrder=1
   const raceResults = await prisma.raceResult.findMany({
     where: {
       race: {
@@ -128,6 +129,7 @@ export async function calculateMostImprovedDrivers(eventId: string): Promise<Mos
           raceOrder: true,
           raceLabel: true,
           className: true,
+          startTime: true,
         },
       },
       raceDriver: {
@@ -137,11 +139,10 @@ export async function calculateMostImprovedDrivers(eventId: string): Promise<Mos
         },
       },
     },
-    orderBy: {
-      race: {
-        raceOrder: "asc",
-      },
-    },
+    orderBy: [
+      { race: { raceOrder: "asc" } },
+      { race: { startTime: "asc" } },
+    ],
   })
 
   if (raceResults.length === 0) {
@@ -185,11 +186,17 @@ export async function calculateMostImprovedDrivers(eventId: string): Promise<Mos
         continue
       }
 
-      // Sort by raceOrder to ensure first/last are correct
+      // Sort by raceOrder, then by startTime as fallback (some events have all raceOrder=1)
       const sortedResults = [...results].sort((a, b) => {
         const orderA = a.race.raceOrder ?? 0
         const orderB = b.race.raceOrder ?? 0
-        return orderA - orderB
+        if (orderA !== orderB) {
+          return orderA - orderB
+        }
+        // Fallback to startTime when raceOrder is the same
+        const timeA = a.race.startTime?.getTime() ?? 0
+        const timeB = b.race.startTime?.getTime() ?? 0
+        return timeA - timeB
       })
 
       const firstResult = sortedResults[0]

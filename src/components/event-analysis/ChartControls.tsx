@@ -17,15 +17,10 @@
 
 "use client"
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { FixedSizeList } from "react-window"
 import Modal from "@/components/ui/Modal"
-import Tooltip from "@/components/ui/Tooltip"
 import ClassDetailsModal from "./ClassDetailsModal"
-import EventSearchModal from "@/components/dashboard/shell/EventSearchModal"
-import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { selectEvent, clearEvent } from "@/store/slices/dashboardSlice"
 
 export interface Driver {
   driverId: string
@@ -37,6 +32,7 @@ export interface Race {
   results: Array<{
     driverId: string
     driverName: string
+    lapsCompleted?: number
   }>
 }
 
@@ -50,6 +46,7 @@ export interface ChartControlsProps {
   raceClasses?: Map<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
   eventId?: string
   onClassInfoClick?: (className: string) => void
+  onSelectAllClick?: () => void
 }
 
 interface VirtualizedItem {
@@ -236,6 +233,7 @@ export default function ChartControls({
   raceClasses,
   eventId,
   onClassInfoClick,
+  onSelectAllClick,
 }: ChartControlsProps) {
   const [isCompact, setIsCompact] = useState(false)
   const selectedClass = selectedClassProp
@@ -244,166 +242,10 @@ export default function ChartControls({
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
   const [isClassDetailsModalOpen, setIsClassDetailsModalOpen] = useState(false)
-  const [isClassSelectionModalOpen, setIsClassSelectionModalOpen] = useState(false)
-  const [isEventSearchModalOpen, setIsEventSearchModalOpen] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
-  const [successStats, setSuccessStats] = useState<{
-    racesIngested: number
-    resultsIngested: number
-    lapsIngested: number
-    status: string
-    lastIngestedAt?: string
-  } | null>(null)
-  
-  const router = useRouter()
-  const dispatch = useAppDispatch()
-  const selectedEventId = useAppSelector((state) => state.dashboard.selectedEventId)
-  const eventData = useAppSelector((state) => state.dashboard.eventData)
-  const selectedEventName = eventData?.event?.eventName ?? null
+  // Track whether drivers were manually selected via the driver modal
+  // vs auto-selected via class selection
+  const [driversManuallySelected, setDriversManuallySelected] = useState(false)
 
-  const handleSelectEvent = (eventId: string | null) => {
-    if (eventId) {
-      dispatch(selectEvent(eventId))
-    } else {
-      dispatch(clearEvent())
-    }
-  }
-
-  // Helper function to format stats message with proper pluralization
-  const formatStatsMessage = useCallback((stats: {
-    racesIngested: number
-    resultsIngested: number
-    lapsIngested: number
-    status: string
-  }): { title: string; message: string } => {
-    const { racesIngested, resultsIngested, lapsIngested, status } = stats
-    
-    // Helper to pluralize
-    const pluralize = (count: number, singular: string, plural: string) => {
-      return count === 1 ? singular : plural
-    }
-
-    // Handle "in_progress" status
-    if (status === "in_progress") {
-      return {
-        title: "Refresh In Progress",
-        message: "Event data ingestion is still running in the background. The page will update automatically when complete.",
-      }
-    }
-
-    // If all counts are 0 or status is "already_complete"
-    if ((racesIngested === 0 && resultsIngested === 0 && lapsIngested === 0) || status === "already_complete") {
-      return {
-        title: "Event Up to Date",
-        message: "Event is up to date. No new data found since last refresh.",
-      }
-    }
-
-    // Build stats breakdown
-    const statsParts: string[] = []
-    if (racesIngested > 0) {
-      statsParts.push(`${racesIngested} ${pluralize(racesIngested, "race", "races")}`)
-    }
-    if (resultsIngested > 0) {
-      statsParts.push(`${resultsIngested} ${pluralize(resultsIngested, "result", "results")}`)
-    }
-    if (lapsIngested > 0) {
-      statsParts.push(`${lapsIngested} ${pluralize(lapsIngested, "lap", "laps")}`)
-    }
-
-    const statsText = statsParts.length > 0 
-      ? `Ingested ${statsParts.join(", ")}.`
-      : "Refresh complete."
-
-    return {
-      title: "Refresh Complete",
-      message: `Refresh complete! ${statsText}`,
-    }
-  }, [])
-
-  const handleRefreshEventData = useCallback(async () => {
-    if (!eventId || isRefreshing) {
-      return
-    }
-
-    setIsRefreshing(true)
-    setErrorMessage(null)
-    setSuccessStats(null)
-    setIsSuccessModalOpen(false)
-
-    try {
-      const response = await fetch(`/api/v1/events/${eventId}/ingest`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ depth: "laps_full" }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok || !data.success) {
-        const errorMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
-        setErrorMessage(errorMsg)
-        setIsErrorModalOpen(true)
-        return
-      }
-
-      // Check the ingestion response to understand what happened
-      const ingestionData = data.data
-      const status = ingestionData?.status
-      const racesIngested = ingestionData?.races_ingested ?? 0
-      const resultsIngested = ingestionData?.results_ingested ?? 0
-      const lapsIngested = ingestionData?.laps_ingested ?? 0
-      const lastIngestedAt = ingestionData?.last_ingested_at
-
-      // Capture stats for success modal
-      setSuccessStats({
-        racesIngested,
-        resultsIngested,
-        lapsIngested,
-        status: status || "unknown",
-        lastIngestedAt,
-      })
-
-      // Log what happened for debugging
-      console.log("[RefreshEventData] Ingestion response:", {
-        status,
-        racesIngested,
-        resultsIngested,
-        lapsIngested,
-        httpStatus: response.status,
-      })
-
-      // If ingestion is still in progress (202 status), wait before refreshing
-      if (response.status === 202 || status === "in_progress") {
-        // Wait 3 seconds for ingestion to make progress, then refresh
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-        router.refresh()
-        // Show success modal after refresh (even if in progress, show what we know)
-        setIsSuccessModalOpen(true)
-        return
-      }
-
-      // Add a small delay to ensure any async database writes complete
-      // This is especially important for live events where data is being written
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Always refresh to get the latest data from the database
-      // Even if status is "already_complete", we want to show the latest from DB
-      router.refresh()
-      
-      // Show success modal after refresh completes
-      setIsSuccessModalOpen(true)
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error occurred"
-      setErrorMessage(`Failed to refresh event data: ${errorMsg}`)
-      setIsErrorModalOpen(true)
-    } finally {
-      setIsRefreshing(false)
-    }
-  }, [eventId, isRefreshing, router])
   
   // Debug: Log selectedClass value to verify it's updating
   useEffect(() => {
@@ -447,6 +289,7 @@ export default function ChartControls({
 
   const handleDriverToggle = useCallback(
     (driverId: string) => {
+      setDriversManuallySelected(true)
       if (selectedDriverIds.includes(driverId)) {
         onDriverSelectionChange(selectedDriverIds.filter((id) => id !== driverId))
       } else {
@@ -457,12 +300,16 @@ export default function ChartControls({
   )
 
   const handleSelectAll = useCallback(() => {
+    setDriversManuallySelected(true)
     onDriverSelectionChange(visibleDrivers)
-  }, [visibleDrivers, onDriverSelectionChange])
+    onSelectAllClick?.()
+  }, [visibleDrivers, onDriverSelectionChange, onSelectAllClick])
 
   const handleClearSelection = useCallback(() => {
+    setDriversManuallySelected(true)
     onDriverSelectionChange([])
-  }, [onDriverSelectionChange])
+    onClassChange?.(null)
+  }, [onDriverSelectionChange, onClassChange])
 
   // Get total driver count - if a class is selected, show count for that class only
   const totalDriverCount = useMemo(() => {
@@ -506,6 +353,41 @@ export default function ChartControls({
 
     return validSelectedIds.length
   }, [selectedDriverIds, drivers, selectedClass, driversByClass])
+
+  // Track previous selectedClass to detect changes
+  const prevSelectedClassRef = useRef<string | null>(null)
+  
+  // Clear manual selection flag when class is selected/changed
+  // (selecting a class auto-selects drivers, so this isn't manual selection)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useLayoutEffect(() => {
+    const classChanged = selectedClass !== prevSelectedClassRef.current
+    if (classChanged && selectedClass !== null) {
+      // When a class is selected, clear the manual selection flag
+      // because drivers will be auto-selected
+      setDriversManuallySelected(false)
+    }
+    prevSelectedClassRef.current = selectedClass
+  }, [selectedClass])
+
+  // Also clear manual selection flag when selectedDriverIds changes and matches
+  // what would be auto-selected for the current class
+  // This handles the case where class selection triggers driver auto-selection
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    if (selectedClass !== null && selectedDriverIds.length > 0) {
+      const classInfo = driversByClass.get(selectedClass)
+      if (classInfo) {
+        const classDriverIds = new Set(classInfo.drivers.map((d) => d.driverId))
+        const selectedInClass = selectedDriverIds.filter((id) => classDriverIds.has(id))
+        // If all drivers in the class are selected and no drivers outside the class are selected,
+        // this was likely auto-selection due to class selection
+        if (selectedInClass.length === classInfo.driverCount && selectedDriverIds.length === selectedInClass.length) {
+          setDriversManuallySelected(false)
+        }
+      }
+    }
+  }, [selectedClass, selectedDriverIds, driversByClass])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -562,207 +444,6 @@ export default function ChartControls({
 
   return (
     <div className="space-y-4 mb-6">
-      {/* Chart control buttons */}
-      <div className="relative inline-flex items-center gap-2 flex-wrap">
-        {/* Find Events button */}
-        <Tooltip text="Find Events">
-          <button
-            type="button"
-            onClick={() => setIsEventSearchModalOpen(true)}
-            className="flex items-center gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-            aria-label={selectedEventName ? `Selected: ${selectedEventName}. Find Events` : "Find Events"}
-          >
-            <svg
-              className="h-4 w-4 text-[var(--token-text-muted)]"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span>Find Events</span>
-          </button>
-        </Tooltip>
-
-        {/* Refresh Event Data button */}
-        {eventId && (
-          <Tooltip text="Refresh Event Data">
-            <button
-              type="button"
-              onClick={handleRefreshEventData}
-              disabled={isRefreshing}
-              className="flex items-center gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Refresh event data from LiveRC"
-            >
-              {isRefreshing ? (
-                <svg
-                  className="h-4 w-4 text-[var(--token-text-muted)] animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity="0.5"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="h-4 w-4 text-[var(--token-text-muted)]"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M3 21v-5h5"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-              <span>Refresh</span>
-            </button>
-          </Tooltip>
-        )}
-
-        {/* Select Drivers button */}
-        <div className="relative">
-          <Tooltip text="Select Drivers or a Class">
-            <button
-              type="button"
-              onClick={() => setIsDriverModalOpen(true)}
-              className="flex items-center gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              aria-label={`Open driver selection - ${selectionText}`}
-              aria-haspopup="dialog"
-              aria-expanded={isDriverModalOpen}
-            >
-              <svg
-                className="h-4 w-4 text-[var(--token-text-muted)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span>Select Drivers</span>
-              {selectedCount > 0 && (
-                <span className="ml-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--token-accent)] px-1.5 text-xs font-medium text-[var(--token-text-primary)]">
-                  {selectedCount}
-                </span>
-              )}
-            </button>
-          </Tooltip>
-        </div>
-
-        {/* Select Class button */}
-        <div className="relative">
-          <Tooltip text="Select Class">
-            <button
-              type="button"
-              onClick={() => setIsClassSelectionModalOpen(true)}
-              className="flex items-center gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              aria-label={`Select class${selectedClass ? ` - ${selectedClass}` : ""}`}
-              aria-haspopup="dialog"
-              aria-expanded={isClassSelectionModalOpen}
-            >
-              <svg
-                className="h-4 w-4 text-[var(--token-text-muted)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 3h8v8H3V3zM13 3h8v8h-8V3zM3 13h8v8H3v-8zM13 13h8v8h-8v-8z"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span>Select Class</span>
-              {selectedClass && selectedClassInfo && (
-                <span className="ml-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--token-accent)] px-1.5 text-xs font-medium text-[var(--token-text-primary)]">
-                  {selectedClassInfo.driverCount}
-                </span>
-              )}
-            </button>
-          </Tooltip>
-        </div>
-
-        {/* Clear selected event button */}
-        {selectedEventId && (
-          <Tooltip text="Clear selected event">
-            <button
-              type="button"
-              onClick={() => dispatch(clearEvent())}
-              className="flex items-center gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              aria-label="Clear selected event"
-            >
-              <svg
-                className="h-4 w-4 text-[var(--token-text-muted)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span>Clear Event</span>
-            </button>
-          </Tooltip>
-        )}
-
-        {/* Clear driver selection button */}
-        <Tooltip text="Clear driver selection">
-          <button
-            type="button"
-            onClick={handleClearSelection}
-            disabled={selectedCount === 0}
-            className="flex items-center gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Clear driver selection"
-          >
-            <svg
-              className="h-4 w-4 text-[var(--token-text-muted)]"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M6 18L18 6M6 6l12 12"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span>Clear Selection</span>
-          </button>
-        </Tooltip>
-      </div>
-
       {/* Driver Selection Modal */}
       <Modal
         isOpen={isDriverModalOpen}
@@ -984,68 +665,6 @@ export default function ChartControls({
           </div>
         </div>
       </Modal>
-      
-      {/* Class Selection Modal */}
-      <Modal
-        isOpen={isClassSelectionModalOpen}
-        onClose={() => setIsClassSelectionModalOpen(false)}
-        title="Select Class"
-        maxWidth="md"
-        ariaLabel="Class selection modal"
-      >
-        <div className="p-4">
-          <div className="space-y-1">
-            <button
-              type="button"
-              onClick={() => {
-                onClassChange?.(null)
-                setIsClassSelectionModalOpen(false)
-              }}
-              className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
-                selectedClass === null
-                  ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)] font-medium"
-                  : "text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)]"
-              }`}
-            >
-              All Classes
-            </button>
-            {classesSorted.map((classInfo) => (
-              <button
-                key={classInfo.className}
-                type="button"
-                onClick={() => {
-                  const className = classInfo.className
-                  console.log("[ChartControls] Class selected:", className, "Type:", typeof className, "Length:", className?.length)
-                  console.log("[ChartControls] onClassChange exists:", !!onClassChange)
-                  if (onClassChange && className) {
-                    console.log("[ChartControls] Calling onClassChange with:", className)
-                    onClassChange(className)
-                    console.log("[ChartControls] onClassChange called successfully")
-                  } else {
-                    console.error("[ChartControls] ERROR: onClassChange is undefined or className is falsy!", { onClassChange: !!onClassChange, className })
-                  }
-                  setIsClassSelectionModalOpen(false)
-                }}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
-                  selectedClass === classInfo.className
-                    ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)] font-medium"
-                    : "text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)]"
-                }`}
-              >
-                {classInfo.className} ({classInfo.driverCount})
-              </button>
-            ))}
-          </div>
-        </div>
-      </Modal>
-
-      {/* Event Search Modal */}
-      <EventSearchModal
-        isOpen={isEventSearchModalOpen}
-        onClose={() => setIsEventSearchModalOpen(false)}
-        onSelectEvent={handleSelectEvent}
-        selectedEventId={selectedEventId}
-      />
 
       {/* Class Details Modal */}
       {eventId && selectedClass && raceClasses && (
@@ -1057,126 +676,57 @@ export default function ChartControls({
           vehicleType={raceClasses.get(selectedClass)?.vehicleType ?? null}
           vehicleTypeNeedsReview={raceClasses.get(selectedClass)?.vehicleTypeNeedsReview ?? true}
           onSave={async (vehicleType, acceptInference) => {
-            const response = await fetch(
-              `/api/v1/events/${eventId}/race-classes/${encodeURIComponent(selectedClass)}/vehicle-type`,
-              {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ vehicleType, acceptInference }),
-              }
-            )
+            const url = `/api/v1/events/${eventId}/race-classes/${encodeURIComponent(selectedClass)}/vehicle-type`
+            console.log("[ChartControls] Saving vehicle type:", {
+              eventId,
+              className: selectedClass,
+              vehicleType,
+              acceptInference,
+              url,
+            })
+
+            const response = await fetch(url, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ vehicleType, acceptInference }),
+              credentials: "include",
+              cache: "no-store",
+            })
+
             if (!response.ok) {
-              throw new Error("Failed to save vehicle type")
+              // Parse error response to get actual error message
+              let errorMessage = "Failed to save vehicle type"
+              try {
+                const errorData = await response.json()
+                console.error("[ChartControls] Save failed:", errorData)
+                if (errorData.error?.message) {
+                  errorMessage = errorData.error.message
+                } else if (errorData.error?.code) {
+                  errorMessage = `${errorData.error.code}: ${errorMessage}`
+                }
+              } catch {
+                // If response is not JSON, use status text
+                errorMessage = response.statusText || errorMessage
+              }
+              throw new Error(errorMessage)
             }
+
+            // Verify response body indicates success
+            const result = await response.json()
+            console.log("[ChartControls] Save response:", result)
+            if (!result.success) {
+              const errorMessage = result.error?.message || "Save operation failed"
+              console.error("[ChartControls] Save returned success:false:", result)
+              throw new Error(errorMessage)
+            }
+
             // Refresh the page to show updated data
+            console.log("[ChartControls] Save successful, reloading page...")
             window.location.reload()
           }}
         />
       )}
 
-      {/* Error Modal */}
-      <Modal
-        isOpen={isErrorModalOpen}
-        onClose={() => {
-          setIsErrorModalOpen(false)
-          setErrorMessage(null)
-        }}
-        title="Refresh Event Data Error"
-        maxWidth="md"
-        ariaLabel="Error modal for event data refresh"
-        footer={
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                setIsErrorModalOpen(false)
-                setErrorMessage(null)
-              }}
-              className="px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-            >
-              Close
-            </button>
-          </div>
-        }
-      >
-        <div className="p-4">
-          <p className="text-[var(--token-text-primary)]">
-            {errorMessage || "An unknown error occurred while refreshing event data."}
-          </p>
-        </div>
-      </Modal>
-
-      {/* Success Modal */}
-      {successStats && (
-        <Modal
-          isOpen={isSuccessModalOpen}
-          onClose={() => {
-            setIsSuccessModalOpen(false)
-            setSuccessStats(null)
-          }}
-          title={formatStatsMessage(successStats).title}
-          maxWidth="md"
-          ariaLabel="Success modal for event data refresh"
-          footer={
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSuccessModalOpen(false)
-                  setSuccessStats(null)
-                }}
-                className="px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              >
-                Close
-              </button>
-            </div>
-          }
-        >
-          <div className="p-4 space-y-4">
-            <p className="text-[var(--token-text-primary)]">
-              {formatStatsMessage(successStats).message}
-            </p>
-            
-            {/* Statistics breakdown */}
-            {(successStats.racesIngested > 0 || successStats.resultsIngested > 0 || successStats.lapsIngested > 0) && (
-              <div className="border-t border-[var(--token-border-default)] pt-4">
-                <h3 className="text-sm font-semibold text-[var(--token-text-primary)] mb-2">
-                  Statistics
-                </h3>
-                <dl className="grid grid-cols-3 gap-4">
-                  <div>
-                    <dt className="text-xs text-[var(--token-text-secondary)]">Races</dt>
-                    <dd className="text-lg font-medium text-[var(--token-text-primary)]">
-                      {successStats.racesIngested.toLocaleString()}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-[var(--token-text-secondary)]">Results</dt>
-                    <dd className="text-lg font-medium text-[var(--token-text-primary)]">
-                      {successStats.resultsIngested.toLocaleString()}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-[var(--token-text-secondary)]">Laps</dt>
-                    <dd className="text-lg font-medium text-[var(--token-text-primary)]">
-                      {successStats.lapsIngested.toLocaleString()}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            )}
-
-            {/* Last ingested timestamp */}
-            {successStats.lastIngestedAt && (
-              <div className="border-t border-[var(--token-border-default)] pt-4">
-                <p className="text-xs text-[var(--token-text-secondary)]">
-                  Last ingested: {new Date(successStats.lastIngestedAt).toLocaleString()}
-                </p>
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }

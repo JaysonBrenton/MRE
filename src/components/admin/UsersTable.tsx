@@ -243,7 +243,7 @@ export default function UsersTable() {
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-[var(--token-surface)]">
             {users.length === 0 ? (
               <tr>
                 <td
@@ -257,7 +257,7 @@ export default function UsersTable() {
               users.map((user) => (
                 <tr
                   key={user.id}
-                  className="border-b border-[var(--token-border-muted)] hover:bg-[var(--token-surface-raised)]"
+                  className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]"
                 >
                   <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
                     {user.email}

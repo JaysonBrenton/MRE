@@ -22,15 +22,15 @@ export default async function DashboardGuidePage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "Home", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/dashboard" },
           { label: "Guides", href: "/guides" },
-          { label: "Dashboard" },
+          { label: "My Event Analysis" },
         ]}
       />
       <header className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">Dashboard Guide</h1>
+        <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">My Event Analysis Guide</h1>
         <p className="text-sm text-[var(--token-text-secondary)]">
-          Learn how to use your personal dashboard to view statistics, customize widgets, and track
+          Learn how to use your personal event analysis to view statistics, customize widgets, and track
           your racing performance over time.
         </p>
       </header>
@@ -41,19 +41,19 @@ export default async function DashboardGuidePage() {
             Introduction
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            Your dashboard is your personal command center in MRE. It provides quick access to your
-            statistics, recent events, and key actions. You can customize the dashboard to show the
+            My Event Analysis is your personal command center in MRE. It provides quick access to your
+            statistics, recent events, and key actions. You can customize your event analysis to show the
             information most important to you.
           </p>
         </section>
 
         <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
           <h2 className="mb-4 text-xl font-semibold text-[var(--token-text-primary)]">
-            Accessing Your Dashboard
+            Accessing My Event Analysis
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            Click <strong className="text-[var(--token-text-primary)]">Dashboard</strong> in the main navigation menu, or click{" "}
-            <strong className="text-[var(--token-text-primary)]">Home</strong> from any breadcrumb navigation. The dashboard is typically the first page you see after logging in.
+            Click <strong className="text-[var(--token-text-primary)]">My Event Analysis</strong> in the main navigation menu, or click{" "}
+            <strong className="text-[var(--token-text-primary)]">Home</strong> from any breadcrumb navigation. My Event Analysis is typically the first page you see after logging in.
           </p>
         </section>
 
@@ -74,10 +74,10 @@ export default async function DashboardGuidePage() {
 
         <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-6">
           <h2 className="mb-4 text-xl font-semibold text-[var(--token-text-primary)]">
-            Customizing Your Dashboard
+            Customizing My Event Analysis
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            You can customize your dashboard by showing/hiding widgets, rearranging them via drag and drop, and resizing widgets. Your layout changes save automatically and persist across sessions. Use the &quot;Reset Layout&quot; button to return to the default arrangement.
+            You can customize your event analysis by showing/hiding widgets, rearranging them via drag and drop, and resizing widgets. Your layout changes save automatically and persist across sessions. Use the &quot;Reset Layout&quot; button to return to the default arrangement.
           </p>
         </section>
 
@@ -86,7 +86,7 @@ export default async function DashboardGuidePage() {
             Viewing Statistics
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            Your dashboard shows statistics relevant to you, including events imported, events analyzed, tracks searched, and performance metrics like best lap time, average lap time, and consistency score. Track your usage with recent activity and favorite tracks.
+            My Event Analysis shows statistics relevant to you, including events imported, events analyzed, tracks searched, and performance metrics like best lap time, average lap time, and consistency score. Track your usage with recent activity and favorite tracks.
           </p>
         </section>
 
@@ -95,7 +95,7 @@ export default async function DashboardGuidePage() {
             Quick Actions
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            Your dashboard provides quick access to common tasks:
+            My Event Analysis provides quick access to common tasks:
           </p>
           <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
             <li><strong className="text-[var(--token-text-primary)]">Search Events:</strong> Navigate directly to Event Search</li>

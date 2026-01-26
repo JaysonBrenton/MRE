@@ -5,9 +5,9 @@
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
  * 
- * @description Navigation bar for authenticated users with Dashboard and Event Search links
+ * @description Navigation bar for authenticated users with My Event Analysis and Event Search links
  * 
- * @purpose Provides top-level navigation for authenticated Drivers, including Dashboard
+ * @purpose Provides top-level navigation for authenticated Drivers, including My Event Analysis
  *          and Event Search as primary navigation items. Optimized for desktop viewports
  *          with horizontal layout. Uses semantic dark theme tokens.
  * 
@@ -40,7 +40,7 @@ export default function AuthenticatedNav() {
               href="/dashboard"
               className="text-base font-medium text-[var(--token-text-primary)] hover:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
             >
-              Dashboard
+              My Event Analysis
             </Link>
             <LogoutButton />
           </div>

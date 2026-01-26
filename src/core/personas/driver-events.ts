@@ -19,7 +19,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
-import type { Event, EventDriverLinkMatchType, UserDriverLinkStatus } from "@prisma/client"
+import type { Event, EventDriverLinkMatchType, EventDriverLinkStatus } from "@prisma/client"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 
 /**
@@ -29,7 +29,7 @@ export type EventParticipationDetails = {
   eventId: string
   matchType: EventDriverLinkMatchType
   similarityScore: number
-  userDriverLinkStatus: UserDriverLinkStatus
+  userDriverLinkStatus: EventDriverLinkStatus
 }
 
 /**
@@ -65,7 +65,7 @@ export async function discoverDriverEvents(userId: string): Promise<{
   const normalizedDriverName = user.normalizedName || normalizeDriverName(user.driverName)
 
   // Method 1: Query EventDriverLink records for this user
-  // Show all events where there's an EventDriverLink, regardless of UserDriverLink status
+  // Show all events where there's an EventDriverLink, using per-event status
   const eventDriverLinks = await prisma.eventDriverLink.findMany({
     where: {
       userId,
@@ -79,11 +79,6 @@ export async function discoverDriverEvents(userId: string): Promise<{
               trackName: true,
             },
           },
-        },
-      },
-      userDriverLink: {
-        select: {
-          status: true,
         },
       },
     },
@@ -119,7 +114,7 @@ export async function discoverDriverEvents(userId: string): Promise<{
   const eventMap = new Map<string, Event>()
   const participationDetails: EventParticipationDetails[] = []
 
-  // Process EventDriverLink records
+  // Process EventDriverLink records - use the per-event status directly
   for (const link of eventDriverLinks) {
     if (!eventMap.has(link.eventId)) {
       eventMap.set(link.eventId, link.event)
@@ -128,7 +123,7 @@ export async function discoverDriverEvents(userId: string): Promise<{
       eventId: link.eventId,
       matchType: link.matchType,
       similarityScore: link.similarityScore,
-      userDriverLinkStatus: link.userDriverLink?.status || "suggested",
+      userDriverLinkStatus: link.status,
     })
   }
 

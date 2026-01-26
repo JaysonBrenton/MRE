@@ -16,7 +16,7 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2026-01-16 (Added missing endpoints: GET /api/v1/search, car profiles endpoints (5 endpoints), driver profiles endpoints (5 endpoints), GET/PUT /api/v1/events/[eventId]/race-classes/[className]/vehicle-type, GET /api/v1/admin/track-sync/jobs/[jobId], PATCH /api/v1/users/[userId]/driver-links/events/[eventId]; previous updates: Added missing admin endpoints; fixed response formats for GET /api/v1/tracks, GET /api/v1/events/[eventId], GET /api/v1/events/search; added GET /api/v1/admin/tracks; expanded GET /api/v1/events query parameters; added GET /api/v1/users/[userId]/profile endpoint; fixed GET /api/v1/races/[raceId] to include transponder_number and transponder_source; fixed response wrapper format for GET /api/v1/races/[raceId]/laps and GET /api/v1/race-results/[raceResultId]/laps; added GET /api/v1/tracks/[trackId]/performance-trends endpoint for track performance trend analysis)  
+**Last Updated:** 2026-01-13 (Added practice days endpoints: GET /api/v1/practice-days/search, POST /api/v1/practice-days/discover, POST /api/v1/practice-days/ingest; previous updates: Added missing endpoints: GET /api/v1/search, car profiles endpoints (5 endpoints), driver profiles endpoints (5 endpoints), GET/PUT /api/v1/events/[eventId]/race-classes/[className]/vehicle-type, GET /api/v1/admin/track-sync/jobs/[jobId], PATCH /api/v1/users/[userId]/driver-links/events/[eventId]; added missing admin endpoints; fixed response formats for GET /api/v1/tracks, GET /api/v1/events/[eventId], GET /api/v1/events/search; added GET /api/v1/admin/tracks; expanded GET /api/v1/events query parameters; added GET /api/v1/users/[userId]/profile endpoint; fixed GET /api/v1/races/[raceId] to include transponder_number and transponder_source; fixed response wrapper format for GET /api/v1/races/[raceId]/laps and GET /api/v1/race-results/[raceResultId]/laps; added GET /api/v1/tracks/[trackId]/performance-trends endpoint for track performance trend analysis)  
 **API Version:** v1  
 **Base URL:** `/api/v1/` (relative to application root)
 
@@ -33,15 +33,16 @@ This document provides a complete reference for all API endpoints in the My Race
 5. [Transponder Override Endpoints](#transponder-override-endpoints)
 6. [Weather Endpoints](#weather-endpoints)
 7. [Personas Endpoints](#personas-endpoints)
-8. [Search Endpoints](#search-endpoints)
-9. [Car Profiles Endpoints](#car-profiles-endpoints)
-10. [Driver Profiles Endpoints](#driver-profiles-endpoints)
-11. [User Endpoints](#user-endpoints)
-12. [Admin Endpoints](#admin-endpoints)
-13. [Health Check](#health-check)
-14. [Error Handling](#error-handling)
-15. [Authentication Requirements](#authentication-requirements)
-16. [Rate Limiting](#rate-limiting)
+8. [Practice Days Endpoints](#practice-days-endpoints)
+9. [Search Endpoints](#search-endpoints)
+10. [Car Profiles Endpoints](#car-profiles-endpoints)
+11. [Driver Profiles Endpoints](#driver-profiles-endpoints)
+12. [User Endpoints](#user-endpoints)
+13. [Admin Endpoints](#admin-endpoints)
+14. [Health Check](#health-check)
+15. [Error Handling](#error-handling)
+16. [Authentication Requirements](#authentication-requirements)
+17. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -1548,6 +1549,189 @@ Gets team data for the team manager persona view.
 **Example:**
 ```bash
 curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/personas/team-manager/team"
+```
+
+---
+
+## Practice Days Endpoints
+
+**Note:** Practice days endpoints allow discovery, search, and ingestion of practice day sessions from LiveRC. Practice days are treated as special event types with session type `practiceday`.
+
+### GET /api/v1/practice-days/search
+
+Searches for practice days in the database by track and optional date range.
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `track_id` (string, required) - The UUID of the track
+- `start_date` (string, optional) - Start date in ISO 8601 format (YYYY-MM-DD)
+- `end_date` (string, optional) - End date in ISO 8601 format (YYYY-MM-DD)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "practiceDays": [
+      {
+        "id": "uuid",
+        "eventName": "Practice Day - 2025-01-27",
+        "eventDate": "2025-01-27T00:00:00.000Z",
+        "sourceEventId": "event-id",
+        "trackId": "uuid",
+        "ingestDepth": "laps_full"
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing required track_id parameter
+- `INTERNAL_ERROR` (500) - Server error
+
+**Example:**
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/practice-days/search?track_id=uuid&start_date=2025-01-01&end_date=2025-01-31"
+```
+
+---
+
+### POST /api/v1/practice-days/discover
+
+Discovers practice days from LiveRC for a specific track and month.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "track_id": "uuid",
+  "year": 2025,
+  "month": 1
+}
+```
+
+**Request Fields:**
+- `track_id` (string, required) - The UUID of the track
+- `year` (number, required) - Year (e.g., 2025)
+- `month` (number, required) - Month (1-12)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "practiceDays": [
+      {
+        "date": "2025-01-27",
+        "trackSlug": "track-slug",
+        "sessionCount": 15,
+        "totalLaps": 450,
+        "totalTrackTimeSeconds": 18000,
+        "uniqueDrivers": 12,
+        "uniqueClasses": 3,
+        "timeRangeStart": "2025-01-27T08:00:00Z",
+        "timeRangeEnd": "2025-01-27T17:00:00Z",
+        "sessions": [
+          {
+            "sessionId": "session-id",
+            "driverName": "Driver Name",
+            "className": "1.8 Nitro Buggy",
+            "transponderNumber": "123",
+            "startTime": "2025-01-27T08:00:00Z",
+            "durationSeconds": 600,
+            "lapCount": 30,
+            "fastestLap": 20.5,
+            "averageLap": 22.1,
+            "sessionUrl": "https://liverc.com/session/..."
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing required fields or invalid month (must be 1-12)
+- `NOT_FOUND` (404) - Track not found
+- `INTERNAL_ERROR` (500) - Server error or ingestion service unavailable
+
+**Notes:**
+- Discovery requests may take up to 60 seconds to complete
+- Results include practice day summaries with session details
+- Sessions are grouped by date
+
+**Example:**
+```bash
+curl -X POST -H "Cookie: next-auth.session-token=..." \
+  -H "Content-Type: application/json" \
+  -d '{"track_id": "uuid", "year": 2025, "month": 1}' \
+  "http://localhost:3001/api/v1/practice-days/discover"
+```
+
+---
+
+### POST /api/v1/practice-days/ingest
+
+Ingests practice day data for a specific track and date.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "track_id": "uuid",
+  "date": "2025-01-27"
+}
+```
+
+**Request Fields:**
+- `track_id` (string, required) - The UUID of the track
+- `date` (string, required) - Date in ISO 8601 format (YYYY-MM-DD)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "eventId": "uuid",
+    "sessionsIngested": 15,
+    "sessionsFailed": 0,
+    "status": "completed"
+  }
+}
+```
+
+**Response Fields:**
+- `eventId` (string) - UUID of the created event
+- `sessionsIngested` (number) - Number of sessions successfully ingested
+- `sessionsFailed` (number) - Number of sessions that failed to ingest
+- `status` (string) - Ingestion status (e.g., "completed", "partial", "failed")
+
+**Error Codes:**
+- `UNAUTHORIZED` (401) - Authentication required
+- `VALIDATION_ERROR` (400) - Missing required track_id or date
+- `NOT_FOUND` (404) - Track not found
+- `INGESTION_IN_PROGRESS` (409) - Ingestion already in progress for this practice day
+- `INGESTION_FAILED` (500) - Ingestion process failed
+- `INTERNAL_ERROR` (500) - Server error
+
+**Notes:**
+- Creates an Event with session type `practiceday`
+- Ingests all practice sessions for the specified date
+- Results include counts of successful and failed session ingestions
+
+**Example:**
+```bash
+curl -X POST -H "Cookie: next-auth.session-token=..." \
+  -H "Content-Type: application/json" \
+  -d '{"track_id": "uuid", "date": "2025-01-27"}' \
+  "http://localhost:3001/api/v1/practice-days/ingest"
 ```
 
 ---

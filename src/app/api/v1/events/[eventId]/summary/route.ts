@@ -88,6 +88,7 @@ export async function GET(
         userBestLap: summaryData.userBestLap,
         userBestConsistency: summaryData.userBestConsistency,
         userBestAvgLap: summaryData.userBestAvgLap,
+        userBestImprovement: summaryData.userBestImprovement,
       },
       200,
       undefined,
