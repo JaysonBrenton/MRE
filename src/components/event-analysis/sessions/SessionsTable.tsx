@@ -1,12 +1,12 @@
 /**
  * @fileoverview Professional sessions table with sorting, filtering, and grouping
- * 
+ *
  * @created 2025-01-07
  * @creator System
  * @lastModified 2025-01-07
- * 
+ *
  * @description Main sessions table component with full feature set
- * 
+ *
  * @purpose Replaces OverviewChart with a sortable, filterable, expandable table view
  *
  * @relatedFiles
@@ -20,6 +20,7 @@ import { useState, useMemo, useCallback, Fragment } from "react"
 import ChartContainer from "../ChartContainer"
 import SessionsTableRow from "./SessionsTableRow"
 import ListPagination from "../ListPagination"
+import SessionLapDataModal from "./SessionLapDataModal"
 import type { SessionData } from "@/core/events/get-sessions-data"
 
 export interface SessionsTableProps {
@@ -27,6 +28,10 @@ export interface SessionsTableProps {
   selectedDriverIds?: string[]
   className?: string
   onNavigate?: (sessionId: string) => void
+  /** Enable hybrid columns (Best Lap, Avg Lap, Total Laps, Fastest Driver) and View Details drill-down. TEST tab only. */
+  showHybridColumns?: boolean
+  eventId?: string
+  selectedClass?: string | null
 }
 
 type SortField = "raceLabel" | "className" | "startTime" | "durationSeconds" | "participantCount"
@@ -38,12 +43,19 @@ interface GroupedSessions {
   isExpanded: boolean
 }
 
+const BASE_COLUMNS = 7
+const HYBRID_COLUMNS = 4 // Best Lap, Avg Lap, Total Laps, Fastest Driver
+
 export default function SessionsTable({
   sessions,
   selectedDriverIds = [],
   className = "",
   onNavigate,
+  showHybridColumns = false,
+  eventId,
+  selectedClass = null,
 }: SessionsTableProps) {
+  const colCount = showHybridColumns ? BASE_COLUMNS + HYBRID_COLUMNS : BASE_COLUMNS
   const [sortField, setSortField] = useState<SortField>("startTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [searchTerm, setSearchTerm] = useState("")
@@ -51,6 +63,7 @@ export default function SessionsTable({
   const [groupExpanded, setGroupExpanded] = useState<Record<string, boolean>>({})
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
+  const [lapModalSession, setLapModalSession] = useState<SessionData | null>(null)
 
   // Filter sessions
   const filteredSessions = useMemo(() => {
@@ -59,9 +72,10 @@ export default function SessionsTable({
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
-      filtered = filtered.filter((session) =>
-        session.raceLabel.toLowerCase().includes(searchLower) ||
-        session.className.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        (session) =>
+          session.raceLabel.toLowerCase().includes(searchLower) ||
+          session.className.toLowerCase().includes(searchLower)
       )
     }
 
@@ -78,9 +92,9 @@ export default function SessionsTable({
       switch (sortField) {
         case "raceLabel":
           comparison = a.raceLabel.localeCompare(b.raceLabel, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      })
+            numeric: true,
+            sensitivity: "base",
+          })
           break
         case "className":
           comparison = a.className.localeCompare(b.className)
@@ -126,21 +140,24 @@ export default function SessionsTable({
   const totalPages = Math.ceil(sortedSessions.length / pageSize)
   const paginatedSessions = useMemo(() => {
     if (isGrouped) return sortedSessions // No pagination when grouped
-    
+
     const startIndex = (currentPage - 1) * pageSize
     const endIndex = startIndex + pageSize
     return sortedSessions.slice(startIndex, endIndex)
   }, [sortedSessions, currentPage, pageSize, isGrouped])
 
-  const handleSort = useCallback((field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-    } else {
-      setSortField(field)
-      setSortDirection("asc")
-    }
-    setCurrentPage(1)
-  }, [sortField, sortDirection])
+  const handleSort = useCallback(
+    (field: SortField) => {
+      if (sortField === field) {
+        setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+      } else {
+        setSortField(field)
+        setSortDirection("asc")
+      }
+      setCurrentPage(1)
+    },
+    [sortField, sortDirection]
+  )
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) {
@@ -161,6 +178,14 @@ export default function SessionsTable({
     setCurrentPage(1)
   }
 
+  const handleViewLapDetails = useCallback((session: SessionData) => {
+    setLapModalSession(session)
+  }, [])
+
+  const handleCloseLapModal = useCallback(() => {
+    setLapModalSession(null)
+  }, [])
+
   const activeFilterCount = searchTerm ? 1 : 0
 
   if (sessions.length === 0) {
@@ -171,8 +196,8 @@ export default function SessionsTable({
         aria-label="Sessions table - no data available"
       >
         <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
-        No sessions available
-      </div>
+          No sessions available
+        </div>
       </ChartContainer>
     )
   }
@@ -203,8 +228,8 @@ export default function SessionsTable({
           {/* Right side: Filters and pagination controls */}
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             {activeFilterCount > 0 && (
-                <button
-                  type="button"
+              <button
+                type="button"
                 onClick={handleClearFilters}
                 className="px-3 py-2 text-sm font-medium text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] rounded"
               >
@@ -217,7 +242,7 @@ export default function SessionsTable({
         {/* Table */}
         <div className="overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
           <table
-            className="w-full min-w-[900px]"
+            className={`w-full ${showHybridColumns ? "min-w-[1200px]" : "min-w-[900px]"}`}
             aria-label="Sessions table"
           >
             <thead className="bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)]">
@@ -227,114 +252,155 @@ export default function SessionsTable({
                   className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 >
                   Session Name
-              </th>
+                </th>
                 <th
                   scope="col"
                   className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 >
                   Class
-              </th>
+                </th>
                 <th
                   scope="col"
                   className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 >
                   Start Time
-              </th>
+                </th>
                 <th
                   scope="col"
                   className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 >
                   Duration
-              </th>
+                </th>
                 <th
                   scope="col"
                   className="px-4 py-3 text-center text-sm font-medium text-[var(--token-text-secondary)]"
                 >
                   Participants
-              </th>
+                </th>
                 <th
                   scope="col"
                   className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 >
                   Top 3 Finishers
-              </th>
+                </th>
                 <th
                   scope="col"
                   className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                 >
-                Actions
-              </th>
-            </tr>
-          </thead>
-            <tbody className="bg-[var(--token-surface)]">
-              {isGrouped ? (
-                groupedSessions.map((group) => (
-                  <Fragment key={`group-${group.className}`}>
-                    <tr
-                      className="bg-[var(--token-surface-raised)] border-b border-[var(--token-border-default)] cursor-pointer hover:bg-[var(--token-surface-elevated)] transition-colors"
-                      onClick={() => handleToggleGroup(group.className)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault()
-                          handleToggleGroup(group.className)
-                        }
-                      }}
-                      aria-expanded={group.isExpanded}
-                      aria-label={`${group.className} - ${group.sessions.length} sessions - Click to ${group.isExpanded ? "collapse" : "expand"}`}
+                  Actions
+                </th>
+                {showHybridColumns && (
+                  <>
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
                     >
-                      <td colSpan={7} className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="text-[var(--token-text-secondary)] transition-transform"
-                            style={{
-                              transform: group.isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                              display: "inline-block",
-                            }}
-                            aria-hidden="true"
-                          >
-                            ▶
-                          </span>
-                          <span className="text-[var(--token-text-primary)]">
-                            {group.className}
-                          </span>
-                          <span className="text-sm text-[var(--token-text-secondary)]">
-                            ({group.sessions.length} session{group.sessions.length !== 1 ? "s" : ""})
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                    {group.isExpanded &&
-                      group.sessions.map((session) => (
-                        <SessionsTableRow
-                          key={session.id}
-                          session={session}
-                          selectedDriverIds={selectedDriverIds}
-                          onNavigate={onNavigate}
-                        />
-                      ))}
-                  </Fragment>
-                ))
-              ) : (
-                paginatedSessions.map((session) => (
-                  <SessionsTableRow
-                    key={session.id}
-                    session={session}
-                    selectedDriverIds={selectedDriverIds}
-                    onNavigate={onNavigate}
-                  />
-                ))
-              )}
-          </tbody>
-        </table>
+                      Best Lap
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
+                    >
+                      Avg Lap
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-center text-sm font-medium text-[var(--token-text-secondary)]"
+                    >
+                      Total Laps
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
+                    >
+                      Fastest Driver
+                    </th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody className="bg-[var(--token-surface)]">
+              {isGrouped
+                ? groupedSessions.map((group) => (
+                    <Fragment key={`group-${group.className}`}>
+                      <tr
+                        className="bg-[var(--token-surface-raised)] border-b border-[var(--token-border-default)] cursor-pointer hover:bg-[var(--token-surface-elevated)] transition-colors"
+                        onClick={() => handleToggleGroup(group.className)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            handleToggleGroup(group.className)
+                          }
+                        }}
+                        aria-expanded={group.isExpanded}
+                        aria-label={`${group.className} - ${group.sessions.length} sessions - Click to ${group.isExpanded ? "collapse" : "expand"}`}
+                      >
+                        <td colSpan={colCount} className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="text-[var(--token-text-secondary)] transition-transform"
+                              style={{
+                                transform: group.isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                                display: "inline-block",
+                              }}
+                              aria-hidden="true"
+                            >
+                              ▶
+                            </span>
+                            <span className="text-[var(--token-text-primary)]">
+                              {group.className}
+                            </span>
+                            <span className="text-sm text-[var(--token-text-secondary)]">
+                              ({group.sessions.length} session
+                              {group.sessions.length !== 1 ? "s" : ""})
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {group.isExpanded &&
+                        group.sessions.map((session) => (
+                          <SessionsTableRow
+                            key={session.id}
+                            session={session}
+                            selectedDriverIds={selectedDriverIds}
+                            onNavigate={onNavigate}
+                            showHybridColumns={showHybridColumns}
+                            eventId={eventId}
+                            selectedClass={selectedClass}
+                            colCount={colCount}
+                            onViewLapDetails={
+                              showHybridColumns && eventId ? handleViewLapDetails : undefined
+                            }
+                          />
+                        ))}
+                    </Fragment>
+                  ))
+                : paginatedSessions.map((session) => (
+                    <SessionsTableRow
+                      key={session.id}
+                      session={session}
+                      selectedDriverIds={selectedDriverIds}
+                      onNavigate={onNavigate}
+                      showHybridColumns={showHybridColumns}
+                      eventId={eventId}
+                      selectedClass={selectedClass}
+                      colCount={colCount}
+                      onViewLapDetails={
+                        showHybridColumns && eventId ? handleViewLapDetails : undefined
+                      }
+                    />
+                  ))}
+            </tbody>
+          </table>
 
           {filteredSessions.length === 0 && (
             <div className="flex items-center justify-center py-12 text-[var(--token-text-secondary)]">
               No sessions match your filters
             </div>
           )}
-      </div>
+        </div>
 
         {/* Pagination (only show when not grouped) */}
         {!isGrouped && (
@@ -357,15 +423,28 @@ export default function SessionsTable({
         <div className="text-sm text-[var(--token-text-secondary)] text-center">
           {isGrouped ? (
             <span>
-              Showing {filteredSessions.length} session{filteredSessions.length !== 1 ? "s" : ""} in {groupedSessions.length} class{groupedSessions.length !== 1 ? "es" : ""}
+              Showing {filteredSessions.length} session{filteredSessions.length !== 1 ? "s" : ""} in{" "}
+              {groupedSessions.length} class{groupedSessions.length !== 1 ? "es" : ""}
             </span>
           ) : (
             <span>
               Total: {sortedSessions.length} session{sortedSessions.length !== 1 ? "s" : ""}
             </span>
-      )}
-    </div>
+          )}
+        </div>
       </div>
+
+      {/* Lap Data Modal - rendered outside table to avoid hydration errors */}
+      {showHybridColumns && eventId && lapModalSession && (
+        <SessionLapDataModal
+          isOpen={true}
+          onClose={handleCloseLapModal}
+          eventId={eventId}
+          selectedClass={selectedClass}
+          raceId={lapModalSession.raceId}
+          raceLabel={lapModalSession.raceLabel}
+        />
+      )}
     </ChartContainer>
   )
 }

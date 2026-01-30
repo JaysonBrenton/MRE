@@ -1,14 +1,14 @@
 /**
  * @fileoverview Session chart tabs - tabbed interface for different chart views
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tabbed interface component for switching between different session chart visualizations
- * 
+ *
  * @purpose Manages active chart state and renders appropriate chart based on active tab.
- * 
+ *
  * @relatedFiles
  * - src/components/event-analysis/sessions/SessionsTable.tsx
  */
@@ -17,10 +17,13 @@
 
 import { useState, KeyboardEvent } from "react"
 import SessionsTable from "./SessionsTable"
-import LapDataTable from "./LapDataTable"
-import type { SessionData, DriverLapTrend, HeatProgressionData } from "@/core/events/get-sessions-data"
+import type {
+  SessionData,
+  DriverLapTrend,
+  HeatProgressionData,
+} from "@/core/events/get-sessions-data"
 
-export type ChartTabId = "overview" | "driver-performance" | "driver-bump-ups"
+export type ChartTabId = "overview" | "compare-drivers" | "driver-bump-ups"
 
 export interface SessionChartTabsProps {
   sessions: SessionData[]
@@ -34,7 +37,7 @@ export interface SessionChartTabsProps {
 
 const defaultTabs: Array<{ id: ChartTabId; label: string }> = [
   { id: "overview", label: "Race Overview" },
-  { id: "driver-performance", label: "Lap Data" },
+  { id: "compare-drivers", label: "Compare Drivers" },
   { id: "driver-bump-ups", label: "Driver Bump-Ups" },
 ]
 
@@ -52,24 +55,19 @@ export default function SessionChartTabs({
   // Determine which tabs to show
   const availableTabs = defaultTabs
 
-  const handleKeyDown = (
-    event: KeyboardEvent<HTMLButtonElement>,
-    tabId: ChartTabId
-  ) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, tabId: ChartTabId) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault()
       setActiveTab(tabId)
     } else if (event.key === "ArrowLeft") {
       event.preventDefault()
       const currentIndex = availableTabs.findIndex((t) => t.id === activeTab)
-      const prevIndex =
-        currentIndex > 0 ? currentIndex - 1 : availableTabs.length - 1
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : availableTabs.length - 1
       setActiveTab(availableTabs[prevIndex].id)
     } else if (event.key === "ArrowRight") {
       event.preventDefault()
       const currentIndex = availableTabs.findIndex((t) => t.id === activeTab)
-      const nextIndex =
-        currentIndex < availableTabs.length - 1 ? currentIndex + 1 : 0
+      const nextIndex = currentIndex < availableTabs.length - 1 ? currentIndex + 1 : 0
       setActiveTab(availableTabs[nextIndex].id)
     }
   }
@@ -113,23 +111,21 @@ export default function SessionChartTabs({
       </div>
 
       {/* Chart Content */}
-      <div 
-        role="tabpanel" 
-        id={`chartpanel-${activeTab}`}
-        aria-labelledby={`charttab-${activeTab}`}
-      >
+      <div role="tabpanel" id={`chartpanel-${activeTab}`} aria-labelledby={`charttab-${activeTab}`}>
         {activeTab === "overview" && (
           <SessionsTable
             sessions={sessions}
             selectedDriverIds={driverLapTrends.map((trend) => trend.driverId)}
-          />
-        )}
-
-        {activeTab === "driver-performance" && (
-          <LapDataTable
+            showHybridColumns
             eventId={eventId}
             selectedClass={selectedClass}
           />
+        )}
+
+        {activeTab === "compare-drivers" && (
+          <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
+            Under Development
+          </div>
         )}
 
         {activeTab === "driver-bump-ups" && (
@@ -141,4 +137,3 @@ export default function SessionChartTabs({
     </div>
   )
 }
-

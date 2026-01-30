@@ -1,23 +1,24 @@
 /**
  * @fileoverview Individual session table row component with expand/collapse
- * 
+ *
  * @created 2025-01-07
  * @creator System
- * @lastModified 2025-01-07
- * 
- * @description Renders a single session row with expand/collapse and navigation
- * 
- * @purpose Displays session summary with expandable full results
- * 
+ * @lastModified 2025-01-27
+ *
+ * @description Renders a single session row with expand/collapse and navigation.
+ *   When showHybridColumns (TEST tab), adds Best Lap, Avg Lap, Total Laps,
+ *   Fastest Driver and a View Details button that opens lap data modal.
+ *
  * @relatedFiles
  * - src/components/event-analysis/sessions/SessionsTable.tsx
  * - src/components/event-analysis/sessions/SessionsTableResults.tsx
+ * - src/components/event-analysis/sessions/SessionLapDataModal.tsx
  */
 
 "use client"
 
-import { useState } from "react"
-import { formatDuration, formatDateTime } from "@/lib/format-session-data"
+import { useState, useMemo } from "react"
+import { formatDuration, formatDateTime, formatLapTime } from "@/lib/format-session-data"
 import SessionsTableResults from "./SessionsTableResults"
 import type { SessionData } from "@/core/events/get-sessions-data"
 
@@ -25,23 +26,54 @@ export interface SessionsTableRowProps {
   session: SessionData
   selectedDriverIds?: string[]
   onNavigate?: (sessionId: string) => void
+  showHybridColumns?: boolean
+  eventId?: string
+  selectedClass?: string | null
+  colCount?: number
+  onViewLapDetails?: (session: SessionData) => void
+}
+
+function computeLapSummary(session: SessionData) {
+  const results = session.results
+  const validFast = results
+    .map((r) => r.fastLapTime)
+    .filter((t): t is number => t != null && Number.isFinite(t) && t > 0)
+  const validAvg = results
+    .map((r) => r.avgLapTime)
+    .filter((t): t is number => t != null && Number.isFinite(t) && t > 0)
+  const bestLap = validFast.length > 0 ? Math.min(...validFast) : null
+  const avgLap = validAvg.length > 0 ? validAvg.reduce((a, b) => a + b, 0) / validAvg.length : null
+  const totalLaps = results.reduce((sum, r) => sum + (r.lapsCompleted ?? 0), 0)
+  let fastestDriver: string | null = null
+  if (validFast.length > 0) {
+    const best = Math.min(...validFast)
+    const r = results.find((x) => x.fastLapTime != null && Math.abs(x.fastLapTime - best) < 0.001)
+    fastestDriver = r?.driverName ?? null
+  }
+  return { bestLap, avgLap, totalLaps, fastestDriver }
 }
 
 export default function SessionsTableRow({
   session,
   selectedDriverIds = [],
   onNavigate,
+  showHybridColumns = false,
+  eventId,
+  selectedClass = null,
+  colCount = 7,
+  onViewLapDetails,
 }: SessionsTableRowProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const lapSummary = useMemo(() => computeLapSummary(session), [session])
 
   const handleToggleExpand = () => {
     setIsExpanded(!isExpanded)
   }
 
-  const handleNavigate = (e: React.MouseEvent) => {
+  const handleViewLapDetails = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (onNavigate) {
-      onNavigate(session.id)
+    if (onViewLapDetails) {
+      onViewLapDetails(session)
     }
   }
 
@@ -97,57 +129,52 @@ export default function SessionsTableRow({
           <div className="flex flex-col gap-0.5">
             {topFinishers.map((finisher, index) => (
               <div key={finisher.driverId} className="text-xs">
-                <span className="text-[var(--token-text-primary)]">
-                  {index + 1}.
-                </span>{" "}
+                <span className="text-[var(--token-text-primary)]">{index + 1}.</span>{" "}
                 {finisher.driverName}
               </div>
             ))}
-            {topFinishers.length === 0 && (
-              <span className="text-xs">No results</span>
-            )}
+            {topFinishers.length === 0 && <span className="text-xs">No results</span>}
           </div>
         </td>
         <td className="px-4 py-3 text-sm font-normal">
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={handleNavigate}
-              className="text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1"
-              aria-label={`View details for ${session.raceLabel}`}
-              title="View session details"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+          {showHybridColumns && onViewLapDetails && (
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={handleViewLapDetails}
+                className="text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1 text-xs font-medium"
+                aria-label={`View lap data for ${session.raceLabel}`}
+                title="View lap data"
               >
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </button>
-          </div>
+                View Details
+              </button>
+            </div>
+          )}
         </td>
+        {showHybridColumns && (
+          <>
+            <td className="px-4 py-3 text-sm font-mono text-[var(--token-text-primary)]">
+              {formatLapTime(lapSummary.bestLap)}
+            </td>
+            <td className="px-4 py-3 text-sm font-mono text-[var(--token-text-primary)]">
+              {formatLapTime(lapSummary.avgLap)}
+            </td>
+            <td className="px-4 py-3 text-sm text-center text-[var(--token-text-primary)]">
+              {lapSummary.totalLaps}
+            </td>
+            <td className="px-4 py-3 text-sm text-[var(--token-text-secondary)]">
+              {lapSummary.fastestDriver ?? "—"}
+            </td>
+          </>
+        )}
       </tr>
       {isExpanded && (
         <tr>
-          <td colSpan={7} className="p-0">
-            <SessionsTableResults
-              session={session}
-              selectedDriverIds={selectedDriverIds}
-            />
+          <td colSpan={colCount} className="p-0">
+            <SessionsTableResults session={session} selectedDriverIds={selectedDriverIds} />
           </td>
         </tr>
       )}
     </>
   )
 }
-
