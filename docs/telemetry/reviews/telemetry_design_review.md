@@ -1,321 +1,388 @@
 # Telemetry Design Review (telemetry.zip)
 
-Review date: 2026-01-30
+**Resolved (2026-01-31):** Storage and raw retention resolved by
+`docs/adr/ADR-20260131-telemetry-storage-and-raw-retention.md`; ID strategy by
+`docs/adr/ADR-20260131-telemetry-identifier-strategy.md`; data lifecycle truth
+table added to Security doc (§10.3).
 
-Scope: I extracted and read every non-empty file in the ZIP (excluding macOS
-metadata like `.DS_Store` and `__MACOSX`). This review focuses on design risks,
-documentation gaps, and any errors or inconsistencies.
+Review date: 30 Jan 2026 Scope: I extracted the ZIP and read every file under
+`docs/telemetry/` (Design/, End_User_Experience/, User_Story/, reviews/). All
+paths in this review are under `docs/telemetry/`.
 
-## Files reviewed
+## File inventory (what I reviewed)
 
-- `docs/telemetry/Design/API_Contract_Telemetry.md`
-- `docs/telemetry/Design/Architecture_Blueprint_Telemetry_Ingest_Storage_Compute_Query.md`
-- `docs/telemetry/Design/Gnss_plus_Imu_Fusion_Blueprint.md`
-- `docs/telemetry/Design/Lap Segment and Corner Detection Specification.md`
-- `docs/telemetry/Design/Operational Runbook.md`
-- `docs/telemetry/Design/Performance Plan and Benchmarking.md`
-- `docs/telemetry/Design/Security Privacy Retention and Deletion.md`
-- `docs/telemetry/Design/Supported Formats and Parser Specification.md`
-- `docs/telemetry/Design/Telemetry - Concrete Data Model And Contracts.md`
-- `docs/telemetry/Design/Telemetry Processing Pipeline Job Orchestration and State Machine.md`
-- `docs/telemetry/Design/Telemetry_Ux_Blueprint.md`
-- `docs/telemetry/Design/Test Strategy and Synthetic Datasets.md`
-- `docs/telemetry/Design/Trust Quality Scoring and Honesty Rules.md`
-- `docs/telemetry/End_User_Experience/Exploring_the_End_User_Experience_for_Telemetry_in_MRE.md`
-- `docs/telemetry/User_Story/User_Story_Universal_Telemetry_Import_and_Analysis_(GNSS_+_IMU).md`
-- `docs/telemetry/reviews/Gaps And Recommended Additions.md`
-- `telemetry/Blueprints/Architecture_Blueprint_Telemetry_Ingest_Storage_Compute_Query.md`
-- `telemetry/Blueprints/Gnss_plus_Imu_Fusion_Blueprint.md`
-- `telemetry/Blueprints/Telemetry_Ux_Blueprint.md`
-- `telemetry/End_User_Experience/Exploring_the_End_User_Experience_for_Telemetry_in_MRE.md`
-- `telemetry/User_Story/User_Story_Universal_Telemetry_Import_and_Analysis_(GNSS_+_IMU).md`
+| File                                                                                           | Notes                                        |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `docs/telemetry/Design/API_Contract_Telemetry.md`                                              | API contract and query patterns              |
+| `docs/telemetry/Design/Architecture_Blueprint_Telemetry_Ingest_Storage_Compute_Query.md`       | System architecture blueprint                |
+| `docs/telemetry/Design/Gnss_plus_Imu_Fusion_Blueprint.md`                                      | Normalisation and fusion blueprint           |
+| `docs/telemetry/Design/Lap Segment and Corner Detection Specification.md`                      | Lap, segment, corner spec                    |
+| `docs/telemetry/Design/Operational Runbook.md`                                                 | Ops runbook                                  |
+| `docs/telemetry/Design/Performance Plan and Benchmarking.md`                                   | Perf plan, budgets, benchmarking             |
+| `docs/telemetry/Design/Security Privacy Retention and Deletion.md`                             | Security, privacy, retention, deletion       |
+| `docs/telemetry/Design/Supported Formats and Parser Specification.md`                          | Formats, parsers, capability detection       |
+| `docs/telemetry/Design/Telemetry - Concrete Data Model And Contracts.md`                       | Postgres plus ClickHouse model and contracts |
+| `docs/telemetry/Design/Telemetry Processing Pipeline Job Orchestration and State Machine.md`   | Pipeline, orchestration, states              |
+| `docs/telemetry/Design/Telemetry_Ux_Blueprint.md`                                              | Telemetry UX blueprint                       |
+| `docs/telemetry/Design/Test Strategy and Synthetic Datasets.md`                                | Test approach and synthetic data             |
+| `docs/telemetry/Design/Trust Quality Scoring and Honesty Rules.md`                             | Trust, quality scoring, honesty rules        |
+| `docs/telemetry/End_User_Experience/Exploring_the_End_User_Experience_for_Telemetry_in_MRE.md` | JTBD, end user experience                    |
+| `docs/telemetry/User_Story/User_Story_Universal_Telemetry_Import_and_Analysis_(GNSS_+_IMU).md` | User story                                   |
+| `docs/telemetry/reviews/Old/Gaps And Recommended Additions.md`                                 | Existing review doc (archived)               |
+| `docs/telemetry/reviews/telemetry_design_review.md`                                            | This review doc                              |
 
 ## Executive summary
 
-The telemetry documentation set is unusually thorough for this stage: it covers
-user outcomes, UX IA, ingest and processing architecture, security and
-retention, a concrete data model, a pipeline state machine, quality and honesty
-rules, performance planning, and test strategy. The biggest risks are not
-"missing ideas", they are **decision ambiguity and operational complexity**
-(especially around storage choices and deletion semantics), plus **document
-duplication** that will diverge over time.
+This is a strong documentation set, it covers the full surface area you actually
+need (formats, canonicalisation, pipeline, quality, UX, performance, security).
+The main problems are not missing content, they are contradictions between
+documents, plus a few hard choices that are half made in multiple places.
 
-Top priorities:
+If you fix only five things, fix these:
 
-1. **Remove duplicate doc roots** (`telemetry/` vs `docs/telemetry/`) to avoid
-   drift.
+1. Raw artifact retention is contradictory across docs (immediate discard vs 30
+   day retention vs immutable raw store). This is a design and trust problem,
+   not a wording problem.
+2. Storage approach is not single source of truth (Parquet first blueprint vs a
+   detailed ClickHouse schema, plus APIs that imply both).
+3. ID strategy conflicts (API examples use prefixed ULID like IDs such as
+   `ses_01H...`, the data model uses UUIDs everywhere).
+4. Deletion promises are ahead of the implementation reality, especially if
+   ClickHouse is the source of truth for time series.
+5. The existing review docs contain factual errors about what files exist in the
+   ZIP, which will confuse future work.
 
-2. **Make an explicit storage ADR** (Parquet-only vs ClickHouse, or phased), and
-   update the data model and pipeline docs to match.
+## High impact design issues (cross cutting)
 
-3. **Tighten deletion and retention implementation details for ClickHouse and
-   object storage** to meet privacy promises.
+### 1) Raw uploads retention, discard, and auditability are inconsistent
 
-4. **Align the session lifecycle** (timestamps required vs when they become
-   known) with the upload and validation flow.
+**Where it conflicts:**
 
-5. **Normalise API paths and versioning** (some sections use `/api/v1/...`,
-   others omit it).
+- Data model: raw uploads are discarded after canonicalisation and tracks
+  `discardedAt`.
+- Security retention doc: raw artifacts retained for 30 days after successful
+  processing.
+- Architecture blueprint: store exactly what the user uploaded, keep immutable
+  for replay and audit.
 
-## High-impact design issues and risks
+**Why it matters:**
 
-### 1) Duplicate documentation trees will drift
+This impacts privacy guarantees, storage cost, ability to reprocess, and what
+you can honestly claim in the UX and in the honesty rules.
 
-You have identical copies of core documents in two places:
+**Recommendation:**
 
-- `telemetry/Blueprints/*` duplicates `docs/telemetry/Design/*`
+Pick one authoritative policy and reflect it everywhere:
 
-- `telemetry/User_Story/*` duplicates `docs/telemetry/User_Story/*`
+- Option A (matches your earlier stated preference): discard raw bytes
+  immediately after canonicalisation, keep only metadata plus derived outputs,
+  support reprocessing only from canonical streams.
+- Option B: keep raw bytes for a configurable window (example 7 or 30 days), but
+  then the data model and UX must explicitly show raw retained until a date, and
+  deletion semantics must include the raw store.
 
-- `telemetry/End_User_Experience/*` duplicates
-  `docs/telemetry/End_User_Experience/*`
+Whichever you choose, add one retention and deletion truth table that enumerates
+each storage tier and exactly when it is deleted.
 
-**Risk:** small future edits will land in only one copy and you will end up with
-contradictory “truth”.
+### 2) Parquet vs ClickHouse is presented as both, but the docs treat each as the plan
 
-**Recommendation:** pick `docs/telemetry/` as the single source of truth, delete
-the duplicated `telemetry/` tree, and add an index README under
-`docs/telemetry/README.md` that links the intended reading order.
+You have:
 
-### 2) Storage strategy is inconsistent across documents
+- A blueprint that strongly suggests Parquet processed outputs for time series.
+- A very detailed ClickHouse schema with table design and query patterns.
+- APIs that could support either, but do not clearly state which is canonical
+  and which is a cache.
 
-The **Architecture Blueprint** strongly suggests starting with _Postgres +
-Parquet in object storage_ (Option A) and later adding ClickHouse if required.
-The **Concrete Data Model** states it is designed to “introduce a dedicated
-high-performance time-series store” and then uses **ClickHouse** as the query
-store.
+**Why it matters:**
 
-**Risk:** the implementation can accidentally become "double-store" (Parquet
-artifacts plus ClickHouse) without a clear reason, doubling costs and
-operational burden.
+Query behaviour, latency, deletion, cost, and complexity all depend on this.
+Right now it reads like two architectures merged.
 
-**Recommendation (phased, pragmatic):**
+**Recommendation:**
 
-- **Phase 0 / MVP:** Postgres for metadata and summaries, object storage for
-  raw + processed Parquet, workers use DuckDB to query Parquet for UI requests
-  (or precompute summaries). Keep clickhouse out.
+Write a single storage decision doc (an ADR is ideal) answering:
 
-- **Phase 1:** Add ClickHouse only when benchmarks show it is needed, and make
-  ingestion into ClickHouse a clearly defined, optional pipeline stage.
+- What is the system of record for time series (ClickHouse tables, Parquet in
+  object storage, or both)?
+- If both, which is authoritative for which queries (interactive charts,
+  recompute, exports, offline analysis)?
+- What is the ingest contract into the analytics store (exactly which canonical
+  streams, at which sample rates, at which downsample levels)?
 
-- Record the choice in an ADR: "Telemetry time-series store" with explicit
-  decision criteria and a migration plan.
+Then update the data model doc and architecture blueprint to match the ADR.
 
-### 3) Deletion correctness with ClickHouse needs explicit mechanics
+### 3) Deletion promises are risky if ClickHouse stores per point data
 
-Multiple docs promise strong deletion semantics (privacy, retention reaper,
-tombstones plus purge jobs). If ClickHouse is adopted, **row-level deletion is
-non-trivial** and can be slow (async mutations), which can conflict with “delete
-now” user expectations.
+Your security and privacy doc implies strong deletion semantics. That is correct
+and needed, but if ClickHouse holds all points:
 
-**Risk:** privacy promises that cannot be met in practice, or deletes that
-silently lag for hours.
+- Per session deletes can become costly (mutations, tombstones, merges).
+- Partitioning monthly by ts is fine for scan performance, but it makes targeted
+  deletion harder.
 
-**Recommendations:**
+**Recommendation:**
 
-- Partition ClickHouse tables so that "delete session" becomes **drop
-  partition(s)** rather than mutating billions of rows.
+Explicitly document how you will implement:
 
-- Document the expected deletion SLA and surface it in UI (for example "pending
-  purge").
+- Delete a session now (worst case)
+- Delete all data for a user now
+- Retention TTL expiry
 
-- Add a ClickHouse-specific retention section: TTL strategy, partitioning key,
-  and how to verify purge completion.
+If ClickHouse is used for detailed points, choose and document a strategy:
 
-- Make the purge job produce an auditable "deletion completed" event.
+- TTL based expiry, plus a documented worst case for immediate deletion.
+- Or treat ClickHouse as a derived cache that can be rebuilt, and keep the
+  authoritative dataset elsewhere.
 
-### 4) Session timestamps are required too early in the data model
+### 4) ID format inconsistency (UUID model vs prefixed ULID like examples)
 
-In `Telemetry - Concrete Data Model And Contracts.md`,
-`telemetry_sessions.startTimeUtc` and `endTimeUtc` are required. In practice
-these are often only known after the upload is validated and parsed.
+- API contract examples show `session_id: "ses_01H..."` and
+  `processing_run_id: "prun_01H..."`.
+- Concrete data model uses UUIDs heavily.
 
-**Risk:** you either (a) create placeholder sessions with fake times, or (b)
-block session creation until parsing completes, which complicates UX.
+**Why it matters:**
 
-**Recommendation:** allow start and end to be nullable until validation sets
-them, or create the session only at finalise time (after minimal header parse).
-Ensure the state machine reflects this.
+It bleeds into schema, URL design, DB types, and client assumptions. It also
+affects sorting and operational debugging (ULIDs are time sortable, UUIDv4 is
+not).
 
-### 5) Raw artifacts “discarded after canonicalisation” conflicts with reproducibility goals
+**Recommendation:**
 
-The data model assumptions say raw uploads are discarded after canonicalisation,
-while the security/retention doc defines raw artifact retention defaults (30
-days post-processing) and other docs emphasise reproducibility and disputes.
+Choose one and enforce it across all docs:
 
-**Risk:** inability to reprocess with improved algorithms, inability to prove
-what was uploaded during a dispute, and weaker trust posture.
+- Either use UUIDs everywhere and remove prefixed IDs from examples.
+- Or adopt a prefixed, time sortable ID scheme (ULID or UUIDv7 style), store as
+  text where needed, and update the relational model accordingly.
 
-**Recommendation:** treat raw artifacts as immutable, retained for a defined
-window (as you already specify), and make “discard” mean “eligible for retention
-reaper” rather than immediate deletion.
+Add a short identifier conventions section that lists each entity type and its
+ID format.
 
-### 6) API contract path and versioning are inconsistent
+### 5) Documentation style contradicts the stated direction about no non goals or limitations
 
-In `API_Contract_Telemetry.md`, upload endpoints are written as
-`/api/v1/telemetry/...` but other endpoints are shown as
-`/telemetry/sessions/...`.
+Multiple design docs include an out of scope section. If the product direction
+is no non goals or limitations, you need a consistent documentation rule:
 
-**Risk:** confusion during implementation and hard-to-change client code.
+- Either remove these sections.
+- Or reframe them as covered in another spec, which keeps the docs scoped
+  without reading like a limitation.
 
-**Recommendation:** standardise a single base path (suggest
-`/api/v1/telemetry/...`) and ensure all examples use it. Add a short section
-stating:
+## Errors and concrete doc problems
 
-- versioning rule (v1 stability, deprecation policy)
-- auth model (cookie vs bearer)
-- payload envelope standard (errors, pagination)
+### A) Existing review doc lists files that do not exist in this ZIP
 
-### 7) Processed outputs: where do “canonical streams” live, and who queries them?
+`docs/telemetry/reviews/telemetry_design_review.md` claims it reviewed paths
+like:
 
-The architecture blueprint describes a “processed artifact store” of Parquet
-outputs. The data model uses ClickHouse to query by `session_id` and `ts`
-ranges. The orchestration doc describes a multi-stage pipeline.
+- `telemetry/Blueprints/...`
+- `telemetry/End_User_Experience/...`
 
-**Risk:** unclear ownership: is the API a thin proxy to ClickHouse, or does it
-read Parquet? Are Parquet outputs authoritative, or just exports?
+In this ZIP, there is no `telemetry/` root, only `docs/telemetry/...`.
 
-**Recommendation:** declare one authoritative store per dataset type:
+**Impact:** future readers will waste time looking for duplicates and drift that
+are not present, and might incorrectly conclude there are two doc trees.
 
-- Raw uploads: object storage
-- Canonical streams (gnss, imu, fused): either Parquet (MVP) or ClickHouse
-  (later)
-- Derived summaries for UI: Postgres
-- Exports: Parquet generated on-demand or stored as artifacts
+**Fix:** update the review doc’s files reviewed list to match the actual tree,
+or delete the outdated review doc.
 
-### 8) Multi-device and edit/reprocessing model is good, but needs “cost guardrails”
+### B) `.DS_Store` is included
 
-The run and edit model (immutable runs, edits that influence reprocessing) is
-sound. What is missing is an explicit guardrail against runaway compute, for
-example users repeatedly reprocessing large sessions.
+`docs/telemetry/.DS_Store` is macOS metadata and should not be committed.
 
-**Recommendations:**
+**Fix:** delete it and add `.DS_Store` to `.gitignore` if not already.
 
-- Add quotas: max reprocesses per hour/day, max concurrent jobs per user, max
-  artifact size.
+### C) License placeholder
 
-- Add an operator override and a user-visible reason if throttled.
+`API_Contract_Telemetry.md` includes `License: TBD`.
 
-- Include cost and abuse considerations in the security or runbook docs.
+**Fix:** make license consistent with the other docs (most say Proprietary,
+internal to MRE).
 
-## Medium-impact issues and clarifications
+### D) Tracking parameters in ClickHouse links
 
-### 9) Local development and deployment details are still fuzzy
+The data model doc includes ClickHouse links with `utm_source=chatgpt.com`. This
+is noisy and not great for long lived internal docs.
 
-The docs mention object storage options and describe components, but there is no
-single "how to run this locally" doc that says which services are required
-(Postgres, object store, worker, optional ClickHouse) and how they connect.
+**Fix:** remove tracking parameters, keep clean doc links.
 
-**Recommendation:** add `docs/telemetry/DEV_SETUP.md` with:
+## Gaps and missing documents
 
-- docker compose (or systemd) service list
-- env vars
-- seed scripts for synthetic datasets
-- smoke test flow: upload, process, query, delete
+These are the missing pieces that would materially reduce implementation risk.
 
-### 10) ClickHouse modelling and indexing guidance should be explicit
+### 1) One authoritative decision register (ADRs)
 
-If ClickHouse is adopted, add concrete guidance on table engines, partitioning,
-ordering keys, and downsampling strategy (for example separate tables for raw
-and downsampled). Right now the docs are correct at a concept level, but do not
-constrain the implementation enough to prevent a slow schema.
+Right now the decisions are embedded in multiple docs. Add ADRs for:
 
-### 11) Signed URL flows need explicit security boundaries
+- Storage choice (ClickHouse vs Parquet, and the source of truth question)
+- Raw retention policy (discard vs reprocess window)
+- ID strategy (UUID vs ULID like)
+- Orchestration choice (DB queue, Redis, SQS, etc), including retry semantics
+  and dead letter handling
+- Deletion strategy for each storage tier
 
-The API contract references signed URLs for upload and download. Ensure the
-security doc explicitly states:
+### 2) Data lifecycle truth table (must have)
 
-- URL TTL defaults
-- scope (single object, single method)
-- content-type enforcement
-- virus/malware scanning expectations for uploads
-- CORS rules for direct browser uploads
+A single table that lists, for each dataset class:
 
-### 12) Units and user-facing conversions
+- Where it is stored (Postgres, object storage, ClickHouse)
+- When it is created
+- When and how it is deleted (user delete, retention expiry)
+- What remains after deletion (audit metadata, aggregates, nothing)
 
-The GNSS+IMU blueprint and data model largely standardise units (metres,
-seconds, m/s, rad/s). The UX docs talk in user terms (km/h, etc). Add one
-explicit, shared section that states:
+### 3) End to end sequence diagrams
 
-- canonical internal units
-- permitted UI conversions
-- rounding rules (and what is never rounded)
+At least two:
 
-## Documentation gaps and missing docs
+- Upload to parse to canonicalise to publish to query
+- Delete session to revoke share links to delete datasets to verify deletion
 
-These are not blockers, but they reduce implementability and team onboarding
-speed.
+### 4) Schema and API alignment checklist
 
-1. **Index / reading order**: add a top-level `docs/telemetry/README.md`.
+A doc that ensures these line up:
 
-2. **ADR set**: at minimum, ADRs for:
-   - Time-series store choice (Parquet, ClickHouse, Timescale)
+- Entity names and fields (session, upload, artifact, processing_run, dataset)
+- ID formats
+- Timestamp semantics (known at upload time vs derived after parse)
+- Error codes and status enums, including retryable vs terminal
 
-   - Job queue choice (DB queue first, Redis/SQS later)
+### 5) Operational SLOs and failure playbooks tied to pipeline states
 
-   - Artifact storage choice (S3/MinIO/filesystem)
+The runbook is good, but add:
 
-3. **Developer setup**: `DEV_SETUP.md` as noted above.
+- For each pipeline state: expected duration, alarm conditions, and the first
+  three debugging commands
+- Clear distinction between stuck job, slow job, bad data
 
-4. **Telemetry glossary**: a single canonical glossary for channel names,
-   frames, and dataset types.
+## Per document notes (targeted feedback)
 
-5. **Parser compatibility matrix**: device or vendor, file type, support tier,
-   known issues.
+### `Telemetry - Concrete Data Model And Contracts.md`
 
-6. **Migration plan**: if you start Parquet-only, how to backfill ClickHouse
-   later.
+**Strong:** detailed entities and ClickHouse schema, sharing model, status
+enums.
 
-7. **Monitoring dashboards spec**: what graphs and alerts exist, keyed to the
-   performance plan.
+**Risks and issues:**
 
-## Errors and inconsistencies spotted
+- Conflicts with retention policy in the security doc and the architecture
+  blueprint.
+- Commits strongly to ClickHouse while other docs lean Parquet first.
+- Uses UUIDs everywhere, conflicts with API examples using `ses_01H...`.
 
-- **API path mismatch:** `/api/v1/telemetry/...` (uploads) vs
-  `/telemetry/sessions/...` (queries) in `API_Contract_Telemetry.md`.
+**Suggested changes:**
 
-- **Duplication risk:** identical documents duplicated across two doc roots, as
-  noted above.
+- Add an ID strategy section.
+- Align raw retention policy with the security doc (or vice versa).
+- If ClickHouse is optional, label the schema as Phase 2 and define Phase 1
+  clearly.
 
-- **Retention wording:** “Raw uploads are discarded after canonicalisation”
-  (data model assumptions) conflicts with the explicit 30-day retention window
-  in the security doc.
+### `Architecture_Blueprint_Telemetry_Ingest_Storage_Compute_Query.md`
 
-- **ClickHouse delete ambiguity:** “delete ClickHouse rows” is stated, but the
-  mechanism (partition drop vs mutations) is not specified.
+**Strong:** clear control plane vs compute plane separation, good glossary.
 
-- **Licence placeholder:** `License: TBD` appears in `API_Contract_Telemetry.md`
-  front matter.
+**Risks and issues:**
 
-## Recommended next steps (ordered)
+- Explicitly says raw uploads are kept immutable for audit, conflicts with
+  discard after canonicalisation.
+- Storage strategy reads Parquet first, but the data model is ClickHouse first.
 
-1. Consolidate docs into `docs/telemetry/` only, delete the duplicated
-   `telemetry/` tree.
+**Suggested changes:**
 
-2. Write ADR: Telemetry time-series store (decide Parquet-first vs
-   ClickHouse-now). Update the data model and architecture docs to match.
+- Update Tier 1 raw policy to match the agreed retention decision.
+- Add a paragraph that states which store is authoritative for time series
+  queries.
 
-3. Add a ClickHouse deletion and retention appendix (even if ClickHouse is Phase
-   1, decide how it will work).
+### `API_Contract_Telemetry.md`
 
-4. Update the data model so session timestamps can be unknown until validation,
-   or declare sessions are created only after validation.
+**Strong:** good endpoint set, query patterns cover UX needs.
 
-5. Normalise all API paths to `/api/v1/telemetry/...` and add a short versioning
-   and deprecation policy.
+**Risks and issues:**
 
-6. Add `docs/telemetry/DEV_SETUP.md` plus a smoke test checklist.
+- ID example format conflict with the data model.
+- License placeholder.
+- If time series is stored in Parquet, define whether APIs return signed URLs vs
+  server queried windows, and make that explicit per endpoint.
 
-## Notes on what is already strong
+**Suggested changes:**
 
-- The UX blueprint and end-user experience doc are concrete and map well to
-  likely query patterns.
+- Normalise ID format and document it once.
+- Add caching semantics (ETag, max age) specifically for derived summaries and
+  map tiles.
 
-- The pipeline state machine is thoughtful about idempotency, retries, and
-  observability.
+### `Security Privacy Retention and Deletion.md`
 
-- The security, retention, and honesty rules are unusually explicit, which will
-  save you later.
+**Strong:** right topics, includes log retention alignment.
 
-- The test strategy doc is detailed and aligns with a reproducible telemetry
-  pipeline.
+**Risks and issues:**
+
+- Raw retention default (30 days) contradicts the data model.
+- Deletion needs concrete implementation per storage engine, particularly if
+  ClickHouse is involved.
+
+**Suggested changes:**
+
+- Add the lifecycle truth table.
+- Add explicit how to delete from ClickHouse and how to verify deletion steps.
+
+### `Telemetry Processing Pipeline Job Orchestration and State Machine.md`
+
+**Strong:** state machine thinking, idempotency is explicitly addressed.
+
+**Gap:** queue technology and execution environment are still abstract, which is
+fine, but you need a decision soon because it shapes retries, parallelism, and
+cost.
+
+**Suggested changes:**
+
+- Add one minimum viable orchestration section that says what you will implement
+  first (example: Postgres backed job table plus worker polling), then what you
+  will migrate to later.
+
+### `Supported Formats and Parser Specification.md`
+
+**Strong:** plugin contract, safety constraints, fusion provenance model.
+
+**Minor gap:** explicitly define the minimum canonical stream set required for
+lap detection, and the minimum required for quality scoring.
+
+### `Lap Segment and Corner Detection Specification.md`
+
+**Strong:** start finish acquisition sources, honesty labelling for inference.
+
+**Gap:** add explicit handling for wrong track selected and track catalogue
+mismatch cases, since that will happen often and impacts trust.
+
+### `Performance Plan and Benchmarking.md`
+
+**Strong:** budgets align with the stated guardrails, clear stage timings.
+
+**Gap:** tie benchmark datasets directly to the synthetic dataset plan (one
+canonical set of standard tracks and runs used everywhere).
+
+### `Trust Quality Scoring and Honesty Rules.md`
+
+**Strong:** explicit provenance, avoids misleading claims.
+
+**Gap:** ensure the API contract includes a stable schema for reasons so the UI
+can render trust explanations consistently.
+
+### `Operational Runbook.md`
+
+**Strong:** practical, includes health endpoints.
+
+**Gap:** add a known bad patterns section for ingestion failures (timebase
+mismatch, IMU axis confusion, GNSS jitter, missing timestamps).
+
+### Existing review docs
+
+Both review docs are directionally useful, but they need maintenance:
+
+- One contains incorrect file paths for this ZIP.
+- Both suggest adding docs that now already exist (because the design set has
+  grown).
+
+## Recommended next actions (priority order)
+
+1. Write the storage plus retention ADRs (storage source of truth, raw discard
+   policy). Then update the three conflicting docs to match.
+2. Decide and document ID format (UUID vs prefixed ULID like), then normalise
+   API examples and schema.
+3. Add the data lifecycle truth table, this will also strengthen your trust and
+   privacy story.

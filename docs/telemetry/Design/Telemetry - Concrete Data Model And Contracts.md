@@ -44,6 +44,12 @@ This document does not define:
 - Track catalogue is in Postgres and updated daily from LiveRC, telemetry
   sessions can be assigned to a known track.
 
+### 2.3 Identifier strategy
+
+All telemetry entity IDs (sessions, processing runs, artifacts, datasets, etc.)
+are **UUIDs**. Store and expose UUIDs without type prefixes. See
+`docs/adr/ADR-20260131-telemetry-identifier-strategy.md`.
+
 ## 3. High level storage architecture
 
 ### 3.1 Postgres, metadata and governance
@@ -64,10 +70,10 @@ Rationale:
 - ClickHouse is optimised for high ingestion and fast analytical queries over
   large columnar time series, and its MergeTree family supports ordering and
   partitioning patterns that match time-window and per-session access.
-  ([clickhouse.com](https://clickhouse.com/docs/best-practices/choosing-a-primary-key?utm_source=chatgpt.com))
+  ([clickhouse.com](https://clickhouse.com/docs/best-practices/choosing-a-primary-key))
 - Prisma does not natively support ClickHouse, so ClickHouse access will be via
   a separate client in the API and workers.
-  ([github.com](https://github.com/prisma/prisma/issues/16174?utm_source=chatgpt.com))
+  ([github.com](https://github.com/prisma/prisma/issues/16174))
 
 Notes:
 
@@ -522,12 +528,12 @@ Columns:
 Patterns:
 
 - Use MergeTree-family engines.
-  ([clickhouse.com](https://clickhouse.com/docs/engines/table-engines/mergetree-family/mergetree?utm_source=chatgpt.com))
+  ([clickhouse.com](https://clickhouse.com/docs/engines/table-engines/mergetree-family/mergetree))
 - Partition by a coarse time expression, monthly is a typical default.
-  ([clickhouse.com](https://clickhouse.com/docs/engines/table-engines/mergetree-family/mergetree?utm_source=chatgpt.com))
+  ([clickhouse.com](https://clickhouse.com/docs/engines/table-engines/mergetree-family/mergetree))
 - Order by keys that match dominant filters, and keep timestamp in the ordering
   key to support range scans.
-  ([clickhouse.com](https://clickhouse.com/docs/best-practices/choosing-a-primary-key?utm_source=chatgpt.com))
+  ([clickhouse.com](https://clickhouse.com/docs/best-practices/choosing-a-primary-key))
 
 Dominant query patterns for MRE telemetry:
 

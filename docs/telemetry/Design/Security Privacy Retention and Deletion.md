@@ -240,8 +240,10 @@ Category A: Account and identity
   delete
 
 Category B: Raw artifacts  
-Default retention: 30 days after successful processing  
-Rationale: Raw files are large and sensitive, keep only for reprocessing window.
+Raw bytes are not retained; they are discarded immediately after successful
+canonicalisation. Only metadata (hash, size, type, parse version) is kept.
+Reprocessing uses canonical streams. See
+`docs/adr/ADR-20260131-telemetry-storage-and-raw-retention.md`.
 
 Category C: Derived datasets  
 Default retention: 12 months  
@@ -269,11 +271,20 @@ Use a scheduled retention reaper:
 - Finds expired records
 - Deletes in dependency-safe order:
   1. revoke signed URLs and access tokens
-  2. delete derived datasets objects
-  3. delete raw artifacts objects
-  4. delete metadata rows or mark as tombstoned
+  2. delete derived datasets objects (e.g. ClickHouse, object store)
+  3. delete metadata rows or mark as tombstoned
 
 Retention enforcement must be idempotent and produce audit events.
+
+### 10.3 Data lifecycle truth table
+
+| Dataset class                                  | Where stored           | When created                             | When / how deleted                                                       | What remains after deletion                                    |
+| ---------------------------------------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| Raw upload bytes                               | Not stored             | —                                        | Discarded immediately after successful canonicalisation                  | Nothing (metadata only: hash, size, type, parse version)       |
+| Canonical streams / derived time series        | ClickHouse             | After worker canonicalisation/derivation | User deletes session → delete by session_id; retention TTL if configured | Nothing for that session                                       |
+| Processed artifact files (e.g. Parquet export) | Object store (if used) | Worker output / export                   | With session deletion or retention reaper                                | Nothing                                                        |
+| Metadata (sessions, jobs, provenance)          | Postgres               | On upload / job create                   | User deletes session → cascade; retention reaper for expired metadata    | Per compliance: minimal audit record if required, else nothing |
+| Operational logs                               | Log store              | At runtime                               | Raw logs: 7 days; aggregated: 90 days (per Category E above)             | Nothing after expiry                                           |
 
 ## 11. Deletion design
 

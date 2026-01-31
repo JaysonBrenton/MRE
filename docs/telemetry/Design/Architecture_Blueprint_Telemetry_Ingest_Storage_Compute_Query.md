@@ -72,7 +72,9 @@ which responsibilities, and how data should flow through the system.
 ## High level flow
 
 1. User uploads files via UI
-2. API stores raw upload as an immutable artifact
+2. API accepts upload; worker canonicalises; raw bytes are discarded after
+   successful canonicalisation (see
+   ADR-20260131-telemetry-storage-and-raw-retention)
 3. API creates an Import Session and one or more Processing Jobs
 4. Python worker picks up job, parses and normalises
 5. Worker writes canonical streams and derived outputs
@@ -94,23 +96,17 @@ which responsibilities, and how data should flow through the system.
 
 ### Tier 1: Raw artifact store
 
-Purpose: replay and audit.
+Do not store raw upload bytes after canonicalisation. Discard them immediately;
+keep only metadata (hash, size, type, parse version). See
+`docs/adr/ADR-20260131-telemetry-storage-and-raw-retention.md`.
 
-- Store exactly what the user uploaded
-- Store content hash, size, detected type, parse version used
-- Keep immutable
+### Tier 2: Processed artifact store and time series queries
 
-Suggested implementation options:
+Time series queries are served from **ClickHouse** (authoritative). Parquet is
+used for worker output and exports only.
 
-- Object storage (S3 compatible) if available
-- Local filesystem with a disciplined layout if running on a single VM
-
-### Tier 2: Processed artifact store
-
-Purpose: efficient time series storage.
-
-- Store canonical streams and derived outputs as columnar files
-- Prefer Parquet for speed and compression
+- Store canonical streams and derived outputs as columnar files (Parquet for
+  worker output and export)
 - Partition by session_id and stream type
 
 Example processed outputs:

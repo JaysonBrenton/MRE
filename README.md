@@ -4,19 +4,30 @@ A Next.js application running in Docker, connected to PostgreSQL.
 
 ## ⚠️ CRITICAL: Docker-Only Environment
 
-**IMPORTANT FOR ALL CONTRIBUTORS (INCLUDING LLMs):** This application runs **EXCLUSIVELY in Docker containers**. There is no local development server. All commands, dependency installations, and script executions must be performed inside Docker containers. See `docs/AGENTS.md` Section 1 for complete Docker environment guidelines.
+**IMPORTANT FOR ALL CONTRIBUTORS (INCLUDING LLMs):** This application runs
+**EXCLUSIVELY in Docker containers**. There is no local development server. All
+commands, dependency installations, and script executions must be performed
+inside Docker containers. See `docs/AGENTS.md` Section 1 for complete Docker
+environment guidelines.
 
 **Key Points:**
-- The application runs in Docker containers (`mre-app` for Next.js, `mre-liverc-ingestion-service` for Python)
-- All npm/node commands must run inside the container: `docker exec -it mre-app <command>`
-- All Python commands must run inside the container: `docker exec -it mre-liverc-ingestion-service <command>`
-- Dependencies are automatically installed by the Docker entrypoint script when containers start
-- Local `node_modules` is excluded from Docker volumes and not used by the running application
+
+- The application runs in Docker containers (`mre-app` for Next.js,
+  `mre-liverc-ingestion-service` for Python)
+- All npm/node commands must run inside the container:
+  `docker exec -it mre-app <command>`
+- All Python commands must run inside the container:
+  `docker exec -it mre-liverc-ingestion-service <command>`
+- Dependencies are automatically installed by the Docker entrypoint script when
+  containers start
+- Local `node_modules` is excluded from Docker volumes and not used by the
+  running application
 
 1. Purpose of This Repository
 
-My Race Engineer (MRE) is an enterprise-grade RC racing telemetry platform.
-This version is version 0.1.1, with an expanded feature set building on the architectural foundation established in version 0.1.0.
+My Race Engineer (MRE) is an enterprise-grade RC racing telemetry platform. This
+version is version 0.1.1, with an expanded feature set building on the
+architectural foundation established in version 0.1.0.
 
 This README is the single source of truth for:
 
@@ -26,12 +37,14 @@ LLM contributors
 
 Architects and reviewers
 
-It defines the version 0.1.1 feature scope, required documentation, architecture rules, operational setup, and LLM guardrails.
+It defines the version 0.1.1 feature scope, required documentation, architecture
+rules, operational setup, and LLM guardrails.
 
 2. Version 0.1.1 Feature Scope (Strict)
 
-Only the following features are allowed in version 0.1.1.
-Anything not listed is out of scope.
+Only the following features are allowed in version 0.1.1. Anything not listed is
+out of scope. The current build reflects the implemented subset; see
+`docs/specs/mre-v0.1-feature-scope.md` for implementation status.
 
 ✔ 2.1 Registration
 
@@ -49,8 +62,8 @@ Stored in PostgreSQL.
 
 ✔ 2.2 Login
 
-Authenticated via Email/Username + Password.
-Sessions must follow the architecture’s session/token framework.
+Authenticated via Email/Username + Password. Sessions must follow the
+architecture’s session/token framework.
 
 ✔ 2.3 User Welcome Page
 
@@ -87,12 +100,14 @@ See docs/architecture/liverc-ingestion/ for complete architecture specification.
 Version 0.1.1 includes expanded UI features:
 
 **Navigation Features:**
+
 - Breadcrumb navigation (primary pattern)
 - Simplified hamburger menus (basic toggle functionality)
 - Multi-level dropdown menus (secondary pattern)
 - Tab-based navigation (secondary pattern)
 
 **Table Components:**
+
 - Tables in admin console (users, events, tracks lists)
 - Tables in event lists page
 - Tables in driver management
@@ -100,6 +115,7 @@ Version 0.1.1 includes expanded UI features:
 - Full sorting, filtering, and pagination support
 
 **Dashboard System:**
+
 - User dashboard (personal stats, recent events)
 - Driver dashboard (performance metrics, lap times)
 - Team dashboard (team statistics, member performance)
@@ -107,6 +123,7 @@ Version 0.1.1 includes expanded UI features:
 - Customizable widgets (drag-and-drop, resize, rearrange)
 
 **Telemetry Visualizations:**
+
 - Lap time charts (line graphs, comparisons)
 - Speed graphs (over time, by sector)
 - GPS track visualization (maps, track layouts)
@@ -131,13 +148,15 @@ Notifications, jobs, emails
 
 Settings beyond dark mode
 
-Any UI beyond registration, login, welcome pages, admin console, dashboards, events, drivers
+Any UI beyond registration, login, welcome pages, admin console, dashboards,
+events, drivers
 
 Python-based admin tools (future)
 
 ✔ 2.7 Dashboard and Event Pages
 
 The following pages are in scope for version 0.1.1:
+
 - Dashboard page (overview with navigation to event search)
 - Events list page (browse imported events)
 - Event Search page (search and import events from LiveRC)
@@ -170,8 +189,8 @@ Performance rules
 
 Separation of UI + logic
 
-The codebase must match the document.
-If not, code must be corrected or an ADR created.
+The codebase must match the document. If not, code must be corrected or an ADR
+created.
 
 4. Theme System
 
@@ -211,7 +230,9 @@ Cognitive load minimisation
 
 6. Mobile UX Requirements
 
-**Note:** The application is now desktop-only for UI. See `docs/design/mre-ux-principles.md` for current UX guidelines. The mobile UX guidelines document has been removed.
+**Note:** The application is now desktop-only for UI. See
+`docs/design/mre-ux-principles.md` for current UX guidelines. The mobile UX
+guidelines document has been removed.
 
 7. ADRs
 
@@ -231,7 +252,8 @@ docs/reviews/DOCKER_REVIEW_REPORT.md (Docker review and evaluation)
 
 9. Role Documentation
 
-The MRE project uses a role-based development approach where different engineering roles have specific responsibilities and areas of ownership.
+The MRE project uses a role-based development approach where different
+engineering roles have specific responsibilities and areas of ownership.
 
 Role definitions and responsibilities are documented in:
 
@@ -240,101 +262,88 @@ docs/roles/
 Key roles include:
 
 - **DevOps & Platform Engineer**: Infrastructure, CI/CD, deployment automation
-- **Documentation & Knowledge Steward**: Documentation quality, ADRs, knowledge management
+- **Documentation & Knowledge Steward**: Documentation quality, ADRs, knowledge
+  management
 - **Next.js Front-End Engineer**: UI components, App Router, design token usage
-- **Observability & Incident Response Lead**: Logging, metrics, incident management
-- **Prisma/PostgreSQL Backend Engineer**: Database schema, migrations, data persistence
+- **Observability & Incident Response Lead**: Logging, metrics, incident
+  management
+- **Prisma/PostgreSQL Backend Engineer**: Database schema, migrations, data
+  persistence
 - **Quality & Automation Engineer**: Testing, CI pipelines, quality gates
 - **Senior UI/UX Expert**: UX principles, design systems, accessibility
 - **TypeScript Domain Engineer**: Domain modeling, business logic, type safety
 
-See individual role documents in `docs/roles/` for detailed responsibilities, handoffs, and success metrics.
+See individual role documents in `docs/roles/` for detailed responsibilities,
+handoffs, and success metrics.
 
-10. Directory Structure
-.
-├── README.md
-├── docs/
-│   ├── specs/
-│   │   ├── mre-v0.1-feature-scope.md
-│   │   └── mre-under-development-page.md
-│   ├── architecture/
-│   │   ├── mobile-safe-architecture-guidelines.md
-│   │   └── liverc-ingestion/     # LiveRC ingestion architecture (26 documents)
-│   ├── design/
-│   │   ├── mre-dark-theme-guidelines.md
-│   │   ├── mre-hero-image-generation.md
-│   │   └── mre-ux-principles.md
-│   ├── adr/
-│   │   ├── README.md
-│   │   └── ADR-*.md (Architecture Decision Records)
-│   ├── reviews/
-│   │   └── DOCKER_REVIEW_REPORT.md
-│   ├── reports/            # Operational reports (track sync, UI reviews, etc.)
-│   ├── AGENTS.md           # MRE Agents Handbook
-│   ├── roles/
-│   │   ├── devops-platform-engineer.md
-│   │   ├── documentation-knowledge-steward.md
-│   │   ├── nextjs-front-end-engineer.md
-│   │   ├── observability-incident-response-lead.md
-│   │   ├── prisma-postgresql-backend-engineer.md
-│   │   ├── quality-automation-engineer.md
-│   │   ├── senior-ui-ux-expert.md
-│   │   └── typescript-domain-engineer.md
-│   └── standards/
-│       └── file-headers-and-commenting-guidelines.md
-├── src/
-│   ├── core/
-│   │   ├── auth/          # Authentication business logic
-│   │   ├── users/         # User domain logic
-│   │   └── common/        # Shared utilities
-│   ├── app/               # Next.js App Router
-│   │   ├── api/           # API routes
-│   │   │   └── v1/        # Versioned API endpoints
-│   │   ├── admin/         # Admin pages
-│   │   ├── login/         # Login page
-│   │   ├── register/      # Registration page
-│   │   ├── welcome/       # User welcome page
-│   │   └── under-development/  # Placeholder page
-│   ├── components/        # React components (shared)
-│   └── lib/               # Shared libraries and utilities
-├── ingestion/             # Python ingestion service
-│   ├── api/               # FastAPI application
-│   ├── connectors/        # Data source connectors (LiveRC)
-│   ├── db/                # Database models and repository
-│   └── ingestion/         # Ingestion pipeline logic
-├── prisma/                # Database schema and migrations
-├── scripts/               # Utility scripts for database operations and setup
-│   ├── setup-database.sh     # Initial database setup script (Docker network, PostgreSQL, migrations, seed)
-│   ├── check-db-data.ts      # Display database contents overview
-│   ├── cleanup-events.ts     # Remove all events and related data
-│   ├── diagnose-auth.ts      # Diagnostic tool for authentication issues
-│   ├── list-events.ts        # List events for a specific track
-│   ├── list-tracks.ts        # List all tracks in the database
-│   ├── list-users.ts         # List all users in the database
-│   ├── migrate-password.ts   # Migrate passwords from bcryptjs to Argon2id
-│   └── normalize-emails.ts   # Normalize all email addresses to lowercase
-└── public/                # Static assets
+10. Directory Structure . ├── README.md ├── docs/ │ ├── specs/ │ │ ├──
+    mre-v0.1-feature-scope.md │ │ └── mre-under-development-page.md │ ├──
+    architecture/ │ │ ├── mobile-safe-architecture-guidelines.md │ │ └──
+    liverc-ingestion/ # LiveRC ingestion architecture (26 documents) │ ├──
+    design/ │ │ ├── mre-dark-theme-guidelines.md │ │ ├──
+    mre-hero-image-generation.md │ │ └── mre-ux-principles.md │ ├── adr/ │ │ ├──
+    README.md │ │ └── ADR-\*.md (Architecture Decision Records) │ ├── reviews/ │
+    │ └── DOCKER_REVIEW_REPORT.md │ ├── reports/ # Operational reports (track
+    sync, UI reviews, etc.) │ ├── AGENTS.md # MRE Agents Handbook │ ├── roles/ │
+    │ ├── devops-platform-engineer.md │ │ ├── documentation-knowledge-steward.md
+    │ │ ├── nextjs-front-end-engineer.md │ │ ├──
+    observability-incident-response-lead.md │ │ ├──
+    prisma-postgresql-backend-engineer.md │ │ ├── quality-automation-engineer.md
+    │ │ ├── senior-ui-ux-expert.md │ │ └── typescript-domain-engineer.md │ └──
+    standards/ │ └── file-headers-and-commenting-guidelines.md ├── src/ │ ├──
+    core/ │ │ ├── auth/ # Authentication business logic │ │ ├── users/ # User
+    domain logic │ │ └── common/ # Shared utilities │ ├── app/ # Next.js App
+    Router │ │ ├── api/ # API routes │ │ │ └── v1/ # Versioned API endpoints │ │
+    ├── admin/ # Admin pages │ │ ├── login/ # Login page │ │ ├── register/ #
+    Registration page │ │ ├── welcome/ # User welcome page │ │ └──
+    under-development/ # Placeholder page │ ├── components/ # React components
+    (shared) │ └── lib/ # Shared libraries and utilities ├── ingestion/ # Python
+    ingestion service │ ├── api/ # FastAPI application │ ├── connectors/ # Data
+    source connectors (LiveRC) │ ├── db/ # Database models and repository │ └──
+    ingestion/ # Ingestion pipeline logic ├── prisma/ # Database schema and
+    migrations ├── scripts/ # Utility scripts for database operations and setup
+    │ ├── setup-database.sh # Initial database setup script (Docker network,
+    PostgreSQL, migrations, seed) │ ├── check-db-data.ts # Display database
+    contents overview │ ├── cleanup-events.ts # Remove all events and related
+    data │ ├── diagnose-auth.ts # Diagnostic tool for authentication issues │
+    ├── list-events.ts # List events for a specific track │ ├── list-tracks.ts #
+    List all tracks in the database │ ├── list-users.ts # List all users in the
+    database │ ├── migrate-password.ts # Migrate passwords from bcryptjs to
+    Argon2id │ └── normalize-emails.ts # Normalize all email addresses to
+    lowercase └── public/ # Static assets
 
 11. Utility Scripts
 
-The `scripts/` directory contains TypeScript utility scripts for database operations and maintenance. All scripts must be executed inside the Docker container.
+The `scripts/` directory contains TypeScript utility scripts for database
+operations and maintenance. All scripts must be executed inside the Docker
+container.
 
 **Running Scripts:**
+
 ```bash
 docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' scripts/<script-name>.ts
 ```
 
 **Available Scripts:**
-- `check-db-data.ts` - Display overview of all database contents (users, tracks, events, races, etc.)
-- `cleanup-events.ts` - Remove all events and related data (races, drivers, results, laps). Use with `--force` flag to execute.
-- `diagnose-auth.ts` - Diagnostic tool for troubleshooting authentication and email lookup issues
-- `list-events.ts` - List events for a specific track (requires `--track-id` parameter)
+
+- `check-db-data.ts` - Display overview of all database contents (users, tracks,
+  events, races, etc.)
+- `cleanup-events.ts` - Remove all events and related data (races, drivers,
+  results, laps). Use with `--force` flag to execute.
+- `diagnose-auth.ts` - Diagnostic tool for troubleshooting authentication and
+  email lookup issues
+- `list-events.ts` - List events for a specific track (requires `--track-id`
+  parameter)
 - `list-tracks.ts` - List all tracks in the database with details
-- `list-users.ts` - List all users with email, driver name, team name, admin status, and creation date
-- `migrate-password.ts` - One-time migration script to convert bcryptjs password hashes to Argon2id
-- `normalize-emails.ts` - One-time migration to normalize all email addresses to lowercase
+- `list-users.ts` - List all users with email, driver name, team name, admin
+  status, and creation date
+- `migrate-password.ts` - One-time migration script to convert bcryptjs password
+  hashes to Argon2id
+- `normalize-emails.ts` - One-time migration to normalize all email addresses to
+  lowercase
 
 **Examples:**
+
 ```bash
 # List all users
 docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' scripts/list-users.ts
@@ -371,31 +380,40 @@ MRE runs in Docker using PostgreSQL.
 Prerequisites
 
 **Docker Runtime:** Choose one:
-- **Docker Desktop** (version 20.10 or later) - https://www.docker.com/products/docker-desktop
-- **Colima** (macOS recommended) - `brew install colima` - See `docs/operations/docker-user-guide.md` for setup
 
-**Docker Compose** (version 2.0 or later) - Included with Docker Desktop or installed separately
+- **Docker Desktop** (version 20.10 or later) -
+  https://www.docker.com/products/docker-desktop
+- **Colima** (macOS recommended) - `brew install colima` - See
+  `docs/operations/docker-user-guide.md` for setup
 
-**Docker network:** `my-race-engineer_mre-network` (external network - must be created separately)
+**Docker Compose** (version 2.0 or later) - Included with Docker Desktop or
+installed separately
+
+**Docker network:** `my-race-engineer_mre-network` (external network - must be
+created separately)
 
 Create the network if it doesn't exist:
+
 ```bash
 docker network create my-race-engineer_mre-network
 ```
 
-**PostgreSQL Container:** The `mre-postgres` container must be created separately (not managed by docker-compose). See `docs/operations/docker-user-guide.md` Step 3 for setup instructions.
+**PostgreSQL Container:** The `mre-postgres` container must be created
+separately (not managed by docker-compose). See
+`docs/operations/docker-user-guide.md` Step 3 for setup instructions.
 
 Start App
+
 ```bash
 docker compose up -d
 ```
 
 **For complete setup instructions, see:**
+
 - `docs/operations/docker-user-guide.md` - Comprehensive Docker setup guide
 - `docs/development/quick-start.md` - Developer onboarding guide
 
-Logs
-docker logs -f mre-app
+Logs docker logs -f mre-app
 
 Access
 
@@ -425,12 +443,8 @@ Source mounted as volume
 
 Port 3001 exposed
 
-Useful Docker Commands
-docker compose build
-docker compose up -d
-docker compose down
-docker logs mre-app
-docker exec -it mre-app sh
+Useful Docker Commands docker compose build docker compose up -d docker compose
+down docker logs mre-app docker exec -it mre-app sh
 
 Environment Variables (.env.docker)
 
@@ -444,7 +458,9 @@ APP_URL
 
 Python Ingestion Service
 
-The MRE application includes a Python-based ingestion service that runs as a separate microservice. This service handles LiveRC data ingestion, parsing, and storage.
+The MRE application includes a Python-based ingestion service that runs as a
+separate microservice. This service handles LiveRC data ingestion, parsing, and
+storage.
 
 Service Details
 
@@ -454,13 +470,17 @@ Port: 8000 (default, configurable via INGESTION_PORT)
 
 Technology: FastAPI (Python 3.11+)
 
-Purpose: Ingests race data from LiveRC, normalizes it, and stores it in the PostgreSQL database
+Purpose: Ingests race data from LiveRC, normalizes it, and stores it in the
+PostgreSQL database
 
-Integration: The Next.js application communicates with the ingestion service via HTTP API calls. The ingestion service shares the same database connection as the Next.js app.
+Integration: The Next.js application communicates with the ingestion service via
+HTTP API calls. The ingestion service shares the same database connection as the
+Next.js app.
 
 Running CLI Commands
 
-**All Python CLI commands MUST be executed inside the Docker container.** This is the primary and recommended method:
+**All Python CLI commands MUST be executed inside the Docker container.** This
+is the primary and recommended method:
 
 ```bash
 # Ensure ingestion service is running
@@ -474,22 +494,27 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 ```
 
 **Why Docker?**
-- No local Python setup required (Python 3.11, dependencies, Playwright pre-installed)
+
+- No local Python setup required (Python 3.11, dependencies, Playwright
+  pre-installed)
 - Pre-configured database connection
 - Consistent environment across developers
 
 See ingestion/README.md for detailed setup, development, and API documentation.
-See docs/operations/liverc-operations-guide.md for complete CLI command reference.
+See docs/operations/liverc-operations-guide.md for complete CLI command
+reference.
 
 13.5 API Endpoints
 
 The MRE application exposes the following API endpoints:
 
 **Authentication Endpoints:**
+
 - POST /api/v1/auth/register - Register a new user account
 - POST /api/v1/auth/login - Authenticate and create session
 
 **LiveRC Ingestion Endpoints:**
+
 - GET /api/v1/tracks - Get track catalogue
 - GET /api/v1/events - Get list of all fully imported events
 - GET /api/v1/events/search - Search events by track and date range
@@ -499,40 +524,56 @@ The MRE application exposes the following API endpoints:
 - GET /api/v1/events/[eventId]/summary - Get lightweight event summary data
 - POST /api/v1/events/[eventId]/ingest - Trigger on-demand event ingestion
 - POST /api/v1/events/ingest - Ingest event by source_event_id and track_id
-- POST /api/v1/events/check-entry-lists - Check if driver name appears in entry lists
+- POST /api/v1/events/check-entry-lists - Check if driver name appears in entry
+  lists
 
 **Practice Days Endpoints:**
-- GET /api/v1/practice-days/search - Search practice days in database by track and date range
-- POST /api/v1/practice-days/discover - Discover practice days from LiveRC for a track and month
-- POST /api/v1/practice-days/ingest - Ingest practice day data for a specific track and date
+
+- GET /api/v1/practice-days/search - Search practice days in database by track
+  and date range
+- POST /api/v1/practice-days/discover - Discover practice days from LiveRC for a
+  track and month
+- POST /api/v1/practice-days/ingest - Ingest practice day data for a specific
+  track and date
 
 **Race Data Endpoints:**
+
 - GET /api/v1/races/[raceId] - Get race details with results
 - GET /api/v1/races/[raceId]/laps - Get lap data for all drivers in a race
-- GET /api/v1/race-results/[raceResultId]/laps - Get lap data for a specific race result
+- GET /api/v1/race-results/[raceResultId]/laps - Get lap data for a specific
+  race result
 
 **Driver Endpoints:**
-- GET /api/v1/drivers/[driverId] - Get driver details with transponder numbers and event entries
+
+- GET /api/v1/drivers/[driverId] - Get driver details with transponder numbers
+  and event entries
 
 **Transponder Override Endpoints:**
+
 - POST /api/v1/transponder-overrides - Create transponder override
 - GET /api/v1/transponder-overrides - List transponder overrides
 - GET /api/v1/transponder-overrides/[overrideId] - Get transponder override
 - PATCH /api/v1/transponder-overrides/[overrideId] - Update transponder override
-- DELETE /api/v1/transponder-overrides/[overrideId] - Delete transponder override
+- DELETE /api/v1/transponder-overrides/[overrideId] - Delete transponder
+  override
 
 **Personas Endpoints:**
+
 - GET /api/v1/personas - Get available personas for current user
 - GET /api/v1/personas/driver/events - Get events for driver persona
-- GET /api/v1/personas/team-manager/team - Get team data for team manager persona
+- GET /api/v1/personas/team-manager/team - Get team data for team manager
+  persona
 - GET /api/v1/users/me/persona - Get current user's active persona
-- POST /api/v1/users/me/persona - Set current user's active persona (Race Engineer only)
+- POST /api/v1/users/me/persona - Set current user's active persona (Race
+  Engineer only)
 - GET /api/v1/users/[userId]/driver-links - Get driver links for a user
 
 **Admin Endpoints (Admin Only):**
+
 - GET /api/v1/admin/stats - Get system statistics
 - GET /api/v1/admin/health - Get detailed health check information
-- POST /api/v1/admin/ingestion - Trigger ingestion jobs (track sync or event ingestion)
+- POST /api/v1/admin/ingestion - Trigger ingestion jobs (track sync or event
+  ingestion)
 - GET /api/v1/admin/users - List all users
 - PATCH /api/v1/admin/users/[userId] - Update user details
 - DELETE /api/v1/admin/users/[userId] - Delete user
@@ -546,11 +587,16 @@ The MRE application exposes the following API endpoints:
 - GET /api/v1/admin/logs/sources - Get available log sources
 
 **Health Check:**
+
 - GET /api/v1/health - Application health check
 
-**Note:** All data endpoints require authentication. Admin endpoints require admin privileges (`isAdmin: true`). Rate limiting is applied to authentication and ingestion endpoints.
+**Note:** All data endpoints require authentication. Admin endpoints require
+admin privileges (`isAdmin: true`). Rate limiting is applied to authentication
+and ingestion endpoints.
 
-All API endpoints follow the standard response format defined in docs/architecture/mobile-safe-architecture-guidelines.md Section 3.2. See docs/api/api-reference.md for complete API documentation.
+All API endpoints follow the standard response format defined in
+docs/architecture/mobile-safe-architecture-guidelines.md Section 3.2. See
+docs/api/api-reference.md for complete API documentation.
 
 14. Contributing
 
@@ -566,8 +612,7 @@ Match documented patterns
 
 Create ADRs for deviations
 
-15. Product Vision (Future Releases)
-15.1 Landing Page Navigation (Future)
+15. Product Vision (Future Releases) 15.1 Landing Page Navigation (Future)
 
 Future navigation includes:
 
@@ -593,13 +638,13 @@ All out-of-scope links must route to:
 
 /under-development
 
-15.2 Under Development Message
-We're still building this feature, the pit crew is working on it!
+15.2 Under Development Message We're still building this feature, the pit crew
+is working on it!
 
 15.3 Hero Message
 
-Drive faster, think clearer.
-Let MRE reveal where you’re gaining and losing time, lap-by-lap.
+Drive faster, think clearer. Let MRE reveal where you’re gaining and losing
+time, lap-by-lap.
 
 15.4 Hero Image Design
 

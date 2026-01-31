@@ -4,7 +4,7 @@ Author: Jayson Brenton
 Co-author: The Brainy One
 Date: 2026-01-30
 Purpose: Define the public API contract, UX query patterns, and service boundaries for telemetry in MRE.
-License: TBD
+License: Proprietary, internal to MRE
 -->
 
 # Telemetry API Contract and Query Patterns
@@ -110,7 +110,8 @@ Recommended model:
 
 ### 4.2 Identifiers
 
-- IDs are stable opaque strings (ULID recommended).
+- All IDs are UUIDs (see
+  `docs/adr/ADR-20260131-telemetry-identifier-strategy.md`).
 - Never expose object storage paths or internal keys.
 
 ### 4.3 Time semantics
@@ -260,10 +261,10 @@ Response `202`:
 ```json
 {
   "accepted": true,
-  "session_id": "ses_01H...",
-  "processing_run_id": "prun_01H...",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "processing_run_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
   "next": {
-    "poll_session": "/api/v1/telemetry/sessions/ses_01H..."
+    "poll_session": "/api/v1/telemetry/sessions/550e8400-e29b-41d4-a716-446655440000"
   }
 }
 ```
@@ -288,7 +289,7 @@ Response `200`:
 {
   "items": [
     {
-      "id": "ses_01H...",
+      "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "string",
       "track_id": "trk_01H...",
       "device_summary": "string",
@@ -313,7 +314,7 @@ Response `200`:
 ```json
 {
   "session": {
-    "id": "ses_01H...",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "string",
     "status": "processing|ready|failed",
     "track": {
@@ -351,7 +352,7 @@ Response `200`:
       "notes": []
     },
     "processing": {
-      "latest_run_id": "prun_01H...",
+      "latest_run_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
       "algorithm_versions": {
         "parser": "parser_0.3.0",
         "fusion": "fusion_0.2.1",
@@ -478,7 +479,7 @@ Response `200` inline JSON:
 ```json
 {
   "meta": {
-    "session_id": "ses_01H...",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
     "window": { "start_t_ms": 133000, "end_t_ms": 174234 },
     "level": "ds_10hz",
     "point_count": 4124,
@@ -502,7 +503,7 @@ Response `200` signed URL:
 ```json
 {
   "meta": {
-    "session_id": "ses_01H...",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
     "window": { "start_t_ms": 0, "end_t_ms": 600000 },
     "level": "ds_5hz",
     "point_count": 30000,
@@ -554,7 +555,7 @@ Response `200`:
 ```json
 {
   "meta": {
-    "session_id": "ses_01H...",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
     "align": { "mode": "distance", "resample_points": 1500 }
   },
   "laps": [
@@ -699,7 +700,7 @@ Response `200`:
 {
   "items": [
     {
-      "id": "prun_01H...",
+      "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
       "status": "queued|running|succeeded|failed",
       "started_at": "string|null",
       "finished_at": "string|null",
