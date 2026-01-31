@@ -3,9 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-29
 description: Step-by-step developer onboarding guide for MRE application
-purpose: Provides a comprehensive quick start guide for new developers, including
-         prerequisites, setup instructions, first-time workflow, and troubleshooting.
-         Accelerates developer onboarding and reduces setup friction.
+purpose:
+  Provides a comprehensive quick start guide for new developers, including
+  prerequisites, setup instructions, first-time workflow, and troubleshooting.
+  Accelerates developer onboarding and reduces setup friction.
 relatedFiles:
   - README.md (project overview and basic setup)
   - docs/reviews/DOCKER_REVIEW_REPORT.md (Docker setup details)
@@ -18,7 +19,8 @@ relatedFiles:
 **Last Updated:** 2025-01-27  
 **Target Audience:** New developers joining the MRE project
 
-This guide provides step-by-step instructions for setting up the MRE development environment and getting started with development.
+This guide provides step-by-step instructions for setting up the MRE development
+environment and getting started with development.
 
 ---
 
@@ -45,13 +47,16 @@ Before starting, ensure you have the following installed:
 - **Docker Runtime** (choose one):
   - **Option 1: Colima** (Recommended for macOS - Primary Setup)
     - Install: `brew install colima`
-    - Setup: See `docs/operations/docker-user-guide.md#colima-setup` or run `./scripts/start-colima.sh`
+    - Setup: See `docs/operations/docker-user-guide.md#colima-setup` or run
+      `./scripts/start-colima.sh`
     - Verify: `colima status`
-    - **Note:** Colima is the recommended Docker runtime for macOS. It provides better command-line control and is lighter than Docker Desktop.
+    - **Note:** Colima is the recommended Docker runtime for macOS. It provides
+      better command-line control and is lighter than Docker Desktop.
   - **Option 2: Docker Desktop** (Alternative - version 20.10 or later)
     - Download: https://www.docker.com/products/docker-desktop
     - Verify: `docker --version`
-    - **Note:** Docker Desktop can be used as an alternative, but Colima is recommended.
+    - **Note:** Docker Desktop can be used as an alternative, but Colima is
+      recommended.
 
 - **Docker Compose** (version 2.0 or later)
   - Included with Docker Desktop or installed separately with Colima
@@ -90,7 +95,8 @@ cd mre
 
 ### Step 2: Verify Docker Network
 
-The application requires a Docker network named `my-race-engineer_mre-network`. Check if it exists:
+The application requires a Docker network named `my-race-engineer_mre-network`.
+Check if it exists:
 
 ```bash
 docker network ls | grep my-race-engineer_mre-network
@@ -104,13 +110,15 @@ docker network create my-race-engineer_mre-network
 
 ### Step 3: Verify PostgreSQL Container
 
-The application connects to an existing PostgreSQL container named `mre-postgres` on the network. Verify it exists:
+The application connects to an existing PostgreSQL container named
+`mre-postgres` on the network. Verify it exists:
 
 ```bash
 docker ps -a | grep mre-postgres
 ```
 
-If the container doesn't exist, you'll need to set it up. See [Common Setup Issues](#common-setup-issues) for PostgreSQL setup instructions.
+If the container doesn't exist, you'll need to set it up. See
+[Common Setup Issues](#common-setup-issues) for PostgreSQL setup instructions.
 
 ### Step 4: Configure Environment Variables
 
@@ -121,7 +129,8 @@ cp .env.docker.example .env.docker  # If example exists
 # Or create manually
 ```
 
-Minimum required variables (see `docs/operations/environment-variables.md` for complete list):
+Minimum required variables (see `docs/operations/environment-variables.md` for
+complete list):
 
 ```bash
 DATABASE_URL=postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?schema=public
@@ -137,7 +146,8 @@ Build the application and ingestion service images:
 docker compose build
 ```
 
-This may take several minutes on first run as it downloads base images and installs dependencies.
+This may take several minutes on first run as it downloads base images and
+installs dependencies.
 
 ---
 
@@ -162,6 +172,7 @@ docker compose ps
 ```
 
 You should see:
+
 - `mre-app` - Next.js application (port 3001)
 - `mre-liverc-ingestion-service` - Python ingestion service (port 8000)
 
@@ -194,6 +205,7 @@ curl http://localhost:3001/api/v1/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "ok",
@@ -258,7 +270,8 @@ docker exec -it mre-app sh
 npx prisma studio
 ```
 
-Prisma Studio will open in your browser at http://localhost:5555 (if port forwarding is configured).
+Prisma Studio will open in your browser at http://localhost:5555 (if port
+forwarding is configured).
 
 ### 4. Create Your First User
 
@@ -332,13 +345,16 @@ docker exec -it mre-liverc-ingestion-service pytest
 docker exec -it mre-liverc-ingestion-service pytest --cov=ingestion
 ```
 
-**Note:** Local Python setup is optional. Docker execution is recommended for consistency.
+**Note:** Local Python setup is optional. Docker execution is recommended for
+consistency.
 
 ### Next.js Application Tests
 
-**Placeholder:** Frontend and backend tests for Next.js application are not yet implemented.
+**Placeholder:** Frontend and backend tests for Next.js application are not yet
+implemented.
 
 When tests are added:
+
 - Unit tests: `npm test`
 - Unit tests with UI: `npm run test:ui`
 - Test coverage: `npm run test:coverage`
@@ -415,25 +431,35 @@ npm run lint
 
 ### Utility Scripts
 
-The `scripts/` directory contains utility scripts for database operations and maintenance. All scripts must be executed inside the Docker container.
+The `scripts/` directory contains utility scripts for database operations and
+maintenance. All scripts must be executed inside the Docker container.
 
 **Execution Pattern:**
+
 ```bash
 docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' scripts/<script-name>.ts
 ```
 
 **Available Scripts:**
 
-- **list-users.ts** - List all users with email, driver name, team name, admin status, and creation date
+- **list-users.ts** - List all users with email, driver name, team name, admin
+  status, and creation date
 - **list-tracks.ts** - List all tracks in the database with details
-- **list-events.ts** - List events for a specific track (requires `--track-id` parameter)
-- **check-db-data.ts** - Display overview of all database contents (users, tracks, events, races, etc.)
-- **cleanup-events.ts** - Remove all events and related data. Use with `--force` flag to execute.
-- **diagnose-auth.ts** - Diagnostic tool for troubleshooting authentication issues
-- **normalize-emails.ts** - One-time migration to normalize all email addresses to lowercase
-- **migrate-password.ts** - One-time migration script to convert bcryptjs password hashes to Argon2id
+- **list-events.ts** - List events for a specific track (requires `--track-id`
+  parameter)
+- **check-db-data.ts** - Display overview of all database contents (users,
+  tracks, events, races, etc.)
+- **cleanup-events.ts** - Remove all events and related data. Use with `--force`
+  flag to execute.
+- **diagnose-auth.ts** - Diagnostic tool for troubleshooting authentication
+  issues
+- **normalize-emails.ts** - One-time migration to normalize all email addresses
+  to lowercase
+- **migrate-password.ts** - One-time migration script to convert bcryptjs
+  password hashes to Argon2id
 
 **Examples:**
+
 ```bash
 # List all users
 docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' scripts/list-users.ts
@@ -458,7 +484,8 @@ docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' s
 
 #### Running Python CLI Commands (Docker - Recommended)
 
-**All Python CLI commands should be run inside the Docker container.** This is the recommended and primary method:
+**All Python CLI commands should be run inside the Docker container.** This is
+the recommended and primary method:
 
 ```bash
 # Ensure ingestion service is running
@@ -487,7 +514,9 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 ```
 
 **Why use Docker?**
-- No local Python setup required (Python 3.11, dependencies, and Playwright pre-installed)
+
+- No local Python setup required (Python 3.11, dependencies, and Playwright
+  pre-installed)
 - Pre-configured database connection
 - Consistent environment across all developers
 - No virtual environment management needed
@@ -518,6 +547,7 @@ curl -X POST http://localhost:3001/api/v1/events/[eventId]/ingest \
 **Error:** `network my-race-engineer_mre-network not found`
 
 **Solution:**
+
 ```bash
 docker network create my-race-engineer_mre-network
 ```
@@ -544,11 +574,13 @@ docker run -d \
 **Error:** `port 3001 is already allocated`
 
 **Solution:** Change port in `.env.docker`:
+
 ```bash
 APP_PORT=3002  # Use different port
 ```
 
 Or stop the service using the port:
+
 ```bash
 # Find process using port
 lsof -i :3001
@@ -562,12 +594,15 @@ kill -9 <PID>
 **Error:** `Can't reach database server`
 
 **Solutions:**
+
 1. Verify PostgreSQL container is running:
+
    ```bash
    docker ps | grep mre-postgres
    ```
 
 2. Check DATABASE_URL in `.env.docker`:
+
    ```bash
    # Should match container name and network
    DATABASE_URL=postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?schema=public
@@ -583,6 +618,7 @@ kill -9 <PID>
 **Error:** `@prisma/client did not initialize yet`
 
 **Solution:**
+
 ```bash
 docker exec -it mre-app npx prisma generate
 ```
@@ -592,7 +628,9 @@ docker exec -it mre-app npx prisma generate
 **Problem:** Code changes not reflected in running application
 
 **Solutions:**
+
 1. Verify volume mounts in `docker-compose.yml`:
+
    ```yaml
    volumes:
      - .:/app
@@ -601,6 +639,7 @@ docker exec -it mre-app npx prisma generate
    ```
 
 2. Restart the container:
+
    ```bash
    docker compose restart app
    ```
@@ -616,12 +655,15 @@ docker exec -it mre-app npx prisma generate
 **Error:** `Failed to connect to ingestion service`
 
 **Solutions:**
+
 1. Verify ingestion service is running:
+
    ```bash
    docker ps | grep liverc-ingestion-service
    ```
 
 2. Check ingestion service logs:
+
    ```bash
    docker logs mre-liverc-ingestion-service
    ```
@@ -636,7 +678,9 @@ docker exec -it mre-app npx prisma generate
 **Error:** `Cannot find module '...'`
 
 **Solutions:**
+
 1. Rebuild Docker images:
+
    ```bash
    docker compose build --no-cache
    ```
@@ -653,6 +697,7 @@ docker exec -it mre-app npx prisma generate
 ### VS Code / Cursor
 
 **Recommended Extensions:**
+
 - **Prisma** - Prisma schema syntax highlighting
 - **ESLint** - JavaScript/TypeScript linting
 - **Prettier** - Code formatting
@@ -660,6 +705,7 @@ docker exec -it mre-app npx prisma generate
 - **Python** - Python support (for ingestion service)
 
 **Settings (`.vscode/settings.json`):**
+
 ```json
 {
   "editor.formatOnSave": true,
@@ -672,6 +718,7 @@ docker exec -it mre-app npx prisma generate
 ### Cursor-Specific
 
 Cursor is recommended for AI-assisted development. It provides:
+
 - AI code completion
 - AI chat for code questions
 - Context-aware suggestions
@@ -685,7 +732,8 @@ Cursor is recommended for AI-assisted development. It provides:
 After completing setup:
 
 1. **Read the Documentation**
-   - [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Core architecture rules
+   - [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -
+     Core architecture rules
    - [API Reference](../api/api-reference.md) - API endpoints
    - [Database Schema](../database/schema.md) - Data model
    - [Contributing Guidelines](./CONTRIBUTING.md) - Development standards
@@ -715,13 +763,16 @@ After completing setup:
 ## Related Documentation
 
 - [README.md](../../README.md) - Project overview and basic setup
-- [Environment Variables Reference](../operations/environment-variables.md) - Complete environment variable documentation
-- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup details
-- [LiveRC Operations Guide](../operations/liverc-operations-guide.md) - Operational commands
+- [Environment Variables Reference](../operations/environment-variables.md) -
+  Complete environment variable documentation
+- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup
+  details
+- [LiveRC Operations Guide](../operations/liverc-operations-guide.md) -
+  Operational commands
 - [Testing Strategy](./testing-strategy.md) - Testing guidelines
-- [Contributing Guidelines](./CONTRIBUTING.md) - Development standards and workflow
+- [Contributing Guidelines](./CONTRIBUTING.md) - Development standards and
+  workflow
 
 ---
 
 **End of Quick Start Guide**
-

@@ -1,15 +1,15 @@
 /**
  * @fileoverview Get sessions data - processes race data for sessions/heats visualization
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Processes EventAnalysisData to prepare session/heats data for visualization
- * 
+ *
  * @purpose Provides structured data for sessions/heats charts and tables.
  *          Filters by selected drivers, sorts by race label, and calculates metrics.
- * 
+ *
  * @relatedFiles
  * - src/core/events/get-event-analysis-data.ts (data source)
  * - src/components/event-analysis/SessionsTab.tsx (consumer)
@@ -131,7 +131,7 @@ function buildDriverNameLookup(data: EventAnalysisData): Record<string, string> 
 
 /**
  * Fix malformed duplicated driver names
- * Pattern: "LASTNAME, FIRSTNAMEFIRSTNAME LASTNAME" 
+ * Pattern: "LASTNAME, FIRSTNAMEFIRSTNAME LASTNAME"
  * Examples: "TURNER, HARRISONHARRISON TURNER", "COOK, MICHAELMICHAEL COOK"
  */
 function fixMalformedDriverName(name: string): string {
@@ -141,25 +141,25 @@ function fixMalformedDriverName(name: string): string {
   let match = name.match(pattern1)
   if (match && match[1] && match[2]) {
     const fixed = `${match[1]}, ${match[2]}`
-    console.warn('[fixMalformedDriverName] Fixed malformed driver name (pattern1):', {
+    console.warn("[fixMalformedDriverName] Fixed malformed driver name (pattern1):", {
       original: name,
       fixed: fixed,
     })
     return fixed
   }
-  
+
   // Pattern 2: Check if first name is duplicated (e.g., "HARRISONHARRISON")
   const pattern2 = /^([A-Z][A-Z\s,]+?),\s*([A-Z]+)\2/
   match = name.match(pattern2)
   if (match && match[1] && match[2]) {
     const fixed = `${match[1]}, ${match[2]}`
-    console.warn('[fixMalformedDriverName] Fixed malformed driver name (pattern2):', {
+    console.warn("[fixMalformedDriverName] Fixed malformed driver name (pattern2):", {
       original: name,
       fixed: fixed,
     })
     return fixed
   }
-  
+
   return name
 }
 
@@ -190,20 +190,17 @@ function calculateSessionMetrics(
   driverNameLookup: Record<string, string>
 ): SessionData {
   const participantCount = race.results.length
-  const topFinishers = race.results
-    .slice(0, 5)
-    .map((result) => ({
-      driverId: result.driverId,
-      driverName: resolveDriverName(result.driverName, driverNameLookup[result.driverId]),
-      position: result.positionFinal,
-      lapsCompleted: result.lapsCompleted,
-      totalTimeSeconds: result.totalTimeSeconds,
-      fastLapTime: result.fastLapTime,
-    }))
+  const topFinishers = race.results.slice(0, 5).map((result) => ({
+    driverId: result.driverId,
+    driverName: resolveDriverName(result.driverName, driverNameLookup[result.driverId]),
+    position: result.positionFinal,
+    lapsCompleted: result.lapsCompleted,
+    totalTimeSeconds: result.totalTimeSeconds,
+    fastLapTime: result.fastLapTime,
+  }))
 
   // Calculate duration: use database value if available, otherwise calculate from results
-  const durationSeconds =
-    race.durationSeconds ?? calculateDurationFromResults(race.results)
+  const durationSeconds = race.durationSeconds ?? calculateDurationFromResults(race.results)
 
   return {
     id: race.id,
@@ -220,16 +217,20 @@ function calculateSessionMetrics(
       // The race data has the correct name from the database
       // Only use lookup as a last resort if race data is truly missing
       let driverName: string
-      
+
       // Priority 1: Use driverName directly from race result (actual race data)
-      if (result.driverName && typeof result.driverName === 'string' && result.driverName.trim().length > 0) {
+      if (
+        result.driverName &&
+        typeof result.driverName === "string" &&
+        result.driverName.trim().length > 0
+      ) {
         driverName = result.driverName.trim()
       } else {
         // Priority 2: Only if race data is missing, try lookup (but this may have fuzzy-matched malformed names)
         const lookupName = driverNameLookup[result.driverId]
-        if (lookupName && typeof lookupName === 'string' && lookupName.trim().length > 0) {
+        if (lookupName && typeof lookupName === "string" && lookupName.trim().length > 0) {
           driverName = lookupName.trim()
-          console.warn('[getSessionsData] Using lookup name instead of race data:', {
+          console.warn("[getSessionsData] Using lookup name instead of race data:", {
             raceId: race.raceId,
             raceLabel: race.raceLabel,
             resultIndex: index,
@@ -241,7 +242,7 @@ function calculateSessionMetrics(
         } else {
           // Priority 3: Last resort fallback
           driverName = "Unknown Driver"
-          console.warn('[getSessionsData] No driver name found in race data or lookup:', {
+          console.warn("[getSessionsData] No driver name found in race data or lookup:", {
             raceId: race.raceId,
             raceLabel: race.raceLabel,
             resultIndex: index,
@@ -252,11 +253,11 @@ function calculateSessionMetrics(
           })
         }
       }
-      
+
       // Fix any malformed names (duplicated patterns)
       const fixedName = fixMalformedDriverName(driverName)
       if (fixedName !== driverName) {
-        console.warn('[getSessionsData] Fixed malformed driver name:', {
+        console.warn("[getSessionsData] Fixed malformed driver name:", {
           original: driverName,
           fixed: fixedName,
           raceId: race.raceId,
@@ -264,7 +265,7 @@ function calculateSessionMetrics(
         })
         driverName = fixedName
       }
-      
+
       const resultObj = {
         raceResultId: result.raceResultId,
         raceDriverId: result.raceDriverId,
@@ -277,19 +278,19 @@ function calculateSessionMetrics(
         avgLapTime: result.avgLapTime,
         consistency: result.consistency,
       }
-      
+
       // Log first result for verification
       if (index === 0) {
-        console.log('[getSessionsData] First result object:', {
+        console.log("[getSessionsData] First result object:", {
           raceId: race.raceId,
           raceLabel: race.raceLabel,
           result: resultObj,
-          hasDriverName: 'driverName' in resultObj,
+          hasDriverName: "driverName" in resultObj,
           driverNameValue: resultObj.driverName,
           driverNameType: typeof resultObj.driverName,
         })
       }
-      
+
       return resultObj
     }),
   }
@@ -307,9 +308,7 @@ function filterSessionsByDrivers(
   }
 
   return sessions.filter((session) =>
-    session.results.some((result) =>
-      selectedDriverIds.includes(result.driverId)
-    )
+    session.results.some((result) => selectedDriverIds.includes(result.driverId))
   )
 }
 
@@ -341,10 +340,7 @@ function getAvailableClasses(sessions: SessionData[]): string[] {
 /**
  * Filter sessions by class
  */
-function filterSessionsByClass(
-  sessions: SessionData[],
-  className: string | null
-): SessionData[] {
+function filterSessionsByClass(sessions: SessionData[], className: string | null): SessionData[] {
   if (className === null) {
     return []
   }
@@ -377,11 +373,9 @@ export function getSessionsData(
   const availableClasses = getAvailableClasses(allSessions)
 
   // Calculate date range
-  const dates = sessions
-    .map((s) => s.startTime)
-    .filter((d): d is Date => d !== null)
-  const earliest = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : null
-  const latest = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null
+  const dates = sessions.map((s) => s.startTime).filter((d): d is Date => d !== null)
+  const earliest = dates.length > 0 ? new Date(Math.min(...dates.map((d) => d.getTime()))) : null
+  const latest = dates.length > 0 ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null
 
   return {
     sessions,
@@ -397,10 +391,7 @@ export function getSessionsData(
 /**
  * Get driver lap time trends across sessions
  */
-export function getDriverLapTrends(
-  data: EventAnalysisData,
-  driverIds: string[]
-): DriverLapTrend[] {
+export function getDriverLapTrends(data: EventAnalysisData, driverIds: string[]): DriverLapTrend[] {
   if (driverIds.length === 0) {
     return []
   }
@@ -460,9 +451,7 @@ export function getDriverLapTrends(
 /**
  * Build heat progression structure
  */
-export function buildHeatProgression(
-  data: EventAnalysisData
-): HeatProgressionData[] {
+export function buildHeatProgression(data: EventAnalysisData): HeatProgressionData[] {
   const driverNameLookup = buildDriverNameLookup(data)
   const classMap = new Map<string, SessionData[]>()
 
@@ -492,11 +481,11 @@ export function buildHeatProgression(
 
     // Infer stage from race label
     const stages = new Map<string, SessionData[]>()
-    
+
     sorted.forEach((session) => {
       const label = session.raceLabel.toLowerCase()
       let stage = "heat"
-      
+
       if (label.includes("qualif") || label.includes("qual")) {
         stage = "qualifying"
       } else if (label.includes("final")) {

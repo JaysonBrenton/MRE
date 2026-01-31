@@ -1,15 +1,15 @@
 /**
  * @fileoverview Track map API endpoint (v1) - single map operations
- * 
+ *
  * @created 2026-01-24
  * @creator Auto-generated
  * @lastModified 2026-01-24
- * 
+ *
  * @description Handles GET (single), PUT (update), and DELETE requests for track maps
- * 
+ *
  * @purpose This API route provides access to individual track maps for authenticated users.
  *          Users can only access their own maps or public maps.
- * 
+ *
  * @relatedFiles
  * - src/core/track-maps/repo.ts (core business logic)
  * - src/lib/api-utils.ts (response helpers)
@@ -32,9 +32,9 @@ import { isValidUUID } from "@/lib/uuid-validation"
 
 /**
  * GET /api/v1/track-maps/[mapId]
- * 
+ *
  * Get a single track map by ID
- * 
+ *
  * Response (success):
  * {
  *   success: true,
@@ -65,47 +65,28 @@ export async function GET(
     // Verify authentication
     const session = await auth()
     if (!session || !session.user) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Authentication required",
-        undefined,
-        401
-      )
+      return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
     // Get track map (with ownership check)
     const map = await findTrackMapById(mapId, session.user.id)
 
     if (!map) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Track map not found",
-        undefined,
-        404
-      )
+      return errorResponse("NOT_FOUND", "Track map not found", undefined, 404)
     }
 
-    return successResponse(
-      { map },
-      200,
-      "Track map retrieved successfully"
-    )
+    return successResponse({ map }, 200, "Track map retrieved successfully")
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
 
 /**
  * PUT /api/v1/track-maps/[mapId]
- * 
+ *
  * Update an existing track map
- * 
+ *
  * Request body:
  * {
  *   name?: string
@@ -113,7 +94,7 @@ export async function GET(
  *   mapData?: TrackMapData
  *   isPublic?: boolean
  * }
- * 
+ *
  * Response (success):
  * {
  *   success: true,
@@ -144,12 +125,7 @@ export async function PUT(
     // Verify authentication
     const session = await auth()
     if (!session || !session.user) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Authentication required",
-        undefined,
-        401
-      )
+      return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
     // Parse request body
@@ -162,35 +138,21 @@ export async function PUT(
     const map = await updateTrackMap(mapId, session.user.id, bodyResult.data)
 
     if (!map) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Track map not found",
-        undefined,
-        404
-      )
+      return errorResponse("NOT_FOUND", "Track map not found", undefined, 404)
     }
 
-    return successResponse(
-      { map },
-      200,
-      "Track map updated successfully"
-    )
+    return successResponse({ map }, 200, "Track map updated successfully")
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
 
 /**
  * DELETE /api/v1/track-maps/[mapId]
- * 
+ *
  * Delete a track map
- * 
+ *
  * Response (success):
  * {
  *   success: true,
@@ -221,38 +183,19 @@ export async function DELETE(
     // Verify authentication
     const session = await auth()
     if (!session || !session.user) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Authentication required",
-        undefined,
-        401
-      )
+      return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
     // Delete track map (with ownership check)
     const map = await deleteTrackMap(mapId, session.user.id)
 
     if (!map) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Track map not found",
-        undefined,
-        404
-      )
+      return errorResponse("NOT_FOUND", "Track map not found", undefined, 404)
     }
 
-    return successResponse(
-      { map },
-      200,
-      "Track map deleted successfully"
-    )
+    return successResponse({ map }, 200, "Track map deleted successfully")
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

@@ -1,6 +1,6 @@
 /**
  * @fileoverview Test script for LiveRC driver matching
- * 
+ *
  * Tests the fuzzy matching logic used for LiveRC event filtering
  */
 
@@ -59,7 +59,7 @@ const testCases = [
 ]
 
 console.log("Testing LiveRC driver matching logic (name-based only, no transponder)\n")
-console.log("=" .repeat(80))
+console.log("=".repeat(80))
 
 let passed = 0
 let failed = 0
@@ -67,7 +67,7 @@ let failed = 0
 for (const testCase of testCases) {
   const userNormalized = normalizeDriverName(testCase.user)
   const driverNormalized = normalizeDriverName(testCase.driver)
-  
+
   const match = fuzzyMatchUserToDriver(
     {
       id: "test-user-id",
@@ -84,12 +84,13 @@ for (const testCase of testCases) {
     true // Skip transponder matching (LiveRC mode)
   )
 
-  const matched = match !== null && (
-    match.matchType === "exact" ||
-    (match.matchType === "fuzzy" && match.similarityScore >= SUGGEST_MIN)
-  )
+  const matched =
+    match !== null &&
+    (match.matchType === "exact" ||
+      (match.matchType === "fuzzy" && match.similarityScore >= SUGGEST_MIN))
 
-  const testPassed = matched === testCase.shouldMatch && 
+  const testPassed =
+    matched === testCase.shouldMatch &&
     (!testCase.shouldMatch || match?.matchType === testCase.expectedType)
 
   if (testPassed) {
@@ -104,14 +105,18 @@ for (const testCase of testCases) {
   } else {
     failed++
     console.log(`✗ FAIL: "${testCase.user}" vs "${testCase.driver}"`)
-    console.log(`  Expected: ${testCase.shouldMatch ? `match (${testCase.expectedType})` : "no match"}`)
-    console.log(`  Got: ${match ? `${match.matchType} (similarity: ${match.similarityScore.toFixed(3)})` : "no match"}`)
+    console.log(
+      `  Expected: ${testCase.shouldMatch ? `match (${testCase.expectedType})` : "no match"}`
+    )
+    console.log(
+      `  Got: ${match ? `${match.matchType} (similarity: ${match.similarityScore.toFixed(3)})` : "no match"}`
+    )
     console.log(`  Normalized: "${userNormalized}" vs "${driverNormalized}"`)
   }
   console.log()
 }
 
-console.log("=" .repeat(80))
+console.log("=".repeat(80))
 console.log(`Results: ${passed} passed, ${failed} failed`)
 
 if (failed > 0) {
@@ -121,4 +126,3 @@ if (failed > 0) {
   console.log("\nAll tests passed!")
   process.exit(0)
 }
-

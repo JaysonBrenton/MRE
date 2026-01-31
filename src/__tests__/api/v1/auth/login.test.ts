@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for login API route response format
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for API route response format validation
- * 
+ *
  * @purpose Validates that the login API route returns responses in the
  *          standardized format defined in the architecture guidelines.
  */
@@ -139,4 +139,3 @@ describe("POST /api/v1/auth/login", () => {
     })
   })
 })
-

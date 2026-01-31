@@ -1,14 +1,14 @@
 /**
  * @fileoverview Track map types and interfaces
- * 
+ *
  * @created 2026-01-24
  * @creator Auto-generated
  * @lastModified 2026-01-24
- * 
+ *
  * @description TypeScript types for track map data structures
- * 
+ *
  * @purpose Defines the shape data structure and related types for track maps
- * 
+ *
  * @relatedFiles
  * - src/core/track-maps/repo.ts (uses these types)
  * - src/core/track-maps/validation.ts (validates these types)

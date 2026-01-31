@@ -1,11 +1,11 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
 async function main() {
-  const userEmail = process.argv[2] || 'jaysoncareybrenton@gmail.com'
-  const eventName = process.argv[3] || 'Cormcc Club Day 20 July 2025'
-  const driverName = process.argv[4] || 'Jayson Brenton'
+  const userEmail = process.argv[2] || "jaysoncareybrenton@gmail.com"
+  const eventName = process.argv[3] || "Cormcc Club Day 20 July 2025"
+  const driverName = process.argv[4] || "Jayson Brenton"
 
   console.log(`\nChecking fuzzy matching results:`)
   console.log(`  User Email: ${userEmail}`)
@@ -34,15 +34,15 @@ async function main() {
   console.log(`   ID: ${user.id}`)
   console.log(`   Email: ${user.email}`)
   console.log(`   Driver Name: ${user.driverName}`)
-  console.log(`   Normalized Name: ${user.normalizedName || '(not set)'}`)
-  console.log(`   Transponder: ${user.transponderNumber || '(not set)'}\n`)
+  console.log(`   Normalized Name: ${user.normalizedName || "(not set)"}`)
+  console.log(`   Transponder: ${user.transponderNumber || "(not set)"}\n`)
 
   // Find the event
   const event = await prisma.event.findFirst({
     where: {
       eventName: {
         contains: eventName,
-        mode: 'insensitive',
+        mode: "insensitive",
       },
     },
     select: {
@@ -59,8 +59,8 @@ async function main() {
     const similarEvents = await prisma.event.findMany({
       where: {
         eventName: {
-          contains: eventName.split(' ')[0], // Search by first word
-          mode: 'insensitive',
+          contains: eventName.split(" ")[0], // Search by first word
+          mode: "insensitive",
         },
       },
       select: {
@@ -71,7 +71,7 @@ async function main() {
       take: 10,
     })
     similarEvents.forEach((e) => {
-      console.log(`   - ${e.eventName} (${e.eventDate.toISOString().split('T')[0]})`)
+      console.log(`   - ${e.eventName} (${e.eventDate.toISOString().split("T")[0]})`)
     })
     await prisma.$disconnect()
     process.exit(1)
@@ -80,7 +80,7 @@ async function main() {
   console.log(`✅ Found event:`)
   console.log(`   ID: ${event.id}`)
   console.log(`   Name: ${event.eventName}`)
-  console.log(`   Date: ${event.eventDate.toISOString().split('T')[0]}\n`)
+  console.log(`   Date: ${event.eventDate.toISOString().split("T")[0]}\n`)
 
   // Find the driver in this event
   const eventEntry = await prisma.eventEntry.findFirst({
@@ -89,7 +89,7 @@ async function main() {
       driver: {
         displayName: {
           contains: driverName,
-          mode: 'insensitive',
+          mode: "insensitive",
         },
       },
     },
@@ -130,8 +130,8 @@ async function main() {
   console.log(`✅ Found driver:`)
   console.log(`   ID: ${driver.id}`)
   console.log(`   Display Name: ${driver.displayName}`)
-  console.log(`   Normalized Name: ${driver.normalizedName || '(not set)'}`)
-  console.log(`   Transponder: ${driver.transponderNumber || '(not set)'}\n`)
+  console.log(`   Normalized Name: ${driver.normalizedName || "(not set)"}`)
+  console.log(`   Transponder: ${driver.transponderNumber || "(not set)"}\n`)
 
   // Check UserDriverLink
   const userDriverLink = await prisma.userDriverLink.findUnique({
@@ -169,7 +169,9 @@ async function main() {
     console.log(`✅ Found UserDriverLink:`)
     console.log(`   Status: ${userDriverLink.status}`)
     console.log(`   Similarity Score: ${userDriverLink.similarityScore}`)
-    console.log(`   Match Type (from matcher): ${userDriverLink.matcherId} v${userDriverLink.matcherVersion}`)
+    console.log(
+      `   Match Type (from matcher): ${userDriverLink.matcherId} v${userDriverLink.matcherVersion}`
+    )
     console.log(`   Matched At: ${userDriverLink.matchedAt.toISOString()}`)
     if (userDriverLink.confirmedAt) {
       console.log(`   Confirmed At: ${userDriverLink.confirmedAt.toISOString()}`)
@@ -188,7 +190,7 @@ async function main() {
         console.log(`   ✅ EventDriverLink:`)
         console.log(`      Match Type: ${eventLink.matchType}`)
         console.log(`      Similarity Score: ${eventLink.similarityScore}`)
-        console.log(`      Transponder: ${eventLink.transponderNumber || '(not set)'}`)
+        console.log(`      Transponder: ${eventLink.transponderNumber || "(not set)"}`)
         console.log(`      Matched At: ${eventLink.matchedAt.toISOString()}`)
       })
     }
@@ -209,14 +211,16 @@ async function main() {
       },
     },
     orderBy: {
-      matchedAt: 'desc',
+      matchedAt: "desc",
     },
   })
 
   if (allEventLinks.length > 0) {
     console.log(`\n📊 All EventDriverLinks for this user-driver combination:`)
     allEventLinks.forEach((link) => {
-      console.log(`   - ${link.event.eventName} (${link.event.eventDate.toISOString().split('T')[0]})`)
+      console.log(
+        `   - ${link.event.eventName} (${link.event.eventDate.toISOString().split("T")[0]})`
+      )
       console.log(`     Match Type: ${link.matchType}, Score: ${link.similarityScore}`)
     })
   }
@@ -226,10 +230,9 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('Error querying database:', e)
+    console.error("Error querying database:", e)
     process.exit(1)
   })
   .finally(async () => {
     await prisma.$disconnect()
   })
-

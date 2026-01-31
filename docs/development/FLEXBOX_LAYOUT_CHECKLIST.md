@@ -3,23 +3,28 @@ created: 2025-01-28
 creator: System
 lastModified: 2026-01-26
 description: Quick reference checklist for preventing flexbox layout bugs
-purpose: Provides a quick reference checklist to prevent horizontal compression and layout breakage issues
+purpose:
+  Provides a quick reference checklist to prevent horizontal compression and
+  layout breakage issues
 relatedFiles:
   - docs/design/mre-mobile-ux-guidelines.md
-  - src/components/ui/Modal.tsx
-  - src/components/ui/ListRow.tsx
+  - src/components/molecules/Modal.tsx
+  - src/components/atoms/ListRow.tsx
 ---
 
 # Flexbox Layout Checklist
 
-**Use this checklist before creating any modal, list, or flex container with text content.**
+**Use this checklist before creating any modal, list, or flex container with
+text content.**
 
 ## ✅ Pre-Development Checklist
 
 Before writing code, ask:
 
-- [ ] Can I use `src/components/ui/Modal.tsx` instead of creating a custom modal?
-- [ ] Can I use `src/components/ui/ListRow.tsx` instead of creating custom list rows?
+- [ ] Can I use `src/components/molecules/Modal.tsx` instead of creating a
+      custom modal?
+- [ ] Can I use `src/components/atoms/ListRow.tsx` instead of creating custom
+      list rows?
 - [ ] Have I reviewed `docs/design/mre-mobile-ux-guidelines.md` Section 5.7?
 
 ## ✅ Modal Checklist
@@ -27,16 +32,23 @@ Before writing code, ask:
 If creating a modal (even if using reusable component):
 
 **Preferred approach:**
-- [ ] **Use `src/components/ui/Modal.tsx` component** - This handles all width constraints automatically
+
+- [ ] **Use `src/components/molecules/Modal.tsx` component** - This handles all
+      width constraints automatically
 
 **If creating a custom modal (NOT RECOMMENDED):**
-- [ ] **Use `getModalContainerStyles()` from `@/lib/modal-styles.ts`** - This provides the required inline styles
+
+- [ ] **Use `getModalContainerStyles()` from `@/lib/modal-styles.ts`** - This
+      provides the required inline styles
 - [ ] Backdrop container has `min-w-0` inline style
-- [ ] Modal container uses `getModalContainerStyles(maxWidth)` with appropriate maxWidth
-- [ ] Modal container has `minWidth: '20rem'`, `flexShrink: 0`, `flexGrow: 0` (provided by utility)
+- [ ] Modal container uses `getModalContainerStyles(maxWidth)` with appropriate
+      maxWidth
+- [ ] Modal container has `minWidth: '20rem'`, `flexShrink: 0`, `flexGrow: 0`
+      (provided by utility)
 - [ ] All sections (header, body, footer) have `min-w-0` and `width: 100%`
 - [ ] Body container has `overflow-x-hidden` to prevent horizontal scroll
-- [ ] **DO NOT rely on Tailwind classes alone** - they don't prevent flexbox compression
+- [ ] **DO NOT rely on Tailwind classes alone** - they don't prevent flexbox
+      compression
 - [ ] Tested with long text content
 - [ ] Tested on mobile viewport (375px width)
 
@@ -44,9 +56,12 @@ If creating a modal (even if using reusable component):
 
 If creating list rows with text and actions:
 
-- [ ] Row container has `min-w-0` and `width: 100%` (or uses `ListRow` component)
-- [ ] Text element has `min-w-0` and truncation styles (or uses `ListRowText` component)
-- [ ] Action buttons/icons have `flex-shrink-0` (or uses `ListRowAction` component)
+- [ ] Row container has `min-w-0` and `width: 100%` (or uses `ListRow`
+      component)
+- [ ] Text element has `min-w-0` and truncation styles (or uses `ListRowText`
+      component)
+- [ ] Action buttons/icons have `flex-shrink-0` (or uses `ListRowAction`
+      component)
 - [ ] Truncated text has `title` attribute for accessibility
 - [ ] Tested with very long text content (100+ characters)
 - [ ] Tested on mobile viewport (375px width)
@@ -55,32 +70,46 @@ If creating list rows with text and actions:
 
 If creating pagination components (chart, table, or list pagination):
 
-- [ ] **CRITICAL: Component has `mb-16` (4rem / 64px minimum bottom margin) to prevent footer overlap**
+- [ ] **CRITICAL: Component has `mb-16` (4rem / 64px minimum bottom margin) to
+      prevent footer overlap**
 - [ ] **DO NOT use `mb-8` - it's insufficient and will cause overlap**
-- [ ] Component has appropriate top margin (`mt-4` or `mt-6`) to separate from content above
-- [ ] **VISUALLY VERIFIED:** Scrolled to bottom of page and confirmed no overlap with footer
+- [ ] Component has appropriate top margin (`mt-4` or `mt-6`) to separate from
+      content above
+- [ ] **VISUALLY VERIFIED:** Scrolled to bottom of page and confirmed no overlap
+      with footer
 - [ ] If using ChartContainer, verified it has `pb-4` bottom padding
-- [ ] See `docs/development/PAGINATION_SPACING_GUIDELINES.md` for complete requirements
+- [ ] See `docs/development/PAGINATION_SPACING_GUIDELINES.md` for complete
+      requirements
 - [ ] Tested with content that reaches the bottom of the viewport
 - [ ] Verified no overlap with footer component
 - [ ] Verified spacing is consistent across different content lengths
-- [ ] See `docs/development/PAGINATION_SPACING_GUIDELINES.md` for complete guidelines
+- [ ] See `docs/development/PAGINATION_SPACING_GUIDELINES.md` for complete
+      guidelines
 
 ## ✅ Manual Implementation Checklist
 
 If you must implement manually (not using reusable components):
 
-**⚠️ CRITICAL: For modal containers in flex containers with items-center/justify-center:**
-- [ ] **USE `getModalContainerStyles()` from `@/lib/modal-styles.ts`** - This is the required pattern
+**⚠️ CRITICAL: For modal containers in flex containers with
+items-center/justify-center:**
+
+- [ ] **USE `getModalContainerStyles()` from `@/lib/modal-styles.ts`** - This is
+      the required pattern
 - [ ] Modal container has `minWidth: '20rem'` (320px minimum)
-- [ ] Modal container has `flexShrink: 0` and `flexGrow: 0` (prevents compression/expansion)
-- [ ] Modal container has `width: '100%'` and appropriate `maxWidth` in rem units
+- [ ] Modal container has `flexShrink: 0` and `flexGrow: 0` (prevents
+      compression/expansion)
+- [ ] Modal container has `width: '100%'` and appropriate `maxWidth` in rem
+      units
 - [ ] Modal container has `boxSizing: 'border-box'`
-- [ ] **DO NOT use Tailwind classes `w-full max-w-*` alone** - they don't prevent compression
+- [ ] **DO NOT use Tailwind classes `w-full max-w-*` alone** - they don't
+      prevent compression
 
 **For other flex containers:**
-- [ ] All flex containers have `min-w-0` class AND inline style `{ minWidth: 0, width: '100%', boxSizing: 'border-box' }`
-- [ ] All text elements have inline styles: `{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }`
+
+- [ ] All flex containers have `min-w-0` class AND inline style
+      `{ minWidth: 0, width: '100%', boxSizing: 'border-box' }`
+- [ ] All text elements have inline styles:
+      `{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }`
 - [ ] All action elements have inline style: `{ flexShrink: 0 }`
 - [ ] Tested with long text content
 - [ ] Tested on mobile viewport (375px width)
@@ -88,25 +117,36 @@ If you must implement manually (not using reusable components):
 
 ## ✅ Content Blocks in Scrollable Flex Containers
 
-**⚠️ CRITICAL: This is the #1 cause of horizontal compression bugs. Read this section carefully.**
+**⚠️ CRITICAL: This is the #1 cause of horizontal compression bugs. Read this
+section carefully.**
 
-When you create a scrollable flex layout (e.g., "form fixed, results scroll"), you **MUST** add explicit width constraints to **all content blocks** inside the scroll container, not just the container itself.
+When you create a scrollable flex layout (e.g., "form fixed, results scroll"),
+you **MUST** add explicit width constraints to **all content blocks** inside the
+scroll container, not just the container itself.
 
 **The Problem:**
+
 - You add `flex-1 min-h-0 overflow-y-auto` to create a scrollable section ✅
 - You add `min-w-0` to allow flex shrinking ✅
-- But you forget to add `minWidth` to **content blocks** (empty states, messages, etc.) ❌
+- But you forget to add `minWidth` to **content blocks** (empty states,
+  messages, etc.) ❌
 - Result: Content collapses to 0 width, text wraps vertically, layout breaks
 
-**The Solution:**
-Every content block inside a scrollable flex container needs **inline styles** for width:
+**The Solution:** Every content block inside a scrollable flex container needs
+**inline styles** for width:
 
-- [ ] **Scroll container** has inline `style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}`
-- [ ] **All flex parent chain** (modal body, padded divs, container root) have inline `minWidth: '20rem'` (or match modal's minWidth)
-- [ ] **All content blocks** (empty states, loading messages, error messages) have inline `style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}`
-- [ ] **Inner content divs** (e.g., `max-w-md` containers) have inline `style={{ minWidth: '20rem', maxWidth: '28rem', width: '100%', boxSizing: 'border-box' }}`
+- [ ] **Scroll container** has inline
+      `style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}`
+- [ ] **All flex parent chain** (modal body, padded divs, container root) have
+      inline `minWidth: '20rem'` (or match modal's minWidth)
+- [ ] **All content blocks** (empty states, loading messages, error messages)
+      have inline
+      `style={{ minWidth: '20rem', width: '100%', boxSizing: 'border-box' }}`
+- [ ] **Inner content divs** (e.g., `max-w-md` containers) have inline
+      `style={{ minWidth: '20rem', maxWidth: '28rem', width: '100%', boxSizing: 'border-box' }}`
 - [ ] **DO NOT use Tailwind `w-full min-w-0` alone** - it will compress!
-- [ ] **DO NOT assume "w-full = safe"** - if parent is 0 width, 100% of 0 is still 0
+- [ ] **DO NOT assume "w-full = safe"** - if parent is 0 width, 100% of 0 is
+      still 0
 
 **Example Pattern:**
 
@@ -164,12 +204,16 @@ import { getContentBlockStyles, getContentBlockStylesWithMax } from "@/lib/modal
 ```
 
 **When to Apply:**
-- Any scrollable flex container (`overflow-y-auto` or `overflow-y-scroll`)
-- Any content block inside a flex layout (empty states, loading states, messages)
-- Any nested flex column layout (modal → body → container → section)
-- Any time you use `min-w-0` - you MUST also add a positive `minWidth` somewhere in the chain
 
-**Remember:** The flexbox checklist says "DO NOT rely on Tailwind classes alone" - this applies to **content blocks** too, not just containers!
+- Any scrollable flex container (`overflow-y-auto` or `overflow-y-scroll`)
+- Any content block inside a flex layout (empty states, loading states,
+  messages)
+- Any nested flex column layout (modal → body → container → section)
+- Any time you use `min-w-0` - you MUST also add a positive `minWidth` somewhere
+  in the chain
+
+**Remember:** The flexbox checklist says "DO NOT rely on Tailwind classes
+alone" - this applies to **content blocks** too, not just containers!
 
 ## ✅ Testing Checklist
 
@@ -196,35 +240,44 @@ If you see any of these, you have a layout bug:
 - Horizontal scrolling appears unexpectedly
 - Text overlaps with buttons/icons
 - Content appears as a thin grey bar
-- **Text wraps vertically (one word per line) in empty states or messages** ⚠️ **Most common flex compression bug**
-- **Content blocks have width: 0px in browser inspector** ⚠️ **Check inline width styles**
+- **Text wraps vertically (one word per line) in empty states or messages** ⚠️
+  **Most common flex compression bug**
+- **Content blocks have width: 0px in browser inspector** ⚠️ **Check inline
+  width styles**
 - Pagination controls appear too close to footer
 - Footer overlaps pagination controls
 
 ## 📚 Quick Reference
 
 **Reusable Components:**
-- Modals: `src/components/ui/Modal.tsx`
-- List Rows: `src/components/ui/ListRow.tsx`
-- Page Containers: `src/components/layout/PageContainer.tsx`
-- Content Wrappers: `src/components/layout/ContentWrapper.tsx`
-- Pagination: `src/components/event-analysis/ChartPagination.tsx` (reference implementation)
+
+- Modals: `src/components/molecules/Modal.tsx`
+- List Rows: `src/components/atoms/ListRow.tsx`
+- Page Containers: `src/components/molecules/PageContainer.tsx`
+- Content Wrappers: `src/components/molecules/ContentWrapper.tsx`
+- Pagination: `src/components/organisms/event-analysis/ChartPagination.tsx`
+  (reference implementation)
 
 **Width Style Utilities:**
-- Modal containers: `getModalContainerStyles(maxWidth)` from `@/lib/modal-styles`
+
+- Modal containers: `getModalContainerStyles(maxWidth)` from
+  `@/lib/modal-styles`
 - Content blocks: `getContentBlockStyles(minWidth?)` from `@/lib/modal-styles`
-- Content blocks with max: `getContentBlockStylesWithMax(maxWidth, minWidth?)` from `@/lib/modal-styles`
+- Content blocks with max: `getContentBlockStylesWithMax(maxWidth, minWidth?)`
+  from `@/lib/modal-styles`
 
 **Documentation:**
+
 - Full guidelines: `docs/design/mre-mobile-ux-guidelines.md` Section 5.7
-- Architecture rules: `docs/architecture/mobile-safe-architecture-guidelines.md` Section 6
+- Architecture rules: `docs/architecture/mobile-safe-architecture-guidelines.md`
+  Section 6
 - Pagination spacing: `docs/development/PAGINATION_SPACING_GUIDELINES.md`
 
 **Common Patterns:**
 
 ```tsx
 // ✅ Modal with reusable component (PREFERRED)
-import Modal from "@/components/ui/Modal"
+import Modal from "@/components/molecules/Modal"
 <Modal isOpen={isOpen} onClose={handleClose} title="Title">
   {content}
 </Modal>
@@ -245,7 +298,7 @@ import { getModalContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
 </div>
 
 // ✅ List row with reusable components
-import ListRow, { ListRowText, ListRowAction } from "@/components/ui/ListRow"
+import ListRow, { ListRowText, ListRowAction } from "@/components/atoms/ListRow"
 <ListRow onClick={handleClick}>
   <ListRowText title={fullText}>{text}</ListRowText>
   <ListRowAction><button>Action</button></ListRowAction>
@@ -266,4 +319,3 @@ import ListRow, { ListRowText, ListRowAction } from "@/components/ui/ListRow"
   {/* pagination controls */}
 </nav>
 ```
-

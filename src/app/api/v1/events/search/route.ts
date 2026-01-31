@@ -1,11 +1,11 @@
 // @fileoverview Event search API route
-// 
+//
 // @created 2025-01-27
 // @creator Jayson Brenton
 // @lastModified 2025-01-27
-// 
+//
 // @description API route for searching events by track and date range
-// 
+//
 // @purpose Provides user-facing API for event discovery. This route delegates
 //          to core business logic functions, following the mobile-safe architecture
 //          requirement that API routes should not contain business logic or
@@ -40,19 +40,14 @@ export async function GET(request: NextRequest) {
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized event search request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const trackId = searchParams.get("track_id");
-    const startDate = searchParams.get("start_date");
-    const endDate = searchParams.get("end_date");
+    const searchParams = request.nextUrl.searchParams
+    const trackId = searchParams.get("track_id")
+    const startDate = searchParams.get("start_date")
+    const endDate = searchParams.get("end_date")
 
     requestLogger.debug("Event search request", {
       trackId,
@@ -68,12 +63,7 @@ export async function GET(request: NextRequest) {
         trackId,
         hasTrackId: !!trackId,
       })
-      return errorResponse(
-        "VALIDATION_ERROR",
-        "track_id is required",
-        { field: "track_id" },
-        400
-      )
+      return errorResponse("VALIDATION_ERROR", "track_id is required", { field: "track_id" }, 400)
     }
 
     // Call core business logic function (will validate and throw if invalid)
@@ -81,16 +71,16 @@ export async function GET(request: NextRequest) {
     const searchInput: SearchEventsInput = {
       trackId: trackId.trim(),
     }
-    
+
     if (startDate && startDate.trim() !== "") {
       searchInput.startDate = startDate
     }
-    
+
     if (endDate && endDate.trim() !== "") {
       searchInput.endDate = endDate
     }
 
-    const result = await searchEvents(searchInput);
+    const result = await searchEvents(searchInput)
 
     requestLogger.info("Event search successful", {
       trackId: result.track.id,
@@ -105,7 +95,7 @@ export async function GET(request: NextRequest) {
         track_name: result.track.trackName,
       },
       events: result.events,
-    });
+    })
   } catch (error: unknown) {
     // Handle validation errors
     if (hasErrorCode(error)) {
@@ -120,7 +110,7 @@ export async function GET(request: NextRequest) {
           error.message,
           error.field ? { field: error.field } : {},
           400
-        );
+        )
       }
     }
 
@@ -135,16 +125,11 @@ export async function GET(request: NextRequest) {
         "Track not found",
         { trackId: requestedTrackId || null },
         404
-      );
+      )
     }
 
     // Handle unexpected errors using server error handler
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

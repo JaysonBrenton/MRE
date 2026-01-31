@@ -1,10 +1,10 @@
 /**
  * @fileoverview Search domain types
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX
- * 
+ *
  * @description TypeScript type definitions for unified search feature
  */
 

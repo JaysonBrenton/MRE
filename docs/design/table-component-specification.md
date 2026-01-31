@@ -3,7 +3,9 @@ created: 2025-01-27
 creator: Documentation Update
 lastModified: 2025-01-27
 description: Table component specification for MRE version 0.1.1
-purpose: Defines table component usage, features, mobile behavior, and implementation guidelines
+purpose:
+  Defines table component usage, features, mobile behavior, and implementation
+  guidelines
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/specs/mre-v0.1-feature-scope.md
@@ -13,7 +15,8 @@ relatedFiles:
 
 **Document Status:** Version 0.1.1 Feature Specification  
 **Authoritative Scope:** Applies to all table components in version 0.1.1  
-**Purpose:** Defines table component usage, required features, mobile behavior, and implementation guidelines.
+**Purpose:** Defines table component usage, required features, mobile behavior,
+and implementation guidelines.
 
 **Implementation Status:** Fully in-scope and required for version 0.1.1
 
@@ -34,9 +37,16 @@ relatedFiles:
 
 ## Overview
 
-Version 0.1.1 includes table components for displaying structured data across the application. Tables support sorting, filtering, pagination, and mobile-friendly interactions.
+Version 0.1.1 includes table components for displaying structured data across
+the application. Tables support sorting, filtering, pagination, and
+mobile-friendly interactions.
+
+**Standard Table Component:** Use `@/components/molecules/StandardTable`
+(StandardTable, StandardTableHeader, StandardTableRow, StandardTableCell) for
+consistent table styling.
 
 **Key Principles:**
+
 - Horizontal scroll on mobile (preferred approach)
 - Touch-friendly interactions
 - Accessible table structure
@@ -47,7 +57,8 @@ Version 0.1.1 includes table components for displaying structured data across th
 
 ## Usage Locations
 
-Tables are fully in-scope and required for version 0.1.1. Tables are used in all of the following locations:
+Tables are fully in-scope and required for version 0.1.1. Tables are used in all
+of the following locations:
 
 1. **Admin Console (Required)**
    - Users list (with edit/delete actions)
@@ -70,7 +81,9 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
    - Sort by position, lap times
    - Filter by driver, class
 
-**Note:** Tables are fully in-scope for version 0.1.1 and must be implemented in all specified locations. Tables are not limited to event analysis visualization - they are required components across the application.
+**Note:** Tables are fully in-scope for version 0.1.1 and must be implemented in
+all specified locations. Tables are not limited to event analysis
+visualization - they are required components across the application.
 
 ---
 
@@ -79,26 +92,25 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Column Sorting
 
 **Requirements:**
+
 - Click column header to sort
 - Visual indicator for sort direction (arrow up/down)
 - Sort state persists during session
 - Multi-column sorting (optional, advanced feature)
 
 **Implementation:**
+
 - Sortable columns marked with sort icon
 - Click toggles between ascending/descending
 - Default sort column specified
 - Sort indicators update on state change
 
 **Example:**
+
 ```tsx
 <Table>
   <TableHeader>
-    <SortableColumn 
-      field="name" 
-      currentSort={sortState}
-      onSort={handleSort}
-    >
+    <SortableColumn field="name" currentSort={sortState} onSort={handleSort}>
       Driver Name
     </SortableColumn>
   </TableHeader>
@@ -108,6 +120,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Row Filtering and Search
 
 **Requirements:**
+
 - Global search across all columns
 - Column-specific filters (dropdowns, inputs)
 - Filter state persists during session
@@ -115,6 +128,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 - Filter count indicator
 
 **Implementation:**
+
 - Search input above table
 - Filter controls per column (where applicable)
 - Real-time filtering as user types
@@ -122,14 +136,15 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 - Filter chips showing active filters
 
 **Example:**
+
 ```tsx
 <TableFilters>
-  <SearchInput 
+  <SearchInput
     placeholder="Search drivers..."
     value={searchTerm}
     onChange={handleSearch}
   />
-  <ColumnFilter 
+  <ColumnFilter
     column="status"
     options={statusOptions}
     value={statusFilter}
@@ -141,6 +156,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Pagination
 
 **Requirements:**
+
 - Configurable page size (10, 25, 50, 100 items)
 - Page navigation (first, previous, next, last)
 - Current page indicator
@@ -148,6 +164,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 - Items per page selector
 
 **Implementation:**
+
 - Pagination controls below table
 - Page number buttons
 - Disabled state for first/last pages
@@ -155,6 +172,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 - Server-side or client-side pagination
 
 **Example:**
+
 ```tsx
 <Pagination
   currentPage={page}
@@ -173,44 +191,49 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Horizontal Scroll
 
 **Primary Approach:**
+
 - Tables use horizontal scroll on mobile devices
 - Preferred for data tables with many columns
 - Touch-friendly scrolling with momentum
 - Visual indicators for scrollable content
 
 **Implementation:**
+
 - Table wrapper with `overflow-x: auto`
 - Minimum table width to prevent column collapse
 - Scroll indicators (shadows, gradients) at edges
 - Smooth scrolling behavior
 
 **Example:**
+
 ```tsx
 <div className="table-wrapper">
-  <Table style={{ minWidth: '800px' }}>
-    {/* Table content */}
-  </Table>
+  <Table style={{ minWidth: "800px" }}>{/* Table content */}</Table>
 </div>
 ```
 
 ### Touch-Friendly Interactions
 
 **Column Sorting:**
+
 - Tap column header to sort
 - Visual feedback on tap
 - Appropriate sizing for desktop interaction
 
 **Row Selection:**
+
 - Tap row to select (if selection enabled)
 - Checkbox column for multi-select
 - Adequate spacing between rows
 
 **Filter Controls:**
+
 - Appropriate sizing for filter buttons
 - Dropdown filters with mobile-friendly UI
 - Search input with adequate size
 
 **Pagination:**
+
 - Appropriate sizing for pagination buttons
 - Swipe gestures optional (for mobile apps)
 - Clear page indicators
@@ -218,12 +241,14 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Column Visibility
 
 **Responsive Strategies:**
+
 - Hide less important columns on small screens
 - Show key data columns prioritized
 - Column visibility toggle (optional)
 - Responsive column strategies per table type
 
 **Priority Columns:**
+
 - Always visible: Primary identifier, key data
 - Hide on mobile: Secondary data, metadata
 - Show on tap: Expandable rows for details
@@ -235,11 +260,13 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Strategy 1: Hide Columns
 
 **Approach:**
+
 - Hide less important columns on mobile
 - Show only essential columns
 - Column visibility toggle to show/hide columns
 
 **Use Case:**
+
 - Tables with many columns
 - When horizontal scroll is not desired
 - When key data can be prioritized
@@ -247,11 +274,13 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Strategy 2: Horizontal Scroll
 
 **Approach:**
+
 - Allow horizontal scrolling
 - Maintain all columns visible
 - Visual scroll indicators
 
 **Use Case:**
+
 - Data tables requiring all columns
 - When column order matters
 - When users need to compare columns
@@ -259,11 +288,13 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Strategy 3: Responsive Column Reordering
 
 **Approach:**
+
 - Reorder columns for mobile view
 - Most important columns first
 - Less important columns scrollable
 
 **Use Case:**
+
 - Tables with clear column priority
 - When some columns are rarely needed
 - Balanced approach between scroll and hide
@@ -275,12 +306,14 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Table Structure
 
 **Semantic HTML:**
+
 - Use `<table>`, `<thead>`, `<tbody>`, `<tfoot>` elements
 - Proper `<th>` and `<td>` elements
 - Scope attributes for headers: `scope="col"` or `scope="row"`
 - Caption or aria-label for table description
 
 **Example:**
+
 ```tsx
 <table aria-label="Driver list">
   <caption>List of all drivers</caption>
@@ -290,15 +323,14 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
       <th scope="col">Transponder</th>
     </tr>
   </thead>
-  <tbody>
-    {/* Rows */}
-  </tbody>
+  <tbody>{/* Rows */}</tbody>
 </table>
 ```
 
 ### Keyboard Navigation
 
 **Requirements:**
+
 - Tab to navigate between interactive elements
 - Arrow keys to navigate table cells
 - Enter/Space to activate sort/filter
@@ -307,6 +339,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Screen Reader Support
 
 **Requirements:**
+
 - Proper table structure announced
 - Column headers associated with cells
 - Sort state announced
@@ -314,6 +347,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 - Pagination state announced
 
 **ARIA Attributes:**
+
 - `aria-sort` for sortable columns
 - `aria-label` for table description
 - `aria-live` for dynamic updates
@@ -326,12 +360,14 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Virtual Scrolling
 
 **For Large Datasets:**
+
 - Render only visible rows
 - Virtual scrolling for 100+ rows
 - Smooth scrolling performance
 - Maintain scroll position
 
 **Implementation:**
+
 - Use libraries like `react-window` or `react-virtualized`
 - Calculate visible range
 - Render only visible items
@@ -340,6 +376,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Lazy Loading
 
 **For Paginated Tables:**
+
 - Load data as pages are requested
 - Prefetch next page (optional)
 - Loading states during fetch
@@ -348,6 +385,7 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### Optimization
 
 **Best Practices:**
+
 - Memoize table components
 - Debounce search/filter inputs
 - Optimize re-renders
@@ -361,26 +399,29 @@ Tables are fully in-scope and required for version 0.1.1. Tables are used in all
 ### API Integration
 
 **Pattern:**
+
 - Fetch data via `/api/v1/` endpoints
 - Use `src/core/<domain>/repo.ts` for data access
 - Transform data in core layer, not in table component
 - Handle loading and error states
 
 **Example:**
+
 ```tsx
 // In core layer
 export async function getUsers(filters, sort, pagination) {
   // Fetch and transform data
-  return users;
+  return users
 }
 
 // In table component
-const users = await getUsers(filters, sort, pagination);
+const users = await getUsers(filters, sort, pagination)
 ```
 
 ### Data Transformation
 
 **Requirements:**
+
 - Transform data in core layer, not table component
 - Table component receives formatted data
 - Consistent data format across tables
@@ -393,6 +434,7 @@ const users = await getUsers(filters, sort, pagination);
 ### Design Tokens
 
 **Use Semantic Tokens:**
+
 - `--token-surface` for table background
 - `--token-surface-alt` for header background
 - `--token-border` for borders
@@ -403,6 +445,7 @@ const users = await getUsers(filters, sort, pagination);
 ### Table Styles
 
 **Requirements:**
+
 - Consistent spacing (use spacing scale)
 - Clear borders or row separators
 - Hover states for rows (desktop)
@@ -412,13 +455,16 @@ const users = await getUsers(filters, sort, pagination);
 ---
 
 ## Related Documentation
-- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Architecture rules
-- [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature specifications
+
+- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -
+  Architecture rules
+- [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature
+  specifications
 - [Dark Theme Guidelines](mre-dark-theme-guidelines.md) - Visual styling
 
 ---
 
 ## License
 
-Internal use only. This document defines table component specifications for version 0.1.1 of MRE.
-
+Internal use only. This document defines table component specifications for
+version 0.1.1 of MRE.

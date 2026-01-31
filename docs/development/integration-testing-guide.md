@@ -3,9 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Comprehensive integration testing guide for MRE application
-purpose: Provides detailed guidance for integration testing including setup, test data
-         management, mocking strategies, database testing, API integration testing,
-         and CI/CD integration. Supports consistent integration testing practices.
+purpose:
+  Provides detailed guidance for integration testing including setup, test data
+  management, mocking strategies, database testing, API integration testing, and
+  CI/CD integration. Supports consistent integration testing practices.
 relatedFiles:
   - docs/development/testing-strategy.md (overall testing strategy)
   - ingestion/tests/integration/ (existing integration tests)
@@ -14,9 +15,11 @@ relatedFiles:
 # Integration Testing Guide
 
 **Last Updated:** 2025-01-27  
-**Scope:** Integration testing for Next.js application and Python ingestion service
+**Scope:** Integration testing for Next.js application and Python ingestion
+service
 
-This document provides comprehensive guidance for integration testing in the MRE application.
+This document provides comprehensive guidance for integration testing in the MRE
+application.
 
 ---
 
@@ -37,6 +40,7 @@ This document provides comprehensive guidance for integration testing in the MRE
 ### Test Environment
 
 **Requirements:**
+
 - Separate test database
 - Test environment variables
 - Isolated test containers
@@ -45,11 +49,13 @@ This document provides comprehensive guidance for integration testing in the MRE
 ### Python Ingestion Service
 
 **Existing Setup:**
+
 - Tests in `ingestion/tests/integration/`
 - Fixtures in `ingestion/tests/fixtures/`
 - pytest configuration in `pytest.ini`
 
 **Running Integration Tests:**
+
 ```bash
 cd ingestion
 pytest tests/integration/
@@ -60,6 +66,7 @@ pytest tests/integration/
 **Placeholder:** Integration test setup will be implemented
 
 **Recommended Setup:**
+
 - Test database (separate from development)
 - Test environment configuration
 - Test utilities and helpers
@@ -71,11 +78,13 @@ pytest tests/integration/
 ### Test Fixtures
 
 **Python Ingestion Service:**
+
 - HTML fixtures stored in `ingestion/tests/fixtures/liverc/`
 - Organized by event ID
 - Metadata files describe fixture contents
 
 **Next.js Application (Future):**
+
 - Database seed scripts
 - Test user accounts
 - Test event/race data
@@ -89,11 +98,13 @@ pytest tests/integration/
 ### Isolation Strategies
 
 **Database Transactions:**
+
 - Use transactions that rollback
 - Isolate each test
 - Clean state for each test
 
 **Test Containers:**
+
 - Separate containers for tests
 - Fresh database for each test run
 - Isolated network
@@ -105,12 +116,14 @@ pytest tests/integration/
 ### When to Mock
 
 **Mock:**
+
 - External APIs (LiveRC, third-party services)
 - Email services
 - Payment processors
 - File storage services
 
 **Don't Mock:**
+
 - Database (use test database)
 - Internal services (test integration)
 - Core business logic (unit test)
@@ -118,6 +131,7 @@ pytest tests/integration/
 ### Mocking Strategies
 
 **Python (pytest):**
+
 ```python
 @pytest.fixture
 def mock_http_client():
@@ -127,11 +141,12 @@ def mock_http_client():
 ```
 
 **TypeScript (Future):**
+
 ```typescript
-vi.mock('@/lib/ingestion-client', () => ({
+vi.mock("@/lib/ingestion-client", () => ({
   ingestionClient: {
-    ingestEvent: vi.fn()
-  }
+    ingestEvent: vi.fn(),
+  },
 }))
 ```
 
@@ -142,6 +157,7 @@ vi.mock('@/lib/ingestion-client', () => ({
 ### Test Database Setup
 
 **Approach:**
+
 - Separate test database
 - Migrations applied before tests
 - Seed data loaded
@@ -150,6 +166,7 @@ vi.mock('@/lib/ingestion-client', () => ({
 ### Database Test Patterns
 
 **Setup:**
+
 ```typescript
 // Future example
 beforeAll(async () => {
@@ -164,6 +181,7 @@ afterAll(async () => {
 ```
 
 **Isolation:**
+
 ```typescript
 // Use transactions for isolation
 beforeEach(async () => {
@@ -180,6 +198,7 @@ afterEach(async () => {
 **Placeholder:** Database test utilities will be created
 
 **Recommended Utilities:**
+
 - Database setup/teardown
 - Seed data helpers
 - Query helpers
@@ -192,6 +211,7 @@ afterEach(async () => {
 ### Testing API Endpoints
 
 **Scope:**
+
 - Test API routes with real database
 - Test authentication flows
 - Test error handling
@@ -200,24 +220,25 @@ afterEach(async () => {
 ### API Test Pattern
 
 **Future Example:**
+
 ```typescript
-describe('POST /api/v1/auth/register', () => {
-  it('should create user and return 201', async () => {
-    const response = await fetch('/api/v1/auth/register', {
-      method: 'POST',
+describe("POST /api/v1/auth/register", () => {
+  it("should create user and return 201", async () => {
+    const response = await fetch("/api/v1/auth/register", {
+      method: "POST",
       body: JSON.stringify({
-        email: 'test@example.com',
-        password: 'password123',
-        driverName: 'Test User'
-      })
+        email: "test@example.com",
+        password: "password123",
+        driverName: "Test User",
+      }),
     })
-    
+
     expect(response.status).toBe(201)
     const data = await response.json()
     expect(data.success).toBe(true)
-    
+
     // Verify database
-    const user = await findUserByEmail('test@example.com')
+    const user = await findUserByEmail("test@example.com")
     expect(user).toBeDefined()
   })
 })
@@ -226,6 +247,7 @@ describe('POST /api/v1/auth/register', () => {
 ### Authentication Testing
 
 **Test Scenarios:**
+
 - Successful registration
 - Duplicate email handling
 - Invalid input handling
@@ -240,6 +262,7 @@ describe('POST /api/v1/auth/register', () => {
 ### E2E Test Scope
 
 **Critical User Flows:**
+
 - User registration → Login → Welcome page
 - Track discovery → Event search → Event details
 - Event ingestion → Race data → Lap times
@@ -249,6 +272,7 @@ describe('POST /api/v1/auth/register', () => {
 **Placeholder:** E2E testing framework will be selected
 
 **Recommended Tools:**
+
 - Playwright - Cross-browser testing
 - Cypress - Modern E2E testing
 - Puppeteer - Chrome/Chromium automation
@@ -256,20 +280,21 @@ describe('POST /api/v1/auth/register', () => {
 ### E2E Test Pattern
 
 **Future Example:**
+
 ```typescript
-test('user can register and login', async ({ page }) => {
+test("user can register and login", async ({ page }) => {
   // Register
-  await page.goto('/register')
-  await page.fill('[name="email"]', 'test@example.com')
-  await page.fill('[name="password"]', 'password123')
-  await page.fill('[name="driverName"]', 'Test User')
+  await page.goto("/register")
+  await page.fill('[name="email"]', "test@example.com")
+  await page.fill('[name="password"]', "password123")
+  await page.fill('[name="driverName"]', "Test User")
   await page.click('button[type="submit"]')
-  
+
   // Should redirect to welcome
-  await expect(page).toHaveURL('/welcome')
-  
+  await expect(page).toHaveURL("/welcome")
+
   // Verify welcome message
-  await expect(page.locator('h1')).toContainText('Welcome back Test User')
+  await expect(page.locator("h1")).toContainText("Welcome back Test User")
 })
 ```
 
@@ -282,6 +307,7 @@ test('user can register and login', async ({ page }) => {
 **Placeholder:** CI/CD pipeline configuration will be documented
 
 **Recommended Stages:**
+
 1. **Lint** - Code quality
 2. **Type Check** - TypeScript validation
 3. **Unit Tests** - Fast unit tests
@@ -291,6 +317,7 @@ test('user can register and login', async ({ page }) => {
 ### Test Execution in CI
 
 **Python Ingestion Service:**
+
 ```yaml
 # Future CI configuration example
 - name: Run integration tests
@@ -300,6 +327,7 @@ test('user can register and login', async ({ page }) => {
 ```
 
 **Next.js Application:**
+
 ```yaml
 # Future CI configuration example
 - name: Run integration tests
@@ -310,6 +338,7 @@ test('user can register and login', async ({ page }) => {
 ### Test Environment in CI
 
 **Requirements:**
+
 - Test database setup
 - Test containers
 - Test environment variables
@@ -352,10 +381,10 @@ test('user can register and login', async ({ page }) => {
 ## Related Documentation
 
 - [Testing Strategy](./testing-strategy.md) - Overall testing approach
-- [Ingestion Testing Strategy](../architecture/liverc-ingestion/18-ingestion-testing-strategy.md) - Ingestion-specific testing
+- [Ingestion Testing Strategy](../architecture/liverc-ingestion/18-ingestion-testing-strategy.md) -
+  Ingestion-specific testing
 - [Contributing Guidelines](./CONTRIBUTING.md) - Testing requirements
 
 ---
 
 **End of Integration Testing Guide**
-

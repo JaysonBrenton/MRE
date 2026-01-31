@@ -3,7 +3,9 @@ created: 2025-01-27
 creator: Documentation Update
 lastModified: 2025-01-27
 description: Dashboard architecture and widget system for MRE version 0.1.1
-purpose: Defines dashboard types, widget system, customization architecture, and implementation guidelines
+purpose:
+  Defines dashboard types, widget system, customization architecture, and
+  implementation guidelines
 relatedFiles:
   - docs/design/mre-mobile-ux-guidelines.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
@@ -13,8 +15,10 @@ relatedFiles:
 # Dashboard Architecture Guide
 
 **Document Status:** Version 0.1.1 Feature Specification  
-**Authoritative Scope:** Applies to all dashboard implementations in version 0.1.1  
-**Purpose:** Defines dashboard types, widget system architecture, customization system, and implementation guidelines.
+**Authoritative Scope:** Applies to all dashboard implementations in version
+0.1.1  
+**Purpose:** Defines dashboard types, widget system architecture, customization
+system, and implementation guidelines.
 
 **Implementation Status:** Fully in-scope and required for version 0.1.1
 
@@ -35,9 +39,12 @@ relatedFiles:
 
 ## Overview
 
-Version 0.1.1 includes a comprehensive dashboard system with customizable widgets. Dashboards provide users with personalized views of data, metrics, and quick actions.
+Version 0.1.1 includes a comprehensive dashboard system with customizable
+widgets. Dashboards provide users with personalized views of data, metrics, and
+quick actions.
 
 **Key Principles:**
+
 - Full customization (drag-and-drop, resize, rearrange)
 - Widget-based architecture
 - Mobile-responsive layouts
@@ -48,28 +55,35 @@ Version 0.1.1 includes a comprehensive dashboard system with customizable widget
 
 ## Dashboard Types
 
-All dashboard types listed below are fully in-scope and required for version 0.1.1. Complex dashboards beyond the admin console are architectural requirements.
+All dashboard types listed below are fully in-scope and required for version
+0.1.1. Complex dashboards beyond the admin console are architectural
+requirements.
 
 ### User Dashboard (Required)
 
-**Purpose:** Personal dashboard for regular users showing their activity and statistics.
+**Purpose:** Personal dashboard for regular users showing their activity and
+statistics.
 
 **Widgets:**
+
 - Recent events card
 - Personal statistics (events participated, races entered)
 - Quick actions (search events, view profile)
 - Recent activity feed
 
 **Data Sources:**
+
 - User's event participation
 - User's race entries
 - User's driver links (if applicable)
 
 ### Driver Dashboard (Required)
 
-**Purpose:** Performance-focused dashboard for drivers showing lap times, race results, and performance metrics.
+**Purpose:** Performance-focused dashboard for drivers showing lap times, race
+results, and performance metrics.
 
 **Widgets:**
+
 - Performance summary cards (best lap, average lap, consistency)
 - Recent race results
 - Lap time trends chart
@@ -77,6 +91,7 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 - Quick actions (analyze event, view driver details)
 
 **Data Sources:**
+
 - Driver's race results
 - Driver's lap times
 - Driver's event entries
@@ -84,9 +99,11 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 
 ### Team Dashboard (Required)
 
-**Purpose:** Team management dashboard showing team statistics and member performance.
+**Purpose:** Team management dashboard showing team statistics and member
+performance.
 
 **Widgets:**
+
 - Team statistics cards (total members, events, wins)
 - Team member performance comparison
 - Team event calendar
@@ -94,15 +111,18 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 - Quick actions (manage team, add members)
 
 **Data Sources:**
+
 - Team members' data
 - Team events
 - Aggregated team statistics
 
 ### Track Dashboard (Required)
 
-**Purpose:** Track-specific dashboard showing track statistics and event history.
+**Purpose:** Track-specific dashboard showing track statistics and event
+history.
 
 **Widgets:**
+
 - Track information card
 - Event history chart
 - Track records (fastest lap, most events)
@@ -110,6 +130,7 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 - Quick actions (follow track, search events)
 
 **Data Sources:**
+
 - Track data
 - Track events
 - Track statistics
@@ -125,6 +146,7 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 **Purpose:** Display key metrics and statistics.
 
 **Features:**
+
 - Large number display
 - Label/description
 - Trend indicator (up/down arrow, percentage)
@@ -132,11 +154,12 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 - Click action (navigate to detail page)
 
 **Example:**
+
 ```tsx
 <StatCard
   label="Total Events"
   value={eventCount}
-  trend={{ direction: 'up', value: 12 }}
+  trend={{ direction: "up", value: 12 }}
   icon={<EventIcon />}
   onClick={navigateToEvents}
 />
@@ -147,11 +170,13 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 **Purpose:** Visualize data trends and comparisons.
 
 **Chart Types:**
+
 - Line charts (lap times over time, trends)
 - Bar charts (comparisons, distributions)
 - Pie charts (proportions, categories)
 
 **Features:**
+
 - Interactive tooltips
 - Zoom and pan (for detailed views)
 - Legend and labels
@@ -159,6 +184,7 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 - Export functionality (optional)
 
 **Example:**
+
 ```tsx
 <LineChart
   data={lapTimeData}
@@ -173,6 +199,7 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 **Purpose:** Show recent events, updates, or actions.
 
 **Features:**
+
 - Chronological list of activities
 - Activity type icons
 - Timestamps
@@ -180,6 +207,7 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 - Pagination or infinite scroll
 
 **Example:**
+
 ```tsx
 <ActivityFeed
   activities={recentActivities}
@@ -193,12 +221,14 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 **Purpose:** Provide quick access to common actions.
 
 **Features:**
+
 - Icon + label buttons
 - Grouped by category
 - Prominent placement
 - Touch-friendly targets
 
 **Example:**
+
 ```tsx
 <QuickActions>
   <ActionButton icon={<SearchIcon />} label="Search Events" />
@@ -212,9 +242,11 @@ All dashboard types listed below are fully in-scope and required for version 0.1
 
 ### Full Customization Support (Required Features)
 
-Customizable widgets with full customization support are required features for version 0.1.1. All dashboard types must support customization.
+Customizable widgets with full customization support are required features for
+version 0.1.1. All dashboard types must support customization.
 
 **Features (All Required):**
+
 - Drag-and-drop widget rearrangement
 - Resize widgets (width and height)
 - Show/hide widgets
@@ -224,44 +256,49 @@ Customizable widgets with full customization support are required features for v
 ### Implementation Architecture
 
 **Layout Storage:**
+
 - Store widget positions and sizes
 - Store widget visibility state
 - Store layout per dashboard type per user
 - Default layouts for new users
 
 **State Management:**
+
 - Widget configuration state
 - Layout state (positions, sizes)
 - Visibility state
 - Drag-and-drop state
 
 **Persistence:**
+
 - Save layout to database (user preferences)
 - Load layout on dashboard load
 - Sync layout changes in real-time (optional)
 - Default layout fallback
 
 **Example Structure:**
+
 ```typescript
 interface DashboardLayout {
-  dashboardType: 'user' | 'driver' | 'team' | 'track';
-  widgets: WidgetConfig[];
-  gridLayout: GridLayout;
+  dashboardType: "user" | "driver" | "team" | "track"
+  widgets: WidgetConfig[]
+  gridLayout: GridLayout
 }
 
 interface WidgetConfig {
-  id: string;
-  type: 'stat' | 'chart' | 'activity' | 'action';
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-  visible: boolean;
-  config: WidgetSpecificConfig;
+  id: string
+  type: "stat" | "chart" | "activity" | "action"
+  position: { x: number; y: number }
+  size: { width: number; height: number }
+  visible: boolean
+  config: WidgetSpecificConfig
 }
 ```
 
 ### Drag-and-Drop Implementation
 
 **Requirements:**
+
 - Smooth drag animations
 - Visual feedback during drag
 - Drop zones with visual indicators
@@ -269,6 +306,7 @@ interface WidgetConfig {
 - Collision detection
 
 **Libraries:**
+
 - Consider `react-grid-layout` or similar
 - Or custom implementation with drag API
 - Touch support for mobile
@@ -276,6 +314,7 @@ interface WidgetConfig {
 ### Resize Implementation
 
 **Requirements:**
+
 - Resize handles on widgets
 - Minimum and maximum sizes
 - Aspect ratio constraints (for charts)
@@ -289,12 +328,14 @@ interface WidgetConfig {
 ### Grid Layout
 
 **Approach:**
+
 - CSS Grid or Flexbox-based layout
 - Responsive grid columns
 - Widgets span multiple columns/rows
 - Auto-adjustment for mobile
 
 **Grid Configuration:**
+
 - Desktop: 12-column grid
 - Tablet: 8-column grid
 - Mobile: 4-column grid (single column preferred)
@@ -302,17 +343,20 @@ interface WidgetConfig {
 ### Responsive Behavior
 
 **Desktop (> 900px):**
+
 - Multi-column widget layout
 - Larger widget sizes
 - More widgets visible
 - Side-by-side widgets
 
 **Tablet (600-899px):**
+
 - Reduced column count
 - Medium widget sizes
 - Some widgets stack vertically
 
 **Mobile (< 600px):**
+
 - Single-column layout preferred
 - Full-width widgets
 - Stacked vertical layout
@@ -325,6 +369,7 @@ interface WidgetConfig {
 ### Widget Data Loading
 
 **Pattern:**
+
 - Each widget fetches its own data
 - Use `src/core/<domain>/repo.ts` for data access
 - Parallel data fetching for multiple widgets
@@ -332,18 +377,20 @@ interface WidgetConfig {
 - Error handling per widget
 
 **Example:**
+
 ```tsx
 // In widget component
-const { data, loading, error } = useWidgetData(widgetId);
+const { data, loading, error } = useWidgetData(widgetId)
 
-if (loading) return <WidgetSkeleton />;
-if (error) return <WidgetError error={error} />;
-return <WidgetContent data={data} />;
+if (loading) return <WidgetSkeleton />
+if (error) return <WidgetError error={error} />
+return <WidgetContent data={data} />
 ```
 
 ### Caching Strategy
 
 **Requirements:**
+
 - Cache widget data to reduce API calls
 - Cache invalidation on data updates
 - Stale-while-revalidate pattern
@@ -352,6 +399,7 @@ return <WidgetContent data={data} />;
 ### Data Aggregation
 
 **Pattern:**
+
 - Aggregate data in core layer
 - Widgets receive pre-aggregated data
 - Avoid multiple queries for same data
@@ -364,6 +412,7 @@ return <WidgetContent data={data} />;
 ### Widget Loading
 
 **Strategies:**
+
 - Lazy load widgets below fold
 - Prioritize above-fold widgets
 - Progressive loading
@@ -372,6 +421,7 @@ return <WidgetContent data={data} />;
 ### Rendering Optimization
 
 **Strategies:**
+
 - Memoize widget components
 - Virtual scrolling for activity feeds
 - Chart rendering optimization
@@ -380,6 +430,7 @@ return <WidgetContent data={data} />;
 ### Data Optimization
 
 **Strategies:**
+
 - Paginate activity feeds
 - Limit chart data points
 - Aggregate statistics efficiently
@@ -392,6 +443,7 @@ return <WidgetContent data={data} />;
 ### Layout Adaptation
 
 **Mobile Behavior:**
+
 - Single-column layout
 - Full-width widgets
 - Stacked vertical arrangement
@@ -400,6 +452,7 @@ return <WidgetContent data={data} />;
 ### Touch Interactions
 
 **Requirements:**
+
 - Touch-friendly drag-and-drop (if supported on mobile)
 - Appropriate sizing for customization controls
 - Swipe gestures for navigation (optional)
@@ -408,6 +461,7 @@ return <WidgetContent data={data} />;
 ### Performance
 
 **Mobile Optimization:**
+
 - Reduce widget count on mobile
 - Simplified charts (fewer data points)
 - Lazy load below-fold widgets
@@ -416,6 +470,7 @@ return <WidgetContent data={data} />;
 ### Customization on Mobile
 
 **Approach:**
+
 - Simplified customization (show/hide widgets)
 - Drag-and-drop optional on mobile
 - Settings page for layout customization
@@ -429,26 +484,27 @@ return <WidgetContent data={data} />;
 
 ```typescript
 interface Widget {
-  id: string;
-  type: WidgetType;
-  title: string;
-  config: WidgetConfig;
-  dataSource: DataSource;
-  refreshInterval?: number;
+  id: string
+  type: WidgetType
+  title: string
+  config: WidgetConfig
+  dataSource: DataSource
+  refreshInterval?: number
 }
 
 interface WidgetConfig {
-  size: { width: number; height: number };
-  position: { x: number; y: number };
-  visible: boolean;
+  size: { width: number; height: number }
+  position: { x: number; y: number }
+  visible: boolean
   // Widget-specific config
-  [key: string]: any;
+  [key: string]: any
 }
 ```
 
 ### Widget Registration
 
 **Pattern:**
+
 - Register widgets in widget registry
 - Widget factory pattern
 - Type-safe widget creation
@@ -458,14 +514,18 @@ interface WidgetConfig {
 
 ## Related Documentation
 
-- [Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md) - Mobile-specific requirements
-- [Mobile-Safe Architecture Guidelines](mobile-safe-architecture-guidelines.md) - Architecture rules
-- [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature specifications
-- [Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md) - Visual styling
+- [Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md) -
+  Mobile-specific requirements
+- [Mobile-Safe Architecture Guidelines](mobile-safe-architecture-guidelines.md) -
+  Architecture rules
+- [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature
+  specifications
+- [Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md) - Visual
+  styling
 
 ---
 
 ## License
 
-Internal use only. This document defines dashboard architecture for version 0.1.1 of MRE.
-
+Internal use only. This document defines dashboard architecture for version
+0.1.1 of MRE.

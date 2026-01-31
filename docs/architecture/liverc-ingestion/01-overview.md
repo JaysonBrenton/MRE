@@ -3,10 +3,11 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Overview and goals for the LiveRC ingestion subsystem
-purpose: Provides the conceptual foundation for the LiveRC ingestion subsystem, defining
-         the high-level user workflow, architectural goals, constraints, and long-term
-         vision. This document serves as the entry point for understanding the ingestion
-         pipeline architecture.
+purpose:
+  Provides the conceptual foundation for the LiveRC ingestion subsystem,
+  defining the high-level user workflow, architectural goals, constraints, and
+  long-term vision. This document serves as the entry point for understanding
+  the ingestion pipeline architecture.
 relatedFiles:
   - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
@@ -14,17 +15,23 @@ relatedFiles:
 
 # LiveRC Ingestion – Overview & Goals
 
-**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**. See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for version 0.1.1 feature specifications.
+**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**.
+See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for
+version 0.1.1 feature specifications.
 
 **Related Documentation:**
-- [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) - Overall MRE architecture principles
-- [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) - Version 0.1.1 feature specifications
-- [Web Scraping Best Practices](27-web-scraping-best-practices.md) - Comprehensive guide to web scraping practices and ethical guidelines
+
+- [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) -
+  Overall MRE architecture principles
+- [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) -
+  Version 0.1.1 feature specifications
+- [Web Scraping Best Practices](27-web-scraping-best-practices.md) -
+  Comprehensive guide to web scraping practices and ethical guidelines
 
 ## Purpose
 
-The LiveRC ingestion subsystem provides My Race Engineer (MRE) with the ability to
-retrieve, normalise and store race event data from LiveRC. This includes:
+The LiveRC ingestion subsystem provides My Race Engineer (MRE) with the ability
+to retrieve, normalise and store race event data from LiveRC. This includes:
 
 - A complete catalogue of all LiveRC tracks.
 - On-demand discovery of events for a selected track.
@@ -47,20 +54,23 @@ The ingestion system exists to support a very specific user flow:
 4. MRE returns a list of all events for that track whose event_date falls
    between the selected dates.
 5. The user selects one event from the list.
-6. MRE ingests the full event data from LiveRC **on demand** (only when required).
-   - Event ingestion always includes complete data: races, results, and lap data (`laps_full` depth).
+6. MRE ingests the full event data from LiveRC **on demand** (only when
+   required).
+   - Event ingestion always includes complete data: races, results, and lap data
+     (`laps_full` depth).
    - Event discovery (`none` depth) is metadata-only for browsing/searching.
-7. Once ingestion completes, the user can visualise race results and lap data
-   in novel, meaningful ways.
+7. Once ingestion completes, the user can visualise race results and lap data in
+   novel, meaningful ways.
 
-Important: **Events are never scraped automatically.** Only Tracks are proactively
-synced. Events and their detailed data are retrieved on demand.
+Important: **Events are never scraped automatically.** Only Tracks are
+proactively synced. Events and their detailed data are retrieved on demand.
 
 ---
 
 ## Architectural Goals
 
 ### 1. Separation of Concerns
+
 MRE will implement ingestion using clear and layered boundaries:
 
 - **Connector layer** — fetches and parses raw data from LiveRC.
@@ -70,33 +80,41 @@ MRE will implement ingestion using clear and layered boundaries:
 - **User interface layer** — queries only MRE’s internal database.
 - **Admin & CLI layer** — controls ingestion workflows.
 
-The connector must remain **stateless**, **deterministic**, and **fully isolated**
-from business logic or persistence.
+The connector must remain **stateless**, **deterministic**, and **fully
+isolated** from business logic or persistence.
 
 ---
 
 ## Constraints and Considerations
 
 ### Anti-Bot Friendliness
+
 The system must avoid aggressive scraping. Therefore:
 
 - Only the **Track catalogue** is fetched proactively.
 - Events are discovered only when an admin requests it.
-- **Full event ingestion (laps, results) occurs only when a user selects an event.**
+- **Full event ingestion (laps, results) occurs only when a user selects an
+  event.**
 
 This minimises requests to LiveRC and mirrors natural user behaviour.
 
-**See [Web Scraping Best Practices](27-web-scraping-best-practices.md) for comprehensive documentation of all web scraping practices, including robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, retry logic, kill switch mechanism, and browser automation best practices.**
+**See [Web Scraping Best Practices](27-web-scraping-best-practices.md) for
+comprehensive documentation of all web scraping practices, including robots.txt
+compliance, rate limiting, User-Agent policy, HTTP caching, retry logic, kill
+switch mechanism, and browser automation best practices.**
 
 ### On-Demand Ingestion
+
 MRE never downloads event data unless a user explicitly expresses interest in an
 event. This ensures scalability and avoids storing large volumes of unused data.
 
 ### Multi-Connector Support
+
 The architecture must support additional connectors without altering ingestion
 logic. This is achieved by enforcing a consistent connector interface.
 
 ### Local Execution
+
 Ingestion runs **locally on the MRE machine**, with clean boundaries so that
 future distributed or cloud execution is still possible.
 
@@ -107,12 +125,14 @@ future distributed or cloud execution is still possible.
 The ingestion system provides the foundation for:
 
 ### Advanced Visualisation
+
 - Lap time graphs
 - Position-over-time graphs
 - Driver comparison overlays
 - Consistency and drop-off analytics
 
 ### Intelligent Coaching (LLM Integration)
+
 The system will eventually feed an analytics layer used by an LLM to answer
 queries such as:
 

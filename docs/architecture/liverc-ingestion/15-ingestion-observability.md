@@ -3,9 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Observability model for LiveRC ingestion subsystem monitoring
-purpose: Specifies the full observability model including logging, metrics, tracing,
-         and alerting for the LiveRC ingestion subsystem. Ensures predictability,
-         debuggability, and long-term operational stability.
+purpose:
+  Specifies the full observability model including logging, metrics, tracing,
+  and alerting for the LiveRC ingestion subsystem. Ensures predictability,
+  debuggability, and long-term operational stability.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -25,18 +26,18 @@ happening, why it is happening, and where failures occur.
 
 The goals of ingestion observability are:
 
-- correctness: detect ingestion drift or mismatched upstream data  
-- performance insight: measure ingestion latency and bottlenecks  
-- stability: detect intermittent failures, parser issues, or browser instability  
-- debugging: enable developers to diagnose failures without accessing prod data  
-- reproducibility: ensure ingestion produces deterministic outcomes  
+- correctness: detect ingestion drift or mismatched upstream data
+- performance insight: measure ingestion latency and bottlenecks
+- stability: detect intermittent failures, parser issues, or browser instability
+- debugging: enable developers to diagnose failures without accessing prod data
+- reproducibility: ensure ingestion produces deterministic outcomes
 
 Observability covers four pillars:
 
-1. Structured logging  
-2. Metrics  
-3. Tracing  
-4. Artefacts and diagnostics (fixtures, snapshots, error dumps)  
+1. Structured logging
+2. Metrics
+3. Tracing
+4. Artefacts and diagnostics (fixtures, snapshots, error dumps)
 
 ---
 
@@ -53,7 +54,8 @@ Each ingestion log entry MUST include:
 - subsystem: "liverc_ingestion"
 - event_id (or null)
 - track_id (or null)
-- ingestion_stage (fetch_event_page, parse_event, fetch_race_page, parse_laps, persist_race, etc)
+- ingestion_stage (fetch_event_page, parse_event, fetch_race_page, parse_laps,
+  persist_race, etc)
 - severity (info, warn, error)
 - message (short reason)
 - details (object containing diagnostic values)
@@ -62,23 +64,23 @@ Each ingestion log entry MUST include:
 
 Minimum required lifecycle log messages:
 
-- ingestion_start  
-- ingestion_finish  
-- ingestion_skip_already_complete  
-- event_page_fetched  
-- race_page_fetched  
-- laps_extracted  
-- db_upsert_summary  
-- ingestion_failed  
+- ingestion_start
+- ingestion_finish
+- ingestion_skip_already_complete
+- event_page_fetched
+- race_page_fetched
+- laps_extracted
+- db_upsert_summary
+- ingestion_failed
 
 ### 1.3 Error Logging
 
 All errors MUST:
 
 - set severity = "error"
-- include a stable error code  
-- include a stack trace when available  
-- include connector-level metadata (page URL, HTTP status, race identifiers)  
+- include a stable error code
+- include a stack trace when available
+- include connector-level metadata (page URL, HTTP status, race identifiers)
 
 Errors that do NOT break ingestion may be logged as severity = "warn" but MUST
 still include full diagnostic details.
@@ -91,42 +93,47 @@ Metrics MUST be emitted from ingestion in a consistent, connector-agnostic way.
 
 ### 2.1 Core Metric Families
 
-#### 2.1.1 Ingestion Duration  
-- metric: `ingestion_duration_seconds`  
-- labels: event_id, track_id, result = success|error  
+#### 2.1.1 Ingestion Duration
 
-#### 2.1.2 Race Page Fetch Duration  
-- metric: `race_fetch_duration_seconds`  
-- labels: event_id, race_id, method = httpx|playwright  
+- metric: `ingestion_duration_seconds`
+- labels: event_id, track_id, result = success|error
 
-#### 2.1.3 Lap Extraction Duration  
-- metric: `lap_extraction_duration_seconds`  
-- labels: event_id, race_id  
+#### 2.1.2 Race Page Fetch Duration
 
-#### 2.1.4 DB Write Metrics  
-- metric: `db_rows_inserted`  
-- labels: table_name  
+- metric: `race_fetch_duration_seconds`
+- labels: event_id, race_id, method = httpx|playwright
 
-- metric: `db_rows_updated`  
-- labels: table_name  
+#### 2.1.3 Lap Extraction Duration
 
-#### 2.1.5 Connector Error Metrics  
-- metric: `connector_errors_total`  
-- labels: stage, error_code  
+- metric: `lap_extraction_duration_seconds`
+- labels: event_id, race_id
+
+#### 2.1.4 DB Write Metrics
+
+- metric: `db_rows_inserted`
+- labels: table_name
+
+- metric: `db_rows_updated`
+- labels: table_name
+
+#### 2.1.5 Connector Error Metrics
+
+- metric: `connector_errors_total`
+- labels: stage, error_code
 
 ### 2.2 Metric Obligations
 
 Metrics MUST be:
 
-- emitted regardless of success or failure  
-- deterministic in naming  
-- stable across ingestion runs  
+- emitted regardless of success or failure
+- deterministic in naming
+- stable across ingestion runs
 
 Metrics MAY be aggregated or exported to:
 
-- Prometheus  
-- OpenTelemetry Metrics  
-- or simple in-process counters for V1  
+- Prometheus
+- OpenTelemetry Metrics
+- or simple in-process counters for V1
 
 ---
 
@@ -140,18 +147,18 @@ If tracing is enabled:
 
 Each ingestion MUST generate spans for:
 
-- event_ingestion  
-- event_page_fetch  
-- race_page_fetch  
-- lap_extraction  
-- db_persistence  
+- event_ingestion
+- event_page_fetch
+- race_page_fetch
+- lap_extraction
+- db_persistence
 
 Each span MUST include:
 
-- start + end timestamps  
-- success/failure status  
-- relevant IDs (event_id, race_id, driver_id)  
-- connector type: httpx or playwright  
+- start + end timestamps
+- success/failure status
+- relevant IDs (event_id, race_id, driver_id)
+- connector type: httpx or playwright
 
 ### 3.2 Trace Context Propagation
 
@@ -172,37 +179,37 @@ errors.
 
 When ingestion fails or under debug mode, the system SHOULD store snapshots:
 
-- raw event page HTML  
-- raw race page HTML  
-- raw lap popup HTML (if applicable)  
+- raw event page HTML
+- raw race page HTML
+- raw lap popup HTML (if applicable)
 
 Rules:
 
-- store in a local fixtures directory or object storage  
-- redact user data if required  
-- include metadata: timestamp, URL, event_id, race_id  
+- store in a local fixtures directory or object storage
+- redact user data if required
+- include metadata: timestamp, URL, event_id, race_id
 
 ### 4.2 Playwright Screenshots (Optional)
 
 For JS-related issues (e.g., buttons not rendering), on failure the system MAY
 capture:
 
-- screenshot before selector lookup  
-- screenshot after click attempts  
+- screenshot before selector lookup
+- screenshot after click attempts
 
 Captured only under:
 
-- debug mode, or  
-- ingestion failure conditions  
+- debug mode, or
+- ingestion failure conditions
 
 ### 4.3 Normalisation Debug Dumps
 
 The normalisation layer SHOULD be able to emit intermediate representations:
 
-- parsed race summary  
-- parsed results table  
-- parsed laps  
-- normalised lap rows before DB persistence  
+- parsed race summary
+- parsed results table
+- parsed laps
+- normalised lap rows before DB persistence
 
 These dumps MUST be disabled in production unless debugging is explicitly
 enabled.
@@ -217,32 +224,32 @@ Ingestion state MUST be exposed via:
 
 ### 5.1 Database State Columns
 
-- `ingest_depth` (none, laps_full)  
-- `last_ingested_at`  
-- optionally `ingestion_status` (idle, running, failed)  
+- `ingest_depth` (none, laps_full)
+- `last_ingested_at`
+- optionally `ingestion_status` (idle, running, failed)
 
 These are shown in API endpoints:
 
-- GET /events/{event_id}  
-- GET /tracks  
+- GET /events/{event_id}
+- GET /tracks
 
 ### 5.2 Admin Console Indicators (Future)
 
 Admin UI MUST display:
 
-- ingestion start time  
-- ingestion end time  
-- races processed  
-- failures encountered  
-- logs and metrics (or links to them)  
+- ingestion start time
+- ingestion end time
+- races processed
+- failures encountered
+- logs and metrics (or links to them)
 
 ### 5.3 CLI Output (V1)
 
 CLI ingestion SHOULD print:
 
-- progress (race X of Y)  
-- timing summary  
-- error summary  
+- progress (race X of Y)
+- timing summary
+- error summary
 
 ---
 
@@ -252,35 +259,35 @@ Failures MUST be classified into:
 
 ### 6.1 Connector Failures
 
-- HTTPX fetch errors  
-- Playwright timeouts  
-- missing DOM nodes  
-- parsing inconsistencies  
+- HTTPX fetch errors
+- Playwright timeouts
+- missing DOM nodes
+- parsing inconsistencies
 
 ### 6.2 Normaliser Failures
 
-- unexpected HTML structures  
-- missing numeric fields  
-- format conversion errors  
+- unexpected HTML structures
+- missing numeric fields
+- format conversion errors
 
 ### 6.3 Database Failures
 
-- constraint violations  
-- connection pool exhaustion  
-- serialization or locking issues  
+- constraint violations
+- connection pool exhaustion
+- serialization or locking issues
 
 ### 6.4 System-Level Failures
 
-- OOM  
-- CPU timeouts  
-- file system full  
+- OOM
+- CPU timeouts
+- file system full
 
 Each failure MUST:
 
-- be logged with code + stage  
-- produce a clear error message  
-- be surfaced to the admin API  
-- increment metrics counters  
+- be logged with code + stage
+- produce a clear error message
+- be surfaced to the admin API
+- increment metrics counters
 
 Ingestion MUST NOT silently ignore any failure class.
 
@@ -290,10 +297,10 @@ Ingestion MUST NOT silently ignore any failure class.
 
 Local development MUST support:
 
-- verbose logging  
-- Playwright debug mode with devtools  
-- HTML extraction snapshots  
-- fixture-based ingestion (no network)  
+- verbose logging
+- Playwright debug mode with devtools
+- HTML extraction snapshots
+- fixture-based ingestion (no network)
 
 Fixtures MUST be stored in:
 
@@ -309,29 +316,29 @@ MRE ingestion aims for the following levels:
 
 ### Level 1 (Minimum, V1)
 
-- structured logs  
-- ingestion duration metrics  
-- lap extraction metrics  
-- clear error logs  
-- ingestion status fields  
+- structured logs
+- ingestion duration metrics
+- lap extraction metrics
+- clear error logs
+- ingestion status fields
 
 ### Level 2 (Recommended Soon)
 
-- Grafana dashboards for ingestion performance  
-- connector error heatmaps  
-- ingestion trace timelines  
-- per-race latency histograms  
+- Grafana dashboards for ingestion performance
+- connector error heatmaps
+- ingestion trace timelines
+- per-race latency histograms
 
 ### Level 3 (Future)
 
-- automatic anomaly detection:  
-  - ingestion slower than baseline  
-  - lap count deviations  
-  - driver count mismatches  
-  - LiveRC upstream changes  
+- automatic anomaly detection:
+  - ingestion slower than baseline
+  - lap count deviations
+  - driver count mismatches
+  - LiveRC upstream changes
 
-- automatic opening of GitHub issues for ingestion regressions  
-- machine learning-based ingestion drift detection  
+- automatic opening of GitHub issues for ingestion regressions
+- machine learning-based ingestion drift detection
 
 ---
 
@@ -339,11 +346,11 @@ MRE ingestion aims for the following levels:
 
 The ingestion subsystem MUST guarantee:
 
-1. Every ingestion is fully observable.  
-2. Any failure is diagnosable using logged, captured, and stored artefacts.  
-3. Every race and lap has measurable ingestion latency.  
-4. DB writes and connector fetches are visible in logs and metrics.  
-5. Observability never compromises user privacy or driver identities.  
+1. Every ingestion is fully observable.
+2. Any failure is diagnosable using logged, captured, and stored artefacts.
+3. Every race and lap has measurable ingestion latency.
+4. DB writes and connector fetches are visible in logs and metrics.
+5. Observability never compromises user privacy or driver identities.
 
 ---
 

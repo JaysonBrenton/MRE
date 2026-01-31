@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for tracks API route
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for tracks API endpoint response format
- * 
+ *
  * @purpose Validates that the tracks API route returns responses in the
  *          standardized format and handles errors correctly.
  */

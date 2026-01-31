@@ -1,15 +1,15 @@
 /**
  * @fileoverview API route performance wrapper
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Higher-order function to wrap API route handlers with performance logging
- * 
+ *
  * @purpose Automatically measures and logs slow API requests. Can be used to wrap
  *          API route handlers for consistent performance monitoring.
- * 
+ *
  * @relatedFiles
  * - src/lib/performance-logger.ts (performance logging utilities)
  * - src/lib/request-context.ts (request context)
@@ -21,7 +21,7 @@ import { createRequestLogger, generateRequestId } from "./request-context"
 
 /**
  * Wrap an API route handler with performance logging
- * 
+ *
  * @param handler - API route handler function
  * @returns Wrapped handler with performance logging
  */
@@ -38,17 +38,12 @@ export function withPerformanceLogging<T extends NextRequest>(
       const duration = Date.now() - startTime
 
       // Log slow requests
-      logSlowRequest(
-        request.nextUrl.pathname,
-        request.method,
+      logSlowRequest(request.nextUrl.pathname, request.method, duration, {
+        ...requestLogger,
+        requestId,
+        statusCode: response.status,
         duration,
-        {
-          ...requestLogger,
-          requestId,
-          statusCode: response.status,
-          duration,
-        }
-      )
+      })
 
       // Add performance headers
       const headers = new Headers(response.headers)
@@ -70,4 +65,3 @@ export function withPerformanceLogging<T extends NextRequest>(
     }
   }
 }
-

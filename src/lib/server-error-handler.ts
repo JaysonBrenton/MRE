@@ -1,15 +1,15 @@
 /**
  * @fileoverview Server-side error handling utilities
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Utilities for handling and logging server-side errors
- * 
+ *
  * @purpose Provides standardized error handling for API routes and server actions.
  *          Categorizes errors and logs them with appropriate context.
- * 
+ *
  * @relatedFiles
  * - src/lib/logger.ts (structured logging)
  * - src/lib/request-context.ts (request context)
@@ -22,7 +22,7 @@ import { getRequestContext } from "./request-context"
 
 /**
  * Handle API route errors with logging
- * 
+ *
  * @param error - The error to handle
  * @param request - Next.js request object
  * @param requestId - Optional request ID
@@ -102,7 +102,7 @@ export function handleApiError(
 
 /**
  * Handle Prisma database errors
- * 
+ *
  * @param error - Prisma error
  * @param requestLogger - Logger instance with request context
  * @returns Error information for API response
@@ -190,7 +190,7 @@ export function handlePrismaError(
 
 /**
  * Handle external service errors
- * 
+ *
  * @param error - The error from external service
  * @param serviceName - Name of the external service
  * @param endpoint - Endpoint that failed

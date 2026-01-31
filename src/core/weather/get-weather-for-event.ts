@@ -1,16 +1,16 @@
 /**
  * @fileoverview Get weather data for an event
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Main business logic for retrieving weather data for an event
- * 
+ *
  * @purpose Orchestrates geocoding, API calls, caching, and error handling to provide
  *          weather data for events. Handles cache hits/misses, TTL management, and
  *          fallback to cached data when APIs are unavailable.
- * 
+ *
  * @relatedFiles
  * - src/core/weather/repo.ts (database access)
  * - src/core/weather/geocode-track.ts (geocoding)
@@ -22,7 +22,12 @@
 import { geocodeTrack } from "./geocode-track"
 import { fetchWeather } from "./fetch-weather"
 import { calculateTrackTemperature } from "./calculate-track-temp"
-import { getCachedWeather, getLastWeatherData, cacheWeatherData, type WeatherCacheData } from "./repo"
+import {
+  getCachedWeather,
+  getLastWeatherData,
+  cacheWeatherData,
+  type WeatherCacheData,
+} from "./repo"
 import { getEventWithTrack } from "@/core/events/repo"
 import { resolveGeocodeCandidates } from "./resolve-geocode-candidates"
 
@@ -44,7 +49,7 @@ const HISTORICAL_WEATHER_TTL_HOURS = 24 * 7 // 7 days for historical (since it w
 
 /**
  * Gets weather data for an event
- * 
+ *
  * This function:
  * 1. Checks for valid cached data (not expired)
  * 2. If cache miss or expired:
@@ -55,9 +60,9 @@ const HISTORICAL_WEATHER_TTL_HOURS = 24 * 7 // 7 days for historical (since it w
  *    - Calculates track temperature
  *    - Caches the data with appropriate TTL
  * 3. Returns weather data (from cache or fresh)
- * 
+ *
  * If API calls fail, attempts to return last cached data (even if expired).
- * 
+ *
  * @param eventId - The event ID to get weather for
  * @returns Weather data for the event
  * @throws Error if event not found, or if no cache available and API fails
@@ -88,8 +93,10 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
     const attemptedCandidates: string[] = []
 
     const hasStoredCoordinates =
-      event.track.latitude !== null && event.track.latitude !== undefined &&
-      event.track.longitude !== null && event.track.longitude !== undefined
+      event.track.latitude !== null &&
+      event.track.latitude !== undefined &&
+      event.track.longitude !== null &&
+      event.track.longitude !== undefined
 
     if (hasStoredCoordinates) {
       // Use stored coordinates directly - skip geocoding
@@ -105,7 +112,7 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
       // Priority 2: Try stored address as geocoding candidate (if available)
       // Priority 3: Fall back to existing name-based geocoding strategy
       const candidates = resolveGeocodeCandidates(event)
-      
+
       // Prepend stored address to candidates if available
       if (event.track.address) {
         candidates.unshift(event.track.address)
@@ -118,18 +125,18 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
           break // Success, exit loop
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error))
-          
+
           // Check if this is a "no results" error - continue to next candidate
           if (lastError.message.includes("No geocoding results found")) {
             continue
           }
-          
+
           // For HTTP errors (429, 5xx) or other non-retryable errors, fail fast
           // because the next candidate will likely hit the same rate limit/outage
           if (lastError.message.includes("Geocoding API returned status")) {
             throw lastError
           }
-          
+
           // For other errors, continue to next candidate
           continue
         }
@@ -138,13 +145,13 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
       // If all candidates failed, throw a comprehensive error
       if (!geocodeResult) {
         const errorMessage = lastError?.message || "Unknown geocoding error"
-        const priorityInfo = event.track.address 
+        const priorityInfo = event.track.address
           ? " (tried stored address, then name-based geocoding)"
           : " (used name-based geocoding)"
         throw new Error(
           `Failed to geocode location for event "${event.eventName}" (track: "${event.track.trackName}")${priorityInfo}. ` +
-          `Attempted candidates: ${attemptedCandidates.join(", ")}. ` +
-          `Last error: ${errorMessage}`
+            `Attempted candidates: ${attemptedCandidates.join(", ")}. ` +
+            `Last error: ${errorMessage}`
         )
       }
     }
@@ -191,7 +198,10 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
     // Format and return the response
     const result: WeatherForEvent = {
       condition: weatherResponse.current.condition,
-      wind: formatWindSpeed(weatherResponse.current.windSpeed, weatherResponse.current.windDirection),
+      wind: formatWindSpeed(
+        weatherResponse.current.windSpeed,
+        weatherResponse.current.windDirection
+      ),
       humidity: weatherResponse.current.humidity,
       air: weatherResponse.current.airTemperature,
       track: trackTemperature,
@@ -219,7 +229,7 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
 /**
  * Formats cached weather data into the response format
  */
-function formatWeatherResponse(weatherData: { 
+function formatWeatherResponse(weatherData: {
   condition: string
   humidity: number
   airTemperature: number
@@ -230,8 +240,8 @@ function formatWeatherResponse(weatherData: {
   forecast: unknown
   cachedAt: Date
 }): WeatherForEvent {
-  const forecast = Array.isArray(weatherData.forecast) 
-    ? weatherData.forecast as Array<{ label: string; detail: string }>
+  const forecast = Array.isArray(weatherData.forecast)
+    ? (weatherData.forecast as Array<{ label: string; detail: string }>)
     : []
 
   return {

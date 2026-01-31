@@ -2,10 +2,13 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Comprehensive end-to-end user journey documentation for all MRE personas
-purpose: Defines complete user journeys covering all personas, scenarios, edge cases, and variations.
-         Each journey includes detailed step-by-step flows, mermaid diagrams, UI interactions,
-         API calls, success/error states, and references to existing user stories and workflows.
+description:
+  Comprehensive end-to-end user journey documentation for all MRE personas
+purpose:
+  Defines complete user journeys covering all personas, scenarios, edge cases,
+  and variations. Each journey includes detailed step-by-step flows, mermaid
+  diagrams, UI interactions, API calls, success/error states, and references to
+  existing user stories and workflows.
 relatedFiles:
   - docs/user-stories/README.md
   - docs/user-stories/authentication.md
@@ -21,10 +24,15 @@ relatedFiles:
 # User Journeys Documentation
 
 **Status:** Authoritative  
-**Scope:** All personas, scenarios, edge cases, and variations for MRE version 0.1.1  
-**Purpose:** Comprehensive end-to-end user journey documentation covering all user types, their complete workflows, error scenarios, and platform variations.
+**Scope:** All personas, scenarios, edge cases, and variations for MRE version
+0.1.1  
+**Purpose:** Comprehensive end-to-end user journey documentation covering all
+user types, their complete workflows, error scenarios, and platform variations.
 
-This document provides detailed, step-by-step user journeys for all MRE personas. Each journey includes visual flowcharts, API interactions, UI elements, error handling, and cross-references to related user stories and technical documentation.
+This document provides detailed, step-by-step user journeys for all MRE
+personas. Each journey includes visual flowcharts, API interactions, UI
+elements, error handling, and cross-references to related user stories and
+technical documentation.
 
 ---
 
@@ -56,10 +64,12 @@ This document provides detailed, step-by-step user journeys for all MRE personas
 
 ### Purpose and Scope
 
-This document provides comprehensive end-to-end user journey documentation for the My Race Engineer (MRE) application. It covers:
+This document provides comprehensive end-to-end user journey documentation for
+the My Race Engineer (MRE) application. It covers:
 
 - **All Personas**: Driver, Admin, Team Manager, and Race Engineer
-- **All Scenarios**: First-time users, returning users, error scenarios, edge cases
+- **All Scenarios**: First-time users, returning users, error scenarios, edge
+  cases
 - **All Variations**: Mobile and desktop differences, different user states
 - **Complete Flows**: From entry point to exit point with all decision points
 
@@ -83,7 +93,8 @@ Each journey follows a consistent structure:
 
 ### Relationship to User Stories
 
-This journey documentation complements the [User Stories](../user-stories/README.md) by providing:
+This journey documentation complements the
+[User Stories](../user-stories/README.md) by providing:
 
 - **End-to-end flows** that connect multiple user stories
 - **Visual representations** of complex workflows
@@ -91,6 +102,7 @@ This journey documentation complements the [User Stories](../user-stories/README
 - **Cross-persona** interactions and variations
 
 Each journey references relevant user stories from:
+
 - [Authentication Epic](authentication.md)
 - [User Management Epic](user-management.md)
 - [Administrator Epic](admin.md)
@@ -99,6 +111,7 @@ Each journey references relevant user stories from:
 ### Diagram Legend
 
 **Mermaid Flowchart Symbols:**
+
 - `[Rectangle]` - Process/action
 - `{Diamond}` - Decision point
 - `(Rounded)` - Start/end point
@@ -106,6 +119,7 @@ Each journey references relevant user stories from:
 - `-.-` - Error path
 
 **Mermaid Sequence Diagram Symbols:**
+
 - `participant` - Actor/system component
 - `->` - Synchronous call
 - `-->` - Asynchronous call
@@ -124,6 +138,7 @@ Each journey references relevant user stories from:
 **Prerequisites**: None (this is the entry journey for new users)
 
 **Related User Stories:**
+
 - [User Registration](authentication.md#user-registration)
 - [User Login](authentication.md#user-login)
 - [User Welcome Page](user-management.md#user-welcome-page)
@@ -133,6 +148,7 @@ Each journey references relevant user stories from:
 - [Data Visualization](liverc-integration.md#data-visualization)
 
 **Related Workflows:**
+
 - [LiveRC Event Search and Event Analysis User Workflow](../frontend/liverc/user-workflow.md)
 
 #### High-Level Flow Diagram
@@ -174,7 +190,8 @@ flowchart TD
 
 **Step 1: User Arrives at Landing Page**
 
-- **User Action**: User navigates to MRE application (e.g., `http://localhost:3001`)
+- **User Action**: User navigates to MRE application (e.g.,
+  `http://localhost:3001`)
 - **UI Elements**: Landing page with navigation to Register/Login
 - **API Calls**: None
 - **Backend Process**: None
@@ -185,7 +202,7 @@ flowchart TD
 **Step 2: Registration Form Display**
 
 - **User Action**: User views registration form
-- **UI Elements**: 
+- **UI Elements**:
   - Email/Username input field (required)
   - Password input field (required)
   - Driver Name input field (required)
@@ -201,7 +218,7 @@ flowchart TD
 **Step 3: Form Validation (Client-Side)**
 
 - **User Action**: User fills form and attempts submission
-- **UI Elements**: 
+- **UI Elements**:
   - Real-time validation on blur
   - Field-level error messages beneath relevant fields
   - Error messages use `--token-error-text` color
@@ -209,17 +226,18 @@ flowchart TD
 - **API Calls**: None (client-side validation only)
 - **Backend Process**: None
 - **Success State**: All fields valid, submit button enabled
-- **Error States**: 
+- **Error States**:
   - "Email/Username is required" if empty
   - "Password must be at least 8 characters" if too short
   - "Driver Name is required" if empty
   - "Start date must be before or equal to end date" (if applicable)
-- **Next Step**: If valid, proceed to submission. If invalid, show errors and wait for correction.
+- **Next Step**: If valid, proceed to submission. If invalid, show errors and
+  wait for correction.
 
 **Step 4: Registration API Call**
 
 - **User Action**: User clicks "Create Account" button
-- **UI Elements**: 
+- **UI Elements**:
   - Loading state on submit button
   - Button disabled during submission
 - **API Calls**: `POST /api/v1/auth/register`
@@ -233,16 +251,17 @@ flowchart TD
   6. Assign Driver persona automatically
   7. Create session
 - **Success State**: User created, session established, redirect to `/welcome`
-- **Error States**: 
+- **Error States**:
   - `409 Conflict`: "An account with this email/username already exists."
   - `400 Bad Request`: Field-level validation errors
   - `500 Internal Server Error`: "Unable to create account. Please try again."
-- **Next Step**: On success → Welcome page. On error → Show error message, remain on registration form.
+- **Next Step**: On success → Welcome page. On error → Show error message,
+  remain on registration form.
 
 **Step 5: Welcome Page Display**
 
 - **User Action**: User automatically redirected to welcome page
-- **UI Elements**: 
+- **UI Elements**:
   - Centered message: "Welcome back <Driver Name>"
   - No additional UI elements (per v0.1.0 scope)
 - **API Calls**: None (user data from session)
@@ -256,19 +275,24 @@ flowchart TD
 - **User Action**: User navigates to Dashboard (via navigation or direct URL)
 - **UI Elements**: Dashboard page with navigation to Event Search
 - **API Calls**: None (or dashboard data if implemented)
-  - Optional: `GET /api/v1/personas/driver/events` (to show discovered events via fuzzy matching)
-- **Backend Process**: 
-  - If implemented: Query `EventDriverLink` for events where user participated (via transponder, exact, or fuzzy matching)
+  - Optional: `GET /api/v1/personas/driver/events` (to show discovered events
+    via fuzzy matching)
+- **Backend Process**:
+  - If implemented: Query `EventDriverLink` for events where user participated
+    (via transponder, exact, or fuzzy matching)
   - Display discovered events with match type indicators
 - **Success State**: Dashboard displayed (optionally with discovered events)
 - **Error States**: None
 - **Next Step**: User navigates to Event Search or views discovered events
-- **Note**: Events discovered via fuzzy matching (see [Driver Event Discovery via Fuzzy Matching](#driver-event-discovery-via-fuzzy-matching)) may be displayed here if the system has already ingested events matching the user's driver name.
+- **Note**: Events discovered via fuzzy matching (see
+  [Driver Event Discovery via Fuzzy Matching](#driver-event-discovery-via-fuzzy-matching))
+  may be displayed here if the system has already ingested events matching the
+  user's driver name.
 
 **Step 7: Event Search Page**
 
 - **User Action**: User navigates to Event Search page (`/event-search`)
-- **UI Elements**: 
+- **UI Elements**:
   - Track selection field (opens modal)
   - Date range picker (start date, end date)
   - "Search" button
@@ -276,15 +300,17 @@ flowchart TD
 - **API Calls**: `GET /api/v1/tracks` (to populate track modal)
 - **Backend Process**: Retrieve track list from database
 - **Success State**: Event Search form displayed with track list available
-- **Error States**: 
+- **Error States**:
   - Network error: "Unable to load tracks. Please try again."
-  - Empty tracks: "No tracks available. Tracks may need to be refreshed by an administrator."
+  - Empty tracks: "No tracks available. Tracks may need to be refreshed by an
+    administrator."
 - **Next Step**: User selects track and date range
 
 **Step 8: Track Selection**
 
-- **User Action**: User clicks track field, opens modal, searches and selects track
-- **UI Elements**: 
+- **User Action**: User clicks track field, opens modal, searches and selects
+  track
+- **UI Elements**:
   - Track selection modal (full-screen on mobile, centered on desktop)
   - Search input at top
   - Track list with favourite stars
@@ -299,14 +325,14 @@ flowchart TD
 **Step 9: Date Range Selection**
 
 - **User Action**: User selects start date and end date
-- **UI Elements**: 
+- **UI Elements**:
   - Start date input (native date picker on mobile)
   - End date input (native date picker on mobile)
   - Validation errors beneath fields if invalid
 - **API Calls**: None (client-side validation)
 - **Backend Process**: None
 - **Success State**: Valid date range selected (max 3 months, no future dates)
-- **Error States**: 
+- **Error States**:
   - "Date range cannot exceed 3 months. Please select a shorter range."
   - "Cannot select future dates. Please select today or earlier."
   - "Start date must be before or equal to end date."
@@ -315,43 +341,47 @@ flowchart TD
 **Step 10: Event Search**
 
 - **User Action**: User clicks "Search" button
-- **UI Elements**: 
+- **UI Elements**:
   - Loading state on search button
   - "Searching for events..." message
-- **API Calls**: `GET /api/v1/events/search?track_id={track_id}&start_date={start_date}&end_date={end_date}`
-- **Backend Process**: 
+- **API Calls**:
+  `GET /api/v1/events/search?track_id={track_id}&start_date={start_date}&end_date={end_date}`
+- **Backend Process**:
   1. Validate track_id exists
   2. Validate date range (start <= end, max 3 months, no future dates)
   3. Query MRE database for events matching criteria
   4. Return event list with ingestion status
 - **Success State**: Event list returned
-- **Error States**: 
+- **Error States**:
   - `400 Bad Request`: Validation errors
   - `404 Not Found`: Track not found
   - `500 Internal Server Error`: "Unable to search events. Please try again."
-- **Next Step**: If events found → show event list. If no events → auto-query LiveRC.
+- **Next Step**: If events found → show event list. If no events → auto-query
+  LiveRC.
 
 **Step 11: LiveRC Auto-Discovery (If No DB Results)**
 
 - **User Action**: System automatically queries LiveRC (no user action)
-- **UI Elements**: 
+- **UI Elements**:
   - "No events found in database. Checking LiveRC..." message
   - Loading indicator
-- **API Calls**: `POST /api/v1/events/discover` (or equivalent LiveRC discovery endpoint)
-- **Backend Process**: 
+- **API Calls**: `POST /api/v1/events/discover` (or equivalent LiveRC discovery
+  endpoint)
+- **Backend Process**:
   1. Query LiveRC for events matching track and date range
   2. Filter out events already in MRE database
   3. Return discovered events with status "New (LiveRC only)"
 - **Success State**: Discovered events returned
-- **Error States**: 
-  - LiveRC unavailable: "LiveRC is temporarily unavailable. Please try again later."
+- **Error States**:
+  - LiveRC unavailable: "LiveRC is temporarily unavailable. Please try again
+    later."
   - Network error: "Unable to check LiveRC. Please check your connection."
 - **Next Step**: Show discovered events in event list
 
 **Step 12: Event List Display**
 
 - **User Action**: User views event list
-- **UI Elements**: 
+- **UI Elements**:
   - Event table/list (mobile: cards, desktop: table)
   - Columns: Event Name, Event Date, Status
   - Status tags: "Stored", "New (LiveRC only)", "Importing", "Failed import"
@@ -366,40 +396,45 @@ flowchart TD
 **Step 13: Event Import**
 
 - **User Action**: User selects events and clicks "Import X selected events"
-- **UI Elements**: 
+- **UI Elements**:
   - Bulk import action bar
   - Progress indicator: "Importing X of Y..."
   - Status updates per event
-- **API Calls**: `POST /api/v1/events/{event_id}/ingest` (for each selected event, sequential)
-- **Backend Process**: 
+- **API Calls**: `POST /api/v1/events/{event_id}/ingest` (for each selected
+  event, sequential)
+- **Backend Process**:
   1. Trigger ingestion pipeline for each event
   2. Update event status to "Importing"
   3. Process event data from LiveRC
   4. Store races, drivers, results, laps
   5. Update status to "Stored" on success or "Failed import" on error
 - **Success State**: Events imported successfully, status updated to "Stored"
-- **Error States**: 
-  - `INGESTION_IN_PROGRESS`: "Ingestion already in progress for this event. Please wait."
-  - `INGESTION_FAILED`: "Unable to ingest event data. The LiveRC website may be temporarily unavailable."
+- **Error States**:
+  - `INGESTION_IN_PROGRESS`: "Ingestion already in progress for this event.
+    Please wait."
+  - `INGESTION_FAILED`: "Unable to ingest event data. The LiveRC website may be
+    temporarily unavailable."
   - `NOT_FOUND`: "Event not found. It may have been removed."
 - **Next Step**: User clicks "Analyse event" for imported event
 
 **Step 14: Event Analysis**
 
 - **User Action**: User clicks "Analyse event" button
-- **UI Elements**: 
-  - Event Analysis page with tabs: Overview, Drivers, Sessions/Heats, Comparisons
+- **UI Elements**:
+  - Event Analysis page with tabs: Overview, Drivers, Sessions/Heats,
+    Comparisons
   - Interactive charts showing lap times, positions, gaps
   - Driver selection controls
   - Export to CSV button
-- **API Calls**: 
+- **API Calls**:
   - `GET /api/v1/events/{eventId}`
   - `GET /api/v1/events/{eventId}/analysis`
   - `GET /api/v1/races/{raceId}`
   - `GET /api/v1/races/{raceId}/laps`
-- **Backend Process**: Retrieve event data, race results, lap data, generate analysis
+- **Backend Process**: Retrieve event data, race results, lap data, generate
+  analysis
 - **Success State**: Event analysis displayed with charts and data
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: "Event not found. Event may need to be ingested."
   - Network error: "Unable to load event data. Please try again."
 - **Next Step**: User analyzes data, exports CSV, or navigates to another event
@@ -442,6 +477,7 @@ sequenceDiagram
 #### Edge Cases and Variations
 
 **Mobile vs Desktop:**
+
 - **Mobile**: Track modal is full-screen overlay
 - **Desktop**: Track modal is centered dialog (max-width: 600px)
 - **Mobile**: Date inputs use native date picker
@@ -450,11 +486,13 @@ sequenceDiagram
 - **Desktop**: Event table displays as table with columns
 
 **Form Persistence:**
+
 - Last selected track and date range persisted in localStorage
 - Values restored on page reload
 - Reset button clears persisted values
 
 **Error Recovery:**
+
 - Registration errors: User can correct and resubmit
 - Import errors: User can retry failed imports individually
 - Network errors: Retry button provided
@@ -470,12 +508,14 @@ sequenceDiagram
 **Prerequisites**: User account exists, user has previously registered
 
 **Related User Stories:**
+
 - [User Login](authentication.md#user-login)
 - [User Welcome Page](user-management.md#user-welcome-page)
 - [Track Selection](liverc-integration.md#track-selection)
 - [Event Discovery](liverc-integration.md#event-discovery)
 
 **Related Workflows:**
+
 - [LiveRC Event Search and Event Analysis User Workflow](../frontend/liverc/user-workflow.md)
 
 #### High-Level Flow Diagram
@@ -516,7 +556,7 @@ flowchart TD
 **Step 1: Login Page Display**
 
 - **User Action**: User navigates to login page (`/login`)
-- **UI Elements**: 
+- **UI Elements**:
   - Email/Username input field
   - Password input field
   - "Sign in" or "Log In" button
@@ -530,23 +570,26 @@ flowchart TD
 **Step 2: Login Form Submission**
 
 - **User Action**: User enters credentials and clicks "Sign in"
-- **UI Elements**: 
+- **UI Elements**:
   - Loading state on submit button
   - Button disabled during submission
 - **API Calls**: `POST /api/v1/auth/login`
   - Request body: `{ email, password }`
-- **Backend Process**: 
+- **Backend Process**:
   1. Validate request body
   2. Find user by email/username
   3. Verify password using Argon2id
   4. Check `isAdmin` flag
   5. Create session
 - **Success State**: Session created, redirect based on user type
-- **Error States**: 
-  - `401 Unauthorized`: "Invalid email/username or password." (generic for security)
-  - `404 Not Found`: "Invalid email/username or password." (generic for security)
+- **Error States**:
+  - `401 Unauthorized`: "Invalid email/username or password." (generic for
+    security)
+  - `404 Not Found`: "Invalid email/username or password." (generic for
+    security)
   - `500 Internal Server Error`: "Unable to log in. Please try again."
-- **Next Step**: On success → redirect to `/welcome` (Driver) or `/admin` (Admin). On error → show error, remain on login form.
+- **Next Step**: On success → redirect to `/welcome` (Driver) or `/admin`
+  (Admin). On error → show error, remain on login form.
 
 **Step 3: Welcome Page (Same as First-time Journey)**
 
@@ -561,7 +604,7 @@ flowchart TD
 **Step 4: Event Search with Persisted Values**
 
 - **User Action**: User navigates to Event Search
-- **UI Elements**: 
+- **UI Elements**:
   - Track field pre-populated with last selected track (if persisted)
   - Date range pre-populated with last selected range (if persisted)
   - Form ready for search or modification
@@ -571,22 +614,27 @@ flowchart TD
 - **Error States**: None
 - **Next Step**: User modifies or uses persisted values, then searches
 
-**Step 5-14**: Same as First-time Driver Journey Steps 8-14 (Track Selection through Event Analysis)
+**Step 5-14**: Same as First-time Driver Journey Steps 8-14 (Track Selection
+through Event Analysis)
 
 #### Edge Cases and Variations
 
 **Session Persistence:**
+
 - User session persists across browser sessions (if configured)
 - Session expiration handled gracefully with redirect to login
 
 **Form Persistence:**
+
 - Last track and date range persisted in localStorage
 - Values restored automatically on page load
 - User can modify or use persisted values
 
 **Existing Events:**
+
 - If user searches for events already in database, they see "Stored" status
-- Drivers must import an event (status becomes "Imported/Ready") before the "Analyse event" action appears
+- Drivers must import an event (status becomes "Imported/Ready") before the
+  "Analyse event" action appears
 - System may still query LiveRC in the background to surface newer events
 
 ---
@@ -594,16 +642,20 @@ flowchart TD
 ### Driver Event Discovery via Fuzzy Matching
 
 **Persona**: Driver  
-**Scenario**: System automatically discovers events where driver participated using fuzzy name matching  
+**Scenario**: System automatically discovers events where driver participated
+using fuzzy name matching  
 **Entry Point**: After login/welcome or during event ingestion  
 **Exit Point**: User viewing discovered events or confirming participation  
-**Prerequisites**: User registered with driver name, events exist in system or are being ingested
+**Prerequisites**: User registered with driver name, events exist in system or
+are being ingested
 
 **Related User Stories:**
+
 - [User Registration](authentication.md#user-registration)
 - [On-Demand Ingestion](liverc-integration.md#on-demand-ingestion)
 
 **Related Documentation:**
+
 - [MRE Personas - Driver Persona](../design/mre-personas.md#1-driver-persona)
 
 #### High-Level Flow Diagram
@@ -642,7 +694,7 @@ flowchart TD
 - **User Action**: User registers with driver name
 - **UI Elements**: Registration form
 - **API Calls**: `POST /api/v1/auth/register`
-- **Backend Process**: 
+- **Backend Process**:
   1. Normalize driver name using `Normalizer.normalize_driver_name()`
   2. Store normalized name in `User.normalizedName`
 - **Success State**: Normalized name stored
@@ -654,7 +706,7 @@ flowchart TD
 - **User Action**: Event ingestion occurs (admin-triggered or user-triggered)
 - **UI Elements**: None (backend process)
 - **API Calls**: Ingestion service processes events
-- **Backend Process**: 
+- **Backend Process**:
   1. Python ingestion service processes event data
   2. For each driver in event:
      - Match against all users using:
@@ -670,36 +722,38 @@ flowchart TD
 **Step 3: User Queries Discovered Events**
 
 - **User Action**: User navigates to events list or dashboard
-- **UI Elements**: 
+- **UI Elements**:
   - Events list showing discovered events
   - Status indicators: "Confirmed", "Suggested"
   - Match type indicators: "Transponder", "Exact", "Fuzzy"
 - **API Calls**: `GET /api/v1/personas/driver/events`
-- **Backend Process**: 
+- **Backend Process**:
   1. Query `EventDriverLink` where `userId` matches current user
   2. Filter by `matchType` (transponder, exact, fuzzy)
   3. Filter by status (confirmed, suggested)
   4. Return events with participation details
 - **Success State**: Discovered events returned with match information
-- **Error States**: 
+- **Error States**:
   - `500 Internal Server Error`: "Unable to load events. Please try again."
 - **Next Step**: User views discovered events
 
 **Step 4: User Confirms or Rejects Participation**
 
 - **User Action**: User confirms or rejects suggested participation
-- **UI Elements**: 
+- **UI Elements**:
   - "Confirm" button for suggested matches
   - "Reject" button for suggested matches
   - Confirmed events show "Confirmed" status
-- **API Calls**: `PATCH /api/v1/users/{userId}/driver-links/{linkId}` (future endpoint)
-- **Backend Process**: 
+- **API Calls**: `PATCH /api/v1/users/{userId}/driver-links/{linkId}` (future
+  endpoint)
+- **Backend Process**:
   1. Update `UserDriverLink` status to "confirmed" or "rejected"
   2. Update related `EventDriverLink` records
 - **Success State**: Status updated, events reflect user's confirmation
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: Link not found
-  - `500 Internal Server Error`: "Unable to update participation. Please try again."
+  - `500 Internal Server Error`: "Unable to update participation. Please try
+    again."
 - **Next Step**: User views confirmed events or continues browsing
 
 **Step 5: User Views Event Analysis**
@@ -727,7 +781,7 @@ sequenceDiagram
     Registration->>DB: Create User
     Registration->>DB: Store normalizedName
     Note over DB: User.normalizedName stored
-    
+
     Ingestion->>Ingestion: Process Event Data
     Ingestion->>Matching: Match Drivers
     Matching->>DB: Query all Users
@@ -736,7 +790,7 @@ sequenceDiagram
     Matching->>DB: Create UserDriverLink
     Matching->>DB: Create EventDriverLink
     Note over DB: Links created with matchType and status
-    
+
     User->>EventsAPI: GET /api/v1/personas/driver/events
     EventsAPI->>DB: Query EventDriverLink
     DB-->>EventsAPI: Events with match info
@@ -746,17 +800,20 @@ sequenceDiagram
 #### Edge Cases and Variations
 
 **Match Type Priority:**
+
 - Transponder match takes highest priority
 - Exact match takes second priority
 - Fuzzy match takes lowest priority
 - If multiple match types exist, highest priority is used
 
 **Fuzzy Match Threshold:**
+
 - Similarity score threshold determines fuzzy matches
 - Lower threshold = more matches (but more false positives)
 - Higher threshold = fewer matches (but more accurate)
 
 **Status Management:**
+
 - "Confirmed" status: User explicitly confirmed participation
 - "Suggested" status: System suggests participation (fuzzy match)
 - "Rejected" status: User rejected suggestion (future feature)
@@ -772,30 +829,36 @@ sequenceDiagram
 **Prerequisites**: User attempting various actions
 
 **Related User Stories:**
-- [User Registration](authentication.md#user-registration) - Error handling section
+
+- [User Registration](authentication.md#user-registration) - Error handling
+  section
 - [User Login](authentication.md#user-login) - Error handling section
-- [Event Discovery](liverc-integration.md#event-discovery) - Error handling section
-- [On-Demand Ingestion](liverc-integration.md#on-demand-ingestion) - Error handling section
+- [Event Discovery](liverc-integration.md#event-discovery) - Error handling
+  section
+- [On-Demand Ingestion](liverc-integration.md#on-demand-ingestion) - Error
+  handling section
 
 #### Registration Error Scenarios
 
 **Scenario 1: Duplicate Email/Username**
 
 - **User Action**: User attempts to register with existing email/username
-- **UI Elements**: Error message: "An account with this email/username already exists."
+- **UI Elements**: Error message: "An account with this email/username already
+  exists."
 - **API Response**: `409 Conflict`
-- **Error Handling**: 
+- **Error Handling**:
   - Error displayed prominently
   - User can correct email/username or navigate to login
   - Form remains populated (except password)
-- **Recovery Path**: User corrects email/username or clicks "Already have an account? Log in"
+- **Recovery Path**: User corrects email/username or clicks "Already have an
+  account? Log in"
 
 **Scenario 2: Validation Failure**
 
 - **User Action**: User submits form with invalid data
 - **UI Elements**: Field-level error messages beneath relevant fields
 - **API Response**: `400 Bad Request` with field-level errors
-- **Error Handling**: 
+- **Error Handling**:
   - Each field shows specific error message
   - Submit button disabled until errors resolved
   - Focus moves to first error field
@@ -804,9 +867,10 @@ sequenceDiagram
 **Scenario 3: Network Error**
 
 - **User Action**: User submits form but network fails
-- **UI Elements**: Error message: "Unable to create account. Please check your connection and try again."
+- **UI Elements**: Error message: "Unable to create account. Please check your
+  connection and try again."
 - **API Response**: Network error (no response)
-- **Error Handling**: 
+- **Error Handling**:
   - Generic error message (no technical details)
   - Retry option provided
   - Form data preserved
@@ -817,9 +881,10 @@ sequenceDiagram
 **Scenario 1: Invalid Credentials**
 
 - **User Action**: User enters incorrect email/username or password
-- **UI Elements**: Error message: "Invalid email/username or password." (generic for security)
+- **UI Elements**: Error message: "Invalid email/username or password." (generic
+  for security)
 - **API Response**: `401 Unauthorized`
-- **Error Handling**: 
+- **Error Handling**:
   - Generic error message (prevents account enumeration)
   - Form remains populated (except password)
   - User can retry
@@ -828,9 +893,10 @@ sequenceDiagram
 **Scenario 2: Account Not Found**
 
 - **User Action**: User enters non-existent email/username
-- **UI Elements**: Error message: "Invalid email/username or password." (generic for security)
+- **UI Elements**: Error message: "Invalid email/username or password." (generic
+  for security)
 - **API Response**: `404 Not Found`
-- **Error Handling**: 
+- **Error Handling**:
   - Same generic message as invalid credentials (security)
   - Link to registration page provided
 - **Recovery Path**: User navigates to registration or corrects email/username
@@ -840,7 +906,7 @@ sequenceDiagram
 - **User Action**: User logs in successfully but session creation fails
 - **UI Elements**: Error message: "Unable to log in. Please try again."
 - **API Response**: `500 Internal Server Error`
-- **Error Handling**: 
+- **Error Handling**:
   - User remains on login page
   - Credentials cleared for security
 - **Recovery Path**: User retries login
@@ -850,9 +916,10 @@ sequenceDiagram
 **Scenario 1: No Events Found**
 
 - **User Action**: User searches but no events found in database or LiveRC
-- **UI Elements**: Empty state message: "No events found for this track and date range. Try changing your dates or selecting a different track."
+- **UI Elements**: Empty state message: "No events found for this track and date
+  range. Try changing your dates or selecting a different track."
 - **API Response**: `200 OK` with empty array
-- **Error Handling**: 
+- **Error Handling**:
   - Friendly empty state message
   - Suggestions for user action
   - "Reset Search" button provided
@@ -861,9 +928,10 @@ sequenceDiagram
 **Scenario 2: LiveRC Unavailable**
 
 - **User Action**: System attempts to query LiveRC but service unavailable
-- **UI Elements**: Error message: "LiveRC is temporarily unavailable. Please try again later."
+- **UI Elements**: Error message: "LiveRC is temporarily unavailable. Please try
+  again later."
 - **API Response**: `503 Service Unavailable` or network error
-- **Error Handling**: 
+- **Error Handling**:
   - Error message displayed
   - Retry option provided
   - User can continue with database results if available
@@ -874,7 +942,7 @@ sequenceDiagram
 - **User Action**: User selects invalid date range (> 3 months or future dates)
 - **UI Elements**: Validation error beneath date fields
 - **API Response**: `400 Bad Request` (if client-side validation bypassed)
-- **Error Handling**: 
+- **Error Handling**:
   - Client-side validation prevents submission
   - Clear error messages
   - Date picker disables invalid dates
@@ -885,9 +953,10 @@ sequenceDiagram
 **Scenario 1: Ingestion Already in Progress**
 
 - **User Action**: User attempts to import event already being imported
-- **UI Elements**: Error message: "Ingestion already in progress for this event. Please wait."
+- **UI Elements**: Error message: "Ingestion already in progress for this event.
+  Please wait."
 - **API Response**: `409 Conflict` with error code `INGESTION_IN_PROGRESS`
-- **Error Handling**: 
+- **Error Handling**:
   - Status shows "Importing"
   - User cannot trigger duplicate import
   - Status updates automatically when complete
@@ -897,8 +966,9 @@ sequenceDiagram
 
 - **User Action**: Event import fails
 - **UI Elements**: Status shows "Failed import" with red indicator
-- **API Response**: `500 Internal Server Error` with error code `INGESTION_FAILED`
-- **Error Handling**: 
+- **API Response**: `500 Internal Server Error` with error code
+  `INGESTION_FAILED`
+- **Error Handling**:
   - Status updated to "Failed import"
   - Retry option provided
   - Error logged server-side (not exposed to user)
@@ -907,9 +977,10 @@ sequenceDiagram
 **Scenario 3: Partial Import Failure (Bulk Import)**
 
 - **User Action**: User imports multiple events, some fail
-- **UI Elements**: Event table shows individual status for each event (imported/failed)
+- **UI Elements**: Event table shows individual status for each event
+  (imported/failed)
 - **API Response**: Individual responses per event
-- **Error Handling**: 
+- **Error Handling**:
   - Each event's status is displayed in the table
   - Failed events remain in list with "Failed import" status
   - User can retry failed events individually
@@ -925,9 +996,11 @@ sequenceDiagram
 **Scenario**: Backend-created admin account first login  
 **Entry Point**: Backend admin creation → Login page  
 **Exit Point**: Admin Console dashboard  
-**Prerequisites**: Admin account created via seed script, database migration, or manual database update
+**Prerequisites**: Admin account created via seed script, database migration, or
+manual database update
 
 **Related User Stories:**
+
 - [Administrator Login](admin.md#administrator-login)
 - [Administrator Console](admin.md#administrator-console)
 
@@ -957,7 +1030,7 @@ flowchart TD
 - **User Action**: Admin account created via backend mechanism (not user action)
 - **UI Elements**: None (backend process)
 - **API Calls**: None (direct database operation or seed script)
-- **Backend Process**: 
+- **Backend Process**:
   1. Admin account created via one of:
      - Seed script (`prisma/seed.ts`)
      - Database migration
@@ -974,7 +1047,7 @@ flowchart TD
 - **UI Elements**: Same login form as regular users
 - **API Calls**: `POST /api/v1/auth/login`
   - Request body: `{ email, password }`
-- **Backend Process**: 
+- **Backend Process**:
   1. Validate credentials
   2. Check `isAdmin` flag on user record
   3. Create session with `isAdmin: true` in session data
@@ -985,7 +1058,7 @@ flowchart TD
 **Step 3: Admin Console Access**
 
 - **User Action**: Admin automatically redirected to Admin Console (`/admin`)
-- **UI Elements**: 
+- **UI Elements**:
   - Admin Console dashboard
   - Navigation to admin features:
     - Dashboard Overview
@@ -997,12 +1070,12 @@ flowchart TD
     - Health Checks
     - Log Viewing
 - **API Calls**: `GET /api/v1/admin/stats` (for dashboard)
-- **Backend Process**: 
+- **Backend Process**:
   1. Verify admin authentication (middleware)
   2. Retrieve system statistics
   3. Return dashboard data
 - **Success State**: Admin Console displayed with dashboard
-- **Error States**: 
+- **Error States**:
   - If not admin: Access denied, redirect to `/welcome`
   - If not authenticated: Redirect to login
 - **Next Step**: Admin explores admin features
@@ -1010,7 +1083,7 @@ flowchart TD
 **Step 4: Dashboard Overview**
 
 - **User Action**: Admin views dashboard overview
-- **UI Elements**: 
+- **UI Elements**:
   - System statistics cards:
     - User count
     - Event count
@@ -1020,13 +1093,13 @@ flowchart TD
   - Quick action cards
   - Recent activity feed
 - **API Calls**: `GET /api/v1/admin/stats`
-- **Backend Process**: 
+- **Backend Process**:
   1. Query database for counts
   2. Calculate database size
   3. Check system health
   4. Retrieve recent activity
 - **Success State**: Dashboard displayed with statistics
-- **Error States**: 
+- **Error States**:
   - Database error: "Unable to load statistics. Please try again."
 - **Next Step**: Admin navigates to specific admin features
 
@@ -1069,11 +1142,13 @@ sequenceDiagram
 #### Edge Cases and Variations
 
 **Admin Detection:**
+
 - Admin status verified server-side only (never trust client)
 - Session includes `isAdmin` flag for quick checks
 - Middleware protects admin routes
 
 **Access Control:**
+
 - Non-admin users cannot access `/admin` routes
 - Access denied redirects to `/welcome`
 - Admin routes protected by middleware
@@ -1089,6 +1164,7 @@ sequenceDiagram
 **Prerequisites**: Admin account exists, admin has previously logged in
 
 **Related User Stories:**
+
 - [Administrator Login](admin.md#administrator-login)
 - [Administrator Console](admin.md#administrator-console)
 - [Admin Dashboard Overview](admin.md#admin-dashboard-overview)
@@ -1128,7 +1204,8 @@ flowchart TD
 
 #### Detailed Step-by-Step Flow
 
-**Step 1-3**: Same as First-time Admin Journey Steps 2-4 (Login, Admin Console Access, Dashboard Overview)
+**Step 1-3**: Same as First-time Admin Journey Steps 2-4 (Login, Admin Console
+Access, Dashboard Overview)
 
 **Step 4: Admin Task Selection**
 
@@ -1140,7 +1217,8 @@ flowchart TD
 - **Error States**: Access denied if not admin
 - **Next Step**: Admin performs specific admin task
 
-**Note**: Detailed flows for each admin task are documented in subsequent journey sections (User Management, Event Management, Ingestion Management).
+**Note**: Detailed flows for each admin task are documented in subsequent
+journey sections (User Management, Event Management, Ingestion Management).
 
 ---
 
@@ -1153,6 +1231,7 @@ flowchart TD
 **Prerequisites**: Admin logged in, users exist in system
 
 **Related User Stories:**
+
 - [User Management](admin.md#user-management)
 
 #### High-Level Flow Diagram
@@ -1188,14 +1267,15 @@ flowchart TD
 
 - **User Action**: Admin clicks "User Management" in Admin Console navigation
 - **UI Elements**: User Management page with users table
-- **API Calls**: `GET /api/v1/admin/users?page=1&limit=20&sort=createdAt&order=desc`
-- **Backend Process**: 
+- **API Calls**:
+  `GET /api/v1/admin/users?page=1&limit=20&sort=createdAt&order=desc`
+- **Backend Process**:
   1. Verify admin authentication
   2. Query users with pagination
   3. Apply sorting and filtering
   4. Return user list
 - **Success State**: Users table displayed with pagination
-- **Error States**: 
+- **Error States**:
   - `403 Forbidden`: "Access denied. Admin privileges required."
   - `500 Internal Server Error`: "Unable to load users. Please try again."
 - **Next Step**: Admin views users or performs actions
@@ -1203,8 +1283,9 @@ flowchart TD
 **Step 2: View Users Table**
 
 - **User Action**: Admin views users table
-- **UI Elements**: 
-  - Sortable table columns: Email, Driver Name, Team Name, Admin Status, Created Date
+- **UI Elements**:
+  - Sortable table columns: Email, Driver Name, Team Name, Admin Status, Created
+    Date
   - Pagination controls
   - Search/filter inputs
   - Action buttons per row: Edit, Delete, Toggle Admin
@@ -1217,21 +1298,21 @@ flowchart TD
 **Step 3: Edit User**
 
 - **User Action**: Admin clicks "Edit" on user row
-- **UI Elements**: 
+- **UI Elements**:
   - Edit modal/form
   - Fields: Email, Driver Name, Team Name
   - "Save" and "Cancel" buttons
-- **API Calls**: 
+- **API Calls**:
   - `GET /api/v1/admin/users/{userId}` (to load user data)
   - `PATCH /api/v1/admin/users/{userId}` (to save changes)
-- **Backend Process**: 
+- **Backend Process**:
   1. Verify admin authentication
   2. Load user data
   3. Validate changes
   4. Update user record
   5. Log action to audit log
 - **Success State**: User updated, table refreshed
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: "User not found."
   - `400 Bad Request`: Validation errors
   - `500 Internal Server Error`: "Unable to update user. Please try again."
@@ -1240,17 +1321,18 @@ flowchart TD
 **Step 4: Delete User**
 
 - **User Action**: Admin clicks "Delete" on user row
-- **UI Elements**: 
-  - Confirmation dialog: "Are you sure you want to delete this user? This action cannot be undone."
+- **UI Elements**:
+  - Confirmation dialog: "Are you sure you want to delete this user? This action
+    cannot be undone."
   - "Delete" and "Cancel" buttons
 - **API Calls**: `DELETE /api/v1/admin/users/{userId}`
-- **Backend Process**: 
+- **Backend Process**:
   1. Verify admin authentication
   2. Verify user exists
   3. Delete user record (cascade deletes handled by database)
   4. Log action to audit log
 - **Success State**: User deleted, table refreshed
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: "User not found."
   - `500 Internal Server Error`: "Unable to delete user. Please try again."
 - **Next Step**: Table refreshed, user removed from list
@@ -1258,29 +1340,33 @@ flowchart TD
 **Step 5: Promote/Demote Admin**
 
 - **User Action**: Admin clicks "Toggle Admin" on user row
-- **UI Elements**: 
-  - Confirmation dialog: "Promote this user to administrator?" or "Remove administrator privileges?"
+- **UI Elements**:
+  - Confirmation dialog: "Promote this user to administrator?" or "Remove
+    administrator privileges?"
   - "Confirm" and "Cancel" buttons
-- **API Calls**: `PATCH /api/v1/admin/users/{userId}` with `{ isAdmin: true/false }`
-- **Backend Process**: 
+- **API Calls**: `PATCH /api/v1/admin/users/{userId}` with
+  `{ isAdmin: true/false }`
+- **Backend Process**:
   1. Verify admin authentication
   2. Update `isAdmin` flag
   3. Log action to audit log
 - **Success State**: Admin status updated, table refreshed
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: "User not found."
-  - `500 Internal Server Error`: "Unable to update admin status. Please try again."
+  - `500 Internal Server Error`: "Unable to update admin status. Please try
+    again."
 - **Next Step**: Table refreshed with updated admin status
 
 **Step 6: Search and Filter Users**
 
 - **User Action**: Admin enters search term or applies filters
-- **UI Elements**: 
+- **UI Elements**:
   - Search input (searches email, driver name)
   - Filter dropdowns: Admin status, team name
   - "Clear Filters" button
-- **API Calls**: `GET /api/v1/admin/users?search={term}&isAdmin={true/false}&teamName={name}`
-- **Backend Process**: 
+- **API Calls**:
+  `GET /api/v1/admin/users?search={term}&isAdmin={true/false}&teamName={name}`
+- **Backend Process**:
   1. Apply search filters
   2. Query database with filters
   3. Return filtered results
@@ -1306,7 +1392,7 @@ sequenceDiagram
     DB-->>Core: User data
     Core-->>API: User data
     API-->>UI: Display edit form
-    
+
     Admin->>UI: Modify user fields
     Admin->>UI: Click "Save"
     UI->>API: PATCH /api/v1/admin/users/{userId}
@@ -1332,6 +1418,7 @@ sequenceDiagram
 **Prerequisites**: Admin logged in, events exist in system
 
 **Related User Stories:**
+
 - [Event Management](admin.md#event-management)
 
 #### High-Level Flow Diagram
@@ -1365,14 +1452,15 @@ flowchart TD
 
 - **User Action**: Admin clicks "Event Management" in Admin Console navigation
 - **UI Elements**: Event Management page with events table
-- **API Calls**: `GET /api/v1/admin/events?page=1&limit=20&sort=eventDate&order=desc`
-- **Backend Process**: 
+- **API Calls**:
+  `GET /api/v1/admin/events?page=1&limit=20&sort=eventDate&order=desc`
+- **Backend Process**:
   1. Verify admin authentication
   2. Query events with pagination
   3. Apply sorting and filtering
   4. Return event list with ingestion status
 - **Success State**: Events table displayed
-- **Error States**: 
+- **Error States**:
   - `403 Forbidden`: "Access denied. Admin privileges required."
   - `500 Internal Server Error`: "Unable to load events. Please try again."
 - **Next Step**: Admin views events or performs actions
@@ -1380,8 +1468,9 @@ flowchart TD
 **Step 2: View Events Table**
 
 - **User Action**: Admin views events table
-- **UI Elements**: 
-  - Sortable table columns: Event Name, Event Date, Track, Ingestion Status, Last Ingested
+- **UI Elements**:
+  - Sortable table columns: Event Name, Event Date, Track, Ingestion Status,
+    Last Ingested
   - Pagination controls
   - Filter inputs: Track, Date Range, Ingestion Status
   - Action buttons per row: Re-ingest, Delete
@@ -1394,12 +1483,12 @@ flowchart TD
 **Step 3: Re-ingest Event**
 
 - **User Action**: Admin clicks "Re-ingest" on event row
-- **UI Elements**: 
+- **UI Elements**:
   - Confirmation dialog: "Re-ingest this event? This will update existing data."
   - "Re-ingest" and "Cancel" buttons
   - Status updates to "Importing" during ingestion
 - **API Calls**: `POST /api/v1/admin/events/{eventId}/reingest`
-- **Backend Process**: 
+- **Backend Process**:
   1. Verify admin authentication
   2. Trigger ingestion pipeline for event
   3. Update event status to "Importing"
@@ -1407,7 +1496,7 @@ flowchart TD
   5. Update event status on completion
   6. Log action to audit log
 - **Success State**: Event re-ingested, status updated
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: "Event not found."
   - `409 Conflict`: "Ingestion already in progress."
   - `500 Internal Server Error`: "Unable to re-ingest event. Please try again."
@@ -1416,17 +1505,18 @@ flowchart TD
 **Step 4: Delete Event**
 
 - **User Action**: Admin clicks "Delete" on event row
-- **UI Elements**: 
-  - Confirmation dialog: "Delete this event? This will also delete all related races, results, and lap data. This action cannot be undone."
+- **UI Elements**:
+  - Confirmation dialog: "Delete this event? This will also delete all related
+    races, results, and lap data. This action cannot be undone."
   - "Delete" and "Cancel" buttons
 - **API Calls**: `DELETE /api/v1/admin/events/{eventId}`
-- **Backend Process**: 
+- **Backend Process**:
   1. Verify admin authentication
   2. Verify event exists
   3. Delete event record (cascade deletes handled by database)
   4. Log action to audit log
 - **Success State**: Event deleted, table refreshed
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: "Event not found."
   - `500 Internal Server Error`: "Unable to delete event. Please try again."
 - **Next Step**: Table refreshed, event removed from list
@@ -1434,10 +1524,11 @@ flowchart TD
 **Step 5: Filter Events**
 
 - **User Action**: Admin applies filters (track, date range, ingestion status)
-- **UI Elements**: 
+- **UI Elements**:
   - Filter dropdowns and inputs
   - "Clear Filters" button
-- **API Calls**: `GET /api/v1/admin/events?trackId={id}&startDate={date}&endDate={date}&ingestDepth={depth}`
+- **API Calls**:
+  `GET /api/v1/admin/events?trackId={id}&startDate={date}&endDate={date}&ingestDepth={depth}`
 - **Backend Process**: Apply filters and query database
 - **Success State**: Filtered events displayed
 - **Error States**: None
@@ -1448,12 +1539,14 @@ flowchart TD
 ### Admin Ingestion Management Journey
 
 **Persona**: Admin  
-**Scenario**: Admin manages LiveRC ingestion (trigger jobs, view status, view logs)  
+**Scenario**: Admin manages LiveRC ingestion (trigger jobs, view status, view
+logs)  
 **Entry Point**: Admin Console → Ingestion Controls  
 **Exit Point**: Ingestion Controls page or Admin Console  
 **Prerequisites**: Admin logged in, ingestion service available
 
 **Related User Stories:**
+
 - [LiveRC Ingestion Controls](admin.md#liverc-ingestion-controls)
 
 #### High-Level Flow Diagram
@@ -1488,45 +1581,50 @@ flowchart TD
   - Jobs list (recent/active jobs)
   - Log viewer
 - **API Calls**: `GET /api/v1/admin/ingestion/jobs`
-- **Backend Process**: 
+- **Backend Process**:
   1. Verify admin authentication
   2. Retrieve recent/active ingestion jobs
   3. Return job list with status
 - **Success State**: Ingestion Controls page displayed
-- **Error States**: 
+- **Error States**:
   - `403 Forbidden`: "Access denied. Admin privileges required."
-  - `500 Internal Server Error`: "Unable to load ingestion jobs. Please try again."
+  - `500 Internal Server Error`: "Unable to load ingestion jobs. Please try
+    again."
 - **Next Step**: Admin triggers job or views logs
 
 **Step 2: Trigger Track Sync**
 
 - **User Action**: Admin clicks "Sync Tracks" button
-- **UI Elements**: 
-  - Confirmation dialog: "Sync tracks from LiveRC? This may take several minutes."
+- **UI Elements**:
+  - Confirmation dialog: "Sync tracks from LiveRC? This may take several
+    minutes."
   - "Sync" and "Cancel" buttons
   - Job status indicator
 - **API Calls**: `POST /api/v1/admin/ingestion/sync-tracks`
-- **Backend Process**: 
+- **Backend Process**:
   1. Verify admin authentication
   2. Trigger track sync job
   3. Create job record
   4. Start async track sync process
   5. Log action to audit log
 - **Success State**: Job started, status displayed
-- **Error States**: 
-  - `500 Internal Server Error`: "Unable to trigger track sync. Please try again."
-  - Ingestion service unavailable: "Ingestion service is unavailable. Please check service status."
+- **Error States**:
+  - `500 Internal Server Error`: "Unable to trigger track sync. Please try
+    again."
+  - Ingestion service unavailable: "Ingestion service is unavailable. Please
+    check service status."
 - **Next Step**: Monitor job status
 
 **Step 3: View Ingestion Jobs**
 
 - **User Action**: Admin views jobs list
-- **UI Elements**: 
-  - Jobs table with columns: Job Type, Status, Started At, Completed At, Duration
+- **UI Elements**:
+  - Jobs table with columns: Job Type, Status, Started At, Completed At,
+    Duration
   - Filter by status: All, Running, Completed, Failed
   - Refresh button
 - **API Calls**: `GET /api/v1/admin/ingestion/jobs?status={status}`
-- **Backend Process**: 
+- **Backend Process**:
   1. Query ingestion jobs
   2. Filter by status if specified
   3. Return job list
@@ -1537,22 +1635,22 @@ flowchart TD
 **Step 4: View Ingestion Logs**
 
 - **User Action**: Admin clicks "View Logs" for specific job or opens log viewer
-- **UI Elements**: 
+- **UI Elements**:
   - Log viewer with:
     - Real-time log streaming (Server-Sent Events or WebSocket)
     - Paginated historical logs
     - Search and filter: Log level, service, date range, search term
     - Pretty-print JSON logs with syntax highlighting
-- **API Calls**: 
+- **API Calls**:
   - `GET /api/v1/admin/logs` (historical logs)
   - `GET /api/v1/admin/logs/stream` (real-time streaming)
   - `GET /api/v1/admin/logs/sources` (log sources)
-- **Backend Process**: 
+- **Backend Process**:
   1. Retrieve logs from ingestion service
   2. Filter by criteria
   3. Stream logs in real-time (if streaming)
 - **Success State**: Logs displayed
-- **Error States**: 
+- **Error States**:
   - `500 Internal Server Error`: "Unable to load logs. Please try again."
   - Log service unavailable: "Log service is unavailable."
 - **Next Step**: Admin monitors logs or closes viewer
@@ -1568,6 +1666,7 @@ flowchart TD
 **Prerequisites**: Admin logged in, attempting admin operations
 
 **Related User Stories:**
+
 - All admin user stories include error handling sections
 
 #### Common Admin Error Scenarios
@@ -1577,7 +1676,7 @@ flowchart TD
 - **User Action**: Non-admin user attempts to access admin route
 - **UI Elements**: Error message or redirect to `/welcome`
 - **API Response**: `403 Forbidden`
-- **Error Handling**: 
+- **Error Handling**:
   - Access denied message or silent redirect
   - User cannot access admin features
 - **Recovery Path**: User cannot proceed (by design)
@@ -1585,9 +1684,10 @@ flowchart TD
 **Scenario 2: Database Connection Error**
 
 - **User Action**: Admin attempts operation but database unavailable
-- **UI Elements**: Error message: "Unable to connect to database. Please check system health."
+- **UI Elements**: Error message: "Unable to connect to database. Please check
+  system health."
 - **API Response**: `503 Service Unavailable`
-- **Error Handling**: 
+- **Error Handling**:
   - Error displayed prominently
   - Link to Health Checks page provided
 - **Recovery Path**: Admin checks system health, retries when database available
@@ -1595,19 +1695,22 @@ flowchart TD
 **Scenario 3: Ingestion Service Unavailable**
 
 - **User Action**: Admin attempts to trigger ingestion but service unavailable
-- **UI Elements**: Error message: "Ingestion service is unavailable. Please check service status."
+- **UI Elements**: Error message: "Ingestion service is unavailable. Please
+  check service status."
 - **API Response**: `503 Service Unavailable`
-- **Error Handling**: 
+- **Error Handling**:
   - Error displayed
   - Link to Health Checks page provided
-- **Recovery Path**: Admin checks ingestion service health, retries when available
+- **Recovery Path**: Admin checks ingestion service health, retries when
+  available
 
 **Scenario 4: Concurrent Operation Conflict**
 
 - **User Action**: Admin attempts operation already in progress
-- **UI Elements**: Error message: "Operation already in progress. Please wait for current operation to complete."
+- **UI Elements**: Error message: "Operation already in progress. Please wait
+  for current operation to complete."
 - **API Response**: `409 Conflict`
-- **Error Handling**: 
+- **Error Handling**:
   - Error displayed
   - Status shows operation in progress
 - **Recovery Path**: Admin waits for operation to complete
@@ -1616,7 +1719,9 @@ flowchart TD
 
 ## Team Manager Persona Journeys
 
-**Note**: Team Manager persona is defined but not fully implemented in version 0.1.1. The following journeys document the intended behavior based on persona specifications.
+**Note**: Team Manager persona is defined but not fully implemented in version
+0.1.1. The following journeys document the intended behavior based on persona
+specifications.
 
 ### Team Manager Assignment Journey
 
@@ -1624,9 +1729,11 @@ flowchart TD
 **Scenario**: User assigned Team Manager persona  
 **Entry Point**: Backend assignment or user registration with team  
 **Exit Point**: Team Manager dashboard or team management page  
-**Prerequisites**: User account exists, `isTeamManager` flag set, `teamName` provided
+**Prerequisites**: User account exists, `isTeamManager` flag set, `teamName`
+provided
 
 **Related Documentation:**
+
 - [MRE Personas - Team Manager Persona](../design/mre-personas.md#3-team-manager-persona)
 
 #### High-Level Flow Diagram
@@ -1647,10 +1754,11 @@ flowchart TD
 
 **Step 1: Team Manager Assignment**
 
-- **User Action**: User account created with `isTeamManager = true` and `teamName`
+- **User Action**: User account created with `isTeamManager = true` and
+  `teamName`
 - **UI Elements**: None (backend assignment)
 - **API Calls**: None (backend process)
-- **Backend Process**: 
+- **Backend Process**:
   1. Check `isTeamManager` flag
   2. Verify `teamName` is set
   3. Assign Team Manager persona
@@ -1662,18 +1770,18 @@ flowchart TD
 **Step 2: Team Dashboard**
 
 - **User Action**: Team Manager navigates to team dashboard
-- **UI Elements**: 
+- **UI Elements**:
   - Team name display
   - Team members list
   - Team events list
   - Team performance metrics (future)
 - **API Calls**: `GET /api/v1/personas/team-manager/team`
-- **Backend Process**: 
+- **Backend Process**:
   1. Query users with matching `teamName`
   2. Query events where team members participated
   3. Return team data
 - **Success State**: Team dashboard displayed
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: "Team not found."
   - `500 Internal Server Error`: "Unable to load team data. Please try again."
 - **Next Step**: Team Manager manages team or views team events
@@ -1682,7 +1790,9 @@ flowchart TD
 
 ## Race Engineer Persona Journeys
 
-**Note**: Race Engineer persona is defined but not fully implemented in version 0.1.1. The following journeys document the intended behavior based on persona specifications.
+**Note**: Race Engineer persona is defined but not fully implemented in version
+0.1.1. The following journeys document the intended behavior based on persona
+specifications.
 
 ### Race Engineer Selection Journey
 
@@ -1693,6 +1803,7 @@ flowchart TD
 **Prerequisites**: User account exists, Race Engineer persona available
 
 **Related Documentation:**
+
 - [MRE Personas - Race Engineer Persona](../design/mre-personas.md#4-race-engineer-persona)
 
 #### High-Level Flow Diagram
@@ -1712,17 +1823,18 @@ flowchart TD
 **Step 1: Persona Selection**
 
 - **User Action**: User navigates to persona selection and selects Race Engineer
-- **UI Elements**: 
+- **UI Elements**:
   - Persona selection interface
   - Available personas: Driver, Admin, Team Manager, Race Engineer
   - Race Engineer description and features
-- **API Calls**: `POST /api/v1/users/me/persona` with `{ personaId: "race_engineer_id" }`
-- **Backend Process**: 
+- **API Calls**: `POST /api/v1/users/me/persona` with
+  `{ personaId: "race_engineer_id" }`
+- **Backend Process**:
   1. Verify user authentication
   2. Update user's `personaId` to Race Engineer
   3. Return updated persona
 - **Success State**: Race Engineer persona assigned
-- **Error States**: 
+- **Error States**:
   - `404 Not Found`: "Persona not found."
   - `400 Bad Request`: "Cannot assign this persona."
 - **Next Step**: User accesses Race Engineer features
@@ -1730,7 +1842,7 @@ flowchart TD
 **Step 2: AI Assistant Interface**
 
 - **User Action**: User interacts with AI assistant
-- **UI Elements**: 
+- **UI Elements**:
   - Conversational interface
   - Setup recommendation cards
   - Tuning guidance
@@ -1753,6 +1865,7 @@ flowchart TD
 **Prerequisites**: User attempting authentication
 
 **Related User Stories:**
+
 - [User Registration](authentication.md#user-registration) - Error handling
 - [User Login](authentication.md#user-login) - Error handling
 - [Administrator Login](admin.md#administrator-login) - Error handling
@@ -1764,18 +1877,20 @@ flowchart TD
 - **User Action**: User enters incorrect email/username or password
 - **UI Elements**: Error message: "Invalid email/username or password."
 - **API Response**: `401 Unauthorized`
-- **Error Handling**: 
+- **Error Handling**:
   - Generic message (prevents account enumeration)
   - Form remains populated (except password)
   - User can retry
-- **Recovery Path**: User re-enters credentials or clicks "Forgot password" (future)
+- **Recovery Path**: User re-enters credentials or clicks "Forgot password"
+  (future)
 
 **Error 2: Account Not Found**
 
 - **User Action**: User enters non-existent email/username
-- **UI Elements**: Error message: "Invalid email/username or password." (generic for security)
+- **UI Elements**: Error message: "Invalid email/username or password." (generic
+  for security)
 - **API Response**: `404 Not Found`
-- **Error Handling**: 
+- **Error Handling**:
   - Same generic message as invalid credentials
   - Link to registration provided
 - **Recovery Path**: User navigates to registration or corrects email/username
@@ -1783,9 +1898,10 @@ flowchart TD
 **Error 3: Session Expired**
 
 - **User Action**: User's session expires while using application
-- **UI Elements**: Redirect to login page with message: "Your session has expired. Please log in again."
+- **UI Elements**: Redirect to login page with message: "Your session has
+  expired. Please log in again."
 - **API Response**: `401 Unauthorized` on protected route access
-- **Error Handling**: 
+- **Error Handling**:
   - Automatic redirect to login
   - Session cleared
   - User can log in again
@@ -1796,7 +1912,7 @@ flowchart TD
 - **User Action**: User exceeds rate limit for authentication endpoints
 - **UI Elements**: Error message: "Too many requests. Please try again later."
 - **API Response**: `429 Too Many Requests`
-- **Error Handling**: 
+- **Error Handling**:
   - Rate limit message displayed
   - User must wait before retrying
   - Retry-After header indicates wait time
@@ -1817,9 +1933,10 @@ flowchart TD
 **Error 1: Connection Timeout**
 
 - **User Action**: User attempts operation but connection times out
-- **UI Elements**: Error message: "Connection timed out. Please check your connection and try again."
+- **UI Elements**: Error message: "Connection timed out. Please check your
+  connection and try again."
 - **API Response**: Network timeout (no response)
-- **Error Handling**: 
+- **Error Handling**:
   - Generic error message
   - Retry option provided
   - Operation state preserved where possible
@@ -1828,9 +1945,10 @@ flowchart TD
 **Error 2: Network Unavailable**
 
 - **User Action**: User attempts operation but network unavailable
-- **UI Elements**: Error message: "Network unavailable. Please check your connection and try again."
+- **UI Elements**: Error message: "Network unavailable. Please check your
+  connection and try again."
 - **API Response**: Network error (no response)
-- **Error Handling**: 
+- **Error Handling**:
   - Generic error message
   - Retry option provided
 - **Recovery Path**: User checks connection and retries
@@ -1838,9 +1956,10 @@ flowchart TD
 **Error 3: Service Unavailable**
 
 - **User Action**: User attempts operation but service unavailable
-- **UI Elements**: Error message: "Service temporarily unavailable. Please try again later."
+- **UI Elements**: Error message: "Service temporarily unavailable. Please try
+  again later."
 - **API Response**: `503 Service Unavailable`
-- **Error Handling**: 
+- **Error Handling**:
   - Service unavailable message
   - Retry option provided
   - Link to status page (if available)
@@ -1857,12 +1976,14 @@ flowchart TD
 **Prerequisites**: User accessing application on mobile or desktop device
 
 **Related Documentation:**
+
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)
 - [MRE Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md)
 
 #### Layout Differences
 
 **Mobile (0-899px):**
+
 - Single-column layouts
 - Full-width form elements
 - Full-screen modals
@@ -1871,6 +1992,7 @@ flowchart TD
 - Touch-optimized interactions (44px minimum touch targets)
 
 **Desktop (900px+):**
+
 - Two-column layouts (where applicable)
 - Auto-width form elements
 - Centered modals (max-width constraints)
@@ -1881,6 +2003,7 @@ flowchart TD
 #### Interaction Differences
 
 **Mobile:**
+
 - Touch gestures (tap, swipe, pinch)
 - No hover states
 - Native keyboard for inputs
@@ -1888,6 +2011,7 @@ flowchart TD
 - Bottom sheets for actions
 
 **Desktop:**
+
 - Mouse interactions (click, hover, drag)
 - Hover states for interactive elements
 - Keyboard shortcuts
@@ -1903,6 +2027,7 @@ flowchart TD
 #### Platform-Specific Features
 
 **Mobile:**
+
 - Native date/time pickers
 - Touch-optimized form inputs
 - Swipe gestures for navigation
@@ -1910,6 +2035,7 @@ flowchart TD
 - Bottom navigation (where applicable)
 
 **Desktop:**
+
 - Enhanced calendar pickers
 - Keyboard navigation
 - Right-click context menus (where applicable)
@@ -1923,21 +2049,31 @@ flowchart TD
 This user journey documentation references and complements:
 
 - **[User Stories README](README.md)**: Overview of user stories organization
-- **[Authentication Epic](authentication.md)**: Registration and login user stories
+- **[Authentication Epic](authentication.md)**: Registration and login user
+  stories
 - **[User Management Epic](user-management.md)**: Welcome page user stories
 - **[Administrator Epic](admin.md)**: Admin login and console user stories
-- **[LiveRC Integration Epic](liverc-integration.md)**: Event search and analysis user stories
-- **[LiveRC User Workflow](../frontend/liverc/user-workflow.md)**: Detailed Event Search and Analysis workflow
-- **[MRE Personas](../design/mre-personas.md)**: Comprehensive persona definitions
-- **[MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md)**: Version 0.1.1 feature specifications
-- **[Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)**: Technical architecture requirements
-- **[LiveRC API Contracts](../architecture/liverc-ingestion/05-api-contracts.md)**: API endpoint specifications
+- **[LiveRC Integration Epic](liverc-integration.md)**: Event search and
+  analysis user stories
+- **[LiveRC User Workflow](../frontend/liverc/user-workflow.md)**: Detailed
+  Event Search and Analysis workflow
+- **[MRE Personas](../design/mre-personas.md)**: Comprehensive persona
+  definitions
+- **[MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md)**:
+  Version 0.1.1 feature specifications
+- **[Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)**:
+  Technical architecture requirements
+- **[LiveRC API Contracts](../architecture/liverc-ingestion/05-api-contracts.md)**:
+  API endpoint specifications
 - **[MRE UX Principles](../design/mre-ux-principles.md)**: UX design principles
-- **[MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)**: Mobile-specific UX requirements
-- **[MRE Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md)**: Visual design standards
+- **[MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)**:
+  Mobile-specific UX requirements
+- **[MRE Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md)**:
+  Visual design standards
 
 ---
 
 ## License
 
-Internal use only. This documentation governs user journey definitions for the MRE application.
+Internal use only. This documentation governs user journey definitions for the
+MRE application.

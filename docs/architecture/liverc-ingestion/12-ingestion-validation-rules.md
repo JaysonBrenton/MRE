@@ -3,9 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Validation rules for LiveRC ingestion data quality and consistency
-purpose: Defines strict validation rules applied to all data received from the LiveRC
-         connector before database insertion. Ensures data quality, consistency, and
-         prevents partial or corrupted data from entering the system.
+purpose:
+  Defines strict validation rules applied to all data received from the LiveRC
+  connector before database insertion. Ensures data quality, consistency, and
+  prevents partial or corrupted data from entering the system.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -70,9 +71,9 @@ The following fields MUST be validated for every event:
 
 Additional structural rules:
 
-1. Race list MUST NOT be empty.  
-2. Race ordering MUST be strictly increasing by `race_order`.  
-3. No two races may share the same `source_race_id`.  
+1. Race list MUST NOT be empty.
+2. Race ordering MUST be strictly increasing by `race_order`.
+3. No two races may share the same `source_race_id`.
 4. No two races may share the same `race_order`.
 
 Failure of any rule MUST abort ingestion.
@@ -149,9 +150,11 @@ Each result row MUST satisfy:
 
 ### 4.1 Entry List Validation (Data Integrity Rule)
 
-**CRITICAL:** Race result drivers MUST be validated against the event entry list for the race's class.
+**CRITICAL:** Race result drivers MUST be validated against the event entry list
+for the race's class.
 
-- Each race result driver MUST match an `EventEntry` record for the race's `class_name`.
+- Each race result driver MUST match an `EventEntry` record for the race's
+  `class_name`.
 - Matching is performed by:
   1. `source_driver_id` (if available in EventEntry's driver)
   2. Normalized driver name (exact match)
@@ -159,19 +162,28 @@ Each result row MUST satisfy:
   - The race result MUST be **skipped** (not written to database)
   - A warning log MUST be emitted with driver and class details
   - Ingestion MUST continue processing other results
-  - The driver will still be processed if they appear in races for classes they ARE entered in
+  - The driver will still be processed if they appear in races for classes they
+    ARE entered in
 
-**Rationale:** This ensures data integrity by preventing drivers from appearing in classes they're not entered in. This can occur due to:
+**Rationale:** This ensures data integrity by preventing drivers from appearing
+in classes they're not entered in. This can occur due to:
+
 - LiveRC incorrectly labeling races
 - Race label parsing extracting wrong class names
 - Mixed-class races (shouldn't happen but might)
 
-**Multi-Class Driver Support:** Drivers who enter multiple classes will still be processed correctly:
-- When processing a race for Class A → if driver is entered in Class A → processed
-- When processing a race for Class B → if driver is NOT entered in Class B → skipped (with log)
-- When processing a race for Class C → if driver is entered in Class C → processed
+**Multi-Class Driver Support:** Drivers who enter multiple classes will still be
+processed correctly:
 
-This ensures drivers only appear in classes they're actually entered in, while preserving their data in all valid classes.
+- When processing a race for Class A → if driver is entered in Class A →
+  processed
+- When processing a race for Class B → if driver is NOT entered in Class B →
+  skipped (with log)
+- When processing a race for Class C → if driver is entered in Class C →
+  processed
+
+This ensures drivers only appear in classes they're actually entered in, while
+preserving their data in all valid classes.
 
 Additional required relationships:
 
@@ -182,8 +194,10 @@ Additional required relationships:
 Contradictions MUST fail ingestion:
 
 - `laps_completed` does not match number of laps parsed.
-- `total_time_seconds` is lower than sum(lap_time_seconds) by an unreasonable margin (optional future rule).
-- Negative or zero lap times for any lap (except lap 0 warmup entries where applicable).
+- `total_time_seconds` is lower than sum(lap_time_seconds) by an unreasonable
+  margin (optional future rule).
+- Negative or zero lap times for any lap (except lap 0 warmup entries where
+  applicable).
 
 ---
 
@@ -192,7 +206,8 @@ Contradictions MUST fail ingestion:
 Each lap MUST satisfy:
 
 - `lap_number`  
-  MUST be an integer >= 1 (except lap_num 0 warmup, which MUST be explicitly allowed only if present in source).
+  MUST be an integer >= 1 (except lap_num 0 warmup, which MUST be explicitly
+  allowed only if present in source).
 
 - `position_on_lap`  
   MUST be an integer >= 1.
@@ -217,7 +232,8 @@ Each lap MUST satisfy:
 
 For each race result:
 
-- Lap numbers MUST start at 1 and increase sequentially by 1, except optional lap 0 warmup.
+- Lap numbers MUST start at 1 and increase sequentially by 1, except optional
+  lap 0 warmup.
 - No missing lap numbers.
 - No duplicate lap numbers.
 - Lap count MUST exactly match `laps_completed`.
@@ -229,15 +245,18 @@ If any violation occurs, ingestion MUST fail.
 ## 6. Cross-Race and Cross-Driver Validation
 
 ### 6.1 Event-Level
+
 - All races within an event MUST reference the same `source_event_id`.
 - All race URLs MUST contain the event’s track slug.
 - All driver IDs MUST remain consistent across laps and results.
 
 ### 6.2 Race-Level
+
 - Results MUST correspond to drivers appearing in lap data.
 - Lap tables MUST NOT contain drivers missing from result rows.
 
 ### 6.3 No Orphan Data
+
 - A lap MUST never exist without a corresponding result row.
 - A result row MUST never exist without a corresponding race.
 - A race MUST never exist without a corresponding event.
@@ -248,15 +267,15 @@ If any violation occurs, ingestion MUST fail.
 
 On ANY validation failure:
 
-1. Ingestion MUST stop immediately.  
-2. No database writes MUST occur (full rollback).  
-3. A structured error MUST be returned.  
+1. Ingestion MUST stop immediately.
+2. No database writes MUST occur (full rollback).
+3. A structured error MUST be returned.
 4. Logs MUST include:
-   - event_id  
-   - race_id (if applicable)  
-   - driver_id (if applicable)  
-   - field that violated rules  
-   - nature of failure  
+   - event_id
+   - race_id (if applicable)
+   - driver_id (if applicable)
+   - field that violated rules
+   - nature of failure
 
 Validation failures MUST NOT attempt auto-correction.
 
@@ -266,10 +285,10 @@ Validation failures MUST NOT attempt auto-correction.
 
 These items MUST NOT cause ingestion to fail:
 
-- Missing pace_string values  
-- Missing segment data  
-- Missing start_time or duration_seconds  
-- Extra whitespace in names  
+- Missing pace_string values
+- Missing segment data
+- Missing start_time or duration_seconds
+- Extra whitespace in names
 - Random HTML quirks that do not affect core data structure
 
 These are “non-critical” and ingestion MUST proceed.
@@ -280,10 +299,10 @@ These are “non-critical” and ingestion MUST proceed.
 
 Validation logic MUST support future ingestion features:
 
-- Segment-level time validation  
-- Derived metrics validation  
-- Cross-session driver consistency checks  
-- Multi-source conflict resolution  
+- Segment-level time validation
+- Derived metrics validation
+- Cross-session driver consistency checks
+- Multi-source conflict resolution
 - Replay of ingestion under multiple HTML fixture versions (testing)
 
 These MUST NOT weaken existing strictness rules.

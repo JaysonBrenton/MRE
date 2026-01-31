@@ -3,7 +3,9 @@ created: 2026-01-27
 creator: Jayson Brenton
 lastModified: 2026-01-27
 description: Complete guide to searching for race events in My Race Engineer
-purpose: Provides comprehensive instructions for using the Event Search feature to find, discover, and import race events from LiveRC.
+purpose:
+  Provides comprehensive instructions for using the Event Search feature to
+  find, discover, and import race events from LiveRC.
 relatedFiles:
   - docs/frontend/liverc/user-workflow.md
   - docs/user-stories/liverc-integration.md
@@ -12,11 +14,14 @@ relatedFiles:
 
 # Event Search Guide
 
-Learn how to search for race events, select tracks, import events from LiveRC, and understand event status indicators in My Race Engineer.
+Learn how to search for race events, select tracks, import events from LiveRC,
+and understand event status indicators in My Race Engineer.
 
 ## Introduction
 
-The Event Search feature allows you to discover and import race events from LiveRC. You can search for events by track and date range, then import them into MRE for detailed analysis.
+The Event Search feature allows you to discover and import race events from
+LiveRC. You can search for events by track and date range, then import them into
+MRE for detailed analysis.
 
 ## Prerequisites
 
@@ -35,22 +40,27 @@ The Event Search feature allows you to discover and import race events from Live
 ### Using the Track Selection Modal
 
 1. Click on the **Track** field to open the track selection modal
-2. The modal displays a searchable list of all available tracks (approximately 1,100 tracks)
+2. The modal displays a searchable list of all available tracks (approximately
+   1,100 tracks)
 3. Use the search box at the top to filter tracks by name
 4. Search is case-insensitive and matches anywhere in the track name
 
 ### Favourite Tracks
 
 **Adding Favourites:**
+
 - Click the star icon (⭐) next to any track to add it to your favourites
-- Favourite tracks appear at the top of the modal in a "Favourite Tracks" section
+- Favourite tracks appear at the top of the modal in a "Favourite Tracks"
+  section
 
 **Using Favourite Chips:**
+
 - Your favourite tracks appear as quick-select chips above the Event Search form
 - Click a chip to automatically select that track and trigger a search
 - Click the X icon on a chip to remove it from favourites
 
 **Selecting a Track:**
+
 - Click on any track name in the modal to select it
 - The modal closes and the selected track name appears in the Track field
 
@@ -72,16 +82,19 @@ The Event Search feature allows you to discover and import race events from Live
 ### Date Range Rules
 
 **Maximum Range:**
+
 - Date ranges cannot exceed **3 months** (90 days)
 - If you select a range longer than 3 months, you'll see an error message
 - Adjust your dates to fit within the 3-month limit
 
 **No Future Dates:**
+
 - You cannot select future dates
 - The system only searches for past events
 - If you try to select a future date, you'll see an error message
 
 **Start Date Before End Date:**
+
 - The start date must be before or equal to the end date
 - If you select an invalid range, you'll see a validation error
 
@@ -101,9 +114,12 @@ The Event Search feature allows you to discover and import race events from Live
 
 ### What Happens During Search
 
-1. **Database Search**: MRE first searches its database for events matching your criteria
-2. **LiveRC Discovery**: If no events are found in the database, MRE automatically queries LiveRC
-3. **Results Display**: Events are displayed in the results table below the search form
+1. **Database Search**: MRE first searches its database for events matching your
+   criteria
+2. **LiveRC Discovery**: If no events are found in the database, MRE
+   automatically queries LiveRC
+3. **Results Display**: Events are displayed in the results table below the
+   search form
 
 ### Search Results
 
@@ -118,21 +134,25 @@ The search results table shows:
 Events in the search results have different status indicators:
 
 ### Stored / Imported
+
 - **Visual**: Green tag/badge with checkmark icon
 - **Meaning**: Event exists in MRE database with full data
 - **Action**: Click "Analyse event" to view detailed analysis
 
 ### New (LiveRC only)
+
 - **Visual**: Blue tag/badge with info icon
 - **Meaning**: Discovered on LiveRC, not yet imported into MRE
 - **Action**: Select the checkbox to import the event
 
 ### Importing
+
 - **Visual**: Yellow/amber tag/badge with spinner/loading icon
 - **Meaning**: Currently being imported via async job
 - **Action**: Wait for import to complete
 
 ### Failed import
+
 - **Visual**: Red tag/badge with error icon
 - **Meaning**: Last import attempt failed
 - **Action**: You can retry the import
@@ -144,7 +164,8 @@ Events in the search results have different status indicators:
 1. Find an event with status **"New (LiveRC only)"**
 2. Click the checkbox next to the event
 3. Click **"Import selected events"** button
-4. Wait for the import to complete (status will change to "Importing" then "Stored")
+4. Wait for the import to complete (status will change to "Importing" then
+   "Stored")
 
 ### Bulk Event Import
 
@@ -174,18 +195,21 @@ Once an event is successfully imported:
 ### Event List Display
 
 **Desktop View:**
+
 - Events displayed in a table format with columns
 - Sortable by Event Date or Event Name
 - Click column headers to sort
 
 **Mobile View:**
+
 - Events displayed as cards or list items
 - Touch-friendly interface
 - Scrollable list
 
 ### Sorting Events
 
-- **By Event Date**: Click the "Event Date" column header (default: most recent first)
+- **By Event Date**: Click the "Event Date" column header (default: most recent
+  first)
 - **By Event Name**: Click the "Event Name" column header (alphabetical)
 - Click again to reverse sort order
 
@@ -193,7 +217,8 @@ Once an event is successfully imported:
 
 If no events are found:
 
-- You'll see a message: "No events found for this track and date range. Try changing your dates or selecting a different track."
+- You'll see a message: "No events found for this track and date range. Try
+  changing your dates or selecting a different track."
 - Try:
   - Expanding your date range
   - Selecting a different track
@@ -212,11 +237,13 @@ MRE remembers your last search:
 ### No Events Found
 
 **Possible Causes:**
+
 - Track doesn't have events in the selected date range
 - Date range is too narrow
 - Event hasn't been posted to LiveRC yet
 
 **Solutions:**
+
 - Try expanding your date range
 - Verify the track name is correct
 - Check if the event date is correct
@@ -226,6 +253,7 @@ MRE remembers your last search:
 **Error Message**: "LiveRC is temporarily unavailable. Please try again later."
 
 **Solutions:**
+
 - Wait a few minutes and try again
 - Check your internet connection
 - If the problem persists, contact support
@@ -235,26 +263,31 @@ MRE remembers your last search:
 **Status Shows "Failed import"**
 
 **Possible Causes:**
+
 - LiveRC data temporarily unavailable
 - Event data structure changed on LiveRC
 - Network issues during import
 
 **Solutions:**
+
 - Click the checkbox and try importing again
 - Wait a few minutes and retry
 - If it continues to fail, the event may need administrator attention
 
 ## Tips and Best Practices
 
-1. **Use Favourites**: Add frequently searched tracks to favourites for quick access
+1. **Use Favourites**: Add frequently searched tracks to favourites for quick
+   access
 2. **Narrow Date Ranges**: Start with a 30-day range, then narrow if needed
-3. **Check Status**: Pay attention to event status indicators to understand what actions are available
+3. **Check Status**: Pay attention to event status indicators to understand what
+   actions are available
 4. **Bulk Import**: Import multiple events at once to save time
 5. **Save Searches**: Your last search is automatically saved for convenience
 
 ## Related Guides
 
-- **[Event Analysis Guide](event-analysis.md)**: Learn how to analyze imported events
+- **[Event Analysis Guide](event-analysis.md)**: Learn how to analyze imported
+  events
 - **[Navigation Guide](navigation.md)**: Master navigation patterns
 - **[Troubleshooting Guide](troubleshooting.md)**: Common issues and solutions
 
@@ -269,5 +302,6 @@ After importing events, you can:
 
 ---
 
-**Ready to analyze your events?** Check out the [Event Analysis Guide](event-analysis.md) to learn how to get the most from your race data.
-
+**Ready to analyze your events?** Check out the
+[Event Analysis Guide](event-analysis.md) to learn how to get the most from your
+race data.

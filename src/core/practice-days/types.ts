@@ -1,10 +1,10 @@
 /**
  * @fileoverview Practice day types
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX
- * 
+ *
  * @description TypeScript types for practice day functionality
  */
 

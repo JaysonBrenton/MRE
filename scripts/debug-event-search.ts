@@ -1,29 +1,31 @@
 /**
  * Debug script to check event search with driver filter
- * 
+ *
  * Usage: npx ts-node scripts/debug-event-search.ts <userEmail> <trackId> [startDate] [endDate]
  */
 
-import { PrismaClient, type Prisma } from '@prisma/client'
+import { PrismaClient, type Prisma } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
 async function main() {
-  const userEmail = process.argv[2] || 'jaysoncareybrenton@gmail.com'
+  const userEmail = process.argv[2] || "jaysoncareybrenton@gmail.com"
   const trackId = process.argv[3]
   const startDate = process.argv[4] ? new Date(process.argv[4]) : null
   const endDate = process.argv[5] ? new Date(process.argv[5]) : null
 
   if (!trackId) {
-    console.error('Usage: npx ts-node scripts/debug-event-search.ts <userEmail> <trackId> [startDate] [endDate]')
+    console.error(
+      "Usage: npx ts-node scripts/debug-event-search.ts <userEmail> <trackId> [startDate] [endDate]"
+    )
     process.exit(1)
   }
 
   console.log(`\n🔍 Debugging event search for:`)
   console.log(`   User: ${userEmail}`)
   console.log(`   Track ID: ${trackId}`)
-  if (startDate) console.log(`   Start Date: ${startDate.toISOString().split('T')[0]}`)
-  if (endDate) console.log(`   End Date: ${endDate.toISOString().split('T')[0]}`)
+  if (startDate) console.log(`   Start Date: ${startDate.toISOString().split("T")[0]}`)
+  if (endDate) console.log(`   End Date: ${endDate.toISOString().split("T")[0]}`)
   console.log()
 
   // Find user
@@ -47,8 +49,8 @@ async function main() {
   console.log(`✅ User found:`)
   console.log(`   ID: ${user.id}`)
   console.log(`   Driver Name: ${user.driverName}`)
-  console.log(`   Normalized Name: ${user.normalizedName || '(not set)'}`)
-  console.log(`   Transponder: ${user.transponderNumber || '(not set)'}`)
+  console.log(`   Normalized Name: ${user.normalizedName || "(not set)"}`)
+  console.log(`   Transponder: ${user.transponderNumber || "(not set)"}`)
   console.log()
 
   // Check track
@@ -80,7 +82,7 @@ async function main() {
 
   const allEvents = await prisma.event.findMany({
     where: whereClause,
-    orderBy: { eventDate: 'desc' },
+    orderBy: { eventDate: "desc" },
     select: {
       id: true,
       eventName: true,
@@ -94,8 +96,10 @@ async function main() {
   console.log(`📊 Events for track/date range (without driver filter): ${allEvents.length}`)
   if (allEvents.length > 0) {
     allEvents.slice(0, 5).forEach((event) => {
-      console.log(`   - ${event.eventName} (${event.eventDate?.toISOString().split('T')[0]})`)
-      console.log(`     Entries: ${event.eventEntries}, Drivers: ${event.eventDrivers}, Ingest Depth: ${event.ingestDepth}`)
+      console.log(`   - ${event.eventName} (${event.eventDate?.toISOString().split("T")[0]})`)
+      console.log(
+        `     Entries: ${event.eventEntries}, Drivers: ${event.eventDrivers}, Ingest Depth: ${event.ingestDepth}`
+      )
     })
     if (allEvents.length > 5) {
       console.log(`   ... and ${allEvents.length - 5} more`)
@@ -111,7 +115,7 @@ async function main() {
       userId: user.id,
       NOT: {
         userDriverLink: {
-          status: 'rejected',
+          status: "rejected",
         },
       },
     },
@@ -133,7 +137,7 @@ async function main() {
   })
 
   console.log(`📊 EventDriverLink records for user: ${eventDriverLinks.length}`)
-  
+
   // Filter to events in the track/date range
   const relevantLinks = eventDriverLinks.filter((link) => {
     if (link.event.trackId !== trackId) return false
@@ -149,7 +153,7 @@ async function main() {
     relevantLinks.forEach((link) => {
       console.log(`   - ${link.event.eventName}`)
       console.log(`     Match Type: ${link.matchType}, Similarity: ${link.similarityScore}`)
-      console.log(`     UserDriverLink Status: ${link.userDriverLink?.status || 'N/A'}`)
+      console.log(`     UserDriverLink Status: ${link.userDriverLink?.status || "N/A"}`)
     })
   }
   console.log()
@@ -174,14 +178,14 @@ async function main() {
     })
 
     console.log(`📊 EventEntry records for events in range: ${eventEntries.length}`)
-    
+
     // Check if any drivers match the user
-    const { fuzzyMatchUserToDriver } = await import('../src/core/users/driver-matcher')
+    const { fuzzyMatchUserToDriver } = await import("../src/core/users/driver-matcher")
     let matchCount = 0
-    
+
     for (const entry of eventEntries) {
       if (!entry.driver) continue
-      
+
       const match = fuzzyMatchUserToDriver(
         {
           id: user.id,
@@ -201,7 +205,9 @@ async function main() {
         matchCount++
         if (matchCount <= 5) {
           console.log(`   ✅ Match found: ${entry.driver.displayName}`)
-          console.log(`      Match Type: ${match.matchType}, Similarity: ${match.similarityScore}, Status: ${match.status}`)
+          console.log(
+            `      Match Type: ${match.matchType}, Similarity: ${match.similarityScore}, Status: ${match.status}`
+          )
           const event = allEvents.find((e) => e.id === entry.eventId)
           if (event) {
             console.log(`      Event: ${event.eventName}`)
@@ -222,7 +228,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('Error:', e)
+    console.error("Error:", e)
     process.exit(1)
   })
   .finally(async () => {

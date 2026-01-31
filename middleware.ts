@@ -1,23 +1,23 @@
 /**
  * @fileoverview Next.js middleware for route protection, rate limiting, and security headers
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Middleware configuration for authentication, route protection, rate limiting, and security headers
- * 
+ *
  * @purpose This middleware combines NextAuth's auth function with rate limiting and security headers to:
  *          1. Protect authentication endpoints from brute force attacks
  *          2. Protect resource-intensive endpoints from abuse
  *          3. Handle authentication redirects for protected routes
  *          4. Add security headers to protect against common web vulnerabilities
- * 
+ *
  *          Rate limits are applied BEFORE authentication checks to prevent
  *          attackers from consuming resources even with invalid credentials.
  *          Security headers are added to all responses to protect against XSS,
  *          clickjacking, and other attacks.
- * 
+ *
  * @relatedFiles
  * - src/lib/auth.ts (NextAuth configuration and auth function)
  * - src/lib/rate-limiter.ts (rate limiting implementation)
@@ -27,12 +27,8 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server"
-import { auth } from "@/lib/auth"
-import {
-  getRateLimiter,
-  generateRateLimitKey,
-  getRateLimitConfigForPath,
-} from "@/lib/rate-limiter"
+import { auth, isPublicApi } from "@/lib/auth"
+import { getRateLimiter, generateRateLimitKey, getRateLimitConfigForPath } from "@/lib/rate-limiter"
 import { createLoggerWithContext } from "@/lib/logger"
 import { getRequestContext, getClientIp } from "@/lib/request-context"
 import { env } from "@/lib/env"
@@ -40,7 +36,7 @@ import { env } from "@/lib/env"
 /**
  * Add security headers to response
  * Environment-aware: relaxed for development, strict for production
- * 
+ *
  * @param response - NextResponse to add headers to
  * @param isProduction - Whether running in production environment
  * @returns Response with security headers added
@@ -50,10 +46,7 @@ function addSecurityHeaders(response: NextResponse, isProduction: boolean): Next
   response.headers.set("X-Content-Type-Options", "nosniff")
   response.headers.set("X-Frame-Options", "DENY")
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
-  response.headers.set(
-    "Permissions-Policy",
-    "geolocation=(), microphone=(), camera=(), payment=()"
-  )
+  response.headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()")
 
   // Content-Security-Policy (environment-aware)
   if (isProduction) {
@@ -68,12 +61,9 @@ function addSecurityHeaders(response: NextResponse, isProduction: boolean): Next
       "frame-ancestors 'none'",
     ].join("; ")
     response.headers.set("Content-Security-Policy", csp)
-    
+
     // HSTS (production only)
-    response.headers.set(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains"
-    )
+    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
   } else {
     // Relaxed CSP for development (allows hot reload and dev tools)
     const csp = [
@@ -117,7 +107,7 @@ function checkRateLimit(request: NextRequest): NextResponse | null {
     // Rate limit exceeded - log and return 429 response
     const context = getRequestContext(request)
     const requestLogger = createLoggerWithContext(context)
-    
+
     requestLogger.warn("Rate limit exceeded", {
       ip,
       path: pathname,
@@ -175,27 +165,21 @@ export async function middleware(request: NextRequest) {
     if (pathname === "/welcome" || pathname.startsWith("/welcome/")) {
       // Call auth() without arguments to get the session object
       const session = await auth()
-      
+
       if (!session?.user) {
         // Not authenticated - redirect to login
-        const redirectResponse = NextResponse.redirect(
-          new URL("/login", request.url)
-        )
+        const redirectResponse = NextResponse.redirect(new URL("/login", request.url))
         return addSecurityHeaders(redirectResponse, isProduction)
       }
-      
+
       // Authenticated - redirect based on user role
       if (session.user.isAdmin) {
-        const redirectResponse = NextResponse.redirect(
-          new URL("/admin", request.url)
-        )
+        const redirectResponse = NextResponse.redirect(new URL("/admin", request.url))
         return addSecurityHeaders(redirectResponse, isProduction)
       }
-      
+
       // Regular user - redirect to dashboard
-      const redirectResponse = NextResponse.redirect(
-        new URL("/dashboard", request.url)
-      )
+      const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url))
       return addSecurityHeaders(redirectResponse, isProduction)
     }
 
@@ -209,25 +193,84 @@ export async function middleware(request: NextRequest) {
     }
 
     // Delegate to NextAuth for authentication on protected routes
-    // The auth() function with request parameter handles:
-    // - Session validation
-    // - Redirects for unauthenticated users
-    // - Admin role checks
-    // Note: auth(request) returns a Response if there's a redirect/error, or session object if authorized
-    const authResult = await auth(request as unknown as Request)
-    
-    // If auth() returned a Response (redirect, 401, etc.), return it directly
-    // This preserves the status code, headers, cookies, and body that NextAuth set
-    if (authResult instanceof Response) {
-      // Use NextResponse.from() to properly convert the Response while preserving all properties
-      const nextResponse = NextResponse.from(authResult)
-      return addSecurityHeaders(nextResponse, isProduction)
+    const session = await auth()
+    const isLoggedIn = Boolean(session?.user)
+    const isApiRoute = pathname.startsWith("/api/")
+    const isAdminRoute = pathname.startsWith("/admin")
+    const isRoot = pathname === "/"
+    const isLogin = pathname.startsWith("/login")
+    const isRegister = pathname.startsWith("/register")
+    const isApiAuthRoute = pathname.startsWith("/api/auth")
+    const isPublicApiRoute = isPublicApi(pathname)
+    const isPublicPage = isLogin || isRegister
+
+    if (!isLoggedIn) {
+      if (isPublicPage || isApiAuthRoute || isPublicApiRoute) {
+        return addSecurityHeaders(NextResponse.next(), isProduction)
+      }
+      if (isApiRoute) {
+        return addSecurityHeaders(
+          NextResponse.json(
+            { success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } },
+            { status: 401 }
+          ),
+          isProduction
+        )
+      }
+      return addSecurityHeaders(NextResponse.redirect(new URL("/login", request.url)), isProduction)
     }
-    
-    // If auth() returned a session object (not a Response), the user is authorized
-    // Continue with the request
-    const nextResponse = NextResponse.next()
-    return addSecurityHeaders(nextResponse, isProduction)
+
+    if (isRoot) {
+      if (session?.user?.isAdmin) {
+        return addSecurityHeaders(
+          NextResponse.redirect(new URL("/admin", request.url)),
+          isProduction
+        )
+      }
+      return addSecurityHeaders(
+        NextResponse.redirect(new URL("/dashboard", request.url)),
+        isProduction
+      )
+    }
+
+    if (isPublicPage || isApiAuthRoute || isPublicApiRoute) {
+      if (isLogin || isRegister) {
+        if (session?.user?.isAdmin) {
+          return addSecurityHeaders(
+            NextResponse.redirect(new URL("/admin", request.url)),
+            isProduction
+          )
+        }
+        return addSecurityHeaders(
+          NextResponse.redirect(new URL("/dashboard", request.url)),
+          isProduction
+        )
+      }
+    }
+
+    if (isAdminRoute && !session?.user?.isAdmin) {
+      return addSecurityHeaders(
+        NextResponse.redirect(new URL("/dashboard", request.url)),
+        isProduction
+      )
+    }
+
+    const isAdminApiRoute = pathname.startsWith("/api/v1/admin")
+    if (isAdminApiRoute && !session?.user?.isAdmin) {
+      return addSecurityHeaders(
+        NextResponse.json(
+          { success: false, error: { code: "FORBIDDEN", message: "Admin access required" } },
+          { status: 403 }
+        ),
+        isProduction
+      )
+    }
+
+    if (pathname.startsWith("/event-search") && session?.user?.isAdmin) {
+      return addSecurityHeaders(NextResponse.redirect(new URL("/admin", request.url)), isProduction)
+    }
+
+    return addSecurityHeaders(NextResponse.next(), isProduction)
   } catch (error) {
     // Log middleware errors
     requestLogger.error("Middleware error", {
@@ -257,7 +300,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
 }

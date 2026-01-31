@@ -1,13 +1,13 @@
 /**
  * @fileoverview Script to populate normalizedName for existing users
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description One-time script to compute and populate normalizedName
  *              for all existing users in the database
- * 
+ *
  * @purpose After migration adds normalizedName column, this script
  *          populates it for existing users using the normalization logic
  */
@@ -49,4 +49,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-

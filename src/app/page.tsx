@@ -1,17 +1,17 @@
 /**
  * @fileoverview Home page - Landing page
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Landing page for My Race Engineer
- * 
+ *
  * @purpose Displays an enterprise-grade landing page with hero section, trust signals,
  *          feature blocks, and clear CTA hierarchy. This page is accessible to all users
  *          (authenticated and unauthenticated). Authenticated users will be redirected to
  *          /welcome by middleware.
- * 
+ *
  * @relatedFiles
  * - middleware.ts (route protection and redirects)
  * - src/lib/auth.ts (authentication configuration)

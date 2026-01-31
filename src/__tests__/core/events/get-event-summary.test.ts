@@ -1,13 +1,13 @@
 /**
  * @fileoverview Tests for getEventSummary function
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Regression tests to ensure getEventSummary uses database aggregations
  *              and does not load full event graph (races, results, laps)
- * 
+ *
  * @purpose Validates that getEventSummary makes < 5 queries regardless of event size.
  */
 

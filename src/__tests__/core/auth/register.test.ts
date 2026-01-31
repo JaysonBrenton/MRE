@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for user registration core logic
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for registration business logic
- * 
+ *
  * @purpose Validates registration logic including success cases, validation errors,
  *          and duplicate email handling.
  */

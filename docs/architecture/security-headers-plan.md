@@ -3,7 +3,10 @@ created: 2025-01-27
 creator: Auto (AI Assistant)
 lastModified: 2025-01-27
 description: Security headers implementation documentation for MRE application
-purpose: Documents the security headers implementation that protects against common web vulnerabilities. Security headers are implemented in version 0.1.1 with environment-aware configuration.
+purpose:
+  Documents the security headers implementation that protects against common web
+  vulnerabilities. Security headers are implemented in version 0.1.1 with
+  environment-aware configuration.
 relatedFiles:
   - middleware.ts (security headers implementation)
   - docs/security/security-overview.md (security documentation)
@@ -13,14 +16,18 @@ relatedFiles:
 
 ## Overview
 
-Security headers are **implemented** in version 0.1.1 to protect the application against common web vulnerabilities. The implementation uses environment-aware configuration to balance security and development experience.
+Security headers are **implemented** in version 0.1.1 to protect the application
+against common web vulnerabilities. The implementation uses environment-aware
+configuration to balance security and development experience.
 
 ## Required Security Headers
 
 ### 1. Content-Security-Policy (CSP)
+
 Prevents XSS attacks by controlling which resources can be loaded.
 
 **Recommended Configuration:**
+
 ```
 default-src 'self';
 script-src 'self' 'unsafe-inline' 'unsafe-eval';  # Adjust based on needs
@@ -32,29 +39,35 @@ frame-ancestors 'none';
 ```
 
 ### 2. X-Frame-Options
+
 Prevents clickjacking attacks.
 
 **Value:** `DENY` or `SAMEORIGIN`
 
 ### 3. X-Content-Type-Options
+
 Prevents MIME type sniffing.
 
 **Value:** `nosniff`
 
 ### 4. Referrer-Policy
+
 Controls referrer information sent with requests.
 
 **Value:** `strict-origin-when-cross-origin`
 
 ### 5. Permissions-Policy (formerly Feature-Policy)
+
 Controls browser features and APIs.
 
 **Recommended Configuration:**
+
 ```
 geolocation=(), microphone=(), camera=(), payment=()
 ```
 
 ### 6. Strict-Transport-Security (HSTS)
+
 Forces HTTPS connections (production only).
 
 **Value:** `max-age=31536000; includeSubDomains`
@@ -72,7 +85,7 @@ import type { NextRequest } from "next/server"
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next()
-  
+
   // Security headers
   response.headers.set("X-Frame-Options", "DENY")
   response.headers.set("X-Content-Type-Options", "nosniff")
@@ -81,7 +94,7 @@ export function middleware(request: NextRequest) {
     "Permissions-Policy",
     "geolocation=(), microphone=(), camera=(), payment=()"
   )
-  
+
   // Content-Security-Policy
   const csp = [
     "default-src 'self'",
@@ -93,7 +106,7 @@ export function middleware(request: NextRequest) {
     "frame-ancestors 'none'",
   ].join("; ")
   response.headers.set("Content-Security-Policy", csp)
-  
+
   // HSTS (production only)
   if (process.env.NODE_ENV === "production") {
     response.headers.set(
@@ -101,7 +114,7 @@ export function middleware(request: NextRequest) {
       "max-age=31536000; includeSubDomains"
     )
   }
-  
+
   return response
 }
 ```
@@ -117,11 +130,14 @@ npm install next-safe
 ## Configuration by Environment
 
 ### Development
-- ✅ Relaxed CSP to allow hot reload (`unsafe-inline`, `unsafe-eval`, WebSocket support)
+
+- ✅ Relaxed CSP to allow hot reload (`unsafe-inline`, `unsafe-eval`, WebSocket
+  support)
 - ✅ HSTS disabled (prevents issues with self-signed certificates)
 - ✅ Permissive headers for debugging (allows dev tools and hot reload)
 
 ### Production
+
 - ✅ Strict CSP (no `unsafe-inline` or `unsafe-eval` for scripts)
 - ✅ HSTS enabled (`max-age=31536000; includeSubDomains`)
 - ✅ All security headers enforced

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
@@ -7,14 +7,14 @@ async function main() {
   let track = await prisma.track.findFirst({
     where: {
       isActive: true,
-      source: 'liverc',
-      sourceTrackSlug: 'dnc',
+      source: "liverc",
+      sourceTrackSlug: "dnc",
     },
     include: {
       events: {
         take: 1,
         orderBy: {
-          eventDate: 'desc',
+          eventDate: "desc",
         },
       },
     },
@@ -25,7 +25,7 @@ async function main() {
     track = await prisma.track.findFirst({
       where: {
         isActive: true,
-        source: 'liverc',
+        source: "liverc",
         events: {
           some: {},
         },
@@ -34,7 +34,7 @@ async function main() {
         events: {
           take: 1,
           orderBy: {
-            eventDate: 'desc',
+            eventDate: "desc",
           },
         },
       },
@@ -42,7 +42,7 @@ async function main() {
   }
 
   if (!track) {
-    console.error('No active tracks found')
+    console.error("No active tracks found")
     process.exit(1)
   }
 
@@ -54,23 +54,21 @@ async function main() {
   const event = track.events[0]
   console.log(`Selected Track: ${track.trackName} (${track.sourceTrackSlug})`)
   console.log(`Selected Event: ${event.eventName} (ID: ${event.id})`)
-  console.log(`Event Date: ${event.eventDate.toISOString().split('T')[0]}`)
+  console.log(`Event Date: ${event.eventDate.toISOString().split("T")[0]}`)
   console.log(`Source Event ID: ${event.sourceEventId}`)
   console.log(`Current Ingest Depth: ${event.ingestDepth}`)
-  console.log('')
+  console.log("")
 
   // Now we'll ingest this event
-  console.log('Event details retrieved. Ready to ingest.')
+  console.log("Event details retrieved. Ready to ingest.")
   console.log(`Track ID: ${track.id}`)
   console.log(`Event ID: ${event.id}`)
   console.log(`Source Event ID: ${event.sourceEventId}`)
-  
+
   await prisma.$disconnect()
 }
 
-main()
-  .catch((e) => {
-    console.error('Error:', e)
-    process.exit(1)
-  })
-
+main().catch((e) => {
+  console.error("Error:", e)
+  process.exit(1)
+})

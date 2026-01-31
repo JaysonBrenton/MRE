@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for user login authentication logic
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for authentication business logic
- * 
+ *
  * @purpose Validates login logic including success cases and invalid credentials handling.
  */
 
@@ -217,4 +217,3 @@ describe("authenticateUser", () => {
     })
   })
 })
-

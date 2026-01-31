@@ -1,13 +1,13 @@
 /**
  * @fileoverview Safe localStorage utility with error handling
- * 
+ *
  * @created 2025-02-07
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-02-07
- * 
+ *
  * @description Provides safe localStorage operations with error handling
  *              and logging. Gracefully degrades when localStorage is unavailable.
- * 
+ *
  * @purpose Prevents silent failures when localStorage is unavailable
  *          (e.g., private browsing mode, storage quota exceeded) and
  *          provides debugging information.
@@ -34,7 +34,7 @@ function isLocalStorageAvailable(): boolean {
 
 /**
  * Safely get an item from localStorage
- * 
+ *
  * @param key - Storage key
  * @returns Item value or null if unavailable/error
  */
@@ -57,7 +57,7 @@ export function safeGetItem(key: string): string | null {
 
 /**
  * Safely set an item in localStorage
- * 
+ *
  * @param key - Storage key
  * @param value - Value to store
  * @returns true if successful, false otherwise
@@ -74,7 +74,7 @@ export function safeSetItem(key: string, value: string): boolean {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     const isQuotaError = errorMessage.includes("QuotaExceeded") || errorMessage.includes("quota")
-    
+
     logger.warn("Failed to set item in localStorage", {
       key,
       error: errorMessage,
@@ -95,7 +95,7 @@ export function safeSetItem(key: string, value: string): boolean {
 
 /**
  * Safely remove an item from localStorage
- * 
+ *
  * @param key - Storage key
  * @returns true if successful, false otherwise
  */
@@ -116,4 +116,3 @@ export function safeRemoveItem(key: string): boolean {
     return false
   }
 }
-

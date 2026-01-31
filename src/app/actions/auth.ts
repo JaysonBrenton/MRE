@@ -1,16 +1,16 @@
 /**
  * @fileoverview Server actions for authentication
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Server actions for user authentication and logout
- * 
+ *
  * @purpose Provides server actions for authentication that can be called from
  *          React Server Components. These actions use NextAuth's signIn/signOut
  *          functions which internally use the core authentication logic.
- * 
+ *
  * @relatedFiles
  * - src/lib/auth.ts (NextAuth configuration)
  * - src/core/auth/login.ts (authentication business logic)
@@ -36,10 +36,7 @@ function isNextRedirectError(error: unknown): error is { digest: string } {
   )
 }
 
-export async function authenticate(
-  prevState: string | undefined,
-  formData: FormData
-) {
+export async function authenticate(prevState: string | undefined, formData: FormData) {
   try {
     await signIn("credentials", formData)
   } catch (error) {
@@ -67,13 +64,14 @@ export async function authenticate(
     }
     // For other unexpected errors, log and return a generic message
     logger.error("Unexpected authentication error in server action", {
-      error: error instanceof Error
-        ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          }
-        : String(error),
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : String(error),
     })
     return "An error occurred. Please try again."
   }
@@ -82,4 +80,3 @@ export async function authenticate(
 export async function logout() {
   await signOut({ redirectTo: "/" })
 }
-

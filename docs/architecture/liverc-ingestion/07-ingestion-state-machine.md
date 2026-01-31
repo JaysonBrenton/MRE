@@ -3,9 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Ingestion state machine specification for LiveRC event ingestion
-purpose: Defines the authoritative ingestion state machine for LiveRC events, governing
-         state transitions, idempotency, and ingestion depth. Ensures consistent,
-         deterministic behaviour and safe re-ingestion across all ingestion operations.
+purpose:
+  Defines the authoritative ingestion state machine for LiveRC events, governing
+  state transitions, idempotency, and ingestion depth. Ensures consistent,
+  deterministic behaviour and safe re-ingestion across all ingestion operations.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -16,11 +17,12 @@ relatedFiles:
 # 07. Ingestion State Machine (LiveRC Ingestion Subsystem)
 
 This document defines the authoritative ingestion state machine for LiveRC
-events in My Race Engineer (MRE). The ingestion subsystem MUST follow this
-state model for all event-level ingestion operations to ensure consistent,
+events in My Race Engineer (MRE). The ingestion subsystem MUST follow this state
+model for all event-level ingestion operations to ensure consistent,
 deterministic behaviour and safe re-ingestion.
 
 The state machine governs:
+
 - What data is allowed to exist at each stage.
 - Which transitions are permitted or forbidden.
 - How idempotency is maintained.
@@ -33,8 +35,8 @@ cover track catalogue updates.
 
 ## 1. State Overview
 
-Each event has an `ingest_depth` and `last_ingested_at` field. Only one depth
-is supported in V1, but the state machine must allow future extension.
+Each event has an `ingest_depth` and `last_ingested_at` field. Only one depth is
+supported in V1, but the state machine must allow future extension.
 
 States:
 
@@ -74,7 +76,8 @@ The ingestion system MUST allow the following transitions:
    - MUST be fully idempotent.
    - MUST detect pre-existing data and avoid duplication.
    - MAY update timestamps.
-   - Useful if LiveRC corrected data upstream or ingestion integrity checks fail.
+   - Useful if LiveRC corrected data upstream or ingestion integrity checks
+     fail.
 
 No other transitions are permitted.
 
@@ -100,23 +103,29 @@ On violation, ingestion MUST return a validation error.
 
 ## 4. Entry Criteria for Each State
 
-### 4.1 State: none  
+### 4.1 State: none
+
 Requirements:
+
 - Row exists in Event table.
 - Event was created by event catalogue ingestion.
 - No races, results, or lap rows exist for this event.
 
 Permitted operations:
+
 - Searching and listing events.
 - Requesting ingestion.
 
 Forbidden operations:
+
 - Reading race-level data or lap data (no data exists).
 
 ---
 
-### 4.2 State: laps_full  
+### 4.2 State: laps_full
+
 Requirements:
+
 - All races for the event ingested.
 - All results for all races ingested.
 - All drivers for all results ingested.
@@ -125,10 +134,12 @@ Requirements:
 - ingest_depth set to `laps_full`.
 
 Permitted operations:
+
 - All read APIs.
 - Re-ingestion (`laps_full → laps_full`).
 
 Forbidden operations:
+
 - Downgrading ingestion.
 - Partial overwrites via external systems.
 
@@ -138,16 +149,17 @@ Forbidden operations:
 
 Before ingestion begins, the system MUST validate:
 
-1. Event exists.  
-2. Requested depth is valid (must equal `laps_full` for V1).  
-3. No incompatible ingest_depth transition is attempted.  
+1. Event exists.
+2. Requested depth is valid (must equal `laps_full` for V1).
+3. No incompatible ingest_depth transition is attempted.
 4. No ingestion job is already running for this event (optional lock).
 
 During ingestion, the system MUST enforce:
 
 - Idempotent writes.
 - Deterministic re-ingestion.
-- Atomicity at the per-event level (errors roll back partial state where possible).
+- Atomicity at the per-event level (errors roll back partial state where
+  possible).
 
 After ingestion, the system MUST:
 
@@ -166,11 +178,15 @@ Failure types:
 3. Database write failure
 
 Recovery rules:
+
 - State MUST remain consistent.
-- If ingestion fails before completing all races, the event stays in state `none`.
-- If ingestion fails during a re-ingestion of `laps_full`, the existing state remains intact.
+- If ingestion fails before completing all races, the event stays in state
+  `none`.
+- If ingestion fails during a re-ingestion of `laps_full`, the existing state
+  remains intact.
 
 In all cases, error output MUST be:
+
 - Deterministic
 - Logged in structured format
 - Returned to caller without exposing HTML
@@ -180,6 +196,7 @@ In all cases, error output MUST be:
 ## 7. Determinism Requirements
 
 The ingestion pipeline MUST:
+
 - Produce exactly the same DB rows for the same LiveRC source pages.
 - Preserve ordering for races, drivers, and laps.
 - Never generate duplicate rows across re-ingestions.
@@ -193,13 +210,15 @@ This ensures all analytical tools receive reliable, consistent data.
 
 The state machine allows future additional depths, such as:
 
-- laps_segmented  
-- telemetry_extended  
+- laps_segmented
+- telemetry_extended
 - derived_metrics_generated
 
-Note: `summary_only` was considered for V1 but was removed to simplify the architecture. In V1, ingestion always means full ingestion (`laps_full`).
+Note: `summary_only` was considered for V1 but was removed to simplify the
+architecture. In V1, ingestion always means full ingestion (`laps_full`).
 
 If new depths are added:
+
 - Transitions must be explicitly defined.
 - Downgrading between depths should generally remain forbidden.
 - Idempotency and determinism rules remain mandatory.

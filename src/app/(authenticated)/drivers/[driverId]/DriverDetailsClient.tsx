@@ -1,10 +1,10 @@
 /**
  * @fileoverview Driver Details client component
- * 
+ *
  * @created 2025-12-24
  * @creator Jayson Brenton
  * @lastModified 2025-12-24
- * 
+ *
  * @description Client component for driver details page with transponder display and override management
  */
 
@@ -49,22 +49,24 @@ export default function DriverDetailsClient({ driver, eventId }: DriverDetailsCl
   // Refresh driver data after override operations
   const refreshDriverData = async () => {
     try {
-      const response = await fetch(`/api/v1/drivers/${driver.id}${selectedEventId ? `?eventId=${selectedEventId}` : ""}`)
+      const response = await fetch(
+        `/api/v1/drivers/${driver.id}${selectedEventId ? `?eventId=${selectedEventId}` : ""}`
+      )
       if (response.ok) {
-          const data: { success: boolean; data?: DriverApiResponse } = await response.json()
-          if (data.success && data.data) {
-            // Transform API response to match DriverWithEventEntries structure
-            setDriverData({
-              id: data.data.id,
-              displayName: data.data.display_name,
-              sourceDriverId: data.data.source_driver_id,
-              transponderNumber: data.data.transponder_number,
-              eventEntries: data.data.event_entries.map((entry) => ({
-                eventId: entry.event_id,
-                eventName: entry.event_name,
-                className: entry.class_name,
-                transponderNumber: entry.transponder_number,
-                carNumber: entry.car_number,
+        const data: { success: boolean; data?: DriverApiResponse } = await response.json()
+        if (data.success && data.data) {
+          // Transform API response to match DriverWithEventEntries structure
+          setDriverData({
+            id: data.data.id,
+            displayName: data.data.display_name,
+            sourceDriverId: data.data.source_driver_id,
+            transponderNumber: data.data.transponder_number,
+            eventEntries: data.data.event_entries.map((entry) => ({
+              eventId: entry.event_id,
+              eventName: entry.event_name,
+              className: entry.class_name,
+              transponderNumber: entry.transponder_number,
+              carNumber: entry.car_number,
               override: entry.override
                 ? {
                     transponderNumber: entry.override.transponder_number,
@@ -83,17 +85,23 @@ export default function DriverDetailsClient({ driver, eventId }: DriverDetailsCl
   }
 
   // Group entries by event
-  const entriesByEvent = driverData.eventEntries.reduce((acc, entry) => {
-    if (!acc[entry.eventId]) {
-      acc[entry.eventId] = {
-        eventId: entry.eventId,
-        eventName: entry.eventName,
-        entries: [],
+  const entriesByEvent = driverData.eventEntries.reduce(
+    (acc, entry) => {
+      if (!acc[entry.eventId]) {
+        acc[entry.eventId] = {
+          eventId: entry.eventId,
+          eventName: entry.eventName,
+          entries: [],
+        }
       }
-    }
-    acc[entry.eventId].entries.push(entry)
-    return acc
-  }, {} as Record<string, { eventId: string; eventName: string; entries: typeof driverData.eventEntries }>)
+      acc[entry.eventId].entries.push(entry)
+      return acc
+    },
+    {} as Record<
+      string,
+      { eventId: string; eventName: string; entries: typeof driverData.eventEntries }
+    >
+  )
 
   return (
     <div className="space-y-6">
@@ -242,12 +250,8 @@ export default function DriverDetailsClient({ driver, eventId }: DriverDetailsCl
                 className="flex items-center justify-between p-3 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface)]"
               >
                 <div>
-                  <p className="font-medium text-[var(--token-text-primary)]">
-                    {entry.className}
-                  </p>
-                  <p className="text-sm text-[var(--token-text-secondary)]">
-                    {entry.eventName}
-                  </p>
+                  <p className="font-medium text-[var(--token-text-primary)]">{entry.className}</p>
+                  <p className="text-sm text-[var(--token-text-secondary)]">{entry.eventName}</p>
                 </div>
                 <a
                   href={`/dashboard?eventId=${entry.eventId}`}

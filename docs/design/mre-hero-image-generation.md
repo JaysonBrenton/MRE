@@ -3,11 +3,12 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Standards and prompts for generating MRE hero images using AI tools
-purpose: Defines the standards, prompts, and visual identity for generating hero images
-         for the My Race Engineer (MRE) landing page using AI image-generation tools such
-         as Stable Diffusion. Describes how to consistently produce visually aligned,
-         on-brand hero images for marketing and UI purposes. Active (Alpha-compatible,
-         future-facing) but not implemented in Alpha UI.
+purpose:
+  Defines the standards, prompts, and visual identity for generating hero images
+  for the My Race Engineer (MRE) landing page using AI image-generation tools
+  such as Stable Diffusion. Describes how to consistently produce visually
+  aligned, on-brand hero images for marketing and UI purposes. Active
+  (Alpha-compatible, future-facing) but not implemented in Alpha UI.
 relatedFiles:
   - docs/design/mre-dark-theme-guidelines.md
   - docs/specs/mre-v0.1-feature-scope.md
@@ -15,11 +16,13 @@ relatedFiles:
 
 # MRE Hero Image Generation Guidelines
 
-**Document Type:** Design Specification
-**Status:** Active (Alpha-compatible, future-facing)
-**Scope:** Defines the standards, prompts, and visual identity for generating hero images for the My Race Engineer (MRE) landing page using AI image-generation tools such as Stable Diffusion.
+**Document Type:** Design Specification **Status:** Active (Alpha-compatible,
+future-facing) **Scope:** Defines the standards, prompts, and visual identity
+for generating hero images for the My Race Engineer (MRE) landing page using AI
+image-generation tools such as Stable Diffusion.
 
-This document describes how to consistently produce visually aligned, on-brand hero images for marketing and UI purposes.
+This document describes how to consistently produce visually aligned, on-brand
+hero images for marketing and UI purposes.
 
 ---
 
@@ -27,13 +30,14 @@ This document describes how to consistently produce visually aligned, on-brand h
 
 The goal of this document is to:
 
-* Provide a unified creative style for MRE hero images.
-* Ensure all marketing visuals follow MRE’s dark, premium visual language.
-* Define reproducible Stable Diffusion prompts.
-* Prevent visual inconsistency as more images are produced.
-* Serve as the source of truth for LLMs generating imagery guidelines.
+- Provide a unified creative style for MRE hero images.
+- Ensure all marketing visuals follow MRE’s dark, premium visual language.
+- Define reproducible Stable Diffusion prompts.
+- Prevent visual inconsistency as more images are produced.
+- Serve as the source of truth for LLMs generating imagery guidelines.
 
-This document does **not** authorize the creation of UI screens or features beyond the Alpha scope.
+This document does **not** authorize the creation of UI screens or features
+beyond the Alpha scope.
 
 ---
 
@@ -43,33 +47,33 @@ All hero images for MRE must follow these principles:
 
 ### 2.1 Dark, premium, high-contrast style
 
-* Rich deep greys for backgrounds
-* Neon or cool-toned accent lighting
-* High clarity and sharpness
-* Avoid pure black (#000000)
+- Rich deep greys for backgrounds
+- Neon or cool-toned accent lighting
+- High clarity and sharpness
+- Avoid pure black (#000000)
 
 ### 2.2 High-tech, motorsport-inspired aesthetic
 
-* Visual cues from professional telemetry systems
-* Motion blur, speed lines, or track textures
-* Futuristic HUD-style overlays
+- Visual cues from professional telemetry systems
+- Motion blur, speed lines, or track textures
+- Futuristic HUD-style overlays
 
 ### 2.3 RC racing authenticity
 
-* Cars must look **1/10 or 1/8 RC scale**, not full-size race cars
-* Must capture:
+- Cars must look **1/10 or 1/8 RC scale**, not full-size race cars
+- Must capture:
+  - knobby off-road tyres,
+  - exposed suspension,
+  - wing profiles,
+  - realistic RC chassis shapes
 
-  * knobby off-road tyres,
-  * exposed suspension,
-  * wing profiles,
-  * realistic RC chassis shapes
-* Avoid full-scale automotive proportions
+- Avoid full-scale automotive proportions
 
 ### 2.4 Consistency with MRE UI and brand
 
-* Dark theme alignment with semantic tokens
-* Blue or teal accents recommended
-* Avoid red unless indicating danger or warnings
+- Dark theme alignment with semantic tokens
+- Blue or teal accents recommended
+- Avoid red unless indicating danger or warnings
 
 ---
 
@@ -79,25 +83,25 @@ To match the future landing page layout:
 
 ### 3.1 Car Positioning
 
-* Car should appear slightly off-center (left or right)
-* Forward-leaning stance preferred (implies speed)
+- Car should appear slightly off-center (left or right)
+- Forward-leaning stance preferred (implies speed)
 
 ### 3.2 Background
 
-* Should be blurred track dirt or a night-time stadium environment
-* Subtle bokeh lights or stadium lighting allowed
-* No hard edges that conflict with UI text overlays
+- Should be blurred track dirt or a night-time stadium environment
+- Subtle bokeh lights or stadium lighting allowed
+- No hard edges that conflict with UI text overlays
 
 ### 3.3 Motion and Energy
 
-* Recommended elements:
+- Recommended elements:
+  - dust trails,
+  - motion blur,
+  - subtle sparks,
+  - tyre flex,
+  - chassis compression
 
-  * dust trails,
-  * motion blur,
-  * subtle sparks,
-  * tyre flex,
-  * chassis compression
-* These convey race energy in a static image
+- These convey race energy in a static image
 
 ---
 
@@ -167,11 +171,11 @@ watermarks, text, numbers, embedded UI, specular overexposure, washed out colors
 
 All generated images must follow these format rules:
 
-* Minimum resolution: **3000x1700** (landscape hero size)
-* PNG preferred, JPG acceptable
-* No text overlays
-* No UI elements baked into the image
-* Must look cohesive when placed behind dark UI components
+- Minimum resolution: **3000x1700** (landscape hero size)
+- PNG preferred, JPG acceptable
+- No text overlays
+- No UI elements baked into the image
+- Must look cohesive when placed behind dark UI components
 
 ---
 
@@ -179,11 +183,11 @@ All generated images must follow these format rules:
 
 When generating images:
 
-* Avoid real brands/logos
-* Avoid recognisable real-world tracks
-* Images must be original AI-generated content
-* No copyrighted references
-* All outputs must be attributed as internal assets
+- Avoid real brands/logos
+- Avoid recognisable real-world tracks
+- Images must be original AI-generated content
+- No copyrighted references
+- All outputs must be attributed as internal assets
 
 This is required to ensure clean legal status for future commercial use.
 
@@ -193,10 +197,10 @@ This is required to ensure clean legal status for future commercial use.
 
 Hero images may be used for:
 
-* Future landing page (Beta and Production)
-* Marketing documentation
-* Social media promotional banners
-* UI previews inside documentation
+- Future landing page (Beta and Production)
+- Marketing documentation
+- Social media promotional banners
+- UI previews inside documentation
 
 They must **not** be used in Alpha product UI.
 
@@ -206,13 +210,14 @@ They must **not** be used in Alpha product UI.
 
 LLMs must:
 
-* Use this prompt structure when generating hero-image prompts
-* Refuse to generate visuals violating forbidden elements
-* Quote text from this document when reviewing or generating prompts
-* Avoid hallucinating styles not included here
+- Use this prompt structure when generating hero-image prompts
+- Refuse to generate visuals violating forbidden elements
+- Quote text from this document when reviewing or generating prompts
+- Avoid hallucinating styles not included here
 
 ---
 
 # 11. License
 
-Internal use only. This document governs hero image generation for the MRE project.
+Internal use only. This document governs hero image generation for the MRE
+project.

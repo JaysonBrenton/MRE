@@ -1,34 +1,22 @@
 /**
  * @fileoverview Unified search business logic
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX
- * 
+ *
  * @description Orchestrates search across events and sessions
  */
 
 import { searchEvents, searchSessions } from "./repo"
 import { findDriversWithValidLaps } from "./driver-matching"
-import type {
-  UnifiedSearchParams,
-  UnifiedSearchResult,
-  SessionType,
-} from "./types"
+import type { UnifiedSearchParams, UnifiedSearchResult, SessionType } from "./types"
 
 /**
  * Perform unified search across events and sessions
  */
 export async function unifiedSearch(params: UnifiedSearchParams): Promise<UnifiedSearchResult> {
-  const {
-    query,
-    driverName,
-    sessionType,
-    startDate,
-    endDate,
-    page = 1,
-    itemsPerPage = 10,
-  } = params
+  const { query, driverName, sessionType, startDate, endDate, page = 1, itemsPerPage = 10 } = params
 
   // If driver name provided, find matching drivers first
   let driverIds: string[] | undefined

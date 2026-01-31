@@ -1,19 +1,17 @@
 /**
  * @fileoverview Practice day search core function
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX
- * 
+ *
  * @description Business logic for searching practice days in database
  */
 
-import type {
-  SearchPracticeDaysInput,
-  SearchPracticeDaysResult,
-} from "./types"
+import type { SearchPracticeDaysInput, SearchPracticeDaysResult } from "./types"
 
-const INGESTION_SERVICE_URL = process.env.INGESTION_SERVICE_URL || "http://mre-liverc-ingestion-service:8000"
+const INGESTION_SERVICE_URL =
+  process.env.INGESTION_SERVICE_URL || "http://mre-liverc-ingestion-service:8000"
 
 export async function searchPracticeDays(
   params: SearchPracticeDaysInput
@@ -21,7 +19,7 @@ export async function searchPracticeDays(
   const queryParams = new URLSearchParams({
     track_id: params.trackId,
   })
-  
+
   if (params.startDate) {
     queryParams.append("start_date", params.startDate)
   }
@@ -45,7 +43,7 @@ export async function searchPracticeDays(
   }
 
   const data = await response.json()
-  
+
   if (!data.success) {
     throw new Error(data.error?.message || "Failed to search practice days")
   }

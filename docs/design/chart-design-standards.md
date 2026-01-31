@@ -3,8 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Authoritative design standards for all chart components in MRE
-purpose: Locks in consistent chart design patterns to prevent visual inconsistencies.
-         All charts MUST follow these standards exactly. These rules are binding, not advisory.
+purpose:
+  Locks in consistent chart design patterns to prevent visual inconsistencies.
+  All charts MUST follow these standards exactly. These rules are binding, not
+  advisory.
 relatedFiles:
   - src/components/event-analysis/ChartContainer.tsx
   - src/components/event-analysis/BestLapBarChart.tsx
@@ -18,11 +20,15 @@ relatedFiles:
 **Version:** 0.1.1  
 **Status:** Authoritative Design Standard  
 **Scope:** Governs all chart components in the MRE application  
-**Applicability:** ALL contributors, including Cursor, Copilot, and ChatGPT Coding Mode
+**Applicability:** ALL contributors, including Cursor, Copilot, and ChatGPT
+Coding Mode
 
-This document defines the **mandatory design standards** for all chart components in My Race Engineer (MRE). These rules ensure visual consistency across all charts and prevent design regressions.
+This document defines the **mandatory design standards** for all chart
+components in My Race Engineer (MRE). These rules ensure visual consistency
+across all charts and prevent design regressions.
 
-**These rules are binding, not advisory.** All chart implementations must follow these standards exactly.
+**These rules are binding, not advisory.** All chart implementations must follow
+these standards exactly.
 
 ---
 
@@ -34,8 +40,7 @@ This document defines the **mandatory design standards** for all chart component
 
 ```tsx
 import ChartContainer from "./ChartContainer"
-
-<ChartContainer
+;<ChartContainer
   title="Chart Title"
   height={400}
   className=""
@@ -65,9 +70,12 @@ import ChartContainer from "./ChartContainer"
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
 ```
 
-**Critical:** The `bottom: 100` margin is **mandatory** to accommodate rotated X-axis labels. Never reduce this value.
+**Critical:** The `bottom: 100` margin is **mandatory** to accommodate rotated
+X-axis labels. Never reduce this value.
 
-**Rationale:** X-axis labels are rotated at -45 degrees and require extra vertical space. Using `bottom: 60` or less causes label overlap and visual inconsistency.
+**Rationale:** X-axis labels are rotated at -45 degrees and require extra
+vertical space. Using `bottom: 60` or less causes label overlap and visual
+inconsistency.
 
 ### 2.2 Inner Dimensions
 
@@ -94,26 +102,33 @@ const accentColor = "var(--token-accent)"
 ```
 
 **Forbidden:**
+
 - Hardcoded color values (except for specific data series colors)
 - Direct hex/rgb values for text, borders, or backgrounds
 - CSS color names (e.g., `"red"`, `"blue"`)
 
 **Allowed:**
+
 - Specific data series colors (e.g., `"#5aa2ff"` for average lap bars)
 - Multi-driver color palettes for line charts
 
 ### 3.2 Chart-Specific Colors
 
 **Bar Charts (Single Series):**
+
 - Primary bars: `var(--token-accent)`
 
 **Bar Charts (Multiple Series):**
+
 - Fastest lap: `var(--token-accent)`
 - Average lap: `"#5aa2ff"` (specific blue for comparison)
 
 **Line Charts (Multi-Driver):**
-- Use color palette: `["var(--token-accent)", "#4ecdc4", "#ff6b6b", "#ffe66d", "#a8e6cf", "#ff8b94"]`
-- Cycle through palette using modulo: `driverColors[index % driverColors.length]`
+
+- Use color palette:
+  `["var(--token-accent)", "#4ecdc4", "#ff6b6b", "#ffe66d", "#a8e6cf", "#ff8b94"]`
+- Cycle through palette using modulo:
+  `driverColors[index % driverColors.length]`
 
 ---
 
@@ -139,6 +154,7 @@ const accentColor = "var(--token-accent)"
 ```
 
 **Key Requirements:**
+
 - `fontSize: 12` (exact value)
 - `textAnchor: "end"` (right-aligned)
 - `dx: -8` (exact offset)
@@ -146,12 +162,15 @@ const accentColor = "var(--token-accent)"
 - `stroke` and `tickStroke: borderColor` (use token)
 
 **Optional Y-Axis Label:**
+
 - Only add `label` prop if chart needs axis label
-- Label props: `{ fill: textSecondaryColor, fontSize: 12, textAnchor: "middle", dy: -50 }`
+- Label props:
+  `{ fill: textSecondaryColor, fontSize: 12, textAnchor: "middle", dy: -50 }`
 
 ### 4.2 X-Axis (Bottom Axis) - MANDATORY
 
-**ALL charts with X-axis labels (driver names, session labels, etc.) MUST use this exact configuration:**
+**ALL charts with X-axis labels (driver names, session labels, etc.) MUST use
+this exact configuration:**
 
 ```tsx
 <AxisBottom
@@ -171,6 +190,7 @@ const accentColor = "var(--token-accent)"
 ```
 
 **Critical Requirements:**
+
 - `fontSize: 11` (exact value, NOT 12)
 - `textAnchor: "end"` (NOT "middle")
 - `angle: -45` (MANDATORY - labels must be rotated)
@@ -179,11 +199,14 @@ const accentColor = "var(--token-accent)"
 - `stroke` and `tickStroke: borderColor` (use token)
 
 **Why This Matters:**
+
 - Rotated labels prevent overlap and ensure readability
-- Horizontal labels (`textAnchor: "middle"`, no `angle`) cause names to overlap and appear as one long string
+- Horizontal labels (`textAnchor: "middle"`, no `angle`) cause names to overlap
+  and appear as one long string
 - This was a critical bug that caused driver names to display incorrectly
 
 **Forbidden X-Axis Configurations:**
+
 ```tsx
 // ❌ FORBIDDEN - causes label overlap
 tickLabelProps={() => ({
@@ -208,22 +231,27 @@ tickLabelProps={() => ({
 **ALL charts with Y-axis MUST include grid lines:**
 
 ```tsx
-{yScale.ticks(5).map((tick) => (
-  <line
-    key={tick}
-    x1={0}
-    x2={innerWidth}
-    y1={yScale(tick)}
-    y2={yScale(tick)}
-    stroke={borderColor}
-    strokeWidth={1}
-    strokeDasharray="2,2"
-    opacity={0.3}
-  />
-))}
+{
+  yScale
+    .ticks(5)
+    .map((tick) => (
+      <line
+        key={tick}
+        x1={0}
+        x2={innerWidth}
+        y1={yScale(tick)}
+        y2={yScale(tick)}
+        stroke={borderColor}
+        strokeWidth={1}
+        strokeDasharray="2,2"
+        opacity={0.3}
+      />
+    ))
+}
 ```
 
 **Requirements:**
+
 - `stroke: borderColor` (use token)
 - `strokeWidth: 1` (exact value)
 - `strokeDasharray="2,2"` (dashed pattern)
@@ -237,6 +265,7 @@ tickLabelProps={() => ({
 ### 6.1 Font Sizes
 
 **Mandatory font sizes:**
+
 - Y-axis labels: `12px`
 - X-axis labels: `11px`
 - Tooltip titles: `font-semibold` (default size)
@@ -245,6 +274,7 @@ tickLabelProps={() => ({
 ### 6.2 Text Colors
 
 **Mandatory text colors:**
+
 - Primary text: `var(--token-text-primary)`
 - Secondary text (axes, tooltips): `var(--token-text-secondary)`
 - Chart titles: `var(--token-text-primary)` with `font-semibold`
@@ -282,6 +312,7 @@ tickLabelProps={() => ({
 ```
 
 **Requirements:**
+
 - Background: `var(--token-surface-elevated)`
 - Border: `1px solid ${borderColor}`
 - Padding: `"8px 12px"` (exact values)
@@ -313,6 +344,7 @@ function formatLapTime(seconds: number): string {
 **Format:** `MM:SS.mmm` (e.g., `0:35.500`, `1:23.456`)
 
 **Usage:**
+
 - Y-axis tick labels: `tickFormat={(value) => formatLapTime(Number(value))}`
 - Tooltips: `formatLapTime(tooltipData.lapTime)`
 - Aria labels: `formatLapTime(d.lapTime)`
@@ -333,13 +365,9 @@ function formatLapTime(seconds: number): string {
 ```
 
 **Chart SVG:**
+
 ```tsx
-<svg
-  width={width}
-  height={height}
-  aria-labelledby={chartDescId}
-  role="img"
->
+<svg width={width} height={height} aria-labelledby={chartDescId} role="img">
   <desc id={chartDescId}>
     Detailed description of chart content and purpose.
   </desc>
@@ -374,17 +402,18 @@ onKeyDown={(e) => {
 <ParentSize>
   {({ width: parentWidth }) => {
     const width = parentWidth || 800
-    
+
     if (width === 0) {
       return null
     }
-    
+
     // Chart rendering
   }}
 </ParentSize>
 ```
 
 **Requirements:**
+
 - Fallback width: `800px` (for SSR)
 - Return `null` if width is `0` (during initial SSR)
 - Use `parentWidth` when available
@@ -415,6 +444,7 @@ if (displayData.length === 0) {
 ```
 
 **Requirements:**
+
 - Show ChartContainer (maintains layout)
 - Center message: `flex items-center justify-center h-full`
 - Text color: `text-[var(--token-text-secondary)]`
@@ -431,19 +461,22 @@ if (displayData.length === 0) {
 ```tsx
 import ChartPagination from "./ChartPagination"
 
-{onPageChange && totalPages > 1 && (
-  <ChartPagination
-    currentPage={currentPage}
-    totalPages={totalPages}
-    onPageChange={onPageChange}
-    itemsPerPage={driversPerPage}
-    totalItems={sortedData.length}
-    itemLabel="drivers"
-  />
-)}
+{
+  onPageChange && totalPages > 1 && (
+    <ChartPagination
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={onPageChange}
+      itemsPerPage={driversPerPage}
+      totalItems={sortedData.length}
+      itemLabel="drivers"
+    />
+  )
+}
 ```
 
 **Requirements:**
+
 - Only show if `totalPages > 1`
 - Use `itemLabel="drivers"` for driver-based charts
 - Use appropriate label for other chart types
@@ -459,16 +492,14 @@ import ChartPagination from "./ChartPagination"
 ```tsx
 <div className="flex items-center gap-4 mt-4 text-sm">
   <div className="flex items-center gap-2">
-    <div
-      className="w-4 h-4"
-      style={{ backgroundColor: color }}
-    />
+    <div className="w-4 h-4" style={{ backgroundColor: color }} />
     <span className="text-[var(--token-text-secondary)]">Label</span>
   </div>
 </div>
 ```
 
 **Requirements:**
+
 - Container: `flex items-center gap-4 mt-4 text-sm`
 - Color indicator: `w-4 h-4` (exact size)
 - Text: `text-[var(--token-text-secondary)]`
@@ -497,6 +528,7 @@ const yScale = scaleLinear({
 ```
 
 **Requirements:**
+
 - Padding: `10%` of range (`0.1`)
 - Clamp minimum to `0` (prevent negative values)
 - Use `nice: true` for clean tick values
@@ -514,6 +546,7 @@ const xScale = scaleBand({
 ```
 
 **Requirements:**
+
 - Bar charts: `padding: 0.3`
 - Line charts: `padding: 0.2`
 - Domain: array of categorical values
@@ -525,6 +558,7 @@ const xScale = scaleBand({
 ### 15.1 Bar Chart Pattern
 
 **Standard bar chart structure:**
+
 1. Filter and sort data
 2. Calculate pagination
 3. Set up scales (band X, linear Y)
@@ -538,6 +572,7 @@ const xScale = scaleBand({
 ### 15.2 Line Chart Pattern
 
 **Standard line chart structure:**
+
 1. Filter and validate data
 2. Calculate scales (band X for categories, linear Y)
 3. Render grid lines
@@ -557,7 +592,8 @@ const xScale = scaleBand({
 - [ ] Uses `ChartContainer` wrapper
 - [ ] Margins: `{ top: 20, right: 20, bottom: 100, left: 80 }`
 - [ ] Y-axis: `fontSize: 12`, `textAnchor: "end"`, `dx: -8`
-- [ ] X-axis: `fontSize: 11`, `textAnchor: "end"`, `angle: -45`, `dx: -5`, `dy: 8`
+- [ ] X-axis: `fontSize: 11`, `textAnchor: "end"`, `angle: -45`, `dx: -5`,
+      `dy: 8`
 - [ ] Colors use token variables (no hardcoded values for text/borders)
 - [ ] Grid lines: `strokeDasharray="2,2"`, `opacity: 0.3`
 - [ ] Tooltip uses standard styling
@@ -613,4 +649,3 @@ const xScale = scaleBand({
 **Last Updated:** 2025-01-27  
 **Version:** 0.1.1  
 **Status:** Authoritative Standard
-

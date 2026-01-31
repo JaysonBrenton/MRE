@@ -1,15 +1,15 @@
 /**
  * @fileoverview Driver persona events API endpoint
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-28
- * 
+ *
  * @description API endpoint for getting events where Driver persona participated
- * 
+ *
  * @purpose This endpoint returns events where the Driver persona participated,
  *          using fuzzy matching via UserDriverLink and EventDriverLink.
- * 
+ *
  * @relatedFiles
  * - src/core/personas/driver-events.ts (driver event discovery logic)
  * - docs/architecture/mobile-safe-architecture-guidelines.md (API standards)
@@ -23,9 +23,9 @@ import { logger } from "@/lib/logger"
 
 /**
  * GET /api/v1/personas/driver/events
- * 
+ *
  * Returns events where Driver persona participated using fuzzy matching
- * 
+ *
  * Query parameters:
  * - matchType: Filter by match type (transponder, exact, fuzzy) - comma-separated
  * - minSimilarityScore: Minimum similarity score (0-1)
@@ -33,17 +33,12 @@ import { logger } from "@/lib/logger"
  */
 export async function GET(request: Request) {
   let session = null
-  
+
   try {
     session = await auth()
 
     if (!session || !session.user?.id) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Authentication required",
-        undefined,
-        401
-      )
+      return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
     // Verify user has Driver persona
@@ -53,10 +48,10 @@ export async function GET(request: Request) {
       if (session.user.isAdmin) {
         return successResponse({
           events: [],
-          participationDetails: []
+          participationDetails: [],
         })
       }
-      
+
       // For non-admin users, return a more user-friendly error message
       return errorResponse(
         "INVALID_PERSONA",
@@ -75,7 +70,9 @@ export async function GET(request: Request) {
     const options: Parameters<typeof getDriverEvents>[1] = {}
 
     if (matchTypeParam) {
-      const matchTypes = matchTypeParam.split(",").map(t => t.trim()) as Array<"transponder" | "exact" | "fuzzy">
+      const matchTypes = matchTypeParam.split(",").map((t) => t.trim()) as Array<
+        "transponder" | "exact" | "fuzzy"
+      >
       options.matchType = matchTypes
     }
 
@@ -91,22 +88,23 @@ export async function GET(request: Request) {
     }
 
     // Get events with optional filtering
-    const { events, participationDetails } = options.matchType || options.minSimilarityScore !== undefined || options.confirmedOnly
-      ? await getDriverEvents(session.user.id, options)
-      : await discoverDriverEvents(session.user.id)
+    const { events, participationDetails } =
+      options.matchType || options.minSimilarityScore !== undefined || options.confirmedOnly
+        ? await getDriverEvents(session.user.id, options)
+        : await discoverDriverEvents(session.user.id)
 
     return successResponse({
       events,
-      participationDetails
+      participationDetails,
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     const errorStack = error instanceof Error ? error.stack : undefined
-    
+
     logger.error("Error fetching driver events", {
       error: errorMessage,
       stack: errorStack,
-      userId: session?.user?.id
+      userId: session?.user?.id,
     })
 
     // Ensure we always return a valid response, even if error handling fails
@@ -120,22 +118,21 @@ export async function GET(request: Request) {
     } catch (responseError) {
       // Fallback if errorResponse itself fails
       logger.error("Failed to create error response", {
-        error: responseError instanceof Error ? responseError.message : String(responseError)
+        error: responseError instanceof Error ? responseError.message : String(responseError),
       })
       return new Response(
         JSON.stringify({
           success: false,
           error: {
             code: "INTERNAL_ERROR",
-            message: "An unexpected error occurred"
-          }
+            message: "An unexpected error occurred",
+          },
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
         }
       )
     }
   }
 }
-

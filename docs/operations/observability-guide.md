@@ -3,12 +3,15 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Comprehensive observability guide for MRE application
-purpose: Provides detailed guidance for logging, metrics, tracing, alerting, dashboard setup,
-         troubleshooting, and performance monitoring. Ensures consistent observability practices
-         and helps with troubleshooting and performance optimization.
+purpose:
+  Provides detailed guidance for logging, metrics, tracing, alerting, dashboard
+  setup, troubleshooting, and performance monitoring. Ensures consistent
+  observability practices and helps with troubleshooting and performance
+  optimization.
 relatedFiles:
   - docs/roles/observability-incident-response-lead.md (role responsibilities)
-  - docs/architecture/liverc-ingestion/15-ingestion-observability.md (ingestion observability)
+  - docs/architecture/liverc-ingestion/15-ingestion-observability.md (ingestion
+    observability)
 ---
 
 # Monitoring and Observability Guide
@@ -16,7 +19,8 @@ relatedFiles:
 **Last Updated:** 2025-01-27  
 **Scope:** All observability aspects of the MRE application
 
-This document provides comprehensive guidance for logging, metrics, tracing, alerting, and troubleshooting in the MRE application.
+This document provides comprehensive guidance for logging, metrics, tracing,
+alerting, and troubleshooting in the MRE application.
 
 ---
 
@@ -39,6 +43,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Format:** JSON structured logs
 
 **Required Fields:**
+
 - `timestamp` - UTC timestamp
 - `level` - Log level (info, warn, error)
 - `message` - Human-readable message
@@ -48,21 +53,25 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 ### Log Levels
 
 **INFO:**
+
 - Normal operation events
 - Successful operations
 - State changes
 
 **WARN:**
+
 - Recoverable errors
 - Deprecated feature usage
 - Performance concerns
 
 **ERROR:**
+
 - Errors that require attention
 - Failed operations
 - Exceptions
 
 **DEBUG:**
+
 - Detailed debugging information
 - Development-only logs
 
@@ -91,20 +100,24 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 ### Python Ingestion Service Logging
 
 **Current Implementation:**
+
 - Structured JSON logging
 - Log levels: DEBUG, INFO, WARNING, ERROR
 - Configuration via `LOG_LEVEL` environment variable
 
-**See:** `docs/architecture/liverc-ingestion/15-ingestion-observability.md` for detailed ingestion logging.
+**See:** `docs/architecture/liverc-ingestion/15-ingestion-observability.md` for
+detailed ingestion logging.
 
 ### Next.js Application Logging
 
 **Current Implementation:**
+
 - Console logging (development)
 - Error logging in API routes
 - **Placeholder:** Structured logging will be implemented
 
 **Future Implementation:**
+
 - Structured JSON logging
 - Log aggregation service
 - Correlation IDs
@@ -118,6 +131,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Placeholder:** Metrics collection will be implemented
 
 **Recommended Metrics:**
+
 - Request count (by endpoint)
 - Response time (p50, p95, p99)
 - Error rate (by endpoint)
@@ -130,6 +144,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Placeholder:** Database metrics will be collected
 
 **Recommended Metrics:**
+
 - Query performance
 - Connection pool usage
 - Slow queries
@@ -138,9 +153,11 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 
 ### Ingestion Metrics
 
-**See:** `docs/architecture/liverc-ingestion/15-ingestion-observability.md` for ingestion metrics.
+**See:** `docs/architecture/liverc-ingestion/15-ingestion-observability.md` for
+ingestion metrics.
 
 **Key Metrics:**
+
 - Ingestion duration
 - Race page fetch duration
 - Lap extraction count
@@ -156,6 +173,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 ### Tracing Requirements
 
 **Recommended:**
+
 - Distributed tracing across services
 - Request correlation
 - Span creation for operations
@@ -166,6 +184,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Placeholder:** Tracing tool will be selected
 
 **Recommended Tools:**
+
 - OpenTelemetry - Standard tracing
 - Jaeger - Trace visualization
 - Zipkin - Distributed tracing
@@ -197,6 +216,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Placeholder:** Alert thresholds will be configured
 
 **Recommended Thresholds:**
+
 - Error rate > 1% for 5 minutes
 - Response time p95 > 2 seconds
 - Memory usage > 90%
@@ -208,6 +228,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Placeholder:** Alert channels will be configured
 
 **Recommended Channels:**
+
 - Email notifications
 - Slack/Teams integration
 - PagerDuty (for critical)
@@ -250,6 +271,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Placeholder:** Dashboard tool will be selected
 
 **Recommended Tools:**
+
 - Grafana - Visualization
 - Datadog - Monitoring platform
 - New Relic - APM platform
@@ -261,18 +283,21 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 ### Common Issues
 
 **High Error Rate:**
+
 1. Check error logs for patterns
 2. Review error messages
 3. Check recent deployments
 4. Review database logs
 
 **Slow Response Times:**
+
 1. Check slow query logs
 2. Review database metrics
 3. Check application metrics
 4. Review network latency
 
 **Service Unavailable:**
+
 1. Check health endpoints
 2. Review container logs
 3. Check infrastructure metrics
@@ -312,18 +337,21 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 ### Key Performance Indicators
 
 **Application:**
+
 - Response time (p50, p95, p99)
 - Throughput (requests/second)
 - Error rate
 - Availability
 
 **Database:**
+
 - Query performance
 - Connection pool usage
 - Slow query count
 - Database size
 
 **Infrastructure:**
+
 - CPU usage
 - Memory usage
 - Network latency
@@ -334,6 +362,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Placeholder:** Performance baselines will be established
 
 **Recommended Baselines:**
+
 - API response time p95 < 1 second
 - Error rate < 0.1%
 - Database query time < 200ms (p95)
@@ -345,6 +374,7 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 **Placeholder:** Performance monitoring tools will be selected
 
 **Recommended:**
+
 - Application Performance Monitoring (APM)
 - Database performance monitoring
 - Infrastructure monitoring
@@ -354,12 +384,14 @@ This document provides comprehensive guidance for logging, metrics, tracing, ale
 
 ## Related Documentation
 
-- [Observability & Incident Response Lead Role](../roles/observability-incident-response-lead.md) - Role responsibilities
-- [Ingestion Observability](../architecture/liverc-ingestion/15-ingestion-observability.md) - Ingestion-specific observability
-- [Performance Requirements](../architecture/performance-requirements.md) - Performance targets
+- [Observability & Incident Response Lead Role](../roles/observability-incident-response-lead.md) -
+  Role responsibilities
+- [Ingestion Observability](../architecture/liverc-ingestion/15-ingestion-observability.md) -
+  Ingestion-specific observability
+- [Performance Requirements](../architecture/performance-requirements.md) -
+  Performance targets
 - [Deployment Guide](./deployment-guide.md) - Deployment monitoring
 
 ---
 
 **End of Observability Guide**
-

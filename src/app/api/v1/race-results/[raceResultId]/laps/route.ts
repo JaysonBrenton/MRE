@@ -1,19 +1,19 @@
 // @fileoverview Lap data API route
-// 
+//
 // @created 2025-01-27
 // @creator Jayson Brenton
 // @lastModified 2025-01-27
-// 
+//
 // @description API route for getting lap data for a race result
-// 
+//
 // @purpose Provides user-facing API for lap time series data
 
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { getRaceResultWithLaps } from "@/core/race-results/repo";
-import { successResponse, errorResponse } from "@/lib/api-utils";
-import { createRequestLogger, generateRequestId } from "@/lib/request-context";
-import { handleApiError } from "@/lib/server-error-handler";
+import { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
+import { getRaceResultWithLaps } from "@/core/race-results/repo"
+import { successResponse, errorResponse } from "@/lib/api-utils"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context"
+import { handleApiError } from "@/lib/server-error-handler"
 
 export async function GET(
   request: NextRequest,
@@ -26,26 +26,16 @@ export async function GET(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized race result laps request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
-    const { raceResultId } = await params;
-    const result = await getRaceResultWithLaps(raceResultId);
+    const { raceResultId } = await params
+    const result = await getRaceResultWithLaps(raceResultId)
 
     if (!result) {
       requestLogger.warn("Race result not found", { raceResultId })
-      return errorResponse(
-        "NOT_FOUND",
-        "Race result not found",
-        {},
-        404
-      );
+      return errorResponse("NOT_FOUND", "Race result not found", {}, 404)
     }
 
     requestLogger.info("Race result laps fetched successfully", {
@@ -64,15 +54,9 @@ export async function GET(
         elapsed_race_time: lap.elapsedRaceTime,
         segments_json: lap.segmentsJson,
       })),
-    });
+    })
   } catch (error) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
-

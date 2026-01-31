@@ -1,15 +1,15 @@
 /**
  * @fileoverview System statistics for admin console
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Functions for calculating system statistics
- * 
+ *
  * @purpose Provides statistics about the system for the admin dashboard,
  *          including user counts, event counts, track counts, and database metrics.
- * 
+ *
  * @relatedFiles
  * - src/lib/prisma.ts (Prisma client)
  */
@@ -18,7 +18,7 @@ import { prisma } from "@/lib/prisma"
 
 /**
  * Get system statistics
- * 
+ *
  * @returns System statistics object
  */
 export async function getSystemStats(): Promise<{
@@ -45,11 +45,7 @@ export async function getSystemStats(): Promise<{
     }
   }
 }> {
-  const [
-    userCounts,
-    eventCounts,
-    trackCounts,
-  ] = await Promise.all([
+  const [userCounts, eventCounts, trackCounts] = await Promise.all([
     // User statistics
     prisma.$transaction([
       prisma.user.count(),
@@ -109,4 +105,3 @@ export async function getSystemStats(): Promise<{
     },
   }
 }
-

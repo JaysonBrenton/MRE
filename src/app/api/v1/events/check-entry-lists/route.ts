@@ -1,19 +1,23 @@
 // @fileoverview Check entry lists for driver name API route
-// 
+//
 // @created 2025-01-28
 // @creator Auto-generated
 // @lastModified 2025-01-28
-// 
+//
 // @description API route for checking if a driver name appears in entry lists
 //             for liverc events
-// 
+//
 // @purpose Provides user-facing API for checking entry lists. This route
 //          delegates to core business logic functions, following the mobile-safe
 //          architecture requirement that API routes should not contain business logic.
 
 import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
-import { checkEntryListsForDriver, type LiveRCEvent, type DbEvent } from "@/core/events/check-entry-lists-for-driver"
+import {
+  checkEntryListsForDriver,
+  type LiveRCEvent,
+  type DbEvent,
+} from "@/core/events/check-entry-lists-for-driver"
 import { successResponse, errorResponse } from "@/lib/api-utils"
 import { createRequestLogger, generateRequestId } from "@/lib/request-context"
 import { handleApiError } from "@/lib/server-error-handler"
@@ -30,12 +34,7 @@ export async function POST(request: NextRequest) {
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized entry list check request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -163,9 +162,12 @@ export async function POST(request: NextRequest) {
     } catch (error: unknown) {
       // Clear timeout on error
       clearTimeout(timeoutId)
-      
+
       // Check if error was due to timeout/abort
-      if (error instanceof Error && (error.name === "AbortError" || error.message.includes("timeout"))) {
+      if (
+        error instanceof Error &&
+        (error.name === "AbortError" || error.message.includes("timeout"))
+      ) {
         requestLogger.warn("Entry list check timed out", {
           driverName,
           timeoutMs: overallTimeoutMs,
@@ -179,22 +181,11 @@ export async function POST(request: NextRequest) {
       }
       // Handle unexpected errors
       const errorInfo = handleApiError(error, request, requestId)
-      return errorResponse(
-        errorInfo.code,
-        errorInfo.message,
-        undefined,
-        errorInfo.statusCode
-      )
+      return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
     }
   } catch (error) {
     // Handle unexpected errors at the outer level
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
-

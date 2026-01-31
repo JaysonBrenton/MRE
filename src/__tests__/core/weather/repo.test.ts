@@ -1,22 +1,22 @@
 /**
  * @fileoverview Tests for weather repository functions
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for weather repository database operations
- * 
+ *
  * @purpose Validates that repository functions handle Prisma client correctly
  *          and provide helpful error messages when the client is not properly initialized.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { 
-  getCachedWeather, 
-  getLastWeatherData, 
+import {
+  getCachedWeather,
+  getLastWeatherData,
   cacheWeatherData,
-  cleanupExpiredWeatherData 
+  cleanupExpiredWeatherData,
 } from "@/core/weather/repo"
 import { prisma } from "@/lib/prisma"
 
@@ -37,7 +37,7 @@ describe("weather repository", () => {
     id: "weather-1",
     eventId,
     latitude: -35.2809,
-    longitude: 149.1300,
+    longitude: 149.13,
     timestamp: new Date(),
     airTemperature: 24,
     humidity: 62,
@@ -89,18 +89,20 @@ describe("weather repository", () => {
     it("should provide helpful error message when Prisma client weatherData is undefined", async () => {
       // Simulate undefined weatherData property
       const originalWeatherData = prisma.weatherData
-      ;(prisma as any).weatherData = undefined
+      ;(prisma as Record<string, unknown>).weatherData = undefined
 
       try {
         await getCachedWeather(eventId)
         expect.fail("Should have thrown an error")
       } catch (error) {
         expect(error).toBeInstanceOf(Error)
-        expect((error as Error).message).toContain("Prisma client weatherData model is not available")
+        expect((error as Error).message).toContain(
+          "Prisma client weatherData model is not available"
+        )
         expect((error as Error).message).toContain("npx prisma generate")
       } finally {
         // Restore the original value
-        ;(prisma as any).weatherData = originalWeatherData
+        ;(prisma as Record<string, unknown>).weatherData = originalWeatherData
       }
     })
   })
@@ -134,7 +136,7 @@ describe("weather repository", () => {
   describe("cacheWeatherData", () => {
     const cacheData = {
       latitude: -35.2809,
-      longitude: 149.1300,
+      longitude: 149.13,
       timestamp: new Date(),
       airTemperature: 24,
       humidity: 62,
@@ -208,4 +210,3 @@ describe("weather repository", () => {
     })
   })
 })
-

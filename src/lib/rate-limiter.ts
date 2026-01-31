@@ -1,23 +1,23 @@
 /**
  * @fileoverview In-memory rate limiter using sliding window algorithm
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-02-07
- * 
+ *
  * @description Provides rate limiting functionality for API endpoints
- * 
+ *
  * @purpose Protects authentication and resource-intensive endpoints from abuse
  *          by limiting the number of requests per time window. Uses an in-memory
  *          sliding window algorithm with automatic cleanup of expired entries.
  *          Includes LRU eviction to prevent unbounded memory growth.
- * 
+ *
  * @limitations
  * - In-memory storage resets on server restart
  * - Per-instance rate limiting (not shared across multiple Next.js instances)
  * - For production multi-instance deployments, consider implementing Redis-based
  *   rate limiting. See TODO below for implementation guidance.
- * 
+ *
  * @todo Redis Support for Multi-Instance Deployments
  * For production environments with multiple Next.js instances, implement Redis-based
  * rate limiting:
@@ -26,7 +26,7 @@
  * 3. Add environment variable REDIS_URL to enable Redis mode
  * 4. Fall back to in-memory limiter if Redis is unavailable
  * 5. Example: const limiter = REDIS_URL ? new RedisRateLimiter(REDIS_URL) : getRateLimiter()
- * 
+ *
  * @relatedFiles
  * - middleware.ts (applies rate limiting to routes)
  * - src/lib/api-utils.ts (rate limit error response helper)
@@ -99,13 +99,13 @@ const MAX_STORE_SIZE = 10000
 
 /**
  * In-memory rate limiter using sliding window algorithm
- * 
+ *
  * Uses a Map to store request timestamps per key (typically IP + route).
  * Implements sliding window by keeping track of individual request timestamps
  * and counting only those within the current window.
- * 
+ *
  * Includes LRU eviction to prevent unbounded memory growth.
- * 
+ *
  * @example
  * ```typescript
  * const limiter = new RateLimiter()
@@ -162,7 +162,7 @@ export class RateLimiter {
 
   /**
    * Check if a request is allowed under the rate limit
-   * 
+   *
    * @param key - Unique identifier for the rate limit bucket (e.g., IP + route)
    * @param config - Rate limit configuration
    * @returns Rate limit result with allowed status and metadata
@@ -219,7 +219,7 @@ export class RateLimiter {
   /**
    * Reset rate limit for a specific key
    * Useful for testing or manual intervention
-   * 
+   *
    * @param key - Key to reset
    */
   reset(key: string): void {
@@ -246,9 +246,12 @@ export class RateLimiter {
    */
   private startCleanup(): void {
     // Cleanup every 5 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup()
-    }, 5 * 60 * 1000)
+    this.cleanupInterval = setInterval(
+      () => {
+        this.cleanup()
+      },
+      5 * 60 * 1000
+    )
 
     // Ensure interval doesn't prevent process exit
     if (this.cleanupInterval.unref) {
@@ -270,9 +273,7 @@ export class RateLimiter {
 
     for (const [key, record] of this.store.entries()) {
       // Remove entries where all timestamps are expired
-      const hasValidTimestamps = record.timestamps.some(
-        (ts) => ts > cleanupThreshold
-      )
+      const hasValidTimestamps = record.timestamps.some((ts) => ts > cleanupThreshold)
       if (!hasValidTimestamps) {
         keysToRemove.push(key)
       }
@@ -328,7 +329,7 @@ export function getRateLimiter(): RateLimiter {
 
 /**
  * Generate a rate limit key from IP and path
- * 
+ *
  * @param ip - Client IP address
  * @param path - Request path
  * @returns Combined key for rate limiting
@@ -340,13 +341,11 @@ export function generateRateLimitKey(ip: string, path: string): string {
 /**
  * Get rate limit config for a given path
  * Returns null if the path should not be rate limited
- * 
+ *
  * @param pathname - Request pathname
  * @returns Rate limit config or null
  */
-export function getRateLimitConfigForPath(
-  pathname: string
-): RateLimitConfig | null {
+export function getRateLimitConfigForPath(pathname: string): RateLimitConfig | null {
   // Auth endpoints
   if (pathname === "/api/v1/auth/login") {
     return RATE_LIMIT_CONFIGS.LOGIN
@@ -389,7 +388,7 @@ export interface CheckRateLimitResult {
  */
 function getClientIpFromRequest(request: Request): string {
   const headers = request.headers
-  
+
   // Check X-Forwarded-For header (may contain multiple IPs)
   const forwardedFor = headers.get("x-forwarded-for")
   if (forwardedFor) {
@@ -413,11 +412,11 @@ function getClientIpFromRequest(request: Request): string {
 /**
  * Check rate limit for an API request
  * Used by API route handlers for inline rate limiting
- * 
+ *
  * @param request - Next.js request object
  * @param config - Rate limit configuration
  * @returns Rate limit check result with allowed status
- * 
+ *
  * @example
  * ```typescript
  * const rateLimitResult = checkRateLimit(request, RATE_LIMITS.auth)
@@ -426,17 +425,14 @@ function getClientIpFromRequest(request: Request): string {
  * }
  * ```
  */
-export function checkRateLimit(
-  request: Request,
-  config: RateLimitConfig
-): CheckRateLimitResult {
+export function checkRateLimit(request: Request, config: RateLimitConfig): CheckRateLimitResult {
   const ip = getClientIpFromRequest(request)
   const url = new URL(request.url)
   const key = generateRateLimitKey(ip, url.pathname)
-  
+
   const limiter = getRateLimiter()
   const result = limiter.check(key, config)
-  
+
   return {
     allowed: result.allowed,
     resetTime: result.allowed ? undefined : result.resetAt,

@@ -1,18 +1,23 @@
 /**
  * @fileoverview Tests for API response utilities
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for standardized API response format helpers
- * 
+ *
  * @purpose Validates that API response helpers return the correct format
  *          as defined in the architecture guidelines.
  */
 
 import { describe, it, expect } from "vitest"
-import { successResponse, errorResponse, serverErrorResponse, rateLimitResponse } from "@/lib/api-utils"
+import {
+  successResponse,
+  errorResponse,
+  serverErrorResponse,
+  rateLimitResponse,
+} from "@/lib/api-utils"
 
 describe("api-utils", () => {
   describe("successResponse", () => {
@@ -64,12 +69,7 @@ describe("api-utils", () => {
     })
 
     it("should include optional details", async () => {
-      const response = errorResponse(
-        "VALIDATION_ERROR",
-        "Invalid input",
-        { field: "email" },
-        400
-      )
+      const response = errorResponse("VALIDATION_ERROR", "Invalid input", { field: "email" }, 400)
       const body = await response.json()
 
       expect(response.status).toBe(400)
@@ -168,4 +168,3 @@ describe("api-utils", () => {
     })
   })
 })
-

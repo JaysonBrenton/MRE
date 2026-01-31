@@ -12,9 +12,9 @@
  *          and setup information.
  */
 
-'use client'
+"use client"
 
-import Breadcrumbs from "@/components/Breadcrumbs"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 
 export default function CarProfilesPage() {
   return (
@@ -44,20 +44,23 @@ export default function CarProfilesPage() {
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>
                 <strong className="text-[var(--token-text-primary)]">Profile Name:</strong> A
-                descriptive name for your car profile (e.g., &quot;My Buggy&quot;, &quot;Race Car #1&quot;)
+                descriptive name for your car profile (e.g., &quot;My Buggy&quot;, &quot;Race Car
+                #1&quot;)
               </li>
               <li>
                 <strong className="text-[var(--token-text-primary)]">Car Type:</strong> The scale
-                and type of your car (e.g., &quot;1/10 scale&quot;, &quot;1/8 scale&quot;, &quot;buggy&quot;, &quot;truggy&quot;)
+                and type of your car (e.g., &quot;1/10 scale&quot;, &quot;1/8 scale&quot;,
+                &quot;buggy&quot;, &quot;truggy&quot;)
               </li>
               <li>
                 <strong className="text-[var(--token-text-primary)]">Vehicle Type:</strong> The
-                power source for your car (e.g., &quot;electric&quot;, &quot;nitro&quot;, &quot;gas&quot;)
+                power source for your car (e.g., &quot;electric&quot;, &quot;nitro&quot;,
+                &quot;gas&quot;)
               </li>
               <li>
                 <strong className="text-[var(--token-text-primary)]">Setup Information:</strong>{" "}
-                Detailed setup data including suspension settings, gearing configurations, and
-                other tuning parameters stored as flexible JSON data
+                Detailed setup data including suspension settings, gearing configurations, and other
+                tuning parameters stored as flexible JSON data
               </li>
             </ul>
             <p>

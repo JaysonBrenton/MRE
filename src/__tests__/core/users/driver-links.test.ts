@@ -9,7 +9,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest"
-import { getUserDriverLinks, getUserLinkedDrivers, getUserLinkedEvents } from "@/core/users/driver-links"
+import {
+  getUserDriverLinks,
+  getUserLinkedDrivers,
+  getUserLinkedEvents,
+} from "@/core/users/driver-links"
 import { prisma } from "@/lib/prisma"
 import type { Prisma, UserDriverLinkStatus, EventDriverLinkMatchType } from "@prisma/client"
 
@@ -62,10 +66,7 @@ function buildLink(overrides: Partial<UserDriverLinkResult>): UserDriverLinkResu
   }
 }
 
-const STATUS: Record<
-  "CONFIRMED" | "SUGGESTED" | "CONFLICT",
-  UserDriverLinkStatus
-> = {
+const STATUS: Record<"CONFIRMED" | "SUGGESTED" | "CONFLICT", UserDriverLinkStatus> = {
   CONFIRMED: "confirmed" as UserDriverLinkStatus,
   SUGGESTED: "suggested" as UserDriverLinkStatus,
   CONFLICT: "conflict" as UserDriverLinkStatus,
@@ -287,10 +288,7 @@ describe("getUserLinkedEvents", () => {
   })
 
   it("should retrieve events for linked drivers", async () => {
-    const mockEventLinks: EventDriverLinkResult[] = [
-      { eventId: "event-1" },
-      { eventId: "event-2" },
-    ]
+    const mockEventLinks: EventDriverLinkResult[] = [{ eventId: "event-1" }, { eventId: "event-2" }]
 
     vi.mocked(prisma.eventDriverLink.findMany).mockResolvedValue(mockEventLinks as never)
 

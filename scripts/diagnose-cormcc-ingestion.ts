@@ -38,7 +38,7 @@ async function main() {
     console.log(`Created At: ${batemansBay.createdAt}`)
     console.log(`Updated At: ${batemansBay.updatedAt}`)
     console.log(`Event Entries Count: ${batemansBay.entries.length}`)
-    
+
     const driver = batemansBay.entries[0]?.driver
     if (driver) {
       console.log(`\nFirst Entry Driver:`)
@@ -60,7 +60,7 @@ async function main() {
     console.log(`Created At: ${cormcc.createdAt}`)
     console.log(`Updated At: ${cormcc.updatedAt}`)
     console.log(`Event Entries Count: ${cormcc.entries.length}`)
-    
+
     const driver = cormcc.entries[0]?.driver
     if (driver) {
       console.log(`\nFirst Entry Driver:`)
@@ -87,15 +87,15 @@ async function main() {
     console.log(`\n=== User Info ===`)
     console.log(`User Driver Name: ${user.driverName}`)
     console.log(`User Normalized Name: ${user.normalizedName || "NULL"}`)
-    
+
     // Find matching drivers
     const userNormalized = user.normalizedName || user.driverName.toUpperCase().trim()
-    
+
     if (batemansBay) {
       const matchingDriver = batemansBay.entries.find(
         (entry) => entry.driver.normalizedName === userNormalized
       )?.driver
-      
+
       console.log(`\n=== Batemans Bay - User's Driver ===`)
       if (matchingDriver) {
         console.log(`Driver ID: ${matchingDriver.id}`)
@@ -107,12 +107,12 @@ async function main() {
         console.log("No matching driver found in entries")
       }
     }
-    
+
     if (cormcc) {
       const matchingDriver = cormcc.entries.find(
         (entry) => entry.driver.normalizedName === userNormalized
       )?.driver
-      
+
       console.log(`\n=== Cormcc - User's Driver ===`)
       if (matchingDriver) {
         console.log(`Driver ID: ${matchingDriver.id}`)
@@ -130,7 +130,7 @@ async function main() {
   if (batemansBay && cormcc) {
     const batemansDriver = batemansBay.entries[0]?.driver
     const cormccDriver = cormcc.entries[0]?.driver
-    
+
     if (batemansDriver) {
       const userDriverLink = await prisma.userDriverLink.findFirst({
         where: {
@@ -148,7 +148,7 @@ async function main() {
         console.log("No UserDriverLink found")
       }
     }
-    
+
     if (cormccDriver) {
       const userDriverLink = await prisma.userDriverLink.findFirst({
         where: {

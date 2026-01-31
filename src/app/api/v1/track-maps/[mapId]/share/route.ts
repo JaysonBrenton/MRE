@@ -1,14 +1,14 @@
 /**
  * @fileoverview Track map share token API endpoint (v1)
- * 
+ *
  * @created 2026-01-24
  * @creator Auto-generated
  * @lastModified 2026-01-24
- * 
+ *
  * @description Handles POST requests to generate share tokens for track maps
- * 
+ *
  * @purpose This API route allows users to generate shareable links for their track maps.
- * 
+ *
  * @relatedFiles
  * - src/core/track-maps/repo.ts (core business logic)
  * - src/lib/api-utils.ts (response helpers)
@@ -24,9 +24,9 @@ import { isValidUUID } from "@/lib/uuid-validation"
 
 /**
  * POST /api/v1/track-maps/[mapId]/share
- * 
+ *
  * Generate a share token for a track map
- * 
+ *
  * Response (success):
  * {
  *   success: true,
@@ -58,42 +58,23 @@ export async function POST(
     // Verify authentication
     const session = await auth()
     if (!session || !session.user) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Authentication required",
-        undefined,
-        401
-      )
+      return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
     // Generate share token (with ownership check)
     const map = await generateShareToken(mapId, session.user.id)
 
     if (!map) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Track map not found",
-        undefined,
-        404
-      )
+      return errorResponse("NOT_FOUND", "Track map not found", undefined, 404)
     }
 
     // Build share URL
     const baseUrl = process.env.APP_URL || "http://localhost:3001"
     const shareUrl = `${baseUrl}/dashboard/my-club/track-maps/shared/${map.shareToken}`
 
-    return successResponse(
-      { map, shareUrl },
-      200,
-      "Share token generated successfully"
-    )
+    return successResponse({ map, shareUrl }, 200, "Share token generated successfully")
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

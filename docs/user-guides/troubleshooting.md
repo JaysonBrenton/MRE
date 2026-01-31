@@ -3,7 +3,9 @@ created: 2026-01-27
 creator: Jayson Brenton
 lastModified: 2026-01-27
 description: Troubleshooting guide for common issues in My Race Engineer
-purpose: Provides solutions for common problems users may encounter, including login issues, event import failures, search problems, and performance issues.
+purpose:
+  Provides solutions for common problems users may encounter, including login
+  issues, event import failures, search problems, and performance issues.
 relatedFiles:
   - docs/user-stories/user-journeys.md
   - docs/architecture/error-handling.md
@@ -15,7 +17,8 @@ Find solutions to common issues you may encounter while using My Race Engineer.
 
 ## Introduction
 
-This guide helps you resolve common problems and issues when using MRE. If you can't find a solution here, contact support for additional help.
+This guide helps you resolve common problems and issues when using MRE. If you
+can't find a solution here, contact support for additional help.
 
 ## Prerequisites
 
@@ -28,6 +31,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Can't Log In
 
 **Symptoms:**
+
 - Error message: "Invalid email/username or password"
 - Login button doesn't work
 - Page doesn't respond
@@ -56,6 +60,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
    - Check if MRE service is available
 
 **Still Not Working?**
+
 - Contact support with your email/username
 - Provide details about the error message
 - Include browser and device information
@@ -63,16 +68,19 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Session Expired
 
 **Symptoms:**
+
 - Message: "Your session has expired. Please log in again."
 - Redirected to login page
 - Work may be lost
 
 **Solutions:**
+
 - Simply log in again
 - This is normal after period of inactivity
 - Save work frequently to avoid data loss
 
 **Prevention:**
+
 - Stay active while using MRE
 - Save important work before leaving
 - Use "Remember Me" if available (on trusted devices)
@@ -82,6 +90,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### No Events Found
 
 **Symptoms:**
+
 - Search returns no results
 - Message: "No events found for this track and date range"
 - Empty results table
@@ -105,6 +114,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
    - Check track name spelling
 
 **Still No Results?**
+
 - Event may not be on LiveRC yet
 - Track may not have events in that date range
 - Try manual search on LiveRC to verify
@@ -112,6 +122,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Search Not Working
 
 **Symptoms:**
+
 - Search button doesn't respond
 - Page freezes during search
 - Error message appears
@@ -139,6 +150,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Import Failed
 
 **Symptoms:**
+
 - Event status shows "Failed import"
 - Red error indicator
 - Event not available for analysis
@@ -162,6 +174,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
    - Try again when connection is stable
 
 **Still Failing?**
+
 - Event data structure may have changed
 - May need administrator attention
 - Contact support with event details
@@ -169,6 +182,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Import Taking Too Long
 
 **Symptoms:**
+
 - Status shows "Importing" for extended time
 - No progress indicator
 - Event not completing
@@ -193,6 +207,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Import Already in Progress
 
 **Symptoms:**
+
 - Error: "Ingestion already in progress for this event"
 - Can't start new import
 - Event stuck in "Importing" status
@@ -219,6 +234,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Charts Not Displaying
 
 **Symptoms:**
+
 - Charts are blank
 - Error messages in charts
 - Data not visible
@@ -244,6 +260,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Missing Data in Analysis
 
 **Symptoms:**
+
 - Some data missing
 - Incomplete charts
 - Empty sections
@@ -270,6 +287,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Page Loading Slowly
 
 **Symptoms:**
+
 - Pages take long to load
 - Spinning indicators
 - Timeout errors
@@ -295,6 +313,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Application Freezing
 
 **Symptoms:**
+
 - Page becomes unresponsive
 - Clicks don't work
 - Browser tab shows "Not Responding"
@@ -321,6 +340,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Can't Find Features
 
 **Symptoms:**
+
 - Don't know where features are
 - Navigation confusing
 - Features seem missing
@@ -345,6 +365,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Menu Not Visible
 
 **Symptoms:**
+
 - Can't see navigation menu
 - Hamburger menu not working
 - Sidebar missing
@@ -371,6 +392,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Events Not Matching
 
 **Symptoms:**
+
 - No discovered events
 - Events not linking to profile
 - Fuzzy matching not working
@@ -395,6 +417,7 @@ This guide helps you resolve common problems and issues when using MRE. If you c
 ### Incorrect Data
 
 **Symptoms:**
+
 - Data seems wrong
 - Missing information
 - Numbers don't match
@@ -474,5 +497,5 @@ Before contacting support:
 
 ---
 
-**Still need help?** Contact support with details about your issue, and we'll help you resolve it quickly.
-
+**Still need help?** Contact support with details about your issue, and we'll
+help you resolve it quickly.

@@ -22,9 +22,9 @@
 import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import Breadcrumbs from "@/components/Breadcrumbs"
-import ListPagination from "@/components/event-analysis/ListPagination"
-import ChartContainer from "@/components/event-analysis/ChartContainer"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
+import ListPagination from "@/components/organisms/event-analysis/ListPagination"
+import ChartContainer from "@/components/organisms/event-analysis/ChartContainer"
 
 interface Event {
   id: string
@@ -188,7 +188,9 @@ export default function MyEventPage() {
             throw new Error("Authentication required")
           }
           if (response.status === 400) {
-            const errorMessage = data?.error?.message || "User does not have Driver persona"
+            const errorMessage =
+              (data && !data.success && "error" in data && data.error?.message) ||
+              "User does not have Driver persona"
             // Check if this is a persona-related error
             if (
               errorMessage.includes("Driver persona") ||
@@ -202,14 +204,20 @@ export default function MyEventPage() {
             }
             throw new Error(errorMessage)
           }
-          throw new Error(data?.error?.message || `Failed to fetch events (${response.status})`)
+          throw new Error(
+            (data && !data.success && "error" in data && data.error?.message) ||
+              `Failed to fetch events (${response.status})`
+          )
         }
 
         if (data && data.success) {
           setEvents(data.data.events)
           setParticipationDetails(data.data.participationDetails)
         } else {
-          throw new Error(data?.error?.message || "Invalid response format")
+          throw new Error(
+            (data && !data.success && "error" in data && data.error?.message) ||
+              "Invalid response format"
+          )
         }
       } catch (err) {
         console.error("Error fetching fuzzy matched events:", err)
@@ -232,17 +240,17 @@ export default function MyEventPage() {
     })
 
     e.stopPropagation()
-    
+
     // Clear any previous error before starting the action
     setError(null)
 
     console.log("[MyEventPage] handleConfirm: Proceeding with confirmation")
     setUpdatingEvents((prev) => new Set(prev).add(eventId))
-    
+
     try {
       const url = `/api/v1/users/me/driver-links/events/${eventId}`
       console.log("[MyEventPage] handleConfirm: Making PATCH request to:", url)
-      
+
       const response = await fetch(url, {
         method: "PATCH",
         headers: {
@@ -251,7 +259,11 @@ export default function MyEventPage() {
         body: JSON.stringify({ status: "confirmed" }),
       })
 
-      console.log("[MyEventPage] handleConfirm: Response status:", response.status, response.statusText)
+      console.log(
+        "[MyEventPage] handleConfirm: Response status:",
+        response.status,
+        response.statusText
+      )
 
       if (!response.ok) {
         const data = await response.json()
@@ -284,7 +296,7 @@ export default function MyEventPage() {
 
   const handleReject = async (eventId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    
+
     // Clear any previous error before starting the action
     setError(null)
 
@@ -331,7 +343,7 @@ export default function MyEventPage() {
     })
 
     if (suggestedEvents.length === 0) return
-    
+
     // Clear any previous error before starting the action
     setError(null)
 
@@ -373,7 +385,7 @@ export default function MyEventPage() {
     })
 
     if (suggestedEvents.length === 0) return
-    
+
     // Clear any previous error before starting the action
     setError(null)
 
@@ -466,7 +478,9 @@ export default function MyEventPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
-      <Breadcrumbs items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "My Events" }]} />
+      <Breadcrumbs
+        items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "My Events" }]}
+      />
       {/* Page Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -496,7 +510,11 @@ export default function MyEventPage() {
             aria-label="Dismiss error"
           >
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
             </svg>
           </button>
         </div>
@@ -529,8 +547,8 @@ export default function MyEventPage() {
                 This page is for drivers to view their race events.
               </p>
               <p className="text-sm text-[var(--token-text-secondary)]">
-                As an administrator, you can manage events and view data through other pages. Events will appear here
-                once you have a Driver persona set up.
+                As an administrator, you can manage events and view data through other pages. Events
+                will appear here once you have a Driver persona set up.
               </p>
               <div className="flex items-center justify-center gap-3 mt-4">
                 <Link
@@ -553,8 +571,8 @@ export default function MyEventPage() {
                 This page shows events where you participated as a driver.
               </p>
               <p className="text-sm text-[var(--token-text-secondary)]">
-                To view your events, you&apos;ll need to set up your driver profile. Once configured, events where your
-                driver name appears will be displayed here.
+                To view your events, you&apos;ll need to set up your driver profile. Once
+                configured, events where your driver name appears will be displayed here.
               </p>
               <div className="flex items-center justify-center gap-3 mt-4">
                 <Link
@@ -638,92 +656,92 @@ export default function MyEventPage() {
               <div className="space-y-4">
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-[var(--token-border-default)]">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Event Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Track
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Similarity Score
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedEvents.map((event) => {
-                    const detail = participationMap.get(event.id)
-                    return (
-                      <tr
-                        key={event.id}
-                        className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] cursor-pointer"
-                        onClick={() => handleEventClick(event.id)}
-                      >
-                        <td className="px-4 py-3 text-[var(--token-text-primary)]">
-                          {event.eventName}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
-                          {event.track?.trackName || "Unknown Track"}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
-                          {formatEventDate(event.eventDate)}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
-                          {detail ? formatSimilarityScore(detail.similarityScore) : "N/A"}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
-                          {detail?.userDriverLinkStatus === "suggested" ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => {
-                                  console.log("[MyEventPage] Confirm button clicked:", {
-                                    eventId: event.id,
-                                    isDisabled: updatingEvents.has(event.id),
-                                  })
-                                  handleConfirm(event.id, e)
-                                }}
-                                disabled={updatingEvents.has(event.id)}
-                                className="px-2 py-1 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Confirm this match"
-                              >
-                                {updatingEvents.has(event.id) ? "..." : "Confirm"}
-                              </button>
-                              <button
-                                onClick={(e) => handleReject(event.id, e)}
-                                disabled={updatingEvents.has(event.id)}
-                                className="px-2 py-1 text-xs font-medium rounded bg-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Reject this match"
-                              >
-                                {updatingEvents.has(event.id) ? "..." : "Reject"}
-                              </button>
-                            </div>
-                          ) : (
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                detail?.userDriverLinkStatus === "confirmed"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                  : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
-                              }`}
-                            >
-                              {detail?.userDriverLinkStatus === "confirmed"
-                                ? "Confirmed"
-                                : detail?.userDriverLinkStatus === "rejected"
-                                  ? "Rejected"
-                                  : detail?.userDriverLinkStatus || "Unknown"}
-                            </span>
-                          )}
-                        </td>
+                    <thead>
+                      <tr className="border-b border-[var(--token-border-default)]">
+                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
+                          Event Name
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
+                          Track
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
+                          Date
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
+                          Similarity Score
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
+                          Status
+                        </th>
                       </tr>
-                    )
-                  })}
-                </tbody>
+                    </thead>
+                    <tbody>
+                      {paginatedEvents.map((event) => {
+                        const detail = participationMap.get(event.id)
+                        return (
+                          <tr
+                            key={event.id}
+                            className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] cursor-pointer"
+                            onClick={() => handleEventClick(event.id)}
+                          >
+                            <td className="px-4 py-3 text-[var(--token-text-primary)]">
+                              {event.eventName}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                              {event.track?.trackName || "Unknown Track"}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                              {formatEventDate(event.eventDate)}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                              {detail ? formatSimilarityScore(detail.similarityScore) : "N/A"}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                              {detail?.userDriverLinkStatus === "suggested" ? (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      console.log("[MyEventPage] Confirm button clicked:", {
+                                        eventId: event.id,
+                                        isDisabled: updatingEvents.has(event.id),
+                                      })
+                                      handleConfirm(event.id, e)
+                                    }}
+                                    disabled={updatingEvents.has(event.id)}
+                                    className="px-2 py-1 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    title="Confirm this match"
+                                  >
+                                    {updatingEvents.has(event.id) ? "..." : "Confirm"}
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleReject(event.id, e)}
+                                    disabled={updatingEvents.has(event.id)}
+                                    className="px-2 py-1 text-xs font-medium rounded bg-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    title="Reject this match"
+                                  >
+                                    {updatingEvents.has(event.id) ? "..." : "Reject"}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                    detail?.userDriverLinkStatus === "confirmed"
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                      : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                                  }`}
+                                >
+                                  {detail?.userDriverLinkStatus === "confirmed"
+                                    ? "Confirmed"
+                                    : detail?.userDriverLinkStatus === "rejected"
+                                      ? "Rejected"
+                                      : detail?.userDriverLinkStatus || "Unknown"}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
                   </table>
                 </div>
 

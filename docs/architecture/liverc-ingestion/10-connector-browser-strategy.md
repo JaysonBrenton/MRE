@@ -3,9 +3,11 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Browser strategy for LiveRC connector scraping operations
-purpose: Defines when and why the LiveRC connector uses a real browser (Playwright)
-         instead of HTTPX, specifying browser usage rules, anti-bot safety measures,
-         deterministic output requirements, and minimal resource consumption strategies.
+purpose:
+  Defines when and why the LiveRC connector uses a real browser (Playwright)
+  instead of HTTPX, specifying browser usage rules, anti-bot safety measures,
+  deterministic output requirements, and minimal resource consumption
+  strategies.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/02-connector-architecture.md
@@ -15,7 +17,7 @@ relatedFiles:
 
 # 10. Connector Browser Strategy (LiveRC Scraper Subsystem)
 
-This document defines *exactly when and why* the LiveRC connector uses a real
+This document defines _exactly when and why_ the LiveRC connector uses a real
 browser (Playwright) instead of HTTPX, and how the connector must behave to
 ensure reliability, anti-bot safety, deterministic output, and minimal
 operational complexity.
@@ -42,8 +44,8 @@ The browser strategy MUST satisfy the following:
    - lap time series
 5. Allow ingestion to remain stable even if the UI changes slightly.
 
-The connector MUST hide all browser decisions behind simple function calls such as
-`fetch_event_page` and `fetch_race_page`.
+The connector MUST hide all browser decisions behind simple function calls such
+as `fetch_event_page` and `fetch_race_page`.
 
 ---
 
@@ -52,18 +54,23 @@ The connector MUST hide all browser decisions behind simple function calls such 
 The connector must treat LiveRC pages as belonging to one of the following:
 
 ### 2.1 Static Pages (easy to scrape)
+
 Examples:
+
 - `https://TRACK.liverc.com/events`
 - `https://TRACK.liverc.com/results/?p=view_event&id=XXXXX`
 - Most race result pages
 
 These pages:
+
 - Return predictable HTML
 - Do not require JavaScript rendering
 - Are fully retrievable with HTTPX
 
 ### 2.2 Dynamic Pages (require browser)
+
 Examples:
+
 - Pages where the “View Laps” table loads only after a user action
 - Pages where HTML sections expand via JavaScript
 - Pages that detect bots based on HTTP patterns and require a JS environment
@@ -71,6 +78,7 @@ Examples:
 These require Playwright.
 
 ### 2.3 Hybrid Pages
+
 Some pages are static for metadata but dynamic for lap detail.
 
 The browser strategy MUST handle this distinction automatically.
@@ -85,7 +93,7 @@ The overall design goal is:
 
 Specifically:
 
-- The *race result page* (with lap tables) is the page most likely to require
+- The _race result page_ (with lap tables) is the page most likely to require
   JavaScript-driven content.
 - All other pages are handled by HTTPX unless proven otherwise.
 
@@ -98,7 +106,9 @@ This rule drastically simplifies the connector design.
 The connector MUST follow this decision tree internally for each page:
 
 ### Step 1 — Try HTTPX
+
 If the HTML already contains:
+
 - race result tables
 - lap data containers
 - event metadata fields
@@ -107,6 +117,7 @@ If the HTML already contains:
 …then use the HTTPX response.
 
 ### Step 2 — Check for dynamic dependencies
+
 If the elements are missing or collapsed behind anchors such as:
 
 - `View Laps`
@@ -116,7 +127,9 @@ If the elements are missing or collapsed behind anchors such as:
 …then Playwright MUST be used.
 
 ### Step 3 — Detect anti-bot protections
+
 LiveRC may:
+
 - delay JS execution
 - hide certain tables until JS evaluates
 - throttle “too fast” fetches
@@ -125,6 +138,7 @@ When HTTPX-based parsing fails consistently for a given page type, the connector
 MUST escalate that page type to ALWAYS use Playwright.
 
 ### Step 4 — Cache page classification
+
 If a page type consistently requires Playwright, the connector MAY maintain a
 lookup table so ingestion becomes deterministic and faster.
 
@@ -154,7 +168,9 @@ When Playwright is used, the connector MUST:
 5. Not throttle itself; the ingestion orchestrator handles rate limiting.
 
 ### 5.1 Forbidden Playwright Usage
+
 The connector MUST NOT:
+
 - keep long-running browser instances alive between events
 - navigate multiple pages within the same context
 - click UI elements other than “expand laps”
@@ -173,6 +189,7 @@ When using HTTPX, the connector MUST:
 - Handle gzip/deflate transfer encoding
 
 HTTPX is preferred for:
+
 - track catalogue ingestion
 - event catalogue ingestion
 - event metadata extraction
@@ -200,21 +217,21 @@ The connector MUST adhere to these safety rules:
 5. **Avoid suspicious automation signals**  
    No automation headers. No odd request patterns. No manipulating cookies.
 
-This strategy is not about *evading protections*, but ensuring *cooperative
-polite scraping*.
+This strategy is not about _evading protections_, but ensuring _cooperative
+polite scraping_.
 
 ---
 
 ## 8. Page-Type-to-Tool Matrix
 
-| Page Type                         | HTTPX | Playwright | Notes |
-|----------------------------------|-------|------------|-------|
-| Track list (live.liverc.com)     | Yes   | No         | Static content |
-| Event list (/events)             | Yes   | No         | Simple table |
-| Event detail                     | Yes   | Maybe      | If races hidden behind JS |
-| Race summary                     | Yes   | No         | Often complete HTML |
-| Race results with lap tables     | Maybe | Yes        | This is the one page that typically needs JS |
-| Individual lap sections          | No    | Yes        | Anchor expansion via JS |
+| Page Type                    | HTTPX | Playwright | Notes                                        |
+| ---------------------------- | ----- | ---------- | -------------------------------------------- |
+| Track list (live.liverc.com) | Yes   | No         | Static content                               |
+| Event list (/events)         | Yes   | No         | Simple table                                 |
+| Event detail                 | Yes   | Maybe      | If races hidden behind JS                    |
+| Race summary                 | Yes   | No         | Often complete HTML                          |
+| Race results with lap tables | Maybe | Yes        | This is the one page that typically needs JS |
+| Individual lap sections      | No    | Yes        | Anchor expansion via JS                      |
 
 The connector MUST optimise for the above behaviours.
 
@@ -226,9 +243,10 @@ If a Playwright scrape fails:
 
 - Retry with a new browser context
 - Then retry with exponential backoff
-- If still failing, raise a *connector-specific* error (never raw Playwright)
+- If still failing, raise a _connector-specific_ error (never raw Playwright)
 
 The ingestion pipeline will:
+
 - abort the event ingestion
 - leave DB unchanged
 - propagate a clean error to the CLI or API caller
@@ -239,10 +257,10 @@ The ingestion pipeline will:
 
 The browser strategy must allow clean extension:
 
-1. Using local browser persistence to speed up multi-page crawls  
-2. Using a pool of pre-warmed browser instances  
-3. Supporting alternative browser engines (WebKit, Firefox)  
-4. Integrating a per-domain rate limiter  
+1. Using local browser persistence to speed up multi-page crawls
+2. Using a pool of pre-warmed browser instances
+3. Supporting alternative browser engines (WebKit, Firefox)
+4. Integrating a per-domain rate limiter
 
 All extensions MUST preserve:
 

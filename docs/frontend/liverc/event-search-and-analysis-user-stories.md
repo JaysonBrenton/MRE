@@ -2,8 +2,14 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-28
-description: User stories and acceptance criteria for Event Search and Event Analysis features
-purpose: Defines user stories written from the Driver perspective, with detailed acceptance criteria for Event Search, LiveRC discovery/import, Event Analysis, and related functionality. These stories serve as implementation guidance and testing requirements.
+description:
+  User stories and acceptance criteria for Event Search and Event Analysis
+  features
+purpose:
+  Defines user stories written from the Driver perspective, with detailed
+  acceptance criteria for Event Search, LiveRC discovery/import, Event Analysis,
+  and related functionality. These stories serve as implementation guidance and
+  testing requirements.
 relatedFiles:
   - docs/frontend/liverc/user-workflow.md
   - docs/architecture/liverc-ingestion/01-overview.md
@@ -15,11 +21,14 @@ relatedFiles:
 # Event Search and Event Analysis User Stories
 
 **Status:** Complete  
-**Note:** These user stories define the Driver experience for Event Search and Event Analysis features in the MRE Alpha release.
+**Note:** These user stories define the Driver experience for Event Search and
+Event Analysis features in the MRE Alpha release.
 
 ## Purpose
 
-This document provides user stories and acceptance criteria for the Event Search and Event Analysis features. Stories are written from the Driver/racer perspective and define the expected behavior and outcomes for each feature.
+This document provides user stories and acceptance criteria for the Event Search
+and Event Analysis features. Stories are written from the Driver/racer
+perspective and define the expected behavior and outcomes for each feature.
 
 ---
 
@@ -31,7 +40,8 @@ This document provides user stories and acceptance criteria for the Event Search
 
 ### Acceptance Criteria
 
-- [ ] Event Search appears as a top-level navigation item for authenticated users
+- [ ] Event Search appears as a top-level navigation item for authenticated
+      users
 - [ ] Navigation label is "Event Search" (clear and action-oriented)
 - [ ] Unauthenticated users are redirected to login when accessing Event Search
 - [ ] Event Search page loads successfully for authenticated users
@@ -52,11 +62,13 @@ This document provides user stories and acceptance criteria for the Event Search
 - [ ] Search input filters tracks in real-time as user types (typeahead)
 - [ ] Favourite tracks appear in "Favourite Tracks" section at top of modal
 - [ ] Each track row has star icon that toggles favourite status
-- [ ] Toggling star adds/removes track from favourites (persisted in localStorage)
+- [ ] Toggling star adds/removes track from favourites (persisted in
+      localStorage)
 - [ ] Selecting a track closes modal and populates track field
 - [ ] Favourite tracks displayed as chips above Event Search form
 - [ ] Each favourite chip has a remove button (X icon) on the right side
-- [ ] Clicking favourite chip name selects track and automatically triggers search
+- [ ] Clicking favourite chip name selects track and automatically triggers
+      search
 - [ ] Clicking X icon removes track from favourites (does not trigger search)
 - [ ] Remove button meets 44px touch target requirement
 - [ ] Modal is keyboard accessible (Escape closes, focus trapped)
@@ -78,7 +90,8 @@ This document provides user stories and acceptance criteria for the Event Search
 - [ ] Date inputs use native date picker on mobile for best UX
 - [ ] Maximum date range is 3 months (90 days) - validation error if exceeded
 - [ ] Future dates are not allowed - validation error if selected
-- [ ] Start date must be before or equal to end date - validation error if invalid
+- [ ] Start date must be before or equal to end date - validation error if
+      invalid
 - [ ] Validation errors appear beneath relevant field
 - [ ] Error messages are concise and actionable
 - [ ] Form submission disabled until validation passes
@@ -96,10 +109,12 @@ This document provides user stories and acceptance criteria for the Event Search
 ### Acceptance Criteria
 
 - [ ] Search button triggers event search
-- [ ] Clicking a favourite track chip automatically triggers search after selecting the track
+- [ ] Clicking a favourite track chip automatically triggers search after
+      selecting the track
 - [ ] Form validation occurs before search (track selected, valid dates)
 - [ ] System queries MRE database for matching events
-- [ ] Event table displays matching events with Event Name, Event Date, Status columns
+- [ ] Event table displays matching events with Event Name, Event Date, Status
+      columns
 - [ ] Events are sorted by Event Date (most recent first) by default
 - [ ] If no events found in DB, system automatically queries LiveRC
 - [ ] Loading state shown during search
@@ -116,7 +131,8 @@ This document provides user stories and acceptance criteria for the Event Search
 
 ### Acceptance Criteria
 
-- [ ] Friendly empty-state message displayed: "No events found for this track and date range. Try changing your dates or selecting a different track."
+- [ ] Friendly empty-state message displayed: "No events found for this track
+      and date range. Try changing your dates or selecting a different track."
 - [ ] Empty state includes action: "Reset Search" button or link
 - [ ] Message uses secondary text color (`--token-text-secondary`)
 - [ ] No empty table shown (only message)
@@ -135,14 +151,18 @@ This document provides user stories and acceptance criteria for the Event Search
 - [ ] User can select one or more events for import using checkboxes
 - [ ] Checkboxes appear only for importable events (status "New (LiveRC only)")
 - [ ] Checkboxes are disabled for already imported events
-- [ ] Bulk import action bar appears when events are selected, showing "Import X selected events"
+- [ ] Bulk import action bar appears when events are selected, showing "Import X
+      selected events"
 - [ ] "Select All Importable" button selects all importable events at once
 - [ ] "Clear Selection" button clears all selections
 - [ ] Import runs sequentially for selected events (one at a time)
-- [ ] Status column shows real-time progress (importing → imported/failed) for each event
+- [ ] Status column shows real-time progress (importing → imported/failed) for
+      each event
 - [ ] Events show status "Importing" during import
-- [ ] Importing status badge displays progress percentage (e.g., "Importing 45%")
-- [ ] Importing status badge shows visual progress bar that fills from left to right
+- [ ] Importing status badge displays progress percentage (e.g., "Importing
+      45%")
+- [ ] Importing status badge shows visual progress bar that fills from left to
+      right
 - [ ] Badge color transitions from yellow/orange to green as import progresses
 - [ ] Import runs asynchronously (does not block UI)
 - [ ] Status updates when import completes or fails for each event
@@ -162,14 +182,17 @@ This document provides user stories and acceptance criteria for the Event Search
 ### Acceptance Criteria
 
 - [ ] Event table displays status column with status tags
-- [ ] Status values: "Stored"/"Imported", "New (LiveRC only)", "Importing", "Failed import"
+- [ ] Status values: "Stored"/"Imported", "New (LiveRC only)", "Importing",
+      "Failed import"
 - [ ] Status tags are visually distinct (colors, icons optional)
 - [ ] "Stored"/"Imported" events show green tag (ready for analysis)
 - [ ] "New (LiveRC only)" events show blue tag (available for import)
 - [ ] "Importing" events show yellow/amber tag with spinner (in progress)
-- [ ] "Importing" badge displays progress percentage and visual progress bar fill
+- [ ] "Importing" badge displays progress percentage and visual progress bar
+      fill
 - [ ] Progress bar fills from left to right showing completion percentage
-- [ ] Badge color transitions from warning (yellow/orange) to success (green) as progress increases
+- [ ] Badge color transitions from warning (yellow/orange) to success (green) as
+      progress increases
 - [ ] "Failed import" events show red tag (failed, can retry)
 - [ ] Status updates automatically during import (polling or WebSocket)
 - [ ] Status tags meet accessibility requirements (not color-only indicators)
@@ -226,7 +249,8 @@ This document provides user stories and acceptance criteria for the Event Search
 ### Acceptance Criteria
 
 - [ ] Drivers tab displays list of all drivers
-- [ ] Driver list shows: Driver name, races participated, best lap, average lap, consistency
+- [ ] Driver list shows: Driver name, races participated, best lap, average lap,
+      consistency
 - [ ] List format on mobile, table format on desktop
 - [ ] Drivers can be selected (multi-select checkboxes)
 - [ ] Selected drivers can be compared in Comparisons tab
@@ -284,7 +308,8 @@ This document provides user stories and acceptance criteria for the Event Search
 ### Acceptance Criteria
 
 - [ ] Can select "My Driver" from driver list
-- [ ] Can select "Fastest Driver" from driver list (or "Select Fastest" quick action)
+- [ ] Can select "Fastest Driver" from driver list (or "Select Fastest" quick
+      action)
 - [ ] Lap time comparison chart shows both drivers' lap times overlaid
 - [ ] Chart highlights gaps between my laps and fastest driver's laps
 - [ ] Gap analysis chart shows time gap to fastest driver over race duration
@@ -320,7 +345,8 @@ This document provides user stories and acceptance criteria for the Event Search
 ### Acceptance Criteria
 
 - [ ] Can filter by class (dropdown: "All Classes" or specific class)
-- [ ] Can filter by session type ("All Sessions", "Mains Only", "Qualifying Only")
+- [ ] Can filter by session type ("All Sessions", "Mains Only", "Qualifying
+      Only")
 - [ ] Can filter by date range (if event spans multiple days)
 - [ ] Filters apply to all charts and data views
 - [ ] Filter state persists during session
@@ -455,20 +481,27 @@ This document provides user stories and acceptance criteria for the Event Search
 ## User Story 23: Analyze Performance Trends Across Events at a Track
 
 **As a** Driver  
-**I want to** analyze my lap times and performance trends across all events at a selected track  
-**So that** I can track my improvement over time and identify patterns in my performance
+**I want to** analyze my lap times and performance trends across all events at a
+selected track  
+**So that** I can track my improvement over time and identify patterns in my
+performance
 
 ### Acceptance Criteria
 
 1. **Track Selection for Trend Analysis**
-   - [ ] Track selector available in Event Analysis section (dashboard or event analysis page)
-   - [ ] Track selector displays track name for currently selected event (if available)
+   - [ ] Track selector available in Event Analysis section (dashboard or event
+         analysis page)
+   - [ ] Track selector displays track name for currently selected event (if
+         available)
    - [ ] User can change track selection to view trends for different tracks
-   - [ ] Track selector uses same searchable modal pattern as Event Search (User Story 2)
-   - [ ] Track selection persists during session (localStorage or sessionStorage)
+   - [ ] Track selector uses same searchable modal pattern as Event Search (User
+         Story 2)
+   - [ ] Track selection persists during session (localStorage or
+         sessionStorage)
 
 2. **Performance Trends Display**
-   - [ ] When a track is selected, "Track Performance Trends" section appears in Event Analysis
+   - [ ] When a track is selected, "Track Performance Trends" section appears in
+         Event Analysis
    - [ ] Section displays summary statistics:
      - Total number of events at this track
      - Best lap time across all events
@@ -477,10 +510,12 @@ This document provides user stories and acceptance criteria for the Event Search
    - [ ] Summary statistics are clearly labeled and formatted
 
 3. **Lap Time Trend Visualization**
-   - [ ] Best lap time trend chart displays lap times across all events chronologically
+   - [ ] Best lap time trend chart displays lap times across all events
+         chronologically
    - [ ] Chart shows event dates on X-axis and lap times on Y-axis
    - [ ] Each event is represented as a data point on the chart
-   - [ ] Chart visually indicates improvement trend (line connecting data points)
+   - [ ] Chart visually indicates improvement trend (line connecting data
+         points)
    - [ ] Chart is interactive (hover/tap shows event name, date, and lap time)
    - [ ] Chart is responsive (scales to mobile width)
    - [ ] Chart uses accessible color scheme and meets WCAG 2.1 AA standards
@@ -501,7 +536,8 @@ This document provides user stories and acceptance criteria for the Event Search
 5. **Performance Metrics**
    - [ ] Average lap time trend displayed (optional secondary chart or metric)
    - [ ] Consistency scores displayed per event (if available)
-   - [ ] Improvement percentage calculated and displayed (time improvement from first to last event)
+   - [ ] Improvement percentage calculated and displayed (time improvement from
+         first to last event)
    - [ ] Metrics clearly indicate if data is missing (N/A display)
 
 6. **Data Filtering and Sorting**
@@ -511,13 +547,17 @@ This document provides user stories and acceptance criteria for the Event Search
    - [ ] Filter and sort controls meet 44px touch target requirement
 
 7. **Empty States**
-   - [ ] If no events found for selected track, friendly message displayed: "No performance data available for this track yet. Race at this track and import events to see your trends."
-   - [ ] If user has no confirmed driver link, message displayed: "Link your driver profile to view performance trends."
+   - [ ] If no events found for selected track, friendly message displayed: "No
+         performance data available for this track yet. Race at this track and
+         import events to see your trends."
+   - [ ] If user has no confirmed driver link, message displayed: "Link your
+         driver profile to view performance trends."
    - [ ] Empty states use secondary text color and are accessible
 
 8. **Loading States**
    - [ ] Loading indicator shown while fetching track performance data
-   - [ ] Loading state announced to screen readers ("Loading track performance trends...")
+   - [ ] Loading state announced to screen readers ("Loading track performance
+         trends...")
    - [ ] Skeleton loader or spinner used during data fetch
 
 9. **Error Handling**
@@ -529,9 +569,11 @@ This document provides user stories and acceptance criteria for the Event Search
 10. **API Integration**
     - [ ] API endpoint: `GET /api/v1/tracks/[trackId]/performance-trends`
     - [ ] Endpoint requires authentication (user must be logged in)
-    - [ ] Endpoint returns performance data for logged-in user's confirmed driver link
+    - [ ] Endpoint returns performance data for logged-in user's confirmed
+          driver link
     - [ ] API response includes all events at track where user participated
-    - [ ] API response includes best lap time, average lap time, consistency, position for each event
+    - [ ] API response includes best lap time, average lap time, consistency,
+          position for each event
     - [ ] API follows standard response format (success/error structure)
 
 11. **Mobile Responsiveness**
@@ -545,22 +587,27 @@ This document provides user stories and acceptance criteria for the Event Search
     - [ ] Chart has text alternative (data table or description)
     - [ ] Chart data accessible via keyboard navigation
     - [ ] Track selector modal is keyboard accessible
-    - [ ] Event history table has proper table headers (`<th>` elements on desktop)
+    - [ ] Event history table has proper table headers (`<th>` elements on
+          desktop)
     - [ ] All interactive elements have ARIA labels
     - [ ] Loading and error states announced to screen readers
     - [ ] Color is not the only indicator (icons, text labels used)
 
 13. **Integration with Event Analysis**
-    - [ ] Track Performance Trends section appears in Event Analysis section on dashboard
+    - [ ] Track Performance Trends section appears in Event Analysis section on
+          dashboard
     - [ ] Section can be collapsed/expanded (optional)
     - [ ] Section appears below or alongside standard event analysis tabs
-    - [ ] Track selection can be derived from currently selected event (if event is selected)
+    - [ ] Track selection can be derived from currently selected event (if event
+          is selected)
     - [ ] Clicking event in history navigates to that event's analysis page
 
 ### Dependencies
 
-- User Story 2: Select Track via Searchable Modal (for track selection UI pattern)
-- User Story 10: View Event Analysis Overview (for integration with event analysis)
+- User Story 2: Select Track via Searchable Modal (for track selection UI
+  pattern)
+- User Story 10: View Event Analysis Overview (for integration with event
+  analysis)
 - User driver link must be confirmed (UserDriverLink status = "confirmed")
 - Events must be ingested and stored in database
 
@@ -594,7 +641,9 @@ This document provides user stories and acceptance criteria for the Event Search
 
 ## Summary
 
-These user stories define the complete Driver experience for Event Search and Event Analysis features. Each story includes detailed acceptance criteria that serve as:
+These user stories define the complete Driver experience for Event Search and
+Event Analysis features. Each story includes detailed acceptance criteria that
+serve as:
 
 - **Implementation guidance** for developers
 - **Testing requirements** for QA
@@ -602,6 +651,7 @@ These user stories define the complete Driver experience for Event Search and Ev
 - **Accessibility requirements** for compliance
 
 All stories must be implemented in compliance with:
+
 - [MRE UX Principles](../../design/mre-ux-principles.md)
 - [MRE Mobile UX Guidelines](../../design/mre-mobile-ux-guidelines.md)
 - [MRE Dark Theme Guidelines](../../design/mre-dark-theme-guidelines.md)

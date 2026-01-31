@@ -1,16 +1,16 @@
 /**
  * @fileoverview Core business logic for driver profile operations
- * 
+ *
  * @created 2025-01-28
  * @creator System
  * @lastModified 2025-01-28
- * 
+ *
  * @description Core functions for driver profile CRUD operations
- * 
+ *
  * @purpose Provides core domain logic for driver profiles, following mobile-safe
  *          architecture guidelines. All business logic is separated from UI and
  *          API routes, ensuring it can be reused by mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/core/driver-profiles/repo.ts (database access)
  * - src/app/api/v1/driver-profiles/route.ts (API endpoint)
@@ -42,7 +42,7 @@ export type UpdateDriverProfileInput = {
 
 /**
  * Get all driver profiles for a user
- * 
+ *
  * @param userId - User's unique identifier
  * @returns Array of driver profiles
  */
@@ -52,7 +52,7 @@ export async function getDriverProfilesByUserId(userId: string) {
 
 /**
  * Get a single driver profile by ID with ownership verification
- * 
+ *
  * @param id - Driver profile unique identifier
  * @param userId - User's unique identifier
  * @returns Driver profile or null if not found or not owned by user
@@ -63,7 +63,7 @@ export async function getDriverProfileById(id: string, userId: string) {
 
 /**
  * Create a new driver profile
- * 
+ *
  * @param userId - User's unique identifier
  * @param data - Driver profile data
  * @returns Created driver profile
@@ -100,13 +100,13 @@ export async function createDriverProfileForUser(
     name: data.name,
     displayName: data.displayName,
     transponderNumber: data.transponderNumber || null,
-    preferences: data.preferences || null,
+    preferences: (data.preferences ?? undefined) as Prisma.InputJsonValue | undefined,
   })
 }
 
 /**
  * Update an existing driver profile
- * 
+ *
  * @param id - Driver profile unique identifier
  * @param userId - User's unique identifier
  * @param data - Driver profile update data
@@ -136,7 +136,11 @@ export async function updateDriverProfileForUser(
   }
 
   // Validate transponder number length if provided
-  if (data.transponderNumber !== undefined && data.transponderNumber && data.transponderNumber.length > 50) {
+  if (
+    data.transponderNumber !== undefined &&
+    data.transponderNumber &&
+    data.transponderNumber.length > 50
+  ) {
     throw new Error("Transponder number must be 50 characters or less")
   }
 
@@ -145,7 +149,7 @@ export async function updateDriverProfileForUser(
 
 /**
  * Delete a driver profile
- * 
+ *
  * @param id - Driver profile unique identifier
  * @param userId - User's unique identifier
  * @returns Deleted driver profile or null if not found or not owned by user

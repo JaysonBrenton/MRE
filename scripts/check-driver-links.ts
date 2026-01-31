@@ -95,7 +95,7 @@ async function main() {
     console.log(`  Source: ${d.source}`)
     console.log(`  Source Driver ID: ${d.sourceDriverId}`)
     console.log(`  Created At: ${d.createdAt}`)
-    
+
     // Check EventDriverLinks for this specific driver
     const links = await prisma.eventDriverLink.findMany({
       where: {
@@ -112,7 +112,9 @@ async function main() {
     })
     console.log(`  EventDriverLinks: ${links.length}`)
     for (const link of links) {
-      console.log(`    - ${link.event.eventName} (${link.matchType}, score: ${link.similarityScore})`)
+      console.log(
+        `    - ${link.event.eventName} (${link.matchType}, score: ${link.similarityScore})`
+      )
     }
   }
 }

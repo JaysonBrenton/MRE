@@ -3,7 +3,8 @@
  * Run with: docker exec mre-app npx tsx /app/scripts/test-discover-debug.ts
  */
 
-const INGESTION_SERVICE_URL = process.env.INGESTION_SERVICE_URL || "http://mre-liverc-ingestion-service:8000"
+const INGESTION_SERVICE_URL =
+  process.env.INGESTION_SERVICE_URL || "http://mre-liverc-ingestion-service:8000"
 
 async function testDiscover() {
   const trackSlug = "canberraoffroad"
@@ -19,27 +20,24 @@ async function testDiscover() {
   console.log()
 
   try {
-    const response = await fetch(
-      `${INGESTION_SERVICE_URL}/api/v1/practice-days/discover`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          track_slug: trackSlug,
-          year: year,
-          month: month,
-        }),
-      }
-    )
+    const response = await fetch(`${INGESTION_SERVICE_URL}/api/v1/practice-days/discover`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        track_slug: trackSlug,
+        year: year,
+        month: month,
+      }),
+    })
 
     console.log(`Status: ${response.status} ${response.statusText}`)
     console.log(`Headers:`, Object.fromEntries(response.headers.entries()))
-    
+
     const text = await response.text()
     console.log(`Response Body:`, text)
-    
+
     if (!response.ok) {
       try {
         const json = JSON.parse(text)

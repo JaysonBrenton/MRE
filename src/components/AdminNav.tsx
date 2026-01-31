@@ -1,15 +1,15 @@
 /**
  * @fileoverview Admin navigation component
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Navigation bar for admin console with links to admin features
- * 
+ *
  * @purpose Provides navigation for administrators to access different admin features.
  *          Optimized for desktop viewports with horizontal layout.
- * 
+ *
  * @relatedFiles
  * - components/LogoutButton.tsx (logout functionality)
  * - docs/design/mre-ux-principles.md (UX patterns)

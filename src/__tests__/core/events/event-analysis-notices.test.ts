@@ -54,22 +54,14 @@ describe("event analysis notices", () => {
   })
 
   it("detects drivers missing data for Avg vs Fastest chart", () => {
-    const result = getDriversMissingAvgVsFastest(
-      ["driver-a", "driver-b", "driver-d"],
-      driverStats
-    )
+    const result = getDriversMissingAvgVsFastest(["driver-a", "driver-b", "driver-d"], driverStats)
 
     expect(result).toEqual(["driver-b", "driver-d"])
   })
 
   it("deduplicates repeated driver IDs", () => {
-    const result = getDriversMissingAvgVsFastest(
-      ["driver-b", "driver-b", "driver-b"],
-      driverStats
-    )
+    const result = getDriversMissingAvgVsFastest(["driver-b", "driver-b", "driver-b"], driverStats)
 
     expect(result).toEqual(["driver-b"])
   })
-
 })
-

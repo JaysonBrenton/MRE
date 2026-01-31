@@ -1,17 +1,17 @@
 /**
  * @fileoverview Weather repository - all Prisma queries for weather domain
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Contains all database access functions for weather data operations
- * 
+ *
  * @purpose This file centralizes all Prisma queries related to weather data, following
  *          the mobile-safe architecture requirement that all database access must
  *          exist only in src/core/<domain>/repo.ts files. This ensures business
  *          logic is separated from API routes and can be reused by mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/lib/prisma.ts (Prisma client)
  * - src/core/weather/get-weather-for-event.ts (uses this repo)
@@ -38,7 +38,7 @@ export interface WeatherCacheData {
 
 /**
  * Gets cached weather data for an event if it exists and is not expired
- * 
+ *
  * @param eventId - The event ID to get weather data for
  * @returns Cached weather data if valid, null if cache miss or expired
  */
@@ -61,10 +61,14 @@ export async function getCachedWeather(eventId: string): Promise<WeatherData | n
     return cached
   } catch (error) {
     // Provide helpful error message if prisma.weatherData is undefined
-    if (error instanceof TypeError && 
-        (error.message.includes("Cannot read properties of undefined") || 
-         error.message.includes("Cannot read property"))) {
-      throw new Error(`Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`)
+    if (
+      error instanceof TypeError &&
+      (error.message.includes("Cannot read properties of undefined") ||
+        error.message.includes("Cannot read property"))
+    ) {
+      throw new Error(
+        `Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`
+      )
     }
     throw error
   }
@@ -72,9 +76,9 @@ export async function getCachedWeather(eventId: string): Promise<WeatherData | n
 
 /**
  * Gets the most recent weather data for an event, even if expired
- * 
+ *
  * Used for fallback when API is unavailable
- * 
+ *
  * @param eventId - The event ID to get weather data for
  * @returns Most recent weather data, or null if none exists
  */
@@ -92,10 +96,14 @@ export async function getLastWeatherData(eventId: string): Promise<WeatherData |
     return cached
   } catch (error) {
     // Provide helpful error message if prisma.weatherData is undefined
-    if (error instanceof TypeError && 
-        (error.message.includes("Cannot read properties of undefined") || 
-         error.message.includes("Cannot read property"))) {
-      throw new Error(`Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`)
+    if (
+      error instanceof TypeError &&
+      (error.message.includes("Cannot read properties of undefined") ||
+        error.message.includes("Cannot read property"))
+    ) {
+      throw new Error(
+        `Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`
+      )
     }
     throw error
   }
@@ -103,7 +111,7 @@ export async function getLastWeatherData(eventId: string): Promise<WeatherData |
 
 /**
  * Stores weather data in the cache
- * 
+ *
  * @param eventId - The event ID to cache weather data for
  * @param data - Weather data to cache
  * @returns Created weather data record
@@ -133,10 +141,14 @@ export async function cacheWeatherData(
     })
   } catch (error) {
     // Provide helpful error message if prisma.weatherData is undefined
-    if (error instanceof TypeError && 
-        (error.message.includes("Cannot read properties of undefined") || 
-         error.message.includes("Cannot read property"))) {
-      throw new Error(`Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`)
+    if (
+      error instanceof TypeError &&
+      (error.message.includes("Cannot read properties of undefined") ||
+        error.message.includes("Cannot read property"))
+    ) {
+      throw new Error(
+        `Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`
+      )
     }
     throw error
   }
@@ -144,9 +156,9 @@ export async function cacheWeatherData(
 
 /**
  * Cleans up expired weather data entries
- * 
+ *
  * Useful for maintenance tasks to keep the database clean
- * 
+ *
  * @param olderThan - Delete entries expired before this date (default: now)
  * @returns Number of deleted records
  */
@@ -165,12 +177,15 @@ export async function cleanupExpiredWeatherData(olderThan?: Date): Promise<numbe
     return result.count
   } catch (error) {
     // Provide helpful error message if prisma.weatherData is undefined
-    if (error instanceof TypeError && 
-        (error.message.includes("Cannot read properties of undefined") || 
-         error.message.includes("Cannot read property"))) {
-      throw new Error(`Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`)
+    if (
+      error instanceof TypeError &&
+      (error.message.includes("Cannot read properties of undefined") ||
+        error.message.includes("Cannot read property"))
+    ) {
+      throw new Error(
+        `Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`
+      )
     }
     throw error
   }
 }
-

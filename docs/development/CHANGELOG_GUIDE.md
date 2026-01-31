@@ -1,10 +1,12 @@
 # Changelog Management Guide
 
-This document explains how the automated changelog system works and how to use it.
+This document explains how the automated changelog system works and how to use
+it.
 
 ## Overview
 
 The My Race Engineer (MRE) project uses an automated changelog system that:
+
 - Generates changelogs from git commit history
 - Enforces conventional commit message format
 - Automatically updates the changelog on merges
@@ -14,7 +16,8 @@ The My Race Engineer (MRE) project uses an automated changelog system that:
 
 ### 1. Conventional Commits
 
-All commits must follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+All commits must follow the
+[Conventional Commits](https://www.conventionalcommits.org/) specification:
 
 ```
 <type>(<scope>): <subject>
@@ -25,6 +28,7 @@ All commits must follow the [Conventional Commits](https://www.conventionalcommi
 ```
 
 **Types:**
+
 - `feat`: New features (appears in "Added" section)
 - `fix`: Bug fixes (appears in "Fixed" section)
 - `docs`: Documentation changes
@@ -37,6 +41,7 @@ All commits must follow the [Conventional Commits](https://www.conventionalcommi
 - `ci`: CI configuration changes (hidden from changelog)
 
 **Examples:**
+
 ```
 feat: add driver filter to event search
 fix: resolve authentication token expiration issue
@@ -47,11 +52,14 @@ refactor: restructure event search component
 
 ### 2. Pre-commit Validation
 
-Husky and commitlint automatically validate commit messages before they're accepted. If your commit message doesn't follow the conventional format, the commit will be rejected with an error message.
+Husky and commitlint automatically validate commit messages before they're
+accepted. If your commit message doesn't follow the conventional format, the
+commit will be rejected with an error message.
 
 ### 3. Automatic Changelog Updates
 
 The changelog is automatically updated:
+
 - **On PR merge**: GitHub Actions generates a new changelog entry
 - **On release**: Running `npm run release` creates a new version entry
 
@@ -74,16 +82,17 @@ npm run changelog:retro
 1. **Make sure all changes are committed** with conventional commit messages
 
 2. **Run the release command:**
+
    ```bash
    # Patch release (0.1.1 -> 0.1.2)
    npm run release:patch
-   
+
    # Minor release (0.1.1 -> 0.2.0)
    npm run release:minor
-   
+
    # Major release (0.1.1 -> 1.0.0)
    npm run release:major
-   
+
    # Or let standard-version decide based on commit types
    npm run release
    ```
@@ -101,13 +110,15 @@ npm run changelog:retro
 
 ## Retrospective Changelog Generation
 
-If you need to generate a changelog from existing git history (for example, when first setting up the system):
+If you need to generate a changelog from existing git history (for example, when
+first setting up the system):
 
 ```bash
 npm run changelog:retro
 ```
 
 This script:
+
 - Parses all git commits
 - Categorizes them by type
 - Generates a formatted changelog
@@ -115,14 +126,17 @@ This script:
 
 ## Configuration Files
 
-- **`.versionrc.json`**: Configuration for `standard-version` (release management)
-- **`.auto-changelog`**: Configuration for `auto-changelog` (changelog generation)
+- **`.versionrc.json`**: Configuration for `standard-version` (release
+  management)
+- **`.auto-changelog`**: Configuration for `auto-changelog` (changelog
+  generation)
 - **`commitlint.config.js`**: Rules for commit message validation
 - **`.husky/commit-msg`**: Git hook that validates commit messages
 
 ## GitHub Actions
 
 The `.github/workflows/update-changelog.yml` workflow:
+
 - Runs on pushes to `main`/`master` branches
 - Runs when PRs are merged
 - Automatically updates the changelog
@@ -133,12 +147,14 @@ The `.github/workflows/update-changelog.yml` workflow:
 ### Commit Message Rejected
 
 If your commit message is rejected, check:
+
 1. Does it start with a valid type? (`feat`, `fix`, `docs`, etc.)
 2. Is the type lowercase?
 3. Is there a colon and space after the type?
 4. Is the subject line under 100 characters?
 
 Example of a valid commit:
+
 ```
 feat: add new dashboard widget
 ```
@@ -146,6 +162,7 @@ feat: add new dashboard widget
 ### Changelog Not Updating
 
 If the changelog isn't updating automatically:
+
 1. Check that commits follow conventional format
 2. Verify GitHub Actions workflow is enabled
 3. Manually run `npm run changelog` to regenerate
@@ -153,23 +170,31 @@ If the changelog isn't updating automatically:
 ### Need to Skip Validation
 
 In rare cases, you may need to skip commit message validation:
+
 ```bash
 git commit --no-verify -m "your message"
 ```
 
-**Note:** Only use this for exceptional cases. Prefer fixing the commit message format instead.
+**Note:** Only use this for exceptional cases. Prefer fixing the commit message
+format instead.
 
 ## Best Practices
 
-1. **Write clear commit messages**: The subject line should clearly describe what changed
-2. **Use scopes when helpful**: `feat(api): add user endpoint` is clearer than `feat: add user endpoint`
-3. **Include breaking changes**: Use `!` after the type/scope: `feat!: change API response format`
-4. **Keep commits focused**: One logical change per commit makes the changelog clearer
-5. **Review the changelog**: Before releasing, review the generated changelog for accuracy
+1. **Write clear commit messages**: The subject line should clearly describe
+   what changed
+2. **Use scopes when helpful**: `feat(api): add user endpoint` is clearer than
+   `feat: add user endpoint`
+3. **Include breaking changes**: Use `!` after the type/scope:
+   `feat!: change API response format`
+4. **Keep commits focused**: One logical change per commit makes the changelog
+   clearer
+5. **Review the changelog**: Before releasing, review the generated changelog
+   for accuracy
 
 ## Related Documentation
 
-- [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) - The format we follow
+- [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) - The format we
+  follow
 - [Semantic Versioning](https://semver.org/) - Version numbering strategy
-- [Conventional Commits](https://www.conventionalcommits.org/) - Commit message specification
-
+- [Conventional Commits](https://www.conventionalcommits.org/) - Commit message
+  specification

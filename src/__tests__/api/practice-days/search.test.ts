@@ -1,6 +1,6 @@
 /**
  * @fileoverview Tests for practice day search API route
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX
@@ -30,7 +30,9 @@ describe("GET /api/v1/practice-days/search", () => {
     const { auth } = await import("@/lib/auth")
     vi.mocked(auth).mockResolvedValueOnce(null)
 
-    const request = new NextRequest("http://localhost/api/v1/practice-days/search?track_id=test-track")
+    const request = new NextRequest(
+      "http://localhost/api/v1/practice-days/search?track_id=test-track"
+    )
 
     const response = await GET(request)
     const data = await response.json()

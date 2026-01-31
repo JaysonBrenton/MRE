@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
-import EventsTable from "@/components/admin/EventsTable"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
+import EventsTable from "@/components/organisms/admin/EventsTable"
 
 export default async function AdminEventsPage() {
   const session = await auth()

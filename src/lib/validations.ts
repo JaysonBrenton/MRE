@@ -1,18 +1,18 @@
 /**
  * @fileoverview Validation schemas (deprecated - use src/core/auth/validate-*.ts)
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Legacy validation schemas - these now re-export from core
- * 
+ *
  * @purpose This file provides backward-compatible validation exports that
  *          re-export from core validation files. New code should import
  *          directly from src/core/auth/validate-*.ts.
- * 
+ *
  * @deprecated Use src/core/auth/validate-register.ts instead
- * 
+ *
  * @relatedFiles
  * - src/core/auth/validate-register.ts (authoritative registration validation)
  */
@@ -29,4 +29,3 @@ export const loginSchema = z.object({
 })
 
 export type LoginInput = z.infer<typeof loginSchema>
-

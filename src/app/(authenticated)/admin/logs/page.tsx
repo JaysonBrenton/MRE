@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
-import LogViewer from "@/components/admin/LogViewer"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
+import LogViewer from "@/components/organisms/admin/LogViewer"
 
 export default async function AdminLogsPage() {
   const session = await auth()

@@ -3,7 +3,10 @@ import type { EventAnalysisSummary, ImportedEventSummary } from "@root-types/das
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 // API response type with ISO string dates (as returned from API)
-type EventAnalysisDataApiResponse = Omit<EventAnalysisData, "event" | "races" | "summary" | "raceClasses"> & {
+type EventAnalysisDataApiResponse = Omit<
+  EventAnalysisData,
+  "event" | "races" | "summary" | "raceClasses"
+> & {
   event: {
     id: string
     eventName: string
@@ -286,7 +289,7 @@ const dashboardSlice = createSlice({
           }
           return
         }
-        
+
         // Only update state if this is the most recent request
         if (state.currentFetchRequestId === action.meta.requestId) {
           state.isEventLoading = false
@@ -333,7 +336,7 @@ const dashboardSlice = createSlice({
           state.isAnalysisLoading = false
           return
         }
-        
+
         state.isAnalysisLoading = false
         state.analysisError =
           action.payload?.message || action.error.message || "Failed to fetch event analysis data"

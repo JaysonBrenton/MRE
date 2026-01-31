@@ -17,50 +17,50 @@
 
 :root {
   /* Dark theme tokens (default) */
-  
+
   /* Surface colors */
   --token-surface: #0a0a0b;
   --token-surface-elevated: #111214;
   --token-surface-raised: #18191c;
-  
+
   /* Text colors */
   --token-text-primary: #f2f2f3;
   --token-text-secondary: #b8bbc2;
   --token-text-muted: #6b7280;
-  
+
   /* Border colors */
   --token-border-default: #26272e;
   --token-border-muted: #1a1b20;
   --token-border-aluminium: #a8aeb8;
   --token-border-accent-soft: rgba(58, 142, 255, 0.75);
-  
+
   /* Interactive colors */
   --token-interactive-focus: #6b7280;
   --token-interactive-focus-ring: #3f3f46;
-  
+
   /* Accent colors */
   --token-accent: #3a8eff;
   --token-accent-hover: #5aa2ff;
-  
+
   /* Form colors */
   --token-form-background: #18181b;
   --token-form-border: #3f3f46;
   --token-form-border-focus: #71717a;
   --token-form-placeholder: #71717a;
-  
+
   /* Error colors */
   --token-error-background: rgba(127, 29, 29, 0.2);
   --token-error-text: #fca5a5;
-  
+
   /* Button colors */
   --token-button-primary-bg: #18191c;
   --token-button-primary-bg-hover: #1f2024;
   --token-button-primary-text: #f2f2f3;
-  
+
   /* Legacy tokens for backward compatibility */
   --background: var(--token-surface);
   --foreground: var(--token-text-primary);
-  
+
   /* Status tokens */
   --token-status-success-bg: rgba(16, 185, 129, 0.2);
   --token-status-success-text: #10b981;
@@ -78,31 +78,31 @@
   --token-telemetry-speed: #5eead4;
   --token-telemetry-throttle: #22c55e;
   --token-telemetry-brake: #f43f5e;
-  
+
   /* Spacing tokens */
-  --token-spacing-xs: 0.25rem;   /* 4px */
-  --token-spacing-sm: 0.5rem;    /* 8px */
-  --token-spacing-md: 0.75rem;   /* 12px */
-  --token-spacing-lg: 1rem;      /* 16px */
-  --token-spacing-xl: 1.25rem;   /* 20px */
-  --token-spacing-2xl: 1.5rem;   /* 24px */
+  --token-spacing-xs: 0.25rem; /* 4px */
+  --token-spacing-sm: 0.5rem; /* 8px */
+  --token-spacing-md: 0.75rem; /* 12px */
+  --token-spacing-lg: 1rem; /* 16px */
+  --token-spacing-xl: 1.25rem; /* 20px */
+  --token-spacing-2xl: 1.5rem; /* 24px */
 
   /* Dashboard density tokens */
   --dashboard-gap: 1.5rem;
   --dashboard-card-padding: 1.25rem;
   --dashboard-font-scale: 1;
-  
+
   /* Typography scale tokens */
-  --token-font-size-xs: 0.75rem;    /* 12px */
-  --token-font-size-sm: 0.875rem;   /* 14px */
-  --token-font-size-base: 1rem;     /* 16px */
-  --token-font-size-lg: 1.125rem;   /* 18px */
-  --token-font-size-xl: 1.25rem;    /* 20px */
-  --token-font-size-2xl: 1.5rem;    /* 24px */
-  --token-font-size-3xl: 1.875rem;  /* 30px */
-  --token-font-size-4xl: 2.25rem;   /* 36px */
-  --token-font-size-5xl: 3rem;      /* 48px */
-  
+  --token-font-size-xs: 0.75rem; /* 12px */
+  --token-font-size-sm: 0.875rem; /* 14px */
+  --token-font-size-base: 1rem; /* 16px */
+  --token-font-size-lg: 1.125rem; /* 18px */
+  --token-font-size-xl: 1.25rem; /* 20px */
+  --token-font-size-2xl: 1.5rem; /* 24px */
+  --token-font-size-3xl: 1.875rem; /* 30px */
+  --token-font-size-4xl: 2.25rem; /* 36px */
+  --token-font-size-5xl: 3rem; /* 48px */
+
   /* Glass effect tokens for chart containers */
   --glass-bg: rgba(17, 18, 20, 0.6); /* --token-surface-elevated with 60% opacity */
   --glass-border: rgba(38, 39, 46, 0.3); /* --token-border-default with 30% opacity */
@@ -116,45 +116,45 @@
   /* Surface colors */
   --token-surface: #ffffff;
   --token-surface-elevated: #f5f5f5;
-  
+
   /* Text colors */
   --token-text-primary: #171717;
   --token-text-secondary: #525252;
   --token-text-muted: #737373;
-  
+
   /* Border colors */
   --token-border-default: #d4d4d4;
   --token-border-muted: #e5e5e5;
   --token-border-aluminium: #808080;
   --token-border-accent-soft: rgba(37, 99, 235, 0.65);
-  
+
   /* Interactive colors */
   --token-interactive-focus: #737373;
   --token-interactive-focus-ring: #d4d4d4;
-  
+
   /* Accent colors */
   --token-accent: #3a8eff;
   --token-accent-hover: #2563eb;
-  
+
   /* Form colors */
   --token-form-background: #ffffff;
   --token-form-border: #d4d4d4;
   --token-form-border-focus: #737373;
   --token-form-placeholder: #737373;
-  
+
   /* Error colors */
   --token-error-background: rgba(239, 68, 68, 0.1);
   --token-error-text: #dc2626;
-  
+
   /* Button colors */
   --token-button-primary-bg: #f5f5f5;
   --token-button-primary-bg-hover: #e5e5e5;
   --token-button-primary-text: #171717;
-  
+
   /* Legacy tokens */
   --background: var(--token-surface);
   --foreground: var(--token-text-primary);
-  
+
   /* Status tokens for light theme */
   --token-status-success-bg: rgba(16, 185, 129, 0.12);
   --token-status-success-text: #16a34a;
@@ -164,7 +164,7 @@
   --token-status-warning-text: #ca8a04;
   --token-status-error-bg: rgba(239, 68, 68, 0.12);
   --token-status-error-text: #dc2626;
-  
+
   /* Glass effect tokens for light theme */
   --glass-bg: rgba(245, 245, 245, 0.7); /* --token-surface-elevated with 70% opacity */
   --glass-border: rgba(212, 212, 212, 0.3); /* --token-border-default with 30% opacity */
@@ -185,35 +185,35 @@
   /* Surface colors - use as bg-surface, bg-surface-elevated */
   --color-surface: var(--token-surface);
   --color-surface-elevated: var(--token-surface-elevated);
-  
+
   /* Text colors - use as text-primary, text-secondary, text-muted */
   --color-text-primary: var(--token-text-primary);
   --color-text-secondary: var(--token-text-secondary);
   --color-text-muted: var(--token-text-muted);
-  
+
   /* Border colors - use as border-border-default, border-border-muted */
   --color-border-default: var(--token-border-default);
   --color-border-muted: var(--token-border-muted);
-  
+
   /* Interactive colors */
   --color-interactive-focus: var(--token-interactive-focus);
   --color-interactive-focus-ring: var(--token-interactive-focus-ring);
-  
+
   /* Form colors - use as bg-form-background, border-form-border, etc. */
   --color-form-background: var(--token-form-background);
   --color-form-border: var(--token-form-border);
   --color-form-border-focus: var(--token-form-border-focus);
   --color-form-placeholder: var(--token-form-placeholder);
-  
+
   /* Error colors - use as bg-error-background, text-error-text */
   --color-error-background: var(--token-error-background);
   --color-error-text: var(--token-error-text);
-  
+
   /* Button colors */
   --color-button-primary-bg: var(--token-button-primary-bg);
   --color-button-primary-bg-hover: var(--token-button-primary-bg-hover);
   --color-button-primary-text: var(--token-button-primary-text);
-  
+
   /* Spacing tokens - use as spacing-xs, spacing-sm, etc. */
   --spacing-xs: var(--token-spacing-xs);
   --spacing-sm: var(--token-spacing-sm);
@@ -221,7 +221,7 @@
   --spacing-lg: var(--token-spacing-lg);
   --spacing-xl: var(--token-spacing-xl);
   --spacing-2xl: var(--token-spacing-2xl);
-  
+
   /* Typography scale tokens - use as text-xs, text-sm, etc. */
   --font-size-xs: var(--token-font-size-xs);
   --font-size-sm: var(--token-font-size-sm);
@@ -232,7 +232,7 @@
   --font-size-3xl: var(--token-font-size-3xl);
   --font-size-4xl: var(--token-font-size-4xl);
   --font-size-5xl: var(--token-font-size-5xl);
-  
+
   /* Legacy mappings */
   --color-background: var(--background);
   --color-foreground: var(--foreground);

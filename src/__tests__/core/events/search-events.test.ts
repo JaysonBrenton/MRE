@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for event search business logic
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for event search functionality
- * 
+ *
  * @purpose Validates event search logic including success cases and error handling.
  */
 
@@ -152,9 +152,7 @@ describe("searchEvents", () => {
       }
 
       vi.mocked(validateEventSearchParams).mockReturnValue(null)
-      vi.mocked(searchEventsFromRepo).mockRejectedValue(
-        new Error("Track not found")
-      )
+      vi.mocked(searchEventsFromRepo).mockRejectedValue(new Error("Track not found"))
 
       await expect(searchEvents(mockInput)).rejects.toThrow("Track not found")
     })

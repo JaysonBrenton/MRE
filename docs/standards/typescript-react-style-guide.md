@@ -403,7 +403,7 @@ export default function DashboardClient() {
 // 1. Imports (external first, then internal)
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/Button"
+import { Button } from "@/components/atoms/Button"
 import { fetchData } from "@/lib/api"
 
 // 2. Type definitions (if not in separate file)
@@ -563,7 +563,7 @@ import { useRouter } from "next/navigation"
 import { createSlice } from "@reduxjs/toolkit"
 
 // 2. Internal absolute imports
-import { Button } from "@/components/ui/Button"
+import { Button } from "@/components/atoms/Button"
 import { fetchData } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -587,7 +587,7 @@ import { helperFunction } from "../utils/helpers"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
-import { Button } from "@/components/ui/Button"
+import { Button } from "@/components/atoms/Button"
 import { fetchData } from "@/lib/api"
 
 import type { User } from "@/types/user"
@@ -641,12 +641,32 @@ import { User } from "@/types" // If User is only used as a type
 - Split large files (>300 lines) into smaller modules
 - Extract reusable logic into separate files
 
-### 5.3 Barrel Exports
+### 5.3 Atomic Design
 
-Use barrel exports (`index.ts`) for public APIs:
+MRE uses an atomic design system for component organization. All UI components
+live under `src/components/` with the following tier structure:
+
+| Tier          | Path                                | Description                                           | Dependency Rule                                        |
+| ------------- | ----------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| **Atoms**     | `@/components/atoms/`               | Smallest UI units (buttons, inputs, icons, badges)    | No component imports                                   |
+| **Molecules** | `@/components/molecules/`           | Compositions of atoms (Modal, Tooltip, StandardTable) | May import atoms only                                  |
+| **Organisms** | `@/components/organisms/<feature>/` | Sections of UI (tables, forms, charts)                | May import atoms, molecules, other organisms (acyclic) |
+| **Templates** | `@/components/templates/`           | Page-level layout shells                              | May import organisms                                   |
+
+**Dependency rule:** Atoms ← Molecules ← Organisms ← Templates ← Pages. No tier
+may import from a higher tier.
+
+See `docs/architecture/atomic-design-system.md` for tier definitions and import
+rules, and
+`docs/implimentation_plans/atomic-design-system-implementation-plan.md` for the
+implementation plan.
+
+### 5.4 Barrel Exports
+
+Use barrel exports (`index.ts`) for public APIs when desired (optional):
 
 ```typescript
-// components/ui/index.ts
+// components/atoms/index.ts
 export { Button } from "./Button"
 export { Input } from "./Input"
 export { Modal } from "./Modal"

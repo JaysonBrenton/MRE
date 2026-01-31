@@ -1,15 +1,15 @@
 /**
  * @fileoverview In-memory lock for preventing concurrent ingestion requests
- * 
+ *
  * @created 2025-02-07
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-02-07
- * 
+ *
  * @description Provides a simple in-memory lock mechanism to prevent multiple
  *              concurrent ingestion requests for the same event. This reduces
  *              wasted API resources when multiple requests try to ingest the
  *              same event simultaneously.
- * 
+ *
  * @purpose Prevents race conditions in ingestion status checking by ensuring
  *          only one ingestion request per event can be in progress at a time.
  *          Note: This is per-instance. For multi-instance deployments, consider
@@ -70,13 +70,13 @@ startCleanup()
 
 /**
  * Try to acquire a lock for an event
- * 
+ *
  * @param eventId - Event ID to lock
  * @returns true if lock was acquired, false if already locked
  */
 export function tryAcquireLock(eventId: string): boolean {
   const now = Date.now()
-  
+
   // Check if lock exists and is still valid
   const existingLock = locks.get(eventId)
   if (existingLock) {
@@ -101,7 +101,7 @@ export function tryAcquireLock(eventId: string): boolean {
 
 /**
  * Release a lock for an event
- * 
+ *
  * @param eventId - Event ID to unlock
  */
 export function releaseLock(eventId: string): void {
@@ -110,7 +110,7 @@ export function releaseLock(eventId: string): void {
 
 /**
  * Check if an event is currently locked
- * 
+ *
  * @param eventId - Event ID to check
  * @returns true if locked, false if not
  */
@@ -137,4 +137,3 @@ export function isLocked(eventId: string): boolean {
 export function getLockCount(): number {
   return locks.size
 }
-

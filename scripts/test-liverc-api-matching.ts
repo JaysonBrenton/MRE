@@ -1,6 +1,6 @@
 /**
  * @fileoverview Test LiveRC API matching with actual user and track data
- * 
+ *
  * Tests the actual API endpoint to verify LiveRC driver matching works end-to-end
  */
 
@@ -10,7 +10,7 @@ const prisma = new PrismaClient()
 
 async function main() {
   console.log("Testing LiveRC API matching with actual data\n")
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
 
   // Find user with driver name "Jayson Brenton"
   const user = await prisma.user.findFirst({
@@ -118,13 +118,15 @@ async function main() {
   })
   console.log()
 
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("\nTo test the API endpoint, you would need to:")
   console.log("1. Start the Next.js dev server")
   console.log("2. Make an authenticated request to /api/v1/events/discover")
   console.log("3. With filter_by_driver=true and the user's session")
   console.log("\nThe matching logic has been verified to work correctly.")
-  console.log("Check the browser console logs when using the UI to see detailed matching information.")
+  console.log(
+    "Check the browser console logs when using the UI to see detailed matching information."
+  )
 
   await prisma.$disconnect()
 }
@@ -133,4 +135,3 @@ main().catch((error) => {
   console.error("Error:", error)
   process.exit(1)
 })
-

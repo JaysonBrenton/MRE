@@ -1,14 +1,14 @@
 /**
  * @fileoverview Visual details utilities following MRE design system
- * 
+ *
  * @created 2025-01-27
  * @creator UI Review Implementation
  * @lastModified 2025-01-27
- * 
+ *
  * @description Utilities for consistent icon sizes, border radius, focus rings, and shadows
- * 
+ *
  * @purpose Provides consistent visual detail patterns across the application
- * 
+ *
  * @relatedFiles
  * - docs/design/mre-dark-theme-guidelines.md (design guidelines)
  * - docs/design/mre-ux-principles.md (UX principles)
@@ -56,13 +56,14 @@ export const borderRadius = {
  * - Inline: focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]
  */
 export const focusRing = {
-  standard: "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]",
+  standard:
+    "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]",
   inline: "focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]",
 } as const
 
 /**
  * Shadow usage guidelines:
- * 
+ *
  * MRE follows a minimal design philosophy:
  * - Avoid shadows in favor of elevation through surface tokens
  * - Use border and background color differences for depth
@@ -78,4 +79,3 @@ export const shadows = {
 export type IconSize = keyof typeof iconSizes
 export type BorderRadius = keyof typeof borderRadius
 export type FocusRingType = keyof typeof focusRing
-

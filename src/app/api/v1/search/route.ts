@@ -1,12 +1,12 @@
 /**
  * @fileoverview Unified search API route
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX
- * 
+ *
  * @description API route for unified search across events and sessions
- * 
+ *
  * @purpose Provides user-facing API for searching events and sessions.
  *          This route delegates to core business logic functions, following
  *          the mobile-safe architecture requirement that API routes should
@@ -127,12 +127,7 @@ export async function GET(request: NextRequest) {
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized search request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -143,12 +138,7 @@ export async function GET(request: NextRequest) {
 
     if (errors.length > 0) {
       requestLogger.warn("Search validation errors", { errors })
-      return errorResponse(
-        "VALIDATION_ERROR",
-        errors.join("; "),
-        { errors },
-        400
-      )
+      return errorResponse("VALIDATION_ERROR", errors.join("; "), { errors }, 400)
     }
 
     requestLogger.debug("Unified search request", {
@@ -192,11 +182,6 @@ export async function GET(request: NextRequest) {
 
     // Handle unexpected errors using server error handler
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

@@ -1,17 +1,17 @@
 /**
  * @fileoverview NextAuth authorize handler (Node.js runtime only)
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Handles NextAuth credential authorization
- * 
+ *
  * @purpose This file contains the authorize function for NextAuth credentials provider.
  *          It's separated from the main auth config to ensure argon2 (native Node.js module)
  *          is only loaded in Node.js runtime, not Edge Runtime. This file should never
  *          be imported by middleware or Edge Runtime code.
- * 
+ *
  * @relatedFiles
  * - src/core/auth/login.ts (authentication business logic)
  * - src/lib/auth.ts (NextAuth configuration)
@@ -63,13 +63,14 @@ export async function authorizeCredentials(
   } catch (error) {
     // Log any unexpected errors during authorization
     logger.error("Error in authorizeCredentials", {
-      error: error instanceof Error
-        ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          }
-        : String(error),
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : String(error),
       email: credentials?.email,
     })
     // Return null to indicate authentication failure
@@ -77,4 +78,3 @@ export async function authorizeCredentials(
     return null
   }
 }
-

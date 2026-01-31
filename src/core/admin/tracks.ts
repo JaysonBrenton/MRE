@@ -1,15 +1,15 @@
 /**
  * @fileoverview Admin track management operations
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Functions for managing tracks in the admin console
- * 
+ *
  * @purpose Provides track management functionality for administrators,
  *          including viewing tracks, following/unfollowing, and viewing track events.
- * 
+ *
  * @relatedFiles
  * - src/core/tracks/repo.ts (track repository)
  * - src/core/admin/audit.ts (audit logging)
@@ -22,7 +22,7 @@ import type { Track, Prisma } from "@prisma/client"
 
 /**
  * Get all tracks with pagination and filtering
- * 
+ *
  * @param filters - Filter and pagination options
  * @returns Paginated tracks with event counts
  */
@@ -44,7 +44,7 @@ export async function getTracks(filters: {
   const skip = (page - 1) * pageSize
 
   const where: Prisma.TrackWhereInput = {}
-  
+
   if (filters.source) {
     where.source = filters.source
   }
@@ -84,7 +84,7 @@ export async function getTracks(filters: {
 
 /**
  * Toggle follow status for a track
- * 
+ *
  * @param trackId - Track ID to update
  * @param isFollowed - New follow status
  * @param adminUserId - Admin user ID performing the action
@@ -125,4 +125,3 @@ export async function setTrackFollowStatus(
 
   return updatedTrack
 }
-

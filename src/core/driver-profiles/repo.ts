@@ -1,17 +1,17 @@
 /**
  * @fileoverview Driver profile repository - all Prisma queries for driver profile domain
- * 
+ *
  * @created 2025-01-28
  * @creator System
  * @lastModified 2025-01-28
- * 
+ *
  * @description Contains all database access functions for driver profile operations
- * 
+ *
  * @purpose This file centralizes all Prisma queries related to driver profiles, following
  *          the mobile-safe architecture requirement that all database access must
  *          exist only in src/core/<domain>/repo.ts files. This ensures business
  *          logic is separated from API routes and can be reused by mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/lib/prisma.ts (Prisma client)
  * - src/core/driver-profiles/crud.ts (uses this repo)
@@ -22,7 +22,7 @@ import type { DriverProfile, Prisma } from "@prisma/client"
 
 /**
  * Find all driver profiles for a user
- * 
+ *
  * @param userId - User's unique identifier
  * @returns Array of driver profiles
  */
@@ -35,7 +35,7 @@ export async function findDriverProfilesByUserId(userId: string): Promise<Driver
 
 /**
  * Find a driver profile by ID with ownership verification
- * 
+ *
  * @param id - Driver profile unique identifier
  * @param userId - User's unique identifier for ownership check
  * @returns Driver profile or null if not found or not owned by user
@@ -54,7 +54,7 @@ export async function findDriverProfileById(
 
 /**
  * Create a new driver profile
- * 
+ *
  * @param data - Driver profile data
  * @returns Created driver profile
  */
@@ -68,7 +68,7 @@ export async function createDriverProfile(
 
 /**
  * Update an existing driver profile
- * 
+ *
  * @param id - Driver profile unique identifier
  * @param userId - User's unique identifier for ownership check
  * @param data - Driver profile update data
@@ -93,7 +93,7 @@ export async function updateDriverProfile(
 
 /**
  * Delete a driver profile
- * 
+ *
  * @param id - Driver profile unique identifier
  * @param userId - User's unique identifier for ownership check
  * @returns Deleted driver profile or null if not found or not owned by user

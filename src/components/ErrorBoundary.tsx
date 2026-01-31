@@ -1,15 +1,15 @@
 /**
  * @fileoverview React error boundary component
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Error boundary for catching and handling React component errors
- * 
+ *
  * @purpose Prevents entire page crashes when components throw errors. Provides
  *          graceful error handling and user-friendly error messages.
- * 
+ *
  * @relatedFiles
  * - src/app/layout.tsx (should wrap application)
  */
@@ -35,14 +35,15 @@ interface ErrorBoundaryState {
 function DefaultErrorFallback({ error, resetError }: { error: Error; resetError: () => void }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6"
-        style={{ 
-          width: '100%',
-          maxWidth: '28rem',
-          minWidth: '20rem',
-          boxSizing: 'border-box',
+      <div
+        className="rounded-lg border border-red-500/20 bg-red-500/10 p-6"
+        style={{
+          width: "100%",
+          maxWidth: "28rem",
+          minWidth: "20rem",
+          boxSizing: "border-box",
           flexShrink: 0,
-          flexGrow: 0
+          flexGrow: 0,
         }}
       >
         <h2 className="mb-4 text-xl font-semibold text-red-400">Something went wrong</h2>

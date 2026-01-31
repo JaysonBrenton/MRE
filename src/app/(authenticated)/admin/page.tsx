@@ -21,8 +21,8 @@
 import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
-import AdminDashboardStats from "@/components/admin/AdminDashboardStats"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
+import AdminDashboardStats from "@/components/organisms/admin/AdminDashboardStats"
 
 export default async function AdminPage() {
   const session = await auth()
@@ -38,7 +38,9 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6">
-      <Breadcrumbs items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Admin Console" }]} />
+      <Breadcrumbs
+        items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Admin Console" }]}
+      />
       <div>
         <h1 className="text-4xl font-semibold text-[var(--token-text-primary)]">
           Welcome back {session.user.name}

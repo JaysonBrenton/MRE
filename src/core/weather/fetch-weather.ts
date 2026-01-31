@@ -1,23 +1,23 @@
 /**
  * @fileoverview Open-Meteo API integration
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Fetches weather data from Open-Meteo API
- * 
+ *
  * @purpose Provides functions to fetch current weather, forecasts, and historical weather
  *          data from Open-Meteo. Handles API response parsing and error handling.
  *          Open-Meteo is a free, open-source weather API that requires no API key and
  *          provides historical weather data for the past 80 years.
- * 
+ *
  * @relatedFiles
  * - docs/architecture/mobile-safe-architecture-guidelines.md (architecture patterns)
  */
 
-import * as https from 'https'
-import type { IncomingMessage } from 'http'
+import * as https from "https"
+import type { IncomingMessage } from "http"
 
 export interface WeatherData {
   condition: string
@@ -86,7 +86,7 @@ function wmoWeatherCodeToCondition(code: number): string {
   if (code >= 85 && code <= 86) return "snow showers"
   // Thunderstorm
   if (code >= 95 && code <= 99) return "thunderstorm"
-  
+
   // Default fallback
   return "unknown"
 }
@@ -97,17 +97,19 @@ function wmoWeatherCodeToCondition(code: number): string {
 function formatCondition(condition: string): string {
   // Handle multi-word conditions
   const words = condition.split(" ")
-  return words.map((word, index) => {
-    if (index === 0) {
-      return word.charAt(0).toUpperCase() + word.slice(1)
-    }
-    return word
-  }).join(" ")
+  return words
+    .map((word, index) => {
+      if (index === 0) {
+        return word.charAt(0).toUpperCase() + word.slice(1)
+      }
+      return word
+    })
+    .join(" ")
 }
 
 /**
  * Fetches weather data from Open-Meteo API (historical or forecast)
- * 
+ *
  * @param latitude - Latitude coordinate
  * @param longitude - Longitude coordinate
  * @param eventDate - Event date to fetch weather for
@@ -121,14 +123,14 @@ export async function fetchWeather(
 ): Promise<WeatherResponse> {
   const now = new Date()
   const isHistorical = eventDate < now
-  
+
   // Format dates for API (YYYY-MM-DD format)
   const eventDateStr = eventDate.toISOString().split("T")[0]
   const eventHour = eventDate.getHours()
-  
+
   // Determine which endpoint to use
   const baseUrl = isHistorical ? OPEN_METEO_ARCHIVE_BASE_URL : OPEN_METEO_FORECAST_BASE_URL
-  
+
   try {
     // Build API URL with parameters
     const params = new URLSearchParams({
@@ -136,59 +138,64 @@ export async function fetchWeather(
       longitude: longitude.toString(),
       start_date: eventDateStr,
       end_date: eventDateStr,
-      hourly: "temperature_2m,relativehumidity_2m,windspeed_10m,winddirection_10m,weathercode,precipitation_probability",
+      hourly:
+        "temperature_2m,relativehumidity_2m,windspeed_10m,winddirection_10m,weathercode,precipitation_probability",
       timezone: "auto", // Automatically detect timezone based on coordinates
     })
-    
+
     const apiUrl = `${baseUrl}?${params.toString()}`
-    
+
     // Use Node.js https module with IPv4 preference to avoid IPv6 DNS issues in Docker/Alpine
     // Node.js fetch API doesn't support IPv4/IPv6 preference, so we use https.request directly
     const url = new URL(apiUrl)
-    
+
     const data: OpenMeteoResponse = await new Promise((resolve, reject) => {
       const options = {
         hostname: url.hostname,
         path: url.pathname + url.search,
-        method: 'GET',
+        method: "GET",
         timeout: 15000, // 15 second timeout
         family: 4, // Force IPv4 to avoid IPv6 DNS issues in Docker/Alpine
       }
-      
+
       const req = https.request(options, (res: IncomingMessage) => {
-        let responseData = ''
-        
-        res.on('data', (chunk: Buffer) => {
+        let responseData = ""
+
+        res.on("data", (chunk: Buffer) => {
           responseData += chunk.toString()
         })
-        
-        res.on('end', () => {
+
+        res.on("end", () => {
           try {
             if (res.statusCode && res.statusCode !== 200) {
               reject(new Error(`Open-Meteo API returned status ${res.statusCode}`))
               return
             }
-            
+
             const jsonData: OpenMeteoResponse = JSON.parse(responseData)
             resolve(jsonData)
           } catch (parseError) {
-            reject(new Error(`Failed to parse Open-Meteo response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`))
+            reject(
+              new Error(
+                `Failed to parse Open-Meteo response: ${parseError instanceof Error ? parseError.message : "Unknown error"}`
+              )
+            )
           }
         })
       })
-      
-      req.on('error', (error: Error) => {
+
+      req.on("error", (error: Error) => {
         reject(error)
       })
-      
-      req.on('timeout', () => {
+
+      req.on("timeout", () => {
         req.destroy()
         reject(new Error(`Open-Meteo API request timed out - network connectivity issue`))
       })
-      
+
       req.end()
     })
-    
+
     // Find the hour that matches the event date/time
     // Open-Meteo returns hourly data, so we need to find the closest hour
     const hourlyTimes = data.hourly.time
@@ -196,15 +203,17 @@ export async function fetchWeather(
       const time = new Date(timeStr)
       return time.getHours() === eventHour
     })
-    
+
     // If exact hour not found, use the first available hour
     if (targetIndex === -1) {
       targetIndex = 0
     }
-    
+
     // Extract current weather data for the event time
     const currentWeather: WeatherData = {
-      condition: formatCondition(wmoWeatherCodeToCondition(data.hourly.weathercode[targetIndex] || 0)),
+      condition: formatCondition(
+        wmoWeatherCodeToCondition(data.hourly.weathercode[targetIndex] || 0)
+      ),
       windSpeed: data.hourly.windspeed_10m[targetIndex] || 0,
       windDirection: data.hourly.winddirection_10m[targetIndex] ?? null,
       humidity: data.hourly.relativehumidity_2m[targetIndex] || 0,
@@ -212,31 +221,36 @@ export async function fetchWeather(
       precipitation: data.hourly.precipitation_probability[targetIndex] ?? 0,
       timestamp: new Date(hourlyTimes[targetIndex]),
     }
-    
+
     // Generate forecast entries for +15m, +30m, +45m
     // For historical data, we'll use subsequent hours from the data
     // For forecast data, we can use the next hours
     const forecast: ForecastEntry[] = []
-    
+
     // Get the next 3 hours after the target index for forecast
     for (let i = 1; i <= 3; i++) {
       const forecastIndex = targetIndex + i
-      
+
       if (forecastIndex < hourlyTimes.length) {
         const weatherCode = data.hourly.weathercode[forecastIndex] || 0
         const condition = formatCondition(wmoWeatherCodeToCondition(weatherCode))
         const windSpeedKmh = data.hourly.windspeed_10m[forecastIndex] || 0
         const precipProb = data.hourly.precipitation_probability[forecastIndex] ?? 0
-        
+
         // Determine forecast detail
         let detail = condition
         if (precipProb > 30) {
           detail = precipProb > 70 ? "Heavy rain" : precipProb > 50 ? "Rain" : "Light rain"
         } else if (windSpeedKmh > 15) {
-          const windDesc = windSpeedKmh < 10 ? "Light breeze" : windSpeedKmh < 20 ? "Moderate breeze" : "Strong breeze"
+          const windDesc =
+            windSpeedKmh < 10
+              ? "Light breeze"
+              : windSpeedKmh < 20
+                ? "Moderate breeze"
+                : "Strong breeze"
           detail = windDesc
         }
-        
+
         forecast.push({
           label: `+${i * 15}m`,
           detail,
@@ -249,7 +263,7 @@ export async function fetchWeather(
         })
       }
     }
-    
+
     // Ensure we always have 3 forecast entries
     while (forecast.length < 3) {
       const minutes = (forecast.length + 1) * 15
@@ -258,7 +272,7 @@ export async function fetchWeather(
         detail: "Clouds, stable",
       })
     }
-    
+
     return {
       current: currentWeather,
       forecast,

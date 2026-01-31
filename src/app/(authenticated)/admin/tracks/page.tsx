@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
-import TracksTable from "@/components/admin/TracksTable"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
+import TracksTable from "@/components/organisms/admin/TracksTable"
 
 export default async function AdminTracksPage() {
   const session = await auth()

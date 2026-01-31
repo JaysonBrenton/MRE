@@ -70,4 +70,3 @@ describe("waitForIngestionCompletion", () => {
     expect(fetchEvent).toHaveBeenCalledTimes(2)
   })
 })
-

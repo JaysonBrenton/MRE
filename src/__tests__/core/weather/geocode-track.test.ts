@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for geocodeTrack function
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Unit tests for geocoding service with mocked Nominatim API
- * 
+ *
  * @purpose Validates geocoding functionality, caching, rate limiting, and error handling.
  */
 
@@ -47,7 +47,7 @@ describe("geocodeTrack", () => {
 
       expect(result).toEqual({
         latitude: -35.2809,
-        longitude: 149.1300,
+        longitude: 149.13,
         displayName: "Canberra, Australian Capital Territory, Australia",
       })
     })
@@ -110,7 +110,7 @@ describe("geocodeTrack", () => {
 
       // First call
       const result1 = await geocodeTrack("Berlin")
-      
+
       // Second call - should use cache
       const result2 = await geocodeTrack("Berlin")
 
@@ -136,7 +136,7 @@ describe("geocodeTrack", () => {
 
       // Clear cache by using different track names
       await geocodeTrack("Paris1")
-      
+
       const startTime = Date.now()
       await geocodeTrack("Paris2")
       const endTime = Date.now()
@@ -215,4 +215,3 @@ describe("geocodeTrack", () => {
     })
   })
 })
-

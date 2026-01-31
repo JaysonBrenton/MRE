@@ -1,6 +1,6 @@
 /**
  * Script to create a user in the database
- * 
+ *
  * Usage: docker exec mre-app npx ts-node --compiler-options '{"module":"commonjs"}' scripts/create-user.ts
  */
 
@@ -23,23 +23,20 @@ function normalizeDriverName(name: string): string {
   if (!name) {
     return ""
   }
-  
+
   // Step 1: Lowercase
   let normalized = name.toLowerCase()
-  
+
   // Step 2: Replace special separators with spaces before collapsing whitespace
-  normalized = normalized
-    .replace(/&/g, " and ")
-    .replace(/[-_]/g, " ")
-    .replace(/'/g, "")
-  
+  normalized = normalized.replace(/&/g, " and ").replace(/[-_]/g, " ").replace(/'/g, "")
+
   // Step 3: Strip punctuation (except spaces) and collapse whitespace
   normalized = normalized
     .replace(/[^\w\s]/g, " ")
     .split(/\s+/)
     .join(" ")
     .trim()
-  
+
   const hadHyphen = /-/g.test(name)
 
   // Step 6: Remove common suffix noise tokens
@@ -50,14 +47,14 @@ function normalizeDriverName(name: string): string {
     tokens.pop()
   }
   normalized = tokens.join(" ")
-  
+
   // Step 7: Token sorting for multi-word names
   if (tokens.length > 1) {
     const shouldSortTokens = tokens.length <= 2 || !hadHyphen
     const sortedTokens = shouldSortTokens ? [...tokens].sort() : tokens
     normalized = sortedTokens.join(" ")
   }
-  
+
   // Final trim
   return normalized.trim()
 }
@@ -72,7 +69,7 @@ async function main() {
 
   // Check if user already exists
   const existingUser = await prisma.user.findUnique({
-    where: { email: normalizedEmail }
+    where: { email: normalizedEmail },
   })
 
   if (existingUser) {
@@ -87,9 +84,9 @@ async function main() {
 
   // Get Driver persona
   const driverPersona = await prisma.persona.findUnique({
-    where: { type: "driver" }
+    where: { type: "driver" },
   })
-  
+
   if (!driverPersona) {
     console.error("Driver persona not found in database. Please run seed script first.")
     process.exit(1)

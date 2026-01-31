@@ -13,22 +13,26 @@ Python microservice for ingesting race data from LiveRC into the MRE database.
 ### Installation
 
 1. Create virtual environment:
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 2. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. Install Playwright browsers:
+
 ```bash
 playwright install chromium
 ```
 
 4. Configure environment variables:
+
 ```bash
 export DATABASE_URL="postgresql://user:password@localhost:5432/mre"
 export LOG_LEVEL="INFO"
@@ -38,8 +42,9 @@ export LOG_LEVEL="INFO"
 
 ### Running the API Server
 
-**Docker (Recommended):**
-The API server runs automatically when the ingestion service container starts:
+**Docker (Recommended):** The API server runs automatically when the ingestion
+service container starts:
+
 ```bash
 docker compose up -d liverc-ingestion-service
 ```
@@ -47,11 +52,13 @@ docker compose up -d liverc-ingestion-service
 The API will be available at `http://localhost:8000` (or your configured port).
 
 **Local (Alternative):**
+
 ```bash
 python -m ingestion.main
 ```
 
 Or using uvicorn directly:
+
 ```bash
 uvicorn ingestion.main:app --host 0.0.0.0 --port 8000
 ```
@@ -60,7 +67,8 @@ uvicorn ingestion.main:app --host 0.0.0.0 --port 8000
 
 **Docker Execution (Recommended - Primary Method):**
 
-All CLI commands should be run inside the Docker container. This is the recommended and primary method:
+All CLI commands should be run inside the Docker container. This is the
+recommended and primary method:
 
 ```bash
 # Ensure ingestion service is running
@@ -95,7 +103,9 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 ```
 
 **Why use Docker?**
-- No local Python setup required (Python 3.11, dependencies, and Playwright pre-installed)
+
+- No local Python setup required (Python 3.11, dependencies, and Playwright
+  pre-installed)
 - Pre-configured database connection via Docker network
 - Consistent environment across all developers
 - No virtual environment management needed
@@ -109,10 +119,12 @@ python -m ingestion.cli ingest liverc list-tracks
 python -m ingestion.cli ingest liverc ingest-event --event-id <uuid>
 ```
 
-**Note:** Local execution requires Python 3.11+, virtual environment setup, dependency installation, and Playwright browser installation. See Prerequisites section above.
+**Note:** Local execution requires Python 3.11+, virtual environment setup,
+dependency installation, and Playwright browser installation. See Prerequisites
+section above.
 
-**Complete CLI Documentation:**
-See `docs/operations/liverc-operations-guide.md` for complete CLI command reference, examples, and workflows.
+**Complete CLI Documentation:** See `docs/operations/liverc-operations-guide.md`
+for complete CLI command reference, examples, and workflows.
 
 ### Running Tests
 
@@ -130,11 +142,13 @@ pytest
 
 ## Architecture
 
-See `docs/architecture/liverc-ingestion/` for complete architecture documentation.
+See `docs/architecture/liverc-ingestion/` for complete architecture
+documentation.
 
 ## Testing
 
 Tests are organized into:
+
 - `tests/unit/` - Unit tests for individual components
 - `tests/integration/` - Integration tests with fixtures
 - `tests/fixtures/` - HTML fixtures for testing parsers
@@ -172,6 +186,7 @@ tests/fixtures/liverc/
 ```
 
 Fixtures enable:
+
 - Offline testing without network access
 - Deterministic parser validation
 - Regression testing when LiveRC HTML changes
@@ -180,16 +195,19 @@ Fixtures enable:
 ### Creating New Fixtures
 
 1. Fetch HTML from LiveRC using the fetching script:
+
    ```bash
    python -m ingestion.scripts.fetch_html_samples --event-detail canberraoffroad 486677
    ```
 
 2. Copy HTML files to fixture directory:
+
    ```bash
    cp fetched_html.html tests/fixtures/liverc/486677/event.html
    ```
 
 3. Create `metadata.json` with event details:
+
    ```json
    {
      "event_id": "486677",
@@ -214,6 +232,7 @@ Fixtures enable:
 #### Parser returns empty results
 
 1. Check if HTML structure changed:
+
    ```bash
    # Compare fixture HTML with live page
    curl https://live.liverc.com > current_track_catalogue.html
@@ -247,5 +266,5 @@ Fixtures enable:
 
 ### Parser Selector Reference
 
-See `ingestion/connectors/liverc/PARSER_SELECTORS.md` for complete CSS selector documentation and HTML structure notes.
-
+See `ingestion/connectors/liverc/PARSER_SELECTORS.md` for complete CSS selector
+documentation and HTML structure notes.

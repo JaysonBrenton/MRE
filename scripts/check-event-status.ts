@@ -24,10 +24,7 @@ async function main() {
 
   const events = await prisma.event.findMany({
     where: {
-      OR: [
-        { eventName: { contains: "Batemans Bay" } },
-        { eventName: { contains: "Cormcc" } },
-      ],
+      OR: [{ eventName: { contains: "Batemans Bay" } }, { eventName: { contains: "Cormcc" } }],
     },
     include: {
       driverLinks: {
@@ -78,7 +75,7 @@ async function main() {
     console.log(`Event ID: ${event.id}`)
     console.log(`EventDriverLink Count: ${event.driverLinks.length}`)
     console.log(`EventEntry Count: ${event.entries.length}`)
-    
+
     if (event.driverLinks.length > 0) {
       console.log(`\n  --- EventDriverLink Records ---`)
       for (const link of event.driverLinks) {
@@ -88,7 +85,7 @@ async function main() {
         console.log(`  Driver: ${link.driver.displayName}`)
         console.log(`  User: ${link.user.driverName} (normalized: ${link.user.normalizedName})`)
         console.log(`  UserDriverLinkId (from EventDriverLink): ${link.userDriverLinkId || "NULL"}`)
-        
+
         if (link.userDriverLink) {
           console.log(`  UserDriverLink ID: ${link.userDriverLink.id}`)
           console.log(`  UserDriverLink Status: ${link.userDriverLink.status}`)
@@ -101,17 +98,21 @@ async function main() {
         }
       }
     }
-    
+
     if (event.entries.length > 0) {
       console.log(`\n  --- EventEntry Records (Method 2 match) ---`)
       for (const entry of event.entries) {
         console.log(`\n  EventEntry ID: ${entry.id}`)
-        console.log(`  Driver: ${entry.driver.displayName} (normalized: ${entry.driver.normalizedName})`)
+        console.log(
+          `  Driver: ${entry.driver.displayName} (normalized: ${entry.driver.normalizedName})`
+        )
         console.log(`  Class Name: ${entry.className}`)
-        console.log(`  This entry would show as: matchType="exact", similarityScore=1.0, status="suggested"`)
+        console.log(
+          `  This entry would show as: matchType="exact", similarityScore=1.0, status="suggested"`
+        )
       }
     }
-    
+
     if (event.driverLinks.length === 0 && event.entries.length === 0) {
       console.log(`  No matches found for this event (neither EventDriverLink nor EventEntry)`)
     }

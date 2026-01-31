@@ -15,7 +15,7 @@
  * - docs/user-guides/account-management.md (markdown documentation)
  */
 
-import Breadcrumbs from "@/components/Breadcrumbs"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 
 export default async function AccountManagementGuidePage() {
   return (
@@ -28,10 +28,12 @@ export default async function AccountManagementGuidePage() {
         ]}
       />
       <header className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">Account Management Guide</h1>
+        <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">
+          Account Management Guide
+        </h1>
         <p className="text-sm text-[var(--token-text-secondary)]">
-          Learn how to create and manage your My Race Engineer account, including registration, login,
-          password management, and account security.
+          Learn how to create and manage your My Race Engineer account, including registration,
+          login, password management, and account security.
         </p>
       </header>
 
@@ -41,8 +43,8 @@ export default async function AccountManagementGuidePage() {
             Introduction
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            This guide covers everything you need to know about managing your MRE account, from creating
-            your first account to keeping it secure.
+            This guide covers everything you need to know about managing your MRE account, from
+            creating your first account to keeping it secure.
           </p>
         </section>
 
@@ -51,9 +53,11 @@ export default async function AccountManagementGuidePage() {
             Creating Your Account
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            To create an account, navigate to the registration page and fill out the form with your email
-            or username, password (minimum 8 characters), driver name (as it appears in race results),
-            and optional team name. Click <strong className="text-[var(--token-text-primary)]">Create Account</strong> to complete registration. You&apos;ll be automatically logged in after registration.
+            To create an account, navigate to the registration page and fill out the form with your
+            email or username, password (minimum 8 characters), driver name (as it appears in race
+            results), and optional team name. Click{" "}
+            <strong className="text-[var(--token-text-primary)]">Create Account</strong> to complete
+            registration. You&apos;ll be automatically logged in after registration.
           </p>
         </section>
 
@@ -63,7 +67,10 @@ export default async function AccountManagementGuidePage() {
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
             Enter your email or username and password on the login page, then click{" "}
-            <strong className="text-[var(--token-text-primary)]">Sign In</strong>. You can log in with either your email or username - both work the same way. If you have trouble logging in, verify your credentials, check that caps lock is off, and ensure your account hasn&apos;t been locked.
+            <strong className="text-[var(--token-text-primary)]">Sign In</strong>. You can log in
+            with either your email or username - both work the same way. If you have trouble logging
+            in, verify your credentials, check that caps lock is off, and ensure your account
+            hasn&apos;t been locked.
           </p>
         </section>
 
@@ -72,7 +79,10 @@ export default async function AccountManagementGuidePage() {
             Logging Out
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            Look for <strong className="text-[var(--token-text-primary)]">Log Out</strong> or <strong className="text-[var(--token-text-primary)]">Sign Out</strong> in the navigation menu (usually in account menu or user menu). Click to log out, and you&apos;ll be redirected to the login page. Save any unsaved work before logging out.
+            Look for <strong className="text-[var(--token-text-primary)]">Log Out</strong> or{" "}
+            <strong className="text-[var(--token-text-primary)]">Sign Out</strong> in the navigation
+            menu (usually in account menu or user menu). Click to log out, and you&apos;ll be
+            redirected to the login page. Save any unsaved work before logging out.
           </p>
         </section>
 
@@ -81,10 +91,11 @@ export default async function AccountManagementGuidePage() {
             Password Management
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            Create a strong password with a minimum of 8 characters, using a mix of letters, numbers,
-            and symbols. Use a unique password (not used elsewhere) and consider using a password manager.
-            Password change functionality will allow you to update your password directly from your account
-            settings (coming soon). Contact support if you need to change your password now.
+            Create a strong password with a minimum of 8 characters, using a mix of letters,
+            numbers, and symbols. Use a unique password (not used elsewhere) and consider using a
+            password manager. Password change functionality will allow you to update your password
+            directly from your account settings (coming soon). Contact support if you need to change
+            your password now.
           </p>
         </section>
 
@@ -93,9 +104,9 @@ export default async function AccountManagementGuidePage() {
             Session Management
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            A session keeps you logged in while you use MRE. Sessions remain active while you use the
-            application and may expire after a period of inactivity. If you see &quot;Your session has expired.
-            Please log in again,&quot; simply log in again to continue.
+            A session keeps you logged in while you use MRE. Sessions remain active while you use
+            the application and may expire after a period of inactivity. If you see &quot;Your
+            session has expired. Please log in again,&quot; simply log in again to continue.
           </p>
         </section>
 
@@ -104,10 +115,11 @@ export default async function AccountManagementGuidePage() {
             Account Security
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            Follow security best practices: use a strong, unique password; don&apos;t share your password; only
-            log in on trusted devices; log out on shared computers; and report suspicious activity. If you
-            notice unexpected login notifications, changes you didn&apos;t make, or unfamiliar activity, change
-            your password immediately and contact support.
+            Follow security best practices: use a strong, unique password; don&apos;t share your
+            password; only log in on trusted devices; log out on shared computers; and report
+            suspicious activity. If you notice unexpected login notifications, changes you
+            didn&apos;t make, or unfamiliar activity, change your password immediately and contact
+            support.
           </p>
         </section>
 
@@ -116,10 +128,10 @@ export default async function AccountManagementGuidePage() {
             Updating Account Information
           </h2>
           <p className="mb-4 text-[var(--token-text-secondary)]">
-            You can usually update your driver name and team name in account settings. Your driver name is
-            important for event matching - ensure it matches how your name appears in race results. Changes
-            to your driver name affect future event matching. Contact support if you need to change your
-            email or username.
+            You can usually update your driver name and team name in account settings. Your driver
+            name is important for event matching - ensure it matches how your name appears in race
+            results. Changes to your driver name affect future event matching. Contact support if
+            you need to change your email or username.
           </p>
         </section>
 
@@ -128,11 +140,31 @@ export default async function AccountManagementGuidePage() {
             Related Guides
           </h2>
           <p className="text-[var(--token-text-secondary)]">
-            Learn first steps in the <a href="/guides/getting-started" className="text-[var(--token-accent)] hover:underline">Getting Started Guide</a>, understand driver features in the <a href="/guides/driver-features" className="text-[var(--token-accent)] hover:underline">Driver Features Guide</a>, or get help with issues in the <a href="/guides/troubleshooting" className="text-[var(--token-accent)] hover:underline">Troubleshooting Guide</a>.
+            Learn first steps in the{" "}
+            <a
+              href="/guides/getting-started"
+              className="text-[var(--token-accent)] hover:underline"
+            >
+              Getting Started Guide
+            </a>
+            , understand driver features in the{" "}
+            <a
+              href="/guides/driver-features"
+              className="text-[var(--token-accent)] hover:underline"
+            >
+              Driver Features Guide
+            </a>
+            , or get help with issues in the{" "}
+            <a
+              href="/guides/troubleshooting"
+              className="text-[var(--token-accent)] hover:underline"
+            >
+              Troubleshooting Guide
+            </a>
+            .
           </p>
         </section>
       </div>
     </section>
   )
 }
-

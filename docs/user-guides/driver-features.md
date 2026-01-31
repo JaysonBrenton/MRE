@@ -3,7 +3,10 @@ created: 2026-01-27
 creator: Jayson Brenton
 lastModified: 2026-01-27
 description: Guide to driver-specific features in My Race Engineer
-purpose: Provides comprehensive instructions for viewing discovered events, understanding fuzzy matching, confirming participation, and managing driver information.
+purpose:
+  Provides comprehensive instructions for viewing discovered events,
+  understanding fuzzy matching, confirming participation, and managing driver
+  information.
 relatedFiles:
   - docs/user-stories/user-journeys.md
   - docs/user-stories/liverc-integration.md
@@ -11,11 +14,14 @@ relatedFiles:
 
 # Driver Features Guide
 
-Learn how MRE automatically discovers events where you participated, understand match types, confirm your participation, and manage your driver information.
+Learn how MRE automatically discovers events where you participated, understand
+match types, confirm your participation, and manage your driver information.
 
 ## Introduction
 
-MRE uses intelligent matching to automatically discover events where you participated. This guide explains how the discovery process works, how to view discovered events, and how to confirm or reject participation suggestions.
+MRE uses intelligent matching to automatically discover events where you
+participated. This guide explains how the discovery process works, how to view
+discovered events, and how to confirm or reject participation suggestions.
 
 ## Prerequisites
 
@@ -31,8 +37,10 @@ When events are imported into MRE, the system automatically:
 
 1. **Extracts Driver Names**: Gets all driver names from the event data
 2. **Normalizes Names**: Converts names to a standard format for comparison
-3. **Matches Against Users**: Compares event driver names with all user driver names
-4. **Creates Links**: Creates connections between you and events where you likely participated
+3. **Matches Against Users**: Compares event driver names with all user driver
+   names
+4. **Creates Links**: Creates connections between you and events where you
+   likely participated
 
 ### Matching Methods
 
@@ -40,19 +48,22 @@ MRE uses three methods to match you with events, in priority order:
 
 #### 1. Transponder Match (Highest Priority)
 
-- **How It Works**: Matches your transponder number (if available) with transponder numbers in event data
+- **How It Works**: Matches your transponder number (if available) with
+  transponder numbers in event data
 - **Accuracy**: Very high - transponder numbers are unique
 - **Status**: Automatically confirmed if match found
 
 #### 2. Exact Name Match (Second Priority)
 
-- **How It Works**: Matches your driver name exactly (after normalization) with driver names in events
+- **How It Works**: Matches your driver name exactly (after normalization) with
+  driver names in events
 - **Accuracy**: High - exact matches are reliable
 - **Status**: Automatically confirmed if match found
 
 #### 3. Fuzzy Name Match (Third Priority)
 
-- **How It Works**: Uses similarity algorithms to find driver names that are similar to yours
+- **How It Works**: Uses similarity algorithms to find driver names that are
+  similar to yours
 - **Accuracy**: Medium - may include false positives
 - **Status**: Marked as "Suggested" - requires your confirmation
 
@@ -66,23 +77,27 @@ MRE normalizes driver names to improve matching:
 - Accounts for nicknames and abbreviations
 
 **Example:**
-- "John Smith" matches "john smith", "John  Smith", "J. Smith"
+
+- "John Smith" matches "john smith", "John Smith", "J. Smith"
 
 ## Viewing Discovered Events
 
 ### Accessing Discovered Events
 
 **From Dashboard:**
+
 1. Navigate to your Dashboard
 2. Look for "Discovered Events" widget or section
 3. View events where you've been matched
 
 **From My Events:**
+
 1. Navigate to "My Events" page
 2. Filter or look for "Discovered Events" section
 3. View all events where you've been matched
 
 **From Event List:**
+
 1. Events where you've been matched show special indicators
 2. Look for "Confirmed" or "Suggested" status tags
 3. Click to view event details
@@ -94,7 +109,8 @@ Discovered events have different status indicators:
 #### Confirmed
 
 - **Visual**: Green tag/badge with checkmark
-- **Meaning**: You've confirmed participation OR system matched via transponder/exact name
+- **Meaning**: You've confirmed participation OR system matched via
+  transponder/exact name
 - **Action**: Event is linked to your profile, view analysis available
 
 #### Suggested
@@ -158,50 +174,61 @@ Events show how they were matched:
 ### Transponder Match
 
 **What It Means:**
+
 - Your transponder number matches a transponder in the event
 - Very reliable - transponders are unique identifiers
 
 **When It Happens:**
+
 - You've registered your transponder number in your profile
 - Event data includes transponder numbers
 - Numbers match exactly
 
 **Action Required:**
+
 - None - automatically confirmed
 - Event is immediately linked to your profile
 
 ### Exact Name Match
 
 **What It Means:**
-- Your driver name (after normalization) exactly matches a driver name in the event
+
+- Your driver name (after normalization) exactly matches a driver name in the
+  event
 - High reliability - exact matches are accurate
 
 **When It Happens:**
+
 - Your driver name matches exactly (case-insensitive, spacing normalized)
 - Event has been imported with driver names
 - No variations or typos in either name
 
 **Action Required:**
+
 - None - automatically confirmed
 - Event is immediately linked to your profile
 
 ### Fuzzy Name Match
 
 **What It Means:**
+
 - Your driver name is similar (but not identical) to a driver name in the event
 - Medium reliability - may include false positives
 
 **When It Happens:**
+
 - Names are similar but not exact (e.g., "John Smith" vs "Jon Smith")
 - Handles common variations, nicknames, abbreviations
 - Similarity score exceeds threshold
 
 **Action Required:**
+
 - Review the suggestion
 - Confirm if you participated
 - Reject if it's not you
 
 **Common Scenarios:**
+
 - Nickname variations: "John" vs "Johnny"
 - Abbreviations: "J. Smith" vs "John Smith"
 - Typos: "John Smth" vs "John Smith"
@@ -221,12 +248,14 @@ Events show how they were matched:
 ### Updating Your Driver Name
 
 **Important Considerations:**
+
 - Changing your driver name may affect event matching
 - Previously matched events remain linked
 - New events will use your updated name for matching
 - Ensure name matches how it appears in race results
 
 **To Update:**
+
 1. Navigate to account settings or profile
 2. Edit your driver name
 3. Save changes
@@ -235,11 +264,13 @@ Events show how they were matched:
 ### Registering Your Transponder
 
 **Benefits:**
+
 - More accurate event matching
 - Automatic confirmation of matches
 - Reduces false positives
 
 **To Register:**
+
 1. Navigate to account settings or profile
 2. Find transponder number field
 3. Enter your transponder number
@@ -250,9 +281,11 @@ Events show how they were matched:
 
 ### Improving Match Accuracy
 
-1. **Use Your Exact Racing Name**: Enter your name exactly as it appears in race results
+1. **Use Your Exact Racing Name**: Enter your name exactly as it appears in race
+   results
 2. **Register Your Transponder**: Provides the most accurate matching
-3. **Review Suggestions Promptly**: Confirm or reject fuzzy matches to improve system learning
+3. **Review Suggestions Promptly**: Confirm or reject fuzzy matches to improve
+   system learning
 4. **Keep Name Consistent**: Don't change your driver name frequently
 
 ### Managing Discovered Events
@@ -260,16 +293,19 @@ Events show how they were matched:
 1. **Review Regularly**: Check for new discovered events periodically
 2. **Confirm Accurate Matches**: Help the system learn what's correct
 3. **Reject Incorrect Matches**: Prevents false associations
-4. **Use Filters**: Filter by match type or status to focus on what needs attention
+4. **Use Filters**: Filter by match type or status to focus on what needs
+   attention
 
 ### Understanding False Positives
 
 **Why They Happen:**
+
 - Similar names (e.g., "John Smith" vs "Jon Smith")
 - Common names that match multiple people
 - Typos in event data
 
 **What To Do:**
+
 - Review each suggestion carefully
 - Reject if it's not you
 - System learns from your feedback
@@ -279,11 +315,13 @@ Events show how they were matched:
 ### No Events Discovered
 
 **Possible Causes:**
+
 - No events imported yet
 - Driver name doesn't match any event drivers
 - Name normalization issue
 
 **Solutions:**
+
 - Import some events
 - Verify your driver name is correct
 - Check that name matches how it appears in race results
@@ -292,11 +330,13 @@ Events show how they were matched:
 ### Too Many False Positives
 
 **Possible Causes:**
+
 - Driver name is too common
 - Fuzzy matching threshold too low
 - Name variations causing matches
 
 **Solutions:**
+
 - Register your transponder for more accurate matching
 - Use a more unique driver name if possible
 - Reject incorrect suggestions to help system learn
@@ -305,11 +345,13 @@ Events show how they were matched:
 ### Events Not Matching
 
 **Possible Causes:**
+
 - Driver name doesn't match exactly
 - Name spelled differently in events
 - Event data incomplete
 
 **Solutions:**
+
 - Verify your driver name matches race results
 - Check event data for your name spelling
 - Manually search for events if needed
@@ -317,9 +359,12 @@ Events show how they were matched:
 
 ## Related Guides
 
-- **[Event Search Guide](event-search.md)**: Learn how to manually search for events
-- **[Event Analysis Guide](event-analysis.md)**: Analyze events you've participated in
-- **[Account Management Guide](account-management.md)**: Manage your account and profile
+- **[Event Search Guide](event-search.md)**: Learn how to manually search for
+  events
+- **[Event Analysis Guide](event-analysis.md)**: Analyze events you've
+  participated in
+- **[Account Management Guide](account-management.md)**: Manage your account and
+  profile
 
 ## Next Steps
 
@@ -333,5 +378,5 @@ After understanding driver features:
 
 ---
 
-**Ready to see your events?** Check your Dashboard or My Events page to view discovered events and start analyzing your performance!
-
+**Ready to see your events?** Check your Dashboard or My Events page to view
+discovered events and start analyzing your performance!

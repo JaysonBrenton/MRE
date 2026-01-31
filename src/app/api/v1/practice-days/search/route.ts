@@ -1,10 +1,10 @@
 /**
  * @fileoverview Practice day search API route
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX
- * 
+ *
  * @description API route for searching practice days in database
  */
 
@@ -23,12 +23,7 @@ export async function GET(request: NextRequest) {
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized practice day search request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -38,12 +33,7 @@ export async function GET(request: NextRequest) {
     const end_date = searchParams.get("end_date")
 
     if (!track_id) {
-      return errorResponse(
-        "VALIDATION_ERROR",
-        "track_id is required",
-        {},
-        400
-      )
+      return errorResponse("VALIDATION_ERROR", "track_id is required", {}, 400)
     }
 
     requestLogger.debug("Practice day search request", {
@@ -65,11 +55,6 @@ export async function GET(request: NextRequest) {
     return successResponse(result)
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

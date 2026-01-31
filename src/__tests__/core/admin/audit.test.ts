@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for audit log operations
- * 
+ *
  * @created 2025-01-29
  * @creator System
  * @lastModified 2025-01-29
- * 
+ *
  * @description Tests for audit log functionality
- * 
+ *
  * @purpose Validates that Prisma client has auditLog model and createAuditLog function works
  */
 
@@ -31,4 +31,3 @@ describe("Audit Log", () => {
     })
   })
 })
-

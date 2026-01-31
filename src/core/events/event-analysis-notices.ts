@@ -13,7 +13,6 @@
  *          however they prefer.
  */
 
-
 export interface DriverMetricSnapshot {
   driverId: string
   bestLapTime: number | null
@@ -112,5 +111,3 @@ export function getUnselectedDriversInClass(
     .filter((driver) => !selectedSet.has(driver.driverId))
     .map((driver) => driver.driverId)
 }
-
-

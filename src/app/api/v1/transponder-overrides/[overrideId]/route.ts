@@ -1,11 +1,11 @@
 // @fileoverview Transponder override individual API route
-// 
+//
 // @created 2025-12-24
 // @creator Jayson Brenton
 // @lastModified 2025-12-24
-// 
+//
 // @description API route for updating and deleting individual transponder overrides
-// 
+//
 // @purpose Provides user-facing API for updating and deleting transponder overrides
 
 import { NextRequest } from "next/server"
@@ -29,12 +29,7 @@ export async function PATCH(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized transponder override update request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -64,34 +59,19 @@ export async function PATCH(
   } catch (error: unknown) {
     if (error instanceof Error) {
       if (error.message.includes("not found")) {
-        return errorResponse(
-          "NOT_FOUND",
-          error.message,
-          {},
-          404
-        )
+        return errorResponse("NOT_FOUND", error.message, {}, 404)
       }
 
       if (
         error.message.includes("Invalid transponder") ||
         error.message.includes("already in use")
       ) {
-        return errorResponse(
-          "VALIDATION_ERROR",
-          error.message,
-          {},
-          400
-        )
+        return errorResponse("VALIDATION_ERROR", error.message, {}, 400)
       }
     }
 
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
 
@@ -106,12 +86,7 @@ export async function DELETE(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized transponder override deletion request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -130,23 +105,16 @@ export async function DELETE(
   } catch (error: unknown) {
     if (
       (error instanceof Error && error.message.includes("not found")) ||
-      (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2025")
+      (typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code?: string }).code === "P2025")
     ) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Transponder override not found",
-        {},
-        404
-      )
+      return errorResponse("NOT_FOUND", "Transponder override not found", {}, 404)
     }
 
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
 
@@ -161,12 +129,7 @@ export async function GET(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized transponder override get request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -189,12 +152,7 @@ export async function GET(
 
     if (!override) {
       requestLogger.warn("Transponder override not found", { overrideId })
-      return errorResponse(
-        "NOT_FOUND",
-        "Transponder override not found",
-        {},
-        404
-      )
+      return errorResponse("NOT_FOUND", "Transponder override not found", {}, 404)
     }
 
     requestLogger.info("Transponder override fetched", {
@@ -216,11 +174,6 @@ export async function GET(
     })
   } catch (error) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

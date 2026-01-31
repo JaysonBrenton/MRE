@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
-import HealthStatus from "@/components/admin/HealthStatus"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
+import HealthStatus from "@/components/organisms/admin/HealthStatus"
 
 export default async function AdminHealthPage() {
   const session = await auth()
@@ -22,9 +22,7 @@ export default async function AdminHealthPage() {
         ]}
       />
       <div>
-        <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
-          System Health
-        </h1>
+        <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">System Health</h1>
         <p className="mt-2 text-base text-[var(--token-text-secondary)]">
           Monitor system status and health checks.
         </p>

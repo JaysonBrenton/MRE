@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for event weather API route
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for weather API endpoint response format and error handling
- * 
+ *
  * @purpose Validates that the weather API route returns responses in the
  *          standardized format and handles errors correctly.
  */
@@ -135,9 +135,7 @@ describe("GET /api/v1/events/[eventId]/weather", () => {
     })
 
     it("should return 503 when fetch fails with no cache", async () => {
-      vi.mocked(getWeatherForEvent).mockRejectedValueOnce(
-        new Error("Failed to fetch weather data")
-      )
+      vi.mocked(getWeatherForEvent).mockRejectedValueOnce(new Error("Failed to fetch weather data"))
 
       const request = new NextRequest("http://localhost/api/v1/events/event-123/weather")
       const response = await GET(request, { params: Promise.resolve({ eventId: "event-123" }) })
@@ -181,4 +179,3 @@ describe("GET /api/v1/events/[eventId]/weather", () => {
     })
   })
 })
-

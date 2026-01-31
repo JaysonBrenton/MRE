@@ -1,17 +1,17 @@
 /**
  * @fileoverview Event repository - all Prisma queries for event domain
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Contains all database access functions for event operations
- * 
+ *
  * @purpose This file centralizes all Prisma queries related to events, following
  *          the mobile-safe architecture requirement that all database access must
  *          exist only in src/core/<domain>/repo.ts files. This ensures business
  *          logic is separated from API routes and can be reused by mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/lib/prisma.ts (Prisma client)
  * - src/core/events/search-events.ts (uses this repo)
@@ -44,7 +44,7 @@ export interface SearchEventsResult {
 
 /**
  * Search events by track and date range
- * 
+ *
  * @param params - Search parameters (trackId, startDate, endDate)
  * @returns Search result with track info and matching events
  */
@@ -129,7 +129,7 @@ export async function searchEvents(params: SearchEventsParams): Promise<SearchEv
       source: event.source,
       sourceEventId: event.sourceEventId,
       eventName: event.eventName,
-      eventDate: event.eventDate ? event.eventDate.toISOString() : null as string | null,
+      eventDate: event.eventDate ? event.eventDate.toISOString() : (null as string | null),
       eventEntries: event.eventEntries,
       eventDrivers: event.eventDrivers,
       eventUrl: event.eventUrl,
@@ -141,7 +141,7 @@ export async function searchEvents(params: SearchEventsParams): Promise<SearchEv
 
 /**
  * Get track metadata without any event queries
- * 
+ *
  * @param trackId - Track's unique identifier
  * @returns Track metadata or null if not found
  */
@@ -159,7 +159,7 @@ export async function getTrackMetadata(trackId: string) {
 
 /**
  * Get an event by ID
- * 
+ *
  * @param id - Event's unique identifier
  * @returns Event object or null if not found
  */
@@ -171,13 +171,11 @@ export async function getEventById(id: string): Promise<Event | null> {
 
 /**
  * Get an event by ID with track information
- * 
+ *
  * @param id - Event's unique identifier
  * @returns Event object with track or null if not found
  */
-export async function getEventWithTrack(
-  id: string
-): Promise<(Event & { track: Track }) | null> {
+export async function getEventWithTrack(id: string): Promise<(Event & { track: Track }) | null> {
   return prisma.event.findUnique({
     where: { id },
     include: {
@@ -188,7 +186,7 @@ export async function getEventWithTrack(
 
 /**
  * Get an event by source and source_event_id
- * 
+ *
  * @param source - Event source (e.g., "liverc")
  * @param sourceEventId - Source event ID (e.g., LiveRC event ID)
  * @returns Event object or null if not found
@@ -207,13 +205,11 @@ export async function getEventBySourceId(
 
 /**
  * Get an event by ID with track and races
- * 
+ *
  * @param eventId - Event's unique identifier
  * @returns Event object with track and races (ordered) or null if not found
  */
-export async function getEventWithRaces(
-  eventId: string
-): Promise<
+export async function getEventWithRaces(eventId: string): Promise<
   | (Event & {
       track: Track
       races: Race[]
@@ -256,10 +252,10 @@ export interface GetAllImportedEventsParams {
   trackId?: string
   startDate?: Date
   endDate?: Date
-  status?: 'imported' | 'all'  // imported = laps_full, all = any ingestDepth
-  orderBy?: 'eventDate' | 'eventName' | 'trackName' | 'eventEntries' | 'eventDrivers'
-  orderDirection?: 'asc' | 'desc'
-  userId?: string  // When provided, filter events to only those where user has EventDriverLink
+  status?: "imported" | "all" // imported = laps_full, all = any ingestDepth
+  orderBy?: "eventDate" | "eventName" | "trackName" | "eventEntries" | "eventDrivers"
+  orderDirection?: "asc" | "desc"
+  userId?: string // When provided, filter events to only those where user has EventDriverLink
 }
 
 export interface GetAllImportedEventsResult {
@@ -272,23 +268,23 @@ const MAX_PAGINATION_LIMIT = 1000
 
 /**
  * Get events with filtering, sorting, and pagination
- * 
+ *
  * @param params - Filtering, sorting, and pagination parameters
  * @returns Paginated array of events with track information
  */
 export async function getAllImportedEvents(
   params?: GetAllImportedEventsParams
 ): Promise<GetAllImportedEventsResult> {
-  const { 
-    limit: requestedLimit = 20, 
+  const {
+    limit: requestedLimit = 20,
     offset = 0,
     trackId,
     startDate,
     endDate,
-    status = 'imported',
-    orderBy = 'eventDate',
-    orderDirection = 'desc',
-    userId
+    status = "imported",
+    orderBy = "eventDate",
+    orderDirection = "desc",
+    userId,
   } = params || {}
 
   // Enforce maximum limit to prevent memory issues and slow queries
@@ -307,22 +303,22 @@ export async function getAllImportedEvents(
         userId,
         userDriverLink: {
           status: {
-            in: ["confirmed", "suggested"]
-          }
-        }
+            in: ["confirmed", "suggested"],
+          },
+        },
       },
       select: {
-        eventId: true
+        eventId: true,
       },
-      distinct: ['eventId']
+      distinct: ["eventId"],
     })
-    userEventIds = eventDriverLinks.map(link => link.eventId)
-    
+    userEventIds = eventDriverLinks.map((link) => link.eventId)
+
     // If user has no events, return empty result
     if (userEventIds.length === 0) {
       return {
         events: [],
-        total: 0
+        total: 0,
       }
     }
   }
@@ -341,13 +337,13 @@ export async function getAllImportedEvents(
   // User filter: only events where user has EventDriverLink
   if (userEventIds) {
     whereClause.id = {
-      in: userEventIds
+      in: userEventIds,
     }
   }
 
   // Status filter: imported = only laps_full, all = any ingestDepth
-  if (status === 'imported') {
-    whereClause.ingestDepth = 'laps_full'
+  if (status === "imported") {
+    whereClause.ingestDepth = "laps_full"
   }
 
   // Track filter
@@ -372,40 +368,48 @@ export async function getAllImportedEvents(
   })
 
   // Validate orderBy and orderDirection parameters
-  const validOrderBy = ['eventDate', 'eventName', 'trackName', 'eventEntries', 'eventDrivers'] as const
-  const validOrderDirection = ['asc', 'desc'] as const
-  
-  const validatedOrderBy = validOrderBy.includes(orderBy as typeof validOrderBy[number])
-    ? (orderBy as typeof validOrderBy[number])
-    : 'eventDate'
-  
-  const validatedOrderDirection = validOrderDirection.includes(orderDirection as typeof validOrderDirection[number])
-    ? (orderDirection as typeof validOrderDirection[number])
-    : 'desc'
+  const validOrderBy = [
+    "eventDate",
+    "eventName",
+    "trackName",
+    "eventEntries",
+    "eventDrivers",
+  ] as const
+  const validOrderDirection = ["asc", "desc"] as const
+
+  const validatedOrderBy = validOrderBy.includes(orderBy as (typeof validOrderBy)[number])
+    ? (orderBy as (typeof validOrderBy)[number])
+    : "eventDate"
+
+  const validatedOrderDirection = validOrderDirection.includes(
+    orderDirection as (typeof validOrderDirection)[number]
+  )
+    ? (orderDirection as (typeof validOrderDirection)[number])
+    : "desc"
 
   // Build orderBy clause
   // For trackName, we need to use Prisma's nested ordering or fetch all and sort
   let orderByClause: Prisma.EventOrderByWithRelationInput | Prisma.EventOrderByWithRelationInput[]
-  
+
   switch (validatedOrderBy) {
-    case 'eventName':
+    case "eventName":
       orderByClause = { eventName: validatedOrderDirection }
       break
-    case 'trackName':
+    case "trackName":
       // Use Prisma's nested ordering capability
       // This allows proper pagination with track name sorting
       orderByClause = [
         { track: { trackName: validatedOrderDirection } },
-        { eventDate: 'desc' } // Secondary sort for consistent pagination
+        { eventDate: "desc" }, // Secondary sort for consistent pagination
       ]
       break
-    case 'eventEntries':
+    case "eventEntries":
       orderByClause = { eventEntries: validatedOrderDirection }
       break
-    case 'eventDrivers':
+    case "eventDrivers":
       orderByClause = { eventDrivers: validatedOrderDirection }
       break
-    case 'eventDate':
+    case "eventDate":
     default:
       orderByClause = { eventDate: validatedOrderDirection }
       break
@@ -458,7 +462,7 @@ export async function getAllImportedEvents(
 
 /**
  * Check if a driver name appears in database events by checking EventEntry records
- * 
+ *
  * @param eventIds - Array of event IDs to check
  * @param normalizedDriverName - Normalized driver name to search for
  * @returns Map of event ID to boolean (true if driver found, false if not found)
@@ -475,16 +479,16 @@ export async function checkDbEventsForDriver(
   const eventEntries = await prisma.eventEntry.findMany({
     where: {
       eventId: {
-        in: eventIds
+        in: eventIds,
       },
       driver: {
-        normalizedName: normalizedDriverName
-      }
+        normalizedName: normalizedDriverName,
+      },
     },
     select: {
-      eventId: true
+      eventId: true,
     },
-    distinct: ['eventId']
+    distinct: ["eventId"],
   })
 
   // Build result map - default to false, set to true if found

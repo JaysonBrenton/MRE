@@ -21,28 +21,30 @@ async function diagnose() {
     console.log(`Checking email: "${email}"`)
     console.log(`  Length: ${email.length}`)
     console.log(`  Lowercase: "${email.toLowerCase()}"`)
-    
+
     // Try exact match
     const exactUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     })
     console.log(`  Exact match: ${exactUser ? "FOUND" : "NOT FOUND"}`)
-    
+
     // Try lowercase match
     const lowerUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase() },
     })
     console.log(`  Lowercase match: ${lowerUser ? "FOUND" : "NOT FOUND"}`)
-    
+
     // Try case-insensitive search
     const caseInsensitiveUser = await prisma.$queryRaw<Array<{ email: string }>>`
       SELECT email FROM users WHERE LOWER(email) = LOWER(${email})
     `
-    console.log(`  Case-insensitive match: ${caseInsensitiveUser.length > 0 ? "FOUND" : "NOT FOUND"}`)
+    console.log(
+      `  Case-insensitive match: ${caseInsensitiveUser.length > 0 ? "FOUND" : "NOT FOUND"}`
+    )
     if (caseInsensitiveUser.length > 0) {
       console.log(`    Found email in DB: "${caseInsensitiveUser[0].email}"`)
     }
-    
+
     console.log("")
   }
 
@@ -55,7 +57,7 @@ async function diagnose() {
       isAdmin: true,
     },
   })
-  
+
   for (const user of allUsers) {
     console.log(`Email: "${user.email}" | Driver: ${user.driverName} | Admin: ${user.isAdmin}`)
     console.log(`  Length: ${user.email.length} | Lowercase: "${user.email.toLowerCase()}"`)
@@ -65,4 +67,3 @@ async function diagnose() {
 }
 
 diagnose().catch(console.error)
-

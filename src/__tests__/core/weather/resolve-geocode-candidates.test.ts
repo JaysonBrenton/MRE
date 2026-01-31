@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for resolveGeocodeCandidates function
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Unit tests for geocoding candidate resolution
- * 
+ *
  * @purpose Validates candidate generation logic for different event name patterns,
  *          series vs normal track names, and edge cases.
  */
@@ -70,10 +70,7 @@ describe("resolveGeocodeCandidates", () => {
     })
 
     it("should extract location from eventName with comma-separated pattern", () => {
-      const event = createMockEvent(
-        "Round 5 Sydney, Australia",
-        "National Championship Series"
-      )
+      const event = createMockEvent("Round 5 Sydney, Australia", "National Championship Series")
 
       const candidates = resolveGeocodeCandidates(event)
 
@@ -90,8 +87,8 @@ describe("resolveGeocodeCandidates", () => {
       const candidates = resolveGeocodeCandidates(event)
 
       // Should remove "w/ Scotty Ernst" and extract location
-      expect(candidates.some(c => c.includes("Jakarta"))).toBe(true)
-      expect(candidates.some(c => c.includes("Scotty"))).toBe(false)
+      expect(candidates.some((c) => c.includes("Jakarta"))).toBe(true)
+      expect(candidates.some((c) => c.includes("Scotty"))).toBe(false)
     })
 
     it("should handle eventName with 'with' noise segment", () => {
@@ -102,30 +99,24 @@ describe("resolveGeocodeCandidates", () => {
 
       const candidates = resolveGeocodeCandidates(event)
 
-      expect(candidates.some(c => c.includes("Tokyo"))).toBe(true)
-      expect(candidates.some(c => c.includes("Special"))).toBe(false)
+      expect(candidates.some((c) => c.includes("Tokyo"))).toBe(true)
+      expect(candidates.some((c) => c.includes("Special"))).toBe(false)
     })
 
     it("should remove round prefixes from eventName", () => {
-      const event = createMockEvent(
-        "ABC Rnd 4 Jakarta Indonesia",
-        "Championship Series"
-      )
+      const event = createMockEvent("ABC Rnd 4 Jakarta Indonesia", "Championship Series")
 
       const candidates = resolveGeocodeCandidates(event)
 
-      expect(candidates.some(c => c.includes("Jakarta"))).toBe(true)
-      expect(candidates.some(c => c.includes("ABC"))).toBe(false)
-      expect(candidates.some(c => c.includes("Rnd 4"))).toBe(false)
+      expect(candidates.some((c) => c.includes("Jakarta"))).toBe(true)
+      expect(candidates.some((c) => c.includes("ABC"))).toBe(false)
+      expect(candidates.some((c) => c.includes("Rnd 4"))).toBe(false)
     })
   })
 
   describe("normal track names", () => {
     it("should prioritize trackName for normal tracks", () => {
-      const event = createMockEvent(
-        "Test Race Event",
-        "Sydney Motorsport Park"
-      )
+      const event = createMockEvent("Test Race Event", "Sydney Motorsport Park")
 
       const candidates = resolveGeocodeCandidates(event)
 
@@ -134,10 +125,7 @@ describe("resolveGeocodeCandidates", () => {
     })
 
     it("should include eventName-derived candidates as fallback for normal tracks", () => {
-      const event = createMockEvent(
-        "Race at Melbourne, Victoria",
-        "Test Track"
-      )
+      const event = createMockEvent("Race at Melbourne, Victoria", "Test Track")
 
       const candidates = resolveGeocodeCandidates(event)
 
@@ -148,10 +136,7 @@ describe("resolveGeocodeCandidates", () => {
 
   describe("edge cases", () => {
     it("should handle eventName with no location-like words", () => {
-      const event = createMockEvent(
-        "Test Race",
-        "Normal Track"
-      )
+      const event = createMockEvent("Test Race", "Normal Track")
 
       const candidates = resolveGeocodeCandidates(event)
 
@@ -162,35 +147,26 @@ describe("resolveGeocodeCandidates", () => {
     })
 
     it("should deduplicate candidates", () => {
-      const event = createMockEvent(
-        "Race at Sydney",
-        "Sydney"
-      )
+      const event = createMockEvent("Race at Sydney", "Sydney")
 
       const candidates = resolveGeocodeCandidates(event)
 
       // "Sydney" should only appear once
-      const sydneyCount = candidates.filter(c => c === "Sydney").length
+      const sydneyCount = candidates.filter((c) => c === "Sydney").length
       expect(sydneyCount).toBeLessThanOrEqual(1)
     })
 
     it("should filter out candidates that match series pattern", () => {
-      const event = createMockEvent(
-        "Test Championship Event",
-        "Normal Track"
-      )
+      const event = createMockEvent("Test Championship Event", "Normal Track")
 
       const candidates = resolveGeocodeCandidates(event)
 
       // Should not include "Championship" as a candidate
-      expect(candidates.some(c => c === "Championship")).toBe(false)
+      expect(candidates.some((c) => c === "Championship")).toBe(false)
     })
 
     it("should handle single-word location in eventName", () => {
-      const event = createMockEvent(
-        "Round 1 Tokyo",
-        "Championship Series"
-      )
+      const event = createMockEvent("Round 1 Tokyo", "Championship Series")
 
       const candidates = resolveGeocodeCandidates(event)
 
@@ -198,22 +174,16 @@ describe("resolveGeocodeCandidates", () => {
     })
 
     it("should handle multi-word location in eventName", () => {
-      const event = createMockEvent(
-        "Round 2 New York City",
-        "World Series"
-      )
+      const event = createMockEvent("Round 2 New York City", "World Series")
 
       const candidates = resolveGeocodeCandidates(event)
 
       // Should extract "New York City" and shorter variants
-      expect(candidates.some(c => c.includes("New York"))).toBe(true)
+      expect(candidates.some((c) => c.includes("New York"))).toBe(true)
     })
 
     it("should handle empty or minimal eventName", () => {
-      const event = createMockEvent(
-        "A",
-        "Test Track"
-      )
+      const event = createMockEvent("A", "Test Track")
 
       const candidates = resolveGeocodeCandidates(event)
 
@@ -224,10 +194,7 @@ describe("resolveGeocodeCandidates", () => {
 
   describe("candidate ordering", () => {
     it("should order candidates correctly for series tracks", () => {
-      const event = createMockEvent(
-        "ABC Rnd 4 Jakarta Indonesia",
-        "Asian Buggy Championship"
-      )
+      const event = createMockEvent("ABC Rnd 4 Jakarta Indonesia", "Asian Buggy Championship")
 
       const candidates = resolveGeocodeCandidates(event)
 
@@ -238,10 +205,7 @@ describe("resolveGeocodeCandidates", () => {
     })
 
     it("should order candidates correctly for normal tracks", () => {
-      const event = createMockEvent(
-        "Race at Melbourne",
-        "Sydney Track"
-      )
+      const event = createMockEvent("Race at Melbourne", "Sydney Track")
 
       const candidates = resolveGeocodeCandidates(event)
 
@@ -250,4 +214,3 @@ describe("resolveGeocodeCandidates", () => {
     })
   })
 })
-

@@ -1,15 +1,15 @@
 /**
  * @fileoverview Event weather API route
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description API route for getting weather data for an event
- * 
+ *
  * @purpose Provides user-facing API for event weather data (current conditions, forecast).
  *          Follows mobile-safe architecture by delegating to core function.
- * 
+ *
  * @relatedFiles
  * - src/core/weather/get-weather-for-event.ts (business logic)
  * - src/lib/api-utils.ts (response helpers)
@@ -37,12 +37,7 @@ export async function GET(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized weather request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -57,39 +52,23 @@ export async function GET(
     return successResponse(weatherData)
   } catch (error) {
     const errorInfo = handleApiError(error, request, requestId)
-    
+
     // If event not found, return 404
     if (errorInfo.message.includes("Event not found") || errorInfo.message.includes("not found")) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Event not found",
-        {},
-        404
-      )
+      return errorResponse("NOT_FOUND", "Event not found", {}, 404)
     }
 
     // For service unavailable (API failures with no cache), return 503
     if (
-      errorInfo.message.includes("no cache available") || 
+      errorInfo.message.includes("no cache available") ||
       errorInfo.message.includes("Failed to fetch") ||
       errorInfo.message.includes("Network error") ||
       errorInfo.message.includes("network connectivity") ||
       errorInfo.message.includes("Unable to reach")
     ) {
-      return errorResponse(
-        "SERVICE_UNAVAILABLE",
-        "Weather service unavailable",
-        {},
-        503
-      )
+      return errorResponse("SERVICE_UNAVAILABLE", "Weather service unavailable", {}, 503)
     }
 
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
-

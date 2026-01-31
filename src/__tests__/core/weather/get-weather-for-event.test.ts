@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for getWeatherForEvent function
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Integration tests for weather data retrieval
- * 
+ *
  * @purpose Validates complete flow: cache hit/miss, API calls, error handling, TTL logic,
  *          historical vs current detection.
  */
@@ -47,7 +47,7 @@ describe("getWeatherForEvent", () => {
         id: "weather-1",
         eventId,
         latitude: -35.2809,
-        longitude: 149.1300,
+        longitude: 149.13,
         timestamp: new Date(),
         airTemperature: 24,
         humidity: 62,
@@ -77,7 +77,7 @@ describe("getWeatherForEvent", () => {
       expect(result.condition).toBe("Clear sky")
       expect(result.air).toBe(24)
       expect(result.track).toBe(32)
-      
+
       // Should not call geocoding or API
       expect(geocodeTrackModule.geocodeTrack).not.toHaveBeenCalled()
       expect(fetchWeatherModule.fetchWeather).not.toHaveBeenCalled()
@@ -88,7 +88,7 @@ describe("getWeatherForEvent", () => {
     it("should fetch fresh weather data on cache miss", async () => {
       const mockGeocodeResult = {
         latitude: -35.2809,
-        longitude: 149.1300,
+        longitude: 149.13,
         displayName: "Test Track, Location",
       }
 
@@ -121,7 +121,7 @@ describe("getWeatherForEvent", () => {
       expect(result.isCached).toBe(false)
       expect(result.condition).toBe("Clear sky")
       expect(result.air).toBe(24)
-      
+
       // Should have called geocoding and API
       expect(resolveCandidatesModule.resolveGeocodeCandidates).toHaveBeenCalledWith(mockEvent)
       expect(geocodeTrackModule.geocodeTrack).toHaveBeenCalledWith("Test Track")
@@ -202,7 +202,9 @@ describe("getWeatherForEvent", () => {
       const cacheData = cacheCall[1]
       expect(cacheData.isHistorical).toBe(true)
       // TTL should be 7 days for historical
-      expect(cacheData.expiresAt.getTime()).toBeGreaterThan(Date.now() + 7 * 24 * 60 * 60 * 1000 - 60000)
+      expect(cacheData.expiresAt.getTime()).toBeGreaterThan(
+        Date.now() + 7 * 24 * 60 * 60 * 1000 - 60000
+      )
     })
   })
 
@@ -212,7 +214,7 @@ describe("getWeatherForEvent", () => {
         id: "weather-1",
         eventId,
         latitude: -35.2809,
-        longitude: 149.1300,
+        longitude: 149.13,
         timestamp: new Date(Date.now() - 7200000), // 2 hours ago (expired)
         airTemperature: 22,
         humidity: 60,
@@ -296,12 +298,14 @@ describe("getWeatherForEvent", () => {
         "Jakarta",
         "Asian Buggy Championship",
       ])
-      
+
       // First call fails with "no results", second succeeds
       vi.mocked(geocodeTrackModule.geocodeTrack)
-        .mockRejectedValueOnce(new Error("No geocoding results found for track: Asian Buggy Championship"))
+        .mockRejectedValueOnce(
+          new Error("No geocoding results found for track: Asian Buggy Championship")
+        )
         .mockResolvedValueOnce(mockGeocodeResult)
-      
+
       vi.mocked(fetchWeatherModule.fetchWeather).mockResolvedValue(mockWeatherResponse)
       vi.mocked(weatherRepoModule.cacheWeatherData).mockResolvedValue({} as never)
 
@@ -309,7 +313,7 @@ describe("getWeatherForEvent", () => {
 
       expect(result.isCached).toBe(false)
       expect(result.condition).toBe("Clear sky")
-      
+
       // Should have tried both candidates
       expect(geocodeTrackModule.geocodeTrack).toHaveBeenCalledTimes(2)
       expect(geocodeTrackModule.geocodeTrack).toHaveBeenNthCalledWith(1, "Jakarta Indonesia")
@@ -320,14 +324,17 @@ describe("getWeatherForEvent", () => {
     it("should fail fast on HTTP errors (429/5xx)", async () => {
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
-      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track", "Test Event"])
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
+        "Test Track",
+        "Test Event",
+      ])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockRejectedValue(
         new Error("Geocoding API returned status 429")
       )
       vi.mocked(weatherRepoModule.getLastWeatherData).mockResolvedValue(null)
 
       await expect(getWeatherForEvent(eventId)).rejects.toThrow("Geocoding API returned status 429")
-      
+
       // Should only try once and fail fast
       expect(geocodeTrackModule.geocodeTrack).toHaveBeenCalledTimes(1)
     })
@@ -358,4 +365,3 @@ describe("getWeatherForEvent", () => {
     })
   })
 })
-

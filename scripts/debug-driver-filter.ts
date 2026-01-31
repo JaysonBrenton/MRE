@@ -1,6 +1,6 @@
 /**
  * Debug script to check driver filtering logic
- * 
+ *
  * Run with: npx ts-node --compiler-options '{"module":"commonjs"}' scripts/debug-driver-filter.ts
  */
 
@@ -11,9 +11,9 @@ const prisma = new PrismaClient()
 
 async function main() {
   const email = process.argv[2] || "jaysoncareybrenton@gmail.com"
-  
+
   console.log(`\n=== Debugging Driver Filter for: ${email} ===\n`)
-  
+
   // Find user
   const user = await prisma.user.findUnique({
     where: { email },
@@ -25,18 +25,18 @@ async function main() {
       transponderNumber: true,
     },
   })
-  
+
   if (!user) {
     console.error(`User not found: ${email}`)
     process.exit(1)
   }
-  
+
   console.log(`User found:`)
   console.log(`  ID: ${user.id}`)
   console.log(`  Driver Name: ${user.driverName}`)
   console.log(`  Normalized Name: ${user.normalizedName || "(not set)"}`)
   console.log(`  Transponder: ${user.transponderNumber || "(not set)"}`)
-  
+
   // Get all EventDriverLinks for this user
   const eventDriverLinks = await prisma.eventDriverLink.findMany({
     where: {
@@ -78,13 +78,13 @@ async function main() {
     },
     take: 20, // Limit to first 20 for debugging
   })
-  
+
   console.log(`\n=== EventDriverLinks (showing first 20) ===`)
   console.log(`Total EventDriverLinks: ${eventDriverLinks.length}\n`)
-  
+
   const verifiedMatches: string[] = []
   const rejectedMatches: string[] = []
-  
+
   for (const link of eventDriverLinks) {
     // Verify the driver matches
     const match = fuzzyMatchUserToDriver(
@@ -101,18 +101,18 @@ async function main() {
         transponderNumber: link.driver.transponderNumber,
       }
     )
-    
-    const isHighConfidenceMatch = match && (
-      match.matchType === "transponder" || 
-      match.matchType === "exact" || 
-      (match.matchType === "fuzzy" && match.status === "confirmed")
-    )
-    
+
+    const isHighConfidenceMatch =
+      match &&
+      (match.matchType === "transponder" ||
+        match.matchType === "exact" ||
+        (match.matchType === "fuzzy" && match.status === "confirmed"))
+
     const status = isHighConfidenceMatch ? "✓ VERIFIED" : "✗ REJECTED"
-    const matchInfo = match 
+    const matchInfo = match
       ? `${match.matchType} (${match.similarityScore.toFixed(3)}, ${match.status})`
       : "NO MATCH"
-    
+
     console.log(`${status} - Event: ${link.event.eventName}`)
     console.log(`  Event ID: ${link.event.id}`)
     console.log(`  Driver: ${link.driver.displayName}`)
@@ -122,23 +122,23 @@ async function main() {
     console.log(`  Current Verification: ${matchInfo}`)
     console.log(`  Would Include: ${isHighConfidenceMatch ? "YES" : "NO"}`)
     console.log()
-    
+
     if (isHighConfidenceMatch) {
       verifiedMatches.push(link.eventId)
     } else {
       rejectedMatches.push(link.eventId)
     }
   }
-  
+
   console.log(`\n=== Summary ===`)
   console.log(`Verified matches (would be included): ${verifiedMatches.length}`)
   console.log(`Rejected matches (would be excluded): ${rejectedMatches.length}`)
-  
+
   if (rejectedMatches.length > 0) {
     console.log(`\nRejected event IDs:`)
-    rejectedMatches.forEach(id => console.log(`  - ${id}`))
+    rejectedMatches.forEach((id) => console.log(`  - ${id}`))
   }
-  
+
   // Check a specific track if provided
   const trackName = process.argv[3]
   if (trackName) {
@@ -151,10 +151,10 @@ async function main() {
         },
       },
     })
-    
+
     if (track) {
       console.log(`Track found: ${track.trackName} (ID: ${track.id})`)
-      
+
       // Get events for this track that have EventDriverLinks for this user
       const trackEvents = await prisma.event.findMany({
         where: {
@@ -169,12 +169,14 @@ async function main() {
           eventDate: true,
         },
       })
-      
+
       console.log(`\nEvents on this track:`)
-      trackEvents.forEach(event => {
+      trackEvents.forEach((event) => {
         const isVerified = verifiedMatches.includes(event.id)
         const status = isVerified ? "✓" : "✗"
-        console.log(`  ${status} ${event.eventName} (${event.eventDate?.toISOString().split('T')[0]})`)
+        console.log(
+          `  ${status} ${event.eventName} (${event.eventDate?.toISOString().split("T")[0]})`
+        )
       })
     }
   }

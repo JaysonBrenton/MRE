@@ -1,16 +1,16 @@
 /**
  * @fileoverview Core business logic for user profile data
- * 
+ *
  * @created 2025-01-28
  * @creator System
  * @lastModified 2025-01-28
- * 
+ *
  * @description Core functions for retrieving comprehensive user profile information
- * 
+ *
  * @purpose Provides core domain logic for user profiles, following mobile-safe
  *          architecture guidelines. Aggregates user data, activity statistics, and
  *          driver linking information into a single profile object.
- * 
+ *
  * @relatedFiles
  * - src/core/users/repo.ts (database access)
  * - src/core/users/driver-links.ts (driver link status)
@@ -50,10 +50,10 @@ export type UserProfile = {
 
 /**
  * Get comprehensive user profile data
- * 
+ *
  * Aggregates user information, activity statistics, and driver linking status
  * into a single profile object for display in the user profile modal.
- * 
+ *
  * @param userId - User's unique identifier
  * @returns Complete user profile data
  * @throws Error if user not found
@@ -98,4 +98,3 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     driverLinks,
   }
 }
-

@@ -3,12 +3,14 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Performance requirements and benchmarks for MRE application
-purpose: Defines performance goals, performance budgets, database performance requirements,
-         API response time targets, and optimization guidelines. Provides clear performance
-         targets and ensures performance is measurable.
+purpose:
+  Defines performance goals, performance budgets, database performance
+  requirements, API response time targets, and optimization guidelines. Provides
+  clear performance targets and ensures performance is measurable.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md (performance rules)
-  - docs/architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md (ingestion performance)
+  - docs/architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md
+    (ingestion performance)
 ---
 
 # Performance Requirements and Benchmarks
@@ -16,7 +18,9 @@ relatedFiles:
 **Last Updated:** 2025-01-27  
 **Scope:** All application performance requirements
 
-This document defines performance goals, performance budgets, database performance requirements, API response time targets, and optimization guidelines for the MRE application.
+This document defines performance goals, performance budgets, database
+performance requirements, API response time targets, and optimization guidelines
+for the MRE application.
 
 ---
 
@@ -39,17 +43,20 @@ This document defines performance goals, performance budgets, database performan
 ### Application Performance Goals
 
 **Page Load Times:**
+
 - **Initial Load:** < 2 seconds (First Contentful Paint)
 - **Time to Interactive:** < 3 seconds
 - **Largest Contentful Paint:** < 2.5 seconds
 
 **API Response Times:**
+
 - **Health Check:** < 100ms
 - **Authentication Endpoints:** < 500ms
 - **Data Endpoints:** < 1 second (p95)
 - **Complex Queries:** < 2 seconds (p95)
 
 **Database Query Performance:**
+
 - **Simple Queries:** < 50ms
 - **Complex Queries:** < 200ms
 - **Join Queries:** < 500ms
@@ -57,12 +64,14 @@ This document defines performance goals, performance budgets, database performan
 ### Mobile Performance Goals
 
 **Mobile-Safe Architecture Requirements:**
+
 - All API responses optimized for mobile
 - Minimal payload sizes
 - Efficient data structures
 - Caching where appropriate
 
-**See:** `docs/architecture/mobile-safe-architecture-guidelines.md` for mobile performance rules.
+**See:** `docs/architecture/mobile-safe-architecture-guidelines.md` for mobile
+performance rules.
 
 ---
 
@@ -70,9 +79,11 @@ This document defines performance goals, performance budgets, database performan
 
 ### Frontend Performance Budget
 
-**Placeholder:** Frontend performance budgets will be defined when frontend testing is implemented
+**Placeholder:** Frontend performance budgets will be defined when frontend
+testing is implemented
 
 **Recommended Budgets:**
+
 - **JavaScript Bundle:** < 200KB (gzipped)
 - **CSS Bundle:** < 50KB (gzipped)
 - **Images:** Optimized, lazy-loaded
@@ -81,11 +92,13 @@ This document defines performance goals, performance budgets, database performan
 ### API Performance Budget
 
 **Response Size Limits:**
+
 - **Small Responses:** < 10KB
 - **Medium Responses:** < 100KB
 - **Large Responses:** < 1MB (with pagination)
 
 **Request Limits:**
+
 - **Rate Limiting:** **Placeholder** - Will be implemented
 - **Request Timeout:** 30 seconds
 - **Payload Size:** < 10MB
@@ -97,22 +110,24 @@ This document defines performance goals, performance budgets, database performan
 ### Query Performance Targets
 
 **Simple Queries (Single Table):**
+
 - Target: < 50ms (p95)
 - Example: `SELECT * FROM users WHERE email = ?`
 
 **Join Queries:**
+
 - Target: < 200ms (p95)
 - Example: `SELECT * FROM events JOIN tracks ON ...`
 
 **Complex Queries (Multiple Joins, Aggregations):**
+
 - Target: < 500ms (p95)
 - Example: Race results with lap data aggregation
 
 ### Index Requirements
 
-**All Foreign Keys:** Indexed
-**Frequently Queried Fields:** Indexed
-**Composite Indexes:** For common query patterns
+**All Foreign Keys:** Indexed **Frequently Queried Fields:** Indexed **Composite
+Indexes:** For common query patterns
 
 **See:** `docs/database/schema.md` for index documentation.
 
@@ -121,6 +136,7 @@ This document defines performance goals, performance budgets, database performan
 **Placeholder:** Connection pool configuration will be documented
 
 **Recommended Settings:**
+
 - **Min Connections:** 5
 - **Max Connections:** 20
 - **Connection Timeout:** 10 seconds
@@ -132,18 +148,18 @@ This document defines performance goals, performance budgets, database performan
 
 ### Endpoint-Specific Targets
 
-| Endpoint | Target (p95) | Target (p99) |
-|----------|--------------|--------------|
-| `GET /api/v1/health` | < 100ms | < 200ms |
-| `POST /api/v1/auth/register` | < 500ms | < 1s |
-| `POST /api/v1/auth/login` | < 500ms | < 1s |
-| `GET /api/v1/tracks` | < 500ms | < 1s |
-| `GET /api/v1/events/search` | < 1s | < 2s |
-| `GET /api/v1/events/[id]` | < 500ms | < 1s |
-| `POST /api/v1/events/[id]/ingest` | < 10s | < 30s |
-| `GET /api/v1/races/[id]` | < 1s | < 2s |
-| `GET /api/v1/races/[id]/laps` | < 1s | < 2s |
-| `GET /api/v1/race-results/[id]/laps` | < 500ms | < 1s |
+| Endpoint                             | Target (p95) | Target (p99) |
+| ------------------------------------ | ------------ | ------------ |
+| `GET /api/v1/health`                 | < 100ms      | < 200ms      |
+| `POST /api/v1/auth/register`         | < 500ms      | < 1s         |
+| `POST /api/v1/auth/login`            | < 500ms      | < 1s         |
+| `GET /api/v1/tracks`                 | < 500ms      | < 1s         |
+| `GET /api/v1/events/search`          | < 1s         | < 2s         |
+| `GET /api/v1/events/[id]`            | < 500ms      | < 1s         |
+| `POST /api/v1/events/[id]/ingest`    | < 10s        | < 30s        |
+| `GET /api/v1/races/[id]`             | < 1s         | < 2s         |
+| `GET /api/v1/races/[id]/laps`        | < 1s         | < 2s         |
+| `GET /api/v1/race-results/[id]/laps` | < 500ms      | < 1s         |
 
 **Note:** Ingestion endpoint has longer timeout due to processing time.
 
@@ -201,6 +217,7 @@ This document defines performance goals, performance budgets, database performan
 **Placeholder:** Alert thresholds will be configured
 
 **Recommended Alerts:**
+
 - Response time p95 > 2 seconds
 - Error rate > 1%
 - Database connection pool > 80% usage
@@ -236,6 +253,7 @@ This document defines performance goals, performance budgets, database performan
 **Placeholder:** Caching strategies will be documented
 
 **Recommended Caching:**
+
 - **Static Assets:** Long cache (1 year)
 - **API Responses:** Short cache (5 minutes) for read-only data
 - **Database Queries:** Query result caching for expensive queries
@@ -266,6 +284,7 @@ This document defines performance goals, performance budgets, database performan
 **Placeholder:** Performance testing tools will be selected
 
 **Recommended Tools:**
+
 - **API Load Testing:** k6, Apache Bench, or Artillery
 - **Frontend Performance:** Lighthouse, WebPageTest
 - **Database Performance:** pg_stat_statements, EXPLAIN ANALYZE
@@ -277,11 +296,13 @@ This document defines performance goals, performance budgets, database performan
 ### Horizontal Scaling
 
 **Application:**
+
 - Stateless design enables horizontal scaling
 - Load balancer can distribute traffic
 - Session management supports multiple instances
 
 **Database:**
+
 - **Placeholder:** Database scaling strategy
 - Read replicas for read-heavy workloads
 - Connection pooling for efficient resource usage
@@ -289,18 +310,23 @@ This document defines performance goals, performance budgets, database performan
 ### Vertical Scaling
 
 **Application:**
+
 - Increase container resources (CPU, memory)
 - Optimize code before scaling
 
 **Database:**
+
 - Increase database instance size
 - Optimize queries and indexes
 
 ### Ingestion Scaling
 
-**See:** `docs/architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md` for detailed ingestion performance and scaling strategies.
+**See:**
+`docs/architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md` for
+detailed ingestion performance and scaling strategies.
 
 **Key Points:**
+
 - Event-level locking prevents contention
 - Concurrent ingestion of separate events
 - Typical event ingestion: 2-10 seconds
@@ -310,12 +336,14 @@ This document defines performance goals, performance budgets, database performan
 
 ## Related Documentation
 
-- [Mobile-Safe Architecture Guidelines](./mobile-safe-architecture-guidelines.md) - Performance rules
-- [Ingestion Performance and Scaling](./liverc-ingestion/13-ingestion-performance-and-scaling.md) - Ingestion performance
+- [Mobile-Safe Architecture Guidelines](./mobile-safe-architecture-guidelines.md) -
+  Performance rules
+- [Ingestion Performance and Scaling](./liverc-ingestion/13-ingestion-performance-and-scaling.md) -
+  Ingestion performance
 - [Database Schema](../database/schema.md) - Database performance considerations
-- [Observability Guide](../operations/observability-guide.md) - Performance monitoring
+- [Observability Guide](../operations/observability-guide.md) - Performance
+  monitoring
 
 ---
 
 **End of Performance Requirements Documentation**
-

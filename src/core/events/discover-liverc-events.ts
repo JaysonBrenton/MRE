@@ -1,16 +1,16 @@
 /**
  * @fileoverview LiveRC event discovery business logic
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Business logic for discovering events from LiveRC
- * 
+ *
  * @purpose Provides a clean interface for discovering events from LiveRC that
  *          are not yet in the MRE database. This will integrate with the
  *          Python ingestion service in the future.
- * 
+ *
  * @relatedFiles
  * - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md (ingestion pipeline)
  * - ingestion/connectors/liverc/ (Python LiveRC connector)
@@ -47,13 +47,12 @@ export interface DiscoverLiveRCEventsResult {
   existingEvents: DiscoveredEvent[] // Events already in MRE DB
 }
 
-
 /**
  * Discover events from LiveRC for a given track and date range
- * 
+ *
  * This function identifies events that exist on LiveRC but are not yet
  * in the MRE database. It compares LiveRC events with existing DB events.
- * 
+ *
  * @param input - Discovery parameters
  * @returns Discovered events separated into new and existing
  */
@@ -62,12 +61,14 @@ export async function discoverLiveRCEvents(
 ): Promise<DiscoverLiveRCEventsResult> {
   // Use provided existing event source IDs or empty set (avoids duplicate DB search)
   const existingEventIds = input.existingEventSourceIds || new Set<string>()
-  
-  console.log(`[LiveRCDiscovery] Using ${existingEventIds.size} existing event source IDs from initial search (no duplicate DB query)`)
+
+  console.log(
+    `[LiveRCDiscovery] Using ${existingEventIds.size} existing event source IDs from initial search (no duplicate DB query)`
+  )
 
   // Get track metadata - use provided track or fetch it
-  const track = input.track || await getTrackMetadata(input.trackId)
-  
+  const track = input.track || (await getTrackMetadata(input.trackId))
+
   if (!track) {
     throw new Error("Track not found")
   }

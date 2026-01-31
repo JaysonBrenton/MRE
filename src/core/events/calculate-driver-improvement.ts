@@ -139,10 +139,7 @@ export async function calculateMostImprovedDrivers(eventId: string): Promise<Mos
         },
       },
     },
-    orderBy: [
-      { race: { raceOrder: "asc" } },
-      { race: { startTime: "asc" } },
-    ],
+    orderBy: [{ race: { raceOrder: "asc" } }, { race: { startTime: "asc" } }],
   })
 
   if (raceResults.length === 0) {

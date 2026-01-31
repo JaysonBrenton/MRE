@@ -1,27 +1,24 @@
 // @fileoverview Event ingestion API route
-// 
+//
 // @created 2025-01-27
 // @creator Jayson Brenton
 // @lastModified 2025-01-27
-// 
+//
 // @description API route for triggering event ingestion
-// 
+//
 // @purpose Proxies ingestion requests to Python service
 
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { ingestionClient, IngestionServiceError } from "@/lib/ingestion-client";
-import { successResponse, errorResponse } from "@/lib/api-utils";
-import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
-import { createRequestLogger, generateRequestId } from "@/lib/request-context";
-import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler";
-import { getEventById } from "@/core/events/repo";
-import {
-  isRecoverableIngestionError,
-  waitForIngestionCompletion,
-} from "@/lib/ingestion-status";
-import { toHttpErrorPayload } from "@/lib/ingestion-error-map";
-import { tryAcquireLock, releaseLock } from "@/lib/ingestion-lock";
+import { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
+import { ingestionClient, IngestionServiceError } from "@/lib/ingestion-client"
+import { successResponse, errorResponse } from "@/lib/api-utils"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context"
+import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler"
+import { getEventById } from "@/core/events/repo"
+import { isRecoverableIngestionError, waitForIngestionCompletion } from "@/lib/ingestion-status"
+import { toHttpErrorPayload } from "@/lib/ingestion-error-map"
+import { tryAcquireLock, releaseLock } from "@/lib/ingestion-lock"
 
 const COMPLETION_POLL_ATTEMPTS = 3
 const COMPLETION_POLL_DELAY_MS = 2000
@@ -42,12 +39,7 @@ export async function POST(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized event ingestion request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -67,8 +59,8 @@ export async function POST(
       )
     }
 
-    const body = await request.json();
-    const depth = body.depth || "laps_full";
+    const body = await request.json()
+    const depth = body.depth || "laps_full"
 
     requestLogger.debug("Event ingestion request", {
       eventId,
@@ -90,7 +82,7 @@ export async function POST(
     }
 
     try {
-      const result = await ingestionClient.ingestEvent(eventId, depth);
+      const result = await ingestionClient.ingestEvent(eventId, depth)
 
       requestLogger.info("Event ingestion completed", {
         eventId,
@@ -98,7 +90,7 @@ export async function POST(
         racesIngested: result?.races_ingested,
       })
 
-      return successResponse(result);
+      return successResponse(result)
     } finally {
       // Always release lock when done
       releaseLock(eventId)
@@ -125,12 +117,7 @@ export async function POST(
         })
       }
 
-      return errorResponse(
-        error.code,
-        payload.message,
-        payload.details,
-        payload.status,
-      )
+      return errorResponse(error.code, payload.message, payload.details, payload.status)
     }
 
     if (isRecoverableIngestionError(error)) {
@@ -184,12 +171,7 @@ export async function POST(
 
     // Handle external service errors (ingestion service)
     if (error instanceof Error && error.message.includes("Ingestion")) {
-      const errorInfo = handleExternalServiceError(
-        error,
-        "Ingestion",
-        "ingestEvent",
-        requestLogger
-      )
+      const errorInfo = handleExternalServiceError(error, "Ingestion", "ingestEvent", requestLogger)
       return errorResponse(
         errorInfo.code,
         errorInfo.message,
@@ -197,19 +179,20 @@ export async function POST(
         errorInfo.statusCode
       )
     }
-    
+
     // Handle other errors - log full error details for debugging
     requestLogger.error("Unexpected error during event ingestion", {
-      error: error instanceof Error
-        ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          }
-        : String(error),
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : String(error),
       eventId,
     })
-    
+
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(
       errorInfo.code,

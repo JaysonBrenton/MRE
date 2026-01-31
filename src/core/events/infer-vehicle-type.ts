@@ -53,7 +53,10 @@ export function inferVehicleType(raceClassName: string): string {
   }
 
   // Also remove from middle/end if present
-  cleaned = cleaned.replace(/\s+(Pro|Int\.?|Spt\.?|Sport|Intermediate|Junior|Expert|Masters?)$/i, "")
+  cleaned = cleaned.replace(
+    /\s+(Pro|Int\.?|Spt\.?|Sport|Intermediate|Junior|Expert|Masters?)$/i,
+    ""
+  )
 
   cleaned = cleaned.trim()
 
@@ -123,7 +126,9 @@ export function inferVehicleType(raceClassName: string): string {
  */
 function extractVehicleType(cleaned: string): string {
   // Try to extract "PowerType VehicleType" pattern
-  const match = cleaned.match(/((?:Electric|Nitro)\s+(?:Buggy|Truck|Truggy))|((?:Buggy|Truck|Truggy)(?:\s+(?:Electric|Nitro))?)/i)
+  const match = cleaned.match(
+    /((?:Electric|Nitro)\s+(?:Buggy|Truck|Truggy))|((?:Buggy|Truck|Truggy)(?:\s+(?:Electric|Nitro))?)/i
+  )
   if (match) {
     return match[0].trim()
   }
@@ -131,4 +136,3 @@ function extractVehicleType(cleaned: string): string {
   // Fallback: return cleaned string
   return cleaned.trim()
 }
-

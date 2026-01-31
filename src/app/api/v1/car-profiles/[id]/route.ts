@@ -1,15 +1,15 @@
 /**
  * @fileoverview Car profile API endpoint (v1) - single profile operations
- * 
+ *
  * @created 2025-01-28
  * @creator System
  * @lastModified 2025-01-28
- * 
+ *
  * @description Handles GET (single), PUT (update), and DELETE requests for car profiles
- * 
+ *
  * @purpose This API route provides access to individual car profiles for authenticated users.
  *          Users can only access their own car profiles.
- * 
+ *
  * @relatedFiles
  * - src/core/car-profiles/crud.ts (core business logic)
  * - src/lib/api-utils.ts (response helpers)
@@ -30,9 +30,9 @@ import { isValidUUID } from "@/lib/uuid-validation"
 
 /**
  * GET /api/v1/car-profiles/[id]
- * 
+ *
  * Get a single car profile by ID
- * 
+ *
  * Response (success):
  * {
  *   success: true,
@@ -41,10 +41,7 @@ import { isValidUUID } from "@/lib/uuid-validation"
  *   }
  * }
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const requestId = generateRequestId()
   try {
     // Await params (Next.js 15)
@@ -63,47 +60,28 @@ export async function GET(
     // Verify authentication
     const session = await auth()
     if (!session || !session.user) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Authentication required",
-        undefined,
-        401
-      )
+      return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
     // Get car profile (with ownership check)
     const profile = await getCarProfileById(id, session.user.id)
 
     if (!profile) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Car profile not found",
-        undefined,
-        404
-      )
+      return errorResponse("NOT_FOUND", "Car profile not found", undefined, 404)
     }
 
-    return successResponse(
-      { profile },
-      200,
-      "Car profile retrieved successfully"
-    )
+    return successResponse({ profile }, 200, "Car profile retrieved successfully")
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
 
 /**
  * PUT /api/v1/car-profiles/[id]
- * 
+ *
  * Update an existing car profile
- * 
+ *
  * Request body:
  * {
  *   name?: string
@@ -111,7 +89,7 @@ export async function GET(
  *   vehicleType?: string
  *   setupInfo?: object
  * }
- * 
+ *
  * Response (success):
  * {
  *   success: true,
@@ -120,10 +98,7 @@ export async function GET(
  *   }
  * }
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const requestId = generateRequestId()
   try {
     // Await params (Next.js 15)
@@ -142,12 +117,7 @@ export async function PUT(
     // Verify authentication
     const session = await auth()
     if (!session || !session.user) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Authentication required",
-        undefined,
-        401
-      )
+      return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
     // Parse request body
@@ -160,35 +130,21 @@ export async function PUT(
     const profile = await updateCarProfileForUser(id, session.user.id, bodyResult.data)
 
     if (!profile) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Car profile not found",
-        undefined,
-        404
-      )
+      return errorResponse("NOT_FOUND", "Car profile not found", undefined, 404)
     }
 
-    return successResponse(
-      { profile },
-      200,
-      "Car profile updated successfully"
-    )
+    return successResponse({ profile }, 200, "Car profile updated successfully")
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
 
 /**
  * DELETE /api/v1/car-profiles/[id]
- * 
+ *
  * Delete a car profile
- * 
+ *
  * Response (success):
  * {
  *   success: true,
@@ -219,38 +175,19 @@ export async function DELETE(
     // Verify authentication
     const session = await auth()
     if (!session || !session.user) {
-      return errorResponse(
-        "UNAUTHORIZED",
-        "Authentication required",
-        undefined,
-        401
-      )
+      return errorResponse("UNAUTHORIZED", "Authentication required", undefined, 401)
     }
 
     // Delete car profile (with ownership check)
     const profile = await deleteCarProfileForUser(id, session.user.id)
 
     if (!profile) {
-      return errorResponse(
-        "NOT_FOUND",
-        "Car profile not found",
-        undefined,
-        404
-      )
+      return errorResponse("NOT_FOUND", "Car profile not found", undefined, 404)
     }
 
-    return successResponse(
-      { profile },
-      200,
-      "Car profile deleted successfully"
-    )
+    return successResponse({ profile }, 200, "Car profile deleted successfully")
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

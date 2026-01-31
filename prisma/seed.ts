@@ -10,33 +10,33 @@ async function main() {
     {
       type: "driver" as const,
       name: "Driver",
-      description: "Individual RC racer who participates in events and tracks their performance"
+      description: "Individual RC racer who participates in events and tracks their performance",
     },
     {
       type: "admin" as const,
       name: "Administrator",
-      description: "System administrator with elevated privileges for managing the application"
+      description: "System administrator with elevated privileges for managing the application",
     },
     {
       type: "team_manager" as const,
       name: "Team Manager",
-      description: "Manager of a team of one or more drivers, coordinates team activities"
+      description: "Manager of a team of one or more drivers, coordinates team activities",
     },
     {
       type: "race_engineer" as const,
       name: "Race Engineer",
-      description: "AI-backed assistant providing setup and tuning guidance"
-    }
+      description: "AI-backed assistant providing setup and tuning guidance",
+    },
   ]
 
   for (const personaData of personas) {
     const existingPersona = await prisma.persona.findUnique({
-      where: { type: personaData.type }
+      where: { type: personaData.type },
     })
 
     if (!existingPersona) {
       await prisma.persona.create({
-        data: personaData
+        data: personaData,
       })
       console.log(`Created persona: ${personaData.name}`)
     } else {
@@ -53,7 +53,7 @@ async function main() {
 
   // Check if admin already exists
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: normalizedEmail }
+    where: { email: normalizedEmail },
   })
 
   if (existingAdmin) {
@@ -72,7 +72,7 @@ async function main() {
       driverName: adminDriverName,
       teamName: null,
       isAdmin: true,
-    }
+    },
   })
 
   // Auto-assign Admin persona
@@ -98,4 +98,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-

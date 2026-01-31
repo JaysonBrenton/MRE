@@ -1,19 +1,19 @@
 // @fileoverview Driver details API route
-// 
+//
 // @created 2025-12-24
 // @creator Jayson Brenton
 // @lastModified 2025-12-24
-// 
+//
 // @description API route for getting driver details with transponder numbers and event entries
-// 
+//
 // @purpose Provides user-facing API for driver data including transponder numbers and multi-class participation
 
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { getDriverWithEventEntries } from "@/core/drivers/repo";
-import { successResponse, errorResponse } from "@/lib/api-utils";
-import { createRequestLogger, generateRequestId } from "@/lib/request-context";
-import { handleApiError } from "@/lib/server-error-handler";
+import { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
+import { getDriverWithEventEntries } from "@/core/drivers/repo"
+import { successResponse, errorResponse } from "@/lib/api-utils"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context"
+import { handleApiError } from "@/lib/server-error-handler"
 
 export async function GET(
   request: NextRequest,
@@ -26,29 +26,19 @@ export async function GET(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized driver details request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
-    const { driverId } = await params;
-    const { searchParams } = new URL(request.url);
-    const eventId = searchParams.get("eventId") || undefined;
+    const { driverId } = await params
+    const { searchParams } = new URL(request.url)
+    const eventId = searchParams.get("eventId") || undefined
 
-    const driver = await getDriverWithEventEntries(driverId, eventId);
+    const driver = await getDriverWithEventEntries(driverId, eventId)
 
     if (!driver) {
       requestLogger.warn("Driver not found", { driverId })
-      return errorResponse(
-        "NOT_FOUND",
-        "Driver not found",
-        {},
-        404
-      );
+      return errorResponse("NOT_FOUND", "Driver not found", {}, 404)
     }
 
     requestLogger.info("Driver fetched successfully", {
@@ -77,15 +67,9 @@ export async function GET(
             }
           : undefined,
       })),
-    });
+    })
   } catch (error) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
-

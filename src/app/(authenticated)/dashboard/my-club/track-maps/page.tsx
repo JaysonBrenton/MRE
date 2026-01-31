@@ -1,12 +1,12 @@
 /**
  * @fileoverview Track Maps list page
- * 
+ *
  * @created 2026-01-24
  * @creator Auto-generated
  * @lastModified 2026-01-24
- * 
+ *
  * @description Page for managing track maps
- * 
+ *
  * @purpose Displays a list of user's track maps and allows creating new ones
  *          and managing existing maps.
  */
@@ -15,7 +15,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import Breadcrumbs from "@/components/Breadcrumbs"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 import type { TrackMapWithRelations } from "@/core/track-maps/repo"
 
 export default function TrackMapsPage() {
@@ -73,7 +73,6 @@ export default function TrackMapsPage() {
     }
   }
 
-
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl flex-shrink-0">
       <Breadcrumbs
@@ -86,9 +85,7 @@ export default function TrackMapsPage() {
       <div className="w-full min-w-0 flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-semibold text-[var(--token-text-primary)]">
-              Track Maps
-            </h1>
+            <h1 className="text-4xl font-semibold text-[var(--token-text-primary)]">Track Maps</h1>
             <p className="mt-2 text-base text-[var(--token-text-secondary)]">
               Build and share track layouts
             </p>
@@ -160,12 +157,8 @@ export default function TrackMapsPage() {
                       </p>
                     )}
                     <div className="flex items-center justify-between text-xs text-[var(--token-text-secondary)] mb-4">
-                      <span>
-                        Updated {new Date(map.updatedAt).toLocaleDateString()}
-                      </span>
-                      <span>
-                        {(map.mapData.shapes || []).length} shapes
-                      </span>
+                      <span>Updated {new Date(map.updatedAt).toLocaleDateString()}</span>
+                      <span>{(map.mapData.shapes || []).length} shapes</span>
                     </div>
                     <div className="flex gap-2">
                       <Link

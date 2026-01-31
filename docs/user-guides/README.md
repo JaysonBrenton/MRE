@@ -3,7 +3,9 @@ created: 2026-01-27
 creator: Jayson Brenton
 lastModified: 2026-01-27
 description: Index of all end-user guides for My Race Engineer
-purpose: Provides a central index and navigation for all user guides, helping users discover and access the guides they need.
+purpose:
+  Provides a central index and navigation for all user guides, helping users
+  discover and access the guides they need.
 relatedFiles:
   - docs/index/document-index.md
   - src/app/(authenticated)/guides/page.tsx
@@ -11,20 +13,26 @@ relatedFiles:
 
 # User Guides Index
 
-Welcome to the My Race Engineer User Guides! This index helps you find the guide you need to learn how to use MRE effectively.
+Welcome to the My Race Engineer User Guides! This index helps you find the guide
+you need to learn how to use MRE effectively.
 
 ## Overview
 
-These guides are written for all users - both new and experienced. Each guide focuses on a specific feature or topic, providing step-by-step instructions, tips, and troubleshooting help.
+These guides are written for all users - both new and experienced. Each guide
+focuses on a specific feature or topic, providing step-by-step instructions,
+tips, and troubleshooting help.
 
 ## Available Guides
 
 ### Getting Started
+
 **[Getting Started Guide](getting-started.md)**
 
-Perfect for new users! Learn how to create an account, log in, understand the welcome page, and get started with MRE.
+Perfect for new users! Learn how to create an account, log in, understand the
+welcome page, and get started with MRE.
 
 **Topics Covered:**
+
 - Creating your account
 - Logging in
 - Understanding the welcome page
@@ -36,11 +44,14 @@ Perfect for new users! Learn how to create an account, log in, understand the we
 ---
 
 ### Event Search
+
 **[Event Search Guide](event-search.md)**
 
-Complete guide to searching for race events, selecting tracks, importing events from LiveRC, and understanding event status indicators.
+Complete guide to searching for race events, selecting tracks, importing events
+from LiveRC, and understanding event status indicators.
 
 **Topics Covered:**
+
 - Accessing Event Search
 - Selecting tracks (including favorites)
 - Setting date ranges
@@ -53,11 +64,14 @@ Complete guide to searching for race events, selecting tracks, importing events 
 ---
 
 ### Event Analysis
+
 **[Event Analysis Guide](event-analysis.md)**
 
-Learn how to analyze race event data, view interactive charts, compare drivers, explore sessions, and export data.
+Learn how to analyze race event data, view interactive charts, compare drivers,
+explore sessions, and export data.
 
 **Topics Covered:**
+
 - Accessing event analysis
 - Understanding overview, drivers, sessions, and comparisons tabs
 - Reading charts and visualizations
@@ -70,11 +84,14 @@ Learn how to analyze race event data, view interactive charts, compare drivers, 
 ---
 
 ### Dashboard
+
 **[Dashboard Guide](dashboard.md)**
 
-Guide to using your personal dashboard, understanding widgets, customizing layouts, and viewing statistics.
+Guide to using your personal dashboard, understanding widgets, customizing
+layouts, and viewing statistics.
 
 **Topics Covered:**
+
 - Dashboard overview
 - Understanding widgets
 - Customizing dashboard layout
@@ -87,11 +104,14 @@ Guide to using your personal dashboard, understanding widgets, customizing layou
 ---
 
 ### Driver Features
+
 **[Driver Features Guide](driver-features.md)**
 
-Learn how MRE automatically discovers events where you participated, understand match types, and confirm participation.
+Learn how MRE automatically discovers events where you participated, understand
+match types, and confirm participation.
 
 **Topics Covered:**
+
 - Viewing discovered events
 - Understanding fuzzy matching
 - Confirming participation
@@ -103,11 +123,14 @@ Learn how MRE automatically discovers events where you participated, understand 
 ---
 
 ### Navigation
+
 **[Navigation Guide](navigation.md)**
 
-Master navigation patterns including breadcrumbs, menus, tabs, keyboard shortcuts, and finding features.
+Master navigation patterns including breadcrumbs, menus, tabs, keyboard
+shortcuts, and finding features.
 
 **Topics Covered:**
+
 - Breadcrumb navigation
 - Main navigation menu
 - Tab navigation
@@ -120,11 +143,14 @@ Master navigation patterns including breadcrumbs, menus, tabs, keyboard shortcut
 ---
 
 ### Account Management
+
 **[Account Management Guide](account-management.md)**
 
-Complete guide to managing your account, including registration, login, password management, and account security.
+Complete guide to managing your account, including registration, login, password
+management, and account security.
 
 **Topics Covered:**
+
 - Account registration
 - Logging in and out
 - Password management
@@ -137,11 +163,14 @@ Complete guide to managing your account, including registration, login, password
 ---
 
 ### Troubleshooting
+
 **[Troubleshooting Guide](troubleshooting.md)**
 
-Find solutions to common problems including login issues, event import failures, search problems, and performance issues.
+Find solutions to common problems including login issues, event import failures,
+search problems, and performance issues.
 
 **Topics Covered:**
+
 - Login issues
 - Event search problems
 - Event import failures
@@ -190,29 +219,22 @@ Manage your account:
 
 ### I Want To...
 
-**Create an account:**
-→ [Getting Started Guide](getting-started.md) or [Account Management Guide](account-management.md)
+**Create an account:** → [Getting Started Guide](getting-started.md) or
+[Account Management Guide](account-management.md)
 
-**Find race events:**
-→ [Event Search Guide](event-search.md)
+**Find race events:** → [Event Search Guide](event-search.md)
 
-**Analyze my performance:**
-→ [Event Analysis Guide](event-analysis.md)
+**Analyze my performance:** → [Event Analysis Guide](event-analysis.md)
 
-**Customize my dashboard:**
-→ [Dashboard Guide](dashboard.md)
+**Customize my dashboard:** → [Dashboard Guide](dashboard.md)
 
-**Understand discovered events:**
-→ [Driver Features Guide](driver-features.md)
+**Understand discovered events:** → [Driver Features Guide](driver-features.md)
 
-**Learn keyboard shortcuts:**
-→ [Navigation Guide](navigation.md)
+**Learn keyboard shortcuts:** → [Navigation Guide](navigation.md)
 
-**Fix a problem:**
-→ [Troubleshooting Guide](troubleshooting.md)
+**Fix a problem:** → [Troubleshooting Guide](troubleshooting.md)
 
-**Change my password:**
-→ [Account Management Guide](account-management.md)
+**Change my password:** → [Account Management Guide](account-management.md)
 
 ## Guide Structure
 
@@ -240,11 +262,13 @@ Each guide follows a consistent structure:
 ### Finding Information
 
 **By Topic:**
+
 - Browse the guide list above
 - Use the Quick Reference section
 - Check guide categories
 
 **By Problem:**
+
 - Start with [Troubleshooting Guide](troubleshooting.md)
 - Check Common Issues sections in relevant guides
 - Use browser search (Ctrl/Cmd + F) within guides
@@ -253,8 +277,10 @@ Each guide follows a consistent structure:
 
 These user guides complement the technical documentation:
 
-- **[User Journeys](../user-stories/user-journeys.md)** - Detailed user journey flows
-- **[LiveRC User Workflow](../frontend/liverc/user-workflow.md)** - Technical workflow details
+- **[User Journeys](../user-stories/user-journeys.md)** - Detailed user journey
+  flows
+- **[LiveRC User Workflow](../frontend/liverc/user-workflow.md)** - Technical
+  workflow details
 - **[User Stories](../user-stories/README.md)** - Feature specifications
 
 ## Feedback
@@ -269,9 +295,11 @@ Please contact support or provide feedback through the application.
 
 ## Updates
 
-Guides are updated as features change and improve. Check the "Last Modified" date at the top of each guide to see when it was last updated.
+Guides are updated as features change and improve. Check the "Last Modified"
+date at the top of each guide to see when it was last updated.
 
 ---
 
-**Ready to get started?** Begin with the [Getting Started Guide](getting-started.md) if you're new, or browse the guides above to find what you need!
-
+**Ready to get started?** Begin with the
+[Getting Started Guide](getting-started.md) if you're new, or browse the guides
+above to find what you need!

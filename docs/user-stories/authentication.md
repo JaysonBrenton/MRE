@@ -3,8 +3,9 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: User stories for authentication features (registration and login)
-purpose: Defines user stories for user registration and login functionality with detailed
-         acceptance criteria, dependencies, and Definition of Done checklists.
+purpose:
+  Defines user stories for user registration and login functionality with
+  detailed acceptance criteria, dependencies, and Definition of Done checklists.
 relatedFiles:
   - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
@@ -14,7 +15,8 @@ relatedFiles:
 
 # Authentication Epic
 
-This epic contains user stories for authentication features: user registration and login.
+This epic contains user stories for authentication features: user registration
+and login.
 
 ---
 
@@ -25,9 +27,11 @@ This epic contains user stories for authentication features: user registration a
 **So that** I can access MRE features
 
 ### Priority
+
 High
 
 ### Dependencies
+
 None (foundational feature)
 
 ### Acceptance Criteria
@@ -38,7 +42,8 @@ None (foundational feature)
      - Password (required)
      - Driver Name (required, primary display name)
      - Team Name (optional)
-   - All fields must be clearly labeled with labels positioned directly above inputs per UX principles
+   - All fields must be clearly labeled with labels positioned directly above
+     inputs per UX principles
    - Required fields must be visually indicated
    - Form must use semantic dark theme tokens for styling
 
@@ -48,27 +53,33 @@ None (foundational feature)
    - Password must meet minimum requirements (at least 8 characters)
    - Driver Name must not be empty
    - Validation errors must appear directly beneath the relevant field
-   - Error messages must be concise and actionable (e.g., "Email is required", "Password must be at least 8 characters")
+   - Error messages must be concise and actionable (e.g., "Email is required",
+     "Password must be at least 8 characters")
    - Error messages must use error token colors (`--token-error-text`)
    - Form submission must be disabled until all validation passes
 
 3. **API Integration**
    - Form submission must call `POST /api/v1/auth/register` endpoint
-   - Request body must include: email/username, password, driverName, teamName (if provided)
+   - Request body must include: email/username, password, driverName, teamName
+     (if provided)
    - Password must be hashed using Argon2id before storage (handled by backend)
    - API response must follow standard format defined in architecture guidelines
    - Registration must create user record in PostgreSQL database via Prisma
 
 4. **Success Handling**
-   - Upon successful registration, user must be automatically redirected to Welcome page
+   - Upon successful registration, user must be automatically redirected to
+     Welcome page
    - Session must be created automatically upon successful registration
    - User must be logged in immediately after registration
    - No additional confirmation steps or emails required in Alpha
 
 5. **Error Handling**
-   - Network errors must display user-friendly message: "Unable to create account. Please check your connection and try again."
-   - Duplicate email/username errors must display: "An account with this email/username already exists."
-   - Server validation errors must display field-level error messages beneath relevant fields
+   - Network errors must display user-friendly message: "Unable to create
+     account. Please check your connection and try again."
+   - Duplicate email/username errors must display: "An account with this
+     email/username already exists."
+   - Server validation errors must display field-level error messages beneath
+     relevant fields
    - Generic errors must display: "Unable to create account. Please try again."
    - All error messages must use error token colors
    - Error messages must not expose technical details or system internals
@@ -82,10 +93,13 @@ None (foundational feature)
    - No hover-only interactions
 
 7. **UI/UX Compliance**
-   - Form must follow UX principles: labels above inputs, consistent spacing, semantic tokens
+   - Form must follow UX principles: labels above inputs, consistent spacing,
+     semantic tokens
    - Form must use standard outlined/secondary button style per UX guidelines
-   - Button text must be "Create Account" (action-oriented, not generic "Submit")
-   - Form must follow dark theme guidelines (no pure black, semantic tokens only)
+   - Button text must be "Create Account" (action-oriented, not generic
+     "Submit")
+   - Form must follow dark theme guidelines (no pure black, semantic tokens
+     only)
    - Form must maintain vertical rhythm using spacing scale
    - Form must be left-aligned for readability
 
@@ -93,12 +107,14 @@ None (foundational feature)
    - All form fields must be keyboard navigable
    - Labels must be properly associated with inputs using `htmlFor` and `id`
    - Screen reader support: validation errors must be announced
-   - Focus management: focus must move to first error field when validation fails
+   - Focus management: focus must move to first error field when validation
+     fails
    - Focus indicators must be visible using `--token-interactive-focus-ring`
    - Form must meet WCAG 2.1 AA contrast standards
 
 9. **Architecture Compliance**
-   - Business logic must reside in `src/core/auth/register.ts` (not in UI component)
+   - Business logic must reside in `src/core/auth/register.ts` (not in UI
+     component)
    - UI component must be thin and call server action or API endpoint
    - No Prisma queries in UI components
    - No validation logic in UI components
@@ -141,9 +157,11 @@ None (foundational feature)
 **So that** I can access my account
 
 ### Priority
+
 High
 
 ### Dependencies
+
 - User Registration story (users must exist before they can log in)
 
 ### Acceptance Criteria
@@ -152,7 +170,8 @@ High
    - Form must include the following fields:
      - Email or Username (required, single field that accepts either)
      - Password (required)
-   - All fields must be clearly labeled with labels positioned directly above inputs
+   - All fields must be clearly labeled with labels positioned directly above
+     inputs
    - Form must use semantic dark theme tokens for styling
 
 2. **Form Validation**
@@ -160,7 +179,8 @@ High
    - Email/Username field must not be empty
    - Password field must not be empty
    - Validation errors must appear directly beneath the relevant field
-   - Error messages must be concise and actionable (e.g., "Email/Username is required", "Password is required")
+   - Error messages must be concise and actionable (e.g., "Email/Username is
+     required", "Password is required")
    - Error messages must use error token colors (`--token-error-text`)
    - Form submission must be disabled until all validation passes
 
@@ -171,7 +191,8 @@ High
    - Password verification must use secure comparison (Argon2id)
    - Session must be created upon successful authentication
    - Session must support cookie-based authentication for web (Alpha)
-   - Architecture must support future token-based authentication for mobile (structure ready, implementation may be stubbed)
+   - Architecture must support future token-based authentication for mobile
+     (structure ready, implementation may be stubbed)
 
 4. **Redirect Logic**
    - Upon successful login, user must be redirected based on account type:
@@ -181,12 +202,16 @@ High
    - Session must be established before redirect
 
 5. **Error Handling**
-   - Invalid credentials must display: "Invalid email/username or password." (generic message for security)
-   - Network errors must display: "Unable to log in. Please check your connection and try again."
+   - Invalid credentials must display: "Invalid email/username or password."
+     (generic message for security)
+   - Network errors must display: "Unable to log in. Please check your
+     connection and try again."
    - Server errors must display: "Unable to log in. Please try again."
-   - Account not found errors must display: "Invalid email/username or password." (generic message for security)
+   - Account not found errors must display: "Invalid email/username or
+     password." (generic message for security)
    - All error messages must use error token colors
-   - Error messages must not expose whether email/username exists (security best practice)
+   - Error messages must not expose whether email/username exists (security best
+     practice)
    - Error messages must not expose technical details
 
 6. **Mobile-First UI Requirements**
@@ -198,10 +223,13 @@ High
    - No hover-only interactions
 
 7. **UI/UX Compliance**
-   - Form must follow UX principles: labels above inputs, consistent spacing, semantic tokens
+   - Form must follow UX principles: labels above inputs, consistent spacing,
+     semantic tokens
    - Form must use standard outlined/secondary button style per UX guidelines
-   - Button text must be "Sign in" or "Log In" (action-oriented, not generic "Submit")
-   - Form must follow dark theme guidelines (no pure black, semantic tokens only)
+   - Button text must be "Sign in" or "Log In" (action-oriented, not generic
+     "Submit")
+   - Form must follow dark theme guidelines (no pure black, semantic tokens
+     only)
    - Form must maintain vertical rhythm using spacing scale
    - Form must be left-aligned for readability
 
@@ -209,12 +237,14 @@ High
    - All form fields must be keyboard navigable
    - Labels must be properly associated with inputs using `htmlFor` and `id`
    - Screen reader support: validation errors must be announced
-   - Focus management: focus must move to first error field when validation fails
+   - Focus management: focus must move to first error field when validation
+     fails
    - Focus indicators must be visible using `--token-interactive-focus-ring`
    - Form must meet WCAG 2.1 AA contrast standards
 
 9. **Architecture Compliance**
-   - Business logic must reside in `src/core/auth/login.ts` (not in UI component)
+   - Business logic must reside in `src/core/auth/login.ts` (not in UI
+     component)
    - UI component must be thin and call server action or API endpoint
    - No Prisma queries in UI components
    - No authentication logic in UI components
@@ -255,4 +285,3 @@ High
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
 - [MRE UX Principles - Forms](../design/mre-ux-principles.md#4-forms-login-and-registration)
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)
-

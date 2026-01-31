@@ -1,16 +1,16 @@
 /**
  * @fileoverview Persona assignment logic
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Business logic for assigning personas to users
- * 
+ *
  * @purpose This file contains persona assignment logic, following the mobile-safe
  *          architecture requirement that business logic must reside in src/core/<domain>/.
  *          This logic can be reused by API routes, server actions, and future mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/core/personas/repo.ts (persona repository functions)
  * - src/core/auth/register.ts (registration integration)
@@ -24,7 +24,7 @@ import { logger } from "@/lib/logger"
 
 /**
  * Assign Driver persona to user
- * 
+ *
  * @param userId - User ID
  */
 export async function assignDriverPersona(userId: string): Promise<void> {
@@ -36,7 +36,7 @@ export async function assignDriverPersona(userId: string): Promise<void> {
 
   await prisma.user.update({
     where: { id: userId },
-    data: { personaId: driverPersona.id }
+    data: { personaId: driverPersona.id },
   })
 
   logger.info("Driver persona assigned to user", { userId, personaId: driverPersona.id })
@@ -44,7 +44,7 @@ export async function assignDriverPersona(userId: string): Promise<void> {
 
 /**
  * Assign Admin persona to user
- * 
+ *
  * @param userId - User ID
  */
 export async function assignAdminPersona(userId: string): Promise<void> {
@@ -56,7 +56,7 @@ export async function assignAdminPersona(userId: string): Promise<void> {
 
   await prisma.user.update({
     where: { id: userId },
-    data: { personaId: adminPersona.id }
+    data: { personaId: adminPersona.id },
   })
 
   logger.info("Admin persona assigned to user", { userId, personaId: adminPersona.id })
@@ -64,7 +64,7 @@ export async function assignAdminPersona(userId: string): Promise<void> {
 
 /**
  * Assign Team Manager persona to user
- * 
+ *
  * @param userId - User ID
  */
 export async function assignTeamManagerPersona(userId: string): Promise<void> {
@@ -76,7 +76,7 @@ export async function assignTeamManagerPersona(userId: string): Promise<void> {
 
   await prisma.user.update({
     where: { id: userId },
-    data: { personaId: teamManagerPersona.id }
+    data: { personaId: teamManagerPersona.id },
   })
 
   logger.info("Team Manager persona assigned to user", { userId, personaId: teamManagerPersona.id })
@@ -84,7 +84,7 @@ export async function assignTeamManagerPersona(userId: string): Promise<void> {
 
 /**
  * Assign Race Engineer persona to user
- * 
+ *
  * @param userId - User ID
  */
 export async function assignRaceEngineerPersona(userId: string): Promise<void> {
@@ -96,17 +96,20 @@ export async function assignRaceEngineerPersona(userId: string): Promise<void> {
 
   await prisma.user.update({
     where: { id: userId },
-    data: { personaId: raceEngineerPersona.id }
+    data: { personaId: raceEngineerPersona.id },
   })
 
-  logger.info("Race Engineer persona assigned to user", { userId, personaId: raceEngineerPersona.id })
+  logger.info("Race Engineer persona assigned to user", {
+    userId,
+    personaId: raceEngineerPersona.id,
+  })
 }
 
 /**
  * Determine persona for user based on user properties
- * 
+ *
  * Priority: Admin > Team Manager > Driver
- * 
+ *
  * @param user - User object
  * @returns Persona type to assign
  */
@@ -115,22 +118,22 @@ export function getPersonaForUser(user: User): PersonaType {
   if (user.isAdmin) {
     return "admin"
   }
-  
+
   if (user.isTeamManager && user.teamName) {
     return "team_manager"
   }
-  
+
   return "driver"
 }
 
 /**
  * Auto-assign persona to user based on user properties
- * 
+ *
  * @param userId - User ID
  */
 export async function autoAssignPersona(userId: string): Promise<void> {
   const user = await prisma.user.findUnique({
-    where: { id: userId }
+    where: { id: userId },
   })
 
   if (!user) {

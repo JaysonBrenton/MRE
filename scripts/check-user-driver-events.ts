@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
 async function main() {
-  const userEmail = process.argv[2] || 'jaysoncareybrenton@gmail.com'
+  const userEmail = process.argv[2] || "jaysoncareybrenton@gmail.com"
 
   console.log(`\nChecking driver events for user: ${userEmail}\n`)
 
@@ -29,15 +29,15 @@ async function main() {
   console.log(`   ID: ${user.id}`)
   console.log(`   Email: ${user.email}`)
   console.log(`   Driver Name: ${user.driverName}`)
-  console.log(`   Normalized Name: ${user.normalizedName || '(not set)'}`)
-  console.log(`   Persona ID: ${user.personaId || '(not set)'}\n`)
+  console.log(`   Normalized Name: ${user.normalizedName || "(not set)"}`)
+  console.log(`   Persona ID: ${user.personaId || "(not set)"}\n`)
 
   // Check persona
   if (user.personaId) {
     const persona = await prisma.persona.findUnique({
       where: { id: user.personaId },
     })
-    console.log(`✅ Persona: ${persona?.type || 'unknown'}\n`)
+    console.log(`✅ Persona: ${persona?.type || "unknown"}\n`)
   }
 
   // Check UserDriverLinks
@@ -74,7 +74,9 @@ async function main() {
     console.log(`     Similarity: ${link.similarityScore}`)
     console.log(`     Events: ${link.events.length}`)
     link.events.forEach((eventLink) => {
-      console.log(`       • ${eventLink.event.eventName} (${eventLink.matchType}, ${eventLink.similarityScore})`)
+      console.log(
+        `       • ${eventLink.event.eventName} (${eventLink.matchType}, ${eventLink.similarityScore})`
+      )
     })
   })
 
@@ -98,7 +100,7 @@ async function main() {
       },
     },
     orderBy: {
-      matchedAt: 'desc',
+      matchedAt: "desc",
     },
   })
 
@@ -107,10 +109,10 @@ async function main() {
     eventDriverLinks.forEach((link) => {
       console.log(`   - ${link.event.eventName}`)
       console.log(`     Track: ${link.event.track.trackName}`)
-      console.log(`     Date: ${link.event.eventDate.toISOString().split('T')[0]}`)
+      console.log(`     Date: ${link.event.eventDate.toISOString().split("T")[0]}`)
       console.log(`     Match Type: ${link.matchType}`)
       console.log(`     Similarity: ${link.similarityScore}`)
-      console.log(`     UserDriverLink Status: ${link.userDriverLink?.status || 'N/A'}`)
+      console.log(`     UserDriverLink Status: ${link.userDriverLink?.status || "N/A"}`)
     })
   } else {
     console.log(`   ⚠️  No EventDriverLinks found`)
@@ -121,10 +123,9 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('Error querying database:', e)
+    console.error("Error querying database:", e)
     process.exit(1)
   })
   .finally(async () => {
     await prisma.$disconnect()
   })
-

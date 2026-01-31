@@ -3,9 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Performance model and scaling strategies for LiveRC ingestion
-purpose: Defines performance model, throughput expectations, scaling strategies, and
-         architectural invariants for the LiveRC ingestion subsystem. Focuses on
-         efficient on-demand ingestion rather than high-volume scraping.
+purpose:
+  Defines performance model, throughput expectations, scaling strategies, and
+  architectural invariants for the LiveRC ingestion subsystem. Focuses on
+  efficient on-demand ingestion rather than high-volume scraping.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -46,7 +47,7 @@ MRE ingestion is designed around the following principles:
    - 5 to 15 races
    - 6 to 12 drivers per race
    - 30 to 45 laps per driver  
-   Total: ~1,000 to ~5,000 lap rows (light workload)
+     Total: ~1,000 to ~5,000 lap rows (light workload)
 
 4. **Horizontal concurrency without contention.**  
    MRE may ingest multiple separate events concurrently, but MUST:
@@ -66,7 +67,8 @@ Typical ingestion duration (guidelines):
 
 - Event summary page: < 200 ms
 - 10 race pages via HTTPX: 300–800 ms
-- Playwright-enabled lap extraction: 400–1,500 ms total per race depending on JS load
+- Playwright-enabled lap extraction: 400–1,500 ms total per race depending on JS
+  load
 - Normalisation and DB persistence: 200–500 ms
 
 **Total estimated ingestion time:**  
@@ -78,8 +80,8 @@ This is acceptable because ingestion is admin-triggered and infrequent.
 
 Even busy clubs generate:
 
-- ~30–50 events per year  
-- maybe 200–400 races total  
+- ~30–50 events per year
+- maybe 200–400 races total
 - ~40k–150k laps per year
 
 MRE can easily handle this volume even on a modest server.
@@ -98,7 +100,7 @@ Most ingestion CPU time is spent:
 
 Opportunities to scale:
 
-- Parallel ingestion of *different* events
+- Parallel ingestion of _different_ events
 - Parallel fetch of races within the same event (optional future optimisation)
 
 ### 3.2 Memory Scaling
@@ -109,7 +111,8 @@ Memory consumption is low:
 - Parsed event data: < 1–5 MB
 - Playwright browser: 150–300 MB per context
 
-The connector MUST open and close Playwright contexts quickly to avoid memory buildup.
+The connector MUST open and close Playwright contexts quickly to avoid memory
+buildup.
 
 ### 3.3 Database Scaling
 
@@ -126,7 +129,7 @@ Indexes required:
 - race(event_id)
 - race_result(race_id)
 - lap(race_result_id)
-- source_* identifiers for idempotency
+- source\_\* identifiers for idempotency
 
 ---
 
@@ -154,7 +157,7 @@ It is safe to ingest:
 
 - multiple tracks concurrently
 - multiple events concurrently
-- multiple race pages concurrently *only if we later add parallelism*
+- multiple race pages concurrently _only if we later add parallelism_
 
 ---
 
@@ -192,10 +195,10 @@ Playwright is the most expensive component of ingestion.
 
 Rules:
 
-1. Use Playwright only when lap tables require JS expansion.  
-2. Close browser contexts immediately after use.  
-3. Avoid multi-page navigation in a single context.  
-4. Avoid screenshots unless debugging.  
+1. Use Playwright only when lap tables require JS expansion.
+2. Close browser contexts immediately after use.
+3. Avoid multi-page navigation in a single context.
+4. Avoid screenshots unless debugging.
 5. Consider headless mode always enabled.
 
 Expected overhead per race:  
@@ -303,11 +306,11 @@ This avoids slow, expensive real-world scraping during development.
 
 Possible enhancements:
 
-1. Distributed scraping workers  
-2. Browserless rendering for predictable DOM extraction  
-3. Incremental ingestion (partial race updates)  
-4. Race result diffing (detecting upstream corrections)  
-5. GPU-accelerated or parallel HTML parsing  
+1. Distributed scraping workers
+2. Browserless rendering for predictable DOM extraction
+3. Incremental ingestion (partial race updates)
+4. Race result diffing (detecting upstream corrections)
+5. GPU-accelerated or parallel HTML parsing
 
 These MUST NOT compromise correctness or determinism.
 

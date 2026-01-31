@@ -82,7 +82,7 @@ let validationError: Error | null = null
 /**
  * Validate environment variables (lazy evaluation)
  * Validates on first access, caches result for subsequent accesses
- * 
+ *
  * @returns Validated environment variables
  * @throws Error if validation fails
  */

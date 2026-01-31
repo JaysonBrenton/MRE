@@ -3,7 +3,9 @@ created: 2025-01-28
 creator: System
 lastModified: 2025-01-28
 description: Template comment block for pagination components
-purpose: Provides a standardized comment template to copy when creating new pagination components
+purpose:
+  Provides a standardized comment template to copy when creating new pagination
+  components
 relatedFiles:
   - src/components/event-analysis/ChartPagination.tsx
   - docs/development/PAGINATION_SPACING_GUIDELINES.md
@@ -11,27 +13,28 @@ relatedFiles:
 
 # Pagination Component Template
 
-When creating a new pagination component, copy this template and ensure all spacing requirements are met.
+When creating a new pagination component, copy this template and ensure all
+spacing requirements are met.
 
 ## Component File Header Template
 
 ```tsx
 /**
  * @fileoverview [Component Name] pagination component
- * 
+ *
  * @created [Date]
  * @creator [Your Name]
  * @lastModified [Date]
- * 
+ *
  * @description Pagination controls for [description]
- * 
+ *
  * @purpose Provides navigation controls for paginated [content type] views.
  *          Optimized for desktop viewports.
- * 
+ *
  * @spacing CRITICAL: This component includes `mb-16` bottom margin to prevent footer overlap.
  *          See docs/development/PAGINATION_SPACING_GUIDELINES.md for spacing requirements.
  *          DO NOT use `mb-8` - it's insufficient and will cause overlap.
- * 
+ *
  * @relatedFiles
  * - [Component that uses this]
  * - docs/development/PAGINATION_SPACING_GUIDELINES.md (spacing requirements)
@@ -67,12 +70,13 @@ return (
 ## Common Mistakes
 
 ❌ **WRONG:**
+
 ```tsx
 <nav className="flex items-center justify-between gap-4 mt-4 mb-8 px-2">
 ```
 
 ✅ **CORRECT:**
+
 ```tsx
 <nav className="flex items-center justify-between gap-4 mt-4 mb-16 px-2">
 ```
-

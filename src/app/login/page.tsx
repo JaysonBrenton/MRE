@@ -1,16 +1,16 @@
 /**
  * @fileoverview Login page component
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Client-side login page with form handling
- * 
+ *
  * @purpose Provides the user login interface. This is a client component that handles
  *          form submission and calls the authenticate server action. After successful
  *          login, users are redirected to their appropriate page (welcome or admin).
- * 
+ *
  * @relatedFiles
  * - src/app/actions/auth.ts (authenticate server action)
  * - src/core/auth/login.ts (authentication business logic)
@@ -20,7 +20,7 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
 import Footer from "@/components/Footer"
 import { authenticate } from "../actions/auth"
@@ -32,7 +32,7 @@ type LoginFieldErrors = {
   password?: string
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
@@ -98,13 +98,14 @@ export default function LoginPage() {
       router.refresh()
     } catch (authError) {
       clientLogger.error("Unexpected login error", {
-        error: authError instanceof Error
-          ? {
-              name: authError.name,
-              message: authError.message,
-              stack: authError.stack,
-            }
-          : String(authError),
+        error:
+          authError instanceof Error
+            ? {
+                name: authError.name,
+                message: authError.message,
+                stack: authError.stack,
+              }
+            : String(authError),
       })
       setError("An unexpected error occurred. Please try again.")
       setLoading(false)
@@ -116,19 +117,39 @@ export default function LoginPage() {
   const passwordErrorId = fieldErrors.password ? "login-password-error" : undefined
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[var(--token-surface)] overflow-x-hidden" style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}>
+    <div
+      className="flex min-h-screen w-full flex-col bg-[var(--token-surface)] overflow-x-hidden"
+      style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
+    >
       <main
         id="main-content"
         className="page-container flex-1 w-full min-w-0 px-6 py-12"
         tabIndex={-1}
-        style={{ width: "100%", minWidth: 0, flexBasis: "100%", boxSizing: "border-box", flexShrink: 1 }}
+        style={{
+          width: "100%",
+          minWidth: 0,
+          flexBasis: "100%",
+          boxSizing: "border-box",
+          flexShrink: 1,
+        }}
       >
-        <section className="content-wrapper w-full min-w-0 max-w-2xl" style={{ width: "100%", minWidth: 0, marginLeft: "auto", marginRight: "auto", maxWidth: "672px", boxSizing: "border-box" }}>
-          <div className="w-full min-w-0 space-y-8 rounded-lg bg-[var(--token-surface-elevated)] p-8 shadow-lg" style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}>
+        <section
+          className="content-wrapper w-full min-w-0 max-w-2xl"
+          style={{
+            width: "100%",
+            minWidth: 0,
+            marginLeft: "auto",
+            marginRight: "auto",
+            maxWidth: "672px",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            className="w-full min-w-0 space-y-8 rounded-lg bg-[var(--token-surface-elevated)] p-8 shadow-lg"
+            style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
+          >
             <div>
-              <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
-                Sign in
-              </h1>
+              <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">Sign in</h1>
               <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
                 Sign in to your account
               </p>
@@ -146,7 +167,12 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6 w-full min-w-0" noValidate style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}>
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-6 w-full min-w-0"
+              noValidate
+              style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
+            >
               {hasError && (
                 <div
                   id="login-error"
@@ -159,7 +185,10 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <div className="space-y-6 w-full min-w-0" style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}>
+              <div
+                className="space-y-6 w-full min-w-0"
+                style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
+              >
                 <div>
                   <label
                     htmlFor="email"
@@ -248,5 +277,61 @@ export default function LoginPage() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+function LoginPageFallback() {
+  return (
+    <div
+      className="flex min-h-screen w-full flex-col bg-[var(--token-surface)] overflow-x-hidden"
+      style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
+    >
+      <main
+        id="main-content"
+        className="page-container flex-1 w-full min-w-0 px-6 py-12"
+        tabIndex={-1}
+        style={{
+          width: "100%",
+          minWidth: 0,
+          flexBasis: "100%",
+          boxSizing: "border-box",
+          flexShrink: 1,
+        }}
+      >
+        <section
+          className="content-wrapper w-full min-w-0 max-w-2xl"
+          style={{
+            width: "100%",
+            minWidth: 0,
+            marginLeft: "auto",
+            marginRight: "auto",
+            maxWidth: "672px",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            className="w-full min-w-0 space-y-8 rounded-lg bg-[var(--token-surface-elevated)] p-8 shadow-lg"
+            style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
+          >
+            <div>
+              <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">Sign in</h1>
+              <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
+                Sign in to your account
+              </p>
+            </div>
+            <div className="h-24 animate-pulse rounded-md bg-[var(--token-border-default)]" />
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   )
 }

@@ -3,9 +3,11 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Cross-connector abstractions for multi-source ingestion support
-purpose: Defines shared abstractions, interfaces, and conventions enabling multiple
-         ingestion connectors to coexist under a unified framework. Ensures future data
-         sources can be added with minimal friction without modifying core ingestion logic.
+purpose:
+  Defines shared abstractions, interfaces, and conventions enabling multiple
+  ingestion connectors to coexist under a unified framework. Ensures future data
+  sources can be added with minimal friction without modifying core ingestion
+  logic.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/02-connector-architecture.md
@@ -15,7 +17,11 @@ relatedFiles:
 
 # 23. Ingestion Cross-Connector Abstractions
 
-This document defines the shared abstractions, interfaces, and conventions that allow multiple ingestion connectors to coexist under a unified framework. The aim is to ensure that future data sources can be added to the My Race Engineer (MRE) ingestion ecosystem with minimal friction, without modifying core ingestion logic.
+This document defines the shared abstractions, interfaces, and conventions that
+allow multiple ingestion connectors to coexist under a unified framework. The
+aim is to ensure that future data sources can be added to the My Race Engineer
+(MRE) ingestion ecosystem with minimal friction, without modifying core
+ingestion logic.
 
 The abstractions defined here form the contract between:
 
@@ -25,7 +31,8 @@ The abstractions defined here form the contract between:
 - the persistence layer
 - the browser and HTTP fetch subsystems
 
-They guarantee stability, determinism, and a consistent developer experience across multiple data sources.
+They guarantee stability, determinism, and a consistent developer experience
+across multiple data sources.
 
 ---
 
@@ -33,12 +40,15 @@ They guarantee stability, determinism, and a consistent developer experience acr
 
 The ingestion engine must:
 
-- Treat each data source (LiveRC or otherwise) as a modular, swappable component.
-- Provide a unified interface for discovery, fetching, parsing, normalisation, and persistence.
+- Treat each data source (LiveRC or otherwise) as a modular, swappable
+  component.
+- Provide a unified interface for discovery, fetching, parsing, normalisation,
+  and persistence.
 - Guarantee that ingestion behaviour remains consistent across connectors.
 - Enforce versioning and backward compatibility.
 - Allow connectors to evolve independently from the ingestion core.
-- Support different capabilities (HTTP-only, browser-required, mixed-mode, streaming, paginated sources).
+- Support different capabilities (HTTP-only, browser-required, mixed-mode,
+  streaming, paginated sources).
 - Enable clear validation, error-handling, and replay semantics.
 
 The system must scale to many connectors without rewriting ingestion logic.
@@ -58,7 +68,8 @@ MRE maintains a registry of all available connectors. Each connector registers:
 - required configuration (API keys, rate limits, fetch settings)
 - failure modes and retry behaviour
 
-The registry is the ingestion engine’s source of truth for routing operations to the correct connector.
+The registry is the ingestion engine’s source of truth for routing operations to
+the correct connector.
 
 The ingestion engine queries this registry before performing any ingestion step.
 
@@ -66,7 +77,8 @@ The ingestion engine queries this registry before performing any ingestion step.
 
 ## 3. Connector Interface Requirements
 
-All connectors must implement the following interfaces, even if implemented as no-op functions when unsupported:
+All connectors must implement the following interfaces, even if implemented as
+no-op functions when unsupported:
 
 1. resolve_track_url(slug)
 2. resolve_event_url(external_id)
@@ -87,7 +99,8 @@ All connectors must implement the following interfaces, even if implemented as n
 17. detect_js_schema(raw_js)
 18. connector_capabilities()
 
-Connectors that do not support a given operation must still implement the method and return an appropriate capability error.
+Connectors that do not support a given operation must still implement the method
+and return an appropriate capability error.
 
 Every connector method must be deterministic for the same inputs.
 
@@ -112,13 +125,15 @@ Normalisation rules ensure:
 - stable identifiers (source-specific, connector-scoped)
 - consistent handling of missing or malformed data
 
-Normalization isolates the rest of the system from HTML or JavaScript variability.
+Normalization isolates the rest of the system from HTML or JavaScript
+variability.
 
 ---
 
 ## 5. Capability Model
 
-Connectors may support different ingestion patterns. Capability flags allow the ingestion engine to choose the correct logic flow.
+Connectors may support different ingestion patterns. Capability flags allow the
+ingestion engine to choose the correct logic flow.
 
 Examples:
 
@@ -130,7 +145,8 @@ Examples:
 - provides_race_list: true or false
 - provides_lap_data: true or false
 
-Capabilities MUST be documented and versioned. Connectors must behave consistently with their published capabilities.
+Capabilities MUST be documented and versioned. Connectors must behave
+consistently with their published capabilities.
 
 ---
 
@@ -140,9 +156,11 @@ Each connector must declare a semantic version. Changes must follow:
 
 - Patch: internal fixes, no schema changes.
 - Minor: new optional fields, new capabilities.
-- Major: breaking schema changes, new ingestion states, or incompatible behaviours.
+- Major: breaking schema changes, new ingestion states, or incompatible
+  behaviours.
 
-The ingestion engine must reject incompatible major versions unless explicitly permitted.
+The ingestion engine must reject incompatible major versions unless explicitly
+permitted.
 
 Connectors must guarantee backward compatibility for a full major version cycle.
 
@@ -187,7 +205,8 @@ All connectors must adhere to:
 - normalised numeric fields (floats, ints)
 - deterministic failure modes
 
-This ensures ingestion runs produce byte-identical outputs when fed the same raw data.
+This ensures ingestion runs produce byte-identical outputs when fed the same raw
+data.
 
 ---
 
@@ -208,7 +227,8 @@ The ingestion engine decides whether to use:
 - Cached fixtures (debug mode)
 - Recorded DOM snapshots
 
-Connectors must not import browser libraries directly. They request capabilities through abstract interfaces.
+Connectors must not import browser libraries directly. They request capabilities
+through abstract interfaces.
 
 ---
 
@@ -238,7 +258,8 @@ A new connector must be addable by:
 - adding schema validation rules
 - adding error-mapping rules
 
-No ingestion engine code should need modification to support a new connector, unless the connector introduces a new domain concept.
+No ingestion engine code should need modification to support a new connector,
+unless the connector introduces a new domain concept.
 
 ---
 
@@ -293,7 +314,10 @@ Security is mandatory and versioned along with capabilities.
 
 ## 15. Summary
 
-This document defines the standards that all ingestion connectors must follow. By enforcing unified abstractions, capability models, deterministic behaviour, error taxonomies, and normalisation rules, MRE ensures that ingestion remains stable, maintainable, extensible, and predictable across multiple data sources.
+This document defines the standards that all ingestion connectors must follow.
+By enforcing unified abstractions, capability models, deterministic behaviour,
+error taxonomies, and normalisation rules, MRE ensures that ingestion remains
+stable, maintainable, extensible, and predictable across multiple data sources.
 
-This abstraction layer is critical to supporting additional connectors beyond LiveRC in future versions of the system.
-
+This abstraction layer is critical to supporting additional connectors beyond
+LiveRC in future versions of the system.

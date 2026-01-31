@@ -1,24 +1,20 @@
 /**
  * @fileoverview Track map data validation
- * 
+ *
  * @created 2026-01-24
  * @creator Auto-generated
  * @lastModified 2026-01-24
- * 
+ *
  * @description Validation functions for track map data structures
- * 
+ *
  * @purpose Ensures track map data is valid before saving to database
- * 
+ *
  * @relatedFiles
  * - src/core/track-maps/types.ts (validates these types)
  * - src/core/track-maps/repo.ts (uses validation)
  */
 
-import type {
-  TrackMapData,
-  TrackMapShape,
-  TrackMapShapeType,
-} from "./types"
+import type { TrackMapData, TrackMapShape, TrackMapShapeType } from "./types"
 
 const VALID_SHAPE_TYPES: TrackMapShapeType[] = [
   "straight",
@@ -45,10 +41,7 @@ export function validateTrackMapShape(shape: unknown): shape is TrackMapShape {
     return false
   }
 
-  if (
-    typeof s.type !== "string" ||
-    !VALID_SHAPE_TYPES.includes(s.type as TrackMapShapeType)
-  ) {
+  if (typeof s.type !== "string" || !VALID_SHAPE_TYPES.includes(s.type as TrackMapShapeType)) {
     return false
   }
 

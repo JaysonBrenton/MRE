@@ -1,6 +1,6 @@
 /**
  * @fileoverview Tests for practice day discovery API route
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX

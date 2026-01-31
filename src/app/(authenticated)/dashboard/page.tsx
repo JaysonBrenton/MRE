@@ -20,10 +20,10 @@
  */
 
 import { Suspense } from "react"
-import DashboardClient from "@/components/dashboard/DashboardClient"
-import EventAnalysisSection from "@/components/dashboard/EventAnalysisSection"
-import DashboardEventSelector from "@/components/dashboard/DashboardEventSelector"
-import DashboardEventSearchProvider from "@/components/dashboard/DashboardEventSearchProvider"
+import DashboardClient from "@/components/organisms/dashboard/DashboardClient"
+import EventAnalysisSection from "@/components/organisms/dashboard/EventAnalysisSection"
+import DashboardEventSelector from "@/components/organisms/dashboard/DashboardEventSelector"
+import DashboardEventSearchProvider from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 
 interface DashboardProps {
   searchParams: Promise<{

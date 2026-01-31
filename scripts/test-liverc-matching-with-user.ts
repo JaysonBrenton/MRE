@@ -1,6 +1,6 @@
 /**
  * @fileoverview Test LiveRC matching with actual user data
- * 
+ *
  * Tests the LiveRC driver matching with the actual user "Jayson Brenton"
  */
 
@@ -12,7 +12,7 @@ const prisma = new PrismaClient()
 
 async function main() {
   console.log("Testing LiveRC matching with actual user data\n")
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
 
   // Find user with driver name "Jayson Brenton"
   const user = await prisma.user.findFirst({
@@ -81,10 +81,10 @@ async function main() {
       true // Skip transponder matching (LiveRC mode)
     )
 
-    const matched = match !== null && (
-      match.matchType === "exact" ||
-      (match.matchType === "fuzzy" && match.similarityScore >= SUGGEST_MIN)
-    )
+    const matched =
+      match !== null &&
+      (match.matchType === "exact" ||
+        (match.matchType === "fuzzy" && match.similarityScore >= SUGGEST_MIN))
 
     const status = matched ? "✓ MATCH" : "✗ NO MATCH"
     console.log(`${status}: "${driverName}"`)
@@ -132,14 +132,16 @@ async function main() {
     eventLinks.forEach((link) => {
       console.log(`  - Event: "${link.event.eventName}" (${link.event.sourceEventId})`)
       console.log(`    Driver: "${link.driver.displayName}"`)
-      console.log(`    Match type: ${link.matchType}, Similarity: ${link.similarityScore.toFixed(3)}`)
+      console.log(
+        `    Match type: ${link.matchType}, Similarity: ${link.similarityScore.toFixed(3)}`
+      )
     })
   } else {
     console.log("No EventDriverLink records found for this user")
   }
 
   console.log()
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   await prisma.$disconnect()
 }
 
@@ -147,4 +149,3 @@ main().catch((error) => {
   console.error("Error:", error)
   process.exit(1)
 })
-

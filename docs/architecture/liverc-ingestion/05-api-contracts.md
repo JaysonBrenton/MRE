@@ -3,9 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: API contracts for LiveRC ingestion subsystem HTTP endpoints
-purpose: Defines the backend HTTP API contracts used by MRE to interact with ingested
-         LiveRC data and trigger ingestion operations. Specifies versioned endpoints,
-         request/response formats, error handling, and authentication requirements.
+purpose:
+  Defines the backend HTTP API contracts used by MRE to interact with ingested
+  LiveRC data and trigger ingestion operations. Specifies versioned endpoints,
+  request/response formats, error handling, and authentication requirements.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -16,23 +17,33 @@ relatedFiles:
 
 # 05. API Contracts (LiveRC Ingestion Subsystem)
 
-**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**. See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for version 0.1.1 feature specifications.
+**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**.
+See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for
+version 0.1.1 feature specifications.
 
 **Related Documentation:**
-- [LiveRC Ingestion Overview](01-overview.md) - System overview
-- [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) - Overall MRE architecture principles (Section 3 defines API versioning standards)
 
-This document defines the backend HTTP API contracts used by My Race Engineer (MRE) to interact with data ingested from LiveRC and to trigger ingestion operations.
+- [LiveRC Ingestion Overview](01-overview.md) - System overview
+- [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) -
+  Overall MRE architecture principles (Section 3 defines API versioning
+  standards)
+
+This document defines the backend HTTP API contracts used by My Race Engineer
+(MRE) to interact with data ingested from LiveRC and to trigger ingestion
+operations.
 
 All routes described here are:
+
 - Backend-only.
 - Versioned and stable.
 - Independent of connector implementation details.
 - Strictly read-from-DB, except for explicit ingestion triggers.
 
 The goals of these APIs are:
+
 - To allow the frontend to query the Track and Event catalogues.
-- To allow the frontend or admin tools to trigger ingestion for a specific event.
+- To allow the frontend or admin tools to trigger ingestion for a specific
+  event.
 - To expose structured race and lap data for visualisation and analytics.
 - To maintain clear separation between ingestion, storage, and presentation.
 
@@ -46,17 +57,19 @@ All endpoints in this document are prefixed with the path:
 
 /api/v1/
 
-Example endpoint:
-GET /api/v1/tracks
+Example endpoint: GET /api/v1/tracks
 
-**Note:** This follows the Mobile-Safe Architecture Guidelines (see `docs/architecture/mobile-safe-architecture-guidelines.md` Section 3.1) which mandate `/api/v1/...` for all API endpoints. The ingestion subsystem APIs are part of the overall MRE API structure.
+**Note:** This follows the Mobile-Safe Architecture Guidelines (see
+`docs/architecture/mobile-safe-architecture-guidelines.md` Section 3.1) which
+mandate `/api/v1/...` for all API endpoints. The ingestion subsystem APIs are
+part of the overall MRE API structure.
 
 ### 1.2 ID Semantics
 
 track_id refers to the primary key from the Track table.  
 event_id refers to the primary key from the Event table.  
 race_id refers to the primary key from the Race table.  
-race_result_id refers to the primary key from the RaceResult table.  
+race_result_id refers to the primary key from the RaceResult table.
 
 Clients MUST treat these as opaque identifiers.
 
@@ -64,15 +77,11 @@ Clients MUST treat these as opaque identifiers.
 
 All errors MUST follow a standard envelope:
 
-{
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Resource not found",
-    "details": {}
-  }
-}
+{ "error": { "code": "NOT_FOUND", "message": "Resource not found", "details": {}
+} }
 
 Standard error codes include:
+
 - NOT_FOUND: Requested resource does not exist
 - VALIDATION_ERROR: Invalid parameters or request body
 - INGESTION_IN_PROGRESS: Ingestion already running for this resource
@@ -89,28 +98,21 @@ Returns the list of known tracks.
 By default, this returns followed and active tracks suitable for user selection.
 
 Query parameters:
-- followed (boolean, optional): If true (default), return only tracks where is_followed = true AND is_active = true
+
+- followed (boolean, optional): If true (default), return only tracks where
+  is_followed = true AND is_active = true
 - active (boolean, optional): If false, include inactive tracks as well
 
 Example response:
 
-{
-  "tracks": [
-    {
-      "id": 42,
-      "source": "liverc",
-      "source_track_slug": "canberraoffroad",
-      "track_name": "Canberra Off Road Model Car Club",
-      "track_url": "https://canberraoffroad.liverc.com/",
-      "events_url": "https://canberraoffroad.liverc.com/events",
-      "liverc_track_last_updated": "1 minute ago",
-      "is_active": true,
-      "is_followed": true
-    }
-  ]
-}
+{ "tracks": [ { "id": 42, "source": "liverc", "source_track_slug":
+"canberraoffroad", "track_name": "Canberra Off Road Model Car Club",
+"track_url": "https://canberraoffroad.liverc.com/", "events_url":
+"https://canberraoffroad.liverc.com/events", "liverc_track_last_updated": "1
+minute ago", "is_active": true, "is_followed": true } ] }
 
 Backend behaviour:
+
 - MUST operate purely on the Track table.
 - MUST NOT call LiveRC.
 - MUST return an empty list when no rows match.
@@ -121,41 +123,30 @@ Backend behaviour:
 
 ### 3.1 GET /events/search
 
-Returns events for a given track, optionally filtered by a Held-Between date range.
+Returns events for a given track, optionally filtered by a Held-Between date
+range.
 
 Required query parameters:
+
 - track_id
 
 Optional query parameters:
+
 - start_date (ISO date) - If provided, filters events on or after this date
 - end_date (ISO date) - If provided, filters events on or before this date
 
 Example response:
 
-{
-  "track": {
-    "id": 42,
-    "source": "liverc",
-    "source_track_slug": "canberraoffroad",
-    "track_name": "Canberra Off Road Model Car Club"
-  },
-  "events": [
-    {
-      "id": 101,
-      "source": "liverc",
-      "source_event_id": "6304829",
-      "event_name": "Cormcc 2025 Rudi Wensing Memorial, Clay Cup",
-      "event_date": "2025-11-16T08:30:00Z",
-      "event_entries": 114,
-      "event_drivers": 87,
-      "event_url": "https://canberraoffroad.liverc.com/results/?p=view_event&id=6304829",
-      "ingest_depth": "none",
-      "last_ingested_at": null
-    }
-  ]
-}
+{ "track": { "id": 42, "source": "liverc", "source_track_slug":
+"canberraoffroad", "track_name": "Canberra Off Road Model Car Club" }, "events":
+[ { "id": 101, "source": "liverc", "source_event_id": "6304829", "event_name":
+"Cormcc 2025 Rudi Wensing Memorial, Clay Cup", "event_date":
+"2025-11-16T08:30:00Z", "event_entries": 114, "event_drivers": 87, "event_url":
+"https://canberraoffroad.liverc.com/results/?p=view_event&id=6304829",
+"ingest_depth": "none", "last_ingested_at": null } ] }
 
 Backend behaviour:
+
 - MUST validate that track_id exists.
 - MUST validate that start_date <= end_date.
 - MUST apply the date filter to event_date.
@@ -170,32 +161,17 @@ Returns metadata and ingestion status for a specific event.
 
 Example response:
 
-{
-  "id": 101,
-  "source": "liverc",
-  "source_event_id": "6304829",
-  "track_id": 42,
-  "event_name": "Cormcc 2025 Rudi Wensing Memorial, Clay Cup",
-  "event_date": "2025-11-16T08:30:00Z",
-  "event_entries": 114,
-  "event_drivers": 87,
-  "event_url": "https://canberraoffroad.liverc.com/results/?p=view_event&id=6304829",
-  "ingest_depth": "laps_full",
-  "last_ingested_at": "2025-11-17T02:15:00Z",
-  "races": [
-    {
-      "id": 501,
-      "event_id": 101,
-      "class_name": "1/8 Nitro Buggy",
-      "race_label": "A-Main",
-      "race_order": 14,
-      "start_time": "2025-11-16T17:30:00Z",
-      "duration_seconds": 1800
-    }
-  ]
-}
+{ "id": 101, "source": "liverc", "source_event_id": "6304829", "track_id": 42,
+"event_name": "Cormcc 2025 Rudi Wensing Memorial, Clay Cup", "event_date":
+"2025-11-16T08:30:00Z", "event_entries": 114, "event_drivers": 87, "event_url":
+"https://canberraoffroad.liverc.com/results/?p=view_event&id=6304829",
+"ingest_depth": "laps_full", "last_ingested_at": "2025-11-17T02:15:00Z",
+"races": [ { "id": 501, "event_id": 101, "class_name": "1/8 Nitro Buggy",
+"race_label": "A-Main", "race_order": 14, "start_time": "2025-11-16T17:30:00Z",
+"duration_seconds": 1800 } ] }
 
 Backend behaviour:
+
 - If ingest_depth = none, MAY omit races or return an empty race list.
 - If ingest_depth = laps_full, SHOULD include race summaries.
 - MUST NOT call LiveRC.
@@ -207,16 +183,19 @@ Backend behaviour:
 
 ### 4.1 POST /events/discover
 
-Discovers events from LiveRC for a track. This is a **pure connector endpoint** with **no database access**.
+Discovers events from LiveRC for a track. This is a **pure connector endpoint**
+with **no database access**.
 
 **Python Ingestion Service Endpoint:** `POST /api/v1/events/discover`
 
 Request body:
+
 - `track_slug` (string, required) - Track slug from LiveRC
 - `start_date` (string, optional) - ISO-like date string for filtering
 - `end_date` (string, optional) - ISO-like date string for filtering
 
 Example request:
+
 ```json
 {
   "track_slug": "canberraoffroad",
@@ -226,6 +205,7 @@ Example request:
 ```
 
 Example response:
+
 ```json
 {
   "success": true,
@@ -247,20 +227,27 @@ Example response:
 ```
 
 Backend behaviour:
+
 - MUST NOT access the database
-- MUST call `connector.list_events_for_track(track_slug)` to fetch events from LiveRC
-- MUST filter events by date range in Python if `start_date` and/or `end_date` are provided
-- MUST return standard envelope: `{ success: true, data: { events: [...] } }` on success
-- MUST return standard error envelope on failure with `source: "liverc_discovery"`
+- MUST call `connector.list_events_for_track(track_slug)` to fetch events from
+  LiveRC
+- MUST filter events by date range in Python if `start_date` and/or `end_date`
+  are provided
+- MUST return standard envelope: `{ success: true, data: { events: [...] } }` on
+  success
+- MUST return standard error envelope on failure with
+  `source: "liverc_discovery"`
 
 **TypeScript v1 Route:** `POST /api/v1/events/discover`
 
 Request body:
+
 - `track_id` (UUID string, required) - Track ID from database
 - `start_date` (string, optional) - ISO date string
 - `end_date` (string, optional) - ISO date string
 
 Example response:
+
 ```json
 {
   "success": true,
@@ -292,27 +279,32 @@ Example response:
 ```
 
 Backend behaviour:
+
 - MUST look up track by `track_id` to get track slug
 - MUST load existing DB events for that track and date range
 - MUST call Python discovery endpoint
 - MUST compare LiveRC events with DB events using `sourceEventId` as join key
-- MUST separate into `new_events` (in LiveRC but not in DB) and `existing_events` (in both)
+- MUST separate into `new_events` (in LiveRC but not in DB) and
+  `existing_events` (in both)
 - MUST return standard envelope with comparison results
 
 ---
 
 ### 4.2 POST /events/ingest
 
-Ingests an event by `source_event_id` and `track_id`. This endpoint can create the Event row if it doesn't exist.
+Ingests an event by `source_event_id` and `track_id`. This endpoint can create
+the Event row if it doesn't exist.
 
 **Python Ingestion Service Endpoint:** `POST /api/v1/events/ingest`
 
 Request body:
+
 - `source_event_id` (string, required) - LiveRC event ID
 - `track_id` (UUID string, required) - Track ID from database
 - `depth` (string, optional) - Ingestion depth, default: "laps_full"
 
 Example request:
+
 ```json
 {
   "source_event_id": "6304829",
@@ -322,6 +314,7 @@ Example request:
 ```
 
 Example response:
+
 ```json
 {
   "success": true,
@@ -338,6 +331,7 @@ Example response:
 ```
 
 Backend behaviour:
+
 - MUST validate request body
 - MUST verify track exists
 - MUST call pipeline method that can handle ingest-by-source-id
@@ -362,9 +356,11 @@ Triggers ingestion (or re-ingestion) of an existing event by event ID.
 **Python Ingestion Service Endpoint:** `POST /api/v1/events/{event_id}/ingest`
 
 Request body:
+
 - `depth` (string, optional) - Ingestion depth, default: "laps_full"
 
 Example request:
+
 ```json
 {
   "depth": "laps_full"
@@ -372,6 +368,7 @@ Example request:
 ```
 
 Example response:
+
 ```json
 {
   "success": true,
@@ -388,6 +385,7 @@ Example response:
 ```
 
 Backend behaviour:
+
 - MUST validate that the event exists.
 - MUST validate depth.
 - MUST be idempotent.
@@ -398,6 +396,7 @@ Backend behaviour:
 - MUST return standard error envelope on failure with `source: "ingest_event"`
 
 Disallowed transitions:
+
 - MUST NOT regress from laps_full to none.
 
 **TypeScript v1 Route:** `POST /api/v1/events/{eventId}/ingest`
@@ -416,35 +415,16 @@ Returns race metadata and all driver results.
 
 Example response:
 
-{
-  "race": {
-    "id": 501,
-    "event_id": 101,
-    "class_name": "1/8 Nitro Buggy",
-    "race_label": "A-Main",
-    "race_order": 14,
-    "start_time": "2025-11-16T17:30:00Z",
-    "duration_seconds": 1800
-  },
-  "results": [
-    {
-      "race_result_id": 9001,
-      "position_final": 1,
-      "laps_completed": 47,
-      "total_time_seconds": 1831.382,
-      "fast_lap_time": 37.234,
-      "avg_lap_time": 38.983,
-      "consistency": 92.82,
-      "driver": {
-        "race_driver_id": 8001,
-        "display_name": "FELIX KOEGLER",
-        "source_driver_id": "346997"
-      }
-    }
-  ]
-}
+{ "race": { "id": 501, "event_id": 101, "class_name": "1/8 Nitro Buggy",
+"race_label": "A-Main", "race_order": 14, "start_time": "2025-11-16T17:30:00Z",
+"duration_seconds": 1800 }, "results": [ { "race_result_id": 9001,
+"position_final": 1, "laps_completed": 47, "total_time_seconds": 1831.382,
+"fast_lap_time": 37.234, "avg_lap_time": 38.983, "consistency": 92.82, "driver":
+{ "race_driver_id": 8001, "display_name": "FELIX KOEGLER", "source_driver_id":
+"346997" } } ] }
 
 Backend behaviour:
+
 - MUST read exclusively from the database.
 - MUST NOT call LiveRC.
 - MUST return results ordered by position_final.
@@ -459,20 +439,9 @@ Returns all laps for a single driver.
 
 Example response:
 
-{
-  "race_result_id": 9001,
-  "laps": [
-    {
-      "lap_number": 1,
-      "position_on_lap": 1,
-      "lap_time_seconds": 38.170,
-      "lap_time_raw": "38.17",
-      "pace_string": "48/30:32.160",
-      "elapsed_race_time": 38.170,
-      "segments_json": []
-    }
-  ]
-}
+{ "race_result_id": 9001, "laps": [ { "lap_number": 1, "position_on_lap": 1,
+"lap_time_seconds": 38.170, "lap_time_raw": "38.17", "pace_string":
+"48/30:32.160", "elapsed_race_time": 38.170, "segments_json": [] } ] }
 
 ---
 
@@ -482,25 +451,14 @@ Returns lap data for multiple drivers.
 
 Example response:
 
-{
-  "race_id": 501,
-  "series": [
-    {
-      "race_result_id": 9001,
-      "driver": {
-        "race_driver_id": 8001,
-        "display_name": "FELIX KOEGLER",
-        "source_driver_id": "346997"
-      },
-      "laps": [
-        { "lap_number": 1, "lap_time_seconds": 38.170, "elapsed_race_time": 38.170 },
-        { "lap_number": 2, "lap_time_seconds": 37.922, "elapsed_race_time": 76.092 }
-      ]
-    }
-  ]
-}
+{ "race_id": 501, "series": [ { "race_result_id": 9001, "driver": {
+"race_driver_id": 8001, "display_name": "FELIX KOEGLER", "source_driver_id":
+"346997" }, "laps": [ { "lap_number": 1, "lap_time_seconds": 38.170,
+"elapsed_race_time": 38.170 }, { "lap_number": 2, "lap_time_seconds": 37.922,
+"elapsed_race_time": 76.092 } ] } ] }
 
 Backend rules for overlays:
+
 - MUST return full lap datasets for all drivers when no filter is supplied.
 - MUST support any subset when race_result_ids is provided.
 - MUST NOT impose any backend limit.
@@ -511,7 +469,8 @@ Backend rules for overlays:
 
 ## 7. Rate Limiting and Safety
 
-- SHOULD apply ingestion throttling (e.g., one ingestion per event per N minutes unless forced).
+- SHOULD apply ingestion throttling (e.g., one ingestion per event per N minutes
+  unless forced).
 - GET endpoints generally should not be rate-limited.
 - Rate limiting MUST NOT change response schemas.
 

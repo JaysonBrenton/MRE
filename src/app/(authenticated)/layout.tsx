@@ -18,14 +18,19 @@
  * - src/lib/auth.ts (authentication check)
  */
 
+// Force dynamic rendering - authenticated pages require session and use client-side
+// Redux/context. Static prerendering fails with "useContext of null" because providers
+// are not available during build-time static generation.
+export const dynamic = "force-dynamic"
+
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import DashboardLayout from "@/components/dashboard/DashboardLayout"
+import DashboardLayout from "@/components/templates/DashboardLayout"
 import ReduxProvider from "@/components/store/ReduxProvider"
-import DashboardEventSearchProvider from "@/components/dashboard/DashboardEventSearchProvider"
-import EventActionsProvider from "@/components/dashboard/EventActionsProvider"
+import DashboardEventSearchProvider from "@/components/organisms/dashboard/DashboardEventSearchProvider"
+import EventActionsProvider from "@/components/organisms/dashboard/EventActionsProvider"
 import Footer from "@/components/Footer"
-import EventAnalysisHeaderWrapper from "@/components/dashboard/EventAnalysisHeaderWrapper"
+import EventAnalysisHeaderWrapper from "@/components/organisms/dashboard/EventAnalysisHeaderWrapper"
 
 export default async function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -41,7 +46,11 @@ export default async function AuthenticatedLayout({ children }: { children: Reac
           <DashboardLayout user={session.user} userId={session.user.id}>
             <div className="flex min-h-full flex-col">
               <EventAnalysisHeaderWrapper />
-              <main id="main-content" className="page-container w-full min-w-0 flex-1" tabIndex={-1}>
+              <main
+                id="main-content"
+                className="page-container w-full min-w-0 flex-1"
+                tabIndex={-1}
+              >
                 {children}
               </main>
               <Footer />

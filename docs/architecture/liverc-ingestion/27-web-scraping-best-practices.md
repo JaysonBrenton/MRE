@@ -2,10 +2,13 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Comprehensive web scraping best practices for MRE ingestion subsystem
-purpose: Defines all web scraping best practices, ethical guidelines, and technical requirements
-         for the MRE ingestion subsystem. This document consolidates information from multiple
-         architecture documents into a single authoritative reference for web scraping practices.
+description:
+  Comprehensive web scraping best practices for MRE ingestion subsystem
+purpose:
+  Defines all web scraping best practices, ethical guidelines, and technical
+  requirements for the MRE ingestion subsystem. This document consolidates
+  information from multiple architecture documents into a single authoritative
+  reference for web scraping practices.
 relatedFiles:
   - docs/architecture/liverc-ingestion/02-connector-architecture.md
   - docs/architecture/liverc-ingestion/17-ingestion-security.md
@@ -19,15 +22,19 @@ relatedFiles:
 
 **Status:** Authoritative  
 **Scope:** All web scraping operations in the MRE ingestion subsystem  
-**Purpose:** Comprehensive guide to web scraping best practices, ethical guidelines, and technical requirements.
+**Purpose:** Comprehensive guide to web scraping best practices, ethical
+guidelines, and technical requirements.
 
-This document consolidates all web scraping best practices for the MRE ingestion subsystem. It serves as the single authoritative reference for understanding how MRE implements ethical, respectful, and compliant web scraping.
+This document consolidates all web scraping best practices for the MRE ingestion
+subsystem. It serves as the single authoritative reference for understanding how
+MRE implements ethical, respectful, and compliant web scraping.
 
 ---
 
 ## 1. Philosophy: Cooperative Polite Scraping
 
-MRE's web scraping philosophy is **cooperative polite scraping**, not evasion of protections. The goal is to:
+MRE's web scraping philosophy is **cooperative polite scraping**, not evasion of
+protections. The goal is to:
 
 - Respect website owners' wishes and technical constraints
 - Minimize impact on target servers
@@ -35,7 +42,8 @@ MRE's web scraping philosophy is **cooperative polite scraping**, not evasion of
 - Follow industry best practices and standards
 - Maintain trust and good relationships with data sources
 
-This strategy is not about *evading protections*, but ensuring *cooperative polite scraping*.
+This strategy is not about _evading protections_, but ensuring _cooperative
+polite scraping_.
 
 ---
 
@@ -53,7 +61,8 @@ MRE **MUST** respect `robots.txt` files for all scraping operations:
 
 ### 2.2 Implementation
 
-The site policy system (`ingestion/common/site_policy.py`) implements robots.txt compliance:
+The site policy system (`ingestion/common/site_policy.py`) implements robots.txt
+compliance:
 
 - Uses Python's `robotparser.RobotFileParser` for parsing
 - Checks `robots.txt` via `ensure_allowed(url)` before requests
@@ -63,7 +72,8 @@ The site policy system (`ingestion/common/site_policy.py`) implements robots.txt
 
 ### 2.3 Configuration
 
-Robots.txt compliance is controlled per-host in `policies/site_policy/policy.json`:
+Robots.txt compliance is controlled per-host in
+`policies/site_policy/policy.json`:
 
 ```json
 {
@@ -77,7 +87,8 @@ Robots.txt compliance is controlled per-host in `policies/site_policy/policy.jso
 }
 ```
 
-If `respectRobots` is `false`, robots.txt checks are bypassed (use with caution).
+If `respectRobots` is `false`, robots.txt checks are bypassed (use with
+caution).
 
 ---
 
@@ -139,6 +150,7 @@ MRE-IngestionBot/1.0 (contact: admin@domain.com)
 ```
 
 **Requirements:**
+
 - ✅ Identifies as a bot
 - ✅ Includes contact information
 - ✅ No spoofing or deception
@@ -148,6 +160,7 @@ MRE-IngestionBot/1.0 (contact: admin@domain.com)
 ### 4.2 Rationale
 
 An honest User-Agent:
+
 - Avoids hostile anti-bot detection behaviors
 - Maintains trust with website owners
 - Allows website owners to contact MRE if needed
@@ -157,6 +170,7 @@ An honest User-Agent:
 ### 4.3 Implementation
 
 The User-Agent is defined in:
+
 - `ingestion/common/site_policy.py`: `_USER_AGENT` constant
 - `ingestion/connectors/liverc/client/httpx_client.py`: `USER_AGENT` constant
 - Used consistently across HTTPX and Playwright clients
@@ -216,6 +230,7 @@ MRE implements intelligent retry logic:
 ### 6.2 Retryable Errors
 
 Retries are attempted for:
+
 - ✅ Connection errors
 - ✅ Timeouts
 - ✅ 5xx server errors
@@ -224,6 +239,7 @@ Retries are attempted for:
 ### 6.3 Non-Retryable Errors
 
 Retries are **NOT** attempted for:
+
 - ❌ 4xx client errors (except 429)
 - ❌ Robots.txt disallowed errors
 - ❌ Authentication failures
@@ -231,6 +247,7 @@ Retries are **NOT** attempted for:
 ### 6.4 Implementation
 
 Retry logic is implemented in:
+
 - `ingestion/connectors/liverc/client/httpx_client.py`: HTTPX client retry logic
 - Exponential backoff: `base_delay * (2 ** attempt) + random.uniform(0, 0.1)`
 - Retry-After handling: `site_policy.retry_after_seconds(response)`
@@ -252,6 +269,7 @@ All HTTP requests use strict timeout configuration:
 ### 7.2 Rationale
 
 Strict timeouts:
+
 - Prevent worker starvation
 - Ensure predictable behavior
 - Fail fast on network issues
@@ -287,11 +305,13 @@ MRE implements a global kill switch to disable all scraping instantly:
 ### 8.2 Usage
 
 Disable scraping:
+
 ```bash
 export MRE_SCRAPE_ENABLED=false
 ```
 
 Re-enable scraping:
+
 ```bash
 export MRE_SCRAPE_ENABLED=true
 ```
@@ -307,6 +327,7 @@ The site policy system enforces the kill switch:
 ### 8.4 Use Cases
 
 The kill switch is useful for:
+
 - Emergency shutdowns
 - Maintenance windows
 - Testing and debugging
@@ -348,6 +369,7 @@ The connector follows this decision tree:
 ### 9.4 Operational Rules
 
 Playwright usage must:
+
 - Launch headless Chromium with realistic User-Agent
 - Wait for specific selectors before extraction
 - Extract final DOM state, never raw content
@@ -435,6 +457,7 @@ Site policy is configured in `policies/site_policy/policy.json`:
 ### 11.3 Implementation
 
 The site policy is implemented in:
+
 - `ingestion/common/site_policy.py` (Python runtime)
 - `src/lib/site-policy.ts` (Next.js runtime - if implemented)
 
@@ -466,6 +489,7 @@ The site policy system emits metrics:
 ### 12.3 Debug Information
 
 Debug information includes:
+
 - URLs being scraped
 - Response status codes
 - Retry attempts and delays
@@ -495,11 +519,16 @@ When implementing new scraping functionality, ensure:
 
 ## 14. Related Documentation
 
-- [Connector Architecture](02-connector-architecture.md) - Overall connector design and anti-bot strategy
-- [Ingestion Security](17-ingestion-security.md) - Security model including User-Agent policy
-- [HTTPX Client Architecture](25-httpx-client-architecture.md) - HTTPX client implementation details
-- [Site Policy Implementation](../../../ingestion/common/site_policy.py) - Python site policy code
-- [Site Policy Configuration](../../../policies/site_policy/policy.json) - Policy configuration file
+- [Connector Architecture](02-connector-architecture.md) - Overall connector
+  design and anti-bot strategy
+- [Ingestion Security](17-ingestion-security.md) - Security model including
+  User-Agent policy
+- [HTTPX Client Architecture](25-httpx-client-architecture.md) - HTTPX client
+  implementation details
+- [Site Policy Implementation](../../../ingestion/common/site_policy.py) -
+  Python site policy code
+- [Site Policy Configuration](../../../policies/site_policy/policy.json) -
+  Policy configuration file
 
 ---
 
@@ -507,22 +536,27 @@ When implementing new scraping functionality, ensure:
 
 MRE implements comprehensive web scraping best practices:
 
-✅ **Robots.txt Compliance**: Full respect for robots.txt files and crawl-delay directives  
-✅ **Rate Limiting**: Per-host throttling with configurable delays and concurrency limits  
-✅ **Honest User-Agent**: Transparent bot identification with contact information  
+✅ **Robots.txt Compliance**: Full respect for robots.txt files and crawl-delay
+directives  
+✅ **Rate Limiting**: Per-host throttling with configurable delays and
+concurrency limits  
+✅ **Honest User-Agent**: Transparent bot identification with contact
+information  
 ✅ **HTTP Caching**: ETag/Last-Modified support to reduce unnecessary requests  
-✅ **Retry Logic**: Intelligent retry with exponential backoff and Retry-After respect  
+✅ **Retry Logic**: Intelligent retry with exponential backoff and Retry-After
+respect  
 ✅ **Timeout Configuration**: Strict timeouts to prevent resource exhaustion  
 ✅ **Kill Switch**: Global kill switch for emergency shutdowns  
 ✅ **Browser Minimization**: Playwright used only when necessary  
 ✅ **Security**: Domain allowlist, HTTPS only, input validation  
-✅ **Observability**: Structured logging and metrics tracking  
+✅ **Observability**: Structured logging and metrics tracking
 
-All scraping operations follow the principle of **cooperative polite scraping**, respecting website owners' wishes and technical constraints while maintaining transparency and trust.
+All scraping operations follow the principle of **cooperative polite scraping**,
+respecting website owners' wishes and technical constraints while maintaining
+transparency and trust.
 
 ---
 
 ## License
 
 Internal use only. This specification governs web scraping practices for MRE.
-

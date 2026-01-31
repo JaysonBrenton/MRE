@@ -1,15 +1,15 @@
 /**
  * @fileoverview Conditional navigation component
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Client component that conditionally renders AdminNav or AuthenticatedNav
- * 
+ *
  * @purpose Determines which navigation component to show based on the current route.
  *          Admin routes show AdminNav, all other routes show AuthenticatedNav.
- * 
+ *
  * @relatedFiles
  * - src/components/AuthenticatedNav.tsx (regular user navigation)
  * - src/components/AdminNav.tsx (admin navigation)
@@ -27,4 +27,3 @@ export default function ConditionalNav() {
 
   return isAdminRoute ? <AdminNav /> : <AuthenticatedNav />
 }
-

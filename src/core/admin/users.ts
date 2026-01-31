@@ -1,15 +1,15 @@
 /**
  * @fileoverview Admin user management operations
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Functions for managing users in the admin console
- * 
+ *
  * @purpose Provides user management functionality for administrators,
  *          including viewing, editing, deleting, and promoting/demoting users.
- * 
+ *
  * @relatedFiles
  * - src/core/users/repo.ts (user repository)
  * - src/core/admin/audit.ts (audit logging)
@@ -22,7 +22,7 @@ import type { User, Prisma } from "@prisma/client"
 
 /**
  * Get all users with pagination and filtering
- * 
+ *
  * @param filters - Filter and pagination options
  * @returns Paginated users
  */
@@ -44,7 +44,7 @@ export async function getUsers(filters: {
   const skip = (page - 1) * pageSize
 
   const where: Prisma.UserWhereInput = {}
-  
+
   if (filters.email) {
     where.email = { contains: filters.email, mode: "insensitive" }
   }
@@ -69,6 +69,8 @@ export async function getUsers(filters: {
         transponderNumber: true,
         teamName: true,
         isAdmin: true,
+        personaId: true,
+        isTeamManager: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -87,7 +89,7 @@ export async function getUsers(filters: {
 
 /**
  * Update user details
- * 
+ *
  * @param userId - User ID to update
  * @param data - Updated user data
  * @param adminUserId - Admin user ID performing the action
@@ -122,6 +124,8 @@ export async function updateUser(
       transponderNumber: true,
       teamName: true,
       isAdmin: true,
+      personaId: true,
+      isTeamManager: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -149,7 +153,7 @@ export async function updateUser(
 
 /**
  * Delete a user
- * 
+ *
  * @param userId - User ID to delete
  * @param adminUserId - Admin user ID performing the action
  * @param ipAddress - IP address of the admin
@@ -188,7 +192,7 @@ export async function deleteUser(
 
 /**
  * Toggle admin status for a user
- * 
+ *
  * @param userId - User ID to update
  * @param isAdmin - New admin status
  * @param adminUserId - Admin user ID performing the action
@@ -219,6 +223,8 @@ export async function setAdminStatus(
       transponderNumber: true,
       teamName: true,
       isAdmin: true,
+      personaId: true,
+      isTeamManager: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -239,4 +245,3 @@ export async function setAdminStatus(
 
   return updatedUser
 }
-

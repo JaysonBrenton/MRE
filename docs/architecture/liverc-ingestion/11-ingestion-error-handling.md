@@ -2,10 +2,13 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Error handling rules and recovery strategies for ingestion operations
-purpose: Defines error categories, propagation strategy, and recovery behaviour for all
-         ingestion operations. Ensures errors are deterministic, structured, and properly
-         handled to maintain data integrity and provide clear operational feedback.
+description:
+  Error handling rules and recovery strategies for ingestion operations
+purpose:
+  Defines error categories, propagation strategy, and recovery behaviour for all
+  ingestion operations. Ensures errors are deterministic, structured, and
+  properly handled to maintain data integrity and provide clear operational
+  feedback.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -61,7 +64,8 @@ Examples:
 
 Connector errors MUST:
 
-- Bubble up to ingestion unchanged in terms of high-level error code and message.
+- Bubble up to ingestion unchanged in terms of high-level error code and
+  message.
 - Cause ingestion to stop immediately.
 - Trigger rollback of any attempted writes.
 - Be logged with connector context information (URL, page type, retry count).
@@ -90,7 +94,8 @@ These occur when performing DB operations.
 
 Examples:
 
-- Unique constraint violation (should not happen if idempotent logic is correct).
+- Unique constraint violation (should not happen if idempotent logic is
+  correct).
 - Foreign key violation.
 - Transaction failure or connection loss.
 
@@ -199,7 +204,8 @@ Scenario:
 
 Required behaviour:
 
-- Connector raises UnsupportedLiveRCVariantError (or a more specific format error).
+- Connector raises UnsupportedLiveRCVariantError (or a more specific format
+  error).
 - Ingestion aborts immediately.
 - No fallback heuristics are applied in V1.
 - A snapshot reference (not raw HTML) is logged so developers can investigate.
@@ -219,7 +225,8 @@ Required behaviour:
 - Normalisation layer raises a NormalisationError (or equivalent).
 - Event ingestion aborts.
 - All DB operations are rolled back.
-- Error details include the offending field and context (e.g. race_id, event_id).
+- Error details include the offending field and context (e.g. race_id,
+  event_id).
 
 ### 5.4 Incorrect Source Identifiers
 
@@ -318,8 +325,10 @@ Logs MUST NOT:
 
 Responsibilities at the connector level:
 
-- Retry transient network failures (timeouts, connection resets) with exponential backoff.
-- Do NOT retry format errors or structural HTML errors; these are deterministic failures.
+- Retry transient network failures (timeouts, connection resets) with
+  exponential backoff.
+- Do NOT retry format errors or structural HTML errors; these are deterministic
+  failures.
 - Cap retries at a small number to avoid hammering LiveRC.
 
 ### 7.2 Ingestion-Level Retries
@@ -329,15 +338,18 @@ Responsibilities at the ingestion controller level:
 - MUST NOT retry individual races within a single run.
 - MUST NOT attempt to “skip over” failing races.
 - MUST treat ingestion of an event as all-or-nothing.
-- SHOULD rely on the operator (or API client) to rerun ingestion for the event once the underlying cause is fixed.
+- SHOULD rely on the operator (or API client) to rerun ingestion for the event
+  once the underlying cause is fixed.
 
-This ensures deterministic, all-or-nothing behaviour and simplifies operational reasoning.
+This ensures deterministic, all-or-nothing behaviour and simplifies operational
+reasoning.
 
 ---
 
 ## 8. Escalation Rules
 
-If LiveRC repeatedly returns malformed or inconsistent content leading to ingestion failures:
+If LiveRC repeatedly returns malformed or inconsistent content leading to
+ingestion failures:
 
 - Ingestion MUST fail consistently and not silently drop data.
 - Monitoring SHOULD detect repeated errors for the same event or track.
@@ -347,7 +359,8 @@ If LiveRC repeatedly returns malformed or inconsistent content leading to ingest
   - test harnesses for connector parsing
   - dashboards summarising ingestion health
 
-The ingestion system MUST prefer failing loudly over silently ingesting bad or partial data.
+The ingestion system MUST prefer failing loudly over silently ingesting bad or
+partial data.
 
 ---
 
@@ -355,8 +368,10 @@ The ingestion system MUST prefer failing loudly over silently ingesting bad or p
 
 Future enhancements MAY include:
 
-- More granular error codes for analytics (e.g. CONNECTOR_TIMEOUT vs CONNECTOR_404).
-- Auto-open GitHub issues or internal tickets when certain error thresholds are exceeded.
+- More granular error codes for analytics (e.g. CONNECTOR_TIMEOUT vs
+  CONNECTOR_404).
+- Auto-open GitHub issues or internal tickets when certain error thresholds are
+  exceeded.
 - “Dry run” ingestion mode for debugging without writing to DB.
 - Self-test endpoints that run ingestion against known fixture HTML snapshots.
 
@@ -364,7 +379,8 @@ Any such extensions MUST preserve:
 
 - The standard error shape for external callers.
 - The all-or-nothing guarantee for event ingestion.
-- Clear separation between connector, normalisation, persistence, and state machine responsibilities.
+- Clear separation between connector, normalisation, persistence, and state
+  machine responsibilities.
 
 ---
 

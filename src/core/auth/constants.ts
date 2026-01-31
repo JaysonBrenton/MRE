@@ -1,15 +1,15 @@
 /**
  * @fileoverview Authentication constants
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Constants for authentication and password requirements
- * 
+ *
  * @purpose Centralizes magic numbers and strings used in authentication logic
  *          to improve maintainability and consistency.
- * 
+ *
  * @relatedFiles
  * - src/core/auth/validate-register.ts (uses these constants)
  */
@@ -55,4 +55,3 @@ export const RATE_LIMIT_WINDOWS = {
 export const API_TIMEOUTS = {
   INGESTION_MAX_DURATION: 600, // 10 minutes
 } as const
-

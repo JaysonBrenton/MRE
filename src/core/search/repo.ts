@@ -1,12 +1,12 @@
 /**
  * @fileoverview Search repository - all Prisma queries for search domain
- * 
+ *
  * @created 2026-01-XX
  * @creator System
  * @lastModified 2026-01-XX
- * 
+ *
  * @description Contains all database access functions for unified search operations
- * 
+ *
  * @purpose This file centralizes all Prisma queries related to search, following
  *          the mobile-safe architecture requirement that all database access must
  *          exist only in src/core/<domain>/repo.ts files.
@@ -171,19 +171,10 @@ export async function searchSessions(params: SearchSessionsParams): Promise<Sear
   // Date range filter (via event date)
   if (startDate || endDate) {
     whereClause.event = {
-      eventDate: {},
-    }
-    if (startDate) {
-      whereClause.event.eventDate = {
-        ...whereClause.event.eventDate,
-        gte: startDate,
-      }
-    }
-    if (endDate) {
-      whereClause.event.eventDate = {
-        ...whereClause.event.eventDate,
-        lte: endDate,
-      }
+      eventDate: {
+        ...(startDate && { gte: startDate }),
+        ...(endDate && { lte: endDate }),
+      },
     }
   }
 
@@ -258,7 +249,7 @@ export async function searchSessions(params: SearchSessionsParams): Promise<Sear
     raceId: race.id,
     raceLabel: race.raceLabel,
     className: race.className,
-      sessionType: (race.sessionType ?? "race") as SessionType, // Backward compatibility: default to "race" if null in database
+    sessionType: (race.sessionType ?? "race") as SessionType, // Backward compatibility: default to "race" if null in database
     eventId: race.event.id,
     eventName: race.event.eventName,
     eventDate: race.event.eventDate ? race.event.eventDate.toISOString() : null,

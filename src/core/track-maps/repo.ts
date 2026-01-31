@@ -1,17 +1,17 @@
 /**
  * @fileoverview Track map repository - all Prisma queries for track map domain
- * 
+ *
  * @created 2026-01-24
  * @creator Auto-generated
  * @lastModified 2026-01-24
- * 
+ *
  * @description Contains all database access functions for track map operations
- * 
+ *
  * @purpose This file centralizes all Prisma queries related to track maps, following
  *          the mobile-safe architecture requirement that all database access must
  *          exist only in src/core/<domain>/repo.ts files. This ensures business
  *          logic is separated from API routes and can be reused by mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/lib/prisma.ts (Prisma client)
  * - src/core/track-maps/types.ts (type definitions)
@@ -26,12 +26,21 @@ import type {
   TrackMapWithRelations,
   TrackMapData,
 } from "./types"
+
+export type {
+  TrackMapWithRelations,
+  TrackMapData,
+  TrackMapShape,
+  TrackMapShapeType,
+  UpdateTrackMapParams,
+  CreateTrackMapParams,
+} from "./types"
 import { validateTrackMapData } from "./validation"
 import { randomBytes } from "crypto"
 
 /**
  * Find all track maps for a user, optionally filtered by track
- * 
+ *
  * @param userId - User's unique identifier
  * @param trackId - Optional track ID to filter by
  * @returns Array of track maps with relations
@@ -66,19 +75,17 @@ export async function findTrackMapsByUserId(
 
   return maps.map((map) => ({
     ...map,
-    mapData: map.mapData as TrackMapData,
+    mapData: map.mapData as unknown as TrackMapData,
   }))
 }
 
 /**
  * Find public track maps, optionally filtered by track
- * 
+ *
  * @param trackId - Optional track ID to filter by
  * @returns Array of public track maps with relations
  */
-export async function findPublicTrackMaps(
-  trackId?: string
-): Promise<TrackMapWithRelations[]> {
+export async function findPublicTrackMaps(trackId?: string): Promise<TrackMapWithRelations[]> {
   const where: Prisma.TrackMapWhereInput = {
     isPublic: true,
     ...(trackId ? { trackId } : {}),
@@ -105,13 +112,13 @@ export async function findPublicTrackMaps(
 
   return maps.map((map) => ({
     ...map,
-    mapData: map.mapData as TrackMapData,
+    mapData: map.mapData as unknown as TrackMapData,
   }))
 }
 
 /**
  * Find a track map by ID with ownership verification
- * 
+ *
  * @param id - Track map unique identifier
  * @param userId - User's unique identifier for ownership check (optional for public maps)
  * @returns Track map with relations or null if not found
@@ -149,13 +156,13 @@ export async function findTrackMapById(
 
   return {
     ...map,
-    mapData: map.mapData as TrackMapData,
+    mapData: map.mapData as unknown as TrackMapData,
   }
 }
 
 /**
  * Find a track map by share token
- * 
+ *
  * @param shareToken - Share token
  * @returns Track map with relations or null if not found
  */
@@ -186,19 +193,17 @@ export async function findTrackMapByShareToken(
 
   return {
     ...map,
-    mapData: map.mapData as TrackMapData,
+    mapData: map.mapData as unknown as TrackMapData,
   }
 }
 
 /**
  * Create a new track map
- * 
+ *
  * @param params - Track map creation parameters
  * @returns Created track map with relations
  */
-export async function createTrackMap(
-  params: CreateTrackMapParams
-): Promise<TrackMapWithRelations> {
+export async function createTrackMap(params: CreateTrackMapParams): Promise<TrackMapWithRelations> {
   // Validate map data
   if (!validateTrackMapData(params.mapData)) {
     throw new Error("Invalid track map data")
@@ -210,7 +215,7 @@ export async function createTrackMap(
       trackId: params.trackId,
       name: params.name,
       description: params.description,
-      mapData: params.mapData as Prisma.JsonValue,
+      mapData: params.mapData as unknown as Prisma.InputJsonValue,
       isPublic: params.isPublic ?? false,
     },
     include: {
@@ -231,13 +236,13 @@ export async function createTrackMap(
 
   return {
     ...map,
-    mapData: map.mapData as TrackMapData,
+    mapData: map.mapData as unknown as TrackMapData,
   }
 }
 
 /**
  * Update an existing track map
- * 
+ *
  * @param id - Track map unique identifier
  * @param userId - User's unique identifier for ownership check
  * @param params - Track map update parameters
@@ -273,7 +278,7 @@ export async function updateTrackMap(
     updateData.description = params.description
   }
   if (params.mapData !== undefined) {
-    updateData.mapData = params.mapData as Prisma.JsonValue
+    updateData.mapData = params.mapData as unknown as Prisma.InputJsonValue
   }
   if (params.isPublic !== undefined) {
     updateData.isPublic = params.isPublic
@@ -300,21 +305,18 @@ export async function updateTrackMap(
 
   return {
     ...map,
-    mapData: map.mapData as TrackMapData,
+    mapData: map.mapData as unknown as TrackMapData,
   }
 }
 
 /**
  * Delete a track map
- * 
+ *
  * @param id - Track map unique identifier
  * @param userId - User's unique identifier for ownership check
  * @returns Deleted track map or null if not found or not owned by user
  */
-export async function deleteTrackMap(
-  id: string,
-  userId: string
-): Promise<TrackMap | null> {
+export async function deleteTrackMap(id: string, userId: string): Promise<TrackMap | null> {
   // First verify ownership
   const existing = await prisma.trackMap.findFirst({
     where: {
@@ -334,7 +336,7 @@ export async function deleteTrackMap(
 
 /**
  * Generate a share token for a track map
- * 
+ *
  * @param id - Track map unique identifier
  * @param userId - User's unique identifier for ownership check
  * @returns Updated track map with share token or null if not found or not owned by user
@@ -379,7 +381,6 @@ export async function generateShareToken(
 
   return {
     ...map,
-    mapData: map.mapData as TrackMapData,
+    mapData: map.mapData as unknown as TrackMapData,
   }
 }
-

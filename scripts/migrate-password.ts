@@ -1,15 +1,15 @@
 /**
  * @fileoverview Password migration script - converts bcryptjs hashes to Argon2id
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Migrates user passwords from bcryptjs to Argon2id
- * 
+ *
  * @purpose This script updates existing user passwords that were hashed with bcryptjs
  *          to use Argon2id. This is a one-time migration script.
- * 
+ *
  * @usage node -r ts-node/register scripts/migrate-password.ts <email> <password>
  */
 
@@ -22,7 +22,7 @@ async function migratePassword(email: string, password: string) {
   try {
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     })
 
     if (!user) {
@@ -44,8 +44,8 @@ async function migratePassword(email: string, password: string) {
     await prisma.user.update({
       where: { email },
       data: {
-        passwordHash: newHash
-      }
+        passwordHash: newHash,
+      },
     })
 
     console.log(`✓ Password migrated successfully for ${email}`)
@@ -66,4 +66,3 @@ if (!email || !password) {
 }
 
 migratePassword(email, password)
-

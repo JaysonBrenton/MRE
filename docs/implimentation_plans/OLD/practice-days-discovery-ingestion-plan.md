@@ -1,22 +1,33 @@
 # Practice Days Discovery and Ingestion Implementation Plan
 
 **Created**: 2026-01-XX  
-**Source Feature**: `docs/feature_ideas/feature_ideas.md` - "Feature: Practice Days Discovery and Ingestion"  
+**Source Feature**: `docs/feature_ideas/feature_ideas.md` - "Feature: Practice
+Days Discovery and Ingestion"  
 **Owner**: Backend (Python Ingestion) + Frontend (Next.js) Engineering Teams  
-**Objective**: Implement functionality to discover and ingest Practice Days from LiveRC, including session type inference, practice day discovery, ingestion pipeline, and UI integration.
+**Objective**: Implement functionality to discover and ingest Practice Days from
+LiveRC, including session type inference, practice day discovery, ingestion
+pipeline, and UI integration.
 
 ---
 
 ## 0. Guiding Goals
 
-1. **Session Type Inference** – Automatically determine session types (race/practice/qualifying/practiceday) during ingestion using multi-signal approach
-2. **Practice Day Discovery** – Manual user-initiated discovery of practice days from LiveRC track practice pages
-3. **Practice Day Ingestion** – Ingest practice day sessions with idempotent upserts and reconciliation
-4. **UI Integration** – Add practice day search and display functionality, integrated with unified search
-5. **Backward Compatibility** – Maintain existing API contracts and behavior for race events
+1. **Session Type Inference** – Automatically determine session types
+   (race/practice/qualifying/practiceday) during ingestion using multi-signal
+   approach
+2. **Practice Day Discovery** – Manual user-initiated discovery of practice days
+   from LiveRC track practice pages
+3. **Practice Day Ingestion** – Ingest practice day sessions with idempotent
+   upserts and reconciliation
+4. **UI Integration** – Add practice day search and display functionality,
+   integrated with unified search
+5. **Backward Compatibility** – Maintain existing API contracts and behavior for
+   race events
 6. **Feature Flagging** – Roll out features gradually using feature flags
-7. **API-First Architecture** – All business logic in `src/core/` and `ingestion/`, thin UI components
-8. **Testing & Observability** – Comprehensive tests and monitoring for all new functionality
+7. **API-First Architecture** – All business logic in `src/core/` and
+   `ingestion/`, thin UI components
+8. **Testing & Observability** – Comprehensive tests and monitoring for all new
+   functionality
 
 ---
 
@@ -47,13 +58,14 @@
 
 ### 1.2 Create Migration
 
-- **Command**: `docker exec -it mre-app npx prisma migrate dev --name add_practiceday_session_type`
+- **Command**:
+  `docker exec -it mre-app npx prisma migrate dev --name add_practiceday_session_type`
 - **Location**: `prisma/migrations/YYYYMMDDHHMMSS_add_practiceday_session_type/`
-- **Migration SQL**: 
+- **Migration SQL**:
   ```sql
   ALTER TYPE "SessionType" ADD VALUE 'practiceday';
   ```
-- **Notes**: 
+- **Notes**:
   - This is an ALTER TYPE operation (adds value to existing enum)
   - No data migration needed (existing races remain unchanged)
   - Existing `sessionType = null` values are unaffected
@@ -75,33 +87,37 @@
 - **Function**: `normalize_race()`
 - **Action**: Add session type inference logic
 - **New Method**:
+
   ```python
   @staticmethod
   def infer_session_type(race_label: str, race_url: str = "") -> Optional[str]:
       """
       Infer session type from race label and URL.
-      
+
       Returns: "practice", "qualifying", "race", or None (defaults to "race" in pipeline)
       """
       label_lower = race_label.lower()
       url_lower = race_url.lower() if race_url else ""
-      
+
       # Practice sessions (within race events)
       if "practice" in label_lower or "/practice/" in url_lower:
           return "practice"
-      
+
       # Qualifying sessions
       if any(term in label_lower for term in ["qualifying", "qualify", "q1", "q2", "q3"]):
           # Use word boundaries to avoid false positives
           import re
           if re.search(r'\b(q1|q2|q3|qualifying|qualify)\b', label_lower):
               return "qualifying"
-      
+
       # Default to race (or None, which will default to "race" in pipeline)
       return "race"
   ```
-- **Integration**: Call `infer_session_type()` in `normalize_race()` and store result
-- **Note**: Practice day sessions will have `sessionType = "practiceday"` set explicitly during practice day ingestion (not inferred)
+
+- **Integration**: Call `infer_session_type()` in `normalize_race()` and store
+  result
+- **Note**: Practice day sessions will have `sessionType = "practiceday"` set
+  explicitly during practice day ingestion (not inferred)
 
 ### 2.2 Update Pipeline to Include sessionType
 
@@ -137,13 +153,18 @@
 
 ### 2.5 Update API Route Validators
 
-- **Files**: 
+- **Files**:
   - `src/app/api/v1/search/route.ts`
   - Any other routes that validate `sessionType`
 - **Action**: Add `practiceday` to valid session type lists
 - **Changes**:
   ```typescript
-  const validTypes: SessionType[] = ["race", "practice", "qualifying", "practiceday"]
+  const validTypes: SessionType[] = [
+    "race",
+    "practice",
+    "qualifying",
+    "practiceday",
+  ]
   ```
 
 ### 2.6 Add Backward Compatibility Fallbacks
@@ -152,7 +173,7 @@
 - **Action**: Add fallback logic for `null` values
 - **Pattern**:
   ```typescript
-  sessionType: race.sessionType ?? 'race'
+  sessionType: race.sessionType ?? "race"
   ```
 - **Purpose**: Ensure backward compatibility during rollout
 
@@ -173,8 +194,10 @@
 
 ### 3.1 Create Practice Day Parser Models
 
-- **File**: `ingestion/connectors/liverc/models.py` (or create `ingestion/connectors/liverc/practice_models.py`)
+- **File**: `ingestion/connectors/liverc/models.py` (or create
+  `ingestion/connectors/liverc/practice_models.py`)
 - **Models to Create**:
+
   ```python
   @dataclass
   class PracticeSessionSummary:
@@ -228,23 +251,28 @@
 
 ### 3.2 Create Practice Day HTML Parsers
 
-- **File**: `ingestion/connectors/liverc/parsers.py` (or create `ingestion/connectors/liverc/practice_parsers.py`)
+- **File**: `ingestion/connectors/liverc/parsers.py` (or create
+  `ingestion/connectors/liverc/practice_parsers.py`)
 - **Functions to Create**:
 
   **3.2.1 Parse Practice Month View**
-  - **Function**: `parse_practice_month_view(html: str, track_slug: str, year: int, month: int) -> List[date]`
+  - **Function**:
+    `parse_practice_month_view(html: str, track_slug: str, year: int, month: int) -> List[date]`
   - **Purpose**: Extract list of dates that have practice days
   - **Input**: HTML from `/practice/` page with month/year selector
   - **Output**: List of `date` objects
 
   **3.2.2 Parse Practice Day Overview**
-  - **Function**: `parse_practice_day_overview(html: str, track_slug: str, date: date) -> PracticeDaySummary`
-  - **Purpose**: Parse practice day overview page to extract session summaries and stats
+  - **Function**:
+    `parse_practice_day_overview(html: str, track_slug: str, date: date) -> PracticeDaySummary`
+  - **Purpose**: Parse practice day overview page to extract session summaries
+    and stats
   - **Input**: HTML from `/practice/?p=session_list&d=YYYY-MM-DD`
   - **Output**: `PracticeDaySummary` object
 
   **3.2.3 Parse Practice Session Detail**
-  - **Function**: `parse_practice_session_detail(html: str, session_id: str) -> PracticeSessionDetail`
+  - **Function**:
+    `parse_practice_session_detail(html: str, session_id: str) -> PracticeSessionDetail`
   - **Purpose**: Parse individual practice session page for complete lap data
   - **Input**: HTML from `/practice/?p=view_session&id=XXXXX`
   - **Output**: `PracticeSessionDetail` object
@@ -255,15 +283,17 @@
 - **Methods to Add**:
 
   **3.3.1 Fetch Practice Month View**
-  - **Method**: `async def fetch_practice_month_view(self, track_slug: str, year: int, month: int) -> List[date]`
+  - **Method**:
+    `async def fetch_practice_month_view(self, track_slug: str, year: int, month: int) -> List[date]`
   - **Purpose**: Fetch and parse practice month view
-  - **Implementation**: 
+  - **Implementation**:
     - Use HTTPX or Playwright (per existing connector architecture)
     - Call parser to extract dates
     - Implement caching (24 hour cache)
 
   **3.3.2 Fetch Practice Day Overview**
-  - **Method**: `async def fetch_practice_day_overview(self, track_slug: str, date: date) -> PracticeDaySummary`
+  - **Method**:
+    `async def fetch_practice_day_overview(self, track_slug: str, date: date) -> PracticeDaySummary`
   - **Purpose**: Fetch and parse practice day overview
   - **Implementation**:
     - Use HTTPX or Playwright
@@ -272,7 +302,8 @@
     - Handle pagination if needed
 
   **3.3.3 Fetch Practice Session Detail**
-  - **Method**: `async def fetch_practice_session_detail(self, session_id: str) -> PracticeSessionDetail`
+  - **Method**:
+    `async def fetch_practice_session_detail(self, session_id: str) -> PracticeSessionDetail`
   - **Purpose**: Fetch and parse individual practice session
   - **Implementation**:
     - Use HTTPX or Playwright
@@ -290,7 +321,8 @@
   - Per-track rate limits (max 10 requests/minute per track)
   - Exponential backoff for failed requests
   - Respect HTTP 429 responses with retry-after headers
-- **Implementation**: Use existing caching infrastructure or add Redis/memory cache
+- **Implementation**: Use existing caching infrastructure or add Redis/memory
+  cache
 
 ### 3.5 Create Core Practice Day Discovery Logic
 
@@ -299,7 +331,8 @@
 - **Functions**:
 
   **3.5.1 Discover Practice Days for Date Range**
-  - **Function**: `async def discover_practice_days(track_slug: str, start_date: date, end_date: date) -> List[PracticeDaySummary]`
+  - **Function**:
+    `async def discover_practice_days(track_slug: str, start_date: date, end_date: date) -> List[PracticeDaySummary]`
   - **Purpose**: Discover all practice days in date range
   - **Logic**:
     - Validate date range (max 3 months)
@@ -310,9 +343,11 @@
     - Return list of `PracticeDaySummary`
 
   **3.5.2 Search Practice Days (Database)**
-  - **Function**: `async def search_practice_days(track_id: str, start_date: Optional[date], end_date: Optional[date]) -> List[Event]`
+  - **Function**:
+    `async def search_practice_days(track_id: str, start_date: Optional[date], end_date: Optional[date]) -> List[Event]`
   - **Purpose**: Search for already-ingested practice days in database
-  - **Implementation**: Query Event table for practice day events (by `sourceEventId` pattern)
+  - **Implementation**: Query Event table for practice day events (by
+    `sourceEventId` pattern)
 
 ### 3.6 Create API Endpoints (Next.js)
 
@@ -323,8 +358,8 @@
   ```typescript
   {
     track_id: string
-    start_date: string (YYYY-MM-DD, required)
-    end_date: string (YYYY-MM-DD, required)
+    start_date: string(YYYY - MM - DD, required)
+    end_date: string(YYYY - MM - DD, required)
   }
   ```
 - **Response**:
@@ -336,7 +371,7 @@
     }
   }
   ```
-- **Implementation**: 
+- **Implementation**:
   - Call ingestion service discovery endpoint
   - Handle rate limiting and errors
   - Return structured response
@@ -357,25 +392,28 @@
     }
   }
   ```
-- **Implementation**: 
+- **Implementation**:
   - Call core search function
   - Filter for practice day events (by `sourceEventId` pattern)
 
 ### 3.7 Create Core Functions (Next.js)
 
 - **File**: `src/core/practice-days/discover-practice-days.ts` (new file)
-- **Function**: `discoverPracticeDays(params: DiscoverPracticeDaysInput): Promise<DiscoverPracticeDaysResult>`
+- **Function**:
+  `discoverPracticeDays(params: DiscoverPracticeDaysInput): Promise<DiscoverPracticeDaysResult>`
 - **Purpose**: Business logic for practice day discovery
 - **Implementation**: Call ingestion service API
 
 - **File**: `src/core/practice-days/search-practice-days.ts` (new file)
-- **Function**: `searchPracticeDays(params: SearchPracticeDaysInput): Promise<SearchPracticeDaysResult>`
+- **Function**:
+  `searchPracticeDays(params: SearchPracticeDaysInput): Promise<SearchPracticeDaysResult>`
 - **Purpose**: Business logic for practice day search
 - **Implementation**: Query database using repository pattern
 
 - **File**: `src/core/practice-days/types.ts` (new file)
 - **Purpose**: TypeScript types for practice days
 - **Types**:
+
   ```typescript
   export interface PracticeDaySummary {
     date: string
@@ -405,7 +443,7 @@
 
 ### 3.8 Testing: Practice Day Discovery
 
-- **Files**: 
+- **Files**:
   - `ingestion/tests/test_practice_parsers.py` (new file)
   - `ingestion/tests/test_practice_connector.py` (new file)
   - `src/__tests__/api/practice-days/discover.test.ts` (new file)
@@ -436,7 +474,8 @@
 ### 4.1 Extend Ingestion Pipeline for Practice Days
 
 - **File**: `ingestion/ingestion/pipeline.py`
-- **New Method**: `async def ingest_practice_day(track_id: str, date: date) -> Event`
+- **New Method**:
+  `async def ingest_practice_day(track_id: str, date: date) -> Event`
 - **Purpose**: Ingest a practice day (all sessions for a date)
 - **Logic**:
   1. Fetch practice day overview from connector
@@ -456,7 +495,8 @@
 - **File**: `ingestion/db/repository.py`
 - **Functions**: Extend existing upsert methods
 - **Logic**:
-  - Use `sourceEventId` for Event uniqueness: `{track-slug}-practice-{YYYY-MM-DD}`
+  - Use `sourceEventId` for Event uniqueness:
+    `{track-slug}-practice-{YYYY-MM-DD}`
   - Use `sourceRaceId` for Race uniqueness (from LiveRC session ID)
   - Implement `ON CONFLICT DO UPDATE` logic
   - Preserve existing data when re-ingesting (don't overwrite with nulls)
@@ -482,7 +522,7 @@
 
 ### 4.4 Add Timezone Handling
 
-- **Files**: 
+- **Files**:
   - `ingestion/ingestion/pipeline.py`
   - `ingestion/db/repository.py`
 - **Action**: Store timezone information with practice day Events
@@ -526,7 +566,8 @@
 ### 4.7 Create Core Ingestion Function
 
 - **File**: `src/core/practice-days/ingest-practice-day.ts` (new file)
-- **Function**: `ingestPracticeDay(params: IngestPracticeDayInput): Promise<IngestPracticeDayResult>`
+- **Function**:
+  `ingestPracticeDay(params: IngestPracticeDayInput): Promise<IngestPracticeDayResult>`
 - **Purpose**: Business logic for practice day ingestion
 - **Implementation**: Call ingestion service API
 
@@ -566,7 +607,8 @@
 
 ### 5.3 Create Practice Day Search Container
 
-- **File**: `src/components/practice-days/PracticeDaySearchContainer.tsx` (new file)
+- **File**: `src/components/practice-days/PracticeDaySearchContainer.tsx` (new
+  file)
 - **Purpose**: Container component for practice day search results
 - **Features**:
   - Display practice days in similar format to events
@@ -595,7 +637,8 @@
 
 ### 5.6 Update Event Analysis to Support Practice Days
 
-- **File**: `src/app/(authenticated)/events/analyse/[eventId]/EventAnalysisClient.tsx`
+- **File**:
+  `src/app/(authenticated)/events/analyse/[eventId]/EventAnalysisClient.tsx`
 - **Changes**:
   - Detect if Event is a practice day (by `sourceEventId` pattern or metadata)
   - Display practice day sessions in the same manner as race events
@@ -605,8 +648,9 @@
 ### 5.7 Integrate with Unified Search
 
 - **File**: `src/core/search/repo.ts`
-- **Changes**: Ensure practice day sessions are included in unified search results
-- **Logic**: 
+- **Changes**: Ensure practice day sessions are included in unified search
+  results
+- **Logic**:
   - Query Race table with `sessionType = 'practiceday'`
   - Include practice day sessions in search results
   - Filter by `sessionType` when specified in search params
@@ -617,7 +661,8 @@
 ### 5.8 Testing: UI Updates
 
 - **Files**:
-  - `src/__tests__/components/practice-days/PracticeDaySearchContainer.test.tsx` (new file)
+  - `src/__tests__/components/practice-days/PracticeDaySearchContainer.test.tsx`
+    (new file)
   - `src/__tests__/e2e/practice-days-search.spec.ts` (new file)
 - **Test Cases**:
   - Practice day search UI flow
@@ -693,6 +738,7 @@
 ## 7. Implementation Checklist
 
 ### Phase 1: Session Type Inference
+
 - [ ] Add `practiceday` to `SessionType` enum in Prisma schema
 - [ ] Create migration for enum update
 - [ ] Regenerate Prisma client
@@ -706,6 +752,7 @@
 - [ ] Test session type inference
 
 ### Phase 2: Practice Day Discovery
+
 - [ ] Create practice day parser models
 - [ ] Create practice day HTML parsers
 - [ ] Add practice day methods to LiveRC connector
@@ -718,6 +765,7 @@
 - [ ] Test practice day discovery
 
 ### Phase 3: Practice Day Ingestion
+
 - [ ] Extend ingestion pipeline for practice days
 - [ ] Implement idempotent upserts
 - [ ] Store practice day stats in Event metadata
@@ -729,6 +777,7 @@
 - [ ] Test practice day ingestion
 
 ### Phase 4: UI Updates
+
 - [ ] Add feature flags
 - [ ] Update Event Search Form
 - [ ] Create Practice Day Search Container
@@ -741,6 +790,7 @@
 - [ ] Test UI updates
 
 ### Phase 5: Rollout and Migration
+
 - [ ] Set up feature flags
 - [ ] Create monitoring dashboards
 - [ ] Set up alerts
@@ -756,16 +806,21 @@
 ## 8. Dependencies and Prerequisites
 
 ### External Dependencies
+
 - LiveRC HTML structure (must remain stable or parsers need updates)
 - Existing ingestion infrastructure
 - Existing event search UI components
 
 ### Internal Dependencies
-- Session type inference (Phase 1) must be complete before practice day ingestion (Phase 3)
+
+- Session type inference (Phase 1) must be complete before practice day
+  ingestion (Phase 3)
 - Practice day discovery (Phase 2) must be complete before UI updates (Phase 4)
-- Database migration (Phase 1) must be deployed before any code using new enum value
+- Database migration (Phase 1) must be deployed before any code using new enum
+  value
 
 ### Prerequisites
+
 - Understanding of existing ingestion pipeline architecture
 - Access to LiveRC practice day pages for testing
 - Test fixtures from reference material
@@ -776,14 +831,16 @@
 ## 9. Risks and Mitigations
 
 ### Risk 1: LiveRC HTML Structure Changes
+
 - **Impact**: Parsers break, discovery fails
-- **Mitigation**: 
+- **Mitigation**:
   - Use robust parsing (CSS selectors, fallbacks)
   - Monitor parsing failures
   - Keep test fixtures up to date
   - Add integration tests that catch structure changes
 
 ### Risk 2: Rate Limiting from LiveRC
+
 - **Impact**: Discovery requests blocked
 - **Mitigation**:
   - Implement aggressive caching
@@ -792,6 +849,7 @@
   - Monitor rate limit violations
 
 ### Risk 3: Session Type Inference Accuracy
+
 - **Impact**: Misclassified sessions
 - **Mitigation**:
   - Use multi-signal approach
@@ -800,6 +858,7 @@
   - Monitor inference accuracy
 
 ### Risk 4: Breaking Changes to Existing APIs
+
 - **Impact**: Existing clients break
 - **Mitigation**:
   - Use dedicated endpoints for practice days
@@ -808,6 +867,7 @@
   - Document API changes
 
 ### Risk 5: Database Performance
+
 - **Impact**: Slow queries with new session types
 - **Mitigation**:
   - Use existing indexes on `sessionType`
@@ -818,7 +878,7 @@
 
 ## 10. Success Criteria
 
-1. **Session Type Inference**: 
+1. **Session Type Inference**:
    - All new race ingestions have `sessionType` populated
    - Inference accuracy >95% for high-confidence cases
    - No breaking changes to existing APIs
@@ -853,7 +913,10 @@
 - Feature specification: `docs/feature_ideas/feature_ideas.md`
 - Current data model: `docs/architecture/liverc-ingestion/04-data-model.md`
 - Database schema: `prisma/schema.prisma`
-- Ingestion architecture: `docs/architecture/liverc-ingestion/03-ingestion-pipeline.md`
-- Testing strategy: `docs/architecture/liverc-ingestion/18-ingestion-testing-strategy.md`
+- Ingestion architecture:
+  `docs/architecture/liverc-ingestion/03-ingestion-pipeline.md`
+- Testing strategy:
+  `docs/architecture/liverc-ingestion/18-ingestion-testing-strategy.md`
 - Practice page examples: `docs/reference_material/liverc/`
-- Unified search implementation: `docs/implimentation_plans/OLD/unified-search-feature-plan.md`
+- Unified search implementation:
+  `docs/implimentation_plans/OLD/unified-search-feature-plan.md`

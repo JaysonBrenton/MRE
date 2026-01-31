@@ -1,7 +1,7 @@
 /**
  * Migration script to normalize all email addresses to lowercase
  * Run with: npx ts-node --compiler-options '{"module":"commonjs"}' scripts/normalize-emails.ts
- * 
+ *
  * This script ensures all existing email addresses in the database are stored
  * in lowercase for consistent lookups. This is a one-time migration that can
  * be run to fix any existing mixed-case emails.
@@ -40,7 +40,9 @@ async function normalizeEmails() {
         })
 
         if (existingUser && existingUser.id !== user.id) {
-          console.log(`  WARNING: Normalized email "${normalizedEmail}" already exists for another user. Skipping.`)
+          console.log(
+            `  WARNING: Normalized email "${normalizedEmail}" already exists for another user. Skipping.`
+          )
           continue
         }
 
@@ -67,4 +69,3 @@ async function normalizeEmails() {
 }
 
 normalizeEmails().catch(console.error)
-

@@ -1,12 +1,12 @@
 /**
  * @fileoverview Driver Details page
- * 
+ *
  * @created 2025-12-24
  * @creator Jayson Brenton
  * @lastModified 2025-12-24
- * 
+ *
  * @description Driver details page showing transponder numbers, multi-class participation, and override management
- * 
+ *
  * @purpose Provides driver profile view with transponder information and override management UI
  */
 

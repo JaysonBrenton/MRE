@@ -47,7 +47,11 @@ function mergeContext(
 }
 
 function createClientLogger(baseContext?: Record<string, unknown>): ClientLogger {
-  const log = (level: "DEBUG" | "INFO" | "WARN" | "ERROR", message: string, context?: Record<string, unknown>) => {
+  const log = (
+    level: "DEBUG" | "INFO" | "WARN" | "ERROR",
+    message: string,
+    context?: Record<string, unknown>
+  ) => {
     const mergedContext = mergeContext(baseContext, context)
     const entry = formatEntry(level, message, mergedContext)
 
@@ -74,7 +78,8 @@ function createClientLogger(baseContext?: Record<string, unknown>): ClientLogger
     info: (message, context) => log("INFO", message, context),
     warn: (message, context) => log("WARN", message, context),
     error: (message, context) => log("ERROR", message, context),
-    withContext: (additionalContext) => createClientLogger(mergeContext(baseContext, additionalContext)),
+    withContext: (additionalContext) =>
+      createClientLogger(mergeContext(baseContext, additionalContext)),
   }
 }
 

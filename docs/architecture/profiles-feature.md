@@ -2,8 +2,11 @@
 created: 2026-01-16
 creator: Documentation & Knowledge Steward
 lastModified: 2026-01-16
-description: Architecture documentation for car profiles and driver profiles features
-purpose: Defines the architecture, components, and implementation patterns for car profiles and driver profiles features
+description:
+  Architecture documentation for car profiles and driver profiles features
+purpose:
+  Defines the architecture, components, and implementation patterns for car
+  profiles and driver profiles features
 relatedFiles:
   - src/core/car-profiles/ (car profiles core logic)
   - src/core/driver-profiles/ (driver profiles core logic)
@@ -16,19 +19,24 @@ relatedFiles:
 # Profiles Feature Architecture
 
 **Status:** Implemented and in production  
-**Feature Scope:** Car profiles and driver profiles for user customization and data management
+**Feature Scope:** Car profiles and driver profiles for user customization and
+data management
 
-This document describes the architecture and implementation of the car profiles and driver profiles features in MRE version 0.1.1.
+This document describes the architecture and implementation of the car profiles
+and driver profiles features in MRE version 0.1.1.
 
 ---
 
 ## Overview
 
 The profiles feature allows users to create and manage:
+
 - **Car Profiles:** User-defined car configurations with setup information
-- **Driver Profiles:** User-defined driver profiles with preferences and transponder numbers
+- **Driver Profiles:** User-defined driver profiles with preferences and
+  transponder numbers
 
 **Key Features:**
+
 - Full CRUD operations for both profile types
 - User-scoped access (users can only access their own profiles)
 - JSON storage for flexible data (setupInfo, preferences)
@@ -79,25 +87,28 @@ Both car profiles and driver profiles follow the same architectural pattern:
 **Model:** `CarProfile`  
 **Table:** `car_profiles`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key |
-| `userId` | UUID | Foreign key to User |
-| `name` | String | Profile name |
-| `carType` | String | Car type (e.g., "Buggy", "Truggy") |
-| `vehicleType` | String | Vehicle type (e.g., "1/8 Nitro") |
-| `setupInfo` | JSON | Flexible setup information |
-| `createdAt` | DateTime | Creation timestamp |
-| `updatedAt` | DateTime | Update timestamp |
+| Field         | Type     | Description                        |
+| ------------- | -------- | ---------------------------------- |
+| `id`          | UUID     | Primary key                        |
+| `userId`      | UUID     | Foreign key to User                |
+| `name`        | String   | Profile name                       |
+| `carType`     | String   | Car type (e.g., "Buggy", "Truggy") |
+| `vehicleType` | String   | Vehicle type (e.g., "1/8 Nitro")   |
+| `setupInfo`   | JSON     | Flexible setup information         |
+| `createdAt`   | DateTime | Creation timestamp                 |
+| `updatedAt`   | DateTime | Update timestamp                   |
 
 **Relationships:**
+
 - Belongs to `User` (cascade delete)
 - Index on `userId` for fast user lookups
 
 ### Core Logic (`src/core/car-profiles/`)
 
 #### `crud.ts`
+
 Business logic functions:
+
 - `getCarProfilesByUserId()` - Get all profiles for user
 - `getCarProfileById()` - Get single profile (with ownership check)
 - `createCarProfileForUser()` - Create new profile
@@ -105,12 +116,15 @@ Business logic functions:
 - `deleteCarProfileForUser()` - Delete profile (with ownership check)
 
 **Business Rules:**
+
 - Users can only access their own profiles
 - All operations include ownership validation
 - `setupInfo` is stored as JSON for flexibility
 
 #### `repo.ts`
+
 Database access layer (Prisma queries):
+
 - All database operations centralized here
 - Ownership checks implemented in queries
 
@@ -136,25 +150,28 @@ Database access layer (Prisma queries):
 **Model:** `DriverProfile`  
 **Table:** `driver_profiles`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key |
-| `userId` | UUID | Foreign key to User |
-| `name` | String | Profile name |
-| `displayName` | String | Display name |
-| `transponderNumber` | String? | Transponder number |
-| `preferences` | JSON | User preferences |
-| `createdAt` | DateTime | Creation timestamp |
-| `updatedAt` | DateTime | Update timestamp |
+| Field               | Type     | Description         |
+| ------------------- | -------- | ------------------- |
+| `id`                | UUID     | Primary key         |
+| `userId`            | UUID     | Foreign key to User |
+| `name`              | String   | Profile name        |
+| `displayName`       | String   | Display name        |
+| `transponderNumber` | String?  | Transponder number  |
+| `preferences`       | JSON     | User preferences    |
+| `createdAt`         | DateTime | Creation timestamp  |
+| `updatedAt`         | DateTime | Update timestamp    |
 
 **Relationships:**
+
 - Belongs to `User` (cascade delete)
 - Index on `userId` for fast user lookups
 
 ### Core Logic (`src/core/driver-profiles/`)
 
 #### `crud.ts`
+
 Business logic functions:
+
 - `getDriverProfilesByUserId()` - Get all profiles for user
 - `getDriverProfileById()` - Get single profile (with ownership check)
 - `createDriverProfileForUser()` - Create new profile
@@ -162,13 +179,16 @@ Business logic functions:
 - `deleteDriverProfileForUser()` - Delete profile (with ownership check)
 
 **Business Rules:**
+
 - Users can only access their own profiles
 - All operations include ownership validation
 - `preferences` is stored as JSON for flexibility
 - `transponderNumber` is optional
 
 #### `repo.ts`
+
 Database access layer (Prisma queries):
+
 - All database operations centralized here
 - Ownership checks implemented in queries
 
@@ -192,6 +212,7 @@ Database access layer (Prisma queries):
 ### Ownership Validation
 
 All profile operations include ownership validation:
+
 - API routes verify `userId` matches authenticated user
 - Core logic functions include ownership checks
 - Database queries filter by `userId`
@@ -234,6 +255,7 @@ All profile operations include ownership validation:
 ### Setup Info (Car Profiles)
 
 Flexible JSON structure for car setup information:
+
 ```json
 {
   "shockOil": "35wt",
@@ -248,6 +270,7 @@ Flexible JSON structure for car setup information:
 ### Preferences (Driver Profiles)
 
 Flexible JSON structure for driver preferences:
+
 ```json
 {
   "defaultView": "lap-times",
@@ -259,6 +282,7 @@ Flexible JSON structure for driver preferences:
 ```
 
 **Benefits:**
+
 - Flexible schema without migrations
 - Easy to extend with new fields
 - Type-safe access in TypeScript

@@ -1,16 +1,16 @@
 /**
  * @fileoverview Navigation bar component for landing page
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Full navigation bar with all required items per README section 13.1
- * 
+ *
  * @purpose Provides navigation for the landing page with all items from the product vision.
  *          Login/Register route to real pages, all other items route to /under-development
  *          as required by README section 13.2.
- * 
+ *
  * @relatedFiles
  * - README.md (section 13.1 - Landing Page Navigation)
  * - docs/specs/mre-under-development-page.md
@@ -55,7 +55,7 @@ export default function NavBar() {
                 {item.label}
               </Link>
             ))}
-            
+
             {/* Login / Register */}
             <div className="flex items-center gap-2 pl-4">
               <Link
@@ -77,4 +77,3 @@ export default function NavBar() {
     </nav>
   )
 }
-

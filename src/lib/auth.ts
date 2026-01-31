@@ -110,7 +110,7 @@ export const config = {
         console.log("[NextAuth JWT] No user, token.id:", {
           tokenId: token.id,
           tokenIdType: typeof token.id,
-          tokenIdLength: token.id?.length,
+          tokenIdLength: typeof token.id === "string" ? token.id.length : undefined,
           hasTokenId: !!token.id,
         })
       }
@@ -120,20 +120,20 @@ export const config = {
       console.log("[NextAuth Session] Creating session from token:", {
         tokenId: token.id,
         tokenIdType: typeof token.id,
-        tokenIdLength: token.id?.length,
+        tokenIdLength: typeof token.id === "string" ? token.id.length : undefined,
         hasTokenId: !!token.id,
         tokenEmail: token.email,
         tokenName: token.name,
         tokenIsAdmin: token.isAdmin,
       })
-      
+
       const sessionUser = {
         id: String(token.id || ""),
         email: String(token.email || ""),
         name: String(token.name || ""),
         isAdmin: Boolean(token.isAdmin || false),
       }
-      
+
       console.log("[NextAuth Session] Session user:", {
         id: sessionUser.id,
         idType: typeof sessionUser.id,
@@ -143,7 +143,7 @@ export const config = {
         name: sessionUser.name,
         isAdmin: sessionUser.isAdmin,
       })
-      
+
       // Return session with user data from token
       // Use Object.create to avoid prototype issues
       return {

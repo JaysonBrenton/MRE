@@ -3,8 +3,9 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: User stories for user management features (welcome page)
-purpose: Defines user stories for user welcome page functionality with detailed
-         acceptance criteria, dependencies, and Definition of Done checklists.
+purpose:
+  Defines user stories for user welcome page functionality with detailed
+  acceptance criteria, dependencies, and Definition of Done checklists.
 relatedFiles:
   - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
@@ -14,7 +15,8 @@ relatedFiles:
 
 # User Management Epic
 
-This epic contains user stories for user management features: the user welcome page.
+This epic contains user stories for user management features: the user welcome
+page.
 
 ---
 
@@ -25,15 +27,18 @@ This epic contains user stories for user management features: the user welcome p
 **So that** I know I've successfully accessed my account
 
 ### Priority
+
 Medium
 
 ### Dependencies
+
 - User Login story (users must log in before seeing welcome page)
 
 ### Acceptance Criteria
 
 1. **Welcome Message Display**
-   - Page must display the following message exactly: "Welcome back <Driver Name>"
+   - Page must display the following message exactly: "Welcome back
+     <Driver Name>"
    - Driver Name must be dynamically inserted from user's account data
    - Message must be displayed prominently on the page
    - No variations or modifications to this message format are allowed
@@ -53,7 +58,8 @@ Medium
    - Welcome message must be centered horizontally
    - Welcome message must be centered vertically (using flex or grid)
    - Page must use consistent spacing scale per UX guidelines
-   - Page must follow predictable page structure with header and main content wrapper
+   - Page must follow predictable page structure with header and main content
+     wrapper
 
 4. **Dark Theme Compliance**
    - Background must use `--token-surface` (no pure black)
@@ -84,13 +90,15 @@ Medium
 
 8. **Data Retrieval**
    - Driver Name must be retrieved from user session or database
-   - User data must be fetched using business logic in `src/core/users/` (not in UI component)
+   - User data must be fetched using business logic in `src/core/users/` (not in
+     UI component)
    - No Prisma queries in UI component
    - Data fetching must follow architecture guidelines
 
 9. **Architecture Compliance**
    - UI component must be thin (no business logic)
-   - Business logic for user data retrieval must reside in `src/core/users/` if needed
+   - Business logic for user data retrieval must reside in `src/core/users/` if
+     needed
    - Page must follow mobile-safe architecture guidelines
    - No browser-specific dependencies in core logic
 
@@ -124,4 +132,3 @@ Medium
 - [MRE UX Principles](../design/mre-ux-principles.md)
 - [MRE Mobile UX Guidelines](../design/mre-mobile-ux-guidelines.md)
 - [MRE Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md)
-

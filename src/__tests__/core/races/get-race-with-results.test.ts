@@ -1,13 +1,13 @@
 /**
  * @fileoverview Tests for getRaceWithResults function
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Regression tests to ensure getRaceWithResults uses batched queries
  *              and does not make per-driver queries (N+1 problem)
- * 
+ *
  * @purpose Validates that getRaceWithResults makes < 10 queries for a 60-driver race.
  */
 
@@ -108,7 +108,7 @@ describe("getRaceWithResults - Query Count Regression", () => {
     vi.mocked(prisma.race.findUnique).mockResolvedValue(mockRace as never)
 
     // Mock batch transponder lookup
-    const transponderMap = new Map<string, { transponderNumber: string; source: 'entry_list' }>()
+    const transponderMap = new Map<string, { transponderNumber: string; source: "entry_list" }>()
     mockResults.forEach((result) => {
       transponderMap.set(result.raceDriver.driverId, {
         transponderNumber: `T${result.raceDriver.driverId}`,
@@ -169,7 +169,7 @@ describe("getRaceWithResults - Query Count Regression", () => {
     }
     vi.mocked(prisma.race.findUnique).mockResolvedValue(mockRace as never)
 
-    const transponderMap = new Map<string, { transponderNumber: string; source: 'entry_list' }>([
+    const transponderMap = new Map<string, { transponderNumber: string; source: "entry_list" }>([
       [
         "driver-1",
         {

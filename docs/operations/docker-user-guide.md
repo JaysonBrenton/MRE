@@ -61,7 +61,11 @@ Docker Compose. The environment consists of:
 - **PostgreSQL Database** (`mre-postgres`) - External database container
   (managed separately)
 
-**Docker Runtime:** On macOS, **Colima is the recommended and primary Docker runtime** for this project. It provides better command-line control, lighter resource usage, and easier memory/CPU configuration. Docker Desktop is supported as an alternative. See the [Prerequisites](#prerequisites) section for setup instructions.
+**Docker Runtime:** On macOS, **Colima is the recommended and primary Docker
+runtime** for this project. It provides better command-line control, lighter
+resource usage, and easier memory/CPU configuration. Docker Desktop is supported
+as an alternative. See the [Prerequisites](#prerequisites) section for setup
+instructions.
 
 ### Goals
 
@@ -131,7 +135,8 @@ All containers communicate through a Docker bridge network:
 
 ### Required Software
 
-You need a Docker runtime environment. **Colima is the recommended and primary Docker runtime for macOS.** Docker Desktop is supported as an alternative.
+You need a Docker runtime environment. **Colima is the recommended and primary
+Docker runtime for macOS.** Docker Desktop is supported as an alternative.
 
 #### Option 1: Colima (Recommended for macOS - Primary Setup)
 
@@ -139,13 +144,17 @@ You need a Docker runtime environment. **Colima is the recommended and primary D
   - Installation: `brew install colima` (requires Homebrew)
   - Start with custom memory: `colima start --memory 14 --cpu 4`
   - Verify: `colima status`
-  - **Benefits:** Command-line memory configuration, lighter than Docker Desktop, no GUI required, better resource control
-  - **See:** [Colima Setup](#colima-setup) section below for complete setup instructions
-  - **Helper Script:** Use `./scripts/start-colima.sh` to start with recommended settings
+  - **Benefits:** Command-line memory configuration, lighter than Docker
+    Desktop, no GUI required, better resource control
+  - **See:** [Colima Setup](#colima-setup) section below for complete setup
+    instructions
+  - **Helper Script:** Use `./scripts/start-colima.sh` to start with recommended
+    settings
 
 - **Docker** and **Docker Compose** (installed separately with Colima)
   - Verify: `docker --version` and `docker compose version`
-  - **Note:** After installing Colima, ensure Docker context is set: `docker context use colima`
+  - **Note:** After installing Colima, ensure Docker context is set:
+    `docker context use colima`
 
 #### Option 2: Docker Desktop (Alternative)
 
@@ -153,7 +162,8 @@ You need a Docker runtime environment. **Colima is the recommended and primary D
   - Download: https://www.docker.com/products/docker-desktop
   - Includes Docker Engine and Docker Compose
   - Verify: `docker --version` and `docker compose version`
-  - **Note:** Docker Desktop can be used as an alternative to Colima, but Colima is recommended for better command-line control and lighter resource usage.
+  - **Note:** Docker Desktop can be used as an alternative to Colima, but Colima
+    is recommended for better command-line control and lighter resource usage.
 
 ### System Requirements
 
@@ -172,7 +182,9 @@ You need a Docker runtime environment. **Colima is the recommended and primary D
 
 ## Colima Setup (macOS - Primary Docker Runtime)
 
-**Colima is the recommended Docker runtime for macOS.** It provides better control over resource allocation via command line and is lighter than Docker Desktop. This section covers setup and configuration.
+**Colima is the recommended Docker runtime for macOS.** It provides better
+control over resource allocation via command line and is lighter than Docker
+Desktop. This section covers setup and configuration.
 
 ### Installation
 
@@ -184,7 +196,9 @@ brew install colima
 colima --version
 ```
 
-**Important:** If you're on Apple Silicon (M1/M2/M3), ensure you use the ARM-native Homebrew installation at `/opt/homebrew/bin/brew`. If you have both Intel and ARM Homebrew installed, use the ARM version:
+**Important:** If you're on Apple Silicon (M1/M2/M3), ensure you use the
+ARM-native Homebrew installation at `/opt/homebrew/bin/brew`. If you have both
+Intel and ARM Homebrew installed, use the ARM version:
 
 ```bash
 /opt/homebrew/bin/brew install colima
@@ -203,6 +217,7 @@ colima status
 ```
 
 **Recommended Settings:**
+
 - **18GB system:** Use 14GB for Colima (leave 4GB for macOS)
 - **16GB system:** Use 12GB for Colima (leave 4GB for macOS)
 - **8GB system:** Use 4-6GB for Colima (leave 2-4GB for macOS)
@@ -224,16 +239,19 @@ docker info | grep "Total Memory"
 
 ### Auto-Start Configuration
 
-**Colima does NOT auto-start by default** after a system restart. To enable auto-start:
+**Colima does NOT auto-start by default** after a system restart. To enable
+auto-start:
 
 #### Option 1: Manual Start (Recommended)
 
 Start Colima manually when needed:
+
 ```bash
 colima start --memory 14 --cpu 4
 ```
 
 Or use the helper script:
+
 ```bash
 ./scripts/start-colima.sh
 ```
@@ -241,6 +259,7 @@ Or use the helper script:
 #### Option 2: Auto-Start with Login Script
 
 Add to your `~/.zshrc` or `~/.bash_profile`:
+
 ```bash
 # Auto-start Colima if not running
 if ! colima status 2>/dev/null | grep -q "Running"; then
@@ -250,7 +269,9 @@ fi
 
 #### Option 3: Homebrew Services (Uses Default Settings)
 
-**Note:** `brew services` will start Colima with default settings (not custom memory/CPU):
+**Note:** `brew services` will start Colima with default settings (not custom
+memory/CPU):
+
 ```bash
 # Enable auto-start (uses defaults - not recommended)
 brew services start colima
@@ -259,7 +280,8 @@ brew services start colima
 brew services stop colima
 ```
 
-If you use Homebrew services, you'll need to stop and restart with custom settings manually.
+If you use Homebrew services, you'll need to stop and restart with custom
+settings manually.
 
 ### Managing Colima
 
@@ -302,12 +324,17 @@ docker info | grep "Total Memory"
 ### Troubleshooting Colima
 
 **Issue: Architecture mismatch error**
-- **Solution:** Ensure you're using ARM-native Homebrew on Apple Silicon: `/opt/homebrew/bin/brew install colima`
+
+- **Solution:** Ensure you're using ARM-native Homebrew on Apple Silicon:
+  `/opt/homebrew/bin/brew install colima`
 
 **Issue: DNS resolution errors**
-- **Solution:** Restart Colima: `colima stop && colima start --memory 14 --cpu 4`
+
+- **Solution:** Restart Colima:
+  `colima stop && colima start --memory 14 --cpu 4`
 
 **Issue: Docker commands not working**
+
 - **Solution:** Ensure Docker context is set: `docker context use colima`
 
 ---

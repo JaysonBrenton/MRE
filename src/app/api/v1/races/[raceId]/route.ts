@@ -1,19 +1,19 @@
 // @fileoverview Race detail API route
-// 
+//
 // @created 2025-01-27
 // @creator Jayson Brenton
 // @lastModified 2025-01-27
-// 
+//
 // @description API route for getting race results
-// 
+//
 // @purpose Provides user-facing API for race data
 
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { getRaceWithResults } from "@/core/races/repo";
-import { successResponse, errorResponse } from "@/lib/api-utils";
-import { createRequestLogger, generateRequestId } from "@/lib/request-context";
-import { handleApiError } from "@/lib/server-error-handler";
+import { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
+import { getRaceWithResults } from "@/core/races/repo"
+import { successResponse, errorResponse } from "@/lib/api-utils"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context"
+import { handleApiError } from "@/lib/server-error-handler"
 
 export async function GET(
   request: NextRequest,
@@ -26,26 +26,16 @@ export async function GET(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized race detail request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
-    const { raceId } = await params;
-    const race = await getRaceWithResults(raceId);
+    const { raceId } = await params
+    const race = await getRaceWithResults(raceId)
 
     if (!race) {
       requestLogger.warn("Race not found", { raceId })
-      return errorResponse(
-        "NOT_FOUND",
-        "Race not found",
-        {},
-        404
-      );
+      return errorResponse("NOT_FOUND", "Race not found", {}, 404)
     }
 
     requestLogger.info("Race fetched successfully", {
@@ -79,15 +69,9 @@ export async function GET(
           transponder_source: result.raceDriver.transponderSource,
         },
       })),
-    });
+    })
   } catch (error) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
-

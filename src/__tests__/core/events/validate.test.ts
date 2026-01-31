@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for event validation logic
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for event search parameter validation
- * 
+ *
  * @purpose Validates date range validation logic including edge cases.
  */
 
@@ -50,11 +50,7 @@ describe("validateEventSearchParams", () => {
   describe("missing required fields", () => {
     it("should return error when trackId is missing", () => {
       const today = new Date()
-      const result = validateEventSearchParams(
-        null,
-        today.toISOString(),
-        today.toISOString()
-      )
+      const result = validateEventSearchParams(null, today.toISOString(), today.toISOString())
 
       expect(result).not.toBeNull()
       expect(result?.code).toBe("VALIDATION_ERROR")
@@ -64,11 +60,7 @@ describe("validateEventSearchParams", () => {
 
     it("should return error when startDate is missing", () => {
       const today = new Date()
-      const result = validateEventSearchParams(
-        "track-id-123",
-        null,
-        today.toISOString()
-      )
+      const result = validateEventSearchParams("track-id-123", null, today.toISOString())
 
       expect(result).not.toBeNull()
       expect(result?.code).toBe("VALIDATION_ERROR")
@@ -78,11 +70,7 @@ describe("validateEventSearchParams", () => {
 
     it("should return error when endDate is missing", () => {
       const today = new Date()
-      const result = validateEventSearchParams(
-        "track-id-123",
-        today.toISOString(),
-        null
-      )
+      const result = validateEventSearchParams("track-id-123", today.toISOString(), null)
 
       expect(result).not.toBeNull()
       expect(result?.code).toBe("VALIDATION_ERROR")
@@ -94,11 +82,7 @@ describe("validateEventSearchParams", () => {
   describe("invalid date formats", () => {
     it("should return error for invalid startDate format", () => {
       const today = new Date()
-      const result = validateEventSearchParams(
-        "track-id-123",
-        "invalid-date",
-        today.toISOString()
-      )
+      const result = validateEventSearchParams("track-id-123", "invalid-date", today.toISOString())
 
       expect(result).not.toBeNull()
       expect(result?.code).toBe("VALIDATION_ERROR")
@@ -108,11 +92,7 @@ describe("validateEventSearchParams", () => {
 
     it("should return error for invalid endDate format", () => {
       const today = new Date()
-      const result = validateEventSearchParams(
-        "track-id-123",
-        today.toISOString(),
-        "invalid-date"
-      )
+      const result = validateEventSearchParams("track-id-123", today.toISOString(), "invalid-date")
 
       expect(result).not.toBeNull()
       expect(result?.code).toBe("VALIDATION_ERROR")
@@ -145,11 +125,7 @@ describe("validateEventSearchParams", () => {
       today.setHours(0, 0, 0, 0)
       const dateStr = today.toISOString()
 
-      const result = validateEventSearchParams(
-        "track-id-123",
-        dateStr,
-        dateStr
-      )
+      const result = validateEventSearchParams("track-id-123", dateStr, dateStr)
 
       expect(result).toBeNull()
     })
@@ -200,11 +176,7 @@ describe("validateEventSearchParams", () => {
       today.setHours(0, 0, 0, 0)
       const dateStr = today.toISOString()
 
-      const result = validateEventSearchParams(
-        "track-id-123",
-        dateStr,
-        dateStr
-      )
+      const result = validateEventSearchParams("track-id-123", dateStr, dateStr)
 
       expect(result).toBeNull()
     })

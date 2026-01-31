@@ -3,11 +3,14 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: API versioning strategy and deprecation policy for MRE application
-purpose: Defines API versioning approach, deprecation timeline, breaking change policy,
-         backward compatibility requirements, and version migration guide. Provides clear
-         guidance for API evolution and ensures smooth transitions between versions.
+purpose:
+  Defines API versioning approach, deprecation timeline, breaking change policy,
+  backward compatibility requirements, and version migration guide. Provides
+  clear guidance for API evolution and ensures smooth transitions between
+  versions.
 relatedFiles:
-  - docs/architecture/mobile-safe-architecture-guidelines.md (API versioning standards)
+  - docs/architecture/mobile-safe-architecture-guidelines.md (API versioning
+    standards)
   - docs/api/api-reference.md (API endpoints)
 ---
 
@@ -17,7 +20,8 @@ relatedFiles:
 **Current Version:** v1  
 **Base Path:** `/api/v1/`
 
-This document defines the API versioning strategy, deprecation policy, breaking change policy, and migration guide for the MRE API.
+This document defines the API versioning strategy, deprecation policy, breaking
+change policy, and migration guide for the MRE API.
 
 ---
 
@@ -41,22 +45,26 @@ This document defines the API versioning strategy, deprecation policy, breaking 
 **Format:** `/api/v{version}/`
 
 **Examples:**
+
 - `/api/v1/auth/register`
 - `/api/v2/auth/register` (future)
 
 **Why URL Path Versioning:**
+
 - Clear and explicit
 - Easy to understand
 - Supports multiple versions simultaneously
 - Follows mobile-safe architecture guidelines
 
-**See:** `docs/architecture/mobile-safe-architecture-guidelines.md` Section 3.1 for API versioning standards.
+**See:** `docs/architecture/mobile-safe-architecture-guidelines.md` Section 3.1
+for API versioning standards.
 
 ### Version Structure
 
 **Current Version:** v1
 
 **Version Format:**
+
 - Major version number only (v1, v2, v3)
 - No minor or patch versions in URL
 - Semantic versioning for internal tracking
@@ -101,6 +109,7 @@ Create a new API version (e.g., v2) when:
 **Minimum Deprecation Period:** 6 months
 
 **Recommended Timeline:**
+
 1. **Announcement** - 6 months before deprecation
 2. **Warning Period** - 3 months before deprecation
 3. **Deprecation** - Version marked as deprecated
@@ -134,6 +143,7 @@ Create a new API version (e.g., v2) when:
 **Placeholder:** Deprecation headers will be added
 
 **Recommended Headers:**
+
 ```
 Deprecation: true
 Sunset: Sat, 31 Dec 2025 23:59:59 GMT
@@ -147,6 +157,7 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 ### What Constitutes a Breaking Change
 
 **Breaking Changes:**
+
 - Removing endpoints
 - Removing required fields
 - Changing field types
@@ -156,6 +167,7 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 - Changing HTTP status codes
 
 **Non-Breaking Changes:**
+
 - Adding new endpoints
 - Adding optional fields
 - Adding new error codes
@@ -178,12 +190,14 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 ### Compatibility Guarantees
 
 **Within Same Version:**
+
 - Adding optional fields is allowed
 - Adding new endpoints is allowed
 - Improving error messages is allowed
 - Performance improvements are allowed
 
 **Between Versions:**
+
 - Old versions remain available during deprecation
 - Migration guides provided
 - Support during migration period
@@ -193,6 +207,7 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 **Placeholder:** Compatibility testing will be implemented
 
 **Recommended:**
+
 - Test new version against old client code
 - Verify backward compatibility
 - Test migration paths
@@ -231,17 +246,21 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 **Placeholder:** Migration examples will be added when v2 is created
 
 **Example Structure:**
+
 ```markdown
 ## Migrating from v1 to v2
 
 ### Endpoint Changes
+
 - `/api/v1/auth/register` → `/api/v2/auth/register`
 
 ### Request Format Changes
+
 - Old: `{ email, password }`
 - New: `{ email, password, driverName }`
 
 ### Response Format Changes
+
 - Old: `{ user: {...} }`
 - New: `{ data: { user: {...} } }`
 ```
@@ -259,17 +278,20 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 ### Version Support
 
 **Current Version:**
+
 - Full support
 - Bug fixes
 - Security patches
 - New features
 
 **Deprecated Version:**
+
 - Security patches only
 - No new features
 - Migration support
 
 **Removed Version:**
+
 - No support
 - Not available
 
@@ -278,10 +300,10 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 ## Related Documentation
 
 - [API Reference](./api-reference.md) - Current API endpoints
-- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - API standards
+- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -
+  API standards
 - [CHANGELOG](../development/CHANGELOG.md) - Version history
 
 ---
 
 **End of API Versioning Strategy**
-

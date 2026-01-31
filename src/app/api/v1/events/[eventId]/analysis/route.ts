@@ -1,15 +1,15 @@
 /**
  * @fileoverview Event analysis API route
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description API route for getting event analysis data
- * 
+ *
  * @purpose Provides user-facing API for event analysis data including races, drivers, and statistics.
  *          Follows mobile-safe architecture by delegating to core function.
- * 
+ *
  * @relatedFiles
  * - src/core/events/get-event-analysis-data.ts (business logic)
  * - src/lib/api-utils.ts (response helpers)
@@ -33,12 +33,7 @@ export async function GET(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized event analysis request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -47,12 +42,7 @@ export async function GET(
 
     if (!analysisData) {
       requestLogger.warn("Event not found", { eventId })
-      return errorResponse(
-        "NOT_FOUND",
-        "Event not found",
-        {},
-        404
-      )
+      return errorResponse("NOT_FOUND", "Event not found", {}, 404)
     }
 
     requestLogger.info("Event analysis data fetched successfully", {
@@ -63,7 +53,10 @@ export async function GET(
 
     // Convert Date objects to ISO strings for JSON serialization
     // Convert raceClasses Map to plain object for JSON serialization
-    const raceClassesObject: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }> = {}
+    const raceClassesObject: Record<
+      string,
+      { vehicleType: string | null; vehicleTypeNeedsReview: boolean }
+    > = {}
     analysisData.raceClasses.forEach((value, key) => {
       raceClassesObject[key] = value
     })
@@ -95,19 +88,16 @@ export async function GET(
   } catch (error) {
     // Log the error with more context for debugging
     requestLogger.error("Error in event analysis API", {
-      error: error instanceof Error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      } : String(error),
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : String(error),
     })
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
-

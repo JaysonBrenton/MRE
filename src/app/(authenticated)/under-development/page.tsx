@@ -23,7 +23,7 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 import { getFeatureDescription } from "@/lib/feature-descriptions"
 
 export default function UnderDevelopmentPage() {

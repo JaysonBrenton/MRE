@@ -10,13 +10,15 @@ This directory contains self-signed SSL certificates for HTTPS development.
 ## Certificate Details
 
 - **Subject:** CN=localhost
-- **SAN:** localhost, *.localhost, 127.0.0.1, ::1
+- **SAN:** localhost, \*.localhost, 127.0.0.1, ::1
 - **Valid for:** 365 days
 - **Key size:** 4096 bits RSA
 
 ## Usage
 
-These certificates are for **development only**. They are self-signed and will trigger browser security warnings. For production, use certificates from a trusted Certificate Authority (CA).
+These certificates are for **development only**. They are self-signed and will
+trigger browser security warnings. For production, use certificates from a
+trusted Certificate Authority (CA).
 
 ### Trusting the Certificate (macOS)
 
@@ -51,5 +53,5 @@ openssl req -x509 -newkey rsa:4096 -keyout certs/localhost-key.pem -out certs/lo
 
 ## Security Note
 
-**DO NOT** commit private keys to version control. The `.gitignore` file should exclude `*.pem` files. These certificates are for local development only.
-
+**DO NOT** commit private keys to version control. The `.gitignore` file should
+exclude `*.pem` files. These certificates are for local development only.

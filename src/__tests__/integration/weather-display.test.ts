@@ -1,12 +1,12 @@
 /**
  * @fileoverview Integration test for weather data display
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Integration test to verify weather data is properly fetched and formatted for display
- * 
+ *
  * @purpose Validates the complete flow from API request to formatted response that the UI expects.
  *          This test ensures the weather functionality works end-to-end without actual external API calls.
  */
@@ -69,7 +69,9 @@ describe("Weather Data Display Integration", () => {
       // Mock cache miss
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
-      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Sydney Motorsport Park"])
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
+        "Sydney Motorsport Park",
+      ])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue(mockGeocodeResult)
       vi.mocked(fetchWeatherModule.fetchWeather).mockResolvedValue(mockWeatherResponse)
       vi.mocked(weatherRepoModule.cacheWeatherData).mockResolvedValue({
@@ -142,7 +144,9 @@ describe("Weather Data Display Integration", () => {
 
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
-      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Sydney Motorsport Park"])
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
+        "Sydney Motorsport Park",
+      ])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue({
         latitude: 0,
         longitude: 0,
@@ -173,7 +177,9 @@ describe("Weather Data Display Integration", () => {
 
       vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
-      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Sydney Motorsport Park"])
+      vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
+        "Sydney Motorsport Park",
+      ])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue({
         latitude: 0,
         longitude: 0,
@@ -242,4 +248,3 @@ describe("Weather Data Display Integration", () => {
     })
   })
 })
-

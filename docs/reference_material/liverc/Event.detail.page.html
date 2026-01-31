@@ -1,158 +1,348 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <!-- Document Type -->
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Language" content="en-us" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-	<head>
-		
-		<!-- Document Type -->
-		<meta charset="utf-8" />
-		<meta http-equiv="Content-Language" content="en-us" />
-		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-		<meta name="format-detection" content="telephone=no" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		
-		<!-- Page Info -->
-		<title>Canberra Off Road Model Car Club :: Cormcc 2025 Rudi Wensing Memorial, Clay Cup :: LiveRC</title>
-		<meta name="Copyright" content="2014-2025 LiveRC" />
-		<meta name="Description" content="Live and archived results, scoring, and video on LiveRC.com." />
-		<meta name="robots" content="index, follow" />
-		
-		<!-- Thumbnails and Icons -->
-		<link rel="icon" type="image/x-ico" href="//assets.liveracemedia.com/images/static/favicon.png" />
-		<link rel="shortcut icon" type="image/x-icon" href="//assets.liveracemedia.com/images/static/favicon.png" />
-		
-		<!-- Bootstrap Core CSS -->
-		<link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
-		
-		<!-- Bootstrap Theme CSS -->
-		<link href="/vendor/sb-admin-2/css/sb-admin-2.css" rel="stylesheet" />
-		
-		<!-- Custom Fonts -->
-		<link rel="stylesheet" type="text/css" href="/vendor/font-awesome/css/font-awesome.min.css" />
-		<link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Open+Sans|Open+Sans+Condensed:300" />
-		
-		<!-- CSS Files -->
-		<link rel="stylesheet" type="text/css" media="screen" href="/css/global/global.default.css?1153" />
-									<link rel="stylesheet" type="text/css" media="screen" href="/css/global/global.default.css?1153" />
-												<link rel="stylesheet" type="text/css" media="screen" href="/css/results/results.global.css?1153" />
-							
-		<!-- jQuery -->
-		<script src="//assets.liveracemedia.com/lib/jquery/jquery.min.js"></script>
+    <!-- Page Info -->
+    <title>
+      Canberra Off Road Model Car Club :: Cormcc 2025 Rudi Wensing Memorial, Clay Cup :: LiveRC
+    </title>
+    <meta name="Copyright" content="2014-2025 LiveRC" />
+    <meta
+      name="Description"
+      content="Live and archived results, scoring, and video on LiveRC.com."
+    />
+    <meta name="robots" content="index, follow" />
 
-		<!-- Video.js -->
-		<link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <!-- Thumbnails and Icons -->
+    <link
+      rel="icon"
+      type="image/x-ico"
+      href="//assets.liveracemedia.com/images/static/favicon.png"
+    />
+    <link
+      rel="shortcut icon"
+      type="image/x-icon"
+      href="//assets.liveracemedia.com/images/static/favicon.png"
+    />
 
-		<!-- Google DFP -->
-		<script async="async" src="https://www.googletagservices.com/tag/js/gpt.js"></script>
-		<script type="text/javascript">
-			var googletag = googletag || {};
-			googletag.cmd = googletag.cmd || [];
-			
-			// GPT slots
-			var gptAdSlots = [];
-			
-			googletag.cmd.push(function()
-			{
-				//XS: 0-575
-				//SM: 576-767
-				//MD: 768-991
-				//LG: 992-1199
-				//XL: 1200+
-				
-				var mapping01 = googletag.sizeMapping().
-					addSize([768, 200], [300, 100]). //MD and Up
-					addSize([0, 0], [320, 50]). //XS-SM Only
-					build();
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan20_LRC-Broadcast_Live_StaticTop_1', [[300, 100], [320, 50]], 'dfp_plan20_1').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan20_LRC-Broadcast_Live_StaticTop_2', [[300, 100], [320, 50]], 'dfp_plan20_2').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan20_LRC-Broadcast_Live_StaticTop_3', [[300, 100], [320, 50]], 'dfp_plan20_3').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan20_LRC-Broadcast_Live_StaticTop_4', [[300, 100], [320, 50]], 'dfp_plan20_4').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_1', [[300, 100], [320, 50]], 'dfp_plan21_1').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_2', [[300, 100], [320, 50]], 'dfp_plan21_2').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_3', [[300, 100], [320, 50]], 'dfp_plan21_3').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_4', [[300, 100], [320, 50]], 'dfp_plan21_4').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				
-				var mapping02 = googletag.sizeMapping().
-					addSize([0, 0], [300, 250]). //XS-XL
-					build();
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan22_LRC-Broadcast_Live_UnderChat_1', [300, 250], 'dfp_plan22_1').defineSizeMapping(mapping02).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				
-				
-				var mapping03 = googletag.sizeMapping().
-					addSize([768, 200], [468, 60]). //MD and Up
-					addSize([0, 0], [234, 60]). //XS-SM Only
-					build();
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan23_LRC-Broadcast_All_BetweenSections_1', [[468, 60], [234, 60]], 'dfp_plan23_1').defineSizeMapping(mapping03).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				
-				var mapping04 = googletag.sizeMapping().
-					addSize([0, 0], [320, 50]). //XS and Up
-					build();
-				gptAdSlots.push(googletag.defineSlot('/11443268/2017_worlds_title_1', [[320, 50]], '2017_worlds_title_1').defineSizeMapping(mapping04).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/2017_worlds_supporting_1', [[320, 50]], '2017_worlds_supporting_1').defineSizeMapping(mapping04).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				
-				googletag.pubads().enableSingleRequest();
-				googletag.pubads().collapseEmptyDivs(false);
-				googletag.enableServices();
-			});
-			
-			//reload ads every 2 minutes
-			setInterval(function()
-			{
-				googletag.pubads().refresh(gptAdSlots);
-				return false;
-			}, 120000);
-		</script>
-		
-		<script type="text/javascript">
-			var domain = 'liverc.com';
-		</script>
-	</head>
-	
-	<body>
-		
-		<!-- Google Analytics -->
-		<script>
-			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-			(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-			m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-			})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-			ga('create', 'UA-1197341-1', 'auto');
-			ga('send', 'pageview');
-		</script>
-		
-		<div id="fb-root"></div>
-		<script>
-			(function(d, s, id) {
-				var js, fjs = d.getElementsByTagName(s)[0];
-				if (d.getElementById(id)) return;
-				js = d.createElement(s); js.id = id;
-				js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.6&appId=15495375246";
-				fjs.parentNode.insertBefore(js, fjs);
-			}(document, 'script', 'facebook-jssdk'));
-		</script>
-		
-		<!-- Current User -->
-		<pre class="hidden" id="user_profile_data">false</pre>
-		
-		<!-- Wrapper -->
-		<div id="wrapper">
-		
-			<!-- Navigation -->
-			<nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0;">
-				<div class="navbar-header fixed">
-					<a class="navbar-brand" href="/"><div id="LRC-logo"></div></a>
-					
-						<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-							<span class="sr-only">Toggle navigation</span>
-							<span class="icon-bar"></span>
-							<span class="icon-bar"></span>
-							<span class="icon-bar"></span>
-						</button>
-						
-												<ul class="nav navbar-top-links navbar-right">
-							
-							<!--
+    <!-- Bootstrap Core CSS -->
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Bootstrap Theme CSS -->
+    <link href="/vendor/sb-admin-2/css/sb-admin-2.css" rel="stylesheet" />
+
+    <!-- Custom Fonts -->
+    <link rel="stylesheet" type="text/css" href="/vendor/font-awesome/css/font-awesome.min.css" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="//fonts.googleapis.com/css?family=Open+Sans|Open+Sans+Condensed:300"
+    />
+
+    <!-- CSS Files -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="screen"
+      href="/css/global/global.default.css?1153"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="screen"
+      href="/css/global/global.default.css?1153"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="screen"
+      href="/css/results/results.global.css?1153"
+    />
+
+    <!-- jQuery -->
+    <script src="//assets.liveracemedia.com/lib/jquery/jquery.min.js"></script>
+
+    <!-- Video.js -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+
+    <!-- Google DFP -->
+    <script async="async" src="https://www.googletagservices.com/tag/js/gpt.js"></script>
+    <script type="text/javascript">
+      var googletag = googletag || {}
+      googletag.cmd = googletag.cmd || []
+
+      // GPT slots
+      var gptAdSlots = []
+
+      googletag.cmd.push(function () {
+        //XS: 0-575
+        //SM: 576-767
+        //MD: 768-991
+        //LG: 992-1199
+        //XL: 1200+
+
+        var mapping01 = googletag
+          .sizeMapping()
+          .addSize([768, 200], [300, 100]) //MD and Up
+          .addSize([0, 0], [320, 50]) //XS-SM Only
+          .build()
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan20_LRC-Broadcast_Live_StaticTop_1",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan20_1"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan20_LRC-Broadcast_Live_StaticTop_2",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan20_2"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan20_LRC-Broadcast_Live_StaticTop_3",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan20_3"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan20_LRC-Broadcast_Live_StaticTop_4",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan20_4"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_1",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan21_1"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_2",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan21_2"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_3",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan21_3"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_4",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan21_4"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+
+        var mapping02 = googletag
+          .sizeMapping()
+          .addSize([0, 0], [300, 250]) //XS-XL
+          .build()
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan22_LRC-Broadcast_Live_UnderChat_1",
+              [300, 250],
+              "dfp_plan22_1"
+            )
+            .defineSizeMapping(mapping02)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+
+        var mapping03 = googletag
+          .sizeMapping()
+          .addSize([768, 200], [468, 60]) //MD and Up
+          .addSize([0, 0], [234, 60]) //XS-SM Only
+          .build()
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan23_LRC-Broadcast_All_BetweenSections_1",
+              [
+                [468, 60],
+                [234, 60],
+              ],
+              "dfp_plan23_1"
+            )
+            .defineSizeMapping(mapping03)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+
+        var mapping04 = googletag
+          .sizeMapping()
+          .addSize([0, 0], [320, 50]) //XS and Up
+          .build()
+        gptAdSlots.push(
+          googletag
+            .defineSlot("/11443268/2017_worlds_title_1", [[320, 50]], "2017_worlds_title_1")
+            .defineSizeMapping(mapping04)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/2017_worlds_supporting_1",
+              [[320, 50]],
+              "2017_worlds_supporting_1"
+            )
+            .defineSizeMapping(mapping04)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+
+        googletag.pubads().enableSingleRequest()
+        googletag.pubads().collapseEmptyDivs(false)
+        googletag.enableServices()
+      })
+
+      //reload ads every 2 minutes
+      setInterval(function () {
+        googletag.pubads().refresh(gptAdSlots)
+        return false
+      }, 120000)
+    </script>
+
+    <script type="text/javascript">
+      var domain = "liverc.com"
+    </script>
+  </head>
+
+  <body>
+    <!-- Google Analytics -->
+    <script>
+      ;(function (i, s, o, g, r, a, m) {
+        i["GoogleAnalyticsObject"] = r
+        ;((i[r] =
+          i[r] ||
+          function () {
+            ;(i[r].q = i[r].q || []).push(arguments)
+          }),
+          (i[r].l = 1 * new Date()))
+        ;((a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]))
+        a.async = 1
+        a.src = g
+        m.parentNode.insertBefore(a, m)
+      })(window, document, "script", "https://www.google-analytics.com/analytics.js", "ga")
+      ga("create", "UA-1197341-1", "auto")
+      ga("send", "pageview")
+    </script>
+
+    <div id="fb-root"></div>
+    <script>
+      ;(function (d, s, id) {
+        var js,
+          fjs = d.getElementsByTagName(s)[0]
+        if (d.getElementById(id)) return
+        js = d.createElement(s)
+        js.id = id
+        js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.6&appId=15495375246"
+        fjs.parentNode.insertBefore(js, fjs)
+      })(document, "script", "facebook-jssdk")
+    </script>
+
+    <!-- Current User -->
+    <pre class="hidden" id="user_profile_data">false</pre>
+
+    <!-- Wrapper -->
+    <div id="wrapper">
+      <!-- Navigation -->
+      <nav
+        class="navbar navbar-default navbar-static-top"
+        role="navigation"
+        style="margin-bottom: 0"
+      >
+        <div class="navbar-header fixed">
+          <a class="navbar-brand" href="/"><div id="LRC-logo"></div></a>
+
+          <button
+            type="button"
+            class="navbar-toggle"
+            data-toggle="collapse"
+            data-target=".navbar-collapse"
+          >
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+
+          <ul class="nav navbar-top-links navbar-right">
+            <!--
 							<li class="dropdown">
 								<a class="dropdown-toggle" data-toggle="dropdown" href="#"><i class="fa fa-calendar fa-fw"></i><i class="fa fa-caret-down"></i></a>
 								<ul class="dropdown-menu dropdown-messages" id="event_calendar">
@@ -161,7 +351,7 @@
 							</li>
 							-->
 
-							<!--
+            <!--
 							<li class="dropdown">
 								<a class="dropdown-toggle" data-toggle="dropdown" href="#"><i class="fa fa-edit fa-fw"></i><i class="fa fa-caret-down"></i></a>
 								<ul class="dropdown-menu dropdown-messages" id="news_blurbs">
@@ -171,25 +361,29 @@
 								</ul>
 							</li>
 							-->
-							
-														
-							<li class="dropdown">
-								<a class="dropdown-toggle" data-toggle="dropdown" href="#"><i class="fa fa-user fa-fw"></i> <i class="fa fa-caret-down"></i></a>
-								<ul class="dropdown-menu dropdown-user">
-																			<li><a href="https://www.liverc.com/signup/" target="_blank"><i class="fa fa-user fa-fw"></i> Register</a></li>
-										<li><a href="#" id="menu_log_in"><i class="fa fa-sign-in fa-fw"></i> Log In</a></li>
-																	</ul>
-							</li>
-							
-						</ul>
-											
-				</div>
-				
-				<div class="navbar-default sidebar" role="navigation">
-	<div class="sidebar-nav navbar-collapse collapse">
-		<ul class="nav" id="side-menu">
-			
-			<!--
+
+            <li class="dropdown">
+              <a class="dropdown-toggle" data-toggle="dropdown" href="#"
+                ><i class="fa fa-user fa-fw"></i> <i class="fa fa-caret-down"></i
+              ></a>
+              <ul class="dropdown-menu dropdown-user">
+                <li>
+                  <a href="https://www.liverc.com/signup/" target="_blank"
+                    ><i class="fa fa-user fa-fw"></i> Register</a
+                  >
+                </li>
+                <li>
+                  <a href="#" id="menu_log_in"><i class="fa fa-sign-in fa-fw"></i> Log In</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+
+        <div class="navbar-default sidebar" role="navigation">
+          <div class="sidebar-nav navbar-collapse collapse">
+            <ul class="nav" id="side-menu">
+              <!--
 			<li class="sidebar-search">
 				<form action="/drivers/" method="get">
 					<div class="input-group custom-search-form">
@@ -200,416 +394,672 @@
 			</li>
 			-->
 
-			<li>
-				<div style="display: table-cell; width: 1%">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-			</li>
+              <li>
+                <div style="display: table-cell; width: 1%">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+              </li>
 
-						<li><a href="//live.liverc.com"><i class="fa fa-road fa-fw"></i> Switch Tracks</a></li>
-						
-							
-				<li><a href="/"><i class="fa fa-dashboard fa-fw"></i> Track Dashboard</a></li>
-				
-				<li><a href="/live/"><i class="fa fa-hourglass fa-fw"></i> Watch Live</a></li>
-				
-				<li><a href="/results/"><i class="fa fa-list-ol fa-fw"></i> Race Results</a></li>
-				
-				<!--<li><a href="/events/"><i class="fa fa-calendar fa-fw"></i> Past Events</a></li>-->
-								<li><a href="/practice/"><i class="fa fa-clock-o fa-fw"></i> Practice Times</a></li>
-				
-				<li><a href="/track_map/"><i class="fa fa-globe fa-fw"></i> Live Track Map</a></li>
-								<!--
+              <li>
+                <a href="//live.liverc.com"><i class="fa fa-road fa-fw"></i> Switch Tracks</a>
+              </li>
+
+              <li>
+                <a href="/"><i class="fa fa-dashboard fa-fw"></i> Track Dashboard</a>
+              </li>
+
+              <li>
+                <a href="/live/"><i class="fa fa-hourglass fa-fw"></i> Watch Live</a>
+              </li>
+
+              <li>
+                <a href="/results/"><i class="fa fa-list-ol fa-fw"></i> Race Results</a>
+              </li>
+
+              <!--<li><a href="/events/"><i class="fa fa-calendar fa-fw"></i> Past Events</a></li>-->
+              <li>
+                <a href="/practice/"><i class="fa fa-clock-o fa-fw"></i> Practice Times</a>
+              </li>
+
+              <li>
+                <a href="/track_map/"><i class="fa fa-globe fa-fw"></i> Live Track Map</a>
+              </li>
+              <!--
 				<li><a href="/videos/"><i class="fa fa-video-camera fa-fw"></i> Videos</a></li>
 				
 				<li><a href="/drivers/"><i class="fa fa-male fa-fw"></i> Drivers</a></li>
 				-->
-						
-			<li><a href="https://www.livetimescoring.com" target="_blank"><i class="fa fa-download fa-fw"></i> Get LiveTime</a></li>
-			
-			<li><a href="https://www.livetimescoring.com/mylaps/" target="_blank"><i class="fa fa-shopping-cart fa-fw"></i> Buy Transponders</a></li>
-			
-		</ul>
-		
-		<!-- Powered By LiveTime -->
-		<a href="https://www.livetimescoring.com" target="_blank">
-			<div id="powered_by_livetime">
-				<div class="txt">Data Powered By</div>
-				<div class="logo"><img src="//assets.liveracemedia.com/images/logos/livetime_powered_by.png"></div>
-			</div>
-		</a>
-	</div>
-	
-	</div>
-				
-									<!--<div class="navbar-quicklinks hidden-sm hidden-md hidden-lg hidden-xl">-->
-					<div class="navbar-quicklinks">
-						<ul class="list-inline">
-															<li><a style="padding-top:5px; padding-bottom:0px" href="//live.liverc.com"><i style="font-size:1.75em" class="fa fa-road fa-fw"></i><div style="font-size:0.85em">Tracks</div></a></li>
-														<li><a style="padding-top:5px; padding-bottom:0px" href="/"><i style="font-size:1.75em" class="fa fa-dashboard fa-fw"></i><div style="font-size:0.85em">Dashboard</div></a></li>
-							<li><a style="padding-top:5px; padding-bottom:0px" href="/live/"><i style="font-size:1.75em" class="fa fa-hourglass fa-fw"></i><div style="font-size:0.85em">Live</div></a></li>
-							<li><a style="padding-top:5px; padding-bottom:0px" href="/results/"><i style="font-size:1.75em" class="fa fa-list-ol fa-fw"></i><div style="font-size:0.85em">Results</div></a></li>
-							<!--<li><a style="padding-top:5px; padding-bottom:0px" href="/events/"><i style="font-size:1.75em" class="fa fa-calendar fa-fw"></i><div style="font-size:0.85em">Events</div></a></li>-->
-															<li><a style="padding-top:5px; padding-bottom:0px" href="/practice/"><i style="font-size:1.75em" class="fa fa-clock-o fa-fw"></i><div style="font-size:0.85em">Practice</div></a></li>
-								<li><a style="padding-top:5px; padding-bottom:0px" href="/track_map/"><i style="font-size:1.75em" class="fa fa-globe fa-fw"></i><div style="font-size:0.85em">Track Map</div></a></li>
-													</ul>
-					</div>
-								
-			</nav>
-			
-			<div id="page-wrapper">
-				
-								
-								<div class="row page-breadcrumb">
-	<div class="col-lg-12">
-		<h1 class="page-header"><span class="fa fa-road"></span> Canberra Off Road Model Car Club</h1>
-		<div class="clearfix">
-			<h3 class="page-header text-nowrap pull-left"><span class="fa fa-list-ol"></span> Cormcc 2025 Rudi Wensing Memorial, Clay Cup</h3>
-							<h5 class="page-header text-nowrap pull-left"><span class="fa fa-calendar"></span> Nov 16, 2025</h5>
-					</div>
-		<a href="/events/"><i class="fa fa-calendar fa-fw"></i> <u>View results from other events</u></a>
-	</div>
-</div>
 
-<div class="row">
-	</div>
+              <li>
+                <a href="https://www.livetimescoring.com" target="_blank"
+                  ><i class="fa fa-download fa-fw"></i> Get LiveTime</a
+                >
+              </li>
 
+              <li>
+                <a href="https://www.livetimescoring.com/mylaps/" target="_blank"
+                  ><i class="fa fa-shopping-cart fa-fw"></i> Buy Transponders</a
+                >
+              </li>
+            </ul>
 
+            <!-- Powered By LiveTime -->
+            <a href="https://www.livetimescoring.com" target="_blank">
+              <div id="powered_by_livetime">
+                <div class="txt">Data Powered By</div>
+                <div class="logo">
+                  <img src="//assets.liveracemedia.com/images/logos/livetime_powered_by.png" />
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
 
+        <!--<div class="navbar-quicklinks hidden-sm hidden-md hidden-lg hidden-xl">-->
+        <div class="navbar-quicklinks">
+          <ul class="list-inline">
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="//live.liverc.com"
+                ><i style="font-size: 1.75em" class="fa fa-road fa-fw"></i>
+                <div style="font-size: 0.85em">Tracks</div></a
+              >
+            </li>
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/"
+                ><i style="font-size: 1.75em" class="fa fa-dashboard fa-fw"></i>
+                <div style="font-size: 0.85em">Dashboard</div></a
+              >
+            </li>
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/live/"
+                ><i style="font-size: 1.75em" class="fa fa-hourglass fa-fw"></i>
+                <div style="font-size: 0.85em">Live</div></a
+              >
+            </li>
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/results/"
+                ><i style="font-size: 1.75em" class="fa fa-list-ol fa-fw"></i>
+                <div style="font-size: 0.85em">Results</div></a
+              >
+            </li>
+            <!--<li><a style="padding-top:5px; padding-bottom:0px" href="/events/"><i style="font-size:1.75em" class="fa fa-calendar fa-fw"></i><div style="font-size:0.85em">Events</div></a></li>-->
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/practice/"
+                ><i style="font-size: 1.75em" class="fa fa-clock-o fa-fw"></i>
+                <div style="font-size: 0.85em">Practice</div></a
+              >
+            </li>
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/track_map/"
+                ><i style="font-size: 1.75em" class="fa fa-globe fa-fw"></i>
+                <div style="font-size: 0.85em">Track Map</div></a
+              >
+            </li>
+          </ul>
+        </div>
+      </nav>
 
+      <div id="page-wrapper">
+        <div class="row page-breadcrumb">
+          <div class="col-lg-12">
+            <h1 class="page-header">
+              <span class="fa fa-road"></span> Canberra Off Road Model Car Club
+            </h1>
+            <div class="clearfix">
+              <h3 class="page-header text-nowrap pull-left">
+                <span class="fa fa-list-ol"></span> Cormcc 2025 Rudi Wensing Memorial, Clay Cup
+              </h3>
+              <h5 class="page-header text-nowrap pull-left">
+                <span class="fa fa-calendar"></span> Nov 16, 2025
+              </h5>
+            </div>
+            <a href="/events/"
+              ><i class="fa fa-calendar fa-fw"></i> <u>View results from other events</u></a
+            >
+          </div>
+        </div>
 
-<div class="row">
-	
-	<div class="col-lg-8">
-		
-					<div class="panel panel-default">
-				<div class="panel-heading"><i class="fa fa-list-ol fa-fw"></i> Race Lineups &amp; Results</div>
-				<div class="panel-body no_padding">
-					
-											
-												
-						<div class="table-responsive">
-							<table class="table table-hover entry_list_data">
-								<thead>
-									<tr>
-										<th><span class="class_header">Race Lineups &amp; Entry List</span></th>
-									</tr>
-								</thead>
-								<tbody>
-									<tr class="clickable-row" data-href="/results/?p=view_entry_list&id=486677">
-										<td><a href="/results/?p=view_entry_list&id=486677" class="block"><i class="fa fa-bars"></i> Entry List</a></td>
-									</tr>
-																														<tr>
-												<td><a href="/results/?p=view_heat_sheet&id=9811879" class="block"><i class="fa fa-list"></i> Qualifier Round 3</a></td>
-											</tr>
-																					<tr>
-												<td><a href="/results/?p=view_heat_sheet&id=9809608" class="block"><i class="fa fa-list"></i> Qualifier Round 2</a></td>
-											</tr>
-																					<tr>
-												<td><a href="/results/?p=view_heat_sheet&id=9809607" class="block"><i class="fa fa-list"></i> Qualifier Round 1</a></td>
-											</tr>
-																					<tr>
-												<td><a href="/results/?p=view_heat_sheet&id=9817925" class="block"><i class="fa fa-list"></i> Main Events</a></td>
-											</tr>
-																		
-																	</tbody>
-							</table>
-						</div>
+        <div class="row"></div>
 
-							
-						
-													<div class="table-responsive">
-								<table class="table table-hover entry_list_data">
-									<thead>
-										<tr>
-											<th><span class="class_header">Overall Results &amp; Rankings</span></th>
-										</tr>
-									</thead>
-									<tbody>
-																																																																																																																																			<tr>
-												<td><a href="/results/?p=event_overall_ranking&id=486677" class="block"><i class="fa fa-trophy"></i> Final Results</a></td>
-											</tr>
-																				
-																					<tr>
-												<td><a href="/results/?p=view_points&id=7070446" class="block"><i class="fa fa-th"></i> Results (1 of 3)</a></td>
-											</tr>
-																				
-																				
-																																	<tr>
-													<td><a href="/results/?p=view_round_ranking&id=1470838&o=laps_time" class="block"><i class="fa fa-list-ol"></i> Qualifier Round 1 Rankings</a></td>
-												</tr>
-																							<tr>
-													<td><a href="/results/?p=view_round_ranking&id=1470839&o=laps_time" class="block"><i class="fa fa-list-ol"></i> Qualifier Round 2 Rankings</a></td>
-												</tr>
-																							<tr>
-													<td><a href="/results/?p=view_round_ranking&id=1471194&o=laps_time" class="block"><i class="fa fa-list-ol"></i> Qualifier Round 3 Rankings</a></td>
-												</tr>
-																															
-																																	<tr>
-													<td><a href="/results/?p=view_multi_main_result&id=939156" class="block"><i class="fa fa-trophy"></i> 1/8 Electric Buggy Triple A-Main Results</a></td>
-												</tr>
-																							<tr>
-													<td><a href="/results/?p=view_multi_main_result&id=939133" class="block"><i class="fa fa-trophy"></i> 1/8 Electric Buggy Triple B-Main Results</a></td>
-												</tr>
-																							<tr>
-													<td><a href="/results/?p=view_multi_main_result&id=939123" class="block"><i class="fa fa-trophy"></i> 1/8 Electric Buggy Triple C-Main Results</a></td>
-												</tr>
-																															
-									</tbody>
-								</table>
-							</div>
-												
-						<div class="table-responsive">
-							<table class="table table-hover entry_list_data">
-								<thead>
-									<tr>
-										<th colspan="2"><span class="class_header">Race Results</span></th>
-									</tr>
-								</thead>
-								<tbody>
-																														<tr>
-												<th>Main Events</th>
-												<th>Time Completed</th>
-											</tr>
-																																				<tr>
-														<td><a href="/results/?p=view_race_result&id=6304829" class="block"><i class="fa fa-trophy"></i> Race 14: 1/8 Nitro Buggy (1/8 Nitro Buggy A-Main)</a></td>
-														<td>Nov 16, 2025 at 5:30pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304822" class="block"><i class="fa fa-trophy"></i> Race 13: 1/8 Electric Buggy (1/8 Electric Buggy A3-Main)</a></td>
-														<td>Nov 16, 2025 at 4:47pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304825" class="block"><i class="fa fa-trophy"></i> Race 12: 1/8 Electric Buggy (1/8 Electric Buggy B3-Main)</a></td>
-														<td>Nov 16, 2025 at 4:33pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304828" class="block"><i class="fa fa-trophy"></i> Race 11: 1/8 Electric Buggy (1/8 Electric Buggy C3-Main)</a></td>
-														<td>Nov 16, 2025 at 4:18pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304830" class="block"><i class="fa fa-trophy"></i> Race 10: 1/8 Nitro Buggy (1/8 Nitro Buggy B-Main)</a></td>
-														<td>Nov 16, 2025 at 4:02pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304833" class="block"><i class="fa fa-trophy"></i> Race 9: Junior (Junior A-Main)</a></td>
-														<td>Nov 16, 2025 at 3:29pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304821" class="block"><i class="fa fa-trophy"></i> Race 8: 1/8 Electric Buggy (1/8 Electric Buggy A2-Main)</a></td>
-														<td>Nov 16, 2025 at 3:15pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304824" class="block"><i class="fa fa-trophy"></i> Race 7: 1/8 Electric Buggy (1/8 Electric Buggy B2-Main)</a></td>
-														<td>Nov 16, 2025 at 2:52pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304827" class="block"><i class="fa fa-trophy"></i> Race 6: 1/8 Electric Buggy (1/8 Electric Buggy C2-Main)</a></td>
-														<td>Nov 16, 2025 at 2:39pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304831" class="block"><i class="fa fa-trophy"></i> Race 5: 1/8 Nitro Buggy (1/8 Nitro Buggy C-Main)</a></td>
-														<td>Nov 16, 2025 at 2:23pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304820" class="block"><i class="fa fa-trophy"></i> Race 4: 1/8 Electric Buggy (1/8 Electric Buggy A1-Main)</a></td>
-														<td>Nov 16, 2025 at 1:55pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304823" class="block"><i class="fa fa-trophy"></i> Race 3: 1/8 Electric Buggy (1/8 Electric Buggy B1-Main)</a></td>
-														<td>Nov 16, 2025 at 1:32pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304826" class="block"><i class="fa fa-trophy"></i> Race 2: 1/8 Electric Buggy (1/8 Electric Buggy C1-Main)</a></td>
-														<td>Nov 16, 2025 at 1:19pm</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6304832" class="block"><i class="fa fa-trophy"></i> Race 1: 1/8 Nitro Buggy (1/8 Nitro Buggy D-Main)</a></td>
-														<td>Nov 16, 2025 at 1:02pm</td>
-													</tr>
-																																												<tr>
-												<th>Qualifier Round 3</th>
-												<th>Time Completed</th>
-											</tr>
-																																				<tr>
-														<td><a href="/results/?p=view_race_result&id=6297913" class="block"><i class="fa fa-trophy"></i> Race 6: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 3/3))</a></td>
-														<td>Nov 16, 2025 at 11:58am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6297912" class="block"><i class="fa fa-trophy"></i> Race 5: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 2/3))</a></td>
-														<td>Nov 16, 2025 at 11:44am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6297911" class="block"><i class="fa fa-trophy"></i> Race 4: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 1/3))</a></td>
-														<td>Nov 16, 2025 at 11:33am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6297910" class="block"><i class="fa fa-trophy"></i> Race 3: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 3/3))</a></td>
-														<td>Nov 16, 2025 at 11:21am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6297909" class="block"><i class="fa fa-trophy"></i> Race 2: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 2/3))</a></td>
-														<td>Nov 16, 2025 at 11:06am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6297908" class="block"><i class="fa fa-trophy"></i> Race 1: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 1/3))</a></td>
-														<td>Nov 16, 2025 at 10:55am</td>
-													</tr>
-																																												<tr>
-												<th>Qualifier Round 2</th>
-												<th>Time Completed</th>
-											</tr>
-																																				<tr>
-														<td><a href="/results/?p=view_race_result&id=6295548" class="block"><i class="fa fa-trophy"></i> Race 6: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 3/3))</a></td>
-														<td>Nov 16, 2025 at 10:43am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295547" class="block"><i class="fa fa-trophy"></i> Race 5: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 2/3))</a></td>
-														<td>Nov 16, 2025 at 10:32am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295546" class="block"><i class="fa fa-trophy"></i> Race 4: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 1/3))</a></td>
-														<td>Nov 16, 2025 at 10:17am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295545" class="block"><i class="fa fa-trophy"></i> Race 3: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 3/3))</a></td>
-														<td>Nov 16, 2025 at 10:05am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295544" class="block"><i class="fa fa-trophy"></i> Race 2: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 2/3))</a></td>
-														<td>Nov 16, 2025 at 9:55am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295543" class="block"><i class="fa fa-trophy"></i> Race 1: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 1/3))</a></td>
-														<td>Nov 16, 2025 at 9:39am</td>
-													</tr>
-																																												<tr>
-												<th>Qualifier Round 1</th>
-												<th>Time Completed</th>
-											</tr>
-																																				<tr>
-														<td><a href="/results/?p=view_race_result&id=6295542" class="block"><i class="fa fa-trophy"></i> Race 6: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 3/3))</a></td>
-														<td>Nov 16, 2025 at 9:26am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295541" class="block"><i class="fa fa-trophy"></i> Race 5: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 2/3))</a></td>
-														<td>Nov 16, 2025 at 9:14am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295540" class="block"><i class="fa fa-trophy"></i> Race 4: 1/8 Nitro Buggy (1/8 Nitro Buggy  (Heat 1/3))</a></td>
-														<td>Nov 16, 2025 at 9:02am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295539" class="block"><i class="fa fa-trophy"></i> Race 3: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 3/3))</a></td>
-														<td>Nov 16, 2025 at 8:43am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295538" class="block"><i class="fa fa-trophy"></i> Race 2: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 2/3))</a></td>
-														<td>Nov 16, 2025 at 8:31am</td>
-													</tr>
-																									<tr>
-														<td><a href="/results/?p=view_race_result&id=6295537" class="block"><i class="fa fa-trophy"></i> Race 1: 1/8 Electric Buggy (1/8 Electric Buggy  (Heat 1/3))</a></td>
-														<td>Nov 16, 2025 at 8:22am</td>
-													</tr>
-																																																		</tbody>
-							</table>
-						</div>
-						
-										
-				</div>
-				<!-- /.panel-body -->
-			</div>
-				
-	</div>
-	
-	<div class="col-lg-4">
-		
-					<div class="card">
-	<div class="card-header">
-		<h2><i class="fas fa-chart-line"></i> Event Stats</h2>
-	</div>
-	<div class="card-body p-0">
-		<table class="table table-sm table-borderless m-0">
-			<tbody>
-				<tr>
-					<th>Race Track</th>
-					<td>Offroad</td>
-				</tr>
-				<tr>
-					<th>Registrations</th>
-					<td>
-						Entries: 71<br />
-						Drivers: 60					</td>
-				</tr>
-				<tr>
-					<th>Total Race Laps</th>
-					<td>4,129</td>
-				</tr>
-							</tbody>
-		</table>
-	</div>
-</div>
-				
-	</div>
-	
-</div>
-				
-			</div>
-			<!-- /#page-wrapper -->
-			
-		</div>
-		<!-- /#wrapper -->
+        <div class="row">
+          <div class="col-lg-8">
+            <div class="panel panel-default">
+              <div class="panel-heading">
+                <i class="fa fa-list-ol fa-fw"></i> Race Lineups &amp; Results
+              </div>
+              <div class="panel-body no_padding">
+                <div class="table-responsive">
+                  <table class="table table-hover entry_list_data">
+                    <thead>
+                      <tr>
+                        <th><span class="class_header">Race Lineups &amp; Entry List</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr class="clickable-row" data-href="/results/?p=view_entry_list&id=486677">
+                        <td>
+                          <a href="/results/?p=view_entry_list&id=486677" class="block"
+                            ><i class="fa fa-bars"></i> Entry List</a
+                          >
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_heat_sheet&id=9811879" class="block"
+                            ><i class="fa fa-list"></i> Qualifier Round 3</a
+                          >
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_heat_sheet&id=9809608" class="block"
+                            ><i class="fa fa-list"></i> Qualifier Round 2</a
+                          >
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_heat_sheet&id=9809607" class="block"
+                            ><i class="fa fa-list"></i> Qualifier Round 1</a
+                          >
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_heat_sheet&id=9817925" class="block"
+                            ><i class="fa fa-list"></i> Main Events</a
+                          >
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
 
-				
-		<!-- Modals -->
-		<div id="modals"></div>
-		
-		<!-- Loading interface screen -->
-		<div id="loading_overlay">
-			<div id="user_status_modal" class="modal show" role="dialog">
-				<div class="vertical-alignment-helper">
-					<div class="modal-dialog vertical-align-center">
-						<div class="modal-content">
-							<div class="modal-body text-center">
-								<p><img src="//assets.liveracemedia.com/images/logos/liveracemedia_primary_logo.png" width="250" /></p>
-								<p><img src="//assets.liveracemedia.com/images/static/loading.svg" width="75" /></p>
-								<p><strong>LOADING INTERFACE...</strong></p>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-		
-		<!-- Loading interface screen -->
-		<div id="fly_in_bg"></div>
-		<div id="fly_in">
-			<div class="content">
-				<div class="close_fly_in">close X</div>
-				<div class="ad"></div>
-			</div>
-		</div>
-		
-		<!-- JavaScript Files -->
-		<script src="/js/global/global.default.min.js?1153"></script>
-		<script src="/js/global/global.content_page.min.js?1153"></script>
-		<script src="/js/user/user.default.min.js?1153"></script>
-		<script src="/vendor/js-cookie/js-cookie.js?1153"></script>
-		
-				
-		<!-- Bootstrap Core JavaScript -->
-		<script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
-		
-		<!-- Metis Menu Plugin JavaScript -->
-		<script src="/vendor/metisMenu/metisMenu.min.js"></script>
-		
-		<!-- Custom Theme JavaScript -->
-		<script src="/vendor/sb-admin-2/js/sb-admin-2.js"></script>
-		
-		<!-- Google reCAPTCHA -->
-		<script src="//www.google.com/recaptcha/api.js?render=explicit"></script>
-		
-		<script>
-			var showFlyInBox = false;
-		</script>
-		
-	</body>
+                <div class="table-responsive">
+                  <table class="table table-hover entry_list_data">
+                    <thead>
+                      <tr>
+                        <th><span class="class_header">Overall Results &amp; Rankings</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=event_overall_ranking&id=486677" class="block"
+                            ><i class="fa fa-trophy"></i> Final Results</a
+                          >
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_points&id=7070446" class="block"
+                            ><i class="fa fa-th"></i> Results (1 of 3)</a
+                          >
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td>
+                          <a
+                            href="/results/?p=view_round_ranking&id=1470838&o=laps_time"
+                            class="block"
+                            ><i class="fa fa-list-ol"></i> Qualifier Round 1 Rankings</a
+                          >
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a
+                            href="/results/?p=view_round_ranking&id=1470839&o=laps_time"
+                            class="block"
+                            ><i class="fa fa-list-ol"></i> Qualifier Round 2 Rankings</a
+                          >
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a
+                            href="/results/?p=view_round_ranking&id=1471194&o=laps_time"
+                            class="block"
+                            ><i class="fa fa-list-ol"></i> Qualifier Round 3 Rankings</a
+                          >
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_multi_main_result&id=939156" class="block"
+                            ><i class="fa fa-trophy"></i> 1/8 Electric Buggy Triple A-Main
+                            Results</a
+                          >
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_multi_main_result&id=939133" class="block"
+                            ><i class="fa fa-trophy"></i> 1/8 Electric Buggy Triple B-Main
+                            Results</a
+                          >
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_multi_main_result&id=939123" class="block"
+                            ><i class="fa fa-trophy"></i> 1/8 Electric Buggy Triple C-Main
+                            Results</a
+                          >
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-hover entry_list_data">
+                    <thead>
+                      <tr>
+                        <th colspan="2"><span class="class_header">Race Results</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th>Main Events</th>
+                        <th>Time Completed</th>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304829" class="block"
+                            ><i class="fa fa-trophy"></i> Race 14: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            A-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 5:30pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304822" class="block"
+                            ><i class="fa fa-trophy"></i> Race 13: 1/8 Electric Buggy (1/8 Electric
+                            Buggy A3-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 4:47pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304825" class="block"
+                            ><i class="fa fa-trophy"></i> Race 12: 1/8 Electric Buggy (1/8 Electric
+                            Buggy B3-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 4:33pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304828" class="block"
+                            ><i class="fa fa-trophy"></i> Race 11: 1/8 Electric Buggy (1/8 Electric
+                            Buggy C3-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 4:18pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304830" class="block"
+                            ><i class="fa fa-trophy"></i> Race 10: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            B-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 4:02pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304833" class="block"
+                            ><i class="fa fa-trophy"></i> Race 9: Junior (Junior A-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 3:29pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304821" class="block"
+                            ><i class="fa fa-trophy"></i> Race 8: 1/8 Electric Buggy (1/8 Electric
+                            Buggy A2-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 3:15pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304824" class="block"
+                            ><i class="fa fa-trophy"></i> Race 7: 1/8 Electric Buggy (1/8 Electric
+                            Buggy B2-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 2:52pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304827" class="block"
+                            ><i class="fa fa-trophy"></i> Race 6: 1/8 Electric Buggy (1/8 Electric
+                            Buggy C2-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 2:39pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304831" class="block"
+                            ><i class="fa fa-trophy"></i> Race 5: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            C-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 2:23pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304820" class="block"
+                            ><i class="fa fa-trophy"></i> Race 4: 1/8 Electric Buggy (1/8 Electric
+                            Buggy A1-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 1:55pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304823" class="block"
+                            ><i class="fa fa-trophy"></i> Race 3: 1/8 Electric Buggy (1/8 Electric
+                            Buggy B1-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 1:32pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304826" class="block"
+                            ><i class="fa fa-trophy"></i> Race 2: 1/8 Electric Buggy (1/8 Electric
+                            Buggy C1-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 1:19pm</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6304832" class="block"
+                            ><i class="fa fa-trophy"></i> Race 1: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            D-Main)</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 1:02pm</td>
+                      </tr>
+                      <tr>
+                        <th>Qualifier Round 3</th>
+                        <th>Time Completed</th>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6297913" class="block"
+                            ><i class="fa fa-trophy"></i> Race 6: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 3/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 11:58am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6297912" class="block"
+                            ><i class="fa fa-trophy"></i> Race 5: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 2/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 11:44am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6297911" class="block"
+                            ><i class="fa fa-trophy"></i> Race 4: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 1/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 11:33am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6297910" class="block"
+                            ><i class="fa fa-trophy"></i> Race 3: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 3/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 11:21am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6297909" class="block"
+                            ><i class="fa fa-trophy"></i> Race 2: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 2/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 11:06am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6297908" class="block"
+                            ><i class="fa fa-trophy"></i> Race 1: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 1/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 10:55am</td>
+                      </tr>
+                      <tr>
+                        <th>Qualifier Round 2</th>
+                        <th>Time Completed</th>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295548" class="block"
+                            ><i class="fa fa-trophy"></i> Race 6: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 3/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 10:43am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295547" class="block"
+                            ><i class="fa fa-trophy"></i> Race 5: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 2/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 10:32am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295546" class="block"
+                            ><i class="fa fa-trophy"></i> Race 4: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 1/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 10:17am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295545" class="block"
+                            ><i class="fa fa-trophy"></i> Race 3: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 3/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 10:05am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295544" class="block"
+                            ><i class="fa fa-trophy"></i> Race 2: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 2/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 9:55am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295543" class="block"
+                            ><i class="fa fa-trophy"></i> Race 1: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 1/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 9:39am</td>
+                      </tr>
+                      <tr>
+                        <th>Qualifier Round 1</th>
+                        <th>Time Completed</th>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295542" class="block"
+                            ><i class="fa fa-trophy"></i> Race 6: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 3/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 9:26am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295541" class="block"
+                            ><i class="fa fa-trophy"></i> Race 5: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 2/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 9:14am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295540" class="block"
+                            ><i class="fa fa-trophy"></i> Race 4: 1/8 Nitro Buggy (1/8 Nitro Buggy
+                            (Heat 1/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 9:02am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295539" class="block"
+                            ><i class="fa fa-trophy"></i> Race 3: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 3/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 8:43am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295538" class="block"
+                            ><i class="fa fa-trophy"></i> Race 2: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 2/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 8:31am</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <a href="/results/?p=view_race_result&id=6295537" class="block"
+                            ><i class="fa fa-trophy"></i> Race 1: 1/8 Electric Buggy (1/8 Electric
+                            Buggy (Heat 1/3))</a
+                          >
+                        </td>
+                        <td>Nov 16, 2025 at 8:22am</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <!-- /.panel-body -->
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-chart-line"></i> Event Stats</h2>
+              </div>
+              <div class="card-body p-0">
+                <table class="table table-sm table-borderless m-0">
+                  <tbody>
+                    <tr>
+                      <th>Race Track</th>
+                      <td>Offroad</td>
+                    </tr>
+                    <tr>
+                      <th>Registrations</th>
+                      <td>
+                        Entries: 71<br />
+                        Drivers: 60
+                      </td>
+                    </tr>
+                    <tr>
+                      <th>Total Race Laps</th>
+                      <td>4,129</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /#page-wrapper -->
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- Modals -->
+    <div id="modals"></div>
+
+    <!-- Loading interface screen -->
+    <div id="loading_overlay">
+      <div id="user_status_modal" class="modal show" role="dialog">
+        <div class="vertical-alignment-helper">
+          <div class="modal-dialog vertical-align-center">
+            <div class="modal-content">
+              <div class="modal-body text-center">
+                <p>
+                  <img
+                    src="//assets.liveracemedia.com/images/logos/liveracemedia_primary_logo.png"
+                    width="250"
+                  />
+                </p>
+                <p><img src="//assets.liveracemedia.com/images/static/loading.svg" width="75" /></p>
+                <p><strong>LOADING INTERFACE...</strong></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading interface screen -->
+    <div id="fly_in_bg"></div>
+    <div id="fly_in">
+      <div class="content">
+        <div class="close_fly_in">close X</div>
+        <div class="ad"></div>
+      </div>
+    </div>
+
+    <!-- JavaScript Files -->
+    <script src="/js/global/global.default.min.js?1153"></script>
+    <script src="/js/global/global.content_page.min.js?1153"></script>
+    <script src="/js/user/user.default.min.js?1153"></script>
+    <script src="/vendor/js-cookie/js-cookie.js?1153"></script>
+
+    <!-- Bootstrap Core JavaScript -->
+    <script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
+
+    <!-- Metis Menu Plugin JavaScript -->
+    <script src="/vendor/metisMenu/metisMenu.min.js"></script>
+
+    <!-- Custom Theme JavaScript -->
+    <script src="/vendor/sb-admin-2/js/sb-admin-2.js"></script>
+
+    <!-- Google reCAPTCHA -->
+    <script src="//www.google.com/recaptcha/api.js?render=explicit"></script>
+
+    <script>
+      var showFlyInBox = false
+    </script>
+  </body>
 </html>

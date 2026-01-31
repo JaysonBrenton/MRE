@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for calculateTrackTemperature function
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Unit tests for track temperature calculation formula
- * 
+ *
  * @purpose Validates that track temperature calculation works correctly with
  *          various inputs, including edge cases and solar radiation adjustments.
  */
@@ -32,7 +32,7 @@ describe("calculateTrackTemperature", () => {
     it("should add solar adjustment at noon (peak)", () => {
       const noon = calculateTrackTemperature(20, 12)
       const midnight = calculateTrackTemperature(20, 0)
-      
+
       // At noon, solar factor should be at maximum (1.0), adding up to 5°C
       // At midnight, solar factor should be at minimum (0.0), adding 0°C
       expect(noon).toBeGreaterThan(midnight)
@@ -42,7 +42,7 @@ describe("calculateTrackTemperature", () => {
     it("should have less solar adjustment in early morning", () => {
       const earlyMorning = calculateTrackTemperature(20, 6)
       const noon = calculateTrackTemperature(20, 12)
-      
+
       expect(earlyMorning).toBeLessThan(noon)
       expect(earlyMorning).toBeGreaterThan(20) // Still above air temp
     })
@@ -50,7 +50,7 @@ describe("calculateTrackTemperature", () => {
     it("should have less solar adjustment in evening", () => {
       const evening = calculateTrackTemperature(20, 18)
       const noon = calculateTrackTemperature(20, 12)
-      
+
       expect(evening).toBeLessThan(noon)
       expect(evening).toBeGreaterThan(20) // Still above air temp
     })
@@ -93,4 +93,3 @@ describe("calculateTrackTemperature", () => {
     })
   })
 })
-

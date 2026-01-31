@@ -1,12 +1,12 @@
 /**
  * @fileoverview Admin ingestion controls API endpoint (v1)
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Handles POST requests for ingestion controls (admin only)
- * 
+ *
  * @relatedFiles
  * - src/core/admin/ingestion.ts (core business logic)
  * - src/lib/admin-auth.ts (admin authorization)
@@ -22,9 +22,9 @@ import { generateRequestId } from "@/lib/request-context"
 
 /**
  * POST /api/v1/admin/ingestion/trigger
- * 
+ *
  * Trigger ingestion job (admin only)
- * 
+ *
  * Request body:
  * {
  *   type: "track_sync" | "event_ingestion"
@@ -33,7 +33,7 @@ import { generateRequestId } from "@/lib/request-context"
  */
 export async function POST(request: NextRequest) {
   const requestId = generateRequestId()
-  
+
   try {
     // Verify admin access
     const authResult = await requireAdmin()
@@ -50,20 +50,13 @@ export async function POST(request: NextRequest) {
       return bodyResult.response
     }
 
-    const ipAddress = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined
+    const ipAddress =
+      request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined
     const userAgent = request.headers.get("user-agent") || undefined
 
     if (bodyResult.data.type === "track_sync") {
-      const result = await triggerTrackSync(
-        authResult.userId,
-        ipAddress,
-        userAgent
-      )
-      return successResponse(
-        { jobId: result.jobId },
-        200,
-        "Track sync job created"
-      )
+      const result = await triggerTrackSync(authResult.userId, ipAddress, userAgent)
+      return successResponse({ jobId: result.jobId }, 200, "Track sync job created")
     } else if (bodyResult.data.type === "event_ingestion") {
       if (!bodyResult.data.eventId) {
         return successResponse(
@@ -88,11 +81,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

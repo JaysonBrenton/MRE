@@ -86,4 +86,3 @@ export async function waitForIngestionCompletion({
 
   return null
 }
-

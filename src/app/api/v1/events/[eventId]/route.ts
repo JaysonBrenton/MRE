@@ -1,19 +1,19 @@
 // @fileoverview Event detail API route
-// 
+//
 // @created 2025-01-27
 // @creator Jayson Brenton
 // @lastModified 2025-01-27
-// 
+//
 // @description API route for getting event details
-// 
+//
 // @purpose Provides user-facing API for event metadata and ingestion status
 
-import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { getEventWithRaces } from "@/core/events/repo";
-import { successResponse, errorResponse } from "@/lib/api-utils";
-import { createRequestLogger, generateRequestId } from "@/lib/request-context";
-import { handleApiError } from "@/lib/server-error-handler";
+import { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
+import { getEventWithRaces } from "@/core/events/repo"
+import { successResponse, errorResponse } from "@/lib/api-utils"
+import { createRequestLogger, generateRequestId } from "@/lib/request-context"
+import { handleApiError } from "@/lib/server-error-handler"
 
 export async function GET(
   request: NextRequest,
@@ -26,26 +26,16 @@ export async function GET(
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized event detail request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
-    const { eventId } = await params;
-    const event = await getEventWithRaces(eventId);
+    const { eventId } = await params
+    const event = await getEventWithRaces(eventId)
 
     if (!event) {
       requestLogger.warn("Event not found", { eventId })
-      return errorResponse(
-        "NOT_FOUND",
-        "Event not found",
-        {},
-        404
-      );
+      return errorResponse("NOT_FOUND", "Event not found", {}, 404)
     }
 
     requestLogger.info("Event fetched successfully", {
@@ -74,15 +64,9 @@ export async function GET(
         start_time: race.startTime?.toISOString() || null,
         duration_seconds: race.durationSeconds,
       })),
-    });
+    })
   } catch (error) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
-

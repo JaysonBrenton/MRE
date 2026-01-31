@@ -1,6 +1,8 @@
 # LiveRC Operations Guide
 
-**Document Purpose**: Complete guide for executing and running all LiveRC-related features, including how to retrieve required IDs from the database.
+**Document Purpose**: Complete guide for executing and running all
+LiveRC-related features, including how to retrieve required IDs from the
+database.
 
 **Last Updated**: 2025-01-27
 
@@ -22,26 +24,35 @@
 
 ### Recommended: Docker Setup (Primary Method)
 
-**For containerized deployments, Docker execution is the recommended and primary method for running CLI commands.** This approach:
+**For containerized deployments, Docker execution is the recommended and primary
+method for running CLI commands.** This approach:
 
-- **No local Python setup required** - Python 3.11, dependencies, and Playwright are pre-installed in the container
-- **Consistent environment** - Same Python version and dependencies for all developers
-- **Pre-configured database connection** - Database URL and network connectivity already configured
-- **No virtual environment management** - Avoids Python version conflicts and dependency issues
+- **No local Python setup required** - Python 3.11, dependencies, and Playwright
+  are pre-installed in the container
+- **Consistent environment** - Same Python version and dependencies for all
+  developers
+- **Pre-configured database connection** - Database URL and network connectivity
+  already configured
+- **No virtual environment management** - Avoids Python version conflicts and
+  dependency issues
 - **Ready to use** - Just ensure the ingestion service container is running
 
 **Prerequisites for Docker execution:**
+
 1. Docker and Docker Compose installed
-2. Ingestion service container running: `docker-compose up -d liverc-ingestion-service`
+2. Ingestion service container running:
+   `docker-compose up -d liverc-ingestion-service`
 3. Docker network configured (see `docs/operations/docker-user-guide.md`)
 
-**All examples in this guide show Docker execution first, followed by local execution alternatives.**
+**All examples in this guide show Docker execution first, followed by local
+execution alternatives.**
 
 ### Alternative: Local Python Setup (Optional)
 
 If you prefer to run CLI commands locally without Docker:
 
 1. **Python Environment** (for CLI and API):
+
    ```bash
    cd ingestion/
    python -m venv venv
@@ -51,6 +62,7 @@ If you prefer to run CLI commands locally without Docker:
    ```
 
 2. **Environment Variables**:
+
    ```bash
    export DATABASE_URL="postgresql://user:password@localhost:5432/mre"
    export LOG_LEVEL="INFO"
@@ -64,13 +76,17 @@ If you prefer to run CLI commands locally without Docker:
 
 ### Database Connection
 
-**For Docker execution:** Database connection is automatically configured via Docker network. The container connects to `mre-postgres` using the connection string from `.env.docker`.
+**For Docker execution:** Database connection is automatically configured via
+Docker network. The container connects to `mre-postgres` using the connection
+string from `.env.docker`.
 
-**For local execution:** Ensure your `DATABASE_URL` environment variable is set correctly and points to your PostgreSQL database.
+**For local execution:** Ensure your `DATABASE_URL` environment variable is set
+correctly and points to your PostgreSQL database.
 
 ### Scraping Kill Switch
 
-Operations can pause all LiveRC scraping (cron + manual CLI + admin UI) by setting the shared env flag:
+Operations can pause all LiveRC scraping (cron + manual CLI + admin UI) by
+setting the shared env flag:
 
 ```bash
 export MRE_SCRAPE_ENABLED=false
@@ -78,11 +94,14 @@ export MRE_SCRAPE_ENABLED=false
 
 When disabled:
 
-- Cron wrappers (`run-track-sync.sh`, `run-followed-event-sync.sh`) log a skip message and exit before any HTTP calls.
-- CLI commands (`refresh-tracks`, `refresh-events`, `refresh-followed-events`, `ingest-event`) fail fast with a helpful error.
+- Cron wrappers (`run-track-sync.sh`, `run-followed-event-sync.sh`) log a skip
+  message and exit before any HTTP calls.
+- CLI commands (`refresh-tracks`, `refresh-events`, `refresh-followed-events`,
+  `ingest-event`) fail fast with a helpful error.
 - Next.js clients surface the same message before hitting the ingestion API.
 
-Re-enable scraping with `MRE_SCRAPE_ENABLED=true`. This flag is part of `policies/site_policy/policy.json` so Python and TypeScript stay in sync.
+Re-enable scraping with `MRE_SCRAPE_ENABLED=true`. This flag is part of
+`policies/site_policy/policy.json` so Python and TypeScript stay in sync.
 
 ---
 
@@ -93,14 +112,20 @@ Re-enable scraping with `MRE_SCRAPE_ENABLED=true`. This flag is part of `policie
 CLI commands can be executed in two ways:
 
 1. **Docker Execution** (Recommended - Primary Method):
-   - Execute via `docker exec` into the running `mre-liverc-ingestion-service` container
-   - **No local Python setup required** - Python, dependencies, and Playwright are pre-installed
-   - **Pre-configured environment** - Database connection and environment variables already set
+   - Execute via `docker exec` into the running `mre-liverc-ingestion-service`
+     container
+   - **No local Python setup required** - Python, dependencies, and Playwright
+     are pre-installed
+   - **Pre-configured environment** - Database connection and environment
+     variables already set
    - **Consistent across developers** - Same environment for everyone
-   - Ensure the service is running: `docker-compose up -d liverc-ingestion-service` (or `./dc up -d liverc-ingestion-service`)
+   - Ensure the service is running:
+     `docker-compose up -d liverc-ingestion-service` (or
+     `./dc up -d liverc-ingestion-service`)
 
 2. **Local Execution** (Alternative - Requires Python Setup):
-   - Execute from the `ingestion/` directory with the Python virtual environment activated
+   - Execute from the `ingestion/` directory with the Python virtual environment
+     activated
    - Requires local Python 3.11+ installation and dependency management
    - Requires manual environment variable configuration
    - Requires Playwright browser installation
@@ -108,16 +133,19 @@ CLI commands can be executed in two ways:
 ### Command Structure
 
 **Docker Execution** (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc <command> [options]
 ```
 
 **Local Execution** (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc <command> [options]
 ```
 
-**Note:** The `-it` flags enable interactive terminal mode with proper output formatting. All examples in this guide show Docker execution first.
+**Note:** The `-it` flags enable interactive terminal mode with proper output
+formatting. All examples in this guide show Docker execution first.
 
 ### Available Commands
 
@@ -130,22 +158,26 @@ python -m ingestion.cli ingest liverc <command> [options]
 **Usage**:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc list-tracks
 ```
 
 **Output Format**:
+
 ```
 Found X tracks:
   <track_id> | <source_track_slug> | <track_name> | Active: <true/false> | Followed: <true/false>
 ```
 
 **Example Output**:
+
 ```
 Found 150 tracks:
   a1b2c3d4-e5f6-7890-abcd-ef1234567890 | canberraoffroad | Canberra Off Road Model Car Club | Active: True | Followed: False
@@ -160,21 +192,26 @@ Found 150 tracks:
 
 **Command**: `refresh-tracks`
 
-**Description**: Re-scrapes the global LiveRC track catalogue and updates the database. Adds new tracks, updates existing ones, and marks tracks that no longer exist on LiveRC as inactive.
+**Description**: Re-scrapes the global LiveRC track catalogue and updates the
+database. Adds new tracks, updates existing ones, and marks tracks that no
+longer exist on LiveRC as inactive.
 
 **Usage**:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc refresh-tracks
 ```
 
 **Output**:
+
 ```
 Track refresh completed:
   Added: 5
@@ -183,23 +220,34 @@ Track refresh completed:
   Total: 150
 ```
 
-**Use Case**: Run this periodically to keep your track catalogue synchronized with LiveRC.
+**Use Case**: Run this periodically to keep your track catalogue synchronized
+with LiveRC.
 
-**Automated Execution**: A cron job runs this command automatically every 24 hours at midnight UTC. Reports are generated in the `docs/reports/` directory. See "Track Sync Cron Job and Reports" section below for details.
+**Automated Execution**: A cron job runs this command automatically every 24
+hours at midnight UTC. Reports are generated in the `docs/reports/` directory.
+See "Track Sync Cron Job and Reports" section below for details.
 
 **Note**: This command does not require any IDs.
 
 #### Automated Event Refresh for Followed Tracks
 
-Followed tracks are refreshed nightly via `run-followed-event-sync.sh`, which executes the `refresh-followed-events` CLI command with `--depth none`. This keeps event metadata up to date without manual CLI runs. You can run the same workflow locally:
+Followed tracks are refreshed nightly via `run-followed-event-sync.sh`, which
+executes the `refresh-followed-events` CLI command with `--depth none`. This
+keeps event metadata up to date without manual CLI runs. You can run the same
+workflow locally:
 
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth none
 ```
 
-For ad-hoc deep ingests across all followed tracks, pass `--depth laps_full` (optionally `--quiet` to suppress per-event output). The command automatically iterates every `Track` marked `is_followed=true` and aggregates the ingestion results.
+For ad-hoc deep ingests across all followed tracks, pass `--depth laps_full`
+(optionally `--quiet` to suppress per-event output). The command automatically
+iterates every `Track` marked `is_followed=true` and aggregates the ingestion
+results.
 
-**Scheduling courtesy:** both cron wrappers add a small random jitter (0-120 seconds) before firing to avoid hammering LiveRC right at the top of the minute. Leave this in place when copying scripts into other schedulers.
+**Scheduling courtesy:** both cron wrappers add a small random jitter (0-120
+seconds) before firing to avoid hammering LiveRC right at the top of the minute.
+Leave this in place when copying scripts into other schedulers.
 
 ---
 
@@ -207,35 +255,43 @@ For ad-hoc deep ingests across all followed tracks, pass `--depth laps_full` (op
 
 **Command**: `list-events`
 
-**Description**: Lists all events for a specific track, optionally filtered by date range.
+**Description**: Lists all events for a specific track, optionally filtered by
+date range.
 
 **Usage**:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id> [--start-date <ISO_DATE>] [--end-date <ISO_DATE>]
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc list-events --track-id <track_id> [--start-date <ISO_DATE>] [--end-date <ISO_DATE>]
 ```
 
 **Required Parameters**:
+
 - `--track-id`: Track UUID (get from `list-tracks` command)
 
 **Optional Parameters**:
+
 - `--start-date`: Start date in ISO format (YYYY-MM-DD), e.g., `2025-01-01`
 - `--end-date`: End date in ISO format (YYYY-MM-DD), e.g., `2025-12-31`
 
-**ISO Date Format**: Dates must be in ISO 8601 format: `YYYY-MM-DD` (e.g., `2025-01-15`, `2024-12-31`). Do not include time components.
+**ISO Date Format**: Dates must be in ISO 8601 format: `YYYY-MM-DD` (e.g.,
+`2025-01-15`, `2024-12-31`). Do not include time components.
 
 **Example** (Docker):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 **Example with Date Range** (Docker):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events \
   --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
@@ -244,19 +300,22 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 ```
 
 **Output Format**:
+
 ```
 Found X events:
   <event_id> | <source_event_id> | <event_name> | <event_date> | Depth: <ingest_depth>
 ```
 
 **Example Output**:
+
 ```
 Found 12 events:
   c3d4e5f6-a7b8-9012-cdef-123456789012 | 486677 | 2024 Nationals | 2024-10-15 00:00:00 | Depth: laps_full
   d4e5f6a7-b8c9-0123-def0-234567890123 | 489123 | 2024 Club Championship | 2024-11-20 00:00:00 | Depth: none
 ```
 
-**Use Case**: Use this command to find event IDs needed for ingestion operations.
+**Use Case**: Use this command to find event IDs needed for ingestion
+operations.
 
 ---
 
@@ -264,46 +323,58 @@ Found 12 events:
 
 **Command**: `refresh-events`
 
-**Description**: Populates or refreshes the event list for a specific track by fetching from LiveRC.
+**Description**: Populates or refreshes the event list for a specific track by
+fetching from LiveRC.
 
 **Usage**:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id> --depth {none|laps_full} [--ingest-new-only|--ingest-all]
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc refresh-events --track-id <track_id> --depth {none|laps_full} [--ingest-new-only|--ingest-all]
 ```
 
 **Required Parameters**:
+
 - `--track-id`: Track UUID (get from `list-tracks` command)
-- `--depth`: Ingestion depth - `none` (metadata only) or `laps_full` (full ingestion)
+- `--depth`: Ingestion depth - `none` (metadata only) or `laps_full` (full
+  ingestion)
 
 **Optional Parameters**:
-- `--ingest-new-only`: Only ingest newly discovered events (default when `--depth laps_full`)
-- `--ingest-all`: Ingest all events for the track, including re-ingestion of existing events
+
+- `--ingest-new-only`: Only ingest newly discovered events (default when
+  `--depth laps_full`)
+- `--ingest-all`: Ingest all events for the track, including re-ingestion of
+  existing events
 
 **Examples** (Docker):
 
 1. **Metadata only** (discover events, no race data):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth none
 ```
 
 2. **Full ingestion for new events only** (default behavior):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth laps_full --ingest-new-only
 ```
 
 3. **Full ingestion for all events** (re-ingest existing events):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 --depth laps_full --ingest-all
 ```
 
 **Output** (with `--depth none`):
+
 ```
 Event refresh completed:
   Events discovered: 3 new, 9 updated
@@ -311,6 +382,7 @@ Event refresh completed:
 ```
 
 **Output** (with `--depth laps_full`):
+
 ```
 Event refresh completed:
   Events discovered: 3 new, 9 updated
@@ -323,12 +395,16 @@ Full ingestion results:
   Laps ingested: 12450
 ```
 
-**Use Case**: 
+**Use Case**:
+
 - Use `--depth none` to discover events without ingesting race data
-- Use `--depth laps_full --ingest-new-only` to discover and fully ingest new events in one command
+- Use `--depth laps_full --ingest-new-only` to discover and fully ingest new
+  events in one command
 - Use `--depth laps_full --ingest-all` to re-ingest all events for a track
 
-**Note**: This command requires a track ID. Use `list-tracks` to find it. The unified command eliminates the need to run separate `refresh-events` and `ingest-event` commands.
+**Note**: This command requires a track ID. Use `list-tracks` to find it. The
+unified command eliminates the need to run separate `refresh-events` and
+`ingest-event` commands.
 
 ---
 
@@ -336,36 +412,45 @@ Full ingestion results:
 
 **Command**: `ingest-event`
 
-**Description**: Performs full data ingestion for a specific event, including races, results, and lap data.
+**Description**: Performs full data ingestion for a specific event, including
+races, results, and lap data.
 
 **Usage**:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id> [--depth <depth>]
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc ingest-event --event-id <event_id> [--depth <depth>]
 ```
 
 **Required Parameters**:
+
 - `--event-id`: Event UUID (get from `list-events` command)
 
 **Optional Parameters**:
+
 - `--depth`: Ingestion depth (default: `laps_full`)
   - `none`: Event metadata only (for discovery/browsing)
   - `laps_full`: Full ingestion including races, results, and lap data
 
-**V1 Note**: In V1, "Import Event" always means `laps_full` ingestion. The `none` depth is used for event discovery, but users always get complete data when importing.
+**V1 Note**: In V1, "Import Event" always means `laps_full` ingestion. The
+`none` depth is used for event discovery, but users always get complete data
+when importing.
 
 **Example** (Docker):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id c3d4e5f6-a7b8-9012-cdef-123456789012
 ```
 
 **Example with Custom Depth** (Docker):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event \
   --event-id c3d4e5f6-a7b8-9012-cdef-123456789012 \
@@ -373,6 +458,7 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 ```
 
 **Output**:
+
 ```
 Ingesting event c3d4e5f6-a7b8-9012-cdef-123456789012 with depth laps_full...
 Ingestion completed successfully:
@@ -381,7 +467,8 @@ Ingestion completed successfully:
   Laps ingested: 8460
 ```
 
-**Use Case**: Use this command to ingest race data for a specific event after refreshing events.
+**Use Case**: Use this command to ingest race data for a specific event after
+refreshing events.
 
 **Note**: This command requires an event ID. Use `list-events` to find it.
 
@@ -391,44 +478,56 @@ Ingestion completed successfully:
 
 **Command**: `refresh-followed-events`
 
-**Description**: Refreshes events for all tracks marked as `is_followed=true`. This command automatically iterates through all followed tracks and refreshes their events. Useful for keeping event metadata up to date for tracks of interest.
+**Description**: Refreshes events for all tracks marked as `is_followed=true`.
+This command automatically iterates through all followed tracks and refreshes
+their events. Useful for keeping event metadata up to date for tracks of
+interest.
 
 **Usage**:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth {none|laps_full} [--quiet]
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc refresh-followed-events --depth {none|laps_full} [--quiet]
 ```
 
 **Required Parameters**:
-- `--depth`: Ingestion depth - `none` (metadata only) or `laps_full` (full ingestion)
+
+- `--depth`: Ingestion depth - `none` (metadata only) or `laps_full` (full
+  ingestion)
 
 **Optional Parameters**:
+
 - `--quiet`: Suppress per-event output (useful for bulk operations)
 
 **Examples** (Docker):
 
 1. **Metadata only** (discover events, no race data):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth none
 ```
 
 2. **Full ingestion for all followed tracks**:
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth laps_full
 ```
 
 3. **Full ingestion with quiet mode**:
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-followed-events --depth laps_full --quiet
 ```
 
 **Output** (with `--depth none`):
+
 ```
 Refreshing events for 12 followed tracks...
 Track: Canberra Off Road Model Car Club
@@ -443,6 +542,7 @@ Refresh completed:
 ```
 
 **Output** (with `--depth laps_full`):
+
 ```
 Refreshing events for 12 followed tracks...
 Track: Canberra Off Road Model Car Club
@@ -462,14 +562,19 @@ Refresh completed:
   Total laps ingested: 54000
 ```
 
-**Use Case**: 
+**Use Case**:
+
 - Use `--depth none` for regular maintenance to keep event metadata up to date
 - Use `--depth laps_full` to perform full ingestion across all followed tracks
-- Automated cron job runs this command nightly with `--depth none` (see "Automated Event Refresh for Followed Tracks" section below)
+- Automated cron job runs this command nightly with `--depth none` (see
+  "Automated Event Refresh for Followed Tracks" section below)
 
-**Automated Execution**: A cron job runs this command automatically every night at midnight UTC via `run-followed-event-sync.sh` with `--depth none`. This keeps event metadata synchronized for all followed tracks without manual intervention.
+**Automated Execution**: A cron job runs this command automatically every night
+at midnight UTC via `run-followed-event-sync.sh` with `--depth none`. This keeps
+event metadata synchronized for all followed tracks without manual intervention.
 
-**Note**: This command does not require any IDs - it automatically processes all tracks where `is_followed=true`.
+**Note**: This command does not require any IDs - it automatically processes all
+tracks where `is_followed=true`.
 
 ---
 
@@ -477,21 +582,25 @@ Refresh completed:
 
 **Command**: `status`
 
-**Description**: Shows ingestion subsystem health summary with counts of tracks, events, races, results, and laps.
+**Description**: Shows ingestion subsystem health summary with counts of tracks,
+events, races, results, and laps.
 
 **Usage**:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc status
 ```
 
 **Output**:
+
 ```
 Ingestion Status:
   Tracks: 150
@@ -507,7 +616,8 @@ Events by Ingestion Depth:
   laps_full: 245
 ```
 
-**Use Case**: Use this command to get a quick overview of your ingestion system's state.
+**Use Case**: Use this command to get a quick overview of your ingestion
+system's state.
 
 ---
 
@@ -515,21 +625,25 @@ Events by Ingestion Depth:
 
 **Command**: `verify-integrity`
 
-**Description**: Verifies data integrity across tables, checking for orphaned records, missing lap data, and other inconsistencies.
+**Description**: Verifies data integrity across tables, checking for orphaned
+records, missing lap data, and other inconsistencies.
 
 **Usage**:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc verify-integrity
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc verify-integrity
 ```
 
 **Output** (if issues found):
+
 ```
 Found 5 orphaned races:
   Race abc123... (event_id: def456...)
@@ -543,15 +657,18 @@ Integrity check completed with issues found.
 ```
 
 **Output** (if no issues):
+
 ```
 Integrity check completed - no issues found.
 ```
 
 **Exit Codes**:
+
 - `0`: No issues found
 - `1`: Issues found
 
-**Use Case**: Run this periodically to ensure data integrity, especially after bulk ingestion operations.
+**Use Case**: Run this periodically to ensure data integrity, especially after
+bulk ingestion operations.
 
 ---
 
@@ -565,11 +682,13 @@ python -m ingestion.main
 ```
 
 Or using uvicorn directly:
+
 ```bash
 uvicorn ingestion.main:app --host 0.0.0.0 --port 8000
 ```
 
-The API will be available at `http://localhost:8000` (or your configured host/port).
+The API will be available at `http://localhost:8000` (or your configured
+host/port).
 
 ### Base URL
 
@@ -581,14 +700,17 @@ All endpoints are prefixed with `/api/v1/`.
 
 **Endpoint**: `POST /api/v1/tracks/sync`
 
-**Description**: Syncs track catalogue from LiveRC (equivalent to `refresh-tracks` CLI command).
+**Description**: Syncs track catalogue from LiveRC (equivalent to
+`refresh-tracks` CLI command).
 
 **Request**:
+
 ```bash
 curl -X POST http://localhost:8000/api/v1/tracks/sync
 ```
 
 **Response**:
+
 ```json
 {
   "tracks_added": 5,
@@ -606,14 +728,17 @@ curl -X POST http://localhost:8000/api/v1/tracks/sync
 
 **Endpoint**: `POST /api/v1/events/sync?track_id=<track_id>`
 
-**Description**: Syncs events for a specific track (equivalent to `refresh-events` CLI command).
+**Description**: Syncs events for a specific track (equivalent to
+`refresh-events` CLI command).
 
 **Request**:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/events/sync?track_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 ```
 
 **Response**:
+
 ```json
 {
   "track_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -624,11 +749,13 @@ curl -X POST "http://localhost:8000/api/v1/events/sync?track_id=a1b2c3d4-e5f6-78
 ```
 
 **Required Query Parameters**:
+
 - `track_id`: Track UUID
 
 **Use Case**: Use this endpoint for programmatic event synchronization.
 
-**Note**: Requires a track ID. See [Retrieving IDs from Database](#retrieving-ids-from-database) section.
+**Note**: Requires a track ID. See
+[Retrieving IDs from Database](#retrieving-ids-from-database) section.
 
 ---
 
@@ -636,9 +763,11 @@ curl -X POST "http://localhost:8000/api/v1/events/sync?track_id=a1b2c3d4-e5f6-78
 
 **Endpoint**: `POST /api/v1/events/{event_id}/ingest`
 
-**Description**: Triggers event ingestion (equivalent to `ingest-event` CLI command).
+**Description**: Triggers event ingestion (equivalent to `ingest-event` CLI
+command).
 
 **Request**:
+
 ```bash
 curl -X POST http://localhost:8000/api/v1/events/c3d4e5f6-a7b8-9012-cdef-123456789012/ingest \
   -H "Content-Type: application/json" \
@@ -646,13 +775,15 @@ curl -X POST http://localhost:8000/api/v1/events/c3d4e5f6-a7b8-9012-cdef-1234567
 ```
 
 **Request Body**:
+
 ```json
 {
-  "depth": "laps_full"  // Optional: "none" (discovery) or "laps_full" (default, full ingestion)
+  "depth": "laps_full" // Optional: "none" (discovery) or "laps_full" (default, full ingestion)
 }
 ```
 
 **Response**:
+
 ```json
 {
   "races_ingested": 15,
@@ -662,11 +793,13 @@ curl -X POST http://localhost:8000/api/v1/events/c3d4e5f6-a7b8-9012-cdef-1234567
 ```
 
 **Required Path Parameters**:
+
 - `event_id`: Event UUID
 
 **Use Case**: Use this endpoint for programmatic event ingestion.
 
-**Note**: Requires an event ID. See [Retrieving IDs from Database](#retrieving-ids-from-database) section.
+**Note**: Requires an event ID. See
+[Retrieving IDs from Database](#retrieving-ids-from-database) section.
 
 ---
 
@@ -677,11 +810,13 @@ curl -X POST http://localhost:8000/api/v1/events/c3d4e5f6-a7b8-9012-cdef-1234567
 **Description**: Gets ingestion status for a specific event.
 
 **Request**:
+
 ```bash
 curl http://localhost:8000/api/v1/ingestion/status/c3d4e5f6-a7b8-9012-cdef-123456789012
 ```
 
 **Response**:
+
 ```json
 {
   "event_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
@@ -691,17 +826,20 @@ curl http://localhost:8000/api/v1/ingestion/status/c3d4e5f6-a7b8-9012-cdef-12345
 ```
 
 **Required Path Parameters**:
+
 - `event_id`: Event UUID
 
 **Use Case**: Check the ingestion status of an event programmatically.
 
-**Note**: Requires an event ID. See [Retrieving IDs from Database](#retrieving-ids-from-database) section.
+**Note**: Requires an event ID. See
+[Retrieving IDs from Database](#retrieving-ids-from-database) section.
 
 ---
 
 ## Retrieving IDs from Database
 
-Several commands and operations require IDs (track IDs, event IDs). Here are all the methods to retrieve them:
+Several commands and operations require IDs (track IDs, event IDs). Here are all
+the methods to retrieve them:
 
 ### Method 1: Using CLI Commands (Easiest)
 
@@ -710,11 +848,13 @@ Several commands and operations require IDs (track IDs, event IDs). Here are all
 Use the `list-tracks` command:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc list-tracks
 ```
@@ -722,6 +862,7 @@ python -m ingestion.cli ingest liverc list-tracks
 The first column in the output is the track ID (UUID format).
 
 **Example**:
+
 ```
 Found 150 tracks:
   a1b2c3d4-e5f6-7890-abcd-ef1234567890 | canberraoffroad | Canberra Off Road Model Car Club | Active: True | Followed: False
@@ -734,11 +875,13 @@ Track ID: `a1b2c3d4-e5f6-7890-abcd-ef1234567890`
 Use the `list-events` command with a track ID:
 
 Docker (Recommended):
+
 ```bash
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 Local (Alternative):
+
 ```bash
 python -m ingestion.cli ingest liverc list-events --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
@@ -746,6 +889,7 @@ python -m ingestion.cli ingest liverc list-events --track-id a1b2c3d4-e5f6-7890-
 The first column in the output is the event ID (UUID format).
 
 **Example**:
+
 ```
 Found 12 events:
   c3d4e5f6-a7b8-9012-cdef-123456789012 | 486677 | 2024 Nationals | 2024-10-15 00:00:00 | Depth: laps_full
@@ -757,13 +901,15 @@ Event ID: `c3d4e5f6-a7b8-9012-cdef-123456789012`
 
 ### Method 2: Using TypeScript Scripts
 
-**All TypeScript scripts should be executed inside the Docker container.** This is the recommended and primary method:
+**All TypeScript scripts should be executed inside the Docker container.** This
+is the recommended and primary method:
 
 ```bash
 docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' scripts/<script-name>.ts
 ```
 
-**Note:** Local execution is also possible if Node.js is installed locally, but Docker execution ensures consistency.
+**Note:** Local execution is also possible if Node.js is installed locally, but
+Docker execution ensures consistency.
 
 #### Get Track IDs
 
@@ -774,11 +920,13 @@ docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' s
 ```
 
 **Alternative (Local - Requires Node.js):**
+
 ```bash
 npx ts-node scripts/list-tracks.ts
 ```
 
 **Output**:
+
 ```
 Track Name                    | Slug              | Source  | Active | Followed | Events | Last Seen
 ----------------------------------------------------------------------------------------------------------
@@ -787,7 +935,9 @@ Sydney RC Racing             | sydneyrc          | liverc  | Yes    | Yes      |
 ...
 ```
 
-**Note**: This script shows track names and slugs, but **not the UUID**. To get the UUID, you'll need to query the database directly (see Method 3) or use the CLI command (Method 1).
+**Note**: This script shows track names and slugs, but **not the UUID**. To get
+the UUID, you'll need to query the database directly (see Method 3) or use the
+CLI command (Method 1).
 
 #### Get Event IDs
 
@@ -798,11 +948,13 @@ docker exec -it mre-app npx ts-node --compiler-options '{"module":"commonjs"}' s
 ```
 
 **Alternative (Local - Requires Node.js):**
+
 ```bash
 npx ts-node scripts/list-events.ts --track-id a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 **Output**:
+
 ```
 Track: Canberra Off Road Model Car Club
 ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
@@ -818,7 +970,9 @@ Event Name              | Date       | Entries | Drivers | Races | Ingest Depth 
 ...
 ```
 
-**Note**: This script shows the Source ID (LiveRC's event ID) but **not the UUID**. To get the UUID, you'll need to query the database directly (see Method 3) or use the CLI command (Method 1).
+**Note**: This script shows the Source ID (LiveRC's event ID) but **not the
+UUID**. To get the UUID, you'll need to query the database directly (see
+Method 3) or use the CLI command (Method 1).
 
 ---
 
@@ -842,6 +996,7 @@ ORDER BY track_name;
 ```
 
 **Example Output**:
+
 ```
                   id                  | source_track_slug |           track_name            | is_active | is_followed
 --------------------------------------+-------------------+--------------------------------+-----------+-------------
@@ -860,6 +1015,7 @@ ORDER BY e.event_date DESC;
 ```
 
 **Example Output**:
+
 ```
                   id                  | source_event_id |    event_name     |  event_date  | ingest_depth |           track_name
 --------------------------------------+-----------------+-------------------+--------------+--------------+--------------------------------
@@ -893,25 +1049,25 @@ WHERE source = 'liverc' AND source_event_id = '486677';
 If you're writing TypeScript/JavaScript code, you can use Prisma:
 
 ```typescript
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
 // Get all tracks
 const tracks = await prisma.track.findMany({
-  where: { source: 'liverc' },
+  where: { source: "liverc" },
   select: {
     id: true,
     sourceTrackSlug: true,
     trackName: true,
     isActive: true,
   },
-  orderBy: { trackName: 'asc' }
+  orderBy: { trackName: "asc" },
 })
 
 // Get events for a track
 const events = await prisma.event.findMany({
-  where: { trackId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' },
+  where: { trackId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" },
   select: {
     id: true,
     sourceEventId: true,
@@ -919,17 +1075,17 @@ const events = await prisma.event.findMany({
     eventDate: true,
     ingestDepth: true,
   },
-  orderBy: { eventDate: 'desc' }
+  orderBy: { eventDate: "desc" },
 })
 
 // Get event by source event ID
 const event = await prisma.event.findUnique({
   where: {
     source_sourceEventId: {
-      source: 'liverc',
-      sourceEventId: '486677'
-    }
-  }
+      source: "liverc",
+      sourceEventId: "486677",
+    },
+  },
 })
 ```
 
@@ -944,37 +1100,43 @@ const event = await prisma.event.findUnique({
 **Steps**:
 
 1. **Refresh tracks from LiveRC**:
-   
+
    Docker (Recommended):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-tracks
    ```
-   
+
    Local (Alternative):
+
    ```bash
    python -m ingestion.cli ingest liverc refresh-tracks
    ```
 
 2. **List tracks to see what was added**:
-   
+
    Docker (Recommended):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
    ```
-   
+
    Local (Alternative):
+
    ```bash
    python -m ingestion.cli ingest liverc list-tracks
    ```
 
 3. **Check status**:
-   
+
    Docker (Recommended):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
    ```
-   
+
    Local (Alternative):
+
    ```bash
    python -m ingestion.cli ingest liverc status
    ```
@@ -990,70 +1152,81 @@ const event = await prisma.event.findUnique({
 **Steps**:
 
 1. **Get track ID**:
-   
+
    Docker (Recommended):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
    ```
-   
+
    Local (Alternative):
+
    ```bash
    python -m ingestion.cli ingest liverc list-tracks
    ```
-   
+
    Note the track ID from the output (first column).
 
 2. **Refresh events for the track**:
-   
+
    Docker (Recommended):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id>
    ```
-   
+
    Local (Alternative):
+
    ```bash
    python -m ingestion.cli ingest liverc refresh-events --track-id <track_id>
    ```
 
 3. **List events to see what was added**:
-   
+
    Docker (Recommended):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id>
    ```
-   
+
    Local (Alternative):
+
    ```bash
    python -m ingestion.cli ingest liverc list-events --track-id <track_id>
    ```
-   
+
    Note the event IDs from the output (first column).
 
 4. **Ingest a specific event**:
-   
+
    Docker (Recommended):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id>
    ```
-   
+
    Local (Alternative):
+
    ```bash
    python -m ingestion.cli ingest liverc ingest-event --event-id <event_id>
    ```
 
 5. **Verify ingestion status**:
-   
+
    Docker (Recommended):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc status
    ```
-   
+
    Local (Alternative):
+
    ```bash
    python -m ingestion.cli ingest liverc status
    ```
 
-**Expected Result**: Event data (races, results, laps) ingested into the database.
+**Expected Result**: Event data (races, results, laps) ingested into the
+database.
 
 ---
 
@@ -1064,22 +1237,28 @@ const event = await prisma.event.findUnique({
 **Steps**:
 
 1. **Get track ID** (Docker):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
    ```
 
 2. **Refresh events** (Docker):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <track_id>
    ```
 
 3. **List events and filter for uningested ones** (Docker):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-events --track-id <track_id>
    ```
-   Look for events with `Depth: none` (these are events that have been discovered but not yet imported).
+
+   Look for events with `Depth: none` (these are events that have been
+   discovered but not yet imported).
 
 4. **Ingest each event** (repeat for each event ID, Docker):
+
    ```bash
    docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <event_id>
    ```
@@ -1100,32 +1279,38 @@ const event = await prisma.event.findUnique({
 **Steps**:
 
 1. **Start the API server**:
+
    ```bash
    cd ingestion/
    python -m ingestion.main
    ```
 
 2. **Sync tracks**:
+
    ```bash
    curl -X POST http://localhost:8000/api/v1/tracks/sync
    ```
 
 3. **Get track ID from database** (using SQL or CLI):
+
    ```sql
    SELECT id FROM tracks WHERE source_track_slug = 'canberraoffroad';
    ```
 
 4. **Sync events**:
+
    ```bash
    curl -X POST "http://localhost:8000/api/v1/events/sync?track_id=<track_id>"
    ```
 
 5. **Get event ID from database**:
+
    ```sql
    SELECT id FROM events WHERE source_event_id = '486677';
    ```
 
 6. **Ingest event**:
+
    ```bash
    curl -X POST http://localhost:8000/api/v1/events/<event_id>/ingest \
      -H "Content-Type: application/json" \
@@ -1150,11 +1335,13 @@ const event = await prisma.event.findUnique({
 **Problem**: Command fails with "Track {track_id} not found."
 
 **Solution**:
+
 - Verify the track ID is correct (use `list-tracks` to get the exact UUID)
 - Ensure the track exists in the database
 - Check that you're using the UUID format, not the source track slug
 
 **Example** (Docker):
+
 ```bash
 # Wrong - using slug instead of UUID
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id canberraoffroad
@@ -1170,11 +1357,13 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 **Problem**: Command fails with "Event {event_id} not found."
 
 **Solution**:
+
 - Verify the event ID is correct (use `list-events` to get the exact UUID)
 - Ensure the event exists in the database
 - Check that you're using the UUID format, not the source event ID
 
 **Example** (Docker):
+
 ```bash
 # Wrong - using source event ID instead of UUID
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id 486677
@@ -1187,20 +1376,25 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 
 #### 3. Docker Container Not Running
 
-**Problem**: Docker commands fail with "Error: No such container: mre-liverc-ingestion-service" or "Cannot connect to the Docker daemon".
+**Problem**: Docker commands fail with "Error: No such container:
+mre-liverc-ingestion-service" or "Cannot connect to the Docker daemon".
 
 **Solution**:
+
 - **Check if container is running:**
+
   ```bash
   docker ps | grep mre-liverc-ingestion-service
   ```
 
 - **Start the ingestion service:**
+
   ```bash
   docker compose up -d liverc-ingestion-service
   ```
 
 - **Verify container is healthy:**
+
   ```bash
   docker logs mre-liverc-ingestion-service
   curl http://localhost:8000/health
@@ -1219,17 +1413,21 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 **Problem**: Commands fail with database connection errors.
 
 **Solution** (Docker):
+
 - **Verify PostgreSQL container is running:**
+
   ```bash
   docker ps | grep mre-postgres
   ```
 
 - **Check database connection from ingestion container:**
+
   ```bash
   docker exec -it mre-liverc-ingestion-service python -c "import os; print(os.getenv('DATABASE_URL'))"
   ```
 
 - **Test database connectivity:**
+
   ```bash
   docker exec -it mre-postgres psql -U pacetracer -d pacetracer -c "SELECT 1"
   ```
@@ -1240,6 +1438,7 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
   ```
 
 **Solution** (Local):
+
 - Verify `DATABASE_URL` environment variable is set correctly
 - Check that PostgreSQL is running
 - Test connection: `psql $DATABASE_URL`
@@ -1251,26 +1450,32 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 **Problem**: Ingestion fails with HTTP errors (502, timeout, etc.).
 
 **Solution** (Docker):
+
 - **Check container logs for detailed errors:**
+
   ```bash
   docker logs mre-liverc-ingestion-service
   ```
 
 - **Verify Playwright is installed in container:**
+
   ```bash
   docker exec -it mre-liverc-ingestion-service playwright --version
   ```
 
 - **Check network connectivity from container:**
+
   ```bash
   docker exec -it mre-liverc-ingestion-service curl -I https://live.liverc.com
   ```
 
 - **Check network connectivity to LiveRC**
 - **Verify LiveRC website is accessible**
-- **Some pages may require Playwright (browser automation)** - Playwright is pre-installed in the Docker container
+- **Some pages may require Playwright (browser automation)** - Playwright is
+  pre-installed in the Docker container
 
 **Solution** (Local):
+
 - Check network connectivity to LiveRC
 - Verify LiveRC website is accessible
 - Check logs for specific error messages
@@ -1283,8 +1488,10 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 **Problem**: `verify-integrity` reports issues.
 
 **Solution**:
+
 - Review the specific issues reported
-- Orphaned races/results may indicate incomplete ingestion - re-run ingestion for affected events
+- Orphaned races/results may indicate incomplete ingestion - re-run ingestion
+  for affected events
 - Missing lap data may indicate parsing issues - check logs for parsing errors
 - Consider re-ingesting affected events
 
@@ -1292,13 +1499,16 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 
 ### Getting Help
 
-1. **Check Logs**: All commands output structured logs. Review them for detailed error information.
+1. **Check Logs**: All commands output structured logs. Review them for detailed
+   error information.
 
 2. **Verify Database State**: Use SQL queries to inspect the database directly.
 
-3. **Test Connectivity**: Ensure you can access LiveRC website and your database.
+3. **Test Connectivity**: Ensure you can access LiveRC website and your
+   database.
 
-4. **Review Architecture Docs**: See `docs/architecture/liverc-ingestion/` for detailed architecture information.
+4. **Review Architecture Docs**: See `docs/architecture/liverc-ingestion/` for
+   detailed architecture information.
 
 ---
 
@@ -1307,6 +1517,7 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 ### Command Cheat Sheet
 
 **Docker Execution** (Recommended - Primary Method):
+
 ```bash
 # List all tracks
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc list-tracks
@@ -1334,6 +1545,7 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 ```
 
 **Local Execution** (Alternative - Requires Python Setup):
+
 ```bash
 # List all tracks
 python -m ingestion.cli ingest liverc list-tracks

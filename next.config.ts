@@ -1,12 +1,12 @@
 /**
  * @fileoverview Next.js configuration
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Next.js build and runtime configuration
- * 
+ *
  * @purpose Configures Next.js build settings, including:
  *          - Webpack polling for file watching (enables hot reload in Docker/Colima)
  *          - Excluding argon2 from Edge Runtime and client-side bundling
@@ -15,18 +15,18 @@
  *          browser environments. This configuration ensures argon2 is only used
  *          in Node.js runtime contexts (API routes and server components) where
  *          it's needed for password hashing.
- * 
+ *
  * @relatedFiles
  * - src/core/auth/register.ts (uses argon2 for password hashing)
  * - src/core/auth/login.ts (uses argon2 for password verification)
  * - docs/architecture/mobile-safe-architecture-guidelines.md (security requirements)
  */
 
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 // Import env to trigger build-time validation
 // This ensures all required environment variables are set before the app starts
-import "./src/lib/env";
+import "./src/lib/env"
 
 const nextConfig: NextConfig = {
   // Exclude argon2 from Edge Runtime bundling
@@ -69,6 +69,6 @@ const nextConfig: NextConfig = {
   // Note: API route body size limits are handled at the route level
   // or via middleware in Next.js App Router. Individual routes should
   // validate request sizes as needed.
-};
+}
 
-export default nextConfig;
+export default nextConfig

@@ -1,158 +1,346 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <!-- Document Type -->
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Language" content="en-us" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-	<head>
+    <!-- Page Info -->
+    <title>Canberra Off Road Model Car Club :: Practice Sessions for October 2025 :: LiveRC</title>
+    <meta name="Copyright" content="2014-2026 LiveRC" />
+    <meta
+      name="Description"
+      content="Live and archived results, scoring, and video on LiveRC.com."
+    />
+    <meta name="robots" content="index, follow" />
 
-		<!-- Document Type -->
-		<meta charset="utf-8" />
-		<meta http-equiv="Content-Language" content="en-us" />
-		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-		<meta name="format-detection" content="telephone=no" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Thumbnails and Icons -->
+    <link
+      rel="icon"
+      type="image/x-ico"
+      href="//assets.liveracemedia.com/images/static/favicon.png"
+    />
+    <link
+      rel="shortcut icon"
+      type="image/x-icon"
+      href="//assets.liveracemedia.com/images/static/favicon.png"
+    />
 
-		<!-- Page Info -->
-		<title>Canberra Off Road Model Car Club :: Practice Sessions for October 2025 :: LiveRC</title>
-		<meta name="Copyright" content="2014-2026 LiveRC" />
-		<meta name="Description" content="Live and archived results, scoring, and video on LiveRC.com." />
-		<meta name="robots" content="index, follow" />
+    <!-- Bootstrap Core CSS -->
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
 
-		<!-- Thumbnails and Icons -->
-		<link rel="icon" type="image/x-ico" href="//assets.liveracemedia.com/images/static/favicon.png" />
-		<link rel="shortcut icon" type="image/x-icon" href="//assets.liveracemedia.com/images/static/favicon.png" />
+    <!-- Bootstrap Theme CSS -->
+    <link href="/vendor/sb-admin-2/css/sb-admin-2.css" rel="stylesheet" />
 
-		<!-- Bootstrap Core CSS -->
-		<link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Custom Fonts -->
+    <link rel="stylesheet" type="text/css" href="/vendor/font-awesome/css/font-awesome.min.css" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="//fonts.googleapis.com/css?family=Open+Sans|Open+Sans+Condensed:300"
+    />
 
-		<!-- Bootstrap Theme CSS -->
-		<link href="/vendor/sb-admin-2/css/sb-admin-2.css" rel="stylesheet" />
+    <!-- CSS Files -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="screen"
+      href="/css/global/global.default.css?1160"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="screen"
+      href="/vendor/datatables/css/dataTables.bootstrap.min.css?1160"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="screen"
+      href="/vendor/datatables-responsive/dataTables.responsive.css?1160"
+    />
 
-		<!-- Custom Fonts -->
-		<link rel="stylesheet" type="text/css" href="/vendor/font-awesome/css/font-awesome.min.css" />
-		<link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Open+Sans|Open+Sans+Condensed:300" />
+    <!-- jQuery -->
+    <script src="//assets.liveracemedia.com/lib/jquery/jquery.min.js"></script>
 
-		<!-- CSS Files -->
-		<link rel="stylesheet" type="text/css" media="screen" href="/css/global/global.default.css?1160" />
-									<link rel="stylesheet" type="text/css" media="screen" href="/vendor/datatables/css/dataTables.bootstrap.min.css?1160" />
-												<link rel="stylesheet" type="text/css" media="screen" href="/vendor/datatables-responsive/dataTables.responsive.css?1160" />
+    <!-- Video.js -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
 
-		<!-- jQuery -->
-		<script src="//assets.liveracemedia.com/lib/jquery/jquery.min.js"></script>
+    <!-- Google DFP -->
+    <script async="async" src="https://www.googletagservices.com/tag/js/gpt.js"></script>
+    <script type="text/javascript">
+      var googletag = googletag || {}
+      googletag.cmd = googletag.cmd || []
 
-		<!-- Video.js -->
-		<link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+      // GPT slots
+      var gptAdSlots = []
 
-		<!-- Google DFP -->
-		<script async="async" src="https://www.googletagservices.com/tag/js/gpt.js"></script>
-		<script type="text/javascript">
-			var googletag = googletag || {};
-			googletag.cmd = googletag.cmd || [];
+      googletag.cmd.push(function () {
+        //XS: 0-575
+        //SM: 576-767
+        //MD: 768-991
+        //LG: 992-1199
+        //XL: 1200+
 
-			// GPT slots
-			var gptAdSlots = [];
+        var mapping01 = googletag
+          .sizeMapping()
+          .addSize([768, 200], [300, 100]) //MD and Up
+          .addSize([0, 0], [320, 50]) //XS-SM Only
+          .build()
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan20_LRC-Broadcast_Live_StaticTop_1",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan20_1"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan20_LRC-Broadcast_Live_StaticTop_2",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan20_2"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan20_LRC-Broadcast_Live_StaticTop_3",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan20_3"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan20_LRC-Broadcast_Live_StaticTop_4",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan20_4"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_1",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan21_1"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_2",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan21_2"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_3",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan21_3"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_4",
+              [
+                [300, 100],
+                [320, 50],
+              ],
+              "dfp_plan21_4"
+            )
+            .defineSizeMapping(mapping01)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
 
-			googletag.cmd.push(function()
-			{
-				//XS: 0-575
-				//SM: 576-767
-				//MD: 768-991
-				//LG: 992-1199
-				//XL: 1200+
+        var mapping02 = googletag
+          .sizeMapping()
+          .addSize([0, 0], [300, 250]) //XS-XL
+          .build()
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan22_LRC-Broadcast_Live_UnderChat_1",
+              [300, 250],
+              "dfp_plan22_1"
+            )
+            .defineSizeMapping(mapping02)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
 
-				var mapping01 = googletag.sizeMapping().
-					addSize([768, 200], [300, 100]). //MD and Up
-					addSize([0, 0], [320, 50]). //XS-SM Only
-					build();
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan20_LRC-Broadcast_Live_StaticTop_1', [[300, 100], [320, 50]], 'dfp_plan20_1').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan20_LRC-Broadcast_Live_StaticTop_2', [[300, 100], [320, 50]], 'dfp_plan20_2').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan20_LRC-Broadcast_Live_StaticTop_3', [[300, 100], [320, 50]], 'dfp_plan20_3').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan20_LRC-Broadcast_Live_StaticTop_4', [[300, 100], [320, 50]], 'dfp_plan20_4').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_1', [[300, 100], [320, 50]], 'dfp_plan21_1').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_2', [[300, 100], [320, 50]], 'dfp_plan21_2').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_3', [[300, 100], [320, 50]], 'dfp_plan21_3').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan21_LRC-Broadcast_All_HeaderFooter_4', [[300, 100], [320, 50]], 'dfp_plan21_4').defineSizeMapping(mapping01).setCollapseEmptyDiv(false).addService(googletag.pubads()));
+        var mapping03 = googletag
+          .sizeMapping()
+          .addSize([768, 200], [468, 60]) //MD and Up
+          .addSize([0, 0], [234, 60]) //XS-SM Only
+          .build()
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/Plan23_LRC-Broadcast_All_BetweenSections_1",
+              [
+                [468, 60],
+                [234, 60],
+              ],
+              "dfp_plan23_1"
+            )
+            .defineSizeMapping(mapping03)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
 
-				var mapping02 = googletag.sizeMapping().
-					addSize([0, 0], [300, 250]). //XS-XL
-					build();
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan22_LRC-Broadcast_Live_UnderChat_1', [300, 250], 'dfp_plan22_1').defineSizeMapping(mapping02).setCollapseEmptyDiv(false).addService(googletag.pubads()));
+        var mapping04 = googletag
+          .sizeMapping()
+          .addSize([0, 0], [320, 50]) //XS and Up
+          .build()
+        gptAdSlots.push(
+          googletag
+            .defineSlot("/11443268/2017_worlds_title_1", [[320, 50]], "2017_worlds_title_1")
+            .defineSizeMapping(mapping04)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
+        gptAdSlots.push(
+          googletag
+            .defineSlot(
+              "/11443268/2017_worlds_supporting_1",
+              [[320, 50]],
+              "2017_worlds_supporting_1"
+            )
+            .defineSizeMapping(mapping04)
+            .setCollapseEmptyDiv(false)
+            .addService(googletag.pubads())
+        )
 
+        googletag.pubads().enableSingleRequest()
+        googletag.pubads().collapseEmptyDivs(false)
+        googletag.enableServices()
+      })
 
-				var mapping03 = googletag.sizeMapping().
-					addSize([768, 200], [468, 60]). //MD and Up
-					addSize([0, 0], [234, 60]). //XS-SM Only
-					build();
-				gptAdSlots.push(googletag.defineSlot('/11443268/Plan23_LRC-Broadcast_All_BetweenSections_1', [[468, 60], [234, 60]], 'dfp_plan23_1').defineSizeMapping(mapping03).setCollapseEmptyDiv(false).addService(googletag.pubads()));
+      //reload ads every 2 minutes
+      setInterval(function () {
+        googletag.pubads().refresh(gptAdSlots)
+        return false
+      }, 120000)
+    </script>
 
-				var mapping04 = googletag.sizeMapping().
-					addSize([0, 0], [320, 50]). //XS and Up
-					build();
-				gptAdSlots.push(googletag.defineSlot('/11443268/2017_worlds_title_1', [[320, 50]], '2017_worlds_title_1').defineSizeMapping(mapping04).setCollapseEmptyDiv(false).addService(googletag.pubads()));
-				gptAdSlots.push(googletag.defineSlot('/11443268/2017_worlds_supporting_1', [[320, 50]], '2017_worlds_supporting_1').defineSizeMapping(mapping04).setCollapseEmptyDiv(false).addService(googletag.pubads()));
+    <script type="text/javascript">
+      var domain = "liverc.com"
+    </script>
+  </head>
 
-				googletag.pubads().enableSingleRequest();
-				googletag.pubads().collapseEmptyDivs(false);
-				googletag.enableServices();
-			});
+  <body>
+    <!-- Google Analytics -->
+    <script>
+      ;(function (i, s, o, g, r, a, m) {
+        i["GoogleAnalyticsObject"] = r
+        ;((i[r] =
+          i[r] ||
+          function () {
+            ;(i[r].q = i[r].q || []).push(arguments)
+          }),
+          (i[r].l = 1 * new Date()))
+        ;((a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]))
+        a.async = 1
+        a.src = g
+        m.parentNode.insertBefore(a, m)
+      })(window, document, "script", "https://www.google-analytics.com/analytics.js", "ga")
+      ga("create", "UA-1197341-1", "auto")
+      ga("send", "pageview")
+    </script>
 
-			//reload ads every 2 minutes
-			setInterval(function()
-			{
-				googletag.pubads().refresh(gptAdSlots);
-				return false;
-			}, 120000);
-		</script>
+    <div id="fb-root"></div>
+    <script>
+      ;(function (d, s, id) {
+        var js,
+          fjs = d.getElementsByTagName(s)[0]
+        if (d.getElementById(id)) return
+        js = d.createElement(s)
+        js.id = id
+        js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.6&appId=15495375246"
+        fjs.parentNode.insertBefore(js, fjs)
+      })(document, "script", "facebook-jssdk")
+    </script>
 
-		<script type="text/javascript">
-			var domain = 'liverc.com';
-		</script>
-	</head>
+    <!-- Current User -->
+    <pre class="hidden" id="user_profile_data">false</pre>
 
-	<body>
+    <!-- Wrapper -->
+    <div id="wrapper">
+      <!-- Navigation -->
+      <nav
+        class="navbar navbar-default navbar-static-top"
+        role="navigation"
+        style="margin-bottom: 0"
+      >
+        <div class="navbar-header fixed">
+          <a class="navbar-brand" href="/"><div id="LRC-logo"></div></a>
 
-		<!-- Google Analytics -->
-		<script>
-			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-			(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-			m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-			})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-			ga('create', 'UA-1197341-1', 'auto');
-			ga('send', 'pageview');
-		</script>
+          <button
+            type="button"
+            class="navbar-toggle"
+            data-toggle="collapse"
+            data-target=".navbar-collapse"
+          >
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
 
-		<div id="fb-root"></div>
-		<script>
-			(function(d, s, id) {
-				var js, fjs = d.getElementsByTagName(s)[0];
-				if (d.getElementById(id)) return;
-				js = d.createElement(s); js.id = id;
-				js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.6&appId=15495375246";
-				fjs.parentNode.insertBefore(js, fjs);
-			}(document, 'script', 'facebook-jssdk'));
-		</script>
-
-		<!-- Current User -->
-		<pre class="hidden" id="user_profile_data">false</pre>
-
-		<!-- Wrapper -->
-		<div id="wrapper">
-
-			<!-- Navigation -->
-			<nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0;">
-				<div class="navbar-header fixed">
-					<a class="navbar-brand" href="/"><div id="LRC-logo"></div></a>
-
-						<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-							<span class="sr-only">Toggle navigation</span>
-							<span class="icon-bar"></span>
-							<span class="icon-bar"></span>
-							<span class="icon-bar"></span>
-						</button>
-
-												<ul class="nav navbar-top-links navbar-right">
-
-							<!--
+          <ul class="nav navbar-top-links navbar-right">
+            <!--
 							<li class="dropdown">
 								<a class="dropdown-toggle" data-toggle="dropdown" href="#"><i class="fa fa-calendar fa-fw"></i><i class="fa fa-caret-down"></i></a>
 								<ul class="dropdown-menu dropdown-messages" id="event_calendar">
@@ -161,7 +349,7 @@
 							</li>
 							-->
 
-							<!--
+            <!--
 							<li class="dropdown">
 								<a class="dropdown-toggle" data-toggle="dropdown" href="#"><i class="fa fa-edit fa-fw"></i><i class="fa fa-caret-down"></i></a>
 								<ul class="dropdown-menu dropdown-messages" id="news_blurbs">
@@ -172,24 +360,28 @@
 							</li>
 							-->
 
+            <li class="dropdown">
+              <a class="dropdown-toggle" data-toggle="dropdown" href="#"
+                ><i class="fa fa-user fa-fw"></i> <i class="fa fa-caret-down"></i
+              ></a>
+              <ul class="dropdown-menu dropdown-user">
+                <li>
+                  <a href="https://www.liverc.com/signup/" target="_blank"
+                    ><i class="fa fa-user fa-fw"></i> Register</a
+                  >
+                </li>
+                <li>
+                  <a href="#" id="menu_log_in"><i class="fa fa-sign-in fa-fw"></i> Log In</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
 
-							<li class="dropdown">
-								<a class="dropdown-toggle" data-toggle="dropdown" href="#"><i class="fa fa-user fa-fw"></i> <i class="fa fa-caret-down"></i></a>
-								<ul class="dropdown-menu dropdown-user">
-																			<li><a href="https://www.liverc.com/signup/" target="_blank"><i class="fa fa-user fa-fw"></i> Register</a></li>
-										<li><a href="#" id="menu_log_in"><i class="fa fa-sign-in fa-fw"></i> Log In</a></li>
-																	</ul>
-							</li>
-
-						</ul>
-
-				</div>
-
-				<div class="navbar-default sidebar" role="navigation">
-	<div class="sidebar-nav navbar-collapse collapse">
-		<ul class="nav" id="side-menu">
-
-			<!--
+        <div class="navbar-default sidebar" role="navigation">
+          <div class="sidebar-nav navbar-collapse collapse">
+            <ul class="nav" id="side-menu">
+              <!--
 			<li class="sidebar-search">
 				<form action="/drivers/" method="get">
 					<div class="input-group custom-search-form">
@@ -200,298 +392,355 @@
 			</li>
 			-->
 
-			<li>
-				<div style="display: table-cell; width: 1%">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-			</li>
+              <li>
+                <div style="display: table-cell; width: 1%">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+              </li>
 
-						<li><a href="//live.liverc.com"><i class="fa fa-road fa-fw"></i> Switch Tracks</a></li>
+              <li>
+                <a href="//live.liverc.com"><i class="fa fa-road fa-fw"></i> Switch Tracks</a>
+              </li>
 
+              <li>
+                <a href="/"><i class="fa fa-dashboard fa-fw"></i> Track Dashboard</a>
+              </li>
 
-				<li><a href="/"><i class="fa fa-dashboard fa-fw"></i> Track Dashboard</a></li>
+              <li>
+                <a href="/live/"><i class="fa fa-hourglass fa-fw"></i> Watch Live</a>
+              </li>
 
-				<li><a href="/live/"><i class="fa fa-hourglass fa-fw"></i> Watch Live</a></li>
+              <li>
+                <a href="/results/"><i class="fa fa-list-ol fa-fw"></i> Race Results</a>
+              </li>
 
-				<li><a href="/results/"><i class="fa fa-list-ol fa-fw"></i> Race Results</a></li>
+              <!--<li><a href="/events/"><i class="fa fa-calendar fa-fw"></i> Past Events</a></li>-->
+              <li>
+                <a href="/practice/"><i class="fa fa-clock-o fa-fw"></i> Practice Times</a>
+              </li>
 
-				<!--<li><a href="/events/"><i class="fa fa-calendar fa-fw"></i> Past Events</a></li>-->
-								<li><a href="/practice/"><i class="fa fa-clock-o fa-fw"></i> Practice Times</a></li>
-
-				<li><a href="/track_map/"><i class="fa fa-globe fa-fw"></i> Live Track Map</a></li>
-								<!--
+              <li>
+                <a href="/track_map/"><i class="fa fa-globe fa-fw"></i> Live Track Map</a>
+              </li>
+              <!--
 				<li><a href="/videos/"><i class="fa fa-video-camera fa-fw"></i> Videos</a></li>
 
 				<li><a href="/drivers/"><i class="fa fa-male fa-fw"></i> Drivers</a></li>
 				-->
 
-			<li><a href="https://www.livetimescoring.com" target="_blank"><i class="fa fa-download fa-fw"></i> Get LiveTime</a></li>
+              <li>
+                <a href="https://www.livetimescoring.com" target="_blank"
+                  ><i class="fa fa-download fa-fw"></i> Get LiveTime</a
+                >
+              </li>
 
-			<li><a href="https://www.livetimescoring.com/mylaps/" target="_blank"><i class="fa fa-shopping-cart fa-fw"></i> Buy Transponders</a></li>
+              <li>
+                <a href="https://www.livetimescoring.com/mylaps/" target="_blank"
+                  ><i class="fa fa-shopping-cart fa-fw"></i> Buy Transponders</a
+                >
+              </li>
+            </ul>
 
-		</ul>
+            <!-- Powered By LiveTime -->
+            <a href="https://www.livetimescoring.com" target="_blank">
+              <div id="powered_by_livetime">
+                <div class="txt">Data Powered By</div>
+                <div class="logo">
+                  <img src="//assets.liveracemedia.com/images/logos/livetime_powered_by.png" />
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
 
-		<!-- Powered By LiveTime -->
-		<a href="https://www.livetimescoring.com" target="_blank">
-			<div id="powered_by_livetime">
-				<div class="txt">Data Powered By</div>
-				<div class="logo"><img src="//assets.liveracemedia.com/images/logos/livetime_powered_by.png"></div>
-			</div>
-		</a>
-	</div>
+        <!--<div class="navbar-quicklinks hidden-sm hidden-md hidden-lg hidden-xl">-->
+        <div class="navbar-quicklinks">
+          <ul class="list-inline">
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="//live.liverc.com"
+                ><i style="font-size: 1.75em" class="fa fa-road fa-fw"></i>
+                <div style="font-size: 0.85em">Tracks</div></a
+              >
+            </li>
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/"
+                ><i style="font-size: 1.75em" class="fa fa-dashboard fa-fw"></i>
+                <div style="font-size: 0.85em">Dashboard</div></a
+              >
+            </li>
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/live/"
+                ><i style="font-size: 1.75em" class="fa fa-hourglass fa-fw"></i>
+                <div style="font-size: 0.85em">Live</div></a
+              >
+            </li>
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/results/"
+                ><i style="font-size: 1.75em" class="fa fa-list-ol fa-fw"></i>
+                <div style="font-size: 0.85em">Results</div></a
+              >
+            </li>
+            <!--<li><a style="padding-top:5px; padding-bottom:0px" href="/events/"><i style="font-size:1.75em" class="fa fa-calendar fa-fw"></i><div style="font-size:0.85em">Events</div></a></li>-->
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/practice/"
+                ><i style="font-size: 1.75em" class="fa fa-clock-o fa-fw"></i>
+                <div style="font-size: 0.85em">Practice</div></a
+              >
+            </li>
+            <li>
+              <a style="padding-top: 5px; padding-bottom: 0px" href="/track_map/"
+                ><i style="font-size: 1.75em" class="fa fa-globe fa-fw"></i>
+                <div style="font-size: 0.85em">Track Map</div></a
+              >
+            </li>
+          </ul>
+        </div>
+      </nav>
 
-	</div>
+      <div id="page-wrapper">
+        <script>
+          $(document).ready(function () {
+            $(".practice_session_list").DataTable({
+              responsive: true,
+              paging: true,
+              pageLength: 25,
+              filter: true,
+              sort: $(window).width() > 500 ? true : false,
+              order: [[1, "desc"]],
+              info: false,
+            })
+          })
+        </script>
 
-									<!--<div class="navbar-quicklinks hidden-sm hidden-md hidden-lg hidden-xl">-->
-					<div class="navbar-quicklinks">
-						<ul class="list-inline">
-															<li><a style="padding-top:5px; padding-bottom:0px" href="//live.liverc.com"><i style="font-size:1.75em" class="fa fa-road fa-fw"></i><div style="font-size:0.85em">Tracks</div></a></li>
-														<li><a style="padding-top:5px; padding-bottom:0px" href="/"><i style="font-size:1.75em" class="fa fa-dashboard fa-fw"></i><div style="font-size:0.85em">Dashboard</div></a></li>
-							<li><a style="padding-top:5px; padding-bottom:0px" href="/live/"><i style="font-size:1.75em" class="fa fa-hourglass fa-fw"></i><div style="font-size:0.85em">Live</div></a></li>
-							<li><a style="padding-top:5px; padding-bottom:0px" href="/results/"><i style="font-size:1.75em" class="fa fa-list-ol fa-fw"></i><div style="font-size:0.85em">Results</div></a></li>
-							<!--<li><a style="padding-top:5px; padding-bottom:0px" href="/events/"><i style="font-size:1.75em" class="fa fa-calendar fa-fw"></i><div style="font-size:0.85em">Events</div></a></li>-->
-															<li><a style="padding-top:5px; padding-bottom:0px" href="/practice/"><i style="font-size:1.75em" class="fa fa-clock-o fa-fw"></i><div style="font-size:0.85em">Practice</div></a></li>
-								<li><a style="padding-top:5px; padding-bottom:0px" href="/track_map/"><i style="font-size:1.75em" class="fa fa-globe fa-fw"></i><div style="font-size:0.85em">Track Map</div></a></li>
-													</ul>
-					</div>
+        <div class="row page-breadcrumb">
+          <div class="col-lg-12">
+            <h1 class="page-header">
+              <span class="fa fa-road"></span> Canberra Off Road Model Car Club
+            </h1>
+            <h3 class="page-header"><span class="fa fa-clock-o"></span> Practice Sessions</h3>
+          </div>
+        </div>
 
-			</nav>
+        <div class="row">
+          <div class="col-lg-4">
+            <div class="panel panel-default">
+              <div class="panel-heading">
+                <i class="fa fa-calendar fa-fw"></i> Practice Dates for October 2025
+              </div>
+              <div class="panel-body no_padding">
+                <p class="form-inline padding_container">
+                  Select different month:
+                  <select id="available_session_months" class="form-control input-sm">
+                    <option value="2026-01">January 2026</option>
+                    <option value="2025-11">November 2025</option>
+                    <option value="2025-10" selected="selected">October 2025</option>
+                    <option value="2025-09">September 2025</option>
+                    <option value="2025-08">August 2025</option>
+                    <option value="2025-07">July 2025</option>
+                    <option value="2025-06">June 2025</option>
+                    <option value="2025-05">May 2025</option>
+                    <option value="2025-04">April 2025</option>
+                    <option value="2025-03">March 2025</option>
+                    <option value="2024-11">November 2024</option>
+                    <option value="2024-10">October 2024</option>
+                    <option value="2024-09">September 2024</option>
+                    <option value="2024-08">August 2024</option>
+                    <option value="2024-07">July 2024</option>
+                    <option value="2024-06">June 2024</option>
+                    <option value="2024-05">May 2024</option>
+                    <option value="2024-04">April 2024</option>
+                    <option value="2024-03">March 2024</option>
+                    <option value="2024-02">February 2024</option>
+                    <option value="2024-01">January 2024</option>
+                    <option value="2023-11">November 2023</option>
+                    <option value="2023-10">October 2023</option>
+                    <option value="2023-09">September 2023</option>
+                    <option value="2023-08">August 2023</option>
+                    <option value="2023-07">July 2023</option>
+                    <option value="2023-04">April 2023</option>
+                    <option value="2023-03">March 2023</option>
+                    <option value="2023-02">February 2023</option>
+                    <option value="2023-01">January 2023</option>
+                    <option value="2022-12">December 2022</option>
+                    <option value="2022-11">November 2022</option>
+                    <option value="2022-10">October 2022</option>
+                    <option value="2022-09">September 2022</option>
+                    <option value="2022-07">July 2022</option>
+                    <option value="2022-06">June 2022</option>
+                    <option value="2022-04">April 2022</option>
+                    <option value="2022-03">March 2022</option>
+                    <option value="2022-02">February 2022</option>
+                    <option value="2022-01">January 2022</option>
+                    <option value="2021-12">December 2021</option>
+                    <option value="2021-10">October 2021</option>
+                    <option value="2021-08">August 2021</option>
+                    <option value="2021-07">July 2021</option>
+                    <option value="2021-06">June 2021</option>
+                    <option value="2021-05">May 2021</option>
+                    <option value="2021-04">April 2021</option>
+                    <option value="2021-03">March 2021</option>
+                    <option value="2021-02">February 2021</option>
+                    <option value="2021-01">January 2021</option>
+                    <option value="2020-12">December 2020</option>
+                    <option value="2020-11">November 2020</option>
+                    <option value="2020-10">October 2020</option>
+                    <option value="2020-09">September 2020</option>
+                    <option value="2020-08">August 2020</option>
+                    <option value="2020-07">July 2020</option>
+                    <option value="2020-06">June 2020</option>
+                    <option value="2020-05">May 2020</option>
+                    <option value="2020-03">March 2020</option>
+                    <option value="2020-02">February 2020</option>
+                    <option value="2020-01">January 2020</option>
+                    <option value="2019-12">December 2019</option>
+                    <option value="2019-11">November 2019</option>
+                    <option value="2019-10">October 2019</option>
+                    <option value="2019-09">September 2019</option>
+                    <option value="2019-08">August 2019</option>
+                    <option value="2019-07">July 2019</option>
+                    <option value="2019-06">June 2019</option>
+                    <option value="2019-05">May 2019</option>
+                    <option value="2019-04">April 2019</option>
+                    <option value="2019-03">March 2019</option>
+                    <option value="2019-02">February 2019</option>
+                    <option value="2019-01">January 2019</option>
+                    <option value="2018-11">November 2018</option>
+                    <option value="2018-10">October 2018</option>
+                    <option value="2018-09">September 2018</option>
+                    <option value="2018-08">August 2018</option>
+                    <option value="2018-07">July 2018</option>
+                    <option value="2018-06">June 2018</option>
+                    <option value="2018-05">May 2018</option>
+                    <option value="2018-04">April 2018</option>
+                    <option value="2018-03">March 2018</option>
+                    <option value="2018-02">February 2018</option>
+                    <option value="2018-01">January 2018</option>
+                    <option value="2017-12">December 2017</option>
+                    <option value="2017-11">November 2017</option>
+                    <option value="2017-10">October 2017</option>
+                    <option value="2017-09">September 2017</option>
+                  </select>
+                </p>
 
-			<div id="page-wrapper">
+                <table class="table">
+                  <tbody>
+                    <tr>
+                      <th>Date</th>
+                      <th># Sessions</th>
+                    </tr>
+                    <tr>
+                      <td>
+                        <a href="/practice/?p=session_list&d=2025-10-25">Sat, Oct 25, 2025</a>
+                      </td>
+                      <td><a href="/practice/?p=session_list&d=2025-10-25">56</a></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <a href="/practice/?p=session_list&d=2025-10-12">Sun, Oct 12, 2025</a>
+                      </td>
+                      <td><a href="/practice/?p=session_list&d=2025-10-12">2</a></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <a href="/practice/?p=session_list&d=2025-10-11">Sat, Oct 11, 2025</a>
+                      </td>
+                      <td><a href="/practice/?p=session_list&d=2025-10-11">13</a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
 
+          <div class="col-lg-8">
+            <div class="panel panel-default">
+              <div class="panel-heading">
+                <i class="fa fa-clock-o fa-fw"></i> Practice Sessions on January 12, 2026 (Monday)
+              </div>
+              <div class="panel-body no_padding">
+                There are no practice sessions available for the given date.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /#page-wrapper -->
+    </div>
+    <!-- /#wrapper -->
 
-								<script>
-	$(document).ready(function()
-	{
-		$('.practice_session_list').DataTable(
-		{
-			'responsive': true,
-			'paging': true,
-			'pageLength': 25,
-			'filter': true,
-			'sort': ($(window).width() > 500 ? true : false),
-			'order': [[ 1, 'desc' ]],
-			'info': false
-		});
-	});
-</script>
+    <!-- Modals -->
+    <div id="modals"></div>
 
-<div class="row page-breadcrumb">
-	<div class="col-lg-12">
-		<h1 class="page-header"><span class="fa fa-road"></span> Canberra Off Road Model Car Club</h1>
-		<h3 class="page-header"><span class="fa fa-clock-o"></span> Practice Sessions</h3>
-	</div>
-</div>
+    <!-- Loading interface screen -->
+    <div id="loading_overlay">
+      <div id="user_status_modal" class="modal show" role="dialog">
+        <div class="vertical-alignment-helper">
+          <div class="modal-dialog vertical-align-center">
+            <div class="modal-content">
+              <div class="modal-body text-center">
+                <p>
+                  <img
+                    src="//assets.liveracemedia.com/images/logos/liveracemedia_primary_logo.png"
+                    width="250"
+                  />
+                </p>
+                <p><img src="//assets.liveracemedia.com/images/static/loading.svg" width="75" /></p>
+                <p><strong>LOADING INTERFACE...</strong></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<div class="row">
+    <!-- Loading interface screen -->
+    <div id="fly_in_bg"></div>
+    <div id="fly_in">
+      <div class="content">
+        <div class="close_fly_in">close X</div>
+        <div class="ad"></div>
+      </div>
+    </div>
 
-	<div class="col-lg-4">
+    <!-- JavaScript Files -->
+    <script src="/js/global/global.default.min.js?1160"></script>
+    <script src="/js/global/global.content_page.min.js?1160"></script>
+    <script src="/js/user/user.default.min.js?1160"></script>
+    <script src="/vendor/js-cookie/js-cookie.js?1160"></script>
 
-		<div class="panel panel-default">
-			<div class="panel-heading"><i class="fa fa-calendar fa-fw"></i> Practice Dates for October 2025</div>
-			<div class="panel-body no_padding">
+    <script type="text/javascript" src="/js/practice/practice.calendar.min.js?1160"></script>
+    <script
+      type="text/javascript"
+      src="/vendor/datatables/js/jquery.dataTables.min.js?1160"
+    ></script>
+    <script
+      type="text/javascript"
+      src="/vendor/datatables-plugins/dataTables.bootstrap.min.js?1160"
+    ></script>
+    <script
+      type="text/javascript"
+      src="/vendor/datatables-responsive/dataTables.responsive.js?1160"
+    ></script>
+    <script type="text/javascript" src="/vendor/flot/jquery.flot.js?1160"></script>
+    <script type="text/javascript" src="/vendor/flot/jquery.flot.pie.js?1160"></script>
+    <script type="text/javascript" src="/vendor/flot/jquery.flot.resize.js?1160"></script>
+    <script
+      type="text/javascript"
+      src="/vendor/flot-tooltip/jquery.flot.tooltip.min.js?1160"
+    ></script>
 
-				<p class="form-inline padding_container">
-					Select different month:
-					<select id="available_session_months" class="form-control input-sm">
-													<option value="2026-01">January 2026</option>
-													<option value="2025-11">November 2025</option>
-													<option value="2025-10" selected="selected">October 2025</option>
-													<option value="2025-09">September 2025</option>
-													<option value="2025-08">August 2025</option>
-													<option value="2025-07">July 2025</option>
-													<option value="2025-06">June 2025</option>
-													<option value="2025-05">May 2025</option>
-													<option value="2025-04">April 2025</option>
-													<option value="2025-03">March 2025</option>
-													<option value="2024-11">November 2024</option>
-													<option value="2024-10">October 2024</option>
-													<option value="2024-09">September 2024</option>
-													<option value="2024-08">August 2024</option>
-													<option value="2024-07">July 2024</option>
-													<option value="2024-06">June 2024</option>
-													<option value="2024-05">May 2024</option>
-													<option value="2024-04">April 2024</option>
-													<option value="2024-03">March 2024</option>
-													<option value="2024-02">February 2024</option>
-													<option value="2024-01">January 2024</option>
-													<option value="2023-11">November 2023</option>
-													<option value="2023-10">October 2023</option>
-													<option value="2023-09">September 2023</option>
-													<option value="2023-08">August 2023</option>
-													<option value="2023-07">July 2023</option>
-													<option value="2023-04">April 2023</option>
-													<option value="2023-03">March 2023</option>
-													<option value="2023-02">February 2023</option>
-													<option value="2023-01">January 2023</option>
-													<option value="2022-12">December 2022</option>
-													<option value="2022-11">November 2022</option>
-													<option value="2022-10">October 2022</option>
-													<option value="2022-09">September 2022</option>
-													<option value="2022-07">July 2022</option>
-													<option value="2022-06">June 2022</option>
-													<option value="2022-04">April 2022</option>
-													<option value="2022-03">March 2022</option>
-													<option value="2022-02">February 2022</option>
-													<option value="2022-01">January 2022</option>
-													<option value="2021-12">December 2021</option>
-													<option value="2021-10">October 2021</option>
-													<option value="2021-08">August 2021</option>
-													<option value="2021-07">July 2021</option>
-													<option value="2021-06">June 2021</option>
-													<option value="2021-05">May 2021</option>
-													<option value="2021-04">April 2021</option>
-													<option value="2021-03">March 2021</option>
-													<option value="2021-02">February 2021</option>
-													<option value="2021-01">January 2021</option>
-													<option value="2020-12">December 2020</option>
-													<option value="2020-11">November 2020</option>
-													<option value="2020-10">October 2020</option>
-													<option value="2020-09">September 2020</option>
-													<option value="2020-08">August 2020</option>
-													<option value="2020-07">July 2020</option>
-													<option value="2020-06">June 2020</option>
-													<option value="2020-05">May 2020</option>
-													<option value="2020-03">March 2020</option>
-													<option value="2020-02">February 2020</option>
-													<option value="2020-01">January 2020</option>
-													<option value="2019-12">December 2019</option>
-													<option value="2019-11">November 2019</option>
-													<option value="2019-10">October 2019</option>
-													<option value="2019-09">September 2019</option>
-													<option value="2019-08">August 2019</option>
-													<option value="2019-07">July 2019</option>
-													<option value="2019-06">June 2019</option>
-													<option value="2019-05">May 2019</option>
-													<option value="2019-04">April 2019</option>
-													<option value="2019-03">March 2019</option>
-													<option value="2019-02">February 2019</option>
-													<option value="2019-01">January 2019</option>
-													<option value="2018-11">November 2018</option>
-													<option value="2018-10">October 2018</option>
-													<option value="2018-09">September 2018</option>
-													<option value="2018-08">August 2018</option>
-													<option value="2018-07">July 2018</option>
-													<option value="2018-06">June 2018</option>
-													<option value="2018-05">May 2018</option>
-													<option value="2018-04">April 2018</option>
-													<option value="2018-03">March 2018</option>
-													<option value="2018-02">February 2018</option>
-													<option value="2018-01">January 2018</option>
-													<option value="2017-12">December 2017</option>
-													<option value="2017-11">November 2017</option>
-													<option value="2017-10">October 2017</option>
-													<option value="2017-09">September 2017</option>
-											</select>
-				</p>
+    <!-- Bootstrap Core JavaScript -->
+    <script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
 
-									<table class="table">
-						<tbody>
-							<tr>
-								<th>Date</th>
-								<th># Sessions</th>
-							</tr>
-															<tr>
-									<td><a href="/practice/?p=session_list&d=2025-10-25">Sat, Oct 25, 2025</a></td>
-									<td><a href="/practice/?p=session_list&d=2025-10-25">56</a></td>
-								</tr>
-															<tr>
-									<td><a href="/practice/?p=session_list&d=2025-10-12">Sun, Oct 12, 2025</a></td>
-									<td><a href="/practice/?p=session_list&d=2025-10-12">2</a></td>
-								</tr>
-															<tr>
-									<td><a href="/practice/?p=session_list&d=2025-10-11">Sat, Oct 11, 2025</a></td>
-									<td><a href="/practice/?p=session_list&d=2025-10-11">13</a></td>
-								</tr>
-													</tbody>
-					</table>
+    <!-- Metis Menu Plugin JavaScript -->
+    <script src="/vendor/metisMenu/metisMenu.min.js"></script>
 
-			</div>
-		</div>
+    <!-- Custom Theme JavaScript -->
+    <script src="/vendor/sb-admin-2/js/sb-admin-2.js"></script>
 
-	</div>
+    <!-- Google reCAPTCHA -->
+    <script src="//www.google.com/recaptcha/api.js?render=explicit"></script>
 
-	<div class="col-lg-8">
-
-		<div class="panel panel-default">
-	<div class="panel-heading"><i class="fa fa-clock-o fa-fw"></i> Practice Sessions on January 12, 2026 (Monday)</div>
-	<div class="panel-body no_padding">
-
-
-					There are no practice sessions available for the given date.
-
-	</div>
-</div>
-
-	</div>
-
-</div>
-
-
-			</div>
-			<!-- /#page-wrapper -->
-
-		</div>
-		<!-- /#wrapper -->
-
-
-		<!-- Modals -->
-		<div id="modals"></div>
-
-		<!-- Loading interface screen -->
-		<div id="loading_overlay">
-			<div id="user_status_modal" class="modal show" role="dialog">
-				<div class="vertical-alignment-helper">
-					<div class="modal-dialog vertical-align-center">
-						<div class="modal-content">
-							<div class="modal-body text-center">
-								<p><img src="//assets.liveracemedia.com/images/logos/liveracemedia_primary_logo.png" width="250" /></p>
-								<p><img src="//assets.liveracemedia.com/images/static/loading.svg" width="75" /></p>
-								<p><strong>LOADING INTERFACE...</strong></p>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<!-- Loading interface screen -->
-		<div id="fly_in_bg"></div>
-		<div id="fly_in">
-			<div class="content">
-				<div class="close_fly_in">close X</div>
-				<div class="ad"></div>
-			</div>
-		</div>
-
-		<!-- JavaScript Files -->
-		<script src="/js/global/global.default.min.js?1160"></script>
-		<script src="/js/global/global.content_page.min.js?1160"></script>
-		<script src="/js/user/user.default.min.js?1160"></script>
-		<script src="/vendor/js-cookie/js-cookie.js?1160"></script>
-
-					<script type="text/javascript" src="/js/practice/practice.calendar.min.js?1160"></script>
-					<script type="text/javascript" src="/vendor/datatables/js/jquery.dataTables.min.js?1160"></script>
-					<script type="text/javascript" src="/vendor/datatables-plugins/dataTables.bootstrap.min.js?1160"></script>
-					<script type="text/javascript" src="/vendor/datatables-responsive/dataTables.responsive.js?1160"></script>
-					<script type="text/javascript" src="/vendor/flot/jquery.flot.js?1160"></script>
-					<script type="text/javascript" src="/vendor/flot/jquery.flot.pie.js?1160"></script>
-					<script type="text/javascript" src="/vendor/flot/jquery.flot.resize.js?1160"></script>
-					<script type="text/javascript" src="/vendor/flot-tooltip/jquery.flot.tooltip.min.js?1160"></script>
-
-		<!-- Bootstrap Core JavaScript -->
-		<script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
-
-		<!-- Metis Menu Plugin JavaScript -->
-		<script src="/vendor/metisMenu/metisMenu.min.js"></script>
-
-		<!-- Custom Theme JavaScript -->
-		<script src="/vendor/sb-admin-2/js/sb-admin-2.js"></script>
-
-		<!-- Google reCAPTCHA -->
-		<script src="//www.google.com/recaptcha/api.js?render=explicit"></script>
-
-		<script>
-			var showFlyInBox = false;
-		</script>
-
-	</body>
+    <script>
+      var showFlyInBox = false
+    </script>
+  </body>
 </html>

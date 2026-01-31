@@ -1,18 +1,18 @@
 /**
  * @fileoverview User login API endpoint (v1)
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Handles POST requests for user authentication
- * 
+ *
  * @purpose This API route processes user login requests. It follows the
  *          mobile-safe architecture pattern: the route only handles HTTP concerns
  *          (request parsing, response formatting) and delegates all business logic
  *          to src/core/auth/login.ts. This ensures the authentication logic can
  *          be reused by mobile clients and follows the API-first architecture.
- * 
+ *
  * @relatedFiles
  * - src/core/auth/login.ts (authentication business logic)
  * - src/lib/api-utils.ts (response helpers)
@@ -28,22 +28,22 @@ import { handleApiError } from "@/lib/server-error-handler"
 
 /**
  * POST /api/v1/auth/login
- * 
+ *
  * Authenticates a user with email and password
- * 
+ *
  * Request body:
  * {
  *   email: string
  *   password: string
  * }
- * 
+ *
  * Response (success):
  * {
  *   success: true,
  *   data: { user: {...} },
  *   message: "Login successful"
  * }
- * 
+ *
  * Response (error):
  * {
  *   success: false,
@@ -89,12 +89,7 @@ export async function POST(request: NextRequest) {
 
     // Validate request body structure
     if (!body.email || !body.password) {
-      return errorResponse(
-        "VALIDATION_ERROR",
-        "Email and password are required",
-        undefined,
-        400
-      )
+      return errorResponse("VALIDATION_ERROR", "Email and password are required", undefined, 400)
     }
 
     // Delegate all business logic to core function
@@ -106,33 +101,19 @@ export async function POST(request: NextRequest) {
     if (result.success) {
       // Log successful login
       logSuccessfulLogin(result.user.id, body.email, ip, userAgent, requestContext)
-      
-      return successResponse(
-        { user: result.user },
-        200,
-        "Login successful"
-      )
+
+      return successResponse({ user: result.user }, 200, "Login successful")
     } else {
       // Log failed login attempt
       logFailedLogin(body.email, ip, userAgent, result.error.message, requestContext)
-      
+
       // Map core error codes to HTTP status codes
       const statusCode = result.error.code === "INVALID_CREDENTIALS" ? 401 : 400
-      return errorResponse(
-        result.error.code,
-        result.error.message,
-        undefined,
-        statusCode
-      )
+      return errorResponse(result.error.code, result.error.message, undefined, statusCode)
     }
   } catch (error: unknown) {
     // Handle unexpected errors
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

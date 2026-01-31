@@ -51,7 +51,10 @@ export function getVehicleTypeOptions(inferredVehicleType: string | null): strin
   const upper = inferredVehicleType.toUpperCase()
 
   // If inferred "Electric Buggy" - show 1/8 and 1/10 options
-  if (/\bELECTRIC\s+BUGGY\b/i.test(upper) || (/\bBUGGY\b/i.test(upper) && /\bELECTRIC\b/i.test(upper))) {
+  if (
+    /\bELECTRIC\s+BUGGY\b/i.test(upper) ||
+    (/\bBUGGY\b/i.test(upper) && /\bELECTRIC\b/i.test(upper))
+  ) {
     options.add("1/8 Electric Buggy")
     options.add("1/10 2WD Buggy Modified")
     options.add("1/10 2WD Buggy Stock")
@@ -67,7 +70,10 @@ export function getVehicleTypeOptions(inferredVehicleType: string | null): strin
   }
 
   // If inferred "Electric Truck" - show 1/10 options
-  if (/\bELECTRIC\s+TRUCK\b/i.test(upper) || (/\bTRUCK\b/i.test(upper) && /\bELECTRIC\b/i.test(upper))) {
+  if (
+    /\bELECTRIC\s+TRUCK\b/i.test(upper) ||
+    (/\bTRUCK\b/i.test(upper) && /\bELECTRIC\b/i.test(upper))
+  ) {
     options.add("1/10 Electric Truck")
     return Array.from(options).sort()
   }
@@ -143,4 +149,3 @@ export function getAllVehicleTypeOptions(): string[] {
     "1/10 Nitro Truck",
   ]
 }
-

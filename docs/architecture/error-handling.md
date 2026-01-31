@@ -2,14 +2,17 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Comprehensive error handling and error codes catalog for MRE application
-purpose: Provides complete documentation of error handling patterns, error codes, error
-         response formats, and error handling best practices. Ensures consistent error
-         handling across the application and provides clear guidance for developers.
+description:
+  Comprehensive error handling and error codes catalog for MRE application
+purpose:
+  Provides complete documentation of error handling patterns, error codes, error
+  response formats, and error handling best practices. Ensures consistent error
+  handling across the application and provides clear guidance for developers.
 relatedFiles:
   - src/lib/api-utils.ts (error response utilities)
   - docs/architecture/liverc-ingestion/05-api-contracts.md (error shape)
-  - docs/architecture/liverc-ingestion/11-ingestion-error-handling.md (ingestion errors)
+  - docs/architecture/liverc-ingestion/11-ingestion-error-handling.md (ingestion
+    errors)
   - docs/api/api-reference.md (API error documentation)
 ---
 
@@ -18,7 +21,8 @@ relatedFiles:
 **Last Updated:** 2025-01-27  
 **Scope:** All API endpoints and application error handling
 
-This document provides comprehensive documentation of error handling patterns, error codes, and error handling best practices for the MRE application.
+This document provides comprehensive documentation of error handling patterns,
+error codes, and error handling best practices for the MRE application.
 
 ---
 
@@ -81,23 +85,24 @@ All API errors follow a standardized format defined in `src/lib/api-utils.ts`:
 
 ### Application Error Codes
 
-| Error Code | HTTP Status | Description | When to Use |
-|------------|-------------|-------------|-------------|
-| `VALIDATION_ERROR` | 400 | Invalid request parameters or body | Missing required fields, invalid format, type mismatches |
-| `INVALID_INPUT` | 400 | Invalid input data | Input validation failures in business logic |
-| `INVALID_CREDENTIALS` | 401 | Invalid email or password | Authentication failures (prevents user enumeration) |
-| `EMAIL_ALREADY_EXISTS` | 409 | Email is already registered | Duplicate email during registration |
-| `NOT_FOUND` | 404 | Requested resource does not exist | Resource not found by ID or identifier |
-| `INGESTION_IN_PROGRESS` | 409 | Ingestion already running | Concurrent ingestion attempts |
-| `INGESTION_FAILED` | 500 | Ingestion process failed | Ingestion service errors |
-| `EXTERNAL_SERVICE_ERROR` | 502 | External service error | Errors from LiveRC ingestion service |
-| `SERVICE_UNAVAILABLE` | 503 | External service unavailable | Connection errors to ingestion service |
-| `SERVICE_TIMEOUT` | 504 | External service timeout | Timeout errors from ingestion service |
-| `INTERNAL_ERROR` | 500 | Unexpected server error | Unhandled exceptions, system errors |
+| Error Code               | HTTP Status | Description                        | When to Use                                              |
+| ------------------------ | ----------- | ---------------------------------- | -------------------------------------------------------- |
+| `VALIDATION_ERROR`       | 400         | Invalid request parameters or body | Missing required fields, invalid format, type mismatches |
+| `INVALID_INPUT`          | 400         | Invalid input data                 | Input validation failures in business logic              |
+| `INVALID_CREDENTIALS`    | 401         | Invalid email or password          | Authentication failures (prevents user enumeration)      |
+| `EMAIL_ALREADY_EXISTS`   | 409         | Email is already registered        | Duplicate email during registration                      |
+| `NOT_FOUND`              | 404         | Requested resource does not exist  | Resource not found by ID or identifier                   |
+| `INGESTION_IN_PROGRESS`  | 409         | Ingestion already running          | Concurrent ingestion attempts                            |
+| `INGESTION_FAILED`       | 500         | Ingestion process failed           | Ingestion service errors                                 |
+| `EXTERNAL_SERVICE_ERROR` | 502         | External service error             | Errors from LiveRC ingestion service                     |
+| `SERVICE_UNAVAILABLE`    | 503         | External service unavailable       | Connection errors to ingestion service                   |
+| `SERVICE_TIMEOUT`        | 504         | External service timeout           | Timeout errors from ingestion service                    |
+| `INTERNAL_ERROR`         | 500         | Unexpected server error            | Unhandled exceptions, system errors                      |
 
 ### Ingestion-Specific Error Codes
 
-See `docs/architecture/liverc-ingestion/11-ingestion-error-handling.md` for detailed ingestion error codes:
+See `docs/architecture/liverc-ingestion/11-ingestion-error-handling.md` for
+detailed ingestion error codes:
 
 - `ConnectorHTTPError` - HTTP errors from LiveRC
 - `EventPageFormatError` - Malformed event page
@@ -113,19 +118,19 @@ See `docs/architecture/liverc-ingestion/11-ingestion-error-handling.md` for deta
 
 ### Standard Mappings
 
-| Error Code | HTTP Status | Rationale |
-|------------|-------------|------------|
-| `VALIDATION_ERROR` | 400 Bad Request | Client error - invalid input |
-| `INVALID_INPUT` | 400 Bad Request | Client error - invalid input |
-| `INVALID_CREDENTIALS` | 401 Unauthorized | Authentication failure |
-| `NOT_FOUND` | 404 Not Found | Resource doesn't exist |
-| `EMAIL_ALREADY_EXISTS` | 409 Conflict | Resource conflict |
-| `INGESTION_IN_PROGRESS` | 409 Conflict | Operation conflict |
-| `INGESTION_FAILED` | 500 Internal Server Error | Server-side processing error |
-| `EXTERNAL_SERVICE_ERROR` | 502 Bad Gateway | External service error |
-| `SERVICE_UNAVAILABLE` | 503 Service Unavailable | External service connection error |
-| `SERVICE_TIMEOUT` | 504 Gateway Timeout | External service timeout |
-| `INTERNAL_ERROR` | 500 Internal Server Error | Unexpected server error |
+| Error Code               | HTTP Status               | Rationale                         |
+| ------------------------ | ------------------------- | --------------------------------- |
+| `VALIDATION_ERROR`       | 400 Bad Request           | Client error - invalid input      |
+| `INVALID_INPUT`          | 400 Bad Request           | Client error - invalid input      |
+| `INVALID_CREDENTIALS`    | 401 Unauthorized          | Authentication failure            |
+| `NOT_FOUND`              | 404 Not Found             | Resource doesn't exist            |
+| `EMAIL_ALREADY_EXISTS`   | 409 Conflict              | Resource conflict                 |
+| `INGESTION_IN_PROGRESS`  | 409 Conflict              | Operation conflict                |
+| `INGESTION_FAILED`       | 500 Internal Server Error | Server-side processing error      |
+| `EXTERNAL_SERVICE_ERROR` | 502 Bad Gateway           | External service error            |
+| `SERVICE_UNAVAILABLE`    | 503 Service Unavailable   | External service connection error |
+| `SERVICE_TIMEOUT`        | 504 Gateway Timeout       | External service timeout          |
+| `INTERNAL_ERROR`         | 500 Internal Server Error | Unexpected server error           |
 
 ### Status Code Guidelines
 
@@ -144,7 +149,7 @@ import { errorResponse, serverErrorResponse } from "@/lib/api-utils"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
+
     // Validate input
     if (!body.email || !body.password) {
       return errorResponse(
@@ -154,13 +159,14 @@ export async function POST(request: NextRequest) {
         400
       )
     }
-    
+
     // Business logic
     const result = await someBusinessLogic(body)
-    
+
     if (!result.success) {
       // Map business error to HTTP error
-      const statusCode = result.error.code === "EMAIL_ALREADY_EXISTS" ? 409 : 400
+      const statusCode =
+        result.error.code === "EMAIL_ALREADY_EXISTS" ? 409 : 400
       return errorResponse(
         result.error.code,
         result.error.message,
@@ -168,7 +174,7 @@ export async function POST(request: NextRequest) {
         statusCode
       )
     }
-    
+
     return successResponse(result.data)
   } catch (error: unknown) {
     // Handle unexpected errors
@@ -181,16 +187,18 @@ export async function POST(request: NextRequest) {
 ### Business Logic Pattern (Core Functions)
 
 ```typescript
-export type Result<T> = {
-  success: true
-  data: T
-} | {
-  success: false
-  error: {
-    code: string
-    message: string
-  }
-}
+export type Result<T> =
+  | {
+      success: true
+      data: T
+    }
+  | {
+      success: false
+      error: {
+        code: string
+        message: string
+      }
+    }
 
 export async function someBusinessLogic(input: Input): Promise<Result<Output>> {
   try {
@@ -200,17 +208,17 @@ export async function someBusinessLogic(input: Input): Promise<Result<Output>> {
         success: false,
         error: {
           code: "VALIDATION_ERROR",
-          message: "Email is required"
-        }
+          message: "Email is required",
+        },
       }
     }
-    
+
     // Business logic
     const data = await processData(input)
-    
+
     return {
       success: true,
-      data
+      data,
     }
   } catch (error: unknown) {
     // Handle unexpected errors
@@ -219,8 +227,8 @@ export async function someBusinessLogic(input: Input): Promise<Result<Output>> {
       success: false,
       error: {
         code: "INTERNAL_ERROR",
-        message: "Failed to process request"
-      }
+        message: "Failed to process request",
+      },
     }
   }
 }
@@ -233,12 +241,14 @@ export async function someBusinessLogic(input: Input): Promise<Result<Output>> {
 ### VALIDATION_ERROR
 
 **Use when:**
+
 - Required fields are missing
 - Field format is invalid (e.g., invalid email format)
 - Type mismatches (e.g., string instead of number)
 - Value out of range
 
 **Example:**
+
 ```typescript
 if (!body.email || !body.password) {
   return errorResponse(
@@ -253,19 +263,21 @@ if (!body.email || !body.password) {
 ### INVALID_INPUT
 
 **Use when:**
+
 - Input passes format validation but fails business logic validation
 - Cross-field validation fails
 - Business rule violations
 
 **Example:**
+
 ```typescript
 if (startDate > endDate) {
   return {
     success: false,
     error: {
       code: "INVALID_INPUT",
-      message: "Start date must be before end date"
-    }
+      message: "Start date must be before end date",
+    },
   }
 }
 ```
@@ -273,32 +285,37 @@ if (startDate > endDate) {
 ### INVALID_CREDENTIALS
 
 **Use when:**
+
 - Authentication fails (wrong password)
 - User not found (to prevent enumeration, return same error)
 
 **Example:**
+
 ```typescript
 const user = await findUserByEmail(email)
-if (!user || !await verifyPassword(user, password)) {
+if (!user || !(await verifyPassword(user, password))) {
   return {
     success: false,
     error: {
       code: "INVALID_CREDENTIALS",
-      message: "Invalid email or password" // Generic message
-    }
+      message: "Invalid email or password", // Generic message
+    },
   }
 }
 ```
 
-**Security Note:** Always return the same error message for "user not found" and "wrong password" to prevent user enumeration attacks.
+**Security Note:** Always return the same error message for "user not found" and
+"wrong password" to prevent user enumeration attacks.
 
 ### EMAIL_ALREADY_EXISTS
 
 **Use when:**
+
 - User attempts to register with an existing email
 - Unique constraint violation on email field
 
 **Example:**
+
 ```typescript
 const existingUser = await findUserByEmail(email)
 if (existingUser) {
@@ -314,29 +331,28 @@ if (existingUser) {
 ### NOT_FOUND
 
 **Use when:**
+
 - Resource doesn't exist (by ID or identifier)
 - Foreign key reference is invalid
 
 **Example:**
+
 ```typescript
 const event = await findEventById(eventId)
 if (!event) {
-  return errorResponse(
-    "NOT_FOUND",
-    "Event not found",
-    undefined,
-    404
-  )
+  return errorResponse("NOT_FOUND", "Event not found", undefined, 404)
 }
 ```
 
 ### INGESTION_IN_PROGRESS
 
 **Use when:**
+
 - Ingestion is already running for the same resource
 - Concurrent ingestion attempts detected
 
 **Server-side Example:**
+
 ```typescript
 if (await isIngestionInProgress(eventId)) {
   return errorResponse(
@@ -348,8 +364,9 @@ if (await isIngestionInProgress(eventId)) {
 }
 ```
 
-**Client-side Handling:**
-This error should be handled gracefully on the client side. It indicates that an import is already in progress, which is not a failure condition. The client should:
+**Client-side Handling:** This error should be handled gracefully on the client
+side. It indicates that an import is already in progress, which is not a failure
+condition. The client should:
 
 1. Log as a warning (not an error) since this is expected behavior
 2. Keep the event in "importing" status
@@ -357,6 +374,7 @@ This error should be handled gracefully on the client side. It indicates that an
 4. Return success from the import function (don't treat as failure)
 
 **Example:**
+
 ```typescript
 const result = await parseApiResponse<ApiIngestionResult>(response)
 if (!result.success) {
@@ -377,10 +395,12 @@ if (!result.success) {
 ### INGESTION_FAILED
 
 **Use when:**
+
 - Ingestion service returns an error
 - Ingestion process fails (connector, normalization, persistence errors)
 
 **Example:**
+
 ```typescript
 try {
   await ingestionClient.ingestEvent(eventId, depth)
@@ -397,11 +417,13 @@ try {
 ### INTERNAL_ERROR
 
 **Use when:**
+
 - Unexpected exceptions
 - System errors
 - Unhandled errors
 
 **Example:**
+
 ```typescript
 catch (error: unknown) {
   console.error("Unexpected error:", error)
@@ -419,20 +441,20 @@ catch (error: unknown) {
 ```typescript
 async function callAPI() {
   try {
-    const response = await fetch('/api/v1/endpoint', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+    const response = await fetch("/api/v1/endpoint", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     })
-    
+
     const result = await response.json()
-    
+
     if (!result.success) {
       // Handle error
       handleError(result.error)
       return
     }
-    
+
     // Handle success
     handleSuccess(result.data)
   } catch (error) {
@@ -445,39 +467,45 @@ async function callAPI() {
 ### Error Handling Function
 
 ```typescript
-function handleError(error: { code: string; message: string; details?: unknown }) {
+function handleError(error: {
+  code: string
+  message: string
+  details?: unknown
+}) {
   switch (error.code) {
-    case 'VALIDATION_ERROR':
+    case "VALIDATION_ERROR":
       // Show validation errors to user
       showValidationErrors(error.details)
       break
-      
-    case 'INVALID_CREDENTIALS':
+
+    case "INVALID_CREDENTIALS":
       // Show generic authentication error
-      showError('Invalid email or password')
+      showError("Invalid email or password")
       break
-      
-    case 'NOT_FOUND':
+
+    case "NOT_FOUND":
       // Show not found message
-      showError('Resource not found')
+      showError("Resource not found")
       break
-      
-    case 'INGESTION_IN_PROGRESS':
+
+    case "INGESTION_IN_PROGRESS":
       // This is not an error - import is already running
       // Log as warning, keep importing status, let polling handle updates
-      logger.warn('Import already in progress', { eventId: error.details?.eventId })
+      logger.warn("Import already in progress", {
+        eventId: error.details?.eventId,
+      })
       // Don't show error to user - import is proceeding
       return true // Indicate success (not a failure)
-      
-    case 'INTERNAL_ERROR':
+
+    case "INTERNAL_ERROR":
       // Show generic error, log for debugging
-      console.error('Server error:', error)
-      showError('An error occurred. Please try again.')
+      console.error("Server error:", error)
+      showError("An error occurred. Please try again.")
       break
-      
+
     default:
       // Show generic error
-      showError(error.message || 'An error occurred')
+      showError(error.message || "An error occurred")
   }
 }
 ```
@@ -488,24 +516,24 @@ function handleError(error: { code: string; message: string; details?: unknown }
 async function callAPIWithRetry(maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const response = await fetch('/api/v1/endpoint')
+      const response = await fetch("/api/v1/endpoint")
       const result = await response.json()
-      
+
       if (result.success) {
         return result.data
       }
-      
+
       // Don't retry client errors (4xx)
       if (response.status >= 400 && response.status < 500) {
         throw new Error(result.error.message)
       }
-      
+
       // Retry server errors (5xx)
       if (i < maxRetries - 1) {
         await sleep(1000 * (i + 1)) // Exponential backoff
         continue
       }
-      
+
       throw new Error(result.error.message)
     } catch (error) {
       if (i === maxRetries - 1) {
@@ -532,7 +560,9 @@ import { errorResponse, serverErrorResponse } from "@/lib/api-utils"
 return errorResponse(
   "ERROR_CODE",
   "Error message",
-  { /* optional details */ },
+  {
+    /* optional details */
+  },
   400 // HTTP status
 )
 
@@ -551,9 +581,11 @@ try {
     operation: "operationName",
     error: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
-    context: { /* additional context */ }
+    context: {
+      /* additional context */
+    },
   })
-  
+
   // Return user-friendly error
   return serverErrorResponse("Failed to process request")
 }
@@ -592,12 +624,14 @@ function isPrismaError(error: unknown): error is { code: string } {
 ### Logging Standards
 
 **Always log:**
+
 - Error code and message
 - Stack trace (for unexpected errors)
 - Request context (user ID, endpoint, parameters)
 - Timestamp
 
 **Example:**
+
 ```typescript
 console.error("API Error:", {
   code: error.code,
@@ -606,13 +640,14 @@ console.error("API Error:", {
   method: "POST",
   userId: session?.user?.id,
   timestamp: new Date().toISOString(),
-  stack: error.stack
+  stack: error.stack,
 })
 ```
 
 ### Error Observability
 
 **Placeholder for future documentation:**
+
 - Error tracking integration (e.g., Sentry)
 - Error metrics and alerting
 - Error dashboard setup
@@ -632,6 +667,7 @@ Errors that should be displayed to users:
 - `NOT_FOUND` - Show resource not found message
 
 **Guidelines:**
+
 - Use clear, actionable language
 - Avoid technical jargon
 - Provide guidance on how to fix the error
@@ -646,6 +682,7 @@ Errors for logging and debugging:
 - Database errors - Log full error, show generic message
 
 **Guidelines:**
+
 - Log full error details (stack trace, context)
 - Show generic user-friendly message
 - Include error code in logs for correlation
@@ -664,6 +701,7 @@ Errors that can be retried:
 - Network errors - Transient connectivity issues
 
 **Strategy:**
+
 - Exponential backoff
 - Maximum retry limit
 - User notification on failure
@@ -676,16 +714,20 @@ Errors that should not be retried:
 - `INVALID_CREDENTIALS` - User must provide correct credentials
 - `NOT_FOUND` - Resource doesn't exist
 - `EMAIL_ALREADY_EXISTS` - Conflict that won't resolve
-- `INGESTION_IN_PROGRESS` - Import already running (not an error, handled gracefully)
+- `INGESTION_IN_PROGRESS` - Import already running (not an error, handled
+  gracefully)
 
 **Strategy:**
-- Show error immediately (except `INGESTION_IN_PROGRESS` which is handled silently)
+
+- Show error immediately (except `INGESTION_IN_PROGRESS` which is handled
+  silently)
 - Provide guidance on how to fix
 - Don't retry automatically
 
 ### Recovery Patterns
 
 **Placeholder for future documentation:**
+
 - Circuit breaker patterns
 - Fallback strategies
 - Graceful degradation
@@ -696,11 +738,13 @@ Errors that should not be retried:
 ## Related Documentation
 
 - [API Reference](../api/api-reference.md) - API endpoint error documentation
-- [LiveRC Ingestion Error Handling](../architecture/liverc-ingestion/11-ingestion-error-handling.md) - Ingestion-specific errors
-- [API Contracts](../architecture/liverc-ingestion/05-api-contracts.md) - Error shape specification
-- [Observability Guide](../operations/observability-guide.md) - Error logging and monitoring
+- [LiveRC Ingestion Error Handling](../architecture/liverc-ingestion/11-ingestion-error-handling.md) -
+  Ingestion-specific errors
+- [API Contracts](../architecture/liverc-ingestion/05-api-contracts.md) - Error
+  shape specification
+- [Observability Guide](../operations/observability-guide.md) - Error logging
+  and monitoring
 
 ---
 
 **End of Error Handling Documentation**
-

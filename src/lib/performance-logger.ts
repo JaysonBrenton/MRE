@@ -1,15 +1,15 @@
 /**
  * @fileoverview Performance logging utilities
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Utilities for logging performance metrics
- * 
+ *
  * @purpose Provides functions to measure and log slow requests, queries, and operations.
  *          Helps identify performance bottlenecks in the application.
- * 
+ *
  * @relatedFiles
  * - src/lib/logger.ts (structured logging)
  * - src/lib/request-context.ts (request context)
@@ -36,15 +36,12 @@ export interface TimerResult {
 
 /**
  * Start a performance timer
- * 
+ *
  * @param operation - Name of the operation being timed
  * @param context - Optional logging context
  * @returns Timer result with duration and logIfSlow function
  */
-export function startTimer(
-  operation: string,
-  context?: LogContext
-): TimerResult {
+export function startTimer(operation: string, context?: LogContext): TimerResult {
   const startTime = Date.now()
   const requestLogger = context ? createLoggerWithContext(context) : logger
 
@@ -65,7 +62,7 @@ export function startTimer(
 
 /**
  * Log slow API request
- * 
+ *
  * @param path - Request path
  * @param method - HTTP method
  * @param duration - Request duration in milliseconds
@@ -90,16 +87,12 @@ export function logSlowRequest(
 
 /**
  * Log slow database query
- * 
+ *
  * @param query - Query description or SQL (sanitized)
  * @param duration - Query duration in milliseconds
  * @param context - Optional logging context
  */
-export function logSlowQuery(
-  query: string,
-  duration: number,
-  context?: LogContext
-): void {
+export function logSlowQuery(query: string, duration: number, context?: LogContext): void {
   if (duration > THRESHOLDS.DATABASE_QUERY) {
     const requestLogger = context ? createLoggerWithContext(context) : logger
     requestLogger.warn("Slow database query", {
@@ -112,7 +105,7 @@ export function logSlowQuery(
 
 /**
  * Log slow external service call
- * 
+ *
  * @param serviceName - Name of the external service
  * @param endpoint - Endpoint called
  * @param duration - Call duration in milliseconds
@@ -137,7 +130,7 @@ export function logSlowExternalService(
 
 /**
  * Measure and log operation duration
- * 
+ *
  * @param operation - Name of the operation
  * @param fn - Function to execute
  * @param context - Optional logging context
@@ -152,7 +145,7 @@ export async function measureOperation<T>(
   try {
     const result = await fn()
     const duration = Date.now() - startTime
-    
+
     const requestLogger = context ? createLoggerWithContext(context) : logger
     if (duration > THRESHOLDS.API_REQUEST) {
       requestLogger.warn("Slow operation", {
@@ -161,7 +154,7 @@ export async function measureOperation<T>(
         threshold: THRESHOLDS.API_REQUEST,
       })
     }
-    
+
     return result
   } catch (error) {
     const duration = Date.now() - startTime
@@ -174,4 +167,3 @@ export async function measureOperation<T>(
     throw error
   }
 }
-

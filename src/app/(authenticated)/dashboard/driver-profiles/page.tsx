@@ -12,15 +12,18 @@
  *          transponder number, and racing preferences.
  */
 
-'use client'
+"use client"
 
-import Breadcrumbs from "@/components/Breadcrumbs"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 
 export default function DriverProfilesPage() {
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl flex-shrink-0">
       <Breadcrumbs
-        items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "My Driver Profiles" }]}
+        items={[
+          { label: "My Event Analysis", href: "/dashboard" },
+          { label: "My Driver Profiles" },
+        ]}
       />
       <div className="w-full min-w-0 flex flex-col space-y-6">
         <div>
@@ -45,7 +48,8 @@ export default function DriverProfilesPage() {
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>
                 <strong className="text-[var(--token-text-primary)]">Profile Name:</strong> A
-                descriptive name for your driver profile (e.g., &quot;Primary Driver&quot;, &quot;Race Day Profile&quot;)
+                descriptive name for your driver profile (e.g., &quot;Primary Driver&quot;,
+                &quot;Race Day Profile&quot;)
               </li>
               <li>
                 <strong className="text-[var(--token-text-primary)]">Display Name:</strong> Your

@@ -1,15 +1,15 @@
 /**
  * @fileoverview Theme toggle component
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Client component that toggles between dark and light themes
- * 
+ *
  * @purpose Provides a button to switch themes. Toggles the .light class on
  *          document.documentElement and persists preference to localStorage.
- * 
+ *
  * @relatedFiles
  * - app/globals.css (theme token definitions)
  * - app/components/AppShell.tsx (where this component is used)
@@ -44,7 +44,7 @@ export default function ThemeToggle() {
   const toggleTheme = () => {
     const newIsLight = !isLight
     setIsLight(newIsLight)
-    
+
     if (newIsLight) {
       document.documentElement.classList.add("light")
       localStorage.setItem("mre-theme", "light")
@@ -61,9 +61,13 @@ export default function ThemeToggle() {
       aria-label={isLight ? "Switch to dark theme" : "Switch to light theme"}
     >
       {isLight ? (
-        <span className="text-lg" aria-hidden="true">🌙</span>
+        <span className="text-lg" aria-hidden="true">
+          🌙
+        </span>
       ) : (
-        <span className="text-lg" aria-hidden="true">☀️</span>
+        <span className="text-lg" aria-hidden="true">
+          ☀️
+        </span>
       )}
     </button>
   )

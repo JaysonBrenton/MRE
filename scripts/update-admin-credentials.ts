@@ -1,6 +1,6 @@
 /**
  * Update admin user credentials
- * 
+ *
  * This script updates the admin user's email and password.
  * If the admin user doesn't exist, it will be created.
  */
@@ -28,31 +28,31 @@ async function main() {
 
   // Check if admin already exists
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: normalizedEmail }
+    where: { email: normalizedEmail },
   })
 
   if (existingAdmin) {
     // Update existing admin
     console.log(`Updating existing admin user with email ${normalizedEmail}...`)
-    
+
     const updatedAdmin = await prisma.user.update({
       where: { email: normalizedEmail },
       data: {
         passwordHash,
         driverName: adminDriverName,
         isAdmin: true,
-      }
+      },
     })
 
     // Ensure admin persona is assigned
     try {
       const adminPersona = await prisma.persona.findUnique({
-        where: { type: "admin" }
+        where: { type: "admin" },
       })
       if (adminPersona) {
         await prisma.user.update({
           where: { id: updatedAdmin.id },
-          data: { personaId: adminPersona.id }
+          data: { personaId: adminPersona.id },
         })
         console.log(`Admin persona assigned to user`)
       }
@@ -68,7 +68,7 @@ async function main() {
   } else {
     // Create new admin
     console.log(`Creating new admin user...`)
-    
+
     const admin = await prisma.user.create({
       data: {
         email: normalizedEmail,
@@ -76,18 +76,18 @@ async function main() {
         driverName: adminDriverName,
         teamName: null,
         isAdmin: true,
-      }
+      },
     })
 
     // Auto-assign Admin persona
     try {
       const adminPersona = await prisma.persona.findUnique({
-        where: { type: "admin" }
+        where: { type: "admin" },
       })
       if (adminPersona) {
         await prisma.user.update({
           where: { id: admin.id },
-          data: { personaId: adminPersona.id }
+          data: { personaId: adminPersona.id },
         })
         console.log(`Admin persona assigned to user`)
       }
@@ -111,4 +111,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-

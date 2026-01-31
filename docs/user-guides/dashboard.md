@@ -3,7 +3,9 @@ created: 2026-01-27
 creator: Jayson Brenton
 lastModified: 2026-01-27
 description: Guide to using the user dashboard in My Race Engineer
-purpose: Provides comprehensive instructions for using the dashboard, understanding widgets, customizing layouts, and viewing statistics.
+purpose:
+  Provides comprehensive instructions for using the dashboard, understanding
+  widgets, customizing layouts, and viewing statistics.
 relatedFiles:
   - docs/architecture/dashboard-architecture.md
   - docs/specs/mre-v0.1-feature-scope.md
@@ -11,11 +13,14 @@ relatedFiles:
 
 # My Event Analysis Guide
 
-Learn how to use your personal event analysis in My Race Engineer to view statistics, customize widgets, and track your racing performance over time.
+Learn how to use your personal event analysis in My Race Engineer to view
+statistics, customize widgets, and track your racing performance over time.
 
 ## Introduction
 
-My Event Analysis is your personal command center in MRE. It provides quick access to your statistics, recent events, and key actions. You can customize your event analysis to show the information most important to you.
+My Event Analysis is your personal command center in MRE. It provides quick
+access to your statistics, recent events, and key actions. You can customize
+your event analysis to show the information most important to you.
 
 ## Prerequisites
 
@@ -28,7 +33,8 @@ My Event Analysis is your personal command center in MRE. It provides quick acce
 2. Click **"My Event Analysis"** in the main navigation menu
 3. Or click **"Home"** from any breadcrumb navigation
 
-My Event Analysis is typically the first page you see after logging in (after the welcome page).
+My Event Analysis is typically the first page you see after logging in (after
+the welcome page).
 
 ## My Event Analysis Overview
 
@@ -41,7 +47,8 @@ Your event analysis displays:
 
 ## Understanding Widgets
 
-Widgets are modular components that display specific information. Common widget types include:
+Widgets are modular components that display specific information. Common widget
+types include:
 
 ### Stat Cards
 
@@ -53,6 +60,7 @@ Display key metrics:
 - **Database Size**: System statistics (if applicable)
 
 **Features:**
+
 - Trend indicators (up/down arrows)
 - Counts and totals
 - Averages and percentages
@@ -66,6 +74,7 @@ Visual representations of data:
 - **Pie Charts**: Show distributions
 
 **Features:**
+
 - Interactive (hover for details)
 - Responsive (adapts to screen size)
 - Exportable (some charts)
@@ -100,12 +109,14 @@ Fast access to common tasks:
 ### Rearranging Widgets
 
 **Drag and Drop:**
+
 1. Click and hold on a widget
 2. Drag it to a new position
 3. Release to drop it in place
 4. Other widgets automatically adjust
 
 **Layout Options:**
+
 - Single column layout (mobile)
 - Multi-column layout (desktop)
 - Custom grid layouts
@@ -122,11 +133,13 @@ Some widgets can be resized:
 ### Saving Custom Layouts
 
 **Automatic Saving:**
+
 - Your layout changes save automatically
 - Preferences are stored per user
 - Layout persists across sessions
 
 **Reset to Default:**
+
 - Use "Reset Layout" button if available
 - Returns to default widget arrangement
 - Confirms before resetting
@@ -233,11 +246,13 @@ Access other sections:
 ### Widgets Not Displaying
 
 **Possible Causes:**
+
 - No data available yet
 - Widget disabled in settings
 - Browser compatibility issue
 
 **Solutions:**
+
 - Import some events to generate data
 - Check widget settings
 - Try refreshing the page
@@ -245,11 +260,13 @@ Access other sections:
 ### Layout Not Saving
 
 **Possible Causes:**
+
 - Browser storage disabled
 - Session expired
 - Browser cache issue
 
 **Solutions:**
+
 - Enable browser local storage
 - Log out and log back in
 - Clear browser cache
@@ -257,11 +274,13 @@ Access other sections:
 ### Statistics Not Updating
 
 **Possible Causes:**
+
 - Data not yet processed
 - Cache issue
 - Recent activity not reflected
 
 **Solutions:**
+
 - Wait a few minutes for processing
 - Refresh the page
 - Check that events are fully imported
@@ -283,5 +302,5 @@ After setting up your dashboard:
 
 ---
 
-**Ready to customize?** Start by importing some events and then arrange your dashboard to show the information most important to you.
-
+**Ready to customize?** Start by importing some events and then arrange your
+dashboard to show the information most important to you.

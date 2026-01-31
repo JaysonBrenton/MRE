@@ -3,9 +3,11 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Idempotency design for safe re-ingestion of LiveRC events
-purpose: Defines formal idempotency guarantees and mechanisms ensuring that re-ingesting
-         the same LiveRC event produces stable, deterministic, and duplicate-free
-         database results. Critical for safe re-ingestion and recovery operations.
+purpose:
+  Defines formal idempotency guarantees and mechanisms ensuring that
+  re-ingesting the same LiveRC event produces stable, deterministic, and
+  duplicate-free database results. Critical for safe re-ingestion and recovery
+  operations.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -85,13 +87,13 @@ Correct idempotency begins with **stable identifiers**:
 
 ### 3.2 Race-Level Identifiers
 
-- `source_race_id` MUST uniquely identify a race.  
+- `source_race_id` MUST uniquely identify a race.
 - If LiveRC reorders races, the ingestion MUST still map to the correct DB rows
   by matching `source_race_id`, not by position.
 
 ### 3.3 Driver-Level Identifiers
 
-- `source_driver_id` MUST uniquely identify a driver *within an event*.  
+- `source_driver_id` MUST uniquely identify a driver _within an event_.
 - Driver display names MUST NOT be used as identifiers.
 
 ### 3.4 Lap-Level Identifiers
@@ -145,8 +147,8 @@ Idempotency also requires stable ordering guarantees:
 - Results MUST always be read and stored ordered by `position_final`.
 - Laps MUST always be stored ordered by `lap_number`.
 
-Even if LiveRC page order varies or contains extraneous whitespace, the ingestion
-output MUST remain deterministic.
+Even if LiveRC page order varies or contains extraneous whitespace, the
+ingestion output MUST remain deterministic.
 
 ---
 
@@ -163,10 +165,10 @@ This allows ingestion to act as a **source-of-truth synchroniser**.
 
 ### Examples of allowed changes:
 
-- Corrected lap times  
-- Updated total race time  
-- Revised race labels  
-- Corrected driver names  
+- Corrected lap times
+- Updated total race time
+- Revised race labels
+- Corrected driver names
 
 These MUST NOT produce duplicates.
 

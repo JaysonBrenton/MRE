@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import IngestionControls from "@/components/admin/IngestionControls"
-import Breadcrumbs from "@/components/Breadcrumbs"
+import IngestionControls from "@/components/organisms/admin/IngestionControls"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 
 export default async function AdminIngestionPage() {
   const session = await auth()
@@ -15,7 +15,9 @@ export default async function AdminIngestionPage() {
           { label: "Ingestion Controls" },
         ]}
       />
-      <h1 className="text-3xl font-semibold text-[var(--token-text-primary)] mb-8">Ingestion Controls</h1>
+      <h1 className="text-3xl font-semibold text-[var(--token-text-primary)] mb-8">
+        Ingestion Controls
+      </h1>
       <IngestionControls />
     </div>
   )

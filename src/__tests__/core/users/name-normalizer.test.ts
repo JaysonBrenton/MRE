@@ -74,4 +74,3 @@ describe("normalizeDriverName", () => {
     expect(normalizeDriverName("Driver #5")).toBe("5 driver")
   })
 })
-

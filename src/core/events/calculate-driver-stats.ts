@@ -1,15 +1,15 @@
 /**
  * @fileoverview Calculate driver statistics - driver performance metrics
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Calculates driver performance metrics from race results
- * 
+ *
  * @purpose Provides driver statistics for analysis and comparison.
  *          Pure business logic, no database access.
- * 
+ *
  * @relatedFiles
  * - src/core/events/get-event-analysis-data.ts (uses this)
  */
@@ -43,13 +43,11 @@ export interface RaceResultData {
 
 /**
  * Calculate driver statistics from race results
- * 
+ *
  * @param raceResults - Array of race results for a driver
  * @returns Calculated driver statistics
  */
-export function calculateDriverStats(
-  raceResults: RaceResultData[]
-): DriverStats {
+export function calculateDriverStats(raceResults: RaceResultData[]): DriverStats {
   if (raceResults.length === 0) {
     throw new Error("Cannot calculate stats for empty race results")
   }
@@ -91,9 +89,7 @@ export function calculateDriverStats(
 
   // Calculate averages
   const avgLapTime =
-    avgLapTimes.length > 0
-      ? avgLapTimes.reduce((a, b) => a + b, 0) / avgLapTimes.length
-      : null
+    avgLapTimes.length > 0 ? avgLapTimes.reduce((a, b) => a + b, 0) / avgLapTimes.length : null
 
   const consistency =
     consistencies.length > 0
@@ -101,9 +97,7 @@ export function calculateDriverStats(
       : null
 
   const avgPosition =
-    positions.length > 0
-      ? positions.reduce((a, b) => a + b, 0) / positions.length
-      : null
+    positions.length > 0 ? positions.reduce((a, b) => a + b, 0) / positions.length : null
 
   return {
     raceDriverId,
@@ -117,4 +111,3 @@ export function calculateDriverStats(
     avgPosition,
   }
 }
-

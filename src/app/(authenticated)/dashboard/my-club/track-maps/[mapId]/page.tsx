@@ -1,12 +1,12 @@
 /**
  * @fileoverview Track Map Editor page
- * 
+ *
  * @created 2026-01-24
  * @creator Auto-generated
  * @lastModified 2026-01-24
- * 
+ *
  * @description Page for editing track maps
- * 
+ *
  * @purpose Provides the track map editor interface with canvas and tools
  */
 
@@ -14,9 +14,9 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
-import TrackMapEditor from "@/components/track-maps/TrackMapEditor"
-import type { TrackMapWithRelations, TrackMapData } from "@/core/track-maps/repo"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
+import TrackMapEditor from "@/components/organisms/track-maps/TrackMapEditor"
+import type { TrackMapWithRelations } from "@/core/track-maps/repo"
 
 export default function TrackMapEditorPage() {
   const params = useParams()

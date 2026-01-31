@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for fetchWeather function
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Unit tests for OpenWeatherMap API integration
- * 
+ *
  * @purpose Validates weather API integration with mocked responses for current/forecast/historical.
  */
 
@@ -105,7 +105,7 @@ describe("fetchWeather", () => {
           json: async () => mockForecastResponse,
         })
 
-      const result = await fetchWeather(-35.2809, 149.1300, new Date())
+      const result = await fetchWeather(-35.2809, 149.13, new Date())
 
       expect(result.current).toEqual({
         condition: "clear sky",
@@ -139,7 +139,9 @@ describe("fetchWeather", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => { list: [] },
+          json: async () => {
+            list: []
+          },
         })
 
       const result = await fetchWeather(0, 0, new Date())
@@ -279,4 +281,3 @@ describe("fetchWeather", () => {
     })
   })
 })
-

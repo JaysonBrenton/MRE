@@ -106,7 +106,10 @@ export function formatLapTime(lapTimeSeconds: number | null | undefined): string
  * @param last - Last race position
  * @returns Formatted position improvement string, or "N/A" if positions are invalid
  */
-export function formatPositionImprovement(first: number | null | undefined, last: number | null | undefined): string {
+export function formatPositionImprovement(
+  first: number | null | undefined,
+  last: number | null | undefined
+): string {
   // Handle null/undefined values
   if (first == null || last == null) {
     return "N/A"
@@ -177,7 +180,7 @@ export function isEventInFuture(dateString: string | Date | null | undefined): b
 
   let eventDate: Date | null = null
   const dateStr = String(dateString).trim()
-  
+
   // Try to parse the date string in various formats
   // 1. ISO format (YYYY-MM-DD) - most common from APIs - try this first
   if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
@@ -194,7 +197,7 @@ export function isEventInFuture(dateString: string | Date | null | undefined): b
       const part1 = parseInt(parts[0], 10)
       const part2 = parseInt(parts[1], 10)
       const part3 = parseInt(parts[2], 10)
-      
+
       // Determine if it's DD/MM/YYYY or MM/DD/YYYY
       // If first part > 12, it's definitely DD/MM/YYYY
       // If second part > 12, it's definitely MM/DD/YYYY
@@ -212,24 +215,28 @@ export function isEventInFuture(dateString: string | Date | null | undefined): b
     }
   }
   // 3. DD-MM-YYYY format (Australian format with dashes) - only if not ISO
-  else if (dateStr.includes("-") && dateStr.split("-").length === 3 && !/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+  else if (
+    dateStr.includes("-") &&
+    dateStr.split("-").length === 3 &&
+    !/^\d{4}-\d{2}-\d{2}/.test(dateStr)
+  ) {
     const parts = dateStr.split("-")
     const part1 = parseInt(parts[0], 10)
     const part2 = parseInt(parts[1], 10)
     const part3 = parseInt(parts[2], 10)
-    
+
     if (part3 > 1000) {
       // DD-MM-YYYY format
       eventDate = new Date(part3, part2 - 1, part1)
     }
   }
-  
+
   // Fallback to standard Date parsing if we haven't parsed it yet
   // This handles edge cases and other formats
   if (!eventDate || isNaN(eventDate.getTime())) {
     eventDate = new Date(dateStr)
   }
-  
+
   // Check if date is valid
   if (isNaN(eventDate.getTime())) {
     return false

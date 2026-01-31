@@ -143,7 +143,7 @@ export async function DELETE(
 
     const ipAddress =
       request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined
-      const userAgent = request.headers.get("user-agent") || undefined
+    const userAgent = request.headers.get("user-agent") || undefined
 
     await deleteUser(userId, authResult.userId, ipAddress, userAgent)
 

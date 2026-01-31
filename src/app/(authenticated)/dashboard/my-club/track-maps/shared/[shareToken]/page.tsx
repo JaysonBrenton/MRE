@@ -1,12 +1,12 @@
 /**
  * @fileoverview Shared Track Map page
- * 
+ *
  * @created 2026-01-24
  * @creator Auto-generated
  * @lastModified 2026-01-24
- * 
+ *
  * @description Page for viewing shared track maps
- * 
+ *
  * @purpose Allows users to view track maps shared via share tokens
  */
 
@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 import type { TrackMapWithRelations } from "@/core/track-maps/repo"
 
 export default function SharedTrackMapPage() {
@@ -49,7 +49,6 @@ export default function SharedTrackMapPage() {
       setLoading(false)
     }
   }
-
 
   if (loading) {
     return (
@@ -92,16 +91,12 @@ export default function SharedTrackMapPage() {
       <div className="w-full min-w-0 flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-semibold text-[var(--token-text-primary)]">
-              {map.name}
-            </h1>
+            <h1 className="text-4xl font-semibold text-[var(--token-text-primary)]">{map.name}</h1>
             <p className="mt-2 text-base text-[var(--token-text-secondary)]">
               Shared by {map.user.driverName} • {map.track.trackName}
             </p>
             {map.description && (
-              <p className="mt-2 text-base text-[var(--token-text-secondary)]">
-                {map.description}
-              </p>
+              <p className="mt-2 text-base text-[var(--token-text-secondary)]">{map.description}</p>
             )}
           </div>
         </div>

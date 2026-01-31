@@ -1,10 +1,10 @@
 /**
  * Test script to validate event import process
- * 
+ *
  * Usage: docker exec -it mre-app npx ts-node scripts/test-event-import.ts "Kings Cup 2025 Re-Rerun 06-12-2025"
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
@@ -24,8 +24,8 @@ async function findEvent(eventName: string) {
     where: {
       eventName: {
         contains: eventName,
-        mode: 'insensitive'
-      }
+        mode: "insensitive",
+      },
     },
     include: {
       track: {
@@ -33,54 +33,57 @@ async function findEvent(eventName: string) {
           id: true,
           trackName: true,
           sourceTrackSlug: true,
-          source: true
-        }
-      }
+          source: true,
+        },
+      },
     },
     orderBy: {
-      eventDate: 'desc'
-    }
+      eventDate: "desc",
+    },
   })
 
   return events
 }
 
-async function importEventBySourceId(sourceEventId: string, trackId: string): Promise<ImportResult> {
-  const baseUrl = process.env.APP_URL || 'http://localhost:3001'
+async function importEventBySourceId(
+  sourceEventId: string,
+  trackId: string
+): Promise<ImportResult> {
+  const baseUrl = process.env.APP_URL || "http://localhost:3001"
   const url = `${baseUrl}/api/v1/events/ingest`
-  
+
   console.log(`\n📤 Calling import API: ${url}`)
   console.log(`   source_event_id: ${sourceEventId}`)
   console.log(`   track_id: ${trackId}`)
 
   try {
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         source_event_id: sourceEventId,
         track_id: trackId,
-        depth: 'laps_full'
+        depth: "laps_full",
       }),
     })
 
     const data = await response.json()
-    
+
     if (!response.ok) {
-      console.error(`❌ Import failed: ${data.error?.message || data.message || 'Unknown error'}`)
+      console.error(`❌ Import failed: ${data.error?.message || data.message || "Unknown error"}`)
       return {
         success: false,
-        message: data.error?.message || data.message || 'Unknown error'
+        message: data.error?.message || data.message || "Unknown error",
       }
     }
 
     if (data.success === false) {
-      console.error(`❌ Import failed: ${data.error?.message || 'Unknown error'}`)
+      console.error(`❌ Import failed: ${data.error?.message || "Unknown error"}`)
       return {
         success: false,
-        message: data.error?.message || 'Unknown error'
+        message: data.error?.message || "Unknown error",
       }
     }
 
@@ -106,50 +109,53 @@ async function importEventBySourceId(sourceEventId: string, trackId: string): Pr
       races_ingested: result.races_ingested,
       results_ingested: result.results_ingested,
       laps_ingested: result.laps_ingested,
-      status: result.status
+      status: result.status,
     }
   } catch (error) {
-    console.error(`❌ Import request failed:`, error instanceof Error ? error.message : String(error))
+    console.error(
+      `❌ Import request failed:`,
+      error instanceof Error ? error.message : String(error)
+    )
     return {
       success: false,
-      message: error instanceof Error ? error.message : String(error)
+      message: error instanceof Error ? error.message : String(error),
     }
   }
 }
 
 async function importEventById(eventId: string): Promise<ImportResult> {
-  const baseUrl = process.env.APP_URL || 'http://localhost:3001'
+  const baseUrl = process.env.APP_URL || "http://localhost:3001"
   const url = `${baseUrl}/api/v1/events/${eventId}/ingest`
-  
+
   console.log(`\n📤 Calling import API: ${url}`)
   console.log(`   event_id: ${eventId}`)
 
   try {
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        depth: 'laps_full'
+        depth: "laps_full",
       }),
     })
 
     const data = await response.json()
-    
+
     if (!response.ok) {
-      console.error(`❌ Import failed: ${data.error?.message || data.message || 'Unknown error'}`)
+      console.error(`❌ Import failed: ${data.error?.message || data.message || "Unknown error"}`)
       return {
         success: false,
-        message: data.error?.message || data.message || 'Unknown error'
+        message: data.error?.message || data.message || "Unknown error",
       }
     }
 
     if (data.success === false) {
-      console.error(`❌ Import failed: ${data.error?.message || 'Unknown error'}`)
+      console.error(`❌ Import failed: ${data.error?.message || "Unknown error"}`)
       return {
         success: false,
-        message: data.error?.message || 'Unknown error'
+        message: data.error?.message || "Unknown error",
       }
     }
 
@@ -175,13 +181,16 @@ async function importEventById(eventId: string): Promise<ImportResult> {
       races_ingested: result.races_ingested,
       results_ingested: result.results_ingested,
       laps_ingested: result.laps_ingested,
-      status: result.status
+      status: result.status,
     }
   } catch (error) {
-    console.error(`❌ Import request failed:`, error instanceof Error ? error.message : String(error))
+    console.error(
+      `❌ Import request failed:`,
+      error instanceof Error ? error.message : String(error)
+    )
     return {
       success: false,
-      message: error instanceof Error ? error.message : String(error)
+      message: error instanceof Error ? error.message : String(error),
     }
   }
 }
@@ -195,7 +204,7 @@ async function checkEventStatus(eventId: string) {
       ingestDepth: true,
       lastIngestedAt: true,
       sourceEventId: true,
-    }
+    },
   })
 
   if (!event) {
@@ -204,25 +213,25 @@ async function checkEventStatus(eventId: string) {
 
   // Count races, results, and laps separately
   const raceCount = await prisma.race.count({
-    where: { eventId }
+    where: { eventId },
   })
 
   const resultCount = await prisma.raceResult.count({
     where: {
       race: {
-        eventId
-      }
-    }
+        eventId,
+      },
+    },
   })
 
   const lapCount = await prisma.lap.count({
     where: {
       raceResult: {
         race: {
-          eventId
-        }
-      }
-    }
+          eventId,
+        },
+      },
+    },
   })
 
   return {
@@ -234,30 +243,32 @@ async function checkEventStatus(eventId: string) {
     counts: {
       races: raceCount,
       results: resultCount,
-      laps: lapCount
-    }
+      laps: lapCount,
+    },
   }
 }
 
 async function waitForImport(eventId: string, maxWaitSeconds: number = 300) {
   console.log(`\n⏳ Waiting for import to complete (max ${maxWaitSeconds}s)...`)
-  
+
   const startTime = Date.now()
   const checkInterval = 5000 // Check every 5 seconds
-  
+
   while (Date.now() - startTime < maxWaitSeconds * 1000) {
-    await new Promise(resolve => setTimeout(resolve, checkInterval))
-    
+    await new Promise((resolve) => setTimeout(resolve, checkInterval))
+
     const status = await checkEventStatus(eventId)
     if (!status) {
       console.log(`   ⚠️  Event not found in database`)
       continue
     }
 
-    console.log(`   Status: ${status.ingestDepth || 'none'}`)
-    console.log(`   Counts: ${status.counts.races} races, ${status.counts.results} results, ${status.counts.laps} laps`)
-    
-    if (status.ingestDepth === 'laps_full' && status.lastIngestedAt) {
+    console.log(`   Status: ${status.ingestDepth || "none"}`)
+    console.log(
+      `   Counts: ${status.counts.races} races, ${status.counts.results} results, ${status.counts.laps} laps`
+    )
+
+    if (status.ingestDepth === "laps_full" && status.lastIngestedAt) {
       console.log(`\n✅ Import completed successfully!`)
       console.log(`   Event ID: ${status.id}`)
       console.log(`   Event Name: ${status.name}`)
@@ -274,53 +285,55 @@ async function waitForImport(eventId: string, maxWaitSeconds: number = 300) {
   console.log(`\n⏱️  Timeout waiting for import to complete`)
   const finalStatus = await checkEventStatus(eventId)
   if (finalStatus) {
-    console.log(`   Final Status: ${finalStatus.ingestDepth || 'none'}`)
-    console.log(`   Final Counts: ${finalStatus.counts.races} races, ${finalStatus.counts.results} results, ${finalStatus.counts.laps} laps`)
+    console.log(`   Final Status: ${finalStatus.ingestDepth || "none"}`)
+    console.log(
+      `   Final Counts: ${finalStatus.counts.races} races, ${finalStatus.counts.results} results, ${finalStatus.counts.laps} laps`
+    )
   }
   return false
 }
 
 async function main() {
-  const eventName = process.argv[2] || 'Kings Cup 2025 Re-Rerun 06-12-2025'
+  const eventName = process.argv[2] || "Kings Cup 2025 Re-Rerun 06-12-2025"
   const sourceEventId = process.argv[3] // Optional: source_event_id for LiveRC events
   const trackId = process.argv[4] // Optional: track_id for LiveRC events
-  
+
   console.log(`\n🔍 Testing event import for: "${eventName}"`)
-  console.log(`   APP_URL: ${process.env.APP_URL || 'http://localhost:3001'}`)
-  
+  console.log(`   APP_URL: ${process.env.APP_URL || "http://localhost:3001"}`)
+
   // Step 1: Find the event
   console.log(`\n📋 Step 1: Searching for event in database...`)
   const events = await findEvent(eventName)
-  
+
   if (events.length === 0) {
     console.log(`⚠️  Event not found in database.`)
-    
+
     // If source_event_id and track_id are provided, we can import directly
     if (sourceEventId && trackId) {
       console.log(`\n📋 Using provided source_event_id and track_id for direct import...`)
       console.log(`   source_event_id: ${sourceEventId}`)
       console.log(`   track_id: ${trackId}`)
-      
+
       const importResult = await importEventBySourceId(sourceEventId, trackId)
-      
+
       if (importResult.success && importResult.event_id) {
         console.log(`\n✅ Import initiated successfully!`)
         await waitForImport(importResult.event_id)
-        
+
         // Final status check
         const finalStatus = await checkEventStatus(importResult.event_id)
         if (finalStatus) {
           console.log(`\n📋 Final status:`)
           console.log(`   Event ID: ${finalStatus.id}`)
           console.log(`   Event Name: ${finalStatus.name}`)
-          console.log(`   Ingest Depth: ${finalStatus.ingestDepth || 'none'}`)
-          console.log(`   Last Ingested: ${finalStatus.lastIngestedAt?.toISOString() || '(never)'}`)
+          console.log(`   Ingest Depth: ${finalStatus.ingestDepth || "none"}`)
+          console.log(`   Last Ingested: ${finalStatus.lastIngestedAt?.toISOString() || "(never)"}`)
           console.log(`   Final Counts:`)
           console.log(`     Races: ${finalStatus.counts.races}`)
           console.log(`     Results: ${finalStatus.counts.results}`)
           console.log(`     Laps: ${finalStatus.counts.laps}`)
-          
-          if (finalStatus.ingestDepth === 'laps_full' && finalStatus.lastIngestedAt) {
+
+          if (finalStatus.ingestDepth === "laps_full" && finalStatus.lastIngestedAt) {
             console.log(`\n✅ VALIDATION SUCCESS: Event import process is working correctly!`)
           } else {
             console.log(`\n⚠️  VALIDATION WARNING: Import may not be fully complete`)
@@ -334,12 +347,14 @@ async function main() {
         await prisma.$disconnect()
         process.exit(1)
       }
-      
+
       await prisma.$disconnect()
       return
     } else {
       console.log(`\n   To import this event directly, provide source_event_id and track_id:`)
-      console.log(`   Usage: npx tsx scripts/test-event-import.ts "${eventName}" <source_event_id> <track_id>`)
+      console.log(
+        `   Usage: npx tsx scripts/test-event-import.ts "${eventName}" <source_event_id> <track_id>`
+      )
       console.log(`\n   Or use the event discovery feature in the UI to find this event first.`)
       await prisma.$disconnect()
       process.exit(1)
@@ -350,12 +365,12 @@ async function main() {
   events.forEach((event, index) => {
     console.log(`\n   ${index + 1}. ${event.eventName}`)
     console.log(`      ID: ${event.id}`)
-    console.log(`      Source Event ID: ${event.sourceEventId || '(none)'}`)
+    console.log(`      Source Event ID: ${event.sourceEventId || "(none)"}`)
     console.log(`      Track: ${event.track.trackName} (${event.track.sourceTrackSlug})`)
     console.log(`      Track ID: ${event.trackId}`)
-    console.log(`      Date: ${event.eventDate?.toISOString().split('T')[0] || '(none)'}`)
-    console.log(`      Current Ingest Depth: ${event.ingestDepth || 'none'}`)
-    console.log(`      Last Ingested: ${event.lastIngestedAt?.toISOString() || '(never)'}`)
+    console.log(`      Date: ${event.eventDate?.toISOString().split("T")[0] || "(none)"}`)
+    console.log(`      Current Ingest Depth: ${event.ingestDepth || "none"}`)
+    console.log(`      Last Ingested: ${event.lastIngestedAt?.toISOString() || "(never)"}`)
   })
 
   // Use the first matching event
@@ -366,8 +381,8 @@ async function main() {
   console.log(`\n📋 Step 2: Checking current import status...`)
   const currentStatus = await checkEventStatus(event.id)
   if (currentStatus) {
-    console.log(`   Ingest Depth: ${currentStatus.ingestDepth || 'none'}`)
-    console.log(`   Last Ingested: ${currentStatus.lastIngestedAt?.toISOString() || '(never)'}`)
+    console.log(`   Ingest Depth: ${currentStatus.ingestDepth || "none"}`)
+    console.log(`   Last Ingested: ${currentStatus.lastIngestedAt?.toISOString() || "(never)"}`)
     console.log(`   Current Counts:`)
     console.log(`     Races: ${currentStatus.counts.races}`)
     console.log(`     Results: ${currentStatus.counts.results}`)
@@ -378,7 +393,7 @@ async function main() {
   console.log(`\n📋 Step 3: Determining import method...`)
   let importResult: ImportResult | null = null
 
-  if (event.id.startsWith('liverc-') || !event.sourceEventId) {
+  if (event.id.startsWith("liverc-") || !event.sourceEventId) {
     // This is a LiveRC-only event or missing sourceEventId
     if (!event.sourceEventId) {
       console.log(`❌ Cannot import: Event is missing sourceEventId`)
@@ -386,7 +401,7 @@ async function main() {
       await prisma.$disconnect()
       process.exit(1)
     }
-    
+
     console.log(`   Using source_event_id import method (LiveRC event)`)
     importResult = await importEventBySourceId(event.sourceEventId, event.trackId)
   } else {
@@ -406,10 +421,10 @@ async function main() {
   }
 
   // Step 5: Wait for import to complete (if status indicates it's in progress)
-  if (importResult.status === 'in_progress' || importResult.status === 'updated') {
+  if (importResult.status === "in_progress" || importResult.status === "updated") {
     const eventIdToCheck = importResult.event_id || event.id
     await waitForImport(eventIdToCheck)
-  } else if (importResult.status === 'already_complete') {
+  } else if (importResult.status === "already_complete") {
     console.log(`\n✅ Import already complete`)
   } else {
     console.log(`\n✅ Import completed immediately`)
@@ -422,19 +437,19 @@ async function main() {
   if (finalStatus) {
     console.log(`   Event ID: ${finalStatus.id}`)
     console.log(`   Event Name: ${finalStatus.name}`)
-    console.log(`   Ingest Depth: ${finalStatus.ingestDepth || 'none'}`)
-    console.log(`   Last Ingested: ${finalStatus.lastIngestedAt?.toISOString() || '(never)'}`)
+    console.log(`   Ingest Depth: ${finalStatus.ingestDepth || "none"}`)
+    console.log(`   Last Ingested: ${finalStatus.lastIngestedAt?.toISOString() || "(never)"}`)
     console.log(`   Final Counts:`)
     console.log(`     Races: ${finalStatus.counts.races}`)
     console.log(`     Results: ${finalStatus.counts.results}`)
     console.log(`     Laps: ${finalStatus.counts.laps}`)
-    
-    if (finalStatus.ingestDepth === 'laps_full' && finalStatus.lastIngestedAt) {
+
+    if (finalStatus.ingestDepth === "laps_full" && finalStatus.lastIngestedAt) {
       console.log(`\n✅ VALIDATION SUCCESS: Event import process is working correctly!`)
     } else {
       console.log(`\n⚠️  VALIDATION WARNING: Import may not be fully complete`)
       console.log(`   Expected: ingestDepth='laps_full' with lastIngestedAt set`)
-      console.log(`   Actual: ingestDepth='${finalStatus.ingestDepth || 'none'}'`)
+      console.log(`   Actual: ingestDepth='${finalStatus.ingestDepth || "none"}'`)
     }
   } else {
     console.log(`❌ Event not found after import`)
@@ -445,7 +460,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error('\n❌ Error:', error)
+    console.error("\n❌ Error:", error)
     process.exit(1)
   })
   .finally(async () => {

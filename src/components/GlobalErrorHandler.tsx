@@ -1,16 +1,16 @@
 /**
  * @fileoverview Global error handler component for client-side errors
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Catches unhandled JavaScript errors and promise rejections
- * 
+ *
  * @purpose Provides global error handling for client-side errors that aren't
  *          caught by React ErrorBoundary (e.g., async errors, unhandled promises).
  *          Logs errors with context for debugging.
- * 
+ *
  * @relatedFiles
  * - src/components/ErrorBoundary.tsx (React component errors)
  * - src/lib/logger.ts (structured logging)
@@ -57,9 +57,7 @@ if (typeof window !== "undefined") {
   const originalConsoleError = console.error
   console.error = (...args: unknown[]) => {
     // Check if any argument contains errors we want to filter out
-    const message = args
-      .map((arg) => (typeof arg === "string" ? arg : String(arg)))
-      .join(" ")
+    const message = args.map((arg) => (typeof arg === "string" ? arg : String(arg))).join(" ")
 
     if (isPerformanceMeasurementError(message)) {
       // Silently ignore these errors - they're not actual application errors

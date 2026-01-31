@@ -3,8 +3,9 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: User stories for administrator features (admin login and console)
-purpose: Defines user stories for administrator login and console functionality with detailed
-         acceptance criteria, dependencies, and Definition of Done checklists.
+purpose:
+  Defines user stories for administrator login and console functionality with
+  detailed acceptance criteria, dependencies, and Definition of Done checklists.
 relatedFiles:
   - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
@@ -13,7 +14,8 @@ relatedFiles:
 
 # Administrator Epic
 
-This epic contains user stories for administrator features: administrator login and admin console access.
+This epic contains user stories for administrator features: administrator login
+and admin console access.
 
 ---
 
@@ -24,10 +26,13 @@ This epic contains user stories for administrator features: administrator login 
 **So that** I can access administrative features
 
 ### Priority
+
 High
 
 ### Dependencies
-- Admin account creation (backend-only, via seed script, database migration, or manual database update)
+
+- Admin account creation (backend-only, via seed script, database migration, or
+  manual database update)
 
 ### Acceptance Criteria
 
@@ -49,7 +54,8 @@ High
    - Form must use semantic dark theme tokens
 
 3. **Authentication**
-   - Form submission must call `POST /api/v1/auth/login` endpoint (same as user login)
+   - Form submission must call `POST /api/v1/auth/login` endpoint (same as user
+     login)
    - Request body must include: email/username and password
    - Backend must verify credentials against database
    - Backend must check `isAdmin` flag on user record
@@ -58,21 +64,27 @@ High
    - Session must include `isAdmin: true` in session data
 
 4. **Redirect Logic**
-   - Upon successful login, administrator must be redirected to Admin Console (`/admin`)
+   - Upon successful login, administrator must be redirected to Admin Console
+     (`/admin`)
    - Redirect must occur automatically without user interaction
-   - Standard users must NOT be redirected to admin console (must go to `/welcome`)
+   - Standard users must NOT be redirected to admin console (must go to
+     `/welcome`)
    - Redirect logic must be based on `isAdmin` flag in session
 
 5. **Error Handling**
-   - Invalid credentials must display: "Invalid email/username or password." (generic message for security)
-   - Network errors must display: "Unable to log in. Please check your connection and try again."
+   - Invalid credentials must display: "Invalid email/username or password."
+     (generic message for security)
+   - Network errors must display: "Unable to log in. Please check your
+     connection and try again."
    - Server errors must display: "Unable to log in. Please try again."
    - All error messages must use error token colors
-   - Error messages must not expose whether account exists or is admin (security best practice)
+   - Error messages must not expose whether account exists or is admin (security
+     best practice)
    - Error messages must not expose technical details
 
 6. **Security Requirements**
-   - Admin accounts must be clearly identified in database schema (`isAdmin` field)
+   - Admin accounts must be clearly identified in database schema (`isAdmin`
+     field)
    - Admin status must be verified server-side (never trust client)
    - Session must securely store admin status
    - No admin privileges granted based on client-side checks
@@ -87,7 +99,8 @@ High
    - No hover-only interactions
 
 8. **UI/UX Compliance**
-   - Form must follow UX principles: labels above inputs, consistent spacing, semantic tokens
+   - Form must follow UX principles: labels above inputs, consistent spacing,
+     semantic tokens
    - Form must use standard outlined/secondary button style per UX guidelines
    - Button text must be "Sign in" or "Log In"
    - Form must follow dark theme guidelines
@@ -101,11 +114,13 @@ High
    - Form must meet WCAG 2.1 AA contrast standards
 
 10. **Architecture Compliance**
-    - Business logic must reside in `src/core/auth/login.ts` (shared with user login)
+    - Business logic must reside in `src/core/auth/login.ts` (shared with user
+      login)
     - UI component must be thin and call server action or API endpoint
     - No Prisma queries in UI components
     - No authentication logic in UI components
-    - API endpoint must exist at `src/app/api/v1/auth/login/route.ts` (shared with user login)
+    - API endpoint must exist at `src/app/api/v1/auth/login/route.ts` (shared
+      with user login)
     - Admin detection logic must be in core business logic, not UI
 
 ### Definition of Done
@@ -114,7 +129,8 @@ High
 - [ ] Registration flow verified to not allow admin account creation
 - [ ] Login form works for administrators (same form as users)
 - [ ] API endpoint handles admin authentication correctly
-- [ ] Business logic implemented in `src/core/auth/login.ts` with admin detection
+- [ ] Business logic implemented in `src/core/auth/login.ts` with admin
+      detection
 - [ ] Password verification using Argon2id implemented
 - [ ] Session creation includes `isAdmin` flag
 - [ ] Redirect logic implemented (admin → `/admin`, user → `/welcome`)
@@ -147,15 +163,19 @@ High
 **So that** I know I've accessed administrative features
 
 ### Priority
+
 Medium
 
 ### Dependencies
-- Administrator Login story (administrators must log in before accessing console)
+
+- Administrator Login story (administrators must log in before accessing
+  console)
 
 ### Acceptance Criteria
 
 1. **Welcome Message Display**
-   - Page must display the following message exactly: "Welcome back <administrator-name>"
+   - Page must display the following message exactly: "Welcome back
+     <administrator-name>"
    - Administrator name must be dynamically inserted from admin account data
    - Message must be displayed prominently on the page
    - No variations or modifications to this message format are allowed
@@ -167,7 +187,8 @@ Medium
      - No admin menus
      - No admin widgets
      - No admin data visualization elements
-     - No admin navigation elements (beyond standard layout navigation if present)
+     - No admin navigation elements (beyond standard layout navigation if
+       present)
    - Page must remain minimal per Alpha scope requirements
    - No additional admin UI may exist during Alpha
 
@@ -176,7 +197,8 @@ Medium
    - Welcome message must be centered horizontally
    - Welcome message must be centered vertically (using flex or grid)
    - Page must use consistent spacing scale per UX guidelines
-   - Page must follow predictable page structure with header and main content wrapper
+   - Page must follow predictable page structure with header and main content
+     wrapper
 
 4. **Dark Theme Compliance**
    - Background must use `--token-surface` (no pure black)
@@ -203,18 +225,21 @@ Medium
    - Page must be accessible at `/admin` route
    - Page must be protected: only authenticated administrators can access
    - Unauthenticated users must be redirected to login page
-   - Authenticated non-admin users must NOT be able to access this page (must be redirected or shown error)
+   - Authenticated non-admin users must NOT be able to access this page (must be
+     redirected or shown error)
    - Page must be accessible immediately after successful admin login
 
 8. **Data Retrieval**
    - Administrator name must be retrieved from user session or database
-   - User data must be fetched using business logic in `src/core/users/` (not in UI component)
+   - User data must be fetched using business logic in `src/core/users/` (not in
+     UI component)
    - No Prisma queries in UI component
    - Data fetching must follow architecture guidelines
 
 9. **Architecture Compliance**
    - UI component must be thin (no business logic)
-   - Business logic for user data retrieval must reside in `src/core/users/` if needed
+   - Business logic for user data retrieval must reside in `src/core/users/` if
+     needed
    - Page must follow mobile-safe architecture guidelines
    - No browser-specific dependencies in core logic
    - Access control logic must be server-side (middleware or route handler)
@@ -258,14 +283,18 @@ Medium
 ## Admin Dashboard Overview
 
 **As an** Administrator  
-**I want** to see a dashboard overview with system statistics and quick actions  
+**I want** to see a dashboard overview with system statistics and quick
+actions  
 **So that** I can quickly understand system status and access common tasks
 
 ### Priority
+
 High
 
 ### Acceptance Criteria
-- Dashboard displays system statistics cards (users, events, tracks, database size)
+
+- Dashboard displays system statistics cards (users, events, tracks, database
+  size)
 - Health status widget shows overall system health
 - Quick action cards for common tasks (trigger ingestion, view recent events)
 - Recent activity feed shows latest admin actions
@@ -281,9 +310,11 @@ High
 **So that** I can maintain user accounts and control access
 
 ### Priority
+
 High
 
 ### Acceptance Criteria
+
 - View all users in sortable, filterable, paginated table
 - Edit user details (driverName, teamName, email) via modal/form
 - Delete users with confirmation dialog
@@ -300,9 +331,11 @@ High
 **So that** I can monitor system health and performance
 
 ### Priority
+
 Medium
 
 ### Acceptance Criteria
+
 - Dashboard cards showing user count, event count, track count, database size
 - Database statistics (connection pool status, query performance, table sizes)
 - Real-time updates with refresh button
@@ -317,9 +350,11 @@ Medium
 **So that** I can maintain event data quality and troubleshoot ingestion issues
 
 ### Priority
+
 Medium
 
 ### Acceptance Criteria
+
 - View all events in sortable, filterable table with event details
 - Re-ingest events (trigger re-ingestion for selected events)
 - Delete events with confirmation and cascade delete handling
@@ -335,9 +370,11 @@ Medium
 **So that** I can control which tracks are monitored for events
 
 ### Priority
+
 Medium
 
 ### Acceptance Criteria
+
 - View all tracks with details and event counts
 - Follow/unfollow tracks (toggle isFollowed flag)
 - View events for specific tracks
@@ -353,9 +390,11 @@ Medium
 **So that** I can manage data ingestion and troubleshoot issues
 
 ### Priority
+
 Medium
 
 ### Acceptance Criteria
+
 - Manual trigger for track sync or event ingestion
 - View ingestion jobs (recent/active jobs list)
 - View ingestion logs for specific operations
@@ -371,9 +410,11 @@ Medium
 **So that** I can track changes and investigate issues
 
 ### Priority
+
 High
 
 ### Acceptance Criteria
+
 - View all audit log entries in sortable, filterable table
 - Filter by user, action type, resource type, date range
 - Expandable rows showing full audit log details (JSON)
@@ -389,10 +430,13 @@ High
 **So that** I can monitor system status and identify issues
 
 ### Priority
+
 High
 
 ### Acceptance Criteria
-- Detailed health checks for database connectivity, ingestion service status, disk space, memory usage
+
+- Detailed health checks for database connectivity, ingestion service status,
+  disk space, memory usage
 - Color-coded status indicators (green/yellow/red)
 - Individual component health status
 - Manual refresh button
@@ -407,13 +451,14 @@ High
 **So that** I can troubleshoot issues and monitor system activity
 
 ### Priority
+
 High
 
 ### Acceptance Criteria
+
 - Real-time log streaming (tail -f style) using Server-Sent Events or WebSocket
 - Paginated log viewing for browsing historical logs
 - Search and filter by log level, service, date range, search term
 - Support for multiple log sources (Next.js, ingestion service, database)
 - Pretty-print JSON logs with syntax highlighting
 - Mobile-responsive log viewer
-

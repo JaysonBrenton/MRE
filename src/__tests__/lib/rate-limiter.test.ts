@@ -1,12 +1,12 @@
 /**
  * @fileoverview Tests for rate limiter
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for the in-memory rate limiter implementation
- * 
+ *
  * @purpose Validates rate limiter behavior including:
  *          - Request counting and limiting
  *          - Sliding window behavior
@@ -268,4 +268,3 @@ describe("RATE_LIMIT_CONFIGS", () => {
     })
   })
 })
-

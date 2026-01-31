@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('=== MRE Database Contents ===\n')
+  console.log("=== MRE Database Contents ===\n")
 
   // Users
   const users = await prisma.user.findMany({
@@ -18,7 +18,7 @@ async function main() {
   })
   console.log(`Users: ${users.length}`)
   users.forEach((user) => {
-    console.log(`  - ${user.email} (${user.driverName})${user.isAdmin ? ' [ADMIN]' : ''}`)
+    console.log(`  - ${user.email} (${user.driverName})${user.isAdmin ? " [ADMIN]" : ""}`)
     console.log(`    Created: ${user.createdAt.toISOString()}`)
   })
   console.log()
@@ -43,7 +43,7 @@ async function main() {
     console.log(`    Events: ${track.events.length}`)
     if (track.events.length > 0) {
       track.events.forEach((event) => {
-        console.log(`      • ${event.eventName} (${event.eventDate.toISOString().split('T')[0]})`)
+        console.log(`      • ${event.eventName} (${event.eventDate.toISOString().split("T")[0]})`)
       })
     }
   })
@@ -69,7 +69,7 @@ async function main() {
   console.log(`Events: ${events.length}`)
   events.forEach((event) => {
     console.log(`  - ${event.eventName} (${event.track.trackName})`)
-    console.log(`    Date: ${event.eventDate.toISOString().split('T')[0]}`)
+    console.log(`    Date: ${event.eventDate.toISOString().split("T")[0]}`)
     console.log(`    Source ID: ${event.sourceEventId}`)
     console.log(`    Ingest Depth: ${event.ingestDepth}`)
     console.log(`    Races: ${event.races.length}`)
@@ -156,7 +156,9 @@ async function main() {
   console.log(`Race Results: ${raceResults.length}`)
   if (raceResults.length > 0) {
     raceResults.slice(0, 10).forEach((result) => {
-      console.log(`  - ${result.raceDriver.displayName}: Position ${result.positionFinal}, ${result.lapsCompleted} laps, ${result.laps.length} lap records`)
+      console.log(
+        `  - ${result.raceDriver.displayName}: Position ${result.positionFinal}, ${result.lapsCompleted} laps, ${result.laps.length} lap records`
+      )
     })
     if (raceResults.length > 10) {
       console.log(`  ... and ${raceResults.length - 10} more`)
@@ -170,7 +172,7 @@ async function main() {
   console.log()
 
   // Summary
-  console.log('=== Summary ===')
+  console.log("=== Summary ===")
   console.log(`Total Users: ${users.length}`)
   console.log(`Total Tracks: ${tracks.length}`)
   console.log(`Total Events: ${events.length}`)
@@ -182,10 +184,9 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('Error querying database:', e)
+    console.error("Error querying database:", e)
     process.exit(1)
   })
   .finally(async () => {
     await prisma.$disconnect()
   })
-

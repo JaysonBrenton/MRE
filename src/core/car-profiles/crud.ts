@@ -1,16 +1,16 @@
 /**
  * @fileoverview Core business logic for car profile operations
- * 
+ *
  * @created 2025-01-28
  * @creator System
  * @lastModified 2025-01-28
- * 
+ *
  * @description Core functions for car profile CRUD operations
- * 
+ *
  * @purpose Provides core domain logic for car profiles, following mobile-safe
  *          architecture guidelines. All business logic is separated from UI and
  *          API routes, ensuring it can be reused by mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/core/car-profiles/repo.ts (database access)
  * - src/app/api/v1/car-profiles/route.ts (API endpoint)
@@ -42,7 +42,7 @@ export type UpdateCarProfileInput = {
 
 /**
  * Get all car profiles for a user
- * 
+ *
  * @param userId - User's unique identifier
  * @returns Array of car profiles
  */
@@ -52,7 +52,7 @@ export async function getCarProfilesByUserId(userId: string) {
 
 /**
  * Get a single car profile by ID with ownership verification
- * 
+ *
  * @param id - Car profile unique identifier
  * @param userId - User's unique identifier
  * @returns Car profile or null if not found or not owned by user
@@ -63,7 +63,7 @@ export async function getCarProfileById(id: string, userId: string) {
 
 /**
  * Create a new car profile
- * 
+ *
  * @param userId - User's unique identifier
  * @param data - Car profile data
  * @returns Created car profile
@@ -100,13 +100,13 @@ export async function createCarProfileForUser(
     name: data.name,
     carType: data.carType,
     vehicleType: data.vehicleType,
-    setupInfo: data.setupInfo || null,
+    setupInfo: (data.setupInfo ?? undefined) as Prisma.InputJsonValue | undefined,
   })
 }
 
 /**
  * Update an existing car profile
- * 
+ *
  * @param id - Car profile unique identifier
  * @param userId - User's unique identifier
  * @param data - Car profile update data
@@ -147,7 +147,7 @@ export async function updateCarProfileForUser(
 
 /**
  * Delete a car profile
- * 
+ *
  * @param id - Car profile unique identifier
  * @param userId - User's unique identifier
  * @returns Deleted car profile or null if not found or not owned by user

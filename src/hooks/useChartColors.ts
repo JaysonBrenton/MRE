@@ -1,15 +1,15 @@
 /**
  * @fileoverview Chart colors hook - manages chart color state and localStorage persistence
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Custom hook for managing chart color customization with localStorage persistence
- * 
+ *
  * @purpose Provides state management and persistence for chart color customization.
  *          Supports per-instance color storage with series-specific colors.
- * 
+ *
  * @relatedFiles
  * - src/components/event-analysis/ChartColorPicker.tsx (color picker UI)
  * - src/components/event-analysis/ChartContainer.tsx (chart container)
@@ -19,7 +19,13 @@
 
 import { useState, useEffect, useCallback } from "react"
 
-export type SeriesName = "primary" | "fastest" | "average" | "bestLap" | "averageLap" | "consistency"
+export type SeriesName =
+  | "primary"
+  | "fastest"
+  | "average"
+  | "bestLap"
+  | "averageLap"
+  | "consistency"
 
 const STORAGE_PREFIX = "mre-chart-color"
 
@@ -61,11 +67,7 @@ function readColorFromStorage(
 /**
  * Write color to localStorage
  */
-function writeColorToStorage(
-  chartInstanceId: string,
-  seriesName: SeriesName,
-  color: string
-): void {
+function writeColorToStorage(chartInstanceId: string, seriesName: SeriesName, color: string): void {
   if (typeof window === "undefined") {
     return
   }
@@ -85,7 +87,7 @@ function writeColorToStorage(
 
 /**
  * Hook for managing chart colors with localStorage persistence
- * 
+ *
  * @param chartInstanceId - Unique identifier for the chart instance
  * @param seriesName - Name of the series (primary, fastest, average)
  * @param defaultValue - Default color to use if not stored
@@ -124,7 +126,7 @@ export function useChartColor(
 
 /**
  * Hook for managing multiple chart series colors
- * 
+ *
  * @param chartInstanceId - Unique identifier for the chart instance
  * @param defaultColors - Object with default colors for each series
  * @returns Object with color state and setters for each series
@@ -158,4 +160,3 @@ export function useChartColors<T extends Record<string, string>>(
 
   return { colors, setColor }
 }
-

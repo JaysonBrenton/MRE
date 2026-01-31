@@ -1,14 +1,14 @@
 /**
  * @fileoverview Typography utilities following MRE design system
- * 
+ *
  * @created 2025-01-27
  * @creator UI Review Implementation
  * @lastModified 2025-01-27
- * 
+ *
  * @description Typography utility classes and constants for consistent typography hierarchy
- * 
+ *
  * @purpose Provides consistent typography patterns across the application
- * 
+ *
  * @relatedFiles
  * - docs/design/mre-dark-theme-guidelines.md (typography rules)
  * - docs/design/mre-ux-principles.md (typography requirements)
@@ -16,7 +16,7 @@
 
 /**
  * Typography hierarchy definitions following MRE design system.
- * 
+ *
  * All typography should use these consistent patterns:
  * - Headings: Use semantic h1-h6 tags with these classes
  * - Body: Use base text classes
@@ -30,16 +30,16 @@ export const typography = {
   h4: "text-lg font-semibold text-[var(--token-text-primary)]",
   h5: "text-base font-semibold text-[var(--token-text-primary)]",
   h6: "text-sm font-semibold text-[var(--token-text-primary)]",
-  
+
   // Body text styles
   body: "text-base text-[var(--token-text-primary)]",
   bodySecondary: "text-sm text-[var(--token-text-secondary)]",
   bodyMuted: "text-sm text-[var(--token-text-muted)]",
-  
+
   // Label styles
   label: "text-base font-medium text-[var(--token-text-secondary)]",
   labelSmall: "text-sm font-medium text-[var(--token-text-secondary)]",
-  
+
   // Special text styles
   caption: "text-xs text-[var(--token-text-muted)]",
   uppercase: "text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]",
@@ -58,4 +58,3 @@ export const typography = {
  * - caption: xs (12px) - Captions and helper text
  */
 export type TypographyKey = keyof typeof typography
-

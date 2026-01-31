@@ -3,10 +3,11 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Contributing guidelines for MRE project
-purpose: Provides comprehensive contributing guidelines including code of conduct, development
-         workflow, branch naming, commit messages, pull request process, code review guidelines,
-         testing requirements, and release process. Standardizes contribution process and
-         improves code quality.
+purpose:
+  Provides comprehensive contributing guidelines including code of conduct,
+  development workflow, branch naming, commit messages, pull request process,
+  code review guidelines, testing requirements, and release process.
+  Standardizes contribution process and improves code quality.
 relatedFiles:
   - docs/standards/file-headers-and-commenting-guidelines.md (code standards)
   - docs/roles/ (role responsibilities)
@@ -17,9 +18,11 @@ relatedFiles:
 # Contributing Guidelines
 
 **Last Updated:** 2025-01-27  
-**Welcome!** Thank you for your interest in contributing to My Race Engineer (MRE).
+**Welcome!** Thank you for your interest in contributing to My Race Engineer
+(MRE).
 
-This document provides guidelines for contributing to the MRE project. Please read this before submitting contributions.
+This document provides guidelines for contributing to the MRE project. Please
+read this before submitting contributions.
 
 ---
 
@@ -63,8 +66,10 @@ This document provides guidelines for contributing to the MRE project. Please re
 
 1. **Read the Documentation**
    - [Quick Start Guide](./quick-start.md) - Setup instructions
-   - [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Architecture rules
-   - [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature scope
+   - [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -
+     Architecture rules
+   - [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature
+     scope
 
 2. **Set Up Development Environment**
    - Follow [Quick Start Guide](./quick-start.md)
@@ -79,7 +84,8 @@ This document provides guidelines for contributing to the MRE project. Please re
 ### Development Process
 
 1. **Create a Branch**
-   - Use descriptive branch names (see [Branch Naming](#branch-naming-conventions))
+   - Use descriptive branch names (see
+     [Branch Naming](#branch-naming-conventions))
    - Create branch from `main`
 
 2. **Make Changes**
@@ -198,12 +204,14 @@ Fixes #456
 **Title:** Clear, descriptive title
 
 **Description:**
+
 - What changes are made
 - Why changes are needed
 - How to test
 - Related issues
 
 **Checklist:**
+
 - [ ] Tests added/updated
 - [ ] Documentation updated
 - [ ] Architecture guidelines followed
@@ -233,6 +241,7 @@ Fixes #456
 ### For Reviewers
 
 **Focus On:**
+
 - Architecture compliance
 - Code quality
 - Test coverage
@@ -240,6 +249,7 @@ Fixes #456
 - Security concerns
 
 **Be Constructive:**
+
 - Provide specific feedback
 - Suggest improvements
 - Explain reasoning
@@ -248,11 +258,13 @@ Fixes #456
 ### For Authors
 
 **Respond To:**
+
 - All review comments
 - Questions
 - Suggestions
 
 **Update PR:**
+
 - Address feedback
 - Update code as needed
 - Re-request review when ready
@@ -284,7 +296,8 @@ pytest
 npm test
 ```
 
-**See:** [Testing Strategy](./testing-strategy.md) for detailed testing guidelines.
+**See:** [Testing Strategy](./testing-strategy.md) for detailed testing
+guidelines.
 
 ---
 
@@ -299,9 +312,11 @@ npm test
 
 ### Documentation Standards
 
-**See:** [File Headers and Commenting Guidelines](../standards/file-headers-and-commenting-guidelines.md)
+**See:**
+[File Headers and Commenting Guidelines](../standards/file-headers-and-commenting-guidelines.md)
 
 **Key Points:**
+
 - All files must have headers
 - Public APIs must have JSDoc
 - Complex logic must have comments
@@ -344,12 +359,14 @@ npm test
 **Title:** Clear, descriptive title
 
 **Description:**
+
 - What happened
 - Expected behavior
 - Steps to reproduce
 - Environment details
 
 **Additional Info:**
+
 - Screenshots (if applicable)
 - Error messages
 - Logs (if applicable)
@@ -369,6 +386,7 @@ npm test
 **Title:** Clear, descriptive title
 
 **Description:**
+
 - What feature is proposed
 - Why it's needed
 - How it would work
@@ -429,8 +447,10 @@ MRE uses role-based development. See role documentation in `docs/roles/`:
 
 - [Quick Start Guide](./quick-start.md) - Development setup
 - [Testing Strategy](./testing-strategy.md) - Testing guidelines
-- [File Headers Standards](../standards/file-headers-and-commenting-guidelines.md) - Code standards
-- [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Architecture rules
+- [File Headers Standards](../standards/file-headers-and-commenting-guidelines.md) -
+  Code standards
+- [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -
+  Architecture rules
 - [ADR Guidelines](../adr/README.md) - Architecture decision process
 
 ---
@@ -438,4 +458,3 @@ MRE uses role-based development. See role documentation in `docs/roles/`:
 **Thank you for contributing to MRE!**
 
 **End of Contributing Guidelines**
-

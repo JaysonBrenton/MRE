@@ -1,20 +1,17 @@
 /**
  * @fileoverview Tests for driver statistics calculation logic
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for driver statistics calculations
- * 
+ *
  * @purpose Validates driver stats calculation logic including edge cases.
  */
 
 import { describe, it, expect } from "vitest"
-import {
-  calculateDriverStats,
-  type RaceResultData,
-} from "@/core/events/calculate-driver-stats"
+import { calculateDriverStats, type RaceResultData } from "@/core/events/calculate-driver-stats"
 
 describe("calculateDriverStats", () => {
   describe("basic calculations", () => {

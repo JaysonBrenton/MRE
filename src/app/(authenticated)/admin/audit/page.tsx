@@ -1,7 +1,9 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import Breadcrumbs from "@/components/Breadcrumbs"
-import AuditLogTable from "@/components/admin/AuditLogTable"
+import Breadcrumbs from "@/components/atoms/Breadcrumbs"
+import AuditLogTable from "@/components/organisms/admin/AuditLogTable"
+
+export const dynamic = "force-dynamic"
 
 export default async function AdminAuditPage() {
   const session = await auth()
@@ -22,9 +24,7 @@ export default async function AdminAuditPage() {
         ]}
       />
       <div>
-        <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">
-          Audit Logs
-        </h1>
+        <h1 className="text-3xl font-semibold text-[var(--token-text-primary)]">Audit Logs</h1>
         <p className="mt-2 text-base text-[var(--token-text-secondary)]">
           View audit logs of all admin actions and system events.
         </p>

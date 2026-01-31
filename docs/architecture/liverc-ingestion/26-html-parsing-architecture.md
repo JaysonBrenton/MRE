@@ -1,11 +1,12 @@
 # 26. HTML Parsing Architecture
 
-This document defines the enterprise-grade HTML and script parsing subsystem used by
-the LiveRC ingestion pipeline in My Race Engineer (MRE). It specifies the parsing
-stack, module boundaries, safety rules, normalisation procedures, and integration
-points with the ingestion pipeline.
+This document defines the enterprise-grade HTML and script parsing subsystem
+used by the LiveRC ingestion pipeline in My Race Engineer (MRE). It specifies
+the parsing stack, module boundaries, safety rules, normalisation procedures,
+and integration points with the ingestion pipeline.
 
-This file is authoritative. Connectors must implement parsing exactly as described.
+This file is authoritative. Connectors must implement parsing exactly as
+described.
 
 ---
 
@@ -25,8 +26,8 @@ Parsing must support two categories of input:
 1. Traditional HTML markup (race lists, tables, headings, breadcrumbs)
 2. Embedded JavaScript data structures (e.g., racerLaps blobs)
 
-The parser must operate as part of the ingestion pipeline’s
-extract → transform → validate → store sequence.
+The parser must operate as part of the ingestion pipeline’s extract → transform
+→ validate → store sequence.
 
 ---
 
@@ -70,8 +71,8 @@ Under no circumstances may the parser:
 
 ## 3. Parser Architecture
 
-Parsing is partitioned into a stable set of domain-specific parsers. Each parser is
-pure, synchronous, and side-effect free.
+Parsing is partitioned into a stable set of domain-specific parsers. Each parser
+is pure, synchronous, and side-effect free.
 
 DomainParser implementations:
 
@@ -226,13 +227,15 @@ Race {number}: {class_name} ({race_label})
 - Whitespace: Trim leading/trailing whitespace only
 - No case normalization: Preserve original capitalization
 - No format normalization: Preserve spacing, punctuation, and formatting as-is
-- Variations: All variations are stored as-is (e.g., `"1/8Nitro Buggy"` vs `"1/8 Nitro Buggy"`)
+- Variations: All variations are stored as-is (e.g., `"1/8Nitro Buggy"` vs
+  `"1/8 Nitro Buggy"`)
 
 **Current Limitations:**
 
 - No validation against predefined taxonomy
 - No normalization to canonical forms
-- No parsing of compound class names (e.g., separating vehicle type from modification rule)
+- No parsing of compound class names (e.g., separating vehicle type from
+  modification rule)
 
 **Future Considerations:**
 
@@ -241,7 +244,8 @@ Race {number}: {class_name} ({race_label})
 - Parse compound class names into structured components
 - Support filtering and searching by class components
 
-See [Racing Classes Domain Model](../../domain/racing-classes.md) for complete taxonomy and definitions.
+See [Racing Classes Domain Model](../../domain/racing-classes.md) for complete
+taxonomy and definitions.
 
 ---
 
@@ -254,14 +258,14 @@ All parser outputs must be validated according to:
 
 Validation failures include:
 
-- Missing required keys  
-- Empty tables  
-- Missing racerLaps blob  
-- Mismatched field counts  
-- Zero-length races  
-- Invalid numbers  
-- Malformed pace strings  
-- Impossible timestamps  
+- Missing required keys
+- Empty tables
+- Missing racerLaps blob
+- Mismatched field counts
+- Zero-length races
+- Invalid numbers
+- Malformed pace strings
+- Impossible timestamps
 
 Validation failures must:
 
@@ -275,10 +279,10 @@ Validation failures must:
 
 After parsing, the output passes to:
 
-1. Transform layer  
-2. Validation layer  
-3. Database ingestion layer  
-4. State machine updates  
+1. Transform layer
+2. Validation layer
+3. Database ingestion layer
+4. State machine updates
 
 Parsers do not store or log anything directly.
 
@@ -312,8 +316,7 @@ Parsers must emit structured logs:
 
 For failures:
 
-- Save failing HTML under:
-  /tmp/mre/parsing-debug/YYYYMMDD-HHMMSS/
+- Save failing HTML under: /tmp/mre/parsing-debug/YYYYMMDD-HHMMSS/
 - Save extracted JS blobs for review
 
 ---
@@ -337,15 +340,14 @@ Breaking changes require ingestion subsystem version bump.
 
 ## 10. Security Hardening
 
-Rules reflective of:
-24-ingestion-security-hardening.md.
+Rules reflective of: 24-ingestion-security-hardening.md.
 
-- No JS execution  
-- No unvalidated eval  
-- No remote script fetching  
-- No regex patterns with catastrophic backtracking  
-- No file writes outside debug directories  
-- No parser-level network requests  
+- No JS execution
+- No unvalidated eval
+- No remote script fetching
+- No regex patterns with catastrophic backtracking
+- No file writes outside debug directories
+- No parser-level network requests
 
 ---
 
@@ -353,16 +355,16 @@ Rules reflective of:
 
 The parser layer must:
 
-- Use selectolax  
-- Use strict, validated CSS selectors  
-- Use controlled regex for embedded JS  
-- Normalise and validate all fields  
-- Fail-fast on malformed upstream data  
-- Never execute JavaScript  
-- Never perform network access  
-- Produce deterministic results  
-- Integrate cleanly with fixtures and replay  
-- Emit rich observability data  
+- Use selectolax
+- Use strict, validated CSS selectors
+- Use controlled regex for embedded JS
+- Normalise and validate all fields
+- Fail-fast on malformed upstream data
+- Never execute JavaScript
+- Never perform network access
+- Produce deterministic results
+- Integrate cleanly with fixtures and replay
+- Emit rich observability data
 
 ---
 

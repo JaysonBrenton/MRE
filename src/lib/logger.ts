@@ -1,17 +1,17 @@
 /**
  * @fileoverview Structured logging utility
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-29
- * 
+ *
  * @description Provides structured logging functionality to replace console.* calls
- * 
+ *
  * @purpose Centralizes logging logic and provides structured logging that can be
  *          easily extended for production logging services. In development, logs
  *          to console. In production, can be extended to send to logging services.
  *          Logs are persisted to the database for admin console viewing.
- * 
+ *
  * @relatedFiles
  * - All files that currently use console.* (to be migrated)
  * - src/lib/request-context.ts (request context utilities)
@@ -58,7 +58,7 @@ class LogBuffer {
    */
   add(level: string, message: string, context?: LogContext): void {
     this.buffer.push({ level, message, context })
-    
+
     // Flush if buffer is full
     if (this.buffer.length >= this.maxBufferSize) {
       this.flush().catch(() => {
@@ -82,7 +82,7 @@ class LogBuffer {
 
     // Create a new promise for this flush operation
     this.flushPromise = this.doFlush()
-    
+
     try {
       await this.flushPromise
     } finally {
@@ -92,7 +92,7 @@ class LogBuffer {
 
   private async doFlush(): Promise<void> {
     const logsToFlush = this.buffer.splice(0)
-    
+
     if (logsToFlush.length === 0) {
       return
     }
@@ -130,7 +130,7 @@ class LogBuffer {
             level: log.level.toLowerCase(),
             message: log.message.substring(0, 5000), // Limit message length
             service: (log.context?.service as string) || "nextjs",
-            context: log.context ? (log.context as Record<string, unknown>) : null,
+            context: log.context ? JSON.parse(JSON.stringify(log.context)) : undefined,
             requestId: log.context?.requestId || null,
             userId: log.context?.userId || null,
             ip: log.context?.ip || null,
@@ -185,11 +185,7 @@ function getLogBuffer(): LogBuffer {
  * This function is only called from server-side code paths
  * Logs are buffered and flushed in batches to reduce database write load
  */
-function persistLog(
-  level: string,
-  message: string,
-  context?: LogContext
-): void {
+function persistLog(level: string, message: string, context?: LogContext): void {
   // Skip persistence in client context - multiple checks to ensure webpack doesn't optimize
   if (typeof window !== "undefined") {
     return
@@ -341,10 +337,12 @@ function createLoggerInstance(baseContext?: LogContext): Logger {
       // Errors are flushed immediately to ensure they're not lost
       persistLog("error", message, mergeContext(baseContext, context) as LogContext)
       // Force flush for errors to ensure they're persisted quickly
-      getLogBuffer().flush().catch(() => {
-        // Ignore errors - logging should never break the application
-      })
-      
+      getLogBuffer()
+        .flush()
+        .catch(() => {
+          // Ignore errors - logging should never break the application
+        })
+
       // In production, send to logging service
       // TODO: Integrate with production logging service (e.g., Sentry, DataDog)
     },
@@ -367,11 +365,10 @@ export const logger = createLoggerInstance()
 
 /**
  * Create a logger instance with request context
- * 
+ *
  * @param context - Base context to include in all log entries
  * @returns Logger instance with context
  */
 export function createLoggerWithContext(context: LogContext): Logger {
   return createLoggerInstance(context)
 }
-

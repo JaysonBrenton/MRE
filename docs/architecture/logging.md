@@ -6,7 +6,10 @@
 
 ## Overview
 
-The MRE application uses structured logging throughout to capture errors, performance metrics, and security events. All logging is console-based in Alpha (per architecture guidelines), with structured JSON context for easy parsing and future integration with logging services.
+The MRE application uses structured logging throughout to capture errors,
+performance metrics, and security events. All logging is console-based in Alpha
+(per architecture guidelines), with structured JSON context for easy parsing and
+future integration with logging services.
 
 ## Log Levels
 
@@ -24,6 +27,7 @@ All log entries follow this structure:
 ```
 
 Example:
+
 ```
 [2025-01-27T10:30:45.123Z] [ERROR] API error {"requestId":"abc-123","path":"/api/v1/events/search","method":"GET","ip":"192.168.1.1","error":{"name":"Error","message":"Database connection failed"}}
 ```
@@ -72,9 +76,13 @@ import { logSlowRequest, measureOperation } from "@/lib/performance-logger"
 logSlowRequest("/api/v1/events", "GET", duration, context)
 
 // Measure operation
-await measureOperation("fetchEvents", async () => {
-  return await fetchEvents()
-}, context)
+await measureOperation(
+  "fetchEvents",
+  async () => {
+    return await fetchEvents()
+  },
+  context
+)
 ```
 
 ### Security Logging
@@ -95,7 +103,12 @@ try {
   // ... operation
 } catch (error) {
   const errorInfo = handleApiError(error, request, requestId)
-  return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
+  return errorResponse(
+    errorInfo.code,
+    errorInfo.message,
+    undefined,
+    errorInfo.statusCode
+  )
 }
 ```
 
@@ -110,11 +123,12 @@ Default thresholds (configurable via environment variables):
 ## Security Considerations
 
 - **Never log sensitive data**: Passwords, tokens, API keys, etc.
-- **Sanitize identifiers**: Email addresses and usernames should be partially masked
+- **Sanitize identifiers**: Email addresses and usernames should be partially
+  masked
 - **IP addresses**: Can be logged for security monitoring
 - **User IDs**: Can be logged for audit trails
 
-## Migration from console.*
+## Migration from console.\*
 
 All `console.*` calls should be migrated to use the structured logger:
 
@@ -128,6 +142,7 @@ All `console.*` calls should be migrated to use the structured logger:
 ### Client-Side
 
 The `GlobalErrorHandler` component automatically catches:
+
 - Uncaught JavaScript errors
 - Unhandled promise rejections
 
@@ -136,6 +151,7 @@ These are logged with context (URL, user agent, etc.).
 ### Server-Side
 
 Server-side errors are handled by:
+
 - `handleApiError()` - Standardized API error handling
 - `handlePrismaError()` - Database error handling
 - `handleExternalServiceError()` - External service error handling
@@ -143,6 +159,7 @@ Server-side errors are handled by:
 ## Future Enhancements
 
 In production (post-Alpha), logging can be extended to:
+
 - Send logs to external services (Sentry, DataDog, etc.)
 - Aggregate logs in centralized system
 - Set up alerts for critical errors
@@ -156,4 +173,3 @@ In production (post-Alpha), logging can be extended to:
 - `src/lib/performance-logger.ts` - Performance logging
 - `src/lib/security-logger.ts` - Security event logging
 - `src/components/GlobalErrorHandler.tsx` - Client-side error handler
-

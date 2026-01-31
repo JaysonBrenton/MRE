@@ -1,17 +1,17 @@
 /**
  * @fileoverview Logout button component for user authentication
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Provides a sign-out button that triggers the logout server action
- * 
+ *
  * @purpose This component handles user logout functionality. It renders a button
  *          that, when clicked, calls the logout server action and redirects the
  *          user to the login page. It is used across authenticated pages to
  *          provide consistent logout functionality.
- * 
+ *
  * @relatedFiles
  * - src/app/actions/auth.ts (logout server action)
  * - src/app/login/page.tsx (redirect destination)
@@ -25,7 +25,7 @@ interface LogoutButtonProps {
 
 export default function LogoutButton({ variant = "default" }: LogoutButtonProps) {
   const isCompact = variant === "compact"
-  
+
   return (
     <form action={logout}>
       <button

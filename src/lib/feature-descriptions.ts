@@ -85,7 +85,7 @@ export const FEATURE_PATTERNS: Array<{
  * @returns Feature information with name and description, or null if not found
  */
 export function getFeatureDescription(
-  route: string | null | undefined,
+  route: string | null | undefined
 ): { name: string; description: string } | null {
   if (!route) {
     return null
@@ -108,4 +108,3 @@ export function getFeatureDescription(
 
   return null
 }
-

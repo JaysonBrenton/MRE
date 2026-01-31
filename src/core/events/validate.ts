@@ -1,17 +1,17 @@
 /**
  * @fileoverview Event validation functions
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Validation logic for event search parameters
- * 
+ *
  * @purpose Provides validation for event search operations, including date range
  *          validation (max 3 months, no future dates). This validation is
  *          framework-agnostic and can be used by API routes, server actions, or
  *          mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/core/events/search-events.ts (uses this validation)
  */
@@ -39,7 +39,7 @@ function isValidUUID(value: string): boolean {
 
 /**
  * Validate event search parameters
- * 
+ *
  * @param trackId - Track ID (required, must be valid UUID)
  * @param startDate - Start date string (ISO format, optional)
  * @param endDate - End date string (ISO format, optional)
@@ -93,7 +93,7 @@ export function validateEventSearchParams(
     const start = new Date(startDate)
     const end = new Date(endDate)
     const today = new Date()
-    
+
     // Normalize all dates to start of day (midnight) for consistent comparison
     // This ensures timezone and time component differences don't affect validation
     start.setHours(0, 0, 0, 0)
@@ -148,4 +148,3 @@ export function validateEventSearchParams(
 
   return null
 }
-

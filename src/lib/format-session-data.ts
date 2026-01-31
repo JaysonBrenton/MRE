@@ -1,14 +1,14 @@
 /**
  * @fileoverview Formatting utilities for session data display
- * 
+ *
  * @created 2025-01-07
  * @creator System
  * @lastModified 2025-01-07
- * 
+ *
  * @description Utility functions for formatting session data (durations, lap times, dates)
- * 
+ *
  * @purpose Provides consistent formatting for session tables and charts
- * 
+ *
  * @relatedFiles
  * - src/components/event-analysis/sessions/SessionsTable.tsx
  */
@@ -22,7 +22,7 @@ export function formatDuration(seconds: number | null): string {
   if (seconds === null) {
     return "—"
   }
-  
+
   const minutes = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${minutes}:${secs.toString().padStart(2, "0")}`
@@ -37,7 +37,7 @@ export function formatLapTime(seconds: number | null): string {
   if (seconds === null) {
     return "—"
   }
-  
+
   const minutes = Math.floor(seconds / 60)
   const secs = seconds % 60
   const wholeSecs = Math.floor(secs)
@@ -54,7 +54,7 @@ export function formatDateTime(date: Date | null): string {
   if (date === null) {
     return "—"
   }
-  
+
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -74,7 +74,7 @@ export function formatTime(date: Date | null): string {
   if (date === null) {
     return "—"
   }
-  
+
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -91,15 +91,15 @@ export function formatTotalTime(seconds: number | null): string {
   if (seconds === null) {
     return "—"
   }
-  
+
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   const secs = Math.floor(seconds % 60)
-  
+
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
-  
+
   return `${minutes}:${secs.toString().padStart(2, "0")}`
 }
 
@@ -112,7 +112,6 @@ export function formatConsistency(consistency: number | null): string {
   if (consistency === null) {
     return "—"
   }
-  
+
   return `${consistency.toFixed(1)}%`
 }
-

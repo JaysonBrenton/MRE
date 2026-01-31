@@ -343,7 +343,9 @@ export async function updateDriverLinkStatus(
     })
 
     if (linkResult.count > 0) {
-      console.log(`[updateDriverLinkStatus] Linked ${linkResult.count} orphaned EventDriverLink records to UserDriverLink ${userDriverLink.id}`)
+      console.log(
+        `[updateDriverLinkStatus] Linked ${linkResult.count} orphaned EventDriverLink records to UserDriverLink ${userDriverLink.id}`
+      )
     }
   }
 
@@ -398,7 +400,7 @@ export async function updateDriverLinkStatusByEvent(
   status: "confirmed" | "rejected"
 ): Promise<DriverLinkStatus> {
   console.log("[updateDriverLinkStatusByEvent] Called with:", { userId, eventId, status })
-  
+
   // Find EventDriverLink for this user and event
   let eventDriverLink = await prisma.eventDriverLink.findFirst({
     where: {
@@ -409,7 +411,7 @@ export async function updateDriverLinkStatusByEvent(
       driver: true,
     },
   })
-  
+
   console.log("[updateDriverLinkStatusByEvent] EventDriverLink lookup result:", {
     found: !!eventDriverLink,
     eventDriverLinkId: eventDriverLink?.id,
@@ -420,8 +422,10 @@ export async function updateDriverLinkStatusByEvent(
 
   // If no EventDriverLink exists, try to find one through EventEntry
   if (!eventDriverLink) {
-    console.log("[updateDriverLinkStatusByEvent] No EventDriverLink found, trying EventEntry lookup")
-    
+    console.log(
+      "[updateDriverLinkStatusByEvent] No EventDriverLink found, trying EventEntry lookup"
+    )
+
     // Get user's normalized driver name
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -486,7 +490,7 @@ export async function updateDriverLinkStatusByEvent(
         driver: true,
       },
     })
-    
+
     console.log("[updateDriverLinkStatusByEvent] Created new EventDriverLink:", {
       id: eventDriverLink.id,
       status: eventDriverLink.status,
@@ -518,7 +522,7 @@ export async function updateDriverLinkStatusByEvent(
         driver: true,
       },
     })
-    
+
     console.log("[updateDriverLinkStatusByEvent] Updated EventDriverLink:", {
       id: eventDriverLink.id,
       status: eventDriverLink.status,

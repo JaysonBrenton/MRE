@@ -1,15 +1,15 @@
 /**
  * @fileoverview Health check operations for admin console
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Functions for performing detailed health checks
- * 
+ *
  * @purpose Provides comprehensive health check functionality for administrators,
  *          including database connectivity, ingestion service status, and system metrics.
- * 
+ *
  * @relatedFiles
  * - src/lib/prisma.ts (Prisma client)
  * - src/core/admin/ingestion.ts (ingestion service health)
@@ -28,7 +28,7 @@ export interface HealthCheckResult {
 
 /**
  * Perform comprehensive health checks
- * 
+ *
  * @returns Array of health check results
  */
 export async function performHealthChecks(): Promise<HealthCheckResult[]> {
@@ -99,11 +99,7 @@ export async function performHealthChecks(): Promise<HealthCheckResult[]> {
     // Consider memory healthy if heap used is less than 80% of heap total
     const heapUsagePercent = (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100
     const status =
-      heapUsagePercent < 70
-        ? "healthy"
-        : heapUsagePercent < 85
-        ? "degraded"
-        : "unhealthy"
+      heapUsagePercent < 70 ? "healthy" : heapUsagePercent < 85 ? "degraded" : "unhealthy"
 
     results.push({
       component: "memory",
@@ -121,4 +117,3 @@ export async function performHealthChecks(): Promise<HealthCheckResult[]> {
 
   return results
 }
-

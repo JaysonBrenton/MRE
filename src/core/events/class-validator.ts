@@ -44,4 +44,3 @@ export function getValidClasses(data: EventAnalysisData): string[] {
   // Return sorted array of unique race classes
   return Array.from(classes).sort()
 }
-

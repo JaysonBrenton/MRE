@@ -27,7 +27,7 @@ async function testLogin() {
   const user = await findUserByEmail(normalizedEmail)
   if (!user) {
     console.log("   ❌ User not found with normalized email")
-    
+
     // Try to find any user with similar email
     console.log("\n   Checking for users with similar emails...")
     const allUsers = await prisma.user.findMany({
@@ -36,20 +36,20 @@ async function testLogin() {
         email: true,
         driverName: true,
       },
-      take: 10
+      take: 10,
     })
-    
+
     console.log(`   Found ${allUsers.length} users in database:`)
-    allUsers.forEach(u => {
+    allUsers.forEach((u) => {
       const normalized = normalizeEmail(u.email)
       const matches = normalized === normalizedEmail
       console.log(`   - "${u.email}" (normalized: "${normalized}") ${matches ? "✓ MATCHES" : ""}`)
     })
-    
+
     await prisma.$disconnect()
     return
   }
-  
+
   console.log(`   ✓ User found:`)
   console.log(`     ID: ${user.id}`)
   console.log(`     Email: ${user.email}`)
@@ -60,7 +60,7 @@ async function testLogin() {
   console.log("3. Testing authentication...")
   const result = await authenticateUser({
     email,
-    password
+    password,
   })
 
   if (result.success) {
@@ -82,4 +82,3 @@ testLogin().catch((error) => {
   console.error("Error:", error)
   process.exit(1)
 })
-

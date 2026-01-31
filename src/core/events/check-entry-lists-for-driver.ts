@@ -1,17 +1,17 @@
 /**
  * @fileoverview Check entry lists for driver name
- * 
+ *
  * @created 2025-01-28
  * @creator Auto-generated
  * @lastModified 2025-01-28
- * 
+ *
  * @description Business logic for checking if a driver name appears in entry lists
  *              for liverc events and database events
- * 
+ *
  * @purpose Provides functionality to check entry lists from LiveRC and database
  *          events to determine if a specific driver name appears in them. Uses
  *          fuzzy matching via name normalization for consistent results.
- * 
+ *
  * @relatedFiles
  * - src/lib/ingestion-client.ts (ingestion service client)
  * - src/core/users/name-normalizer.ts (name normalization utility)
@@ -39,7 +39,7 @@ export interface CheckEntryListsResult {
 
 /**
  * Check if a driver name appears in entry lists for multiple liverc events
- * 
+ *
  * @param livercEvents - Array of liverc events to check (must have sourceEventId and trackSlug)
  * @param dbEvents - Array of database events to check (must have eventId)
  * @param driverName - Driver name to search for
@@ -161,14 +161,14 @@ export async function checkEntryListsForDriver(
   let dbResults: Record<string, boolean> = {}
   if (dbEvents.length > 0) {
     try {
-      const dbEventIds = dbEvents.map(e => e.eventId)
+      const dbEventIds = dbEvents.map((e) => e.eventId)
       dbResults = await checkDbEventsForDriver(dbEventIds, normalizedDriverName)
-      
+
       // Check if aborted after DB check
       if (abortSignal?.aborted) {
         return { driverInEvents, errors }
       }
-      
+
       // Merge DB results into driverInEvents
       for (const [eventId, found] of Object.entries(dbResults)) {
         driverInEvents[eventId] = found
@@ -200,7 +200,7 @@ export async function checkEntryListsForDriver(
   // Wait for all LiveRC checks to complete (use allSettled to handle partial failures)
   // This ensures we get results even if some requests fail or timeout
   const livercResults = await Promise.allSettled(livercCheckPromises)
-  
+
   // Log any rejected promises (shouldn't happen since we catch errors, but good to know)
   const rejectedCount = livercResults.filter((r) => r.status === "rejected").length
   if (rejectedCount > 0) {
@@ -220,4 +220,3 @@ export async function checkEntryListsForDriver(
 
   return { driverInEvents, errors }
 }
-

@@ -3,7 +3,9 @@ created: 2025-01-28
 creator: System
 lastModified: 2025-01-28
 description: Pre-commit checklist for component creation
-purpose: Quick reference checklist to run before committing any new or modified component
+purpose:
+  Quick reference checklist to run before committing any new or modified
+  component
 relatedFiles:
   - docs/development/FLEXBOX_LAYOUT_CHECKLIST.md
   - docs/development/PAGINATION_SPACING_GUIDELINES.md
@@ -16,16 +18,23 @@ relatedFiles:
 ## 🔴 Critical Checks (Must Pass)
 
 ### Pagination Components
-- [ ] **Has `mb-16` (not `mb-8`) bottom margin** - See `docs/development/PAGINATION_SPACING_GUIDELINES.md`
-- [ ] **Visually tested** - Scrolled to bottom of page and verified no footer overlap
+
+- [ ] **Has `mb-16` (not `mb-8`) bottom margin** - See
+      `docs/development/PAGINATION_SPACING_GUIDELINES.md`
+- [ ] **Visually tested** - Scrolled to bottom of page and verified no footer
+      overlap
 - [ ] **Spacing documented** - Component header includes spacing notes
 
 ### Modal Components
-- [ ] **Uses `src/components/ui/Modal.tsx`** OR `getModalContainerStyles()` utility
+
+- [ ] **Uses `src/components/ui/Modal.tsx`** OR `getModalContainerStyles()`
+      utility
 - [ ] **Not using Tailwind `w-full max-w-*` alone** in flex containers
 
 ### List/Table Components
-- [ ] **Uses `src/components/ui/ListRow.tsx`** for list rows OR follows truncation patterns
+
+- [ ] **Uses `src/components/ui/ListRow.tsx`** for list rows OR follows
+      truncation patterns
 - [ ] **Text truncation** implemented for long content
 
 ## ✅ General Checks
@@ -43,7 +52,8 @@ relatedFiles:
 - **Layout issues:** `docs/development/FLEXBOX_LAYOUT_CHECKLIST.md`
 - **Pagination spacing:** `docs/development/PAGINATION_SPACING_GUIDELINES.md`
 - **Component template:** `docs/development/PAGINATION_COMPONENT_TEMPLATE.md`
-- **Architecture rules:** `docs/architecture/mobile-safe-architecture-guidelines.md`
+- **Architecture rules:**
+  `docs/architecture/mobile-safe-architecture-guidelines.md`
 
 ## 🚨 Common Mistakes to Avoid
 
@@ -52,4 +62,3 @@ relatedFiles:
 3. **Missing text truncation** - Long text breaking layouts
 4. **Hardcoded colors** - Not using theme tokens
 5. **Missing accessibility** - No aria-labels or semantic HTML
-

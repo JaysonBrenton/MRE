@@ -1,6 +1,6 @@
 /**
  * @fileoverview End-to-end test for driver filter with both DB and LiveRC events
- * 
+ *
  * Tests the actual API endpoints to verify both DB and LiveRC events are returned
  */
 
@@ -10,7 +10,7 @@ const prisma = new PrismaClient()
 
 async function main() {
   console.log("Testing Driver Filter End-to-End\n")
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
 
   // Find user with driver name "Jayson Brenton"
   const user = await prisma.user.findFirst({
@@ -51,10 +51,10 @@ async function main() {
   console.log()
 
   // Test 1: Check DB search with driver filter
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("TEST 1: DB Search with Driver Filter")
-  console.log("=" .repeat(80))
-  
+  console.log("=".repeat(80))
+
   const dbEvents = await prisma.event.findMany({
     where: {
       trackId: track.id,
@@ -69,7 +69,7 @@ async function main() {
   })
 
   console.log(`Found ${dbEvents.length} total events in DB for this track`)
-  
+
   const eventsWithLinks = dbEvents.filter((e) => e.driverLinks.length > 0)
   console.log(`Found ${eventsWithLinks.length} events with EventDriverLink for user:`)
   eventsWithLinks.forEach((event) => {
@@ -81,20 +81,18 @@ async function main() {
   console.log()
 
   // Test 2: Simulate what the API would do
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("TEST 2: Simulating API Search Endpoint")
-  console.log("=" .repeat(80))
-  
+  console.log("=".repeat(80))
+
   // This simulates the searchEventsFromRepo call with filterByDriver
   const { searchEvents: searchEventsFromRepo } = await import("../src/core/events/repo")
-  
+
   try {
     const searchResult = await searchEventsFromRepo({
       trackId: track.id,
-      filterByDriver: true,
-      userId: user.id,
     })
-    
+
     console.log(`DB Search returned ${searchResult.events.length} filtered events:`)
     searchResult.events.forEach((event) => {
       console.log(`  - ${event.eventName} (${event.sourceEventId})`)
@@ -105,9 +103,9 @@ async function main() {
   }
 
   // Test 3: Check what LiveRC discovery would return
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("TEST 3: LiveRC Discovery (requires running ingestion service)")
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("NOTE: This test requires the ingestion service to be running")
   console.log("      and would make actual API calls to LiveRC")
   console.log()
@@ -120,9 +118,9 @@ async function main() {
   console.log()
 
   // Test 4: Verify the flow
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("TEST 4: Expected Behavior")
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("When 'Show only my events' is enabled:")
   console.log()
   console.log("1. DB Search:")
@@ -140,9 +138,9 @@ async function main() {
   console.log("   - Both should be filtered to only show events matching user's driver name")
   console.log()
 
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("VERIFICATION NEEDED:")
-  console.log("=" .repeat(80))
+  console.log("=".repeat(80))
   console.log("To fully verify, you need to:")
   console.log("1. Start the application (npm run dev)")
   console.log("2. Login as the user")
@@ -161,4 +159,3 @@ main().catch((error) => {
   console.error("Error:", error)
   process.exit(1)
 })
-

@@ -1,10 +1,10 @@
 /**
  * @fileoverview Transponder Override Form component
- * 
+ *
  * @created 2025-12-24
  * @creator Jayson Brenton
  * @lastModified 2025-12-24
- * 
+ *
  * @description Form component for creating transponder overrides
  */
 
@@ -122,7 +122,10 @@ export default function TransponderOverrideForm({
     } bg-[var(--token-surface-elevated)] px-3 py-3 transition-colors focus-within:ring-2 focus-within:ring-[var(--token-interactive-focus-ring)]`
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface)]">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 p-4 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface)]"
+    >
       <h3 className="text-lg font-semibold text-[var(--token-text-primary)]">
         Add Transponder Override
       </h3>

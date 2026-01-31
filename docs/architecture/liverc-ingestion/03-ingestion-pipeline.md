@@ -3,10 +3,11 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Ingestion pipeline specification for LiveRC data ingestion
-purpose: Defines the ingestion service layer that coordinates connector calls, handles
-         database writes, ensures idempotency, and defines ingestion depth. This document
-         specifies the end-to-end pipeline flow from event discovery through complete
-         data ingestion.
+purpose:
+  Defines the ingestion service layer that coordinates connector calls, handles
+  database writes, ensures idempotency, and defines ingestion depth. This
+  document specifies the end-to-end pipeline flow from event discovery through
+  complete data ingestion.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/02-connector-architecture.md
@@ -18,11 +19,15 @@ relatedFiles:
 
 # Ingestion Pipeline Specification
 
-**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**. See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for version 0.1.1 feature specifications.
+**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**.
+See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for
+version 0.1.1 feature specifications.
 
 **Related Documentation:**
+
 - [LiveRC Ingestion Overview](01-overview.md) - System overview
-- [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) - Overall MRE architecture principles
+- [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) -
+  Overall MRE architecture principles
 
 ## Purpose
 
@@ -43,9 +48,9 @@ This ensures correctness, testability and future multi-connector support.
 
 The Ingestion Pipeline performs three major operations:
 
-1. **Track Catalogue Sync**  
-2. **Event Catalogue Sync**  
-3. **Deep Event Ingestion (Races + Results + Laps)**  
+1. **Track Catalogue Sync**
+2. **Event Catalogue Sync**
+3. **Deep Event Ingestion (Races + Results + Laps)**
 
 Each operation has clear separation, well-defined inputs and outputs, and strict
 ordering.
@@ -55,17 +60,21 @@ ordering.
 # 1. Track Catalogue Sync
 
 ### Purpose
+
 Maintain a complete list of all LiveRC tracks locally in the MRE database.
 
 ### Triggered By
+
 - CLI command: `mre tracks sync`
 - Admin console: “Sync Tracks” button
 - Optional cron job (weekly or daily)
 
 ### Data Source
+
 `https://live.liverc.com` via `LiveRCConnector.listTracks()`
 
 ### Behaviour
+
 1. Fetch full track list from LiveRC.
 2. For each track:
    - Upsert by `source_track_slug`.
@@ -78,61 +87,78 @@ Maintain a complete list of all LiveRC tracks locally in the MRE database.
    - **Extract dashboard metadata** (if available):
      - Fetch track dashboard page (`https://{slug}.liverc.com/`)
      - Parse and extract:
-       - Location data: `latitude`, `longitude`, `address`, `city`, `state`, `country`, `postal_code`
+       - Location data: `latitude`, `longitude`, `address`, `city`, `state`,
+         `country`, `postal_code`
        - Contact info: `phone`, `website`, `email`
        - Additional metadata: `description`, `logo_url`, `facebook_url`
        - Statistics: `total_laps`, `total_races`, `total_events`
      - Update track record with extracted metadata
-     - If dashboard fetch/parse fails, track sync continues gracefully (metadata remains null)
-3. Mark any previously known LiveRC tracks that no longer appear as `is_active = false`.
+     - If dashboard fetch/parse fails, track sync continues gracefully (metadata
+       remains null)
+3. Mark any previously known LiveRC tracks that no longer appear as
+   `is_active = false`.
 
 ### Notes
+
 - No events or race data is fetched in this step.
 - This is the only ingestion operation allowed to be run proactively.
-- Dashboard metadata extraction adds one HTTP request per track (may increase sync time).
-- Dashboard parsing failures are logged but do not prevent track sync from completing.
-- Extracted location data improves weather geolocation accuracy (see weather API documentation).
+- Dashboard metadata extraction adds one HTTP request per track (may increase
+  sync time).
+- Dashboard parsing failures are logged but do not prevent track sync from
+  completing.
+- Extracted location data improves weather geolocation accuracy (see weather API
+  documentation).
 
 ---
 
 # 2. Event Catalogue Sync (Per Track)
 
 ### Purpose
+
 Populate MRE’s local database with all events for a specific track, without
 ingesting any detailed race data.
 
 ### Triggered By
+
 - CLI: `ingest liverc refresh-events --track-id {id} --depth {none|laps_full}`
 - Admin console: “Sync Events for This Track” button
 
 ### Data Source
+
 `https://{slug}.liverc.com/events`  
 via `LiveRCConnector.listEventsForTrack(track)`
 
 ### Behaviour
+
 1. Validate that the track exists in MRE’s database.
 2. Fetch all event summaries for the track.
 3. Upsert Event rows using `source_event_id` as the unique key.
 4. Update fields including:
-   - event_name  
-   - event_date  
-   - event_entries  
-   - event_drivers  
-   - event_url  
+   - event_name
+   - event_date
+   - event_entries
+   - event_drivers
+   - event_url
 5. Set `ingest_depth = "none"` for newly discovered events.
 6. Do **not** modify `ingest_depth` for previously ingested events.
 
 ### Optional Full Ingestion
+
 If `--depth laps_full` is specified:
+
 - **Phase 1**: Event discovery (as above)
 - **Phase 2**: Full ingestion for selected events
-  - With `--ingest-new-only` (default): Only ingest events that were just created
-  - With `--ingest-all`: Ingest all events for the track (re-ingestion is idempotent)
+  - With `--ingest-new-only` (default): Only ingest events that were just
+    created
+  - With `--ingest-all`: Ingest all events for the track (re-ingestion is
+    idempotent)
 - This combines event discovery and full ingestion into a single command
 
 ### Notes
+
 - With `--depth none`: No race sessions or laps are scraped at this stage.
-- With `--depth laps_full`: Full pipeline runs for selected events (races, results, laps).
+- With `--depth laps_full`: Full pipeline runs for selected events (races,
+  results, laps).
 - Users will search these Events using the Held-Between flow.
 
 ---
@@ -140,28 +166,38 @@ If `--depth laps_full` is specified:
 # 3. Deep Event Ingestion (On Demand)
 
 ### Purpose
+
 Retrieve the full details of an event only when a user selects that event from
 search results.
 
 ### Triggered By
+
 - MRE end user selects an event in the UI.
 - CLI: `mre events ingest --event {id} --depth laps_full`
 
 ### Ingestion Depths
-- `"none"`: Event metadata only (no race data ingested). Used for event discovery/browsing.
-- `"laps_full"`: Full ingestion including races, results, and per-driver lap data.
 
-**V1 Note**: In V1, "Import Event" always means full ingestion (`laps_full`). Event discovery creates events at `none` depth for browsing, but when a user imports an event, they always get complete data (races + results + laps).
+- `"none"`: Event metadata only (no race data ingested). Used for event
+  discovery/browsing.
+- `"laps_full"`: Full ingestion including races, results, and per-driver lap
+  data.
+
+**V1 Note**: In V1, "Import Event" always means full ingestion (`laps_full`).
+Event discovery creates events at `none` depth for browsing, but when a user
+imports an event, they always get complete data (races + results + laps).
 
 ### Data Sources
+
 Via the LiveRCConnector:
-- Event details page  
+
+- Event details page
 - Entry list page (REQUIRED - ingestion fails if missing)
-- Race list page  
-- Individual race result pages  
-- `racerLaps[...]` JS data blocks for lap series  
+- Race list page
+- Individual race result pages
+- `racerLaps[...]` JS data blocks for lap series
 
 ### Behaviour (Entry-List-First Architecture)
+
 1. Validate event exists in DB.
 2. Check `ingest_depth`:
    - If `"laps_full"`: return immediately (cached).
@@ -178,11 +214,15 @@ Via the LiveRCConnector:
 7. For each race:
    - Fetch driver results.
    - Match race result drivers to EventEntry records (by driver ID or name)
-   - **Skip unmatched drivers**: If a race result driver does not match any EventEntry for the race's class, skip that result (log warning, continue processing)
+   - **Skip unmatched drivers**: If a race result driver does not match any
+     EventEntry for the race's class, skip that result (log warning, continue
+     processing)
    - Update Driver `sourceDriverId` from temporary to real ID if matched
    - Upsert Race, RaceDriver, RaceResult (only for matched drivers).
-   - Note: Transponder numbers are stored in EventEntry (source of truth), not RaceDriver.
-   - Note: Multi-class drivers will still be processed correctly - they're only skipped in classes they're not entered in.
+   - Note: Transponder numbers are stored in EventEntry (source of truth), not
+     RaceDriver.
+   - Note: Multi-class drivers will still be processed correctly - they're only
+     skipped in classes they're not entered in.
 8. For each race result:
    - Fetch lap data using connector.
    - Upsert Lap rows (with safe dedupe by race_result_id + lap_number).
@@ -192,14 +232,18 @@ Via the LiveRCConnector:
      - Transponder match (primary strategy)
      - Exact normalized name match
      - Fuzzy name match (Jaro-Winkler similarity >= 0.85)
-   - Create/update UserDriverLink records (status: confirmed, suggested, or conflict).
+   - Create/update UserDriverLink records (status: confirmed, suggested, or
+     conflict).
    - Create EventDriverLink records to track event-specific matches.
-   - Run auto-confirmation: Check for transponder matches across 2+ events and auto-confirm links when name compatibility is verified.
+   - Run auto-confirmation: Check for transponder matches across 2+ events and
+     auto-confirm links when name compatibility is verified.
 10. Update event:
-   - `ingest_depth = "laps_full"`
-   - `last_ingested_at = now()`
+
+- `ingest_depth = "laps_full"`
+- `last_ingested_at = now()`
 
 ### Notes
+
 - This action can be long-running but must provide progress updates to the UI.
 - Ingestion must be idempotent: running twice should not create duplicates.
 
@@ -225,9 +269,11 @@ processed in the background.
 The ingestion service must enforce predictable behaviour:
 
 ### Upsert Keys
+
 - Track: `source = "liverc"`, `source_track_slug`
 - Event: `source = "liverc"`, `source_event_id`
-- Driver: `source = "liverc"`, `source_driver_id` (may be temporary "entry_*" ID initially)
+- Driver: `source = "liverc"`, `source_driver_id` (may be temporary "entry\_\*"
+  ID initially)
 - EventEntry: `(event_id, driver_id, class_name)`
 - Race: `(event_id, source_race_id)` if available, else synthetic hash
 - RaceDriver: `(race_id, source_driver_id)`
@@ -235,7 +281,9 @@ The ingestion service must enforce predictable behaviour:
 - Lap: `(race_result_id, lap_number)`
 
 ### Retry Safety
+
 If ingestion dies mid-way:
+
 - Re-running must complete without corrupting state.
 - No duplicate laps, races, or drivers may be created.
 
@@ -266,6 +314,7 @@ Ingestion must log at minimum:
 - Summary of state changes (new/updated/skipped).
 
 Logs should be suitable for:
+
 - `journalctl`
 - Browser console logs (admin UI)
 - Automated diagnostics
@@ -277,21 +326,27 @@ Logs should be suitable for:
 CLI commands act as thin wrappers around the ingestion service:
 
 ### `mre tracks sync`
+
 - Runs Track Catalogue Sync.
 
 ### `ingest liverc refresh-events --track-id {id} --depth {none|laps_full}`
+
 - Runs Event Catalogue Sync for a single track.
 - With `--depth none`: Only discovers events (metadata only).
-- With `--depth laps_full`: Discovers events and optionally performs full ingestion.
+- With `--depth laps_full`: Discovers events and optionally performs full
+  ingestion.
   - Use `--ingest-new-only` (default) to only ingest newly discovered events.
   - Use `--ingest-all` to ingest all events for the track.
 
 ### `ingest liverc ingest-event --event-id {id} --depth laps_full`
-- Runs Deep Event Ingestion for a specific event (legacy command, still supported).
+
+- Runs Deep Event Ingestion for a specific event (legacy command, still
+  supported).
 
 All CLI operations must exit with:
-- `0` for success  
-- non-zero for structured failure  
+
+- `0` for success
+- non-zero for structured failure
 
 ---
 
@@ -299,11 +354,11 @@ All CLI operations must exit with:
 
 The admin UI must expose controls to:
 
-- Sync tracks  
-- Sync events for a track  
-- Re-ingest a single event  
-- View ingestion status  
-- Monitor ingestion logs  
+- Sync tracks
+- Sync events for a track
+- Re-ingest a single event
+- View ingestion status
+- Monitor ingestion logs
 
 All admin UI API calls are routed through the ingestion service.
 
@@ -325,13 +380,13 @@ The only proactive scraper is the Track Catalogue Sync.
 
 The ingestion pipeline defines:
 
-- **What** data is retrieved  
-- **When** it is retrieved  
-- **How** it is retrieved  
-- **How** it is persisted  
+- **What** data is retrieved
+- **When** it is retrieved
+- **How** it is retrieved
+- **How** it is persisted
 
-By separating Connectors from the Ingestion Service, and layering ingestion flows
-from Track → Event → Race → Results → Laps, MRE ensures robustness, scalability,
-anti-bot compliance and predictable behaviour.
+By separating Connectors from the Ingestion Service, and layering ingestion
+flows from Track → Event → Race → Results → Laps, MRE ensures robustness,
+scalability, anti-bot compliance and predictable behaviour.
 
 This document is the canonical reference for all ingestion-related logic.

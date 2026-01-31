@@ -1,12 +1,12 @@
 /**
  * @fileoverview Integration tests for Next.js to Python ingestion service communication
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Assistant)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Tests for end-to-end event import flow
- * 
+ *
  * @purpose Validates communication between Next.js application and Python ingestion service,
  *          including error propagation and response handling.
  */
@@ -73,10 +73,7 @@ describe("Event Import Integration", () => {
       }
 
       expect(getEventById).toHaveBeenCalledWith("event-123")
-      expect(ingestionClient.ingestEvent).toHaveBeenCalledWith(
-        "event-123",
-        "laps_full"
-      )
+      expect(ingestionClient.ingestEvent).toHaveBeenCalledWith("event-123", "laps_full")
     })
   })
 

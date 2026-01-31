@@ -78,9 +78,7 @@ function deriveLapMetrics(
   }
 }
 
-function calculateTotalTimeFromLaps(
-  laps: Array<{ lapTimeSeconds: number }>
-): number | null {
+function calculateTotalTimeFromLaps(laps: Array<{ lapTimeSeconds: number }>): number | null {
   if (!laps || laps.length === 0) {
     return null
   }
@@ -231,10 +229,13 @@ export interface EventAnalysisData {
     transponderNumber: string | null
     carNumber: string | null
   }>
-  raceClasses: Map<string, {
-    vehicleType: string | null
-    vehicleTypeNeedsReview: boolean
-  }>
+  raceClasses: Map<
+    string,
+    {
+      vehicleType: string | null
+      vehicleTypeNeedsReview: boolean
+    }
+  >
   summary: {
     totalRaces: number
     totalDrivers: number
@@ -563,7 +564,18 @@ export async function getEventSummary(
   let userBestLap: { lapTime: number; position: number; gapToFastest: number } | undefined
   let userBestConsistency: { consistency: number; position: number; gapToBest: number } | undefined
   let userBestAvgLap: { avgLapTime: number; position: number; gapToBest: number } | undefined
-  let userBestImprovement: { positionImprovement: number; lapTimeImprovement: number | null; position: number; gapToBest: number; firstRacePosition: number; lastRacePosition: number; className: string; raceLabel: string } | undefined
+  let userBestImprovement:
+    | {
+        positionImprovement: number
+        lapTimeImprovement: number | null
+        position: number
+        gapToBest: number
+        firstRacePosition: number
+        lastRacePosition: number
+        className: string
+        raceLabel: string
+      }
+    | undefined
 
   if (userId) {
     // Find user's driver link for this event
@@ -762,11 +774,11 @@ export async function getEventSummary(
         const allImprovedSorted = [...mostImprovedDrivers].sort(
           (a, b) => b.positionImprovement - a.positionImprovement
         )
-        const userPosition = allImprovedSorted.findIndex(
-          (d) => d.driverId === userDriverLink.driverId
-        ) + 1
+        const userPosition =
+          allImprovedSorted.findIndex((d) => d.driverId === userDriverLink.driverId) + 1
 
-        const bestImprovement = allImprovedSorted[0]?.positionImprovement ?? userInMostImproved.positionImprovement
+        const bestImprovement =
+          allImprovedSorted[0]?.positionImprovement ?? userInMostImproved.positionImprovement
         const gapToBest = bestImprovement - userInMostImproved.positionImprovement
 
         userBestImprovement = {
@@ -802,10 +814,7 @@ export async function getEventSummary(
               },
             },
           },
-          orderBy: [
-            { race: { raceOrder: "asc" } },
-            { race: { startTime: "asc" } },
-          ],
+          orderBy: [{ race: { raceOrder: "asc" } }, { race: { startTime: "asc" } }],
         })
 
         if (userRaceResults.length >= 2) {
@@ -826,7 +835,7 @@ export async function getEventSummary(
           const lastRace = sortedResults[sortedResults.length - 1]
 
           const positionImprovement = firstRace.positionFinal - lastRace.positionFinal
-          
+
           // Only calculate lap time improvement if both have valid lap times
           let lapTimeImprovement: number | null = null
           if (firstRace.fastLapTime !== null && lastRace.fastLapTime !== null) {
@@ -838,7 +847,7 @@ export async function getEventSummary(
           const allImprovedSorted = [...mostImprovedDrivers].sort(
             (a, b) => b.positionImprovement - a.positionImprovement
           )
-          
+
           // Count how many drivers have better improvement than user
           const betterCount = allImprovedSorted.filter(
             (d) => d.positionImprovement > positionImprovement
@@ -846,7 +855,8 @@ export async function getEventSummary(
           // Position is betterCount + 1, but if user didn't improve, they're after all improved drivers
           const position = positionImprovement > 0 ? betterCount + 1 : allImprovedSorted.length + 1
 
-          const bestImprovement = allImprovedSorted[0]?.positionImprovement ?? Math.max(0, positionImprovement)
+          const bestImprovement =
+            allImprovedSorted[0]?.positionImprovement ?? Math.max(0, positionImprovement)
           const gapToBest = bestImprovement - positionImprovement
 
           userBestImprovement = {
@@ -1013,7 +1023,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       const driverId = result.raceDriver.driverId
       const linkedDriverName = result.raceDriver.driver?.displayName?.trim()
       const raceDriverName = result.raceDriver.displayName?.trim()
-      
+
       // CRITICAL: Use raceDriverName FIRST (actual race data from RaceDriver.displayName)
       // This is the name that was actually used in the race, not a fuzzy-matched lookup
       // Only fall back to linkedDriverName (Driver.displayName) if race data is missing
@@ -1022,17 +1032,20 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
         driverName = raceDriverName
       } else if (linkedDriverName && linkedDriverName.length > 0) {
         driverName = linkedDriverName
-        console.warn('[get-event-analysis-data] Using linked driver name (fuzzy match) instead of race data:', {
-          raceId: result.race.id,
-          raceLabel: result.race.raceLabel,
-          driverId: driverId,
-          raceDriverName: raceDriverName,
-          linkedDriverName: linkedDriverName,
-        })
+        console.warn(
+          "[get-event-analysis-data] Using linked driver name (fuzzy match) instead of race data:",
+          {
+            raceId: race.id,
+            raceLabel: race.raceLabel,
+            driverId: driverId,
+            raceDriverName: raceDriverName,
+            linkedDriverName: linkedDriverName,
+          }
+        )
       } else {
         driverName = "Unknown Driver"
       }
-      
+
       // Fix any malformed duplicated names (e.g., "TURNER, HARRISONHARRISON TURNER")
       const fixMalformedName = (name: string): string => {
         // Pattern: "LASTNAME, FIRSTNAMEFIRSTNAME LASTNAME"
@@ -1049,15 +1062,15 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
         }
         return name
       }
-      
+
       const originalName = driverName
       driverName = fixMalformedName(driverName)
       if (driverName !== originalName) {
-        console.warn('[get-event-analysis-data] Fixed malformed driver name:', {
+        console.warn("[get-event-analysis-data] Fixed malformed driver name:", {
           original: originalName,
           fixed: driverName,
-          raceId: result.race.id,
-          raceLabel: result.race.raceLabel,
+          raceId: race.id,
+          raceLabel: race.raceLabel,
           driverId: driverId,
         })
       }
@@ -1172,7 +1185,10 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
   })
 
   // Create map of race classes to vehicle type info
-  const raceClassesMap = new Map<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>()
+  const raceClassesMap = new Map<
+    string,
+    { vehicleType: string | null; vehicleTypeNeedsReview: boolean }
+  >()
   eventRaceClasses.forEach((rc) => {
     raceClassesMap.set(rc.className, {
       vehicleType: rc.vehicleType,

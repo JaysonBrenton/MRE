@@ -1,6 +1,6 @@
 /**
  * @fileoverview Script to check if vehicle type was saved to database
- * 
+ *
  * Usage: docker exec -it mre-app npx tsx scripts/check-vehicle-type-save.ts <eventId> <className>
  */
 
@@ -64,7 +64,7 @@ async function main() {
     })
   } else {
     console.log("❌ No EventRaceClass found for this event and class")
-    
+
     // Check if event exists
     const event = await prisma.event.findUnique({
       where: { id: eventId },
@@ -75,13 +75,13 @@ async function main() {
       console.log(`❌ Event ${eventId} not found`)
     } else {
       console.log(`✅ Event exists: ${event.eventName}`)
-      
+
       // Check what classes exist for this event
       const allClasses = await prisma.eventRaceClass.findMany({
         where: { eventId },
         select: { className: true },
       })
-      
+
       console.log(`\n📋 Existing classes for this event:`)
       allClasses.forEach((rc) => {
         const match = rc.className === className ? "← MATCH" : ""
@@ -94,7 +94,7 @@ async function main() {
         select: { className: true },
         distinct: ["className"],
       })
-      
+
       console.log(`\n📋 Classes from EventEntry:`)
       entryClasses.forEach((entry) => {
         const match = entry.className === className ? "← MATCH" : ""

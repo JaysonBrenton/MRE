@@ -3,9 +3,10 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Non-functional requirements documented as user stories
-purpose: Defines non-functional requirements (performance, security, accessibility, mobile
-         compatibility, API reliability) as user stories with detailed acceptance criteria
-         and links to architecture guidelines.
+purpose:
+  Defines non-functional requirements (performance, security, accessibility,
+  mobile compatibility, API reliability) as user stories with detailed
+  acceptance criteria and links to architecture guidelines.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/mre-ux-principles.md
@@ -14,7 +15,9 @@ relatedFiles:
 
 # Non-Functional Requirements
 
-This document contains non-functional requirements documented as user stories. These requirements apply across all features and ensure the application meets quality, performance, security, and accessibility standards.
+This document contains non-functional requirements documented as user stories.
+These requirements apply across all features and ensure the application meets
+quality, performance, security, and accessibility standards.
 
 ---
 
@@ -25,9 +28,11 @@ This document contains non-functional requirements documented as user stories. T
 **So that** I have a responsive experience
 
 ### Priority
+
 High
 
 ### Dependencies
+
 Applies to all features
 
 ### Acceptance Criteria
@@ -76,9 +81,11 @@ Applies to all features
 **So that** my information is protected
 
 ### Priority
+
 High
 
 ### Dependencies
+
 Applies to all features
 
 ### Acceptance Criteria
@@ -114,7 +121,8 @@ Applies to all features
 
 6. **Error Handling Security**
    - Error messages must not expose system internals
-   - Error messages must not reveal whether accounts exist (prevent account enumeration)
+   - Error messages must not reveal whether accounts exist (prevent account
+     enumeration)
    - Generic error messages must be used for authentication failures
 
 ### Definition of Done
@@ -143,9 +151,11 @@ Applies to all features
 **So that** I can use MRE effectively
 
 ### Priority
+
 High
 
 ### Dependencies
+
 Applies to all features
 
 ### Acceptance Criteria
@@ -211,9 +221,11 @@ Applies to all features
 **So that** I can access it anywhere
 
 ### Priority
+
 High
 
 ### Dependencies
+
 Applies to all features
 
 ### Acceptance Criteria
@@ -277,9 +289,11 @@ Applies to all features
 **So that** features work consistently
 
 ### Priority
+
 High
 
 ### Dependencies
+
 Applies to all API-dependent features
 
 ### Acceptance Criteria
@@ -299,7 +313,8 @@ Applies to all API-dependent features
      - `INTERNAL_ERROR`: Unknown server-side error
 
 3. **Response Format**
-   - All API responses must follow standard format defined in architecture guidelines
+   - All API responses must follow standard format defined in architecture
+     guidelines
    - Success responses must include expected data structure
    - Error responses must include error object with code, message, and details
 
@@ -309,7 +324,8 @@ Applies to all API-dependent features
    - Idempotency must be handled gracefully
 
 5. **Rate Limiting**
-   - Ingestion endpoints should apply throttling (one ingestion per event per N minutes unless forced)
+   - Ingestion endpoints should apply throttling (one ingestion per event per N
+     minutes unless forced)
    - GET endpoints generally should not be rate-limited
    - Rate limiting must not change response schemas
 
@@ -339,7 +355,10 @@ Applies to all API-dependent features
 
 ## Notes
 
-These non-functional requirements apply to all features and must be considered during implementation. They ensure the application meets quality, performance, security, and accessibility standards across all user stories.
+These non-functional requirements apply to all features and must be considered
+during implementation. They ensure the application meets quality, performance,
+security, and accessibility standards across all user stories.
 
-Each feature's Definition of Done checklist should include verification of relevant non-functional requirements to ensure consistent quality throughout the application.
-
+Each feature's Definition of Done checklist should include verification of
+relevant non-functional requirements to ensure consistent quality throughout the
+application.

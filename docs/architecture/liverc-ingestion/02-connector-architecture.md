@@ -2,11 +2,15 @@
 created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
-description: Complete connector specification including architecture, contracts, browser strategy, HTTP client, and HTML/JS parsing
-purpose: Defines the complete connector layer architecture that provides a uniform interface for
-         retrieving external race data from LiveRC and future data sources. This document
-         consolidates connector architecture, contracts, browser strategy, HTTPX client architecture,
-         and HTML parsing architecture into a single comprehensive specification.
+description:
+  Complete connector specification including architecture, contracts, browser
+  strategy, HTTP client, and HTML/JS parsing
+purpose:
+  Defines the complete connector layer architecture that provides a uniform
+  interface for retrieving external race data from LiveRC and future data
+  sources. This document consolidates connector architecture, contracts, browser
+  strategy, HTTPX client architecture, and HTML parsing architecture into a
+  single comprehensive specification.
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
@@ -16,11 +20,15 @@ relatedFiles:
 
 # Connector Architecture Specification
 
-**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**. See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for version 0.1.1 feature specifications.
+**Status:** This ingestion subsystem is **in scope for version 0.1.1 release**.
+See [MRE Version 0.1.1 Feature Scope](../../specs/mre-v0.1-feature-scope.md) for
+version 0.1.1 feature specifications.
 
 **Related Documentation:**
+
 - [LiveRC Ingestion Overview](01-overview.md) - System overview
-- [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) - Overall MRE architecture principles
+- [Mobile-Safe Architecture Guidelines](../mobile-safe-architecture-guidelines.md) -
+  Overall MRE architecture principles
 
 ## Purpose
 
@@ -42,6 +50,7 @@ logic.
 ## Architectural Principles
 
 ### 1. Pure Functions Only
+
 A connector may **only**:
 
 - Fetch data from the external source.
@@ -56,10 +65,12 @@ A connector may **not**:
 - Know anything about MRE's user workflows.
 
 ### 2. No Side Effects
+
 Connectors must be deterministic and repeatable. If the same external URL is
 fetched twice, the connector must return the same structured result.
 
 ### 3. Minimal External Load
+
 The connector must respect anti-bot constraints:
 
 - No unnecessary requests.
@@ -68,36 +79,36 @@ The connector must respect anti-bot constraints:
 
 ### 4. Shared Site Policy Enforcement
 
-All outbound HTTP/Playwright calls flow through `policies/site_policy/policy.json` via:
+All outbound HTTP/Playwright calls flow through
+`policies/site_policy/policy.json` via:
 
 - `ingestion/common/site_policy.py` (Python runtime)
 - `src/lib/site-policy.ts` (Next.js runtime)
 
 This policy enforces:
 
-- Global kill switch (`MRE_SCRAPE_ENABLED`) honored by cron, CLI, the ingestion API, and the Next.js admin UI.
+- Global kill switch (`MRE_SCRAPE_ENABLED`) honored by cron, CLI, the ingestion
+  API, and the Next.js admin UI.
 - robots.txt allow/disallow checks + crawl-delay parsing.
 - Host-level throttling (semaphores + crawl-delay) with jitter.
-- Conditional requests (ETag/Last-Modified caching) and `Retry-After` handling inside the HTTPX client.
+- Conditional requests (ETag/Last-Modified caching) and `Retry-After` handling
+  inside the HTTPX client.
 
-Connectors **must not** bypass the site policy helper. If a new data source is added, update `policy.json` and both helper modules to describe its host rules.
+Connectors **must not** bypass the site policy helper. If a new data source is
+added, update `policy.json` and both helper modules to describe its host rules.
 
-**See [Web Scraping Best Practices](27-web-scraping-best-practices.md) for comprehensive documentation of all web scraping practices, including robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, and more.**
+**See [Web Scraping Best Practices](27-web-scraping-best-practices.md) for
+comprehensive documentation of all web scraping practices, including robots.txt
+compliance, rate limiting, User-Agent policy, HTTP caching, and more.**
 
 ### 5. One Connector Per Data Source
+
 Each external system receives its own module:
 
-connectors/
-liverc/
-LiveRCConnector.ts
-livetime/
-LiveTimeConnector.ts
-sodialed/
-SodiDialedConnector.ts
-...
+connectors/ liverc/ LiveRCConnector.ts livetime/ LiveTimeConnector.ts sodialed/
+SodiDialedConnector.ts ...
 
-yaml
-Copy code
+yaml Copy code
 
 Each must implement the same interface.
 
@@ -108,79 +119,94 @@ Each must implement the same interface.
 All connectors must implement the following high-level operations:
 
 ### `listTracks(): Promise<TrackSummary[]>`
+
 Returns a minimal list of tracks (or equivalents) available from the data
 source. For LiveRC, this corresponds to the Track Catalogue at
 `https://live.liverc.com`.
 
 ### `listEventsForTrack(track: TrackSummary): Promise<EventSummary[]>`
+
 Given a track, return all high-level event metadata:
 
-- event name  
-- event date  
-- entries  
-- drivers  
-- source_event_id  
-- event URL  
+- event name
+- event date
+- entries
+- drivers
+- source_event_id
+- event URL
 
 This returns **summary only** — no races or laps.
 
 ### `fetchEventDetails(event: EventSummary): Promise<EventDetails>`
+
 Fetches the high-level event metadata from the event detail page.  
 For LiveRC, this includes:
 
-- Event title  
-- Date  
-- Classes present  
-- Possibly event description  
+- Event title
+- Date
+- Classes present
+- Possibly event description
 
 ### `fetchEventRaces(event: EventSummary): Promise<RaceSummary[]>`
+
 Discovers the list of races (heats, qualifiers, mains).  
 Each RaceSummary should include:
 
-- class_name  
-- race_label  
-- source_race_id (if present)  
-- race URL  
+- class_name
+- race_label
+- source_race_id (if present)
+- race URL
 
 ### `fetchRaceResults(race: RaceSummary): Promise<RaceResultRaw[]>`
+
 Returns all driver results for a race:
 
-- driver name  
-- driver numbering (if available)  
-- finishing position  
-- laps completed  
-- total time  
-- averages, consistency, best lap  
-- raw JS blocks if needed for later parsing  
+- driver name
+- driver numbering (if available)
+- finishing position
+- laps completed
+- total time
+- averages, consistency, best lap
+- raw JS blocks if needed for later parsing
 
 ### `fetchRaceLaps(race: RaceSummary): Promise<RaceLapRaw[]>`
+
 Returns the raw lap data for each driver in the race.  
 For LiveRC, this parses the `racerLaps[...]` JS object.
 
 ### `fetchTrackDashboard(track_slug: string): Promise<string>`
-Fetches the track dashboard page HTML. For LiveRC, this fetches `https://{slug}.liverc.com/`. Returns raw HTML string. Used internally by `fetchTrackMetadata()`.
+
+Fetches the track dashboard page HTML. For LiveRC, this fetches
+`https://{slug}.liverc.com/`. Returns raw HTML string. Used internally by
+`fetchTrackMetadata()`.
 
 ### `fetchTrackMetadata(track_slug: string): Promise<TrackDashboardData | null>`
-Fetches and parses track dashboard page to extract comprehensive metadata including:
+
+Fetches and parses track dashboard page to extract comprehensive metadata
+including:
+
 - Location data: coordinates, address, city, state, country, postal code
 - Contact information: phone, website, email
 - Track description and amenities
 - Logo and social media URLs
 - Lifetime statistics: total laps, races, events
 
-Returns `null` if fetch/parse fails (graceful degradation). This method is used during track sync to enrich track records with additional metadata beyond the basic catalogue information.
+Returns `null` if fetch/parse fails (graceful degradation). This method is used
+during track sync to enrich track records with additional metadata beyond the
+basic catalogue information.
 
 ---
 
 ## Data Shapes Returned by Connectors
 
-Connectors must return **plain data objects**, not ORM models. These objects form
-the canonical “external data contract” that the ingestion layer will validate
-and persist.
+Connectors must return **plain data objects**, not ORM models. These objects
+form the canonical “external data contract” that the ingestion layer will
+validate and persist.
 
 All returned objects should follow this pattern:
 
 ### Example: `TrackSummary`
+
 ```ts
 {
   source: "liverc",
@@ -304,24 +330,24 @@ The connector MUST NOT know anything about the MRE database schema.
 
 ### Connector Guiding Principles
 
-1. **Deterministic output**  
+1. **Deterministic output**
    Same HTML → same structured object.
 
-2. **Strict type guarantees**  
+2. **Strict type guarantees**
    All fields MUST be present and valid. Missing fields MUST raise an error.
 
-3. **Zero business logic**  
+3. **Zero business logic**
    No ingestion state checks. No DB writes. No timestamps.
 
-4. **Idempotency at the data level**  
+4. **Idempotency at the data level**
    A second parse of the same page MUST produce the same object.
 
-5. **Browser automation minimized**  
+5. **Browser automation minimized**
    Playwright SHOULD only be used when absolutely necessary, typically for:
    - event pages that require expanding sections
    - race pages with dynamic content
 
-6. **Connector errors must be domain-specific**  
+6. **Connector errors must be domain-specific**
    The ingestion layer should receive errors such as:
    - EventPageFormatError
    - RacePageFormatError
@@ -659,19 +685,19 @@ HTTPX is preferred for:
 
 The connector MUST adhere to these safety rules:
 
-1. **Low-frequency ingestion**  
+1. **Low-frequency ingestion**
    Ingestion runs happen only when an admin triggers them.
 
-2. **Natural-looking request patterns**  
+2. **Natural-looking request patterns**
    The connector MUST NOT flood LiveRC with parallel requests.
 
-3. **Use browser only when necessary**  
+3. **Use browser only when necessary**
    Playwright mimics a real browser, reducing anti-bot risk.
 
-4. **Retry with backoff**  
+4. **Retry with backoff**
    HTTPX and Playwright fetch failures MUST use exponential backoff before raising errors.
 
-5. **Avoid suspicious automation signals**  
+5. **Avoid suspicious automation signals**
    No automation headers. No odd request patterns. No manipulating cookies.
 
 This strategy is not about *evading protections*, but ensuring *cooperative polite scraping*.
@@ -724,7 +750,7 @@ The client must provide a stable, uniform interface to all connectors.
 
 #### One shared HTTPX client per ingestion session
 
-A single shared `AsyncClient` instance must be created per ingestion run.  
+A single shared `AsyncClient` instance must be created per ingestion run.
 Never create clients ad-hoc inside individual scraping functions.
 
 This guarantees:
@@ -1021,3 +1047,4 @@ The parser layer must:
 - Produce deterministic results
 - Integrate cleanly with fixtures and replay
 - Emit rich observability data
+```

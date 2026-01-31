@@ -1,16 +1,16 @@
 /**
  * @fileoverview Security event logging utilities
- * 
+ *
  * @created 2025-01-27
  * @creator Auto (AI Code Reviewer)
  * @lastModified 2025-01-27
- * 
+ *
  * @description Utilities for logging security-related events
- * 
+ *
  * @purpose Provides functions to log security events such as failed logins,
  *          rate limit violations, and suspicious activity. Helps with security
  *          monitoring and incident response.
- * 
+ *
  * @relatedFiles
  * - src/lib/logger.ts (structured logging)
  * - src/lib/request-context.ts (request context)
@@ -20,7 +20,7 @@ import { logger, createLoggerWithContext, type LogContext } from "./logger"
 
 /**
  * Log failed login attempt
- * 
+ *
  * @param identifier - Email or username (sanitized - don't log full value)
  * @param ip - Client IP address
  * @param userAgent - User agent string
@@ -50,7 +50,7 @@ export function logFailedLogin(
 
 /**
  * Log successful login
- * 
+ *
  * @param userId - User ID
  * @param identifier - Email or username (sanitized)
  * @param ip - Client IP address
@@ -79,7 +79,7 @@ export function logSuccessfulLogin(
 
 /**
  * Log rate limit violation
- * 
+ *
  * @param ip - Client IP address
  * @param path - Request path
  * @param limit - Rate limit that was exceeded
@@ -104,7 +104,7 @@ export function logRateLimitHit(
 
 /**
  * Log suspicious activity
- * 
+ *
  * @param activity - Description of suspicious activity
  * @param ip - Client IP address
  * @param details - Additional details
@@ -126,7 +126,7 @@ export function logSuspiciousActivity(
 
 /**
  * Log session event
- * 
+ *
  * @param event - Session event type
  * @param userId - User ID
  * @param ip - Client IP address
@@ -144,4 +144,3 @@ export function logSessionEvent(
     ip,
   })
 }
-

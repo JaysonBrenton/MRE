@@ -1,17 +1,17 @@
 /**
  * @fileoverview Driver repository - all Prisma queries for driver domain
- * 
+ *
  * @created 2025-12-24
  * @creator Jayson Brenton
  * @lastModified 2025-12-24
- * 
+ *
  * @description Contains all database access functions for driver operations
- * 
+ *
  * @purpose This file centralizes all Prisma queries related to drivers, following
  *          the mobile-safe architecture requirement that all database access must
  *          exist only in src/core/<domain>/repo.ts files. This ensures business
  *          logic is separated from API routes and can be reused by mobile clients.
- * 
+ *
  * @relatedFiles
  * - src/lib/prisma.ts (Prisma client)
  * - src/app/api/v1/drivers/[driverId]/route.ts (uses this repo)
@@ -42,7 +42,7 @@ export interface DriverWithEventEntries {
 
 /**
  * Get a driver by ID with basic info
- * 
+ *
  * @param driverId - Driver's unique identifier
  * @returns Driver object or null if not found
  */
@@ -54,7 +54,7 @@ export async function getDriverById(driverId: string): Promise<Driver | null> {
 
 /**
  * Get a driver with EventEntry records and TransponderOverrides
- * 
+ *
  * @param driverId - Driver's unique identifier
  * @param eventId - Optional event ID to filter entries and overrides
  * @returns Driver with EventEntry records and overrides, or null if not found
@@ -120,11 +120,11 @@ export async function getDriverWithEventEntries(
   // Build override map: eventId -> most recent override
   // Note: Overrides are per driver/event, not per class, so we use eventId as key
   const overrideMap = new Map<string, TransponderOverride & { effectiveFromRace: Race | null }>()
-  
+
   for (const override of driver.transponderOverrides) {
     // Key: eventId (override applies to all classes in the event)
     const key = override.eventId
-    
+
     // Only keep most recent override per event (already sorted by createdAt DESC)
     if (!overrideMap.has(key)) {
       overrideMap.set(key, override as TransponderOverride & { effectiveFromRace: Race | null })
@@ -166,12 +166,12 @@ export async function getDriverWithEventEntries(
 
 /**
  * Get effective transponder number for a specific race
- * 
+ *
  * Priority:
  * 1. TransponderOverride (if exists and applies to race)
  * 2. EventEntry.transponderNumber (original from entry list)
  * 3. Driver.transponderNumber (fallback default)
- * 
+ *
  * @param driverId - Driver's unique identifier
  * @param eventId - Event ID
  * @param raceId - Race ID to check override applicability
@@ -183,7 +183,10 @@ export async function getTransponderForRace(
   eventId: string,
   raceId: string,
   className: string
-): Promise<{ transponderNumber: string | null; source: "entry_list" | "override" | "driver" | null }> {
+): Promise<{
+  transponderNumber: string | null
+  source: "entry_list" | "override" | "driver" | null
+}> {
   // Get race order for comparison
   const race = await prisma.race.findUnique({
     where: { id: raceId },
@@ -257,7 +260,10 @@ export async function getTransponderForRace(
       break
     } else if (override.effectiveFromRace && race.raceOrder !== null) {
       // Check if override's race order <= current race order (applies from that race onwards)
-      if (override.effectiveFromRace.raceOrder !== null && override.effectiveFromRace.raceOrder <= race.raceOrder) {
+      if (
+        override.effectiveFromRace.raceOrder !== null &&
+        override.effectiveFromRace.raceOrder <= race.raceOrder
+      ) {
         applicableOverride = override
         break
       }
@@ -294,15 +300,15 @@ export async function getTransponderForRace(
 
 /**
  * Batch load transponder numbers for multiple drivers in a race
- * 
+ *
  * This function efficiently loads all transponder data in a few queries
  * instead of making per-driver queries. It returns a map keyed by driverId.
- * 
+ *
  * Priority:
  * 1. TransponderOverride (if exists and applies to race)
  * 2. EventEntry.transponderNumber (original from entry list)
  * 3. Driver.transponderNumber (fallback default)
- * 
+ *
  * @param driverIds - Array of driver IDs to look up
  * @param eventId - Event ID
  * @param raceId - Race ID to check override applicability
@@ -316,8 +322,16 @@ export async function getTranspondersForRaceBatch(
   raceId: string,
   raceOrder: number | null,
   className: string
-): Promise<Map<string, { transponderNumber: string | null; source: "entry_list" | "override" | "driver" | null }>> {
-  const resultMap = new Map<string, { transponderNumber: string | null; source: "entry_list" | "override" | "driver" | null }>()
+): Promise<
+  Map<
+    string,
+    { transponderNumber: string | null; source: "entry_list" | "override" | "driver" | null }
+  >
+> {
+  const resultMap = new Map<
+    string,
+    { transponderNumber: string | null; source: "entry_list" | "override" | "driver" | null }
+  >()
 
   if (driverIds.length === 0) {
     return resultMap
@@ -361,7 +375,7 @@ export async function getTranspondersForRaceBatch(
   })
 
   // Group overrides by driverId, keeping only the most recent applicable one per driver
-  const overrideMap = new Map<string, typeof allOverrides[0]>()
+  const overrideMap = new Map<string, (typeof allOverrides)[0]>()
   for (const override of allOverrides) {
     const driverId = override.driverId
     if (!overrideMap.has(driverId)) {
@@ -375,11 +389,14 @@ export async function getTranspondersForRaceBatch(
         applies = true
       } else if (override.effectiveFromRace && raceOrder !== null) {
         // Check if override's race order <= current race order
-        if (override.effectiveFromRace.raceOrder !== null && override.effectiveFromRace.raceOrder <= raceOrder) {
+        if (
+          override.effectiveFromRace.raceOrder !== null &&
+          override.effectiveFromRace.raceOrder <= raceOrder
+        ) {
           applies = true
         }
       }
-      
+
       if (applies) {
         overrideMap.set(driverId, override)
       }
@@ -413,7 +430,7 @@ export async function getTranspondersForRaceBatch(
       continue
     }
 
-    const entry = eventEntries.find(e => e.driverId === driverId)
+    const entry = eventEntries.find((e) => e.driverId === driverId)
     if (entry?.transponderNumber) {
       resultMap.set(driverId, {
         transponderNumber: entry.transponderNumber,

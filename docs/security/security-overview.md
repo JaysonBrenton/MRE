@@ -3,12 +3,15 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Comprehensive security documentation for MRE application
-purpose: Provides complete security documentation including authentication, authorization,
-         password security, API security, data protection, and security best practices.
-         Ensures security architecture is well-documented and security best practices are followed.
+purpose:
+  Provides complete security documentation including authentication,
+  authorization, password security, API security, data protection, and security
+  best practices. Ensures security architecture is well-documented and security
+  best practices are followed.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md (security rules)
-  - docs/architecture/liverc-ingestion/17-ingestion-security.md (ingestion security)
+  - docs/architecture/liverc-ingestion/17-ingestion-security.md (ingestion
+    security)
   - src/core/auth/ (authentication implementation)
   - src/lib/auth.ts (NextAuth configuration)
   - middleware.ts (route protection)
@@ -19,7 +22,9 @@ relatedFiles:
 **Last Updated:** 2025-01-27  
 **Scope:** All security aspects of the MRE application
 
-This document provides comprehensive security documentation covering authentication, authorization, password security, API security, data protection, and security best practices.
+This document provides comprehensive security documentation covering
+authentication, authorization, password security, API security, data protection,
+and security best practices.
 
 ---
 
@@ -42,7 +47,9 @@ This document provides comprehensive security documentation covering authenticat
 
 ### Overview
 
-MRE uses NextAuth.js for authentication with credential-based provider. The architecture supports both web (cookie-based) and future mobile (token-based) authentication.
+MRE uses NextAuth.js for authentication with credential-based provider. The
+architecture supports both web (cookie-based) and future mobile (token-based)
+authentication.
 
 ### Authentication Flow
 
@@ -68,6 +75,7 @@ MRE uses NextAuth.js for authentication with credential-based provider. The arch
 **Configuration:** `src/lib/auth.ts`
 
 **Key Features:**
+
 - Credential-based authentication
 - JWT session strategy
 - Route protection via middleware
@@ -82,17 +90,20 @@ MRE uses NextAuth.js for authentication with credential-based provider. The arch
 ### Role-Based Access Control
 
 **Roles:**
+
 - **User** - Default role for registered users
 - **Admin** - Privileged role for administrative tasks
 
 ### User Permissions
 
 **Regular Users Can:**
+
 - View tracks and events
 - View race data and lap times
 - Access their own profile (future)
 
 **Regular Users Cannot:**
+
 - Trigger ingestion
 - Access admin console
 - Modify other users' data
@@ -101,12 +112,14 @@ MRE uses NextAuth.js for authentication with credential-based provider. The arch
 ### Admin Permissions
 
 **Admins Can:**
+
 - Trigger event ingestion
 - Access admin console
 - Manage tracks (follow/unfollow)
 - View all user data (future)
 
 **Admin Account Creation:**
+
 - Admin accounts MUST be created via:
   - Database seed script
   - Database migration
@@ -118,6 +131,7 @@ MRE uses NextAuth.js for authentication with credential-based provider. The arch
 **Route Protection:** `middleware.ts`
 
 **Admin Checks:**
+
 ```typescript
 // In API routes or server actions
 import { requireAdmin } from "@/core/auth/session"
@@ -127,11 +141,13 @@ const adminUser = await requireAdmin(session)
 ```
 
 **UI Protection:**
+
 - Admin routes protected by middleware
 - Non-admin users redirected to welcome page
 - Admin UI components check `session.user.isAdmin`
 
 **Placeholder for future documentation:**
+
 - Fine-grained permissions
 - Resource-level authorization
 - API key authentication for services
@@ -145,12 +161,14 @@ const adminUser = await requireAdmin(session)
 **Algorithm:** Argon2id
 
 **Why Argon2id:**
+
 - Resistant to GPU-based attacks
 - Memory-hard function
 - Recommended by OWASP
 - Required by mobile-safe architecture guidelines
 
 **Implementation:**
+
 ```typescript
 import argon2 from "argon2"
 
@@ -168,6 +186,7 @@ const isValid = await argon2.verify(passwordHash, password)
 **Placeholder:** Password requirements not yet enforced
 
 **Recommended Requirements:**
+
 - Minimum 8 characters
 - At least one uppercase letter
 - At least one lowercase letter
@@ -175,6 +194,7 @@ const isValid = await argon2.verify(passwordHash, password)
 - At least one special character
 
 **Future Implementation:**
+
 - Client-side validation
 - Server-side validation
 - Password strength meter
@@ -195,12 +215,14 @@ const isValid = await argon2.verify(passwordHash, password)
 **Type:** JWT (JSON Web Tokens)
 
 **Storage:**
+
 - Web: HTTP-only cookies
 - Future Mobile: Tokens in secure storage
 
 ### Session Configuration
 
 **Key Settings:**
+
 - JWT tokens signed with `AUTH_SECRET`
 - Tokens include user ID, email, name, isAdmin
 - Sessions validated on protected routes
@@ -209,11 +231,13 @@ const isValid = await argon2.verify(passwordHash, password)
 ### Session Security
 
 **Cookie Settings (NextAuth Defaults):**
+
 - HTTP-only (prevents XSS)
 - Secure flag (HTTPS only in production)
 - SameSite protection (CSRF prevention)
 
 **Token Security:**
+
 - Tokens signed with secret key
 - Tokens include expiration
 - Tokens validated on each request
@@ -225,11 +249,13 @@ const isValid = await argon2.verify(passwordHash, password)
 ### Authentication Requirements
 
 **Current State (version 0.1.1):**
+
 - Most endpoints do not require authentication
 - Authentication endpoints are public
 - Admin endpoints may require authentication in future
 
 **Future State:**
+
 - All data endpoints will require authentication
 - Admin endpoints will require admin role
 - Rate limiting will be implemented
@@ -237,40 +263,45 @@ const isValid = await argon2.verify(passwordHash, password)
 ### API Security Patterns
 
 **Input Validation:**
+
 - All inputs validated using Zod schemas
 - Type checking on all API routes
 - Sanitization of user inputs
 
 **Error Handling:**
+
 - Generic error messages to prevent information leakage
 - No stack traces exposed to clients
 - Structured error responses
 
 **CORS:**
+
 - **Placeholder:** CORS configuration not yet implemented
 - Will be configured for production domains
 
-**Rate Limiting:**
-Rate limiting is implemented to protect authentication and resource-intensive endpoints from abuse.
+**Rate Limiting:** Rate limiting is implemented to protect authentication and
+resource-intensive endpoints from abuse.
 
 **Implementation:** `src/lib/rate-limiter.ts`, `middleware.ts`
 
 **Protected Endpoints:**
 
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| `/api/v1/auth/login` | 5 requests | 15 minutes |
-| `/api/v1/auth/register` | 10 requests | 1 hour |
-| `/api/v1/events/*/ingest` | 10 requests | 1 minute |
-| `/api/v1/events/discover` | 20 requests | 1 minute |
+| Endpoint                  | Limit       | Window     |
+| ------------------------- | ----------- | ---------- |
+| `/api/v1/auth/login`      | 5 requests  | 15 minutes |
+| `/api/v1/auth/register`   | 10 requests | 1 hour     |
+| `/api/v1/events/*/ingest` | 10 requests | 1 minute   |
+| `/api/v1/events/discover` | 20 requests | 1 minute   |
 
 **Response Headers:**
+
 - `Retry-After` - Seconds until rate limit resets
 - `X-RateLimit-Limit` - Maximum requests allowed
 - `X-RateLimit-Remaining` - Remaining requests in window
 - `X-RateLimit-Reset` - Unix timestamp when limit resets
 
 **Rate Limit Response (429):**
+
 ```json
 {
   "success": false,
@@ -284,7 +315,9 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 }
 ```
 
-**Note:** Current implementation uses in-memory storage. For production clusters, consider Redis-based rate limiting for persistence across server restarts and distributed environments.
+**Note:** Current implementation uses in-memory storage. For production
+clusters, consider Redis-based rate limiting for persistence across server
+restarts and distributed environments.
 
 ### API Security Best Practices
 
@@ -301,18 +334,24 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 ### Encryption
 
 **In Transit:**
-- **Development:** Self-signed SSL certificates available in `certs/` directory for local HTTPS testing
-- **Production:** HTTPS configuration required (use certificates from trusted CA)
+
+- **Development:** Self-signed SSL certificates available in `certs/` directory
+  for local HTTPS testing
+- **Production:** HTTPS configuration required (use certificates from trusted
+  CA)
 - All API traffic should be encrypted via HTTPS in production
 - HSTS header enforces HTTPS in production (see Security Headers section)
 
 **SSL Certificates:**
-- Development certificates: `certs/localhost-cert.pem` and `certs/localhost-key.pem`
+
+- Development certificates: `certs/localhost-cert.pem` and
+  `certs/localhost-key.pem`
 - Self-signed certificates for localhost development
 - Valid for 365 days, includes SAN for localhost and 127.0.0.1
 - See `certs/README.md` for certificate trust instructions
 
 **At Rest:**
+
 - **Placeholder:** Database encryption configuration
 - Passwords hashed (not encrypted)
 - Sensitive data encryption (if needed)
@@ -320,16 +359,19 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 ### PII Handling
 
 **Personal Information Stored:**
+
 - Email addresses
 - Driver names
 - Team names (optional)
 
 **Protection:**
+
 - Email addresses used for authentication
 - Driver names displayed in UI
 - No additional PII collected in version 0.1.1
 
 **Placeholder for future documentation:**
+
 - PII retention policies
 - Data deletion procedures
 - GDPR compliance
@@ -337,12 +379,16 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 ### Database Security
 
 **Connection Security:**
+
 - Database credentials in environment variables
 - Connection strings not committed to repository
-- **Production:** SSL/TLS should be enabled for database connections (configure in DATABASE_URL)
-- **Development:** Database connections typically use private Docker network (lower risk)
+- **Production:** SSL/TLS should be enabled for database connections (configure
+  in DATABASE_URL)
+- **Development:** Database connections typically use private Docker network
+  (lower risk)
 
 **Access Control:**
+
 - Database user has minimal required permissions
 - No direct database access from client
 - All access via Prisma ORM
@@ -353,22 +399,25 @@ Rate limiting is implemented to protect authentication and resource-intensive en
 
 **Status:** ✅ **Implemented** (Version 0.1.1)
 
-Security headers are implemented in `middleware.ts` with environment-aware configuration. All responses include security headers to protect against common web vulnerabilities.
+Security headers are implemented in `middleware.ts` with environment-aware
+configuration. All responses include security headers to protect against common
+web vulnerabilities.
 
 **Implemented Headers:**
 
-| Header | Value | Environment |
-|--------|-------|-------------|
-| `X-Content-Type-Options` | `nosniff` | All |
-| `X-Frame-Options` | `DENY` | All |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` | All |
-| `Permissions-Policy` | `geolocation=(), microphone=(), camera=(), payment=()` | All |
-| `Content-Security-Policy` | See below | Environment-aware |
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Production only |
+| Header                      | Value                                                  | Environment       |
+| --------------------------- | ------------------------------------------------------ | ----------------- |
+| `X-Content-Type-Options`    | `nosniff`                                              | All               |
+| `X-Frame-Options`           | `DENY`                                                 | All               |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`                      | All               |
+| `Permissions-Policy`        | `geolocation=(), microphone=(), camera=(), payment=()` | All               |
+| `Content-Security-Policy`   | See below                                              | Environment-aware |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`                  | Production only   |
 
 **Content-Security-Policy (CSP):**
 
 **Production:**
+
 ```
 default-src 'self';
 script-src 'self';
@@ -380,6 +429,7 @@ frame-ancestors 'none';
 ```
 
 **Development:**
+
 ```
 default-src 'self' 'unsafe-inline' 'unsafe-eval';
 script-src 'self' 'unsafe-inline' 'unsafe-eval';
@@ -391,12 +441,14 @@ frame-ancestors 'none';
 ```
 
 **Implementation Details:**
+
 - Headers are added in `middleware.ts` via `addSecurityHeaders()` function
 - Development CSP is relaxed to allow hot reload and development tools
 - Production CSP is strict to maximize security
 - HSTS header is only added in production to prevent issues in development
 
 **Testing:**
+
 - Verify headers are present in responses using browser DevTools or `curl -I`
 - Test CSP with browser console (should not block legitimate resources)
 - Test X-Frame-Options prevents iframe embedding
@@ -411,6 +463,7 @@ frame-ancestors 'none';
 **Placeholder:** Automated vulnerability scanning not yet implemented
 
 **Recommended Tools:**
+
 - `npm audit` - Node.js dependency scanning
 - `pip-audit` - Python dependency scanning
 - Dependabot - Automated dependency updates
@@ -419,11 +472,13 @@ frame-ancestors 'none';
 ### Dependency Management
 
 **Current Practices:**
+
 - Dependencies listed in `package.json` and `requirements.txt`
 - Version pinning for production
 - Regular dependency updates
 
 **Best Practices:**
+
 - Review security advisories
 - Update dependencies regularly
 - Test updates before deployment
@@ -473,6 +528,7 @@ frame-ancestors 'none';
 ### Response Steps
 
 **Placeholder for future documentation:**
+
 1. **Detection** - Identify security incident
 2. **Containment** - Isolate affected systems
 3. **Investigation** - Determine scope and impact
@@ -488,12 +544,14 @@ frame-ancestors 'none';
 
 ## Related Documentation
 
-- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) - Security rules and architecture
-- [Ingestion Security](../architecture/liverc-ingestion/17-ingestion-security.md) - Ingestion-specific security
-- [Environment Variables Reference](../operations/environment-variables.md) - Secret management
+- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -
+  Security rules and architecture
+- [Ingestion Security](../architecture/liverc-ingestion/17-ingestion-security.md) -
+  Ingestion-specific security
+- [Environment Variables Reference](../operations/environment-variables.md) -
+  Secret management
 - [API Reference](../api/api-reference.md) - API security requirements
 
 ---
 
 **End of Security Overview**
-

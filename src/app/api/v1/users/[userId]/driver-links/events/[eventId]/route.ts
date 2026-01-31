@@ -18,8 +18,8 @@
 
 import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
-import { updateDriverLinkStatusByEvent } from "@/core/users/driver-links"
-import { successResponse, errorResponse, parseRequestBody } from "@/lib/api-utils"
+import { handleDriverLinkStatusPatch } from "@/app/api/v1/users/driver-links/events-handler"
+import { errorResponse } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
 
@@ -27,72 +27,7 @@ import { generateRequestId } from "@/lib/request-context"
  * PATCH /api/v1/users/[userId]/driver-links/events/[eventId]
  *
  * Update driver link status for an event (confirm or reject)
- *
- * Request body:
- * {
- *   status: "confirmed" | "rejected"
- * }
- *
- * Response (success):
- * {
- *   success: true,
- *   data: {
- *     link: DriverLinkStatus
- *   }
- * }
  */
-export async function handleDriverLinkStatusPatch(
-  request: NextRequest,
-  userId: string,
-  eventId: string
-) {
-  console.log("[handleDriverLinkStatusPatch] Called with:", { userId, eventId })
-  
-  // Parse request body
-  const bodyResult = await parseRequestBody<{
-    status: "confirmed" | "rejected"
-  }>(request)
-
-  console.log("[handleDriverLinkStatusPatch] Body parse result:", {
-    success: bodyResult.success,
-    status: bodyResult.success ? bodyResult.data.status : "N/A",
-  })
-
-  if (!bodyResult.success) {
-    console.log("[handleDriverLinkStatusPatch] Body parse failed, returning error")
-    return bodyResult.response
-  }
-
-  const { status } = bodyResult.data
-
-  if (status !== "confirmed" && status !== "rejected") {
-    console.log("[handleDriverLinkStatusPatch] Invalid status:", status)
-    return errorResponse(
-      "INVALID_INPUT",
-      "Status must be 'confirmed' or 'rejected'",
-      undefined,
-      400
-    )
-  }
-
-  console.log("[handleDriverLinkStatusPatch] Calling updateDriverLinkStatusByEvent:", {
-    userId,
-    eventId,
-    status,
-  })
-
-  // Update driver link status
-  const updatedLink = await updateDriverLinkStatusByEvent(userId, eventId, status)
-
-  console.log("[handleDriverLinkStatusPatch] Update result:", {
-    hasUpdatedLink: !!updatedLink,
-    linkId: updatedLink?.id,
-    linkStatus: updatedLink?.status,
-  })
-
-  return successResponse({ link: updatedLink }, 200, `Driver link ${status} successfully`)
-}
-
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string; eventId: string }> }

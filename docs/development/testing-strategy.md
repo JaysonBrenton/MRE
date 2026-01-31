@@ -3,11 +3,13 @@ created: 2025-01-27
 creator: Jayson Brenton
 lastModified: 2025-01-27
 description: Comprehensive testing strategy and guidelines for MRE application
-purpose: Defines the testing pyramid, testing tools, patterns, best practices, and guidelines
-         for frontend, backend, and integration testing. Ensures consistent testing approach
-         across the codebase and provides clear testing standards.
+purpose:
+  Defines the testing pyramid, testing tools, patterns, best practices, and
+  guidelines for frontend, backend, and integration testing. Ensures consistent
+  testing approach across the codebase and provides clear testing standards.
 relatedFiles:
-  - docs/architecture/liverc-ingestion/18-ingestion-testing-strategy.md (ingestion testing)
+  - docs/architecture/liverc-ingestion/18-ingestion-testing-strategy.md
+    (ingestion testing)
   - docs/roles/quality-automation-engineer.md (role responsibilities)
   - ingestion/pytest.ini (Python test configuration)
 ---
@@ -17,7 +19,8 @@ relatedFiles:
 **Last Updated:** 2025-01-27  
 **Scope:** All testing across Next.js application and Python ingestion service
 
-This document defines the comprehensive testing strategy for the MRE application, including testing pyramid, tools, patterns, and best practices.
+This document defines the comprehensive testing strategy for the MRE
+application, including testing pyramid, tools, patterns, and best practices.
 
 ---
 
@@ -78,12 +81,14 @@ The MRE testing strategy follows the testing pyramid model:
 **Configuration:** `ingestion/pytest.ini`
 
 **Features:**
+
 - Async test support (`asyncio_mode = auto`)
 - Fixture-based testing
 - HTML fixture management
 - Coverage reporting
 
 **Usage:**
+
 ```bash
 # Run all tests
 pytest
@@ -103,12 +108,14 @@ pytest -v
 **Placeholder:** Testing framework not yet implemented
 
 **Recommended Tools:**
+
 - **Unit Tests:** Vitest or Jest
 - **Component Tests:** React Testing Library
 - **E2E Tests:** Playwright or Cypress
 - **API Tests:** Supertest or similar
 
 **Future Configuration:**
+
 ```json
 {
   "scripts": {
@@ -171,6 +178,7 @@ src/
 ### Test Naming Conventions
 
 **Python (pytest):**
+
 ```python
 def test_function_name_should_do_something():
     """Test description"""
@@ -178,9 +186,10 @@ def test_function_name_should_do_something():
 ```
 
 **TypeScript/JavaScript:**
+
 ```typescript
-describe('functionName', () => {
-  it('should do something when condition is met', () => {
+describe("functionName", () => {
+  it("should do something when condition is met", () => {
     // Test implementation
   })
 })
@@ -204,12 +213,14 @@ expect(result.user.email).toBe(expectedOutput.email)
 ### Mocking Strategies
 
 **Mock External Dependencies:**
+
 - Database calls (use test database or mocks)
 - HTTP requests (use fixtures or mocks)
 - File system operations
 - External services
 
 **Example (Python):**
+
 ```python
 @pytest.fixture
 def mock_db_session():
@@ -218,14 +229,15 @@ def mock_db_session():
 ```
 
 **Example (TypeScript):**
+
 ```typescript
-vi.mock('@/lib/prisma', () => ({
+vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
-      create: vi.fn()
-    }
-  }
+      create: vi.fn(),
+    },
+  },
 }))
 ```
 
@@ -240,29 +252,32 @@ vi.mock('@/lib/prisma', () => ({
 
 ## Frontend Testing Guidelines
 
-**Placeholder:** Frontend testing guidelines will be added when testing framework is implemented.
+**Placeholder:** Frontend testing guidelines will be added when testing
+framework is implemented.
 
 ### Component Testing
 
 **Recommended:** React Testing Library
 
 **Principles:**
+
 - Test user behavior, not implementation
 - Query by accessible elements (labels, roles)
 - Avoid testing internal state
 - Test accessibility
 
 **Example (Future):**
+
 ```typescript
 import { render, screen } from '@testing-library/react'
 import RegisterForm from './RegisterForm'
 
 it('should display validation error for missing email', async () => {
   render(<RegisterForm />)
-  
+
   const submitButton = screen.getByRole('button', { name: /register/i })
   await userEvent.click(submitButton)
-  
+
   expect(screen.getByText(/email is required/i)).toBeInTheDocument()
 })
 ```
@@ -272,16 +287,17 @@ it('should display validation error for missing email', async () => {
 **Recommended:** Test server actions in isolation
 
 **Example (Future):**
-```typescript
-import { registerUser } from '@/core/auth/register'
 
-it('should register user with valid input', async () => {
+```typescript
+import { registerUser } from "@/core/auth/register"
+
+it("should register user with valid input", async () => {
   const result = await registerUser({
     email: "test@example.com",
     password: "password123",
-    driverName: "Test User"
+    driverName: "Test User",
   })
-  
+
   expect(result.success).toBe(true)
   expect(result.user.email).toBe("test@example.com")
 })
@@ -296,24 +312,25 @@ it('should register user with valid input', async () => {
 **Recommended:** Test API routes with test database
 
 **Pattern:**
+
 ```typescript
 // Future example
-import { POST } from '@/app/api/v1/auth/register/route'
-import { NextRequest } from 'next/server'
+import { POST } from "@/app/api/v1/auth/register/route"
+import { NextRequest } from "next/server"
 
-it('should return 201 on successful registration', async () => {
-  const request = new NextRequest('http://localhost/api/v1/auth/register', {
-    method: 'POST',
+it("should return 201 on successful registration", async () => {
+  const request = new NextRequest("http://localhost/api/v1/auth/register", {
+    method: "POST",
     body: JSON.stringify({
       email: "test@example.com",
       password: "password123",
-      driverName: "Test User"
-    })
+      driverName: "Test User",
+    }),
   })
-  
+
   const response = await POST(request)
   const data = await response.json()
-  
+
   expect(response.status).toBe(201)
   expect(data.success).toBe(true)
 })
@@ -324,30 +341,32 @@ it('should return 201 on successful registration', async () => {
 **Location:** `src/core/<domain>/`
 
 **Pattern:**
+
 - Test core functions in isolation
 - Mock database calls
 - Test error cases
 - Test edge cases
 
 **Example:**
+
 ```typescript
-import { registerUser } from '@/core/auth/register'
-import * as repo from '@/core/users/repo'
+import { registerUser } from "@/core/auth/register"
+import * as repo from "@/core/users/repo"
 
-vi.mock('@/core/users/repo')
+vi.mock("@/core/users/repo")
 
-it('should return error when email already exists', async () => {
+it("should return error when email already exists", async () => {
   vi.mocked(repo.findUserByEmail).mockResolvedValue({
     id: "existing",
-    email: "test@example.com"
+    email: "test@example.com",
   })
-  
+
   const result = await registerUser({
     email: "test@example.com",
     password: "password123",
-    driverName: "Test User"
+    driverName: "Test User",
   })
-  
+
   expect(result.success).toBe(false)
   expect(result.error.code).toBe("EMAIL_ALREADY_EXISTS")
 })
@@ -356,12 +375,14 @@ it('should return error when email already exists', async () => {
 ### Database Testing
 
 **Strategy:**
+
 - Use test database for integration tests
 - Use transactions that rollback after tests
 - Seed test data before tests
 - Clean up after tests
 
-**Placeholder:** Database testing utilities will be added when testing framework is implemented.
+**Placeholder:** Database testing utilities will be added when testing framework
+is implemented.
 
 ---
 
@@ -370,31 +391,33 @@ it('should return error when email already exists', async () => {
 ### API Integration Tests
 
 **Scope:**
+
 - Test API endpoints with real database
 - Test authentication flows
 - Test error handling
 - Test data persistence
 
 **Pattern:**
+
 ```typescript
 // Future example
-describe('POST /api/v1/auth/register', () => {
+describe("POST /api/v1/auth/register", () => {
   beforeEach(async () => {
     await resetTestDatabase()
   })
-  
-  it('should create user and return 201', async () => {
-    const response = await fetch('/api/v1/auth/register', {
-      method: 'POST',
+
+  it("should create user and return 201", async () => {
+    const response = await fetch("/api/v1/auth/register", {
+      method: "POST",
       body: JSON.stringify({
         email: "test@example.com",
         password: "password123",
-        driverName: "Test User"
-      })
+        driverName: "Test User",
+      }),
     })
-    
+
     expect(response.status).toBe(201)
-    
+
     const user = await findUserByEmail("test@example.com")
     expect(user).toBeDefined()
   })
@@ -404,12 +427,14 @@ describe('POST /api/v1/auth/register', () => {
 ### Service Integration Tests
 
 **Python Ingestion Service:**
+
 - Test ingestion pipeline with fixtures
 - Test database writes
 - Test idempotency
 - Test error recovery
 
-**See:** `docs/architecture/liverc-ingestion/18-ingestion-testing-strategy.md` for detailed ingestion testing strategy.
+**See:** `docs/architecture/liverc-ingestion/18-ingestion-testing-strategy.md`
+for detailed ingestion testing strategy.
 
 ---
 
@@ -417,9 +442,11 @@ describe('POST /api/v1/auth/register', () => {
 
 ### Coverage Goals
 
-**Placeholder:** Coverage requirements will be defined when testing framework is implemented.
+**Placeholder:** Coverage requirements will be defined when testing framework is
+implemented.
 
 **Recommended Targets:**
+
 - **Unit Tests:** 80%+ coverage for core business logic
 - **Integration Tests:** Critical paths covered
 - **E2E Tests:** Critical user workflows covered
@@ -427,11 +454,13 @@ describe('POST /api/v1/auth/register', () => {
 ### Coverage Tools
 
 **Python:**
+
 ```bash
 pytest --cov=ingestion --cov-report=html
 ```
 
 **TypeScript (Future):**
+
 ```bash
 vitest --coverage
 ```
@@ -445,6 +474,7 @@ vitest --coverage
 **Placeholder:** CI/CD pipeline configuration will be added.
 
 **Recommended Stages:**
+
 1. **Lint** - Code style and quality checks
 2. **Type Check** - TypeScript type checking
 3. **Unit Tests** - Fast unit test suite
@@ -467,11 +497,13 @@ vitest --coverage
 ### Fixtures
 
 **Python Ingestion Service:**
+
 - HTML fixtures stored in `ingestion/tests/fixtures/liverc/`
 - Fixtures organized by event ID
 - Metadata files describe fixture contents
 
 **Next.js Application (Future):**
+
 - Test data fixtures for database
 - Mock API responses
 - Test user accounts
@@ -479,23 +511,28 @@ vitest --coverage
 ### Test Database
 
 **Strategy:**
+
 - Separate test database
 - Reset before each test suite
 - Seed with minimal test data
 - Use transactions for isolation
 
-**Placeholder:** Test database setup will be documented when testing framework is implemented.
+**Placeholder:** Test database setup will be documented when testing framework
+is implemented.
 
 ---
 
 ## Related Documentation
 
-- [Ingestion Testing Strategy](../architecture/liverc-ingestion/18-ingestion-testing-strategy.md) - Detailed ingestion testing
-- [Integration Testing Guide](./integration-testing-guide.md) - Detailed integration testing guide
-- [Quality & Automation Engineer Role](../roles/quality-automation-engineer.md) - Role responsibilities
-- [Contributing Guidelines](./CONTRIBUTING.md) - Testing requirements for contributions
+- [Ingestion Testing Strategy](../architecture/liverc-ingestion/18-ingestion-testing-strategy.md) -
+  Detailed ingestion testing
+- [Integration Testing Guide](./integration-testing-guide.md) - Detailed
+  integration testing guide
+- [Quality & Automation Engineer Role](../roles/quality-automation-engineer.md) -
+  Role responsibilities
+- [Contributing Guidelines](./CONTRIBUTING.md) - Testing requirements for
+  contributions
 
 ---
 
 **End of Testing Strategy Documentation**
-

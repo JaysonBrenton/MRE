@@ -585,10 +585,10 @@ export class IngestionClient {
           // Provide more helpful error message with troubleshooting steps
           throw new Error(
             `Cannot connect to ingestion service at ${url}. ` +
-            `Please ensure the ingestion service is running. ` +
-            `You can check the service status with: docker ps | grep liverc-ingestion-service ` +
-            `or restart it with: docker compose restart liverc-ingestion-service. ` +
-            `Error: ${error.message}`
+              `Please ensure the ingestion service is running. ` +
+              `You can check the service status with: docker ps | grep liverc-ingestion-service ` +
+              `or restart it with: docker compose restart liverc-ingestion-service. ` +
+              `Error: ${error.message}`
           )
         }
       }

@@ -1,11 +1,11 @@
 // @fileoverview Transponder override API route
-// 
+//
 // @created 2025-12-24
 // @creator Jayson Brenton
 // @lastModified 2025-12-24
-// 
+//
 // @description API route for managing transponder overrides (CRUD operations)
-// 
+//
 // @purpose Provides user-facing API for creating and listing transponder overrides
 
 import { NextRequest } from "next/server"
@@ -21,8 +21,7 @@ import { handleApiError } from "@/lib/server-error-handler"
 function isKnownValidationError(error: unknown): error is Error {
   return (
     error instanceof Error &&
-    (error.message.includes("Invalid transponder") ||
-      error.message.includes("already in use"))
+    (error.message.includes("Invalid transponder") || error.message.includes("already in use"))
   )
 }
 
@@ -33,12 +32,7 @@ export async function POST(request: NextRequest) {
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized transponder override creation request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -80,21 +74,11 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: unknown) {
     if (isKnownValidationError(error)) {
-      return errorResponse(
-        "VALIDATION_ERROR",
-        error.message,
-        {},
-        400
-      )
+      return errorResponse("VALIDATION_ERROR", error.message, {}, 400)
     }
 
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }
 
@@ -105,12 +89,7 @@ export async function GET(request: NextRequest) {
   const session = await auth()
   if (!session) {
     requestLogger.warn("Unauthorized transponder override list request")
-    return errorResponse(
-      "UNAUTHORIZED",
-      "Authentication required",
-      {},
-      401
-    )
+    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
 
   try {
@@ -143,11 +122,6 @@ export async function GET(request: NextRequest) {
     })
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
-    return errorResponse(
-      errorInfo.code,
-      errorInfo.message,
-      undefined,
-      errorInfo.statusCode
-    )
+    return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)
   }
 }

@@ -1,16 +1,16 @@
 /**
  * @fileoverview Audit log operations for admin console
- * 
+ *
  * @created 2025-01-27
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
- * 
+ *
  * @description Functions for creating and retrieving audit log entries
- * 
+ *
  * @purpose Provides audit logging functionality for tracking admin actions
  *          and system events. All admin actions should be logged for security
  *          and compliance.
- * 
+ *
  * @relatedFiles
  * - prisma/schema.prisma (AuditLog model)
  * - src/lib/prisma.ts (Prisma client)
@@ -21,7 +21,7 @@ import type { AuditLog, Prisma } from "@prisma/client"
 
 /**
  * Create an audit log entry
- * 
+ *
  * @param data - Audit log data
  * @returns Created audit log entry
  */
@@ -40,7 +40,7 @@ export async function createAuditLog(data: {
       action: data.action,
       resourceType: data.resourceType,
       resourceId: data.resourceId,
-      details: data.details,
+      details: data.details as Prisma.InputJsonValue,
       ipAddress: data.ipAddress,
       userAgent: data.userAgent,
     },
@@ -49,7 +49,7 @@ export async function createAuditLog(data: {
 
 /**
  * Get audit logs with filtering and pagination
- * 
+ *
  * @param filters - Filter options
  * @returns Paginated audit logs
  */
@@ -74,7 +74,7 @@ export async function getAuditLogs(filters: {
   const skip = (page - 1) * pageSize
 
   const where: Prisma.AuditLogWhereInput = {}
-  
+
   if (filters.userId) {
     where.userId = filters.userId
   }
@@ -124,4 +124,3 @@ export async function getAuditLogs(filters: {
     totalPages: Math.ceil(total / pageSize),
   }
 }
-

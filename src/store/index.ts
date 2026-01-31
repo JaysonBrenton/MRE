@@ -78,7 +78,15 @@ const persistedDashboardReducer = persistReducer(dashboardPersistConfig, dashboa
 const searchPersistConfig = {
   key: "search",
   storage: sessionStorageAdapter,
-  whitelist: ["query", "driverName", "sessionType", "startDate", "endDate", "currentPage", "itemsPerPage"],
+  whitelist: [
+    "query",
+    "driverName",
+    "sessionType",
+    "startDate",
+    "endDate",
+    "currentPage",
+    "itemsPerPage",
+  ],
 }
 
 // Create persisted reducers
