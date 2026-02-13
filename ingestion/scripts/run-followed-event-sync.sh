@@ -13,4 +13,4 @@ fi
 sleep $((RANDOM % 120))
 export PYTHONPATH=/app
 cd /app
-python -m ingestion.cli ingest liverc refresh-followed-events --depth none
+python3 -m ingestion.cli ingest liverc refresh-followed-events --depth none

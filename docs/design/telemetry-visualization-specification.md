@@ -31,9 +31,9 @@ real-time and historical patterns, and implementation guidelines.
 4. [Real-Time vs Historical Patterns](#real-time-vs-historical-patterns)
 5. [Chart/Graph Library Recommendations](#chartgraph-library-recommendations)
 6. [Performance Considerations](#performance-considerations)
-7. [Mobile Visualization Strategies](#mobile-visualization-strategies)
-8. [Integration with Existing Data](#integration-with-existing-data)
-9. [Future Sensor Data Integration](#future-sensor-data-integration)
+7. [Integration with Existing Data](#integration-with-existing-data)
+8. [Future Sensor Data Integration](#future-sensor-data-integration)
+9. [Future: Mobile App](#future-mobile-app)
 
 ---
 
@@ -46,17 +46,20 @@ required. Visualizations support both real-time (live race data) and historical
 
 **Key Principles:**
 
-- Interactive and responsive visualizations
-- Mobile-friendly chart rendering
+- Interactive and responsive visualizations (desktop viewport 1280px+)
 - Performance-optimized for large datasets
 - Accessible chart interactions
 - Consistent visualization patterns
 
+**Platform scope:** Telemetry visualizations are desktop-only for version 0.1.1.
+A separate native mobile app is planned for a future release. Do not implement
+mobile-specific layouts or touch optimizations in the web app.
+
 **Note:** Telemetry visualization is fully in-scope for version 0.1.1. All
 visualization types listed in Section 2 are required features. Telemetry data
-ingestion (collecting data from sensors) is out of scope, but visualization
-components must be ready to support future sensor data when available.
-Visualizations currently use existing lap data from LiveRC ingestion.
+ingestion is also in scope (see `docs/telemetry/`). Visualization components
+use lap data from LiveRC ingestion and will support telemetry data when
+available.
 
 ---
 
@@ -386,7 +389,7 @@ available.
 **Considerations:**
 
 - React compatibility
-- Mobile performance
+- Desktop performance (1280px+ viewport)
 - Accessibility support
 - Customization flexibility
 - Bundle size
@@ -396,7 +399,7 @@ available.
 **Requirements:**
 
 - React/Next.js compatible
-- Mobile-friendly rendering
+- Desktop rendering (1280px+ viewport)
 - Accessible (ARIA support)
 - Customizable styling
 - Performance-optimized
@@ -431,47 +434,6 @@ available.
 - Memoization of chart components
 - Debounce user interactions
 - Optimize re-renders
-
-### Mobile Performance
-
-**Strategies:**
-
-- Simplified charts on mobile
-- Reduced data points
-- Lower resolution rendering
-- Touch-optimized interactions
-- Lazy load below-fold charts
-
----
-
-## Mobile Visualization Strategies
-
-### Responsive Chart Sizing
-
-**Approach:**
-
-- Full-width charts on mobile
-- Reduced chart height on mobile
-- Simplified legends and labels
-- Touch-friendly interactions
-
-### Simplified Views
-
-**Mobile Optimizations:**
-
-- Fewer data points displayed
-- Simplified chart types
-- Collapsible legends
-- Bottom sheet for details
-
-### Touch Interactions
-
-**Requirements:**
-
-- Tap to show tooltip
-- Pinch to zoom
-- Pan to navigate
-- Swipe for navigation (optional)
 
 ---
 
@@ -552,6 +514,21 @@ const chartData = laps.map(lap => ({
 
 ---
 
+## Future: Mobile App
+
+**Status:** Out of scope for version 0.1.1.
+
+A separate native mobile app is planned for a future release. The web application
+is desktop-only. When the mobile app is developed, it will consume the same
+`/api/v1/telemetry/*` endpoints and may reuse visualization concepts documented
+here, but implementation will be tailored to mobile viewports, touch
+interactions, and native performance characteristics.
+
+Do not implement mobile-specific layouts, responsive breakpoints for small
+screens, or touch-optimized interactions in the web app for telemetry features.
+
+---
+
 ## Accessibility Requirements
 
 ### Chart Accessibility
@@ -577,8 +554,8 @@ const chartData = laps.map(lap => ({
 
 ## Related Documentation
 
-- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -
-  Architecture rules
+- [Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -
+  Architecture rules (desktop-only; mobile strategy in Section 1)
 - [Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) - Feature
   specifications
 - [Dashboard Architecture](../architecture/dashboard-architecture.md) -

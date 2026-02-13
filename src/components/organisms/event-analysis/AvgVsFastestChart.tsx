@@ -56,6 +56,7 @@ const defaultAverageColor = "#5aa2ff"
 const textColor = "var(--token-text-primary)"
 const textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
+const DEFAULT_AXIS_COLOR = "#ffffff"
 
 /**
  * Calculate bottom margin needed for rotated labels
@@ -124,7 +125,6 @@ export default function AvgVsFastestChart({
     fastest: defaultFastestColor,
     average: defaultAverageColor,
   })
-
   const { tooltipData, tooltipLeft, tooltipTop, tooltipOpen, showTooltip, hideTooltip } =
     useTooltip<{
       driverName: string
@@ -209,7 +209,10 @@ export default function AvgVsFastestChart({
         aria-label="Average vs fastest lap comparison bar chart"
         chartInstanceId={chartInstanceId}
         selectedClass={selectedClass}
-      >
+        axisColorPicker
+        defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
+        renderContent={({ xAxisColor, yAxisColor }) => (
+        <>
         <div className="relative w-full" style={{ height: `${height}px` }}>
           <ParentSize>
             {({ width: parentWidth }) => {
@@ -433,10 +436,10 @@ export default function AvgVsFastestChart({
                     <AxisLeft
                       scale={yScale}
                       tickFormat={(value) => formatLapTime(Number(value))}
-                      stroke={borderColor}
-                      tickStroke={borderColor}
+                      stroke={yAxisColor}
+                      tickStroke={yAxisColor}
                       tickLabelProps={() => ({
-                        fill: textSecondaryColor,
+                        fill: yAxisColor,
                         fontSize: 12,
                         textAnchor: "end",
                         dx: -8,
@@ -447,10 +450,10 @@ export default function AvgVsFastestChart({
                     <AxisBottom
                       top={innerHeight}
                       scale={xScale}
-                      stroke={borderColor}
-                      tickStroke={borderColor}
+                      stroke={xAxisColor}
+                      tickStroke={xAxisColor}
                       tickLabelProps={() => ({
-                        fill: textSecondaryColor,
+                        fill: xAxisColor,
                         fontSize: 11,
                         textAnchor: "end",
                         angle: -45,
@@ -552,7 +555,9 @@ export default function AvgVsFastestChart({
             itemLabel="drivers"
           />
         )}
-      </ChartContainer>
+        </>
+        )}
+      />
 
       {/* Color Picker */}
       {showColorPicker && colorPickerPosition && colorPickerSeries && (

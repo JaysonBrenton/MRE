@@ -84,6 +84,11 @@ export async function POST(
     try {
       const result = await ingestionClient.ingestEvent(eventId, depth)
 
+      if (result && "job_id" in result && result.status === "queued") {
+        requestLogger.info("Event ingestion queued", { eventId, jobId: result.job_id })
+        return successResponse({ job_id: result.job_id }, 202)
+      }
+
       requestLogger.info("Event ingestion completed", {
         eventId,
         depth,

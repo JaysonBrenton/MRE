@@ -5,7 +5,31 @@ from __future__ import annotations
 import time
 from typing import Optional
 
-from prometheus_client import CollectorRegistry, Counter, Histogram
+try:  # pragma: no cover - exercised implicitly in environments with Prometheus installed
+    from prometheus_client import CollectorRegistry, Counter, Histogram
+except ModuleNotFoundError:  # pragma: no cover - fallback for local/unit tests
+    class _NoopCollectorRegistry:  # type: ignore[override]
+        """Minimal stub used when prometheus_client is unavailable."""
+
+        def __init__(self) -> None:  # noqa: D401 - simple stub
+            pass
+
+    class _NoopMetric:
+        def labels(self, **labels):  # type: ignore[override]
+            return self
+
+        def inc(self, amount: float = 1.0) -> None:  # noqa: D401 - stub
+            return None
+
+        def observe(self, value: float) -> None:  # noqa: D401 - stub
+            return None
+
+    def _metric_factory(*args, **kwargs):  # type: ignore[override]
+        return _NoopMetric()
+
+    CollectorRegistry = _NoopCollectorRegistry  # type: ignore
+    Counter = _metric_factory  # type: ignore
+    Histogram = _metric_factory  # type: ignore
 
 # Dedicated registry so the service can expose metrics endpoint later.
 REGISTRY = CollectorRegistry()

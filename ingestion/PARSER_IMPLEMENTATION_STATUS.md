@@ -109,15 +109,18 @@ functionality:
 - **Status**: ✅ **100% Complete**
 - **CSS Selectors**: `table.race_result tbody tr`, `td:first-child`,
   `td:nth-child(2) span.driver_name`,
-  `td:nth-child(2) a.driver_laps[data-driver-id]`, `td:nth-child(4)`,
-  `td:nth-child(6)`, `td:nth-child(7) div.hidden`, `td:nth-child(13)`
+  `td:nth-child(2) a.driver_laps[data-driver-id]`, `td:nth-child(3)` (Qual),
+  `td:nth-child(4)` (Laps/Time), `td:nth-child(5)` (Behind),
+  `td:nth-child(6)`, `td:nth-child(7) div.hidden`, `td:nth-child(8)`–`td:nth-child(12)` (Avg Top 5/10/15, Top 3 Consec., Std. Deviation), `td:nth-child(13)` (Consistency)
 - **Features**:
   - Extracts driver ID from `data-driver-id` attribute (primary)
   - Falls back to matching driver name to `racerLaps` keys
-  - Parses laps/time format ("47/30:31.382" or "0")
-  - Extracts `total_time_raw` as raw string
+  - Parses Laps/Time ("47/30:31.382" or "0"): laps count, `total_time_raw`, and `total_time_seconds` (MM:SS.mmm → seconds)
+  - Extracts Qual (column 3) → `qualifying_position`, Behind (column 5) → `seconds_behind`
+  - Extracts Avg Top 5, Avg Top 10, Avg Top 15, Top 3 Consecutive, Std. Deviation into `raw_fields_json`
   - Handles non-starting drivers (RILEY LANDER case)
   - Extracts fastest lap, avg lap, consistency
+- **Race duration**: `parse_race_duration_seconds(html)` parses "Length: MM:SS Timed" from the race result page and is used by the connector to set `race_summary.duration_seconds`.
 
 ### RaceLapParser (`ingestion/connectors/liverc/parsers/race_lap_parser.py`)
 
@@ -166,10 +169,14 @@ functionality:
 - `td:first-child` - Position
 - `td:nth-child(2) span.driver_name` - Driver name
 - `td:nth-child(2) a.driver_laps[data-driver-id]` - Driver ID (primary)
-- `td:nth-child(4)` - Laps/Time
+- `td:nth-child(3)` - Qual (qualifying position)
+- `td:nth-child(4)` - Laps/Time (laps count + total time string; time parsed to seconds)
+- `td:nth-child(5)` - Behind (seconds behind winner)
 - `td:nth-child(6)` - Fastest lap
 - `td:nth-child(7) div.hidden` - Avg lap
+- `td:nth-child(8)`–`(12)` - Avg Top 5, Avg Top 10, Avg Top 15, Top 3 Consecutive, Std. Deviation (into raw_fields_json)
 - `td:nth-child(13)` - Consistency
+- Race page: `span.class_sub_header` containing "Length: MM:SS Timed" - race duration (via `parse_race_duration_seconds`)
 
 ### RaceLapParser
 

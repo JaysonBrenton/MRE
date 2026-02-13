@@ -56,6 +56,10 @@ shippable at all times.
   learnings back into automated test scenarios.
 - Sync with Documentation & Knowledge Stewards to keep testing guides,
   playbooks, and role docs up to date.
+- Maintain awareness of fixture locations: LiveRC HTML
+  (`ingestion/tests/fixtures/liverc/`), telemetry synthetic
+  (`ingestion/tests/fixtures/telemetry/`). See fixture management and telemetry
+  seed data guides.
 
 ## Success Metrics
 

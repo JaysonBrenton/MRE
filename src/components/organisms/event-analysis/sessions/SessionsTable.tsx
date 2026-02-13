@@ -65,18 +65,24 @@ export default function SessionsTable({
   const [pageSize, setPageSize] = useState(5)
   const [lapModalSession, setLapModalSession] = useState<SessionData | null>(null)
 
-  // Filter sessions
+  // Filter sessions by session name (raceLabel) and driver names only
   const filteredSessions = useMemo(() => {
     let filtered = [...sessions]
 
-    // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
-      filtered = filtered.filter(
-        (session) =>
-          session.raceLabel.toLowerCase().includes(searchLower) ||
-          session.className.toLowerCase().includes(searchLower)
-      )
+      filtered = filtered.filter((session) => {
+        const sessionNameMatch = session.raceLabel.toLowerCase().includes(searchLower)
+        const driverNames = new Set<string>()
+        session.topFinishers.forEach((f) => {
+          if (f.driverName?.trim()) driverNames.add(f.driverName.trim().toLowerCase())
+        })
+        session.results.forEach((r) => {
+          if (r.driverName?.trim()) driverNames.add(r.driverName.trim().toLowerCase())
+        })
+        const driverMatch = [...driverNames].some((name) => name.includes(searchLower))
+        return sessionNameMatch || driverMatch
+      })
     }
 
     return filtered
@@ -190,11 +196,12 @@ export default function SessionsTable({
 
   if (sessions.length === 0) {
     return (
-      <ChartContainer
-        title="Sessions Overview"
-        className={className}
-        aria-label="Sessions table - no data available"
-      >
+    <ChartContainer
+      title="Sessions Overview"
+      titleClassName="text-sm font-medium text-[var(--token-text-secondary)] mb-2"
+      className={className}
+      aria-label="Sessions table - no data available"
+    >
         <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
           No sessions available
         </div>
@@ -204,15 +211,16 @@ export default function SessionsTable({
 
   return (
     <ChartContainer
-      title="Sessions Overview"
       className={className}
       aria-label="Sessions table with sorting, filtering, and expandable rows"
     >
       <div className="space-y-4">
-        {/* Controls Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          {/* Left side: Search */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-1">
+        {/* Single header row: title + search + clear */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--token-border-default)] pb-3">
+          <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+            <h3 className="text-sm font-medium text-[var(--token-text-secondary)] shrink-0">
+              Sessions Overview
+            </h3>
             <input
               type="text"
               placeholder="Search sessions..."
@@ -221,12 +229,12 @@ export default function SessionsTable({
                 setSearchTerm(e.target.value)
                 setCurrentPage(1)
               }}
-              className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] w-full sm:w-64"
+              className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] w-full sm:w-64 sm:min-w-[200px]"
             />
           </div>
 
-          {/* Right side: Filters and pagination controls */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          {/* Right: Clear Filters */}
+          <div className="flex items-center shrink-0">
             {activeFilterCount > 0 && (
               <button
                 type="button"

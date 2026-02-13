@@ -82,6 +82,8 @@ pytest tests/integration/
 - HTML fixtures stored in `ingestion/tests/fixtures/liverc/`
 - Organized by event ID
 - Metadata files describe fixture contents
+- Telemetry fixtures in `ingestion/tests/fixtures/telemetry/` (synthetic CSV,
+  KML track templates). See `docs/telemetry/Design/Telemetry_Seed_Data_Guide.md`
 
 **Next.js Application (Future):**
 
@@ -383,6 +385,8 @@ test("user can register and login", async ({ page }) => {
 - [Testing Strategy](./testing-strategy.md) - Overall testing approach
 - [Ingestion Testing Strategy](../architecture/liverc-ingestion/18-ingestion-testing-strategy.md) -
   Ingestion-specific testing
+- [Telemetry Seed Data Guide](../telemetry/Design/Telemetry_Seed_Data_Guide.md) -
+  Telemetry fixture creation and generator usage
 - [Contributing Guidelines](./CONTRIBUTING.md) - Testing requirements
 
 ---

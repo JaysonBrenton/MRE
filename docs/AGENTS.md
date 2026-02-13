@@ -101,14 +101,25 @@ ENVIRONMENT.**
   (`src/app`, `src/core`, `src/api`).
 - **Primary References**:
   `docs/architecture/mobile-safe-architecture-guidelines.md`,
+  `docs/architecture/atomic-design-system.md`,
   `docs/design/mre-dark-theme-guidelines.md`,
   `docs/design/mre-mobile-ux-guidelines.md`.
+  For shared or persisted UI state: `docs/architecture/search-feature.md`,
+  `src/store/` (slices and hooks).
 - **Rules**:
   - Never access Prisma directly from React components; use
     `src/core/.../repo.ts` per architecture rules.
   - Follow the theme system guidelines (dark theme is default, but
     experimentation is encouraged) and mobile UX constraints noted in the
     README.
+  - **Atomic design:** When adding or changing UI components, follow
+    `docs/architecture/atomic-design-system.md`: use canonical molecules (e.g.
+    Tooltip, Modal) from Key Component Paths; respect tier and import rules; use
+    `@/components/` paths.
+  - **Redux:** For cross-component or persisted UI state (e.g. dashboard
+    selection, search state, UI preferences), use the Redux store in
+    `src/store/`: use existing slices and hooks from `src/store/hooks.ts`; add
+    new slices only when needed and follow the same patterns.
   - Tests for UI logic belong in `src/__tests__` and must mirror the documented
     behaviours.
   - **⚠️ CRITICAL: Flexbox Horizontal Compression** - When creating scrollable
@@ -179,6 +190,9 @@ ENVIRONMENT.**
 - **Expectations**:
   - Maintain fixture parity with upstream LiveRC HTML under
     `ingestion/tests/fixtures/liverc/`.
+  - Telemetry fixtures live under `ingestion/tests/fixtures/telemetry/`. Use
+    `ingestion/scripts/generate-telemetry-seed.py` to generate synthetic data.
+    See `docs/telemetry/Design/Telemetry_Seed_Data_Guide.md`.
   - Ensure automated tests cover parser/unit + integration scenarios (see new
     `ingestion/tests/integration/test_liverc_connector_integration.py`).
   - Treat metrics/alerts as first-class deliverables when changing ingestion
@@ -194,7 +208,8 @@ ENVIRONMENT.**
    architecture must update the relevant `docs/` entry concurrently.
 4. **Validate with Fixtures** – Before shipping parser/ingestion changes, replay
    fixtures and update metadata under `ingestion/tests/fixtures/` if upstream
-   pages changed.
+   pages changed. LiveRC: `ingestion/tests/fixtures/liverc/`. Telemetry:
+   `ingestion/tests/fixtures/telemetry/` (see Telemetry Seed Data Guide).
 5. **Publish Artefacts** – Log outputs, Prometheus metrics, and CLI reports must
    remain intact to support operations.
 

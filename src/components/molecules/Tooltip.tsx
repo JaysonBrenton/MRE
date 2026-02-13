@@ -228,10 +228,12 @@ export default function Tooltip({ text, children, position = "top" }: TooltipPro
     return childWithProps
   }
 
+  // Tooltip content: whitespace-normal + break-words keep long text inside the border.
+  // Do not use whitespace-nowrap—it causes overflow for descriptive tooltips (e.g. Average Lap).
   const tooltipContent = (
     <div
       ref={tooltipRef}
-      className="fixed px-3 py-1.5 text-sm text-[var(--token-text-primary)] bg-[var(--token-surface-raised)] border border-[var(--token-border-default)] rounded-md shadow-lg whitespace-nowrap pointer-events-none"
+      className="fixed px-3 py-1.5 text-sm text-[var(--token-text-primary)] bg-[var(--token-surface-raised)] border border-[var(--token-border-default)] rounded-md shadow-lg whitespace-normal break-words pointer-events-none"
       role="tooltip"
       style={{
         top: `${tooltipPosition.top}px`,

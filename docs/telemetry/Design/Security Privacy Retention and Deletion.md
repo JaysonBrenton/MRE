@@ -7,6 +7,10 @@ data, including access control, encryption, logging boundaries, data retention,
 and user-driven deletion.  
 License: Proprietary, internal to MRE
 
+**Storage authority:** Parquet is canonical; ClickHouse is a derived cache. See
+`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md` for
+the full truth table and deletion semantics per tier.
+
 ## 1. Scope
 
 This document defines:
@@ -278,13 +282,17 @@ Retention enforcement must be idempotent and produce audit events.
 
 ### 10.3 Data lifecycle truth table
 
-| Dataset class                                  | Where stored           | When created                             | When / how deleted                                                       | What remains after deletion                                    |
-| ---------------------------------------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Raw upload bytes                               | Not stored             | —                                        | Discarded immediately after successful canonicalisation                  | Nothing (metadata only: hash, size, type, parse version)       |
-| Canonical streams / derived time series        | ClickHouse             | After worker canonicalisation/derivation | User deletes session → delete by session_id; retention TTL if configured | Nothing for that session                                       |
-| Processed artifact files (e.g. Parquet export) | Object store (if used) | Worker output / export                   | With session deletion or retention reaper                                | Nothing                                                        |
-| Metadata (sessions, jobs, provenance)          | Postgres               | On upload / job create                   | User deletes session → cascade; retention reaper for expired metadata    | Per compliance: minimal audit record if required, else nothing |
-| Operational logs                               | Log store              | At runtime                               | Raw logs: 7 days; aggregated: 90 days (per Category E above)             | Nothing after expiry                                           |
+See `docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`
+for the authoritative truth table. Summary:
+
+| Dataset class                                  | Where stored                 | When created                             | When / how deleted                                                       | What remains after deletion                                    |
+| ---------------------------------------------- | ---------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| Raw upload bytes                               | Not stored                   | —                                        | Discarded immediately after successful canonicalisation                  | Nothing (metadata only: hash, size, type, parse version)       |
+| Canonical time series (authoritative)          | Object storage (Parquet)     | After worker canonicalisation/derivation | User deletes session; retention expiry                                   | Nothing for that session                                       |
+| ClickHouse derived (cache, rebuildable)        | ClickHouse                   | After materialisation job                | User deletes session; retention expiry; invalidate on canonical delete   | Nothing for that session                                       |
+| Processed artifact files (e.g. Parquet export) | Object store                 | Worker output / export                   | With session deletion or retention reaper                                | Nothing                                                        |
+| Metadata (sessions, jobs, provenance)          | Postgres                     | On upload / job create                   | User deletes session → cascade; retention reaper for expired metadata    | Per compliance: minimal audit record if required, else nothing |
+| Operational logs                               | Log store                    | At runtime                               | Raw logs: 7 days; aggregated: 90 days (per Category E above)             | Nothing after expiry                                           |
 
 ## 11. Deletion design
 

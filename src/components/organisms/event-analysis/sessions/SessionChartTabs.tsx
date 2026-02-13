@@ -15,45 +15,86 @@
 
 "use client"
 
-import { useState, KeyboardEvent } from "react"
+import { useState, useEffect, KeyboardEvent } from "react"
+import { getSession } from "@/lib/auth-client"
 import SessionsTable from "./SessionsTable"
+import MyLapsContent from "../MyLapsContent"
 import type {
   SessionData,
   DriverLapTrend,
   HeatProgressionData,
 } from "@/core/events/get-sessions-data"
+import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
-export type ChartTabId = "overview" | "compare-drivers" | "driver-bump-ups"
+export type ChartTabId = "overview" | "my-laps" | "driver-bump-ups"
 
 export interface SessionChartTabsProps {
   sessions: SessionData[]
+  /** Full list of [className, driverCount] for dropdown; when provided, dropdown shows all classes regardless of filter */
+  allClassesWithCounts?: Array<[string, number]>
   driverLapTrends: DriverLapTrend[]
   heatProgression: HeatProgressionData[]
   eventId: string
   selectedClass: string | null
+  /** When provided, Select Class dropdown is shown in the sessions table */
+  onClassChange?: (className: string | null) => void
+  /** Full event analysis data for Lap Analysis and other session views */
+  data?: EventAnalysisData
+  /** Logged-in user's driver name; passed to Lap Analysis for "my laps" filtering when present in event */
+  userDriverName?: string | null
   height?: number
   className?: string
 }
 
 const defaultTabs: Array<{ id: ChartTabId; label: string }> = [
   { id: "overview", label: "Race Overview" },
-  { id: "compare-drivers", label: "Compare Drivers" },
+  { id: "my-laps", label: "Lap Analysis" },
   { id: "driver-bump-ups", label: "Driver Bump-Ups" },
 ]
 
 export default function SessionChartTabs({
   sessions,
+  allClassesWithCounts,
   driverLapTrends,
   heatProgression,
   eventId,
   selectedClass,
+  onClassChange,
+  data,
+  userDriverName: userDriverNameProp,
   height = 500,
   className = "",
 }: SessionChartTabsProps) {
   const [activeTab, setActiveTab] = useState<ChartTabId>("overview")
+  const [userDriverName, setUserDriverName] = useState<string | null>(userDriverNameProp ?? null)
 
-  // Determine which tabs to show
-  const availableTabs = defaultTabs
+  // Fetch user's driver name from session if not provided via props
+  useEffect(() => {
+    if (userDriverNameProp) {
+      setUserDriverName(userDriverNameProp)
+      return
+    }
+
+    getSession().then((session) => {
+      if (session?.user?.name) {
+        setUserDriverName(session.user.name)
+      }
+    })
+  }, [userDriverNameProp])
+
+  // Driver Bump-Ups only for nitro classes (not electric)
+  const isNitroClass = selectedClass != null && /\bnitro\b/i.test(selectedClass)
+  const availableTabs = defaultTabs.filter((tab) => {
+    if (tab.id === "driver-bump-ups") return isNitroClass
+    return true
+  })
+
+  // If active tab is no longer available (e.g. switched from nitro to electric), switch to first tab
+  useEffect(() => {
+    if (!availableTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(availableTabs[0]?.id ?? "overview")
+    }
+  }, [availableTabs, activeTab])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, tabId: ChartTabId) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -122,10 +163,13 @@ export default function SessionChartTabs({
           />
         )}
 
-        {activeTab === "compare-drivers" && (
-          <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
-            Under Development
-          </div>
+        {activeTab === "my-laps" && (
+          <MyLapsContent
+            eventId={eventId}
+            selectedClass={selectedClass}
+            data={data}
+            userDriverName={userDriverName}
+          />
         )}
 
         {activeTab === "driver-bump-ups" && (

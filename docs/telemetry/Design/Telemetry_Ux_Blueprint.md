@@ -12,13 +12,18 @@ Primary outcomes:
 
 Success bar:
 
-- Within 30 seconds of opening a session, the user can identify the top 1 to 3
-  places they lost time vs their best lap, and get a clear suggestion on what
-  changed.
+- Within 30 seconds of opening a **processed** session (status = ready), the
+  user can identify the top 1 to 3 places they lost time vs their best lap, and
+  get a clear suggestion on what changed.
+- The 30-second clock starts when the Session Overview page loads. Processing
+  time (upload → parse → derive) is excluded. If the session is still
+  processing, the UX should show progress and defer the success bar until ready.
 
 ## Scope and assumptions
 
-- Desktop-only for first release.
+- **Desktop-only for first release.** No mobile web support. A separate native
+  mobile app is planned for a future release. All telemetry UX is optimized for
+  1280px+ viewport.
 - Device-agnostic. We care about the type and quality of data available, not the
   hardware brand.
 - Capability tiers (used throughout UI):

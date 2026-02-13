@@ -53,8 +53,8 @@ const statusConfig: Record<
     textColor: "text-[var(--token-status-success-text)]",
   },
   new: {
-    label: "Not imported",
-    description: "Event found on LiveRC but not yet imported into MRE",
+    label: "Not Uploaded",
+    description: "Event found on LiveRC but not yet uploaded into MRE",
     bgColor: "bg-[var(--token-status-info-bg)]",
     textColor: "text-[var(--token-status-info-text)]",
   },

@@ -19,7 +19,6 @@
 
 import { useState, useMemo, useEffect } from "react"
 import ListPagination from "./ListPagination"
-import ClassFilter from "./ClassFilter"
 
 export interface Driver {
   driverId: string
@@ -71,45 +70,10 @@ export default function DriverList({
   const [sortField, setSortField] = useState<SortField>("bestLapTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedClass, setSelectedClass] = useState<string | null>(null)
   const [itemsPerPage, setItemsPerPage] = useState(5)
 
-  // Build a map of driverId -> classes they participated in
-  const driverClassesMap = useMemo(() => {
-    const map = new Map<string, Set<string>>()
-    races.forEach((race) => {
-      race.results.forEach((result) => {
-        if (!map.has(result.driverId)) {
-          map.set(result.driverId, new Set())
-        }
-        map.get(result.driverId)!.add(race.className)
-      })
-    })
-    return map
-  }, [races])
-
-  // Extract unique classes from races
-  const availableClasses = useMemo(() => {
-    const classes = new Set<string>()
-    races.forEach((race) => {
-      classes.add(race.className)
-    })
-    return Array.from(classes).sort()
-  }, [races])
-
-  // Filter drivers by class
-  const filteredDrivers = useMemo(() => {
-    if (!selectedClass) {
-      return drivers
-    }
-    return drivers.filter((driver) => {
-      const driverClasses = driverClassesMap.get(driver.driverId)
-      return driverClasses?.has(selectedClass) ?? false
-    })
-  }, [drivers, selectedClass, driverClassesMap])
-
   const sortedDrivers = useMemo(() => {
-    const sorted = [...filteredDrivers].sort((a, b) => {
+    const sorted = [...drivers].sort((a, b) => {
       let aValue: number | string | null
       let bValue: number | string | null
 
@@ -144,7 +108,7 @@ export default function DriverList({
     })
 
     return sorted
-  }, [filteredDrivers, sortField, sortDirection])
+  }, [drivers, sortField, sortDirection])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -180,28 +144,10 @@ export default function DriverList({
     setTimeout(() => {
       setCurrentPage(1)
     }, 0)
-  }, [sortField, sortDirection, selectedClass, itemsPerPage])
+  }, [sortField, sortDirection, itemsPerPage])
 
   return (
     <div className="space-y-4">
-      {/* Class Filter */}
-      <div className="flex justify-end">
-        <ClassFilter
-          classes={availableClasses}
-          selectedClass={selectedClass}
-          onClassChange={setSelectedClass}
-          onClassInfoClick={
-            eventId
-              ? (className) => {
-                  // Could open modal here if needed
-                  console.log("Class info clicked:", className)
-                }
-              : undefined
-          }
-          raceClasses={raceClasses}
-        />
-      </div>
-
       {/* Table layout */}
       <div className="overflow-x-auto">
         <div className="w-full">
@@ -211,17 +157,17 @@ export default function DriverList({
               <input
                 type="checkbox"
                 checked={
-                  filteredDrivers.length > 0 &&
-                  filteredDrivers.every((d) => selectedDriverIds.includes(d.driverId))
+                  sortedDrivers.length > 0 &&
+                  sortedDrivers.every((d) => selectedDriverIds.includes(d.driverId))
                 }
                 onChange={(e) => {
                   if (e.target.checked) {
-                    const allFilteredIds = filteredDrivers.map((d) => d.driverId)
-                    const newSelection = [...new Set([...selectedDriverIds, ...allFilteredIds])]
+                    const allIds = sortedDrivers.map((d) => d.driverId)
+                    const newSelection = [...new Set([...selectedDriverIds, ...allIds])]
                     onSelectionChange(newSelection)
                   } else {
-                    const filteredIds = new Set(filteredDrivers.map((d) => d.driverId))
-                    onSelectionChange(selectedDriverIds.filter((id) => !filteredIds.has(id)))
+                    const idsToRemove = new Set(sortedDrivers.map((d) => d.driverId))
+                    onSelectionChange(selectedDriverIds.filter((id) => !idsToRemove.has(id)))
                   }
                 }}
                 className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"

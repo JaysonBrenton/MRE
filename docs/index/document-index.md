@@ -329,6 +329,12 @@ Comprehensive guide to web scraping practices and ethical guidelines. Covers
 robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, retry
 logic, and kill switch mechanism.
 
+#### [28 - Async Ingestion Queue](../architecture/liverc-ingestion/28-async-ingestion-queue.md)
+
+Asynchronous ingestion via in-process job queue. Describes 202 Accepted + job_id
+when queue is enabled, GET job status endpoint, queue_position, frontend
+polling, and configuration (INGESTION_USE_QUEUE, UVICORN_WORKERS).
+
 ---
 
 ## API Documentation
@@ -419,7 +425,20 @@ sorting, filtering, pagination, and responsive behavior.
 ### [Telemetry Visualization Specification](../design/telemetry-visualization-specification.md)
 
 Telemetry visualization specification for lap data and sensor data. Defines
-visualization types, data formats, and interaction patterns.
+visualization types, data formats, and interaction patterns. Desktop-only;
+separate mobile app planned for future.
+
+### [Telemetry Documentation Index](../telemetry/README.md)
+
+Index of all telemetry design documentation: user stories, UX blueprint, API
+contract, data model, processing pipeline, formats, security, and related ADRs.
+Use this as the entry point for telemetry implementation.
+
+### [Telemetry Seed Data Guide](../telemetry/Design/Telemetry_Seed_Data_Guide.md)
+
+Practical guide for creating telemetry seed data sets for testing, development,
+and UX validation. Covers synthetic vs. dummy data, storage layout, quick-start
+options, and implementation order. Entry point for fixture creation.
 
 ---
 

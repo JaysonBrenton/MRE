@@ -11,6 +11,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/06-admin-cli-spec.md
+  - docs/architecture/liverc-ingestion/28-async-ingestion-queue.md
   - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
 ---
@@ -87,6 +88,15 @@ Standard error codes include:
 - INGESTION_IN_PROGRESS: Ingestion already running for this resource
 - INGESTION_FAILED: Upstream scraping, parsing, or ingestion failure
 - INTERNAL_ERROR: Unknown server-side error
+
+### 1.4 Async ingestion (queue mode)
+
+When the ingestion service has queue mode enabled (`INGESTION_USE_QUEUE=true`,
+default), POST ingest endpoints **MAY** return **202 Accepted** with a job
+identifier instead of running ingestion synchronously. The client **MUST** then
+poll **GET /ingestion/jobs/{job_id}** until the job status is `completed` or
+`failed`. See [28. Async Ingestion Queue](28-async-ingestion-queue.md) for
+architecture, configuration, and behaviour.
 
 ---
 
@@ -303,17 +313,7 @@ Request body:
 - `track_id` (UUID string, required) - Track ID from database
 - `depth` (string, optional) - Ingestion depth, default: "laps_full"
 
-Example request:
-
-```json
-{
-  "source_event_id": "6304829",
-  "track_id": "uuid",
-  "depth": "laps_full"
-}
-```
-
-Example response:
+When **queue mode is disabled**, example response (200 OK):
 
 ```json
 {
@@ -329,6 +329,20 @@ Example response:
   }
 }
 ```
+
+When **queue mode is enabled** (default), response is **202 Accepted**:
+
+```json
+{
+  "success": true,
+  "queued": true,
+  "job_id": "uuid",
+  "data": { "job_id": "uuid", "status": "queued" }
+}
+```
+
+Client **MUST** poll **GET /api/v1/ingestion/jobs/{job_id}** (see §4.4) until
+`status` is `completed` or `failed`.
 
 Backend behaviour:
 
@@ -359,15 +373,7 @@ Request body:
 
 - `depth` (string, optional) - Ingestion depth, default: "laps_full"
 
-Example request:
-
-```json
-{
-  "depth": "laps_full"
-}
-```
-
-Example response:
+When **queue mode is disabled**, example response (200 OK):
 
 ```json
 {
@@ -384,16 +390,21 @@ Example response:
 }
 ```
 
+When **queue mode is enabled** (default), response is **202 Accepted** with
+`job_id`; client **MUST** poll **GET /api/v1/ingestion/jobs/{job_id}** (see
+§4.4) until completion.
+
 Backend behaviour:
 
 - MUST validate that the event exists.
 - MUST validate depth.
 - MUST be idempotent.
 - MUST NOT duplicate data if already fully ingested.
-- MAY run synchronously for V1.
-- MUST update ingest_depth and last_ingested_at.
-- MUST return standard envelope: `{ success: true, data: {...} }` on success
-- MUST return standard error envelope on failure with `source: "ingest_event"`
+- When queue disabled: MUST return 200 with full result. When queue enabled:
+  MUST return 202 with `job_id` and process job in background.
+- MUST update ingest_depth and last_ingested_at on completion.
+- MUST return standard envelope on success; MUST return standard error envelope
+  on failure with `source: "ingest_event"`
 
 Disallowed transitions:
 
@@ -401,9 +412,48 @@ Disallowed transitions:
 
 **TypeScript v1 Route:** `POST /api/v1/events/{eventId}/ingest`
 
-Request body: Same as Python endpoint
+Request body: Same as Python endpoint. Response: 200 with full result, or 202
+with `job_id` when queue is enabled (client polls job status).
 
-Response: Same standard envelope format
+### 4.4 GET /ingestion/jobs/{job_id}
+
+Returns the status of a queued ingestion job. Used when POST ingest returned
+202 with a `job_id`.
+
+**Python Ingestion Service Endpoint:** `GET /api/v1/ingestion/jobs/{job_id}`
+
+Path: `job_id` (string, required) - Job UUID returned in 202 response.
+
+Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "uuid",
+    "status": "queued | running | completed | failed",
+    "created_at": "ISO8601",
+    "updated_at": "ISO8601",
+    "queue_position": 1,
+    "result": { "event_id": "...", "races_ingested": 12, ... },
+    "error_code": "...",
+    "error_message": "..."
+  }
+}
+```
+
+- `queue_position` (optional, integer, 1-based) — present when `status` is
+  `queued`.
+- `result` (optional) — present when `status` is `completed`; same shape as
+  synchronous ingest response.
+- `error_code` and `error_message` (optional) — present when `status` is
+  `failed`.
+
+Returns **404** if `job_id` is unknown (e.g. wrong worker or job expired when
+using in-process queue). See [28. Async Ingestion Queue](28-async-ingestion-queue.md).
+
+**TypeScript v1 Route:** `GET /api/v1/ingestion/jobs/{jobId}` — proxies to
+Python; used by frontend to poll until job completes or fails.
 
 ---
 

@@ -21,7 +21,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import EventStats from "./EventStats"
 import ChartControls from "./ChartControls"
-import UnifiedPerformanceChart from "./UnifiedPerformanceChart"
+import UnifiedPerformanceChart, { type ChartViewType } from "./UnifiedPerformanceChart"
 import ChartSection from "./ChartSection"
 import type { DriverPerformanceData } from "./UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
@@ -79,8 +79,7 @@ export default function OverviewTab({
     selectionKey: "",
   })
   const [selectAllClickedForCurrentClass, setSelectAllClickedForCurrentClass] = useState(false)
-  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
-  const classDropdownRef = useRef<HTMLDivElement>(null)
+  const [chartViewState, setChartViewState] = useState<ChartViewType>("column")
   const selectionKey = selectedDriverIds.join("|")
   const currentPage = paginationState.selectionKey === selectionKey ? paginationState.page : 1
   const driversPerPage = 25
@@ -174,6 +173,7 @@ export default function OverviewTab({
         bestLapRaceLabel: string | null
         avgLapTimes: number[]
         positions: number[]
+        consistencies: number[]
       }
     >()
 
@@ -196,6 +196,7 @@ export default function OverviewTab({
             bestLapRaceLabel: null,
             avgLapTimes: [],
             positions: [],
+            consistencies: [],
           })
         }
 
@@ -212,6 +213,11 @@ export default function OverviewTab({
         // Collect average lap times
         if (result.avgLapTime !== null) {
           driverData.avgLapTimes.push(result.avgLapTime)
+        }
+
+        // Collect consistency (per-race score 0–100; higher = more consistent)
+        if (result.consistency !== null) {
+          driverData.consistencies.push(result.consistency)
         }
 
         // Collect positions
@@ -250,6 +256,12 @@ export default function OverviewTab({
       // Count podium finishes (positions 1, 2, or 3)
       const podiumFinishes = driver.positions.filter((pos) => pos >= 1 && pos <= 3).length
 
+      // Average consistency for this class (mean of per-race consistency scores)
+      const averageConsistency =
+        driver.consistencies.length > 0
+          ? driver.consistencies.reduce((a, b) => a + b, 0) / driver.consistencies.length
+          : null
+
       return {
         driverId: driver.driverId,
         driverName: driver.driverName,
@@ -259,6 +271,7 @@ export default function OverviewTab({
         averagePosition,
         gapToFastest,
         podiumFinishes,
+        averageConsistency,
       }
     })
   }, [filteredRaces])
@@ -271,7 +284,7 @@ export default function OverviewTab({
       bestLapTime: d.bestLapTime,
       bestLapRaceLabel: d.bestLapRaceLabel,
       averageLapTime: d.avgLapTime,
-      consistency: null, // Future metric
+      consistency: d.averageConsistency ?? null,
       averagePosition: d.averagePosition,
       gapToFastest: d.gapToFastest,
       podiumFinishes: d.podiumFinishes,
@@ -291,30 +304,6 @@ export default function OverviewTab({
   const driverOptionsLookup = useMemo(() => {
     return new Map(driverOptions.map((driver) => [driver.driverId, driver.driverName]))
   }, [driverOptions])
-
-  // Class dropdown: driver count per class (races-based, drivers with laps > 0)
-  const classesWithCounts = useMemo(() => {
-    const map = new Map<string, Set<string>>()
-    const validIds = new Set(driverOptions.map((d) => d.driverId))
-    data.races.forEach((race) => {
-      if (!map.has(race.className)) map.set(race.className, new Set())
-      const s = map.get(race.className)!
-      race.results.forEach((r) => {
-        if (validIds.has(r.driverId) && (r.lapsCompleted ?? 0) > 0) s.add(r.driverId)
-      })
-    })
-    const result = new Map<string, number>()
-    map.forEach((driverIds, className) => result.set(className, driverIds.size))
-    return result
-  }, [data.races, driverOptions])
-
-  const classesSorted = useMemo(
-    () => Array.from(classesWithCounts.entries()).sort((a, b) => b[1] - a[1]),
-    [classesWithCounts]
-  )
-  const displayClass = selectedClass
-    ? `${selectedClass} (${classesWithCounts.get(selectedClass) ?? 0})`
-    : "All Classes"
 
   const driverNameLookup = useMemo(() => {
     const map = new Map<string, string>()
@@ -417,19 +406,26 @@ export default function OverviewTab({
 
   const shouldShowSelectionNotices = expandedSelectedDriverIds.length > 0
 
+  // Only consider selected drivers who are in the current class for "missing best lap" / "missing avg vs fastest"
+  // so we don't incorrectly flag drivers from other classes when a class is selected
+  const selectedDriverIdsInCurrentClass = useMemo(() => {
+    const statsDriverIds = new Set(driverStatsByClass.map((d) => d.driverId))
+    return expandedSelectedDriverIds.filter((id) => statsDriverIds.has(id))
+  }, [expandedSelectedDriverIds, driverStatsByClass])
+
   const missingBestLapDriverIds = useMemo(() => {
     if (!shouldShowSelectionNotices) {
       return []
     }
-    return getDriversMissingBestLap(expandedSelectedDriverIds, driverStatsByClass)
-  }, [shouldShowSelectionNotices, expandedSelectedDriverIds, driverStatsByClass])
+    return getDriversMissingBestLap(selectedDriverIdsInCurrentClass, driverStatsByClass)
+  }, [shouldShowSelectionNotices, selectedDriverIdsInCurrentClass, driverStatsByClass])
 
   const missingAvgVsFastestDriverIds = useMemo(() => {
     if (!shouldShowSelectionNotices) {
       return []
     }
-    return getDriversMissingAvgVsFastest(expandedSelectedDriverIds, driverStatsByClass)
-  }, [shouldShowSelectionNotices, expandedSelectedDriverIds, driverStatsByClass])
+    return getDriversMissingAvgVsFastest(selectedDriverIdsInCurrentClass, driverStatsByClass)
+  }, [shouldShowSelectionNotices, selectedDriverIdsInCurrentClass, driverStatsByClass])
 
   const mapDriverIdsToNames = useCallback(
     (driverIds: string[]) => {
@@ -654,19 +650,6 @@ export default function OverviewTab({
     [data.races, driverOptions, handleSelectionChange, onClassChange]
   )
 
-  // Close class dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (classDropdownRef.current && !classDropdownRef.current.contains(event.target as Node)) {
-        setIsClassDropdownOpen(false)
-      }
-    }
-    if (isClassDropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-      return () => document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [isClassDropdownOpen])
-
   useEffect(() => {
     if (!shouldShowSelectionNotices) {
       lastLoggedMissingState.current = null
@@ -763,7 +746,9 @@ export default function OverviewTab({
           onSelectAllClick={handleSelectAllClick}
         />
 
-        {selectedClass && unselectedDriversInClassNames.length > 0 && (
+        {selectedClass &&
+          selectedDriverIds.length > 0 &&
+          unselectedDriversInClassNames.length > 0 && (
           <ChartDataNotice
             title="Some drivers in this class are not selected"
             description={
@@ -787,66 +772,6 @@ export default function OverviewTab({
           <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
             Driver Statistics
           </h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 mt-3">
-          <h3 className="text-sm font-medium text-[var(--token-text-secondary)] ml-1">
-            Select Class:
-          </h3>
-          <div className="relative flex-initial max-w-[300px]" ref={classDropdownRef}>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-                className="flex items-center justify-between w-full px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                aria-label="Filter by class"
-                aria-expanded={isClassDropdownOpen}
-              >
-                <span className="truncate">{displayClass}</span>
-                <svg
-                  className={`ml-2 w-4 h-4 shrink-0 transition-transform ${
-                    isClassDropdownOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-            </div>
-            {isClassDropdownOpen && (
-              <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsClassDropdownOpen(false)
-                    handleClassChange(null)
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
-                >
-                  All Classes
-                </button>
-                {classesSorted.map(([className, count]) => (
-                  <button
-                    key={className}
-                    type="button"
-                    onClick={() => {
-                      setIsClassDropdownOpen(false)
-                      handleClassChange(className)
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
-                  >
-                    {className} ({count})
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         {missingBestLapDriverNames.length > 0 && (
@@ -881,6 +806,8 @@ export default function OverviewTab({
             chartInstanceId={`overview-${data.event.id}-unified`}
             selectedClass={selectedClass}
             allDriversInClassSelected={allDriversInClassSelected && selectAllClickedForCurrentClass}
+            chartView={chartViewState}
+            onChartViewChange={setChartViewState}
           />
         </ChartSection>
       </section>

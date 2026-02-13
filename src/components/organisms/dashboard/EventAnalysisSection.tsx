@@ -22,16 +22,15 @@
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import { fetchEventAnalysisData } from "@/store/slices/dashboardSlice"
-import TabNavigation, { type TabId } from "@/components/organisms/event-analysis/TabNavigation"
+import EventAnalysisToolbar from "@/components/organisms/event-analysis/EventAnalysisToolbar"
+import { type TabId } from "@/components/organisms/event-analysis/TabNavigation"
 import OverviewTab from "@/components/organisms/event-analysis/OverviewTab"
 import DriversTab from "@/components/organisms/event-analysis/DriversTab"
-import EntryListTab from "@/components/organisms/event-analysis/EntryListTab"
 import SessionsTab from "@/components/organisms/event-analysis/SessionsTab"
-import ComparisonsTab from "@/components/organisms/event-analysis/ComparisonsTab"
-import ComparisonTest from "@/components/organisms/event-analysis/ComparisonTest"
+import MyEventsContent from "@/components/organisms/event-analysis/MyEventsContent"
 import EventAnalysisHeader from "@/components/organisms/event-analysis/EventAnalysisHeader"
 import { useEventActions } from "@/components/organisms/dashboard/EventActionsContext"
-import { DriverCardsAndWeatherGrid } from "@/components/organisms/dashboard/DashboardClient"
+import DriverCardsAndWeatherGrid from "@/components/organisms/dashboard/DriverCardsAndWeatherGrid"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 // Type for API response with ISO string dates (matches what's stored in Redux)
@@ -309,9 +308,7 @@ export default function EventAnalysisSection() {
   const availableTabs = [
     { id: "overview" as TabId, label: "Event Overview" },
     { id: "sessions" as TabId, label: "Event Sessions" },
-    { id: "comparisons" as TabId, label: "Comparisons" },
-    { id: "comparison-test" as TabId, label: "Comparison Test" },
-    { id: "entry-list" as TabId, label: "Entry List" },
+    { id: "my-events" as TabId, label: "My Events" },
     { id: "drivers" as TabId, label: "Drivers" },
   ]
 
@@ -331,7 +328,7 @@ export default function EventAnalysisSection() {
   // This ensures the section is visible and can start fetching analysis data
 
   return (
-    <section ref={sectionRef} className="-mt-[9px]">
+    <section ref={sectionRef}>
       <div className="space-y-6">
         {/* Error state */}
         {selectedEventId && analysisError && (
@@ -369,7 +366,7 @@ export default function EventAnalysisSection() {
             />
 
             <div className="space-y-6">
-              <TabNavigation
+              <EventAnalysisToolbar
                 tabs={availableTabs}
                 activeTab={activeTab}
                 onTabChange={handleTabChange}
@@ -410,34 +407,23 @@ export default function EventAnalysisSection() {
               {activeTab === "drivers" && (
                 <DriversTab
                   data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  onSelectionChange={eventActions.onDriverSelectionChange}
+                  selectedClass={selectedClass}
+                  onClassChange={eventActions.onClassChange}
                 />
               )}
 
-              {activeTab === "entry-list" && <EntryListTab data={transformedData} />}
+              {activeTab === "my-events" && (
+                <div className="space-y-6" role="tabpanel" id="tabpanel-my-events" aria-labelledby="tab-my-events">
+                  <MyEventsContent />
+                </div>
+              )}
 
               {activeTab === "sessions" && (
                 <SessionsTab
                   data={transformedData}
                   selectedDriverIds={selectedDriverIds}
                   selectedClass={selectedClass}
-                />
-              )}
-
-              {activeTab === "comparisons" && transformedData && selectedEventId && (
-                <ComparisonsTab
-                  selectedClass={selectedClass}
-                  eventId={selectedEventId}
-                  data={transformedData}
-                />
-              )}
-
-              {activeTab === "comparison-test" && transformedData && selectedEventId && (
-                <ComparisonTest
-                  selectedClass={selectedClass}
-                  eventId={selectedEventId}
-                  data={transformedData}
+                  onClassChange={eventActions.onClassChange}
                 />
               )}
             </div>

@@ -1,18 +1,19 @@
 /**
- * @fileoverview Comparison Test tab - enhanced driver comparison interface
+ * @fileoverview Comparison Test tab - stepper wizard for driver comparison
  *
  * @created 2025-01-28
  * @creator Auto-generated
- * @lastModified 2025-01-28
+ * @lastModified 2026-01-31
  *
- * @description Tab content for comparing multiple drivers with side-by-side cards,
- *              quick stats, and visual performance indicators
+ * @description Three-step wizard: (1) Choose race, (2) Choose drivers, (3) View comparison.
+ *              Side-by-side driver cards, quick stats, and visual performance indicators.
  *
- * @purpose Provides an enhanced user-friendly interface for driver comparisons
- *          with multi-driver selection, visual indicators, and summary statistics.
+ * @purpose Provides a guided, user-friendly flow for driver comparisons with
+ *          multi-driver selection and summary statistics.
  *
  * @relatedFiles
  * - src/components/event-analysis/RaceSelector.tsx (race selection)
+ * - src/components/molecules/Stepper.tsx (wizard steps)
  * - src/components/event-analysis/TabNavigation.tsx (tab navigation)
  */
 
@@ -20,9 +21,18 @@
 
 import { useState, useEffect, useMemo } from "react"
 import RaceSelector, { type Race } from "./RaceSelector"
+import Stepper from "@/components/molecules/Stepper"
+import LabeledSwitch from "@/components/molecules/LabeledSwitch"
+import StandardButton from "@/components/atoms/StandardButton"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { formatLapTime } from "@/lib/date-utils"
 import { useChartColors } from "@/hooks/useChartColors"
+
+const WIZARD_STEPS = [
+  { id: "race", label: "Choose race" },
+  { id: "drivers", label: "Choose drivers" },
+  { id: "compare", label: "View comparison" },
+] as const
 
 // Default color palette for drivers (matching LapTimeLineChart)
 const defaultDriverColors = [
@@ -67,6 +77,7 @@ interface WinnerInfo {
 }
 
 export default function ComparisonTest({ selectedClass, eventId, data }: ComparisonTestProps) {
+  const [step, setStep] = useState(0)
   const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null)
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
 
@@ -306,8 +317,8 @@ export default function ComparisonTest({ selectedClass, eventId, data }: Compari
       if (prev.includes(driverId)) {
         return prev.filter((id) => id !== driverId)
       } else {
-        if (prev.length >= 4) {
-          return prev // Don't allow more than 4
+        if (prev.length >= availableDrivers.length) {
+          return prev
         }
         return [...prev, driverId]
       }
@@ -322,6 +333,10 @@ export default function ComparisonTest({ selectedClass, eventId, data }: Compari
     return "bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] border-[var(--token-border-default)]"
   }
 
+  const handleStepClick = (index: number) => {
+    if (index >= 0 && index < step) setStep(index)
+  }
+
   return (
     <div
       className="space-y-6"
@@ -329,93 +344,165 @@ export default function ComparisonTest({ selectedClass, eventId, data }: Compari
       id="tabpanel-comparison-test"
       aria-labelledby="tab-comparison-test"
     >
-      {/* Race Selector */}
-      {filteredRaces.length > 0 ? (
-        <RaceSelector
-          races={filteredRaces}
-          selectedRaceId={selectedRaceId}
-          onRaceSelect={setSelectedRaceId}
-          selectedClass={selectedClass}
-        />
-      ) : (
-        <div className="text-center py-8">
-          <p className="text-sm text-[var(--token-text-secondary)]">
-            {!data
-              ? "Event data is loading..."
-              : data.races.length === 0
-                ? "This event has no races"
-                : selectedClass
-                  ? `No races available for class "${selectedClass}"`
-                  : "No races available"}
-          </p>
+      <Stepper
+        steps={WIZARD_STEPS}
+        currentStep={step}
+        onStepClick={handleStepClick}
+        aria-label="Comparison wizard steps"
+      />
+
+      {step === 0 && (
+        <div className="flex justify-center">
+          <StandardButton
+            onClick={() => setStep(1)}
+            disabled={!selectedRaceId || filteredRaces.length === 0}
+          >
+            Next: Choose drivers
+          </StandardButton>
         </div>
       )}
 
-      {/* Driver Selector */}
-      {selectedRaceId && availableDrivers.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-[var(--token-text-primary)]">
-              Select Drivers to Compare (2-4 drivers)
-            </h3>
-            {selectedDriverIds.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setSelectedDriverIds([])}
-                className="text-xs text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)]"
-              >
-                Clear Selection
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {availableDrivers.map((driver) => {
-              const isSelected = selectedDriverIds.includes(driver.driverId)
-              const isDisabled = !isSelected && selectedDriverIds.length >= 4
-              const driverColor = colors[driver.driverId] || defaultDriverColors[0]
+      {step === 1 && selectedRaceId && (
+        <div className="flex justify-center gap-4">
+          <StandardButton type="button" onClick={() => setStep(0)}>
+            Back
+          </StandardButton>
+          <StandardButton
+            type="button"
+            onClick={() => setStep(2)}
+            disabled={selectedDriverIds.length < 2}
+          >
+            Next: View comparison
+          </StandardButton>
+        </div>
+      )}
 
-              return (
-                <label
-                  key={driver.driverId}
-                  className={`
-                    relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all
-                    ${
-                      isSelected
-                        ? "border-[var(--token-accent)] bg-[var(--token-accent)]/10"
-                        : "border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)]/50"
-                    }
-                    ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}
-                  `}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleDriverToggle(driver.driverId)}
-                    disabled={isDisabled}
-                    className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-[var(--token-interactive-focus-ring)]"
-                  />
-                  <div
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: driverColor }}
-                    aria-hidden="true"
-                  />
-                  <span className="text-sm text-[var(--token-text-primary)] truncate flex-1">
-                    {driver.driverName}
-                  </span>
-                </label>
-              )
-            })}
-          </div>
-          {selectedDriverIds.length < 2 && selectedDriverIds.length > 0 && (
-            <p className="text-xs text-[var(--token-text-secondary)]">
-              Select at least 2 drivers to compare
-            </p>
+      {step === 2 && selectedRaceId && (
+        <div className="flex justify-center">
+          <StandardButton type="button" onClick={() => setStep(1)}>
+            Back to drivers
+          </StandardButton>
+        </div>
+      )}
+
+      {/* Step 0: Choose race */}
+      {step === 0 && (
+        <div className="space-y-4">
+          {filteredRaces.length > 0 ? (
+            <RaceSelector
+              races={filteredRaces}
+              selectedRaceId={selectedRaceId}
+              onRaceSelect={setSelectedRaceId}
+              selectedClass={selectedClass}
+            />
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                {!data
+                  ? "Event data is loading..."
+                  : data.races.length === 0
+                    ? "This event has no races"
+                    : selectedClass
+                      ? `No races available for class "${selectedClass}"`
+                      : "No races available"}
+              </p>
+            </div>
           )}
         </div>
       )}
 
-      {/* Comparison Cards */}
-      {selectedRaceId && selectedDriverResults.length >= 2 && (
+      {/* Step 1: Choose drivers */}
+      {step === 1 && selectedRaceId && (
+        <div className="space-y-4">
+          {availableDrivers.length > 0 ? (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h3 className="text-sm font-medium text-[var(--token-text-primary)]">
+                  Select drivers to compare (2 or more)
+                </h3>
+                <LabeledSwitch
+                  leftLabel="Clear"
+                  rightLabel="Select all"
+                  checked={
+                    availableDrivers.length > 0 &&
+                    selectedDriverIds.length === availableDrivers.length
+                  }
+                  onChange={(checked) => {
+                    if (checked) {
+                      setSelectedDriverIds(availableDrivers.map((d) => d.driverId))
+                    } else {
+                      setSelectedDriverIds([])
+                    }
+                  }}
+                  aria-label="Select all drivers or clear selection"
+                />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {availableDrivers.map((driver) => {
+                  const isSelected = selectedDriverIds.includes(driver.driverId)
+                  const isDisabled =
+                    !isSelected && selectedDriverIds.length >= availableDrivers.length
+                  const driverColor = colors[driver.driverId] || defaultDriverColors[0]
+
+                  return (
+                    <label
+                      key={driver.driverId}
+                      className={`
+                        relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all
+                        ${
+                          isSelected
+                            ? "border-[var(--token-accent)] bg-[var(--token-accent)]/10"
+                            : "border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)]/50"
+                        }
+                        ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}
+                      `}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleDriverToggle(driver.driverId)}
+                        disabled={isDisabled}
+                        className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-[var(--token-interactive-focus-ring)]"
+                      />
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: driverColor }}
+                        aria-hidden="true"
+                      />
+                      <span className="text-sm text-[var(--token-text-primary)] truncate flex-1">
+                        {driver.driverName}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+              {selectedDriverIds.length < 2 && selectedDriverIds.length > 0 && (
+                <p className="text-xs text-[var(--token-text-secondary)]">
+                  Select at least 2 drivers to compare
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                No drivers found for the selected race
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step 2: View comparison (or prompt to select drivers) */}
+      {step === 2 && selectedRaceId && selectedDriverResults.length < 2 && (
+        <div className="space-y-4">
+          <div className="text-center py-8">
+            <p className="text-sm text-[var(--token-text-secondary)]">
+              Select at least 2 drivers to compare. Go back to choose drivers.
+            </p>
+          </div>
+        </div>
+      )}
+      {step === 2 && selectedRaceId && selectedDriverResults.length >= 2 && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {selectedDriverResults.map((driver) => {
@@ -667,23 +754,6 @@ export default function ComparisonTest({ selectedClass, eventId, data }: Compari
             </div>
           </div>
         </>
-      )}
-
-      {/* Empty States */}
-      {selectedRaceId && availableDrivers.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-sm text-[var(--token-text-secondary)]">
-            No drivers found for the selected race
-          </p>
-        </div>
-      )}
-
-      {selectedRaceId && selectedDriverIds.length === 0 && availableDrivers.length > 0 && (
-        <div className="text-center py-8">
-          <p className="text-sm text-[var(--token-text-secondary)]">
-            Select 2-4 drivers above to compare their performance
-          </p>
-        </div>
       )}
     </div>
   )

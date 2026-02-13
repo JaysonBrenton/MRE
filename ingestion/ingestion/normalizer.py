@@ -382,23 +382,29 @@ class Normalizer:
     def normalize_result(result: ConnectorRaceResult) -> dict:
         """
         Normalize race result data.
-        
-        Args:
-            result: Connector race result
-        
-        Returns:
-            Normalized result data dictionary
+
+        Derives total_time_seconds from total_time_raw when not already set (e.g. "58/30:03.149" -> seconds).
         """
+        total_time_seconds = result.total_time_seconds
+        if total_time_seconds is None and result.total_time_raw:
+            try:
+                total_time_seconds = Normalizer.parse_total_time(result.total_time_raw)
+            except NormalisationError:
+                total_time_seconds = None
+
         return {
             "source_driver_id": result.source_driver_id,
             "display_name": Normalizer.normalize_string(result.display_name),
             "position_final": result.position_final,
             "laps_completed": result.laps_completed,
             "total_time_raw": result.total_time_raw,
-            "total_time_seconds": result.total_time_seconds,
+            "total_time_seconds": total_time_seconds,
             "fast_lap_time": result.fast_lap_time,
             "avg_lap_time": result.avg_lap_time,
             "consistency": result.consistency,
+            "qualifying_position": result.qualifying_position,
+            "seconds_behind": result.seconds_behind,
+            "raw_fields_json": result.raw_fields_json,
         }
     
     @staticmethod

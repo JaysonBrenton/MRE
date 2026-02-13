@@ -133,80 +133,81 @@ async def discover_practice_days(
         logger.info(
             "practice_day_discovery_fallback",
             track_slug=track_slug,
-            message="Month view returned no dates, trying weekend date checks",
+            message="Month view returned no dates, probing dates directly",
         )
-        
-        # Check weekends (Saturday=5, Sunday=6) as practice days are more common
-        # Also check a few weekdays to catch practice days that might occur on other days
-        check_date = start_date
-        checked_count = 0
+
         max_checks = 30  # Limit to avoid too many requests and timeouts
-        
-        while check_date <= end_date and checked_count < max_checks:
-            # Check if it's a weekend (Saturday or Sunday)
-            weekday = check_date.weekday()  # Monday=0, Sunday=6
-            is_weekend = weekday in [5, 6]  # Saturday or Sunday
-            
-            if is_weekend:
-                try:
-                    # Try fetching practice day overview directly with timeout
-                    # Use a shorter timeout to prevent long hangs if parser crashes
+        candidate_dates: List[date] = []
+        added: set[date] = set()
+
+        check_date = start_date
+        while check_date <= end_date and len(candidate_dates) < max_checks:
+            if check_date.weekday() in [5, 6]:  # Weekend
+                candidate_dates.append(check_date)
+                added.add(check_date)
+            check_date += timedelta(days=1)
+
+        # Add a handful of weekdays if we still have capacity
+        check_date = start_date
+        while check_date <= end_date and len(candidate_dates) < max_checks:
+            if check_date.weekday() in [1, 3] and check_date not in added:  # Tuesday/Thursday
+                candidate_dates.append(check_date)
+                added.add(check_date)
+            check_date += timedelta(days=1)
+
+        semaphore = asyncio.Semaphore(4)
+
+        async def _probe_date(practice_date: date) -> None:
+            try:
+                async with semaphore:
                     summary = await asyncio.wait_for(
                         connector.fetch_practice_day_overview(
                             track_slug=track_slug,
-                            practice_date=check_date,
+                            practice_date=practice_date,
                         ),
-                        timeout=8.0  # 8 second timeout per date check (reduced from 10)
+                        timeout=8.0,
                     )
-                    # If we get here without exception, there are practice sessions
-                    if summary.session_count > 0:
-                        practice_days.append(summary)
-                        logger.info(
-                            "practice_day_found_via_fallback",
-                            track_slug=track_slug,
-                            date=check_date.isoformat(),
-                            session_count=summary.session_count,
-                        )
-                    checked_count += 1
-                except asyncio.TimeoutError:
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "practice_day_fallback_timeout",
+                    track_slug=track_slug,
+                    date=practice_date.isoformat(),
+                )
+                return
+            except EventPageFormatError as e:
+                error_msg = str(e).lower()
+                if not (
+                    "no practice sessions" in error_msg
+                    or "no sessions available" in error_msg
+                    or "no practice session table found" in error_msg
+                ):
                     logger.warning(
-                        "practice_day_fallback_timeout",
+                        "practice_day_parse_error_fallback",
                         track_slug=track_slug,
-                        date=check_date.isoformat(),
-                    )
-                    checked_count += 1
-                except EventPageFormatError as e:
-                    # No practice sessions for this date or parsing error - skip silently
-                    # Check if it's a "no sessions" error vs a real parsing error
-                    error_msg = str(e).lower()
-                    if "no practice sessions" in error_msg or "no sessions available" in error_msg or "no practice session table found" in error_msg:
-                        # Expected - no sessions on this date
-                        pass
-                    else:
-                        # Real parsing error - log it but don't crash
-                        logger.warning(
-                            "practice_day_parse_error_fallback",
-                            track_slug=track_slug,
-                            date=check_date.isoformat(),
-                            error=str(e),
-                        )
-                    checked_count += 1
-                except (ConnectorHTTPError, Exception) as e:
-                    # Other errors - log and continue (including potential segfaults that might manifest as other errors)
-                    logger.warning(
-                        "practice_day_fallback_check_error",
-                        track_slug=track_slug,
-                        date=check_date.isoformat(),
+                        date=practice_date.isoformat(),
                         error=str(e),
-                        error_type=type(e).__name__,
                     )
-                    checked_count += 1
-            
-            # Move to next day
-            try:
-                check_date = check_date + timedelta(days=1)
-            except:
-                break
+                return
+            except (ConnectorHTTPError, Exception) as e:
+                logger.warning(
+                    "practice_day_fallback_check_error",
+                    track_slug=track_slug,
+                    date=practice_date.isoformat(),
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return
+
+            if summary.session_count > 0:
+                practice_days.append(summary)
+                logger.info(
+                    "practice_day_found_via_fallback",
+                    track_slug=track_slug,
+                    date=practice_date.isoformat(),
+                    session_count=summary.session_count,
+                )
+
+        await asyncio.gather(*(_probe_date(practice_date) for practice_date in candidate_dates))
     
     success = True
     duration = time.time() - start_time

@@ -29,7 +29,10 @@ from ingestion.connectors.liverc.parsers.track_list_parser import TrackListParse
 from ingestion.connectors.liverc.parsers.event_list_parser import EventListParser, EventSummary
 from ingestion.connectors.liverc.parsers.event_metadata_parser import EventMetadataParser
 from ingestion.connectors.liverc.parsers.race_list_parser import RaceListParser
-from ingestion.connectors.liverc.parsers.race_results_parser import RaceResultsParser
+from ingestion.connectors.liverc.parsers.race_results_parser import (
+    RaceResultsParser,
+    parse_race_duration_seconds,
+)
 from ingestion.connectors.liverc.parsers.race_lap_parser import RaceLapParser
 from ingestion.connectors.liverc.parsers.entry_list_parser import EntryListParser
 from ingestion.connectors.liverc.parsers.track_dashboard_parser import TrackDashboardParser, TrackDashboardData
@@ -438,10 +441,15 @@ class LiveRCConnector:
         try:
             results_parser = RaceResultsParser()
             lap_parser = RaceLapParser()
-            
+
             results = results_parser.parse(html, url)
             all_laps = lap_parser.parse_all_drivers(html, url)
-            
+
+            # Parse race duration from page (e.g. "Length: 30:00 Timed") and enrich race_summary
+            duration_seconds = parse_race_duration_seconds(html)
+            if duration_seconds is not None:
+                race_summary = race_summary.model_copy(update={"duration_seconds": duration_seconds})
+
             return ConnectorRacePackage(
                 race_summary=race_summary,
                 results=results,

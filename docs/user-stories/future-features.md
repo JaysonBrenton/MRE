@@ -32,26 +32,22 @@ phases.
 
 ### Status
 
-Planned for Beta+ release
+**In scope for version 0.1.1.** Design and seed data infrastructure are in
+place. See `docs/telemetry/` and `docs/specs/mre-v0.1-feature-scope.md`
+Section 2.11.
 
 ### High-Level Description
 
 Users will be able to upload telemetry data from their RC cars, including sensor
 data, GPS coordinates, IMU data, and lap timing information. The system will
 parse, store, and analyze this data to provide insights into driving
-performance, lap consistency, and areas for improvement.
-
-### Out of Scope for Alpha
-
-- Telemetry ingestion
-- Sensor data storage
-- Lap analysis
-- Race session parsing
-- GPS or IMU data handling
+performance, lap consistency, and areas for improvement. Seed data generator and
+fixtures support development and testing.
 
 ### Related Documentation
 
-- [MRE Version 0.1.1 Feature Scope - Out of Scope](../specs/mre-v0.1-feature-scope.md#3-explicitly-out-of-scope-forbidden)
+- [MRE Version 0.1.1 Feature Scope - Telemetry Ingestion](../specs/mre-v0.1-feature-scope.md)
+- [Telemetry Documentation Index](../telemetry/README.md)
 
 ---
 

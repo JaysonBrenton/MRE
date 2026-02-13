@@ -294,7 +294,7 @@ If the DOM contains volatile content, it must be normalised.
 
 ---
 
-## 10. Fixture Maintenance Guidelines
+## 10. Fixture Maintenance Guidelines (LiveRC HTML)
 
 1. Keep fixtures small but complete.
 2. Do not trim important HTML sections.
@@ -307,7 +307,17 @@ If the DOM contains volatile content, it must be normalised.
 
 ---
 
-## 11. Long-Term Fixture Strategy
+## 11. Other fixture types
+
+This document covers **LiveRC HTML fixtures** only. Telemetry fixtures (synthetic
+CSV, KML track templates) are stored separately under
+`ingestion/tests/fixtures/telemetry/` and are documented in
+`docs/telemetry/Design/Telemetry_Seed_Data_Guide.md`. Use
+`ingestion/scripts/generate-telemetry-seed.py` to generate telemetry seed data.
+
+---
+
+## 12. Long-Term Fixture Strategy
 
 Long-term goals include:
 

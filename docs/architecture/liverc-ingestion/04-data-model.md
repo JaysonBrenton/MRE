@@ -152,7 +152,7 @@ A Race (or Session) is one class run (e.g., A-Main, Q1, Heat 3/3).
 | `race_order`       | int         | Numeric prefix if present (e.g. `14` from `"Race 14"`)                                                                                                                                                                                                                                                                                                                                                         |
 | `race_url`         | text        | Canonical race result URL                                                                                                                                                                                                                                                                                                                                                                                      |
 | `start_time`       | timestamptz | Parsed from race list (e.g. `"Nov 16, 2025 at 5:30pm"`)                                                                                                                                                                                                                                                                                                                                                        |
-| `duration_seconds` | int         | Converted from `"Length: 30:00 Timed"`                                                                                                                                                                                                                                                                                                                                                                         |
+| `duration_seconds` | int         | Parsed from the **race result page** (e.g. `"Length: 30:00 Timed"` in `span.class_sub_header`). Not on the race list; populated when each race page is fetched. Fallback: if null, may be derived from max `total_time_seconds` of results after ingestion.                                                                                                                                                       |
 
 ### Natural Key
 
@@ -264,19 +264,21 @@ Represents a single driver’s result in a single race.
 
 ### Fields
 
-| Field                | Type            | Description                                                    |
-| -------------------- | --------------- | -------------------------------------------------------------- |
-| `id`                 | PK              | Internal primary key                                           |
-| `race_id`            | FK → Race       | The race                                                       |
-| `race_driver_id`     | FK → RaceDriver | Associated driver                                              |
-| `position_final`     | int             | Finishing position                                             |
-| `laps_completed`     | int             | From `47/30:31.382` (example)                                  |
-| `total_time_raw`     | text            | Raw string such as `"47/30:31.382"`                            |
-| `total_time_seconds` | float           | Parsed numeric total time                                      |
-| `fast_lap_time`      | float           | Fastest lap time in seconds                                    |
-| `avg_lap_time`       | float           | Mean lap time                                                  |
-| `consistency`        | float           | LiveRC % consistency (e.g. `92.82`)                            |
-| `raw_fields_json`    | jsonb           | Optional extra metrics (std deviation, top 3 consecutive, etc) |
+| Field                  | Type            | Description                                                                 |
+| ---------------------- | --------------- | --------------------------------------------------------------------------- |
+| `id`                   | PK              | Internal primary key                                                        |
+| `race_id`              | FK → Race       | The race                                                                    |
+| `race_driver_id`       | FK → RaceDriver | Associated driver                                                           |
+| `position_final`       | int             | Finishing position                                                          |
+| `laps_completed`       | int             | From Laps/Time column (e.g. `47` from `47/30:31.382`)                       |
+| `total_time_raw`       | text            | Raw Laps/Time string (e.g. `"47/30:31.382"`)                                |
+| `total_time_seconds`   | float           | Parsed from Laps/Time (e.g. `30:31.382` → seconds). Ingested from LiveRC.   |
+| `fast_lap_time`        | float           | Fastest lap time in seconds                                                 |
+| `avg_lap_time`         | float           | Mean lap time                                                               |
+| `consistency`          | float           | LiveRC % consistency (e.g. `92.82`)                                         |
+| `qualifying_position`  | int             | Qual position from results table (column Qual). Optional.                   |
+| `seconds_behind`       | float           | Seconds behind winner (column Behind). Optional; empty for winner.           |
+| `raw_fields_json`      | jsonb           | Optional extra metrics: `avg_top_5`, `avg_top_10`, `avg_top_15`, `top_3_consecutive`, `std_deviation` (from results table columns). |
 
 ### Natural Key
 
@@ -306,6 +308,14 @@ All fields are derived from the `racerLaps[...]` array.
 ### Natural Key
 
 `(race_result_id, lap_number)`
+
+---
+
+# Derived Data: Lap Annotations
+
+Post-ingestion, the pipeline derives **lap annotations** (invalid laps, incidents, fuel stop, flame out) and stores them in `lap_annotations`, keyed by `(race_result_id, lap_number)`. Raw lap data remains in `laps`; annotations are read-only from the app’s perspective and are recomputed only after ingestion.
+
+See [Lap Annotations](../lap-annotations.md) for the full design, rules, and pipeline integration.
 
 ---
 

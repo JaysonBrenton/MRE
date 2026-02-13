@@ -18,11 +18,38 @@
 
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, useState, useCallback } from "react"
+import ChartColorPicker from "./ChartColorPicker"
+import { useChartColor } from "@/hooks/useChartColors"
+
+const DEFAULT_AXIS_COLOR = "#ffffff"
+
+/** Resolve CSS variable to hex for display in color picker; returns input if already hex. */
+function resolveAxisColorForPicker(color: string): string {
+  if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)) return color
+  if (typeof window === "undefined" || !color.startsWith("var(")) return color
+  const match = color.match(/var\(([^)]+)\)/)
+  if (!match) return DEFAULT_AXIS_COLOR
+  const resolved = getComputedStyle(document.documentElement)
+    .getPropertyValue(match[1].trim())
+    .trim()
+  if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(resolved)) return resolved
+  if (resolved.startsWith("rgb")) {
+    const [r, g, b] = resolved.match(/\d+/g)?.map(Number) ?? []
+    if (r != null && g != null && b != null) {
+      return `#${[r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("")}`
+    }
+  }
+  return DEFAULT_AXIS_COLOR
+}
+
+export type AxisColorKey = "x" | "y" | "yRight"
 
 export interface ChartContainerProps {
   children: ReactNode
   title?: string
+  /** Optional class for the title element; when set, overrides default title styling (e.g. to match label style) */
+  titleClassName?: string
   description?: string
   height?: number
   className?: string
@@ -30,6 +57,28 @@ export interface ChartContainerProps {
   chartInstanceId?: string
   onTitleClick?: () => void
   selectedClass?: string | null
+  /** Enable axis color pickers for X and/or Y axes. true = [x, y], or pass specific keys (e.g. ['x','y','yRight'] for OverviewChart). */
+  axisColorPicker?: boolean | AxisColorKey[]
+  /** Default colors for axis pickers when no custom color is stored. Used for swatch display and picker default. */
+  defaultAxisColors?: { x?: string; y?: string; yRight?: string }
+  /** When provided with axisColorPicker, chart content receives current axis colors so picker changes update the chart. */
+  renderContent?: (axisColors: AxisColors) => ReactNode
+  /** Optional controls (e.g. chart type toggle, sort dropdown) rendered in the header row between title and axis pickers. */
+  headerControls?: ReactNode
+}
+
+export interface AxisColors {
+  xAxisColor: string
+  yAxisColor: string
+  yAxisRightColor: string
+}
+
+function axisKeyToSeriesName(key: AxisColorKey): "xAxis" | "yAxis" | "yAxisRight" {
+  return key === "x" ? "xAxis" : key === "y" ? "yAxis" : "yAxisRight"
+}
+
+function axisKeyLabel(key: AxisColorKey): string {
+  return key === "x" ? "X-axis" : key === "y" ? "Y-axis" : "Y-axis (right)"
 }
 
 /**
@@ -38,6 +87,7 @@ export interface ChartContainerProps {
 export default function ChartContainer({
   children,
   title,
+  titleClassName,
   description,
   height = 400,
   className = "",
@@ -45,7 +95,70 @@ export default function ChartContainer({
   chartInstanceId,
   onTitleClick,
   selectedClass,
+  axisColorPicker,
+  defaultAxisColors = {},
+  renderContent,
+  headerControls,
 }: ChartContainerProps) {
+  const axisKeys: AxisColorKey[] =
+    axisColorPicker === true
+      ? ["x", "y"]
+      : Array.isArray(axisColorPicker)
+        ? axisColorPicker
+        : []
+
+  const showAxisPickers = axisKeys.length > 0 && Boolean(chartInstanceId)
+
+  const [axisPickerOpen, setAxisPickerOpen] = useState<AxisColorKey | null>(null)
+  const [axisPickerPosition, setAxisPickerPosition] = useState<{ top: number; left: number } | null>(
+    null
+  )
+
+  const [xAxisColor, setXAxisColor] = useChartColor(
+    chartInstanceId ?? "",
+    "xAxis",
+    defaultAxisColors.x ?? DEFAULT_AXIS_COLOR
+  )
+  const [yAxisColor, setYAxisColor] = useChartColor(
+    chartInstanceId ?? "",
+    "yAxis",
+    defaultAxisColors.y ?? DEFAULT_AXIS_COLOR
+  )
+  const [yAxisRightColor, setYAxisRightColor] = useChartColor(
+    chartInstanceId ?? "",
+    "yAxisRight",
+    defaultAxisColors.yRight ?? DEFAULT_AXIS_COLOR
+  )
+
+  const axisColorByKey: Record<AxisColorKey, string> = {
+    x: xAxisColor,
+    y: yAxisColor,
+    yRight: yAxisRightColor,
+  }
+  const setAxisColorByKey: Record<
+    AxisColorKey,
+    (color: string) => void
+  > = {
+    x: setXAxisColor,
+    y: setYAxisColor,
+    yRight: setYAxisRightColor,
+  }
+
+  const handleAxisPickerClick = useCallback((key: AxisColorKey, event: React.MouseEvent) => {
+    event.stopPropagation()
+    const target = event.currentTarget
+    const rect = target.getBoundingClientRect()
+    setAxisPickerPosition({ top: rect.bottom + 8, left: rect.left })
+    setAxisPickerOpen(key)
+  }, [])
+
+  const handleAxisColorChange = useCallback(
+    (key: AxisColorKey) => (color: string) => {
+      setAxisColorByKey[key](color)
+    },
+    []
+  )
+
   return (
     <div
       className={`w-full relative ${className}`}
@@ -82,31 +195,61 @@ export default function ChartContainer({
       />
       {/* Content wrapper */}
       <div className="relative z-10">
-        {title && (
-          <h3
-            className={`text-lg font-semibold text-[var(--token-text-primary)] mb-2 ${
-              onTitleClick
-                ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
-                : ""
-            }`}
-            onClick={onTitleClick}
-            onKeyDown={(e) => {
-              if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
-                e.preventDefault()
-                onTitleClick()
-              }
-            }}
-            tabIndex={onTitleClick ? 0 : undefined}
-            role={onTitleClick ? "button" : undefined}
-            aria-label={
-              onTitleClick
-                ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
-                : undefined
-            }
-          >
-            {title}
-            {selectedClass ? ` - ${selectedClass}` : ""}
-          </h3>
+        {(title || headerControls || showAxisPickers) && (
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <div className="flex flex-wrap items-center gap-4 min-w-0 flex-1">
+              {title && (
+                <h3
+                className={
+                  titleClassName ??
+                  `text-lg font-semibold text-[var(--token-text-primary)] ${
+                    onTitleClick
+                      ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
+                      : ""
+                  }`
+                }
+                onClick={onTitleClick}
+                onKeyDown={(e) => {
+                  if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault()
+                    onTitleClick()
+                  }
+                }}
+                tabIndex={onTitleClick ? 0 : undefined}
+                role={onTitleClick ? "button" : undefined}
+                aria-label={
+                  onTitleClick
+                    ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
+                    : undefined
+                }
+              >
+                {title}
+                {selectedClass ? ` - ${selectedClass}` : ""}
+              </h3>
+              )}
+              {headerControls}
+            </div>
+            {showAxisPickers && (
+              <div className="flex items-center gap-1.5 shrink-0" role="group" aria-label="Axis colors">
+                {axisKeys.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={(e) => handleAxisPickerClick(key, e)}
+                    className="flex items-center gap-1 px-2 py-1 rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)] transition-colors text-xs text-[var(--token-text-secondary)]"
+                    title={`${axisKeyLabel(key)} color`}
+                    aria-label={`Set ${axisKeyLabel(key).toLowerCase()} color`}
+                  >
+                    <span
+                      className="w-4 h-4 rounded border border-[var(--token-border-default)] flex-shrink-0"
+                      style={{ backgroundColor: axisColorByKey[key] }}
+                    />
+                    <span>{key === "yRight" ? "Y₂" : key.toUpperCase()}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
         {description && (
           <p className="text-sm text-[var(--token-text-secondary)] mb-4">{description}</p>
@@ -118,9 +261,27 @@ export default function ChartContainer({
             color: "var(--token-text-primary)",
           }}
         >
-          {children}
+          {renderContent
+            ? renderContent({
+                xAxisColor: axisColorByKey.x,
+                yAxisColor: axisColorByKey.y,
+                yAxisRightColor: axisColorByKey.yRight,
+              })
+            : children}
         </div>
       </div>
+      {axisPickerOpen != null && showAxisPickers && chartInstanceId && (
+        <ChartColorPicker
+          currentColor={resolveAxisColorForPicker(axisColorByKey[axisPickerOpen])}
+          onColorChange={handleAxisColorChange(axisPickerOpen)}
+          onClose={() => {
+            setAxisPickerOpen(null)
+            setAxisPickerPosition(null)
+          }}
+          position={axisPickerPosition ?? undefined}
+          label={axisKeyLabel(axisPickerOpen)}
+        />
+      )}
     </div>
   )
 }

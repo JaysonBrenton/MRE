@@ -46,7 +46,7 @@ export function formatLapTime(seconds: number | null): string {
 }
 
 /**
- * Format date/time to readable format
+ * Format date/time to readable format (user's local timezone)
  * @param date - Date object or null
  * @returns Formatted string (e.g., "Jan 7, 2025 10:30 AM")
  */
@@ -62,6 +62,58 @@ export function formatDateTime(date: Date | null): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+  }).format(date)
+}
+
+/**
+ * Format date/time using UTC so the value displays as stored (matches LiveRC).
+ * Use for session/race start times so they show as on LiveRC without timezone conversion.
+ * @param date - Date object or null
+ * @returns Formatted string (e.g., "Jul 6, 2025 8:10 AM")
+ */
+export function formatDateTimeUTC(date: Date | null): string {
+  if (date === null) {
+    return "—"
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  }).format(date)
+}
+
+/**
+ * Format date only using UTC (matches LiveRC, dd-MM-YYYY).
+ * Use for race/session start date display without timezone conversion.
+ */
+export function formatDateUTC(date: Date | null): string {
+  if (date === null) {
+    return "—"
+  }
+  const day = date.getUTCDate().toString().padStart(2, "0")
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0")
+  const year = date.getUTCFullYear()
+  return `${day}-${month}-${year}`
+}
+
+/**
+ * Format time only using UTC (matches LiveRC).
+ * Use for race/session start time display without timezone conversion.
+ */
+export function formatTimeUTC(date: Date | null): string {
+  if (date === null) {
+    return "—"
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
   }).format(date)
 }
 

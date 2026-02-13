@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, Union, List, Tuple
 from uuid import UUID
 
-from sqlalchemy import select, and_, func, text, tuple_
+from sqlalchemy import select, and_, func, text, tuple_, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
@@ -32,6 +32,7 @@ from ingestion.db.models import (
     RaceDriver,
     RaceResult,
     Lap,
+    LapAnnotation,
     IngestDepth,
     User,
     UserDriverLink,
@@ -762,6 +763,8 @@ class Repository:
         fast_lap_time: Optional[float],
         avg_lap_time: Optional[float],
         consistency: Optional[float],
+        qualifying_position: Optional[int] = None,
+        seconds_behind: Optional[float] = None,
         raw_fields_json: Optional[Dict[str, Any]] = None,
     ) -> RaceResult:
         """
@@ -799,6 +802,8 @@ class Repository:
             result.fast_lap_time = fast_lap_time
             result.avg_lap_time = avg_lap_time
             result.consistency = consistency
+            result.qualifying_position = qualifying_position
+            result.seconds_behind = seconds_behind
             result.raw_fields_json = raw_fields_json
             logger.debug("result_updated", result_id=str(result.id))
             metrics.record_db_update("race_results")
@@ -815,6 +820,8 @@ class Repository:
                 fast_lap_time=fast_lap_time,
                 avg_lap_time=avg_lap_time,
                 consistency=consistency,
+                qualifying_position=qualifying_position,
+                seconds_behind=seconds_behind,
                 raw_fields_json=raw_fields_json,
             )
             # Set timestamps explicitly for new records
@@ -1159,7 +1166,7 @@ class Repository:
     ) -> Dict[Tuple[str, str], RaceResult]:
         """
         Bulk upsert race results using PostgreSQL ON CONFLICT.
-        
+
         Args:
             race_results_data: List of race result dictionaries with fields:
                 - race_id: UUID (string)
@@ -1171,6 +1178,8 @@ class Repository:
                 - fast_lap_time: Optional[float]
                 - avg_lap_time: Optional[float]
                 - consistency: Optional[float]
+                - qualifying_position: Optional[int]
+                - seconds_behind: Optional[float]
                 - raw_fields_json: Optional[Dict[str, Any]]
         
         Returns:
@@ -1194,6 +1203,8 @@ class Repository:
                 "fast_lap_time": rr_data.get("fast_lap_time"),
                 "avg_lap_time": rr_data.get("avg_lap_time"),
                 "consistency": rr_data.get("consistency"),
+                "qualifying_position": rr_data.get("qualifying_position"),
+                "seconds_behind": rr_data.get("seconds_behind"),
                 "raw_fields_json": rr_data.get("raw_fields_json"),
                 "created_at": now,
                 "updated_at": now,
@@ -1213,6 +1224,8 @@ class Repository:
                 "fast_lap_time": stmt.excluded.fast_lap_time,
                 "avg_lap_time": stmt.excluded.avg_lap_time,
                 "consistency": stmt.excluded.consistency,
+                "qualifying_position": stmt.excluded.qualifying_position,
+                "seconds_behind": stmt.excluded.seconds_behind,
                 "raw_fields_json": stmt.excluded.raw_fields_json,
                 "updated_at": now,
             },
@@ -1413,6 +1426,153 @@ class Repository:
                 operation="bulk_upsert_laps",
             ) from e
     
+    def get_race_with_results_laps_for_derivation(
+        self,
+        race_id: Union[UUID, str],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Load race with results and laps (ordered by lap_number) and vehicle_type for derivation.
+        
+        Args:
+            race_id: Race ID (UUID or string)
+        
+        Returns:
+            Dict with keys: race (id, event_id, class_name, duration_seconds),
+            results (list of dicts: id, laps_completed, fast_lap_time, avg_lap_time, laps),
+            vehicle_type (str | None from EventRaceClass). None if race not found.
+        """
+        race_id_str = _uuid_to_str(race_id) if isinstance(race_id, UUID) else str(race_id)
+        race = self.session.get(Race, race_id_str)
+        if not race:
+            return None
+        # Load EventRaceClass for vehicle_type
+        erc_stmt = select(EventRaceClass).where(
+            and_(
+                EventRaceClass.event_id == race.event_id,
+                EventRaceClass.class_name == race.class_name,
+            )
+        )
+        event_race_class = self.session.scalar(erc_stmt)
+        vehicle_type = event_race_class.vehicle_type if event_race_class else None
+        # Load results with laps ordered by lap_number
+        results_stmt = (
+            select(RaceResult)
+            .where(RaceResult.race_id == race_id_str)
+            .order_by(RaceResult.position_final)
+        )
+        results_objs = list(self.session.scalars(results_stmt).all())
+        results = []
+        for rr in results_objs:
+            laps_stmt = (
+                select(Lap)
+                .where(Lap.race_result_id == rr.id)
+                .order_by(Lap.lap_number)
+            )
+            laps = list(self.session.scalars(laps_stmt).all())
+            results.append({
+                "id": rr.id,
+                "laps_completed": rr.laps_completed,
+                "fast_lap_time": rr.fast_lap_time,
+                "avg_lap_time": rr.avg_lap_time,
+                "laps": [
+                    {
+                        "id": lap.id,
+                        "lap_number": lap.lap_number,
+                        "lap_time_seconds": lap.lap_time_seconds,
+                        "elapsed_race_time": lap.elapsed_race_time,
+                    }
+                    for lap in laps
+                ],
+            })
+        return {
+            "race": {
+                "id": race.id,
+                "event_id": race.event_id,
+                "class_name": race.class_name,
+                "duration_seconds": race.duration_seconds,
+            },
+            "results": results,
+            "vehicle_type": vehicle_type,
+        }
+    
+    def bulk_upsert_lap_annotations(
+        self,
+        annotations: List[Dict[str, Any]],
+        batch_size: int = 1000,
+    ) -> int:
+        """
+        Bulk upsert lap annotations by natural key (race_result_id, lap_number).
+        
+        Args:
+            annotations: List of dicts with keys:
+                - race_result_id: str
+                - lap_number: int
+                - invalid_reason: Optional[str]
+                - incident_type: Optional[str]
+                - confidence: Optional[float]
+                - metadata: Optional[Dict]
+            batch_size: Rows per batch (default 1000)
+        
+        Returns:
+            Number of annotations upserted
+        """
+        if not annotations:
+            return 0
+        now = datetime.utcnow()
+        total = 0
+        for i in range(0, len(annotations), batch_size):
+            batch = annotations[i : i + batch_size]
+            batch_data = []
+            for ann in batch:
+                batch_data.append({
+                    "race_result_id": ann["race_result_id"],
+                    "lap_number": ann["lap_number"],
+                    "invalid_reason": ann.get("invalid_reason"),
+                    "incident_type": ann.get("incident_type"),
+                    "confidence": ann.get("confidence"),
+                    "annotation_metadata": ann.get("metadata"),  # Python attr (DB column is 'metadata')
+                    "created_at": now,
+                    "updated_at": now,
+                })
+            stmt = pg_insert(LapAnnotation).values(batch_data)
+            # excluded uses table column names; 'metadata' is the column name (Python attr is annotation_metadata)
+            excl = stmt.excluded
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["race_result_id", "lap_number"],
+                set_={
+                    "invalid_reason": excl.invalid_reason,
+                    "incident_type": excl.incident_type,
+                    "confidence": excl.confidence,
+                    "metadata": excl["metadata"],  # table column name
+                    "updated_at": now,
+                },
+            )
+            self.session.execute(stmt)
+            total += len(batch)
+        logger.debug("bulk_upsert_lap_annotations", total=total)
+        metrics.record_db_insert("lap_annotations", total)
+        return total
+    
+    def delete_lap_annotations_for_race(self, race_id: Union[UUID, str]) -> int:
+        """
+        Delete all lap annotations for race results belonging to the given race.
+        Call before re-deriving annotations for a race so old annotations are replaced.
+        
+        Args:
+            race_id: Race ID (UUID or string)
+        
+        Returns:
+            Number of annotation rows deleted
+        """
+        race_id_str = _uuid_to_str(race_id) if isinstance(race_id, UUID) else str(race_id)
+        subq = select(RaceResult.id).where(RaceResult.race_id == race_id_str)
+        stmt = delete(LapAnnotation).where(LapAnnotation.race_result_id.in_(subq))
+        result = self.session.execute(stmt)
+        deleted = result.rowcount if result.rowcount is not None else 0
+        if deleted:
+            logger.debug("delete_lap_annotations_for_race", race_id=race_id_str, deleted=deleted)
+        return deleted
+    
     def get_event_by_id(self, event_id: UUID) -> Optional[Event]:
         """
         Get event by ID.
@@ -1425,7 +1585,7 @@ class Repository:
         """
         # Convert UUID to string since the database column is String, not UUID
         return self.session.get(Event, _uuid_to_str(event_id))
-    
+
     def upsert_lap(
         self,
         race_result_id: UUID,

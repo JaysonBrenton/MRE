@@ -21,9 +21,10 @@
 
 "use client"
 
-import { useMemo, useId, useState, useRef, useCallback } from "react"
+import { useMemo, useId, useState, useRef, useCallback, useEffect } from "react"
 import { Group } from "@visx/group"
-import { Bar } from "@visx/shape"
+import { Bar, LinePath, Circle } from "@visx/shape"
+import { curveMonotoneX } from "@visx/curve"
 import { scaleBand, scaleLinear } from "@visx/scale"
 import { AxisBottom, AxisLeft } from "@visx/axis"
 import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip"
@@ -32,7 +33,10 @@ import { ParentSize } from "@visx/responsive"
 import ChartContainer from "./ChartContainer"
 import ChartPagination from "./ChartPagination"
 import ChartColorPicker from "./ChartColorPicker"
+import Tooltip from "@/components/molecules/Tooltip"
 import { useChartColors } from "@/hooks/useChartColors"
+
+export type ChartViewType = "column" | "line"
 
 // Metric types - extensible for future metrics
 export type MetricType =
@@ -67,9 +71,96 @@ export interface UnifiedPerformanceChartProps {
   chartInstanceId?: string
   selectedClass?: string | null
   allDriversInClassSelected?: boolean
+  /** Chart view: column (bars) or line (same data as lines). Default 'column'. */
+  chartView?: ChartViewType
+  onChartViewChange?: (view: ChartViewType) => void
 }
 
+/** Metrics that can be used to sort drivers (best to worst). */
+export type SortByMetricType =
+  | "bestLap"
+  | "averageLap"
+  | "consistency"
+  | "gapToFastest"
+  | "averagePosition"
+  | "podiumFinishes"
+
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
+
+function ChartViewToggle({
+  chartView,
+  onChartViewChange,
+}: {
+  chartView: ChartViewType
+  onChartViewChange: (view: ChartViewType) => void
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-[var(--token-text-secondary)]">Chart type:</span>
+      <div className="flex rounded-lg border border-[var(--token-border-default)] p-0.5 bg-[var(--token-surface-elevated)]">
+        <button
+          type="button"
+          onClick={() => onChartViewChange("column")}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            chartView === "column"
+              ? "bg-[var(--token-accent)] text-white"
+              : "text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)]"
+          }`}
+          aria-pressed={chartView === "column"}
+          aria-label="Show column chart"
+        >
+          Column
+        </button>
+        <button
+          type="button"
+          onClick={() => onChartViewChange("line")}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            chartView === "line"
+              ? "bg-[var(--token-accent)] text-white"
+              : "text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)]"
+          }`}
+          aria-pressed={chartView === "line"}
+          aria-label="Show line chart"
+        >
+          Line
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SortByDropdown({
+  sortBy,
+  onSortByChange,
+  availableSortMetrics,
+}: {
+  sortBy: SortByMetricType
+  onSortByChange: (metric: SortByMetricType) => void
+  availableSortMetrics: Set<SortByMetricType>
+}) {
+  if (availableSortMetrics.size === 0) return null
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor="sort-by-select" className="text-sm text-[var(--token-text-secondary)]">
+        Sort by:
+      </label>
+      <select
+        id="sort-by-select"
+        value={sortBy}
+        onChange={(e) => onSortByChange(e.target.value as SortByMetricType)}
+        className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+        aria-label="Sort drivers by metric (best to worst)"
+      >
+        {SORT_BY_OPTIONS.filter((opt) => availableSortMetrics.has(opt.metric)).map((opt) => (
+          <option key={opt.metric} value={opt.metric}>
+            {metricConfig[opt.metric].label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 const defaultColors = {
   bestLap: "var(--token-accent)",
   averageLap: "#5aa2ff",
@@ -81,6 +172,7 @@ const defaultColors = {
 const textColor = "var(--token-text-primary)"
 const textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
+const DEFAULT_AXIS_COLOR = "#ffffff"
 
 /**
  * Convert CSS variable or color string to hex color for SVG
@@ -202,15 +294,62 @@ function formatGapToFastest(gapSeconds: number): string {
 // Metric configuration
 const metricConfig: Record<
   MetricType,
-  { label: string; key: keyof DriverPerformanceData; isTimeBased?: boolean }
+  { label: string; key: keyof DriverPerformanceData; isTimeBased?: boolean; tooltipDescription: string }
 > = {
-  bestLap: { label: "Best Lap", key: "bestLapTime", isTimeBased: true },
-  averageLap: { label: "Average Lap", key: "averageLapTime", isTimeBased: true },
-  consistency: { label: "Consistency", key: "consistency", isTimeBased: false },
-  averagePosition: { label: "Avg Position", key: "averagePosition", isTimeBased: false },
-  gapToFastest: { label: "Gap to Fastest", key: "gapToFastest", isTimeBased: true },
-  podiumFinishes: { label: "Podium Finishes", key: "podiumFinishes", isTimeBased: false },
+  bestLap: {
+    label: "Best Lap",
+    key: "bestLapTime",
+    isTimeBased: true,
+    tooltipDescription: "Fastest single lap time across all races in this class.",
+  },
+  averageLap: {
+    label: "Average Lap",
+    key: "averageLapTime",
+    isTimeBased: true,
+    tooltipDescription:
+      "Typical race pace. For each race we take the driver's average lap time, then average those across all their races in this class.",
+  },
+  consistency: {
+    label: "Average Consistency",
+    key: "consistency",
+    isTimeBased: false,
+    tooltipDescription:
+      "Average of this driver's consistency scores across all races in this class. Each race score (0–100%) reflects lap-to-lap uniformity: higher means more consistent lap times.",
+  },
+  averagePosition: {
+    label: "Avg Position",
+    key: "averagePosition",
+    isTimeBased: false,
+    tooltipDescription: "Average finishing position across all races in this class.",
+  },
+  gapToFastest: {
+    label: "Gap to Fastest",
+    key: "gapToFastest",
+    isTimeBased: true,
+    tooltipDescription:
+      "How much slower this driver's best lap is than the fastest lap in this class. Uses each driver's single best lap time; the class benchmark is the quickest of those. Lower is better—zero means tied for fastest.",
+  },
+  podiumFinishes: {
+    label: "Podium Finishes",
+    key: "podiumFinishes",
+    isTimeBased: false,
+    tooltipDescription:
+      "Count of races in this class where this driver finished 1st, 2nd, or 3rd. Summed across all races in the class. Higher is better.",
+  },
 }
+
+/** Order and direction for sort-by options (display order; lower-is-better = ascending). */
+const SORT_BY_OPTIONS: ReadonlyArray<{
+  metric: SortByMetricType
+  ascending: boolean
+}> = [
+  { metric: "bestLap", ascending: true },
+  { metric: "averageLap", ascending: true },
+  { metric: "consistency", ascending: false },
+  { metric: "gapToFastest", ascending: true },
+  { metric: "averagePosition", ascending: true },
+  { metric: "podiumFinishes", ascending: false },
+]
 
 export default function UnifiedPerformanceChart({
   data,
@@ -224,6 +363,8 @@ export default function UnifiedPerformanceChart({
   chartInstanceId,
   selectedClass,
   allDriversInClassSelected,
+  chartView = "column",
+  onChartViewChange,
 }: UnifiedPerformanceChartProps) {
   const chartDescId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -238,6 +379,9 @@ export default function UnifiedPerformanceChart({
   const [visibleMetrics, setVisibleMetrics] = useState<Set<MetricType>>(
     new Set(["bestLap", "averageLap"])
   )
+
+  // Sort by metric (best to worst); default bestLap preserves previous behavior
+  const [sortBy, setSortBy] = useState<SortByMetricType>("bestLap")
 
   // Use chart colors hook
   const instanceId = chartInstanceId || "default-unified-performance"
@@ -289,6 +433,30 @@ export default function UnifiedPerformanceChart({
     return available
   }, [data])
 
+  // Sort-by options: only metrics that have data (and are sortable)
+  const availableSortMetrics = useMemo(() => {
+    const set = new Set<SortByMetricType>()
+    SORT_BY_OPTIONS.forEach(({ metric }) => {
+      if (availableMetrics.has(metric)) set.add(metric)
+    })
+    return set
+  }, [availableMetrics])
+
+  // Effective sort: use selected if available, else bestLap, else first available
+  const effectiveSortBy = useMemo((): SortByMetricType => {
+    if (availableSortMetrics.has(sortBy)) return sortBy
+    if (availableSortMetrics.has("bestLap")) return "bestLap"
+    const first = SORT_BY_OPTIONS.find((opt) => availableSortMetrics.has(opt.metric))
+    return first?.metric ?? "bestLap"
+  }, [sortBy, availableSortMetrics])
+
+  // Reset sortBy when selected metric is no longer available
+  useEffect(() => {
+    if (!availableSortMetrics.has(sortBy)) {
+      setSortBy(effectiveSortBy)
+    }
+  }, [sortBy, availableSortMetrics, effectiveSortBy])
+
   // Filter data based on visible metrics and validate
   const validData = useMemo(() => {
     return data.filter((d) => {
@@ -320,14 +488,29 @@ export default function UnifiedPerformanceChart({
     return validData.filter((d) => selectedDriverIds.includes(d.driverId))
   }, [validData, selectedDriverIds])
 
-  // Sort by best lap time (fastest first)
+  // Sort by selected metric (best to worst): ascending for time/gap/position, descending for podium
   const sortedData = useMemo(() => {
+    const config = SORT_BY_OPTIONS.find((opt) => opt.metric === effectiveSortBy)
+    const key = metricConfig[effectiveSortBy].key
+    const ascending = config?.ascending ?? true
     return [...displayData].sort((a, b) => {
-      const aBest = a.bestLapTime ?? Infinity
-      const bBest = b.bestLapTime ?? Infinity
-      return aBest - bBest
+      const aVal = a[key]
+      const bVal = b[key]
+      const aNum =
+        aVal === null || aVal === undefined || !isFinite(aVal as number)
+          ? ascending
+            ? Infinity
+            : -Infinity
+          : (aVal as number)
+      const bNum =
+        bVal === null || bVal === undefined || !isFinite(bVal as number)
+          ? ascending
+            ? Infinity
+            : -Infinity
+          : (bVal as number)
+      return ascending ? aNum - bNum : bNum - aNum
     })
-  }, [displayData])
+  }, [displayData, effectiveSortBy])
 
   // Pagination
   const totalPages = Math.ceil(sortedData.length / driversPerPage)
@@ -375,12 +558,13 @@ export default function UnifiedPerformanceChart({
     return result
   }, [colors])
 
-  // Determine if Y-axis should be formatted as time, gap, position, or count
+  // Determine if Y-axis should be formatted as time, gap, position, count, or percentage
   const yAxisFormatType = useMemo(() => {
     const hasGapToFastest = Array.from(visibleMetrics).includes("gapToFastest")
     const hasOtherTimeMetrics = Array.from(visibleMetrics).some(
       (m) => m === "bestLap" || m === "averageLap"
     )
+    const hasConsistency = Array.from(visibleMetrics).includes("consistency")
     const visiblePositionMetrics = Array.from(visibleMetrics).filter(
       (metric) => metric === "averagePosition"
     )
@@ -393,6 +577,7 @@ export default function UnifiedPerformanceChart({
     if (hasGapToFastest && !hasOtherTimeMetrics) return "gap"
     if (hasGapToFastest && hasOtherTimeMetrics) return "gap" // Mixed scale, but format as gap
     if (hasOtherTimeMetrics) return "time"
+    if (hasConsistency) return "percentage"
     if (visiblePositionMetrics.length > 0) return "position"
     if (visibleCountMetrics.length > 0) return "count"
     return "time" // Default fallback
@@ -440,7 +625,7 @@ export default function UnifiedPerformanceChart({
     return [minDomain, max + padding]
   }, [paginatedData, visibleMetrics])
 
-  // Early return for empty data (after all hooks)
+  // Early return for empty data in column view (after all hooks)
   // Show "All Classes" when:
   // 1. selectedClass is null (user selected "All Classes" from dropdown)
   // 2. A class is selected AND all drivers in that class are selected AND user clicked "Select All"
@@ -453,18 +638,34 @@ export default function UnifiedPerformanceChart({
           : selectedClass
         : undefined
 
+  const headerControlsContent = (
+    <>
+      {onChartViewChange && (
+        <ChartViewToggle chartView={chartView} onChartViewChange={onChartViewChange} />
+      )}
+      <SortByDropdown
+        sortBy={availableSortMetrics.has(sortBy) ? sortBy : effectiveSortBy}
+        onSortByChange={setSortBy}
+        availableSortMetrics={availableSortMetrics}
+      />
+    </>
+  )
+
   if (displayData.length === 0) {
     return (
-      <ChartContainer
-        title={chartTitle}
-        height={height}
-        className={className}
-        aria-label="Performance metrics chart - no data available"
-      >
-        <div className="flex items-center justify-center h-full text-[var(--token-text-secondary)]">
-          {validData.length === 0 ? "No data available" : "Select drivers to compare"}
-        </div>
-      </ChartContainer>
+      <div ref={containerRef} className="relative">
+        <ChartContainer
+          title={chartTitle}
+          headerControls={headerControlsContent}
+          height={height}
+          className={className}
+          aria-label="Performance metrics chart - no data available"
+        >
+          <div className="flex items-center justify-center h-full text-[var(--token-text-secondary)]">
+            {validData.length === 0 ? "No data available" : "Select drivers to compare"}
+          </div>
+        </ChartContainer>
+      </div>
     )
   }
 
@@ -472,11 +673,15 @@ export default function UnifiedPerformanceChart({
     <div ref={containerRef} className="relative">
       <ChartContainer
         title={chartTitle}
+        headerControls={headerControlsContent}
         height={height}
         className={className}
         aria-label="Unified performance metrics chart"
         chartInstanceId={chartInstanceId}
-      >
+        axisColorPicker
+        defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
+        renderContent={({ xAxisColor, yAxisColor }) => (
+        <>
         <div className="relative w-full" style={{ height: `${height}px` }}>
           <ParentSize>
             {({ width: parentWidth }) => {
@@ -496,17 +701,45 @@ export default function UnifiedPerformanceChart({
                 padding: 0.3,
               })
 
-              // Y scale (lap times)
+              // Y scale (metric values)
               const yScale = scaleLinear({
                 range: [innerHeight, 0],
                 domain: yScaleDomain,
                 nice: true,
               })
 
-              // Calculate bar width
+              // Calculate bar width (column view only)
               const visibleCount = visibleMetrics.size
               const barWidth =
                 visibleCount > 0 ? xScale.bandwidth() / visibleCount : xScale.bandwidth()
+
+              // Line view: one series per visible metric (same data as column)
+              const lineSeriesByMetric: Array<{
+                metric: MetricType
+                points: Array<{ x: number; y: number; driver: DriverPerformanceData; value: number }>
+              }> = []
+              if (chartView === "line") {
+                Array.from(visibleMetrics).forEach((metric) => {
+                  const key = metricConfig[metric].key
+                  const points: Array<{ x: number; y: number; driver: DriverPerformanceData; value: number }> = []
+                  paginatedData.forEach((d) => {
+                    const value = d[key]
+                    if (value === null || value === undefined || !isFinite(value as number)) return
+                    if (metric === "gapToFastest" || metric === "podiumFinishes") {
+                      if ((value as number) < 0) return
+                    } else if ((value as number) <= 0) return
+                    const bandX = xScale(d.driverName) ?? 0
+                    const centerX = bandX + xScale.bandwidth() / 2
+                    points.push({
+                      x: centerX,
+                      y: yScale(value as number),
+                      driver: d,
+                      value: value as number,
+                    })
+                  })
+                  if (points.length > 0) lineSeriesByMetric.push({ metric, points })
+                })
+              }
 
               return (
                 <svg
@@ -517,7 +750,9 @@ export default function UnifiedPerformanceChart({
                   overflow="visible"
                 >
                   <desc id={chartDescId}>
-                    Bar chart showing performance metrics for each driver. Visible metrics:{" "}
+                    {chartView === "line"
+                      ? "Line chart showing performance metrics for each driver. Visible metrics: "
+                      : "Bar chart showing performance metrics for each driver. Visible metrics: "}
                     {Array.from(visibleMetrics)
                       .map((m) => metricConfig[m].label)
                       .join(", ")}
@@ -538,8 +773,70 @@ export default function UnifiedPerformanceChart({
                       />
                     ))}
 
+                    {/* Chart elements - Line view (same data as column). focus:outline-none prevents browser default focus rectangle. */}
+                    {chartView === "line" &&
+                      lineSeriesByMetric.map(({ metric, points }) => {
+                        const color = computedColors[metric]
+                        return (
+                          <Group
+                            key={metric}
+                            className="focus:outline-none"
+                            onMouseLeave={() => hideTooltip()}
+                            onClick={(e) => handleBarClickForColorPicker(metric, e)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault()
+                                handleBarClickForColorPicker(metric, e as React.KeyboardEvent<SVGElement>)
+                              }
+                            }}
+                            style={{ cursor: "pointer" }}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`${metricConfig[metric].label} - Click to change color`}
+                          >
+                            <LinePath
+                              data={points}
+                              x={(p) => p.x}
+                              y={(p) => p.y}
+                              stroke={color}
+                              strokeWidth={2}
+                              curve={curveMonotoneX}
+                              pointerEvents="stroke"
+                            />
+                            {points.map((p, i) => (
+                              <Circle
+                                key={`${metric}-${p.driver.driverId}-${i}`}
+                                cx={p.x}
+                                cy={p.y}
+                                r={4}
+                                fill={color}
+                                stroke={borderColor}
+                                strokeWidth={1}
+                                onMouseMove={(event) => {
+                                  const svgElement = (event.target as SVGElement).ownerSVGElement
+                                  if (!svgElement) return
+                                  const coords = localPoint(svgElement, event)
+                                  if (coords) {
+                                    showTooltip({
+                                      tooltipLeft: coords.x,
+                                      tooltipTop: coords.y,
+                                      tooltipData: p.driver,
+                                    })
+                                  }
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleBarClickForColorPicker(metric, e)
+                                }}
+                              />
+                            ))}
+                          </Group>
+                        )
+                      })}
+
                     {/* Chart elements - Bar chart */}
-                    {paginatedData.map((d) => {
+                    {chartView === "column" &&
+                    paginatedData.map((d) => {
                       const x = xScale(d.driverName) || 0
                       const isSelected =
                         selectedDriverIds === undefined ||
@@ -598,6 +895,7 @@ export default function UnifiedPerformanceChart({
                             return (
                               <Bar
                                 key={metric}
+                                className="focus:outline-none"
                                 x={metricX}
                                 y={yScale(metricValue)}
                                 width={barWidth}
@@ -696,26 +994,30 @@ export default function UnifiedPerformanceChart({
                         if (yAxisFormatType === "count") {
                           return Math.round(Number(value)).toString()
                         }
+                        if (yAxisFormatType === "percentage") {
+                          return `${Number(value).toFixed(1)}%`
+                        }
                         return formatLapTime(Number(value))
                       }}
-                      stroke={borderColor}
-                      tickStroke={borderColor}
+                      stroke={yAxisColor}
+                      tickStroke={yAxisColor}
                       tickLabelProps={() => ({
-                        fill: textSecondaryColor,
+                        fill: yAxisColor,
                         fontSize: 12,
                         textAnchor: "end",
                         dx: -8,
                       })}
                     />
 
-                    {/* X-axis */}
+                    {/* X-axis - show every driver name (tickValues overrides default numTicks thinning) */}
                     <AxisBottom
                       top={innerHeight}
                       scale={xScale}
-                      stroke={borderColor}
-                      tickStroke={borderColor}
+                      tickValues={paginatedData.map((d) => d.driverName)}
+                      stroke={xAxisColor}
+                      tickStroke={xAxisColor}
                       tickLabelProps={() => ({
-                        fill: textSecondaryColor,
+                        fill: xAxisColor,
                         fontSize: 11,
                         textAnchor: "end",
                         angle: -45,
@@ -758,6 +1060,8 @@ export default function UnifiedPerformanceChart({
                     formattedValue = Math.round(value as number).toString()
                   } else if (metric === "averagePosition") {
                     formattedValue = formatPosition(value as number)
+                  } else if (metric === "consistency") {
+                    formattedValue = `${(value as number).toFixed(1)}%`
                   } else if (metricConfig[metric].isTimeBased) {
                     formattedValue = formatLapTime(value as number)
                   } else {
@@ -784,49 +1088,50 @@ export default function UnifiedPerformanceChart({
           {Array.from(availableMetrics).map((metric) => {
             const isVisible = visibleMetrics.has(metric)
             const canToggle = isVisible ? visibleMetrics.size > 1 : true
+            const legendTooltipText = metricConfig[metric].tooltipDescription
 
             return (
-              <div
-                key={metric}
-                className={`flex items-center gap-2 transition-opacity ${
-                  canToggle ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed opacity-50"
-                } ${!isVisible ? "opacity-40" : ""}`}
-                onClick={() => {
-                  if (canToggle) {
-                    toggleMetric(metric)
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault()
+              <Tooltip key={metric} text={legendTooltipText} position="top">
+                <div
+                  className={`flex items-center gap-2 transition-opacity ${
+                    canToggle ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed opacity-50"
+                  } ${!isVisible ? "opacity-40" : ""}`}
+                  onClick={() => {
                     if (canToggle) {
                       toggleMetric(metric)
                     }
-                  }
-                }}
-                tabIndex={0}
-                role="button"
-                aria-label={`${metricConfig[metric].label} - ${isVisible ? "Visible" : "Hidden"}. Click to toggle visibility`}
-                title={`${metricConfig[metric].label} - Click to ${isVisible ? "hide" : "show"}. Click bars in the chart to customize colors.`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-sm transition-all ${isVisible ? "" : "opacity-30"}`}
-                  style={{
-                    backgroundColor: isVisible ? computedColors[metric] : computedColors[metric],
-                    border: `1px solid ${computedColors[metric]}`,
                   }}
-                />
-                <span
-                  className={`text-[var(--token-text-secondary)] ${
-                    !isVisible ? "line-through opacity-50" : ""
-                  }`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      if (canToggle) {
+                        toggleMetric(metric)
+                      }
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${metricConfig[metric].label} - ${isVisible ? "Visible" : "Hidden"}. Click to toggle visibility`}
                 >
-                  {metricConfig[metric].label}
-                </span>
-                {!isVisible && (
-                  <span className="text-xs text-[var(--token-text-muted)]">(hidden)</span>
-                )}
-              </div>
+                  <div
+                    className={`w-4 h-4 rounded-sm transition-all ${isVisible ? "" : "opacity-30"}`}
+                    style={{
+                      backgroundColor: isVisible ? computedColors[metric] : computedColors[metric],
+                      border: `1px solid ${computedColors[metric]}`,
+                    }}
+                  />
+                  <span
+                    className={`text-[var(--token-text-secondary)] ${
+                      !isVisible ? "line-through opacity-50" : ""
+                    }`}
+                  >
+                    {metricConfig[metric].label}
+                  </span>
+                  {!isVisible && (
+                    <span className="text-xs text-[var(--token-text-muted)]">(hidden)</span>
+                  )}
+                </div>
+              </Tooltip>
             )
           })}
         </div>
@@ -842,7 +1147,9 @@ export default function UnifiedPerformanceChart({
             itemLabel="drivers"
           />
         )}
-      </ChartContainer>
+        </>
+        )}
+      />
 
       {/* Color Picker - positioned absolutely within container */}
       {showColorPicker && colorPickerPosition && colorPickerMetric && (

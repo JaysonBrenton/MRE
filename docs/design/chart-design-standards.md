@@ -390,6 +390,8 @@ onKeyDown={(e) => {
 }}
 ```
 
+**Focus styling (mandatory):** Any focusable chart element (`role="button"`, `tabIndex={0}`) MUST include `className="focus:outline-none"` (or equivalent) so the browser default focus outline (e.g. white/yellow rectangle) is not shown when the element receives focus (e.g. after opening a color picker). Without this, users see an unwanted rectangular focus ring. Use the same pattern for any new focusable chart elements (bars, line series groups, etc.).
+
 ---
 
 ## 10. Responsive Behavior
@@ -417,6 +419,23 @@ onKeyDown={(e) => {
 - Fallback width: `800px` (for SSR)
 - Return `null` if width is `0` (during initial SSR)
 - Use `parentWidth` when available
+
+### 10.2 Chart Wrapper When Content Is Below the SVG (e.g. Legend)
+
+**Charts that render content below the SVG (legend, pagination, etc.) MUST use `minHeight` on the wrapper, not a fixed `height`.** Otherwise the wrapper clips the content and `ChartContainer`'s `overflow: hidden` will hide the legend.
+
+```tsx
+// ✅ Correct: wrapper grows to include legend
+<div className="relative w-full" style={{ minHeight: `${height}px` }}>
+  <ParentSize>{/* SVG with height={height} */}</ParentSize>
+  <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">{/* Legend */}</div>
+</div>
+
+// ❌ Wrong: fixed height clips legend
+<div className="relative w-full" style={{ height: `${height}px` }}>
+```
+
+**Reference:** `LapTimeLineChart.tsx` — lap-time line graphs with a below-chart legend use this pattern.
 
 ---
 
@@ -613,9 +632,10 @@ const xScale = scaleBand({
 
 1. **BestLapBarChart.tsx** - Single-series bar chart
 2. **AvgVsFastestChart.tsx** - Multi-series bar chart
-3. **DriverPerformanceChart.tsx** - Multi-line chart
+3. **LapTimeLineChart.tsx** - Lap-time line graph (multi-driver lap times over laps; zoom, tooltips, below-chart legend)
+4. **DriverPerformanceChart.tsx** - Multi-line chart (sessions)
 
-**All new charts MUST follow the patterns in these files exactly.**
+**All new charts MUST follow the patterns in these files exactly.** Future line-graph charts (e.g. lap times vs lap number) should be built the same way as LapTimeLineChart: ChartContainer, ParentSize, Visx (LinePath, scales, axes, tooltip), `useChartColors`, and a below-chart legend with wrapper `minHeight` per §10.2.
 
 ---
 

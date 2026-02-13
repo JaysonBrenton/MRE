@@ -59,6 +59,9 @@ The ingestion system exists to support a very specific user flow:
    - Event ingestion always includes complete data: races, results, and lap data
      (`laps_full` depth).
    - Event discovery (`none` depth) is metadata-only for browsing/searching.
+   - When the ingestion service queue is enabled (default), the client receives
+     a job id and polls until ingestion completes; see [28. Async Ingestion
+     Queue](28-async-ingestion-queue.md).
 7. Once ingestion completes, the user can visualise race results and lap data in
    novel, meaningful ways.
 

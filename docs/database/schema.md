@@ -602,12 +602,14 @@ Race results for a driver in a race.
 | `raceDriverId`     | String (UUID) | Foreign Key, Required | Reference to RaceDriver                        |
 | `positionFinal`    | Int           | Required              | Final finishing position                       |
 | `lapsCompleted`    | Int           | Required              | Number of laps completed                       |
-| `totalTimeRaw`     | String        | Optional              | Total time as raw string (e.g., "1:05:30.500") |
-| `totalTimeSeconds` | Float         | Optional              | Total time in seconds                          |
-| `fastLapTime`      | Float         | Optional              | Fastest lap time in seconds                    |
-| `avgLapTime`       | Float         | Optional              | Average lap time in seconds                    |
-| `consistency`      | Float         | Optional              | Consistency percentage (e.g., 92.82)           |
-| `rawFieldsJson`    | Json          | Optional              | Additional raw fields from LiveRC              |
+| `totalTimeRaw`         | String        | Optional              | Total time as raw string (e.g. "47/30:31.382") |
+| `totalTimeSeconds`     | Float         | Optional              | Total time in seconds (parsed from Laps/Time)  |
+| `fastLapTime`          | Float         | Optional              | Fastest lap time in seconds                    |
+| `avgLapTime`           | Float         | Optional              | Average lap time in seconds                    |
+| `consistency`          | Float         | Optional              | Consistency percentage (e.g., 92.82)           |
+| `qualifyingPosition`   | Int           | Optional              | Qualifying position (Qual column from LiveRC)   |
+| `secondsBehind`        | Float         | Optional              | Seconds behind winner (Behind column)          |
+| `rawFieldsJson`        | Json          | Optional              | Extra metrics (avg_top_5, avg_top_10, std_deviation, etc.) |
 | `createdAt`        | DateTime      | Auto-generated        | Record creation timestamp                      |
 | `updatedAt`        | DateTime      | Auto-updated          | Last update timestamp                          |
 
@@ -631,6 +633,7 @@ Race results for a driver in a race.
 - Belongs to `Race` (cascade delete)
 - Belongs to `RaceDriver` (cascade delete)
 - Has many `Lap` records (cascade delete)
+- Has many `LapAnnotation` records (cascade delete)
 
 ---
 
@@ -667,6 +670,44 @@ Individual lap times for a race result.
 - Index on `[raceResultId, lapNumber]` (for lookups)
 - Index on `raceResultId` (for filtering by result)
 - Index on `lapNumber` (for ordering laps)
+
+**Relationships:**
+
+- Belongs to `RaceResult` (cascade delete)
+
+---
+
+### LapAnnotation
+
+Derived lap annotations (invalid laps, incidents, fuel stop, flame out) computed
+post-ingestion. One row per lap that has at least one tag. See
+`docs/architecture/lap-annotations.md` for rules and pipeline.
+
+**Table:** `lap_annotations`
+
+| Field           | Type          | Constraints           | Description                                              |
+| --------------- | ------------- | --------------------- | -------------------------------------------------------- |
+| `id`            | String (UUID) | Primary Key           | Unique annotation identifier                             |
+| `raceResultId`  | String (UUID) | Foreign Key, Required | Reference to RaceResult                                  |
+| `lapNumber`     | Int           | Required              | Lap number within that result                            |
+| `invalidReason` | String        | Optional              | e.g. `suspected_cut`                                     |
+| `incidentType`  | String        | Optional              | e.g. `suspected_crash`, `suspected_fuel_stop`, etc.      |
+| `confidence`    | Float         | Optional              | 0.0–1.0                                                  |
+| `metadata`      | Json          | Optional              | Extra context (e.g. baseline, thresholds)                |
+| `createdAt`     | DateTime      | Auto-generated        | Record creation timestamp                                |
+| `updatedAt`     | DateTime      | Auto-updated          | Last update timestamp                                    |
+
+**Business Rules:**
+
+- `raceResultId` + `lapNumber` must be unique (one annotation row per lap per result)
+- Populated by ingestion pipeline after laps are written (post-ingestion derivation)
+- Deleted when parent RaceResult is deleted (cascade delete)
+
+**Indexes:**
+
+- Primary key on `id`
+- Unique index on `[raceResultId, lapNumber]`
+- Index on `raceResultId`
 
 **Relationships:**
 

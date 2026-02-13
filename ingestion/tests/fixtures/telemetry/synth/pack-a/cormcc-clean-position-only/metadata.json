@@ -1,0 +1,37 @@
+{
+  "fixture_version": 1,
+  "source": "synthetic",
+  "dataset_id": "cormcc-clean-position-only",
+  "seed": 42,
+  "laps_expected": 10,
+  "capability_profile": "position-only",
+  "ground_truth": {
+    "lap_times_ms": [
+      24500,
+      24700,
+      24800,
+      24300,
+      24300,
+      24400,
+      24300,
+      25100,
+      24300,
+      24400
+    ],
+    "lap_boundaries_sample_idx": [
+      0,
+      245,
+      492,
+      740,
+      983,
+      1226,
+      1470,
+      1713,
+      1964,
+      2207
+    ],
+    "total_distance_m": 285.98,
+    "track_name": "cormcc"
+  },
+  "notes": "Generated from cormcc.kml. Clean position-only session."
+}

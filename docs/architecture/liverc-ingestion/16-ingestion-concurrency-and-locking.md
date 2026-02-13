@@ -92,6 +92,27 @@ boundary.
 
 ---
 
+## 3.1 Thread Safety of Event-Entry Cache
+
+CPU-bound work (normalization, validation, driver matching) runs in a **thread
+pool** via `asyncio.to_thread()` to overlap with I/O. SQLAlchemy sessions are
+**not** thread-safe. To avoid "session is provisioning a new connection;
+concurrent operations are not permitted" and silent race skips:
+
+- The pipeline builds a **plain-dict** cache of event entries (by class name)
+  with only the fields needed for matching: `id`, `driver_id`, `source_driver_id`,
+  `display_name`. This cache is passed into the thread pool.
+- Driver matching in worker threads uses `DriverMatcher.match_race_result_to_event_entry_plain()`
+  and only touches these plain dicts—no ORM objects or session access in workers.
+- The main thread keeps an `event_entry_by_id` map (id → `EventEntry`). After
+  CPU work returns, the pipeline resolves the matched plain dict back to the
+  `EventEntry` in the main thread before any DB writes.
+
+ORM objects must not be passed into worker threads; only plain data may be
+used there.
+
+---
+
 ## 4. Lock Granularity
 
 ### 4.1 Per-Event Lock

@@ -177,11 +177,27 @@ This is not a user story. It is a UX discovery and design plan.
    both?
 5. Will users typically analyse on a phone trackside, or on a desktop later?
 
-## Immediate next step
+## Answers (Decided)
 
-You answer the five questions above in a couple of sentences, and I will
-produce:
+These answers steer the UX direction. See `Telemetry_Ux_Blueprint.md` for the
+concrete UX plan that implements them.
 
-- A concrete UX exploration plan
-- A first set of wireframe level screens
-- A dummy data specification that matches the screens
+1. **Target user:** Serious club racer. Someone who already races regularly and
+   wants to improve lap times and diagnose car behaviour.
+2. **Devices:** Device-agnostic. We care about capability (GNSS PVT, 3/6/9 axis
+   IMU), not hardware brand. RaceBox-style logs and hobby GPS modules are
+   expected; pro GNSS raw obs may come later.
+3. **30-second insight:** Where time was lost vs best lap, and the top 1–3
+   places to focus. The Session Overview and Lap Compare views must answer this
+   within 30 seconds of opening a processed session.
+4. **Lap time vs setup:** Both. Lap time improvement is the primary outcome;
+   car setup diagnosis (push, oversteer, braking, jumps) is high value when
+   sensor capability supports it.
+5. **Phone vs desktop:** Desktop. Analysis happens on desktop later, not
+   trackside on a phone. A separate native mobile app is planned for a future
+   release.
+
+**Note on "30 seconds":** The clock starts when the user opens a *processed*
+session (status = ready). Processing time (upload → parse → canonicalise →
+derive) is excluded. The Session Overview must load and surface top insights in
+under 30 seconds of page load.

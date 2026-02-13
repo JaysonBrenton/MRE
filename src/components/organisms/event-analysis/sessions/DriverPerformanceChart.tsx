@@ -28,10 +28,13 @@ import { ParentSize } from "@visx/responsive"
 import ChartContainer from "../ChartContainer"
 import type { DriverLapTrend } from "@/core/events/get-sessions-data"
 
+const DEFAULT_AXIS_COLOR = "#ffffff"
+
 export interface DriverPerformanceChartProps {
   driverLapTrends: DriverLapTrend[]
   height?: number
   className?: string
+  chartInstanceId?: string
 }
 
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
@@ -84,6 +87,7 @@ export default function DriverPerformanceChart({
   driverLapTrends,
   height = 500,
   className = "",
+  chartInstanceId = "sessions-driver-performance",
 }: DriverPerformanceChartProps) {
   const chartTitleId = useId()
   const chartDescId = useId()
@@ -169,7 +173,11 @@ export default function DriverPerformanceChart({
       height={height}
       className={className}
       aria-label="Driver performance chart showing lap time trends"
-    >
+      chartInstanceId={chartInstanceId}
+      axisColorPicker
+      defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
+      renderContent={({ xAxisColor, yAxisColor }) => (
+      <>
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>
           {({ width: parentWidth }) => {
@@ -304,17 +312,17 @@ export default function DriverPerformanceChart({
                   <AxisLeft
                     scale={yScale}
                     tickFormat={(value) => formatLapTime(Number(value))}
-                    stroke={borderColor}
-                    tickStroke={borderColor}
+                    stroke={yAxisColor}
+                    tickStroke={yAxisColor}
                     tickLabelProps={() => ({
-                      fill: textSecondaryColor,
+                      fill: yAxisColor,
                       fontSize: 12,
                       textAnchor: "end",
                       dx: -8,
                     })}
                     label="Lap Time"
                     labelProps={{
-                      fill: textSecondaryColor,
+                      fill: yAxisColor,
                       fontSize: 12,
                       textAnchor: "middle",
                       dy: -50,
@@ -325,10 +333,10 @@ export default function DriverPerformanceChart({
                   <AxisBottom
                     top={innerHeight}
                     scale={xScale}
-                    stroke={borderColor}
-                    tickStroke={borderColor}
+                    stroke={xAxisColor}
+                    tickStroke={xAxisColor}
                     tickLabelProps={() => ({
-                      fill: textSecondaryColor,
+                      fill: xAxisColor,
                       fontSize: 11,
                       textAnchor: "end",
                       angle: -45,
@@ -390,6 +398,8 @@ export default function DriverPerformanceChart({
           )
         })}
       </div>
-    </ChartContainer>
+      </>
+      )}
+      />
   )
 }

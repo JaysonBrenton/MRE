@@ -54,6 +54,7 @@ const defaultAccentColor = "var(--token-accent)"
 const textColor = "var(--token-text-primary)"
 const textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
+const DEFAULT_AXIS_COLOR = "#ffffff"
 
 /**
  * Convert CSS variable or color string to hex color for SVG
@@ -274,7 +275,10 @@ export default function BestLapBarChart({
         chartInstanceId={chartInstanceId}
         onTitleClick={handleTitleClick}
         selectedClass={selectedClass}
-      >
+        axisColorPicker
+        defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
+        renderContent={({ xAxisColor, yAxisColor }) => (
+        <>
         <div className="relative w-full" style={{ height: `${height}px` }}>
           <ParentSize>
             {({ width: parentWidth }) => {
@@ -432,10 +436,10 @@ export default function BestLapBarChart({
                     <AxisLeft
                       scale={yScale}
                       tickFormat={(value) => formatLapTime(Number(value))}
-                      stroke={borderColor}
-                      tickStroke={borderColor}
+                      stroke={yAxisColor}
+                      tickStroke={yAxisColor}
                       tickLabelProps={() => ({
-                        fill: textSecondaryColor,
+                        fill: yAxisColor,
                         fontSize: 12,
                         textAnchor: "end",
                         dx: -8,
@@ -446,10 +450,10 @@ export default function BestLapBarChart({
                     <AxisBottom
                       top={innerHeight}
                       scale={xScale}
-                      stroke={borderColor}
-                      tickStroke={borderColor}
+                      stroke={xAxisColor}
+                      tickStroke={xAxisColor}
                       tickLabelProps={() => ({
-                        fill: textSecondaryColor,
+                        fill: xAxisColor,
                         fontSize: 11,
                         textAnchor: "end",
                         angle: -45,
@@ -536,7 +540,9 @@ export default function BestLapBarChart({
             itemLabel="drivers"
           />
         )}
-      </ChartContainer>
+        </>
+        )}
+      />
     </div>
   )
 }

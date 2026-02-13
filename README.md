@@ -95,6 +95,13 @@ Data storage for race events, drivers, results, and laps
 
 See docs/architecture/liverc-ingestion/ for complete architecture specification.
 
+✔ 2.5.5 Telemetry Ingestion
+
+- Upload telemetry files (GNSS, IMU) from devices
+- Synthetic seed data and fixtures for development and testing
+- Generator script for deterministic fixture generation from KML track templates
+- See docs/telemetry/ for design, API contract, and seed data guide
+
 ✔ 2.6 Navigation, Tables, Dashboards, and Telemetry Visualizations
 
 Version 0.1.1 includes expanded UI features:
@@ -133,8 +140,6 @@ Version 0.1.1 includes expanded UI features:
 See docs/specs/mre-v0.1-feature-scope.md for complete feature specifications.
 
 ✔ 2.7 Out of Scope (Not Allowed in Version 0.1.1)
-
-Telemetry data ingestion (sensor data collection)
 
 RC setup sheets
 
@@ -503,6 +508,26 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 See ingestion/README.md for detailed setup, development, and API documentation.
 See docs/operations/liverc-operations-guide.md for complete CLI command
 reference.
+
+**Telemetry seed data:** Generate synthetic telemetry fixtures from KML track
+templates. See docs/telemetry/Design/Telemetry_Seed_Data_Guide.md. Example:
+
+```bash
+docker exec -it mre-liverc-ingestion-service python /app/ingestion/scripts/generate-telemetry-seed.py \
+  --track /app/ingestion/tests/fixtures/telemetry/track-templates/cormcc.kml \
+  --output /app/ingestion/tests/fixtures/telemetry/synth/pack-a/cormcc-clean-position-only \
+  --laps 10 --seed 42
+```
+
+Fixtures live under ingestion/tests/fixtures/telemetry/.
+
+**Speed test (event vs practice search):** Run indicative timings for event search, practice search, event discover, and practice discover (see docs/development/speed-test-search.md or script header):
+
+```bash
+docker exec -it mre-app npx tsx scripts/speed-test-search.ts [trackId]
+```
+
+Optional env: `TRACK_ID`, `START_DATE`, `END_DATE`, `YEAR`, `MONTH`. Default: first active track, current month.
 
 13.5 API Endpoints
 

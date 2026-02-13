@@ -55,8 +55,15 @@ fi
 # Start uvicorn API server
 # If we're root, switch to ingestion user for security
 # Use --reload for development (hot reload), or --workers for production
+# When queue is enabled, job store is in-process: MUST use 1 worker or status polling gets 404
 UVICORN_RELOAD=${UVICORN_RELOAD:-false}
-UVICORN_WORKERS=${UVICORN_WORKERS:-4}
+INGESTION_USE_QUEUE=${INGESTION_USE_QUEUE:-true}
+if [ "$INGESTION_USE_QUEUE" = "true" ] || [ "$INGESTION_USE_QUEUE" = "1" ] || [ "$INGESTION_USE_QUEUE" = "yes" ]; then
+  # Force 1 worker when queue enabled (override UVICORN_WORKERS if set higher)
+  UVICORN_WORKERS=1
+else
+  UVICORN_WORKERS=${UVICORN_WORKERS:-4}
+fi
 
 if [ "$UVICORN_RELOAD" = "true" ]; then
     # Development mode: use --reload for hot reload (single worker only)

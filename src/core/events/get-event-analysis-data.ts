@@ -15,6 +15,7 @@
  * - src/core/events/calculate-driver-stats.ts (driver statistics)
  */
 
+import { toDateOnlyUTC } from "@/lib/date-utils"
 import { prisma } from "@/lib/prisma"
 import {
   calculateClassThresholds,
@@ -886,8 +887,15 @@ export async function getEventSummary(
       totalDrivers: distinctDrivers.length,
       totalLaps: lapStats._count.id,
       dateRange: {
-        earliest: raceStats._min.startTime,
-        latest: raceStats._max.startTime,
+        // Use event date for range so display matches official event dates (no timezone shift)
+        earliest: toDateOnlyUTC(event.eventDate),
+        latest: toDateOnlyUTC(
+          raceStats._max.startTime != null
+            ? new Date(
+                Math.max(event.eventDate.getTime(), raceStats._max.startTime.getTime())
+              )
+            : event.eventDate
+        ),
       },
     },
     topDrivers: topDrivers.length > 0 ? topDrivers : undefined,
@@ -1154,11 +1162,19 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     }
   })
 
-  // Calculate date range
-  const earliestDate =
-    raceDates.length > 0 ? new Date(Math.min(...raceDates.map((d) => d.getTime()))) : null
-  const latestDate =
-    raceDates.length > 0 ? new Date(Math.max(...raceDates.map((d) => d.getTime()))) : null
+  // Use event date for range so display matches official event dates (no timezone shift).
+  // Earliest is always the event's date; latest is the later of event date and last race start.
+  const earliestDate = toDateOnlyUTC(event.eventDate)
+  const latestDate = toDateOnlyUTC(
+    raceDates.length > 0
+      ? new Date(
+          Math.max(
+            event.eventDate.getTime(),
+            ...raceDates.map((d) => d.getTime())
+          )
+        )
+      : event.eventDate
+  )
 
   // Fetch entry list (EventEntry records)
   const eventEntries = await prisma.eventEntry.findMany({

@@ -263,20 +263,23 @@ model RaceDriver {
 }
 
 model RaceResult {
-  id               String     @id @default(uuid())
-  raceId           String     @map("race_id")
-  raceDriverId     String     @map("race_driver_id")
-  positionFinal    Int        @map("position_final")
-  lapsCompleted    Int        @map("laps_completed")
-  totalTimeRaw     String?    @map("total_time_raw")
-  totalTimeSeconds Float?     @map("total_time_seconds")
-  fastLapTime      Float?     @map("fast_lap_time")
-  avgLapTime       Float?     @map("avg_lap_time")
-  consistency      Float?
-  rawFieldsJson    Json?      @map("raw_fields_json")
+  id                   String     @id @default(uuid())
+  raceId               String     @map("race_id")
+  raceDriverId         String     @map("race_driver_id")
+  positionFinal        Int        @map("position_final")
+  lapsCompleted        Int        @map("laps_completed")
+  totalTimeRaw         String?    @map("total_time_raw")
+  totalTimeSeconds     Float?     @map("total_time_seconds")
+  fastLapTime          Float?     @map("fast_lap_time")
+  avgLapTime           Float?     @map("avg_lap_time")
+  consistency          Float?
+  qualifyingPosition   Int?       @map("qualifying_position")
+  secondsBehind        Float?     @map("seconds_behind")
+  rawFieldsJson        Json?      @map("raw_fields_json")
   createdAt        DateTime   @default(now()) @map("created_at")
   updatedAt        DateTime   @updatedAt @map("updated_at")
   laps             Lap[]
+  lapAnnotations   LapAnnotation[]
   raceDriver       RaceDriver @relation(fields: [raceDriverId], references: [id], onDelete: Cascade)
   race             Race       @relation(fields: [raceId], references: [id], onDelete: Cascade)
 
@@ -307,6 +310,24 @@ model Lap {
   @@index([raceResultId])
   @@index([lapNumber])
   @@map("laps")
+}
+
+model LapAnnotation {
+  id              String     @id @default(uuid())
+  raceResultId    String     @map("race_result_id")
+  lapNumber       Int        @map("lap_number")
+  invalidReason   String?    @map("invalid_reason")
+  incidentType    String?    @map("incident_type")
+  confidence      Float?     @map("confidence")
+  metadata        Json?      @map("metadata")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  raceResult      RaceResult @relation(fields: [raceResultId], references: [id], onDelete: Cascade)
+
+  @@unique([raceResultId, lapNumber])
+  @@index([raceResultId, lapNumber])
+  @@index([raceResultId])
+  @@map("lap_annotations")
 }
 
 model TransponderOverride {

@@ -108,10 +108,12 @@ services:
       # WARNING: Defaulting to false to prevent single-worker bottlenecks in production-like environments
       # Set UVICORN_RELOAD=true explicitly in .env.docker for development if hot reload is needed
       UVICORN_RELOAD: ${UVICORN_RELOAD:-false}
+      # Queue mode: ingest returns 202 and processes in background (default on)
+      INGESTION_USE_QUEUE: ${INGESTION_USE_QUEUE:-true}
       # Uvicorn workers (only used when UVICORN_RELOAD is false)
-      # Default: 4 workers (handles ~4 concurrent long-running ingestions)
-      # Increase for higher concurrency (each worker uses ~100-200MB memory)
-      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
+      # Default: 1 when queue is enabled (job status is in-process; use 1 worker so poll hits same process)
+      # Set INGESTION_USE_QUEUE=false and UVICORN_WORKERS=4 for sync ingest with multiple workers
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
       # Track sync report retention (days)
       TRACK_SYNC_REPORT_RETENTION_DAYS: ${TRACK_SYNC_REPORT_RETENTION_DAYS:-30}
       SITE_POLICY_PATH: ${SITE_POLICY_PATH:-/app/policies/site_policy/policy.json}

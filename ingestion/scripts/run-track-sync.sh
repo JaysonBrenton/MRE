@@ -25,5 +25,5 @@ export PYTHONPATH=/app
 # Change to app directory
 cd /app
 
-# Execute track sync command
-python -m ingestion.cli ingest liverc refresh-tracks
+# Execute track sync command (python3 for cron PATH compatibility)
+python3 -m ingestion.cli ingest liverc refresh-tracks

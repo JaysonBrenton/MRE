@@ -28,6 +28,12 @@ export interface IngestEventResponse {
   status: "updated" | "already_complete" | "in_progress"
 }
 
+/** Returned when ingestion is queued (202); client should poll job status */
+export interface QueuedIngestionResponse {
+  job_id: string
+  status: "queued"
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
@@ -244,7 +250,10 @@ export class IngestionClient {
     }
   }
 
-  private assertIngestionSuccess(payload: unknown, status: number): IngestEventResponse {
+  private assertIngestionSuccess(
+    payload: unknown,
+    status: number
+  ): IngestEventResponse | QueuedIngestionResponse {
     if (isIngestionErrorResponse(payload)) {
       throw new IngestionServiceError(payload.error, status)
     }
@@ -284,7 +293,8 @@ export class IngestionClient {
       )
     }
 
-    return payload.data
+    const data = (payload as { data: IngestEventResponse | QueuedIngestionResponse }).data
+    return data
   }
 
   private async performIngestionRequest(
@@ -292,7 +302,7 @@ export class IngestionClient {
     body: Record<string, unknown>,
     timeoutMs: number,
     maxRetries: number = 3
-  ): Promise<IngestEventResponse> {
+  ): Promise<IngestEventResponse | QueuedIngestionResponse> {
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -383,9 +393,13 @@ export class IngestionClient {
           )
         }
 
-        // Success - clear timeout and return
+        // Success (200 or 202 Accepted for queued)
         clearTimeout(timeoutId)
-        return this.assertIngestionSuccess(payload, response.status)
+        const data = this.assertIngestionSuccess(payload, response.status)
+        if (response.status === 202 && data && "job_id" in data && data.status === "queued") {
+          return data as QueuedIngestionResponse
+        }
+        return data as IngestEventResponse
       } catch (error: unknown) {
         clearTimeout(timeoutId)
 
@@ -689,7 +703,7 @@ export class IngestionClient {
   async ingestEvent(
     eventId: string,
     depth: "laps_full" | "none" = "laps_full"
-  ): Promise<IngestEventResponse> {
+  ): Promise<IngestEventResponse | QueuedIngestionResponse> {
     assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/${eventId}/ingest`
     return this.performIngestionRequest(url, { depth }, 10 * 60 * 1000)
@@ -699,7 +713,7 @@ export class IngestionClient {
     sourceEventId: string,
     trackId: string,
     depth: "laps_full" | "none" = "laps_full"
-  ): Promise<IngestEventResponse> {
+  ): Promise<IngestEventResponse | QueuedIngestionResponse> {
     assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/ingest`
     return this.performIngestionRequest(
@@ -727,6 +741,33 @@ export class IngestionClient {
     }
 
     return response.json()
+  }
+
+  /** Poll status of a queued ingestion job (when ingest returned 202). */
+  async getIngestionJobStatus(jobId: string): Promise<{
+    job_id: string
+    status: "queued" | "running" | "completed" | "failed"
+    result?: IngestEventResponse
+    error_code?: string
+    error_message?: string
+    created_at: string
+    updated_at: string
+  }> {
+    const url = `${this.baseUrl}/api/v1/ingestion/jobs/${jobId}`
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to get job status: ${response.statusText}`)
+    }
+    const json = (await response.json()) as { success: boolean; data: Record<string, unknown> }
+    return json.data as {
+      job_id: string
+      status: "queued" | "running" | "completed" | "failed"
+      result?: IngestEventResponse
+      error_code?: string
+      error_message?: string
+      created_at: string
+      updated_at: string
+    }
   }
 }
 

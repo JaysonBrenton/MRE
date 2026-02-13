@@ -1,121 +1,30 @@
-/**
- * @fileoverview Driver cards and weather grid component for testing tab
- *
- * @created 2025-01-24
- * @creator Auto-generated
- * @lastModified 2025-01-24
- *
- * @description Driver cards carousel with progressive disclosure and enhanced UX
- *
- * @purpose Displays driver highlights with section heading, progressive disclosure
- *          (default one section, "More views" expandable), enhanced user metric
- *          cards with section context, tooltips, and improved empty states.
- *          Weather is removed (lives in context strip).
- *
- * @relatedFiles
- * - src/components/dashboard/DashboardClient.tsx (original DriverCardsAndWeatherGrid)
- * - src/components/dashboard/ImprovementDriverCard.tsx (used for improvement cards)
- */
-
 "use client"
 
-import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import {
+  formatDateLong,
   formatLapTime,
   formatPositionImprovement,
   formatLapTimeImprovement,
 } from "@/lib/date-utils"
 import type { EventAnalysisSummary } from "@root-types/dashboard"
-import ImprovementDriverCard from "./ImprovementDriverCard"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-import Tooltip from "@/components/molecules/Tooltip"
+import ImprovementDriverCard from "./ImprovementDriverCard"
 
-type DriverCardData =
-  | NonNullable<EventAnalysisSummary["topDrivers"]>[number]
-  | NonNullable<EventAnalysisSummary["mostConsistentDrivers"]>[number]
-  | NonNullable<EventAnalysisSummary["bestAvgLapDrivers"]>[number]
-  | NonNullable<EventAnalysisSummary["mostImprovedDrivers"]>[number]
-
-function DriverCard({
-  driver,
-  index,
-  type,
-  sectionData,
-}: {
-  driver: DriverCardData
-  index: number
-  type: "fastest" | "consistency" | "avgLap" | "improvement"
-  sectionData:
-    | EventAnalysisSummary["topDrivers"]
-    | EventAnalysisSummary["mostConsistentDrivers"]
-    | EventAnalysisSummary["bestAvgLapDrivers"]
-    | EventAnalysisSummary["mostImprovedDrivers"]
-}) {
-  let valueDisplay: string
-  let gapDisplay: React.ReactNode = null
-
-  if (type === "fastest" && "fastestLapTime" in driver) {
-    valueDisplay = formatLapTime(driver.fastestLapTime)
-    if (
-      sectionData &&
-      Array.isArray(sectionData) &&
-      sectionData.length > 0 &&
-      "fastestLapTime" in sectionData[0]
-    ) {
-      const fastestLapTime = (sectionData[0] as { fastestLapTime: number }).fastestLapTime
-      const sameClass = driver.className === sectionData[0].className
-      const gapToFastest = index > 0 && sameClass ? driver.fastestLapTime - fastestLapTime : 0
-      if (gapToFastest > 0) {
-        gapDisplay = (
-          <Tooltip text="Time difference to the fastest driver in this class">
-            <span className="text-[10px] font-medium text-[var(--token-text-muted)] bg-[var(--token-surface)] px-2 py-0.5 rounded-full cursor-help">
-              +{formatLapTime(gapToFastest)}
-            </span>
-          </Tooltip>
-        )
-      }
-    }
-  } else if (type === "consistency" && "consistency" in driver) {
-    valueDisplay = `${driver.consistency.toFixed(1)}%`
-  } else if (type === "avgLap" && "avgLapTime" in driver) {
-    valueDisplay = formatLapTime(driver.avgLapTime)
-  } else if (type === "improvement" && "positionImprovement" in driver) {
-    const improvedDriver = driver as NonNullable<
-      EventAnalysisSummary["mostImprovedDrivers"]
-    >[number]
-    valueDisplay = formatPositionImprovement(
-      improvedDriver.firstRacePosition,
-      improvedDriver.lastRacePosition
-    )
-  } else {
-    valueDisplay = "N/A"
-  }
-
-  return (
-    <div className="rounded-2xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] px-5 py-5 h-full w-full transition-all duration-200 hover:border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2),0_0_1px_rgba(255,255,255,0.1)] shadow-[0_2px_8px_rgba(0,0,0,0.1),0_0_1px_rgba(255,255,255,0.05)]">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold text-[var(--token-text-primary)] bg-[var(--token-surface)] px-2.5 py-1 rounded-full border border-[var(--token-border-default)] shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
-          #{index + 1}
-        </span>
-        {gapDisplay}
-      </div>
-      <p className="text-base font-bold text-[var(--token-text-primary)] mb-2 truncate">
-        {driver.driverName}
-      </p>
-      <p className="text-2xl font-bold text-[var(--token-text-primary)] mb-3 leading-tight">
-        {valueDisplay}
-      </p>
-      <div className="space-y-1">
-        <p className="text-[10px] text-[var(--token-text-muted)] font-medium truncate">
-          {driver.raceLabel}
-        </p>
-        <p className="text-[10px] text-[var(--token-text-muted)] truncate">{driver.className}</p>
-      </div>
-    </div>
-  )
+export interface WeatherData {
+  condition: string
+  wind: string
+  humidity: number
+  air: number
+  track: number
+  precip: number
+  forecast: Array<{ label: string; detail: string }>
+  cachedAt?: string
+  isCached?: boolean
 }
 
-export function DriverCardsAndWeatherGridTesting({
+
+export default function DriverCardsAndWeatherGrid({
   event,
   topDrivers,
   mostConsistentDrivers,
@@ -125,6 +34,9 @@ export function DriverCardsAndWeatherGridTesting({
   userBestConsistency,
   userBestAvgLap,
   userBestImprovement,
+  weather,
+  weatherLoading,
+  weatherError,
   selectedClass,
   selectedDriverIds,
   races,
@@ -138,13 +50,18 @@ export function DriverCardsAndWeatherGridTesting({
   userBestConsistency?: EventAnalysisSummary["userBestConsistency"]
   userBestAvgLap?: EventAnalysisSummary["userBestAvgLap"]
   userBestImprovement?: EventAnalysisSummary["userBestImprovement"]
+  weather: WeatherData | null
+  weatherLoading: boolean
+  weatherError: string | null
   selectedClass?: string | null
   selectedDriverIds?: string[]
   races?: EventAnalysisData["races"]
 }) {
+  const eventDate = event?.eventDate ? new Date(event.eventDate) : null
   const [currentSection, setCurrentSection] = useState(0)
   const [currentClassIndex, setCurrentClassIndex] = useState<number>(0)
-  const [isExpanded, setIsExpanded] = useState(false) // Progressive disclosure: default collapsed
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const [isCarouselVisible, setIsCarouselVisible] = useState(true)
   const carouselRef = useRef<HTMLDivElement>(null)
   const sectionRef0 = useRef<HTMLDivElement>(null)
   const sectionRef1 = useRef<HTMLDivElement>(null)
@@ -166,18 +83,6 @@ export function DriverCardsAndWeatherGridTesting({
     { title: "Best Overall Average Lap", data: bestAvgLapDrivers, type: "avgLap" as const },
     { title: "Most Improved", data: mostImprovedDrivers, type: "improvement" as const },
   ]
-
-  // Progressive disclosure: show only first section by default, or all if expanded
-  const visibleSections = isExpanded ? sections : [sections[0]]
-
-  // Reset currentSection to 0 when collapsing
-  useLayoutEffect(() => {
-    if (!isExpanded && currentSection > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCurrentSection(0)
-      currentSectionRef.current = 0
-    }
-  }, [isExpanded, currentSection])
 
   const hasData =
     topDrivers?.length ||
@@ -212,11 +117,15 @@ export function DriverCardsAndWeatherGridTesting({
     return Array.from(allClassesSet).sort()
   }
 
-  const allClasses = getAllClasses()
+  const allClasses = useMemo(
+    () => getAllClasses(),
+    [topDrivers, mostConsistentDrivers, bestAvgLapDrivers, mostImprovedDrivers, races]
+  )
 
-  // Calculate user metrics filtered by selected class (same logic as original)
+  // Calculate user metrics filtered by selected class
   const filteredUserMetrics = useMemo(() => {
     // If no class is selected (null, undefined, or empty string), use original metrics (show all classes)
+    // Don't require races or userBestLap when no class is selected - always show original metrics
     if (
       !selectedClass ||
       selectedClass === "" ||
@@ -232,6 +141,7 @@ export function DriverCardsAndWeatherGridTesting({
     }
 
     // If class is selected but we don't have races data, return original metrics (fallback)
+    // This ensures the card still shows even if races data isn't loaded yet
     if (!races || races.length === 0) {
       return {
         userBestLap,
@@ -242,6 +152,7 @@ export function DriverCardsAndWeatherGridTesting({
     }
 
     // If class is selected but we don't have userBestLap data, return null (hide card)
+    // This means the user has no lap data at all
     if (!userBestLap) {
       return {
         userBestLap: null,
@@ -252,6 +163,8 @@ export function DriverCardsAndWeatherGridTesting({
     }
 
     // Find user's driverId by matching userBestLap time in races
+    // We search ALL races (not just selected class) to find the user's driverId
+    // Then we filter by class to get their metrics for that class
     let userDriverId: string | null = null
 
     // First pass: exact match (within floating point precision)
@@ -306,6 +219,7 @@ export function DriverCardsAndWeatherGridTesting({
     }
 
     // If we still couldn't find the user's driverId, fall back to showing original metrics
+    // This ensures the card still shows even if matching fails (better UX than hiding it)
     if (!userDriverId) {
       return {
         userBestLap,
@@ -442,6 +356,7 @@ export function DriverCardsAndWeatherGridTesting({
     }
 
     // Calculate positions and gaps relative to other drivers in the class
+    // For best lap: find position among all drivers' best laps in class
     let userBestLapPosition = 1
     let fastestLapInClass: number | null = null
     if (userBestLapInClass !== null) {
@@ -461,6 +376,7 @@ export function DriverCardsAndWeatherGridTesting({
       userBestLapPosition = sortedBestLaps.filter((time) => time < userBestLapInClass!).length + 1
     }
 
+    // For consistency: find position among all drivers' best consistency in class
     let userConsistencyPosition = 1
     let bestConsistencyInClass: number | null = null
     if (userBestConsistencyInClass !== null) {
@@ -482,6 +398,7 @@ export function DriverCardsAndWeatherGridTesting({
           .length + 1
     }
 
+    // For average lap: find position among all drivers' best average lap in class
     let userAvgLapPosition = 1
     let bestAvgLapInClass: number | null = null
     if (userBestAvgLapInClass !== null) {
@@ -502,9 +419,11 @@ export function DriverCardsAndWeatherGridTesting({
         sortedAvgLaps.filter((avgLap) => avgLap < userBestAvgLapInClass!).length + 1
     }
 
+    // For improvement: find position among all drivers' improvements in class
     let userImprovementPosition = 1
     let bestImprovementInClass = 0
     if (userImprovementInClass !== null) {
+      // Calculate improvement for all drivers in class
       const driverImprovements = new Map<
         string,
         {
@@ -788,6 +707,17 @@ export function DriverCardsAndWeatherGridTesting({
     return grouped
   }
 
+  // Memoize grouped drivers per section so the 5s carousel tick does not recompute
+  const groupedBySection = useMemo(
+    () => ({
+      fastest: groupDriversByClass(topDrivers, "fastest"),
+      consistency: groupDriversByClass(mostConsistentDrivers, "consistency"),
+      avgLap: groupDriversByClass(bestAvgLapDrivers, "avgLap"),
+      improvement: groupDriversByClass(mostImprovedDrivers, "improvement"),
+    }),
+    [topDrivers, mostConsistentDrivers, bestAvgLapDrivers, mostImprovedDrivers]
+  )
+
   // Get current class drivers for a section (using selectedClass prop or cycling)
   const getCurrentClassDrivers = (section: (typeof sections)[number]): DriverCardData[] => {
     // Use selectedClass prop when provided, otherwise use cycling with currentClassIndex
@@ -823,14 +753,10 @@ export function DriverCardsAndWeatherGridTesting({
       return calculatedDrivers.slice(0, 4)
     }
 
-    // When cycling (no class selected), use summary data
-    if (!section.data || section.data.length === 0) return []
-
-    const grouped = groupDriversByClass(section.data, section.type)
-    if (!grouped[currentClass]) return []
-
-    // Return top 4 drivers from current class
-    return grouped[currentClass].slice(0, 4) as DriverCardData[]
+    // When cycling (no class selected), use memoized grouped data
+    const drivers = groupedBySection[section.type]?.[currentClass]
+    if (!drivers) return []
+    return drivers.slice(0, 4) as DriverCardData[]
   }
 
   const scrollToSection = (index: number, isUserAction = false) => {
@@ -855,6 +781,7 @@ export function DriverCardsAndWeatherGridTesting({
       previousSectionRef.current = currentSection
       setCurrentSection(index)
       currentSectionRef.current = index
+      // Class index stays the same when manually navigating
     }
   }
 
@@ -865,21 +792,51 @@ export function DriverCardsAndWeatherGridTesting({
   }
 
   const handleNext = () => {
-    // When collapsed, clicking next should expand
-    if (!isExpanded) {
-      setIsExpanded(true)
-      // After expanding, scroll to section 1
-      setTimeout(() => {
-        scrollToSection(1, true)
-      }, 100)
-    } else if (currentSection < visibleSections.length - 1) {
+    if (currentSection < sections.length - 1) {
       scrollToSection(currentSection + 1, true)
     }
   }
 
-  // Auto-scroll functionality (only when expanded)
+  // Respect prefers-reduced-motion: do not auto-scroll when user prefers less motion
   useEffect(() => {
-    if (!shouldShowDriverCards || visibleSections.length === 0 || !isExpanded) return
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const handleChange = () => setPrefersReducedMotion(mq.matches)
+    setPrefersReducedMotion(mq.matches)
+    mq.addEventListener("change", handleChange)
+    return () => mq.removeEventListener("change", handleChange)
+  }, [])
+
+  // Pause auto-scroll when carousel is not visible or document is hidden
+  useEffect(() => {
+    const carousel = carouselRef.current
+    if (!carousel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        if (entry) setIsCarouselVisible(entry.isIntersecting)
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(carousel)
+
+    const handleVisibilityChange = () => {
+      setIsCarouselVisible(document.visibilityState === "visible")
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      observer.disconnect()
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [])
+
+  // Auto-scroll only when visible, document visible, and user has not requested reduced motion
+  useEffect(() => {
+    if (!shouldShowDriverCards || sections.length === 0) return
+    if (prefersReducedMotion || !isCarouselVisible) return
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return
 
     // Initialize the ref with current section
     currentSectionRef.current = currentSection
@@ -901,7 +858,7 @@ export function DriverCardsAndWeatherGridTesting({
       if (!carousel) return
 
       const currentSectionIndex = currentSectionRef.current
-      const nextSection = (currentSectionIndex + 1) % visibleSections.length
+      const nextSection = (currentSectionIndex + 1) % sections.length
       const targetRef = sectionRefs[nextSection]
 
       if (targetRef.current) {
@@ -912,9 +869,8 @@ export function DriverCardsAndWeatherGridTesting({
           behavior: "smooth",
         })
 
-        // Detect cycle completion: when going from last section to first
-        const isCycleComplete =
-          currentSectionIndex === visibleSections.length - 1 && nextSection === 0
+        // Detect cycle completion: when going from last section (2) to first (0)
+        const isCycleComplete = currentSectionIndex === sections.length - 1 && nextSection === 0
 
         // Only advance class index when cycling automatically (selectedClass is null/undefined)
         if (
@@ -963,11 +919,12 @@ export function DriverCardsAndWeatherGridTesting({
     }
   }, [
     shouldShowDriverCards,
-    visibleSections.length,
+    sections.length,
     currentSection,
     allClasses.length,
     selectedClass,
-    isExpanded,
+    prefersReducedMotion,
+    isCarouselVisible,
   ])
 
   // Update current section based on scroll position
@@ -982,7 +939,7 @@ export function DriverCardsAndWeatherGridTesting({
       const scrollLeft = carousel.scrollLeft
       const sectionWidth = carousel.clientWidth
       const newSection = Math.round(scrollLeft / sectionWidth)
-      if (newSection !== currentSection && newSection >= 0 && newSection < visibleSections.length) {
+      if (newSection !== currentSection && newSection >= 0 && newSection < sections.length) {
         previousSectionRef.current = currentSection
         setCurrentSection(newSection)
         currentSectionRef.current = newSection
@@ -1000,21 +957,12 @@ export function DriverCardsAndWeatherGridTesting({
 
     carousel.addEventListener("scroll", handleScroll, { passive: true })
     return () => carousel.removeEventListener("scroll", handleScroll)
-  }, [currentSection, visibleSections.length])
-
-  // Get section title for user metric card
-  const getSectionTitle = (sectionIndex: number): string => {
-    return sections[sectionIndex]?.title || ""
-  }
+  }, [currentSection, sections.length])
 
   return (
-    <section className="mb-6">
-      <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-4">
-        Driver highlights
-      </h2>
-
+    <section className="grid grid-cols-12 gap-4 lg:gap-6">
       <div
-        className="relative"
+        className="col-span-12 lg:col-span-8 relative"
         style={{
           borderRadius: "24px",
           border: "1px solid var(--glass-border)",
@@ -1073,7 +1021,7 @@ export function DriverCardsAndWeatherGridTesting({
                   </button>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-text-secondary)] font-medium">
-                      {visibleSections[currentSection]?.title}
+                      {sections[currentSection]?.title}
                     </p>
                     {allClasses.length > 0 ? (
                       <p className="text-sm text-[var(--token-text-primary)] mt-1.5 font-semibold truncate">
@@ -1090,40 +1038,30 @@ export function DriverCardsAndWeatherGridTesting({
 
                   {/* Section indicators */}
                   <div className="flex items-center gap-1.5 mx-2">
-                    {visibleSections.map((section, visibleIndex) => {
-                      const actualSectionIndex = sections.findIndex(
-                        (s) => s.title === section.title
-                      )
-                      return (
-                        <button
-                          key={actualSectionIndex}
-                          onClick={() => scrollToSection(actualSectionIndex, true)}
-                          className={`transition-all duration-200 rounded-full ${
-                            actualSectionIndex === currentSection
-                              ? "w-2 h-2 bg-[var(--token-accent)]"
-                              : "w-1.5 h-1.5 bg-[var(--token-border-default)] hover:bg-[var(--token-text-muted)]"
-                          }`}
-                          aria-label={`Go to section ${visibleIndex + 1}`}
-                          aria-current={actualSectionIndex === currentSection ? "true" : "false"}
-                        />
-                      )
-                    })}
+                    {sections.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => scrollToSection(index, true)}
+                        className={`transition-all duration-200 rounded-full ${
+                          index === currentSection
+                            ? "w-2 h-2 bg-[var(--token-accent)]"
+                            : "w-1.5 h-1.5 bg-[var(--token-border-default)] hover:bg-[var(--token-text-muted)]"
+                        }`}
+                        aria-label={`Go to section ${index + 1}`}
+                        aria-current={index === currentSection ? "true" : "false"}
+                      />
+                    ))}
                   </div>
 
                   <button
                     onClick={handleNext}
-                    disabled={
-                      !isExpanded && currentSection === 0
-                        ? false
-                        : isExpanded && currentSection === sections.length - 1
-                    }
+                    disabled={currentSection === sections.length - 1}
                     className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all duration-200 ${
-                      (!isExpanded && currentSection === 0) ||
-                      (isExpanded && currentSection === sections.length - 1)
+                      currentSection === sections.length - 1
                         ? "border-[var(--token-border-muted)] text-[var(--token-text-muted)] cursor-not-allowed bg-[var(--token-surface)]"
                         : "border-[var(--token-border-default)] text-[var(--token-text-secondary)] bg-[var(--token-surface-elevated)] hover:border-[var(--token-accent)] hover:text-[var(--token-accent)] hover:bg-[var(--token-surface-raised)] hover:shadow-[0_2px_8px_rgba(58,142,255,0.2)] active:scale-95 cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
                     }`}
-                    aria-label={!isExpanded ? "Show more views" : "Next section"}
+                    aria-label="Next section"
                   >
                     <svg
                       className="w-4 h-4"
@@ -1140,96 +1078,78 @@ export function DriverCardsAndWeatherGridTesting({
                 {/* Carousel container */}
                 <div
                   ref={carouselRef}
-                  className="overflow-x-auto snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden transition-all duration-300"
+                  className="overflow-x-auto snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden"
                   style={{
                     scrollbarWidth: "none",
                     msOverflowStyle: "none",
                   }}
                 >
                   <div className="flex">
-                    {visibleSections.map((section, visibleIndex) => {
-                      // Find the actual section index in the full sections array
-                      const actualSectionIndex = sections.findIndex(
-                        (s) => s.title === section.title
-                      )
-                      return (
-                        <div
-                          key={actualSectionIndex}
-                          ref={sectionRefs[actualSectionIndex]}
-                          className="w-full flex-shrink-0 snap-start transition-opacity duration-300"
-                        >
-                          {section.data && section.data.length > 0 ? (
-                            (() => {
-                              const currentClassDrivers = getCurrentClassDrivers(section)
-                              if (currentClassDrivers.length === 0) {
-                                return (
-                                  <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-6 py-8 text-center">
-                                    <p className="text-sm text-[var(--token-text-muted)]">
-                                      No drivers available for this class
-                                    </p>
-                                  </div>
-                                )
-                              }
+                    {sections.map((section, sectionIndex) => (
+                      <div
+                        key={sectionIndex}
+                        ref={sectionRefs[sectionIndex]}
+                        className="w-full flex-shrink-0 snap-start"
+                      >
+                        {section.data && section.data.length > 0 ? (
+                          (() => {
+                            const currentClassDrivers = getCurrentClassDrivers(section)
+                            if (currentClassDrivers.length === 0) {
                               return (
-                                <div className="flex gap-4 justify-start items-stretch max-w-full md:max-w-[880px] mx-auto">
-                                  {currentClassDrivers.map((driver, driverIndex) => {
-                                    return (
-                                      <div
-                                        key={driver.driverId}
-                                        className="flex-shrink-0 w-full md:w-[208px] flex transition-transform duration-200 hover:scale-[1.02]"
-                                      >
-                                        {section.type === "improvement" &&
-                                        "improvementScore" in driver ? (
-                                          <ImprovementDriverCard
-                                            driver={
-                                              driver as NonNullable<
-                                                EventAnalysisSummary["mostImprovedDrivers"]
-                                              >[number]
-                                            }
-                                            index={driverIndex}
-                                          />
-                                        ) : (
-                                          <DriverCard
-                                            driver={driver}
-                                            index={driverIndex}
-                                            type={section.type}
-                                            sectionData={currentClassDrivers as typeof section.data}
-                                          />
-                                        )}
-                                      </div>
-                                    )
-                                  })}
+                                <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-6 py-8 text-center">
+                                  <p className="text-sm text-[var(--token-text-muted)]">
+                                    No drivers available for this class
+                                  </p>
                                 </div>
                               )
-                            })()
-                          ) : (
-                            <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-6 py-8 text-center">
-                              <p className="text-sm text-[var(--token-text-muted)]">
-                                No data available for {section.title.toLowerCase()}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                            }
+                            return (
+                              <div className="flex gap-4 justify-start items-stretch max-w-full md:max-w-[880px] mx-auto">
+                                {currentClassDrivers.map((driver, driverIndex) => {
+                                  // Use driverIndex directly since currentClassDrivers is already sorted by metric
+                                  // Position will be driverIndex + 1 (1, 2, 3, 4)
+                                  return (
+                                    <div
+                                      key={driver.driverId}
+                                      className="flex-shrink-0 w-full md:w-[208px] flex transition-transform duration-200 hover:scale-[1.02]"
+                                    >
+                                      {section.type === "improvement" &&
+                                      "improvementScore" in driver ? (
+                                        <ImprovementDriverCard
+                                          driver={
+                                            driver as NonNullable<
+                                              EventAnalysisSummary["mostImprovedDrivers"]
+                                            >[number]
+                                          }
+                                          index={driverIndex}
+                                        />
+                                      ) : (
+                                        <DriverCard
+                                          driver={driver}
+                                          index={driverIndex}
+                                          type={section.type}
+                                          sectionData={currentClassDrivers as typeof section.data}
+                                        />
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })()
+                        ) : (
+                          <div className="rounded-2xl border border-[var(--token-border-muted)] bg-[var(--token-surface)] px-6 py-8 text-center">
+                            <p className="text-sm text-[var(--token-text-muted)]">
+                              No data available for {section.title.toLowerCase()}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              {/* More Views Button (Progressive Disclosure) */}
-              {!isExpanded && sections.length > 1 && (
-                <div className="mb-6 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsExpanded(true)}
-                    className="px-6 py-3 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] text-sm font-medium text-[var(--token-text-primary)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                  >
-                    More views ({sections.length - 1} more)
-                  </button>
-                </div>
-              )}
-
-              {/* User Metric Card */}
               {(() => {
                 // Use filtered user metrics (filtered by selected class)
                 const {
@@ -1246,7 +1166,6 @@ export function DriverCardsAndWeatherGridTesting({
                   position: number
                   gapLabel: string
                   gapValue: string
-                  sectionTitle: string
                 } | null = null
 
                 if (currentSection === 0 && filteredUserBestLap) {
@@ -1257,7 +1176,6 @@ export function DriverCardsAndWeatherGridTesting({
                     position: filteredUserBestLap.position,
                     gapLabel: "Gap to fastest",
                     gapValue: `+${formatLapTime(filteredUserBestLap.gapToFastest)}`,
-                    sectionTitle: getSectionTitle(0),
                   }
                 } else if (currentSection === 1 && filteredUserBestConsistency) {
                   // Most Consistent Drivers section - show consistency
@@ -1267,7 +1185,6 @@ export function DriverCardsAndWeatherGridTesting({
                     position: filteredUserBestConsistency.position,
                     gapLabel: "Gap to best",
                     gapValue: `-${filteredUserBestConsistency.gapToBest.toFixed(1)}%`,
-                    sectionTitle: getSectionTitle(1),
                   }
                 } else if (currentSection === 2 && filteredUserBestAvgLap) {
                   // Best Overall Average Lap section - show average lap
@@ -1277,7 +1194,6 @@ export function DriverCardsAndWeatherGridTesting({
                     position: filteredUserBestAvgLap.position,
                     gapLabel: "Gap to best",
                     gapValue: `+${formatLapTime(filteredUserBestAvgLap.gapToBest)}`,
-                    sectionTitle: getSectionTitle(2),
                   }
                 } else if (currentSection === 3 && filteredUserBestImprovement) {
                   // Most Improved section - show improvement with rich data like driver cards
@@ -1299,18 +1215,14 @@ export function DriverCardsAndWeatherGridTesting({
                       filteredUserBestImprovement.gapToBest > 0
                         ? `-${filteredUserBestImprovement.gapToBest} positions`
                         : "Best!",
-                    sectionTitle: getSectionTitle(3),
                   }
 
                   // Return custom layout for improvement section with extra details
                   return (
                     <div className="max-w-full md:max-w-[880px] mx-auto">
                       <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/40 bg-gradient-to-br from-[var(--token-accent)]/10 to-[var(--token-accent)]/5 px-5 py-5 transition-all duration-200 hover:border-[var(--token-accent)]/60 hover:shadow-[0_4px_16px_rgba(58,142,255,0.2)] shadow-[0_2px_8px_rgba(58,142,255,0.15)]">
-                        <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-1 font-medium">
+                        <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-3 font-medium">
                           {userMetric.label}
-                        </p>
-                        <p className="text-[10px] text-[var(--token-text-muted)] mb-3">
-                          Your stats for {userMetric.sectionTitle}
                         </p>
                         <div className="flex items-baseline justify-between gap-4">
                           <div className="min-w-0">
@@ -1337,11 +1249,9 @@ export function DriverCardsAndWeatherGridTesting({
                             </p>
                             {filteredUserBestImprovement.gapToBest > 0 && (
                               <>
-                                <Tooltip text="Position difference to the most improved driver">
-                                  <p className="text-xs text-[var(--token-text-muted)] mb-1 font-medium cursor-help">
-                                    {userMetric.gapLabel}
-                                  </p>
-                                </Tooltip>
+                                <p className="text-xs text-[var(--token-text-muted)] mb-1 font-medium">
+                                  {userMetric.gapLabel}
+                                </p>
                                 <p className="text-xl font-bold text-[var(--token-text-primary)]">
                                   {userMetric.gapValue}
                                 </p>
@@ -1359,11 +1269,8 @@ export function DriverCardsAndWeatherGridTesting({
                 return (
                   <div className="max-w-full md:max-w-[880px] mx-auto">
                     <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/40 bg-gradient-to-br from-[var(--token-accent)]/10 to-[var(--token-accent)]/5 px-5 py-5 transition-all duration-200 hover:border-[var(--token-accent)]/60 hover:shadow-[0_4px_16px_rgba(58,142,255,0.2)] shadow-[0_2px_8px_rgba(58,142,255,0.15)]">
-                      <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-1 font-medium">
+                      <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-3 font-medium">
                         {userMetric.label}
-                      </p>
-                      <p className="text-[10px] text-[var(--token-text-muted)] mb-3">
-                        Your stats for {userMetric.sectionTitle}
                       </p>
                       <div className="flex items-baseline justify-between gap-4">
                         <div className="min-w-0">
@@ -1384,19 +1291,9 @@ export function DriverCardsAndWeatherGridTesting({
                             filteredUserBestAvgLap?.gapToBest &&
                             filteredUserBestAvgLap.gapToBest > 0)) && (
                           <div className="text-right flex-shrink-0">
-                            <Tooltip
-                              text={
-                                currentSection === 0
-                                  ? "Time difference to the fastest driver in this class"
-                                  : currentSection === 1
-                                    ? "Consistency difference to the most consistent driver"
-                                    : "Average lap time difference to the best average lap driver"
-                              }
-                            >
-                              <p className="text-xs text-[var(--token-text-muted)] mb-1 font-medium cursor-help">
-                                {userMetric.gapLabel}
-                              </p>
-                            </Tooltip>
+                            <p className="text-xs text-[var(--token-text-muted)] mb-1 font-medium">
+                              {userMetric.gapLabel}
+                            </p>
                             <p className="text-xl font-bold text-[var(--token-text-primary)]">
                               {userMetric.gapValue}
                             </p>
@@ -1409,13 +1306,8 @@ export function DriverCardsAndWeatherGridTesting({
               })()}
             </>
           ) : hasData ? (
-            <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-4">
-              <p className="text-sm text-[var(--token-text-secondary)] mb-2">
-                Pick a class above to see top performers
-              </p>
-              <p className="text-xs text-[var(--token-text-muted)]">
-                Select a class or multiple drivers in the filter section to view driver highlights
-              </p>
+            <div className="flex items-center justify-center min-h-[200px] text-[var(--token-text-secondary)]">
+              Select a class or more than one driver to view driver cards
             </div>
           ) : (
             <div className="flex items-center justify-center min-h-[200px] text-[var(--token-text-secondary)]">
@@ -1424,6 +1316,273 @@ export function DriverCardsAndWeatherGridTesting({
           )}
         </div>
       </div>
+
+      {weather ? (
+        <WeatherPanel
+          className="col-span-12 lg:col-span-4"
+          weather={weather}
+          eventDate={event?.eventDate}
+          trackName={event?.trackName}
+          eventName={event?.eventName}
+        />
+      ) : weatherLoading ? (
+        <WeatherLoadingState className="col-span-12 lg:col-span-4" />
+      ) : weatherError ? (
+        <WeatherErrorState className="col-span-12 lg:col-span-4" error={weatherError} />
+      ) : (
+        <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-[var(--dashboard-card-padding)] lg:col-span-4" />
+      )}
     </section>
+  )
+}
+
+type DriverCardData =
+  | NonNullable<EventAnalysisSummary["topDrivers"]>[number]
+  | NonNullable<EventAnalysisSummary["mostConsistentDrivers"]>[number]
+  | NonNullable<EventAnalysisSummary["bestAvgLapDrivers"]>[number]
+  | NonNullable<EventAnalysisSummary["mostImprovedDrivers"]>[number]
+
+
+function DriverCard({
+  driver,
+  index,
+  type,
+  sectionData,
+}: {
+  driver: DriverCardData
+  index: number
+  type: "fastest" | "consistency" | "avgLap" | "improvement"
+  sectionData:
+    | EventAnalysisSummary["topDrivers"]
+    | EventAnalysisSummary["mostConsistentDrivers"]
+    | EventAnalysisSummary["bestAvgLapDrivers"]
+    | EventAnalysisSummary["mostImprovedDrivers"]
+}) {
+  let valueDisplay: string
+  let gapDisplay: React.ReactNode = null
+
+  if (type === "fastest" && "fastestLapTime" in driver) {
+    valueDisplay = formatLapTime(driver.fastestLapTime)
+    if (
+      sectionData &&
+      Array.isArray(sectionData) &&
+      sectionData.length > 0 &&
+      "fastestLapTime" in sectionData[0]
+    ) {
+      const fastestLapTime = (sectionData[0] as { fastestLapTime: number }).fastestLapTime
+      const sameClass = driver.className === sectionData[0].className
+      const gapToFastest = index > 0 && sameClass ? driver.fastestLapTime - fastestLapTime : 0
+      if (gapToFastest > 0) {
+        gapDisplay = (
+          <span className="text-[10px] font-medium text-[var(--token-text-muted)] bg-[var(--token-surface)] px-2 py-0.5 rounded-full">
+            +{formatLapTime(gapToFastest)}
+          </span>
+        )
+      }
+    }
+  } else if (type === "consistency" && "consistency" in driver) {
+    valueDisplay = `${driver.consistency.toFixed(1)}%`
+  } else if (type === "avgLap" && "avgLapTime" in driver) {
+    valueDisplay = formatLapTime(driver.avgLapTime)
+  } else if (type === "improvement" && "positionImprovement" in driver) {
+    const improvedDriver = driver as NonNullable<
+      EventAnalysisSummary["mostImprovedDrivers"]
+    >[number]
+    valueDisplay = formatPositionImprovement(
+      improvedDriver.firstRacePosition,
+      improvedDriver.lastRacePosition
+    )
+  } else {
+    valueDisplay = "N/A"
+  }
+
+  return (
+    <div className="rounded-2xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] px-5 py-5 h-full w-full transition-all duration-200 hover:border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2),0_0_1px_rgba(255,255,255,0.1)] shadow-[0_2px_8px_rgba(0,0,0,0.1),0_0_1px_rgba(255,255,255,0.05)]">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold text-[var(--token-text-primary)] bg-[var(--token-surface)] px-2.5 py-1 rounded-full border border-[var(--token-border-default)] shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
+          #{index + 1}
+        </span>
+        {gapDisplay}
+      </div>
+      <p className="text-base font-bold text-[var(--token-text-primary)] mb-2 truncate">
+        {driver.driverName}
+      </p>
+      <p className="text-2xl font-bold text-[var(--token-text-primary)] mb-3 leading-tight">
+        {valueDisplay}
+      </p>
+      <div className="space-y-1">
+        <p className="text-[10px] text-[var(--token-text-muted)] font-medium truncate">
+          {driver.raceLabel}
+        </p>
+        <p className="text-[10px] text-[var(--token-text-muted)] truncate">{driver.className}</p>
+      </div>
+    </div>
+  )
+}
+
+function WeatherStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 shadow-[0_2px_6px_rgba(0,0,0,0.1)]">
+      <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-semibold text-[var(--token-text-primary)]">{value}</p>
+    </div>
+  )
+}
+
+function WeatherPanel({
+  className,
+  weather,
+  eventDate,
+  trackName,
+  eventName,
+}: {
+  className?: string
+  weather: WeatherData
+  eventDate?: string
+  trackName?: string
+  eventName?: string
+}) {
+  return (
+    <article
+      className={`relative ${className || ""}`}
+      style={{
+        borderRadius: "24px",
+        border: "1px solid var(--glass-border)",
+        backgroundColor: "var(--glass-bg)",
+        backdropFilter: "var(--glass-blur)",
+        WebkitBackdropFilter: "var(--glass-blur)",
+        boxShadow: "var(--glass-shadow), var(--glass-shadow-inset)",
+        padding: "var(--dashboard-card-padding)",
+        overflow: "hidden",
+      }}
+    >
+      {/* Subtle gradient overlay for extra glass depth */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%)",
+          borderRadius: "24px",
+        }}
+      />
+      {/* Subtle top highlight for glass edge effect */}
+      <div
+        className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+        style={{
+          background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)",
+          borderRadius: "24px 24px 0 0",
+        }}
+      />
+      {/* Content wrapper */}
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
+            Track state
+          </p>
+          {weather.isCached && weather.cachedAt && (
+            <p className="text-[9px] uppercase tracking-[0.3em] text-[var(--token-text-muted)]">
+              Cached
+            </p>
+          )}
+        </div>
+        {eventName && trackName && eventDate && (
+          <p className="text-sm text-[var(--token-text-secondary)] mt-2">
+            {eventName} • {trackName} • {formatDateLong(eventDate)}
+          </p>
+        )}
+        <h3 className="mt-2 text-xl font-semibold text-[var(--token-text-primary)]">
+          {weather.condition}
+        </h3>
+        <p className="text-sm text-[var(--token-text-secondary)]">
+          Wind {weather.wind} • Humidity {weather.humidity}%
+        </p>
+        <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+          <WeatherStat label="Air" value={`${Math.round(weather.air)}°C`} />
+          <WeatherStat label="Track" value={`${Math.round(weather.track)}°C`} />
+          <WeatherStat label="Chance" value={`${weather.precip}%`} />
+        </div>
+        <div className="mt-6 space-y-2 text-xs text-[var(--token-text-secondary)]">
+          {weather.forecast.map((entry) => (
+            <div
+              key={entry.label}
+              className="flex items-center justify-between rounded-2xl border border-[var(--token-border-muted)] px-3 py-2"
+            >
+              <span>{entry.label}</span>
+              <span>{entry.detail}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+
+function WeatherLoadingState({ className }: { className?: string }) {
+  return (
+    <article
+      className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] ${className}`}
+    >
+      <div className="animate-pulse">
+        <div className="h-4 w-24 bg-[var(--token-surface)] rounded mb-4" />
+        <div className="h-6 w-48 bg-[var(--token-surface)] rounded mb-2" />
+        <div className="h-4 w-32 bg-[var(--token-surface)] rounded mb-6" />
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 bg-[var(--token-surface)] rounded-2xl" />
+          ))}
+        </div>
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-10 bg-[var(--token-surface)] rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+
+function WeatherErrorState({ className, error }: { className?: string; error: string }) {
+  // Parse error message to show user-friendly version
+  const getUserFriendlyError = (errorMsg: string): string => {
+    // Check for network connectivity issues first
+    if (
+      errorMsg.includes("Network error") ||
+      errorMsg.includes("network connectivity") ||
+      errorMsg.includes("Unable to reach")
+    ) {
+      return "Unable to load weather data - network connectivity issue"
+    }
+    if (errorMsg.includes("geocode") || errorMsg.includes("Geocoding")) {
+      return "Weather data unavailable for this location"
+    }
+    if (errorMsg.includes("404") || errorMsg.includes("not found")) {
+      return "Weather data not available"
+    }
+    if (errorMsg.includes("Failed to fetch") || errorMsg.includes("network")) {
+      return "Unable to load weather data"
+    }
+    // Default fallback - show first sentence or truncate long technical errors
+    const firstSentence = errorMsg.split(".")[0]
+    if (firstSentence.length > 100) {
+      return "Weather data unavailable"
+    }
+    return firstSentence
+  }
+
+  const friendlyError = getUserFriendlyError(error)
+
+  return (
+    <article
+      className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] ${className}`}
+    >
+      <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
+        Track state
+      </p>
+      <p className="mt-4 text-sm text-[var(--token-text-secondary)]">{friendlyError}</p>
+    </article>
   )
 }

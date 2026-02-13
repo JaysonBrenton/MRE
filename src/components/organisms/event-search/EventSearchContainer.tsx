@@ -69,12 +69,83 @@ interface ApiIngestionResult {
   status?: "updated" | "already_complete" | "in_progress"
 }
 
+/** Response when ingestion is queued (202); contains job_id to poll */
+interface ApiQueuedIngestionResult {
+  job_id: string
+}
+
+const JOB_POLL_INTERVAL_MS = 2000
+const JOB_POLL_MAX_ATTEMPTS = 450 // ~15 min at 2s
+
+async function pollIngestionJobUntilComplete(
+  jobId: string,
+  onStatus?: (status: string) => void
+): Promise<ApiIngestionResult> {
+  for (let attempt = 0; attempt < JOB_POLL_MAX_ATTEMPTS; attempt++) {
+    const res = await fetch(`/api/v1/ingestion/jobs/${jobId}`)
+    const parsed = await parseApiResponse<{
+      job_id: string
+      status: string
+      result?: ApiIngestionResult
+      error_code?: string
+      error_message?: string
+    }>(res)
+    if (!parsed.success || !parsed.data) {
+      throw new Error(parsed.success ? "No data" : parsed.error?.message ?? "Job status failed")
+    }
+    const { status, result, error_message } = parsed.data
+    onStatus?.(status)
+    if (status === "completed" && result) {
+      return result
+    }
+    if (status === "failed") {
+      throw new Error(error_message ?? "Import failed")
+    }
+    await new Promise((r) => setTimeout(r, JOB_POLL_INTERVAL_MS))
+  }
+  throw new Error("Import is taking longer than expected. Please check back later.")
+}
+
 const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
 const LAST_DATE_RANGE_STORAGE_KEY = "mre_last_date_range"
 const LAST_TRACK_STORAGE_KEY = "mre_last_track"
 const USE_DATE_FILTER_STORAGE_KEY = "mre_use_date_filter"
 const PAGINATION_STORAGE_KEY = "mre_event_search_pagination"
 const PENDING_REFRESH_DELAY_MS = 5000
+
+const KNOWN_IMPORTED_STORAGE_KEY = "mre_known_imported_events"
+const KNOWN_IMPORTED_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+const KNOWN_IMPORTED_MAX_SIZE = 200
+
+function loadKnownImportedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(KNOWN_IMPORTED_STORAGE_KEY)
+    if (!raw) return new Set()
+    const { keys, updatedAt } = JSON.parse(raw) as {
+      keys?: string[]
+      updatedAt?: number
+    }
+    if (!Array.isArray(keys) || typeof updatedAt !== "number") return new Set()
+    if (Date.now() - updatedAt > KNOWN_IMPORTED_TTL_MS) return new Set()
+    return new Set(keys.slice(0, KNOWN_IMPORTED_MAX_SIZE))
+  } catch {
+    return new Set()
+  }
+}
+
+function persistKnownImportedIds(ids: Set<string>) {
+  try {
+    const keys = Array.from(ids).slice(0, KNOWN_IMPORTED_MAX_SIZE)
+    localStorage.setItem(
+      KNOWN_IMPORTED_STORAGE_KEY,
+      JSON.stringify({ keys, updatedAt: Date.now() })
+    )
+  } catch (e) {
+    clientLogger.debug("Failed to persist known imported events", {
+      error: e instanceof Error ? e.message : String(e),
+    })
+  }
+}
 
 // Get default date range (last 30 days)
 function getDefaultDateRange(): { startDate: string; endDate: string } {
@@ -121,6 +192,8 @@ export default function EventSearchContainer({
   const [eventImportProgress, setEventImportProgress] = useState<
     Record<string, { stage?: string; counts?: { races: number; results: number; laps: number } }>
   >({})
+  // Persisted set of event ids we've seen as fully imported; used so after reopen we still show "Ready" if API returns stale/empty ingest_depth
+  const [knownImportedIds, setKnownImportedIds] = useState<Set<string>>(loadKnownImportedIds)
   const pollingIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({}) // Track polling intervals per event
   const [searchKey, setSearchKey] = useState(0) // Key to force EventTable remount on new search
   const [isStartingSearch, setIsStartingSearch] = useState(false) // Track if we're starting a new search
@@ -796,6 +869,11 @@ export default function EventSearchContainer({
         setIsCheckingLiveRC(true) // Show LiveRC indicator separately
         keptLoadingForEmptyDB.current = false // No longer keeping loading state
 
+        // After a DB cleanup, no events exist; clear cached "imported" IDs so LiveRC-only
+        // events show as "new" with Import button instead of stale "Ready" with no actions
+        setKnownImportedIds(new Set())
+        persistKnownImportedIds(new Set())
+
         clientLogger.debug(
           "EventSearchContainer: No DB events found, starting LiveRC discovery in background",
           {
@@ -845,6 +923,55 @@ export default function EventSearchContainer({
         setIsStartingSearch(false) // Clear immediately to show results
         setIsLoadingEvents(false) // Clear main loading state once DB data is visible
         setIsCheckingLiveRC(true) // Show LiveRC indicator separately
+
+        // Clear stale overrides/progress for events that are now fully imported in this result set.
+        // When user started import for a LiveRC event (keyed liverc-xxx) then left and came back,
+        // the same event now has a DB id and may be laps_full; clear so we show derived "imported" status.
+        const normalizedLapsFull = (d: string | undefined) =>
+          (d || "").trim().toLowerCase() === "laps_full" || (d || "").trim().toLowerCase() === "lapsfull"
+        setEventStatusOverrides((prev) => {
+          const next = { ...prev }
+          for (const event of dbEvents) {
+            if (normalizedLapsFull(event.ingestDepth)) {
+              delete next[event.id]
+              if (event.sourceEventId) delete next[`liverc-${event.sourceEventId}`]
+            }
+          }
+          return next
+        })
+        setEventImportProgress((prev) => {
+          const next = { ...prev }
+          for (const event of dbEvents) {
+            if (normalizedLapsFull(event.ingestDepth)) {
+              delete next[event.id]
+              if (event.sourceEventId) delete next[`liverc-${event.sourceEventId}`]
+            }
+          }
+          return next
+        })
+        setEventErrorMessages((prev) => {
+          const next = { ...prev }
+          for (const event of dbEvents) {
+            if (normalizedLapsFull(event.ingestDepth)) {
+              delete next[event.id]
+              if (event.sourceEventId) delete next[`liverc-${event.sourceEventId}`]
+            }
+          }
+          return next
+        })
+
+        // Persist fully-imported event ids so after reopening event search we still show "Ready" if API returns stale/empty ingest_depth
+        setKnownImportedIds((prev) => {
+          const next = new Set(prev)
+          for (const event of dbEvents) {
+            if (normalizedLapsFull(event.ingestDepth)) {
+              next.add(event.id)
+              if (event.sourceEventId) next.add(`liverc-${event.sourceEventId}`)
+            }
+          }
+          persistKnownImportedIds(next)
+          return next
+        })
 
         clientLogger.debug(
           "EventSearchContainer: DB events set, starting LiveRC check in background",
@@ -1536,6 +1663,16 @@ export default function EventSearchContainer({
             if (result.data.id !== eventId) {
               updateEventStatusOverride(result.data.id)
             }
+
+            // Persist so after reopening event search we still show "Ready"
+            setKnownImportedIds((prev) => {
+              const next = new Set(prev)
+              next.add(result.data.id)
+              const sid = result.data.source_event_id
+              if (sid) next.add(`liverc-${sid}`)
+              persistKnownImportedIds(next)
+              return next
+            })
           }
         }
       } catch (error) {
@@ -1611,21 +1748,31 @@ export default function EventSearchContainer({
           },
           body: JSON.stringify({ depth: "laps_full" }),
         })
-        const result = await parseApiResponse<ApiIngestionResult>(response)
+        const result = await parseApiResponse<ApiIngestionResult | ApiQueuedIngestionResult>(response)
         if (!result.success) {
-          // Check if this is an "already in progress" error - handle gracefully
           if (result.error.code === "INGESTION_IN_PROGRESS") {
             clientLogger.warn("Import already in progress for event", {
               eventId: event.id,
               eventName: event.eventName,
             })
-            // Don't treat this as a failure - the import is already running
-            // Keep the "importing" status and let polling handle the update
             return true
           }
           throw new Error(result.error.message)
         }
-        ingestionResponse = result.data
+        const data = result.data
+        if (data && "job_id" in data) {
+          setEventImportProgress((prev) => ({ ...prev, [event.id]: { stage: "Queued..." } }))
+          ingestionResponse = await pollIngestionJobUntilComplete(
+            data.job_id,
+            (status) =>
+              setEventImportProgress((prev) => ({
+                ...prev,
+                [event.id]: { stage: status === "queued" ? "Queued..." : "Importing..." },
+              }))
+          )
+        } else {
+          ingestionResponse = data as ApiIngestionResult
+        }
       } else {
         const sourceEventId = event.sourceEventId
         if (!sourceEventId) {
@@ -1659,21 +1806,31 @@ export default function EventSearchContainer({
           if (timeoutId) {
             clearTimeout(timeoutId)
           }
-          const result = await parseApiResponse<ApiIngestionResult>(response)
+          const result = await parseApiResponse<ApiIngestionResult | ApiQueuedIngestionResult>(response)
           if (!result.success) {
-            // Check if this is an "already in progress" error - handle gracefully
             if (result.error.code === "INGESTION_IN_PROGRESS") {
               clientLogger.warn("Import already in progress for event", {
                 sourceEventId,
                 eventName: event.eventName,
               })
-              // Don't treat this as a failure - the import is already running
-              // Keep the "importing" status and let polling handle the update
               return true
             }
             throw new Error(result.error.message)
           }
-          ingestionResponse = result.data
+          const data = result.data
+          if (data && "job_id" in data) {
+            setEventImportProgress((prev) => ({ ...prev, [event.id]: { stage: "Queued..." } }))
+            ingestionResponse = await pollIngestionJobUntilComplete(
+              data.job_id,
+              (status) =>
+                setEventImportProgress((prev) => ({
+                  ...prev,
+                  [event.id]: { stage: status === "queued" ? "Queued..." : "Importing..." },
+                }))
+            )
+          } else {
+            ingestionResponse = data as ApiIngestionResult
+          }
         } catch (fetchError) {
           // Clear timeout if it was set
           if (timeoutId) {
@@ -1880,6 +2037,7 @@ export default function EventSearchContainer({
       // Import completed immediately - fetch updated event data and update in place
       stopPollingEventStatus(finalEventId)
 
+      let didUpdateListFromSearch = false
       // Fetch the updated event data to update the list
       try {
         if (!selectedTrack) {
@@ -1918,6 +2076,7 @@ export default function EventSearchContainer({
           }
 
           if (updatedEvent) {
+            didUpdateListFromSearch = true
             const eventData: Partial<Event> = {
               id: updatedEvent.id,
               eventName: updatedEvent.eventName,
@@ -1940,12 +2099,67 @@ export default function EventSearchContainer({
             }
           }
         }
+
+        // Robust fallback: when search didn't return the new event (e.g. race with concurrent
+        // imports or filters), update the row from the job result so the UI always shows completed
+        if (
+          !didUpdateListFromSearch &&
+          event.id.startsWith("liverc-") &&
+          finalEventId &&
+          ingestionResponse
+        ) {
+          const syntheticEvent = {
+            id: finalEventId,
+            eventName: event.eventName,
+            eventDate: event.eventDate ?? "",
+            ingest_depth: ingestionResponse.ingest_depth,
+            ingestDepth: ingestionResponse.ingest_depth,
+            source_event_id: event.sourceEventId,
+            sourceEventId: event.sourceEventId,
+          }
+          replaceLiveRCEventWithDBEvent(event.id, syntheticEvent)
+          setKnownImportedIds((prev) => {
+            const next = new Set(prev)
+            next.add(finalEventId)
+            if (event.sourceEventId) next.add(`liverc-${event.sourceEventId}`)
+            persistKnownImportedIds(next)
+            return next
+          })
+          didUpdateListFromSearch = true
+        }
       } catch (error) {
         clientLogger.warn("Failed to fetch updated event data after import", {
           error: error instanceof Error ? error.message : String(error),
           eventId: finalEventId,
         })
-        // Continue anyway - the polling will eventually update it
+        // Fallback below will still update the row from the job result
+      }
+
+      // Fallback when search didn't return the event or failed: update row from job result so the
+      // queued import always shows completed (e.g. when two imports finish close together)
+      if (
+        event.id.startsWith("liverc-") &&
+        finalEventId &&
+        ingestionResponse &&
+        !didUpdateListFromSearch
+      ) {
+        const syntheticEvent = {
+          id: finalEventId,
+          eventName: event.eventName,
+          eventDate: event.eventDate ?? "",
+          ingest_depth: ingestionResponse.ingest_depth,
+          ingestDepth: ingestionResponse.ingest_depth,
+          source_event_id: event.sourceEventId,
+          sourceEventId: event.sourceEventId,
+        }
+        replaceLiveRCEventWithDBEvent(event.id, syntheticEvent)
+        setKnownImportedIds((prev) => {
+          const next = new Set(prev)
+          next.add(finalEventId)
+          if (event.sourceEventId) next.add(`liverc-${event.sourceEventId}`)
+          persistKnownImportedIds(next)
+          return next
+        })
       }
 
       // Clear progress state after a delay so user can see final counts
@@ -2459,10 +2673,15 @@ export default function EventSearchContainer({
                   isCheckingLiveRC={isCheckingLiveRC}
                   onImportEvent={handleImportSingle}
                   statusOverrides={eventStatusOverrides}
+                  knownImportedIds={knownImportedIds}
                   errorMessages={eventErrorMessages}
                   driverInEvents={driverInEvents}
                   eventImportProgress={eventImportProgress}
                   onSelectForDashboard={onSelectForDashboard}
+                  importDisabled={
+                    Object.keys(eventImportProgress).length > 0 ||
+                    Object.values(eventStatusOverrides).some((s) => s === "importing")
+                  }
                 />
 
                 {hasSearched && events.length > 0 && (

@@ -393,6 +393,24 @@ specifications.
 
 ---
 
+## ✔ 2.11 Telemetry Ingestion
+
+Version 0.1.1 includes telemetry ingestion for GNSS and IMU data from devices.
+Users can upload telemetry files, and the system parses, stores, and analyzes
+them. Synthetic seed data and fixtures support development and testing.
+
+**In scope:**
+
+- Upload telemetry files (CSV, GPX, and supported formats)
+- Parsing and normalisation to canonical streams
+- Seed data generator and KML track templates
+- Fixtures under `ingestion/tests/fixtures/telemetry/`
+
+**Reference:** See `docs/telemetry/` for design, API contract, and seed data
+guide.
+
+---
+
 # 3. Explicitly Out of Scope (Forbidden)
 
 The following features are **not allowed** in version 0.1.1. They may not appear
@@ -403,13 +421,10 @@ when part of the public landing page.
 
 ### ❌ Racing and Telemetry
 
-- Telemetry ingestion (data collection from sensors)
-- Sensor data storage (beyond visualization)
 - Race session parsing (beyond existing LiveRC ingestion)
-- GPS or IMU data handling (beyond visualization)
 
-**Note:** Telemetry visualization is in scope (see Section 2.10), but telemetry
-data ingestion and storage are not.
+**Note:** Telemetry visualization (Section 2.10) and telemetry ingestion
+(Section 2.11) are in scope.
 
 ### ❌ User Features
 
@@ -555,7 +570,6 @@ Version 0.1.1 is considered complete when:
 The following will be introduced in later phases:
 
 - Landing page
-- Telemetry data ingestion (sensor data collection)
 - Analytics engine
 - Setup sheets
 - Data import/export tools
@@ -565,9 +579,9 @@ The following will be introduced in later phases:
 - Blog
 - Mobile apps
 
-**Note:** Navigation features, table components, dashboard systems, and
-telemetry visualizations are in-scope for version 0.1.1 (see Sections 2.7, 2.8,
-2.9, and 2.10).
+**Note:** Navigation features, table components, dashboard systems, telemetry
+visualizations, and telemetry ingestion are in-scope for version 0.1.1 (see
+Sections 2.7, 2.8, 2.9, 2.10, and 2.11).
 
 These future features may be described in documentation but **must never be
 implemented in version 0.1.1**.

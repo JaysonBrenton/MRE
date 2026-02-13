@@ -5,6 +5,11 @@
 `docs/adr/ADR-20260131-telemetry-identifier-strategy.md`; data lifecycle truth
 table added to Security doc (§10.3).
 
+**Resolved (2026-02-03):** Parquet vs ClickHouse resolved by
+`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`:
+Parquet is canonical, ClickHouse is derived cache. Architecture Blueprint, Data
+Model, API Contract, and Security docs updated to reference the ADR.
+
 Review date: 30 Jan 2026 Scope: I extracted the ZIP and read every file under
 `docs/telemetry/` (Design/, End_User_Experience/, User_Story/, reviews/). All
 paths in this review are under `docs/telemetry/`.

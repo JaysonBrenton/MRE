@@ -31,7 +31,7 @@ async function main() {
   let auditLogCount = 0
   try {
     // Use type assertion since auditLog may not exist in schema
-    const auditLogModel = (prisma as Record<string, unknown>).auditLog as
+    const auditLogModel = (prisma as unknown as Record<string, unknown>).auditLog as
       | {
           count: (args: { where: { resourceType: { in: string[] } } }) => Promise<number>
         }
@@ -176,7 +176,7 @@ async function main() {
   // Handle case where audit_logs table doesn't exist yet
   try {
     // Use type assertion since auditLog may not exist in schema
-    const auditLogModel = (prisma as Record<string, unknown>).auditLog as
+    const auditLogModel = (prisma as unknown as Record<string, unknown>).auditLog as
       | {
           deleteMany: (args: {
             where: { resourceType: { in: string[] } }
@@ -224,7 +224,7 @@ async function main() {
   let finalAuditLogs = 0
   try {
     // Use type assertion since auditLog may not exist in schema
-    const auditLogModel = (prisma as Record<string, unknown>).auditLog as
+    const auditLogModel = (prisma as unknown as Record<string, unknown>).auditLog as
       | {
           count: (args: { where: { resourceType: { in: string[] } } }) => Promise<number>
         }
@@ -298,6 +298,9 @@ async function main() {
 
   if (allClean) {
     console.log("\n✅ Database cleanup verified - all LiveRC data removed successfully!")
+    console.log(
+      "\n💡 Tip: If the event import page shows events as \"Ready\" with no Import buttons, run a search again so the UI refreshes."
+    )
   } else {
     console.log("\n⚠️  Warning: Some LiveRC data may still remain. Please check the counts above.")
   }

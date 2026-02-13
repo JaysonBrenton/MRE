@@ -27,10 +27,13 @@ import { ParentSize } from "@visx/responsive"
 import ChartContainer from "../ChartContainer"
 import type { HeatProgressionData } from "@/core/events/get-sessions-data"
 
+const DEFAULT_AXIS_COLOR = "#ffffff"
+
 export interface HeatProgressionChartProps {
   progressionData: HeatProgressionData[]
   height?: number
   className?: string
+  chartInstanceId?: string
 }
 
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
@@ -45,6 +48,7 @@ export default function HeatProgressionChart({
   progressionData,
   height = 500,
   className = "",
+  chartInstanceId = "sessions-heat-progression",
 }: HeatProgressionChartProps) {
   const chartTitleId = useId()
   const chartDescId = useId()
@@ -115,7 +119,11 @@ export default function HeatProgressionChart({
       height={height}
       className={className}
       aria-label="Heat progression chart showing qualifying, heats, and finals"
-    >
+      chartInstanceId={chartInstanceId}
+      axisColorPicker
+      defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
+      renderContent={({ xAxisColor, yAxisColor }) => (
+      <>
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>
           {({ width: parentWidth }) => {
@@ -222,17 +230,17 @@ export default function HeatProgressionChart({
                   {/* Y-axis */}
                   <AxisLeft
                     scale={yScale}
-                    stroke={borderColor}
-                    tickStroke={borderColor}
+                    stroke={yAxisColor}
+                    tickStroke={yAxisColor}
                     tickLabelProps={() => ({
-                      fill: textSecondaryColor,
+                      fill: yAxisColor,
                       fontSize: 12,
                       textAnchor: "end",
                       dx: -8,
                     })}
                     label="Number of Sessions"
                     labelProps={{
-                      fill: textSecondaryColor,
+                      fill: yAxisColor,
                       fontSize: 12,
                       textAnchor: "middle",
                       dy: -50,
@@ -243,10 +251,10 @@ export default function HeatProgressionChart({
                   <AxisBottom
                     top={innerHeight}
                     scale={xScale}
-                    stroke={borderColor}
-                    tickStroke={borderColor}
+                    stroke={xAxisColor}
+                    tickStroke={xAxisColor}
                     tickLabelProps={() => ({
-                      fill: textSecondaryColor,
+                      fill: xAxisColor,
                       fontSize: 12,
                       textAnchor: "middle",
                       dy: 8,
@@ -302,6 +310,8 @@ export default function HeatProgressionChart({
           <span className="text-[var(--token-text-secondary)]">Finals</span>
         </div>
       </div>
-    </ChartContainer>
+      </>
+      )}
+      />
   )
 }

@@ -45,6 +45,12 @@ patterns (API-first, separation of concerns) that enable clean architecture, not
 mobile UI support. The application is desktop-only for UI, but the architecture
 patterns remain valuable for maintainability and future flexibility.
 
+**Mobile strategy:** Version 0.1.1 does not support mobile. Telemetry
+visualizations, dashboards, and all user-facing features are desktop-only (1280px+
+viewport). A separate native mobile app is planned for a future release. Do not
+implement mobile-specific layouts, touch optimizations, or responsive breakpoints
+for telemetry or dashboard features in the web app.
+
 ---
 
 # 1. Architectural Principles (Four Core Rules)
@@ -345,7 +351,6 @@ Version 0.1.1 entities include:
 
 ## 5.3 Forbidden
 
-- No telemetry tables (sensor data, GPS, IMU)
 - No user-generated session models (race setup sheets, custom sessions)
 - No analytics/aggregation tables beyond basic race results
 
@@ -368,7 +373,8 @@ UI must:
 - Dashboard systems with customizable widgets (user, driver, team, track
   dashboards with drag-and-drop, resize, rearrange)
 - Telemetry visualizations (all visualization types: lap time charts, speed
-  graphs, GPS tracks, sensor data, sector analysis - real-time and historical)
+  graphs, GPS tracks, sensor data, sector analysis - real-time and historical;
+  desktop-only; see `docs/telemetry/Design/Telemetry_Ux_Blueprint.md`)
 - Navigation structures (breadcrumb navigation as primary pattern, sidebars,
   multi-level dropdowns and tabs as secondary patterns)
 
@@ -496,7 +502,6 @@ Version 0.1.1 must:
 
 These items may be referenced but **must not** be implemented:
 
-- Telemetry ingestion services
 - Race session pipelines
 - Worker queues
 - Python-based LiveRC scraper

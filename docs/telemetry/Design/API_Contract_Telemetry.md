@@ -12,6 +12,10 @@ License: Proprietary, internal to MRE
 This document locks in section 2 from `Gaps And Recommended Additions.md`: a
 clear API contract and query patterns that match the Telemetry UX.
 
+**Storage authority:** Parquet is canonical; ClickHouse is a derived cache for
+interactive reads. See
+`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`.
+
 It also defines where the existing Python service should be used versus what
 belongs in the Next.js app.
 

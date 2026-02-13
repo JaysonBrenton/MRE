@@ -19,6 +19,7 @@ import { createRequestLogger, generateRequestId } from "@/lib/request-context"
 import { handleApiError, handleExternalServiceError } from "@/lib/server-error-handler"
 import { getEventBySourceId } from "@/core/events/repo"
 import { toHttpErrorPayload } from "@/lib/ingestion-error-map"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter"
 
 // Increase timeout for large event ingestion (up to 10 minutes)
 export const maxDuration = 600 // 10 minutes in seconds
@@ -33,6 +34,21 @@ export async function POST(request: NextRequest) {
     requestLogger.warn("Unauthorized event ingestion request")
     return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
+
+  // Rate limit ingestion (same as eventId ingest: 10 requests per minute)
+  const rateLimitResult = checkRateLimit(request, RATE_LIMITS.ingestion)
+  if (!rateLimitResult.allowed) {
+    requestLogger.warn("Rate limit exceeded for ingestion (by source)", {
+      resetTime: rateLimitResult.resetTime,
+    })
+    return errorResponse(
+      "RATE_LIMIT_EXCEEDED",
+      "Too many ingestion requests. Please try again later.",
+      { resetTime: rateLimitResult.resetTime },
+      429
+    )
+  }
+
   // Declare variables outside try block so they're accessible in catch
   let source_event_id: string | undefined
   let track_id: string | undefined
@@ -59,12 +75,26 @@ export async function POST(request: NextRequest) {
       return errorResponse("VALIDATION_ERROR", "track_id is required", { field: "track_id" }, 400)
     }
 
-    // Call ingestion client
+    // Call ingestion client (may return queued job when queue is enabled)
     const result = await ingestionClient.ingestEventBySourceId(
       source_event_id,
       track_id,
       depth || "laps_full"
     )
+
+    // Queued: return 202 so client can poll job status
+    if (
+      result &&
+      "job_id" in result &&
+      result.status === "queued"
+    ) {
+      requestLogger.info("Event ingestion queued", {
+        sourceEventId: source_event_id,
+        trackId: track_id,
+        jobId: result.job_id,
+      })
+      return successResponse({ job_id: result.job_id }, 202)
+    }
 
     requestLogger.info("Event ingestion completed", {
       sourceEventId: source_event_id,

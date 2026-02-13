@@ -19,13 +19,7 @@
 
 import { KeyboardEvent } from "react"
 
-export type TabId =
-  | "overview"
-  | "drivers"
-  | "entry-list"
-  | "sessions"
-  | "comparisons"
-  | "comparison-test"
+export type TabId = "overview" | "sessions" | "my-events" | "drivers"
 
 export interface Tab {
   id: TabId
@@ -36,21 +30,22 @@ export interface TabNavigationProps {
   tabs: Tab[]
   activeTab: TabId
   onTabChange: (tabId: TabId) => void
+  /** When true, omit bottom border (e.g. when used inside EventAnalysisToolbar which provides the border). */
+  embedded?: boolean
 }
 
 const defaultTabs: Tab[] = [
   { id: "overview", label: "Event Overview" },
-  { id: "drivers", label: "Drivers" },
-  { id: "entry-list", label: "Entry List" },
   { id: "sessions", label: "Event Sessions" },
-  { id: "comparisons", label: "Comparisons" },
-  { id: "comparison-test", label: "Comparison Test" },
+  { id: "my-events", label: "My Events" },
+  { id: "drivers", label: "Drivers" },
 ]
 
 export default function TabNavigation({
   tabs = defaultTabs,
   activeTab,
   onTabChange,
+  embedded = false,
 }: TabNavigationProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, tabId: TabId) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -71,7 +66,7 @@ export default function TabNavigation({
 
   return (
     <div
-      className="border-b border-[var(--token-border-default)] overflow-x-auto"
+      className={`overflow-x-auto ${embedded ? "" : "border-b border-[var(--token-border-default)]"}`}
       role="tablist"
       aria-label="Event analysis tabs"
     >

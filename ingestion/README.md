@@ -137,8 +137,14 @@ pytest
 - `POST /api/v1/tracks/sync` - Sync track catalogue
 - `POST /api/v1/events/sync` - Sync events for track
 - `POST /api/v1/events/{event_id}/ingest` - Trigger event ingestion
+- `POST /api/v1/events/ingest` - Ingest event by source_event_id + track_id
+- `GET /api/v1/ingestion/jobs/{job_id}` - Get queued ingestion job status (when queue enabled)
 - `GET /api/v1/ingestion/status/{event_id}` - Get ingestion status
 - `GET /health` - Health check
+
+### Async ingestion (queue)
+
+When `INGESTION_USE_QUEUE=true` (default), ingest POSTs return **202 Accepted** with a `job_id`; clients poll `GET /api/v1/ingestion/jobs/{job_id}` until the job completes or fails. Configuration: `INGESTION_USE_QUEUE`, `INGESTION_QUEUE_MAX_CONCURRENT`, `UVICORN_WORKERS` (must be 1 when queue enabled). See `docs/architecture/liverc-ingestion/28-async-ingestion-queue.md`.
 
 ## Architecture
 
@@ -226,6 +232,25 @@ Fixtures enable:
    ```
 
 4. Add `notes.md` documenting any quirks or edge cases
+
+### Telemetry Fixtures
+
+Synthetic telemetry seed data for parsers, pipeline, and UI testing:
+
+- **Location:** `tests/fixtures/telemetry/`
+- **Track templates:** KML files in `tests/fixtures/telemetry/track-templates/`
+  (polygon = racing line)
+- **Generator:** `python ingestion/scripts/generate-telemetry-seed.py`
+- **Usage:** See `docs/telemetry/Design/Telemetry_Seed_Data_Guide.md`
+
+Example (run inside ingestion container):
+
+```bash
+docker exec -it mre-liverc-ingestion-service python /app/ingestion/scripts/generate-telemetry-seed.py \
+  --track /app/ingestion/tests/fixtures/telemetry/track-templates/cormcc.kml \
+  --output /app/ingestion/tests/fixtures/telemetry/synth/pack-a/cormcc-clean-position-only \
+  --laps 10 --seed 42
+```
 
 ### Troubleshooting Parser Failures
 

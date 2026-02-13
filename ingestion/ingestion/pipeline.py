@@ -54,6 +54,7 @@ from ingestion.ingestion.state_machine import IngestionStateMachine
 from ingestion.ingestion.validator import Validator
 from ingestion.ingestion.driver_matcher import DriverMatcher
 from ingestion.ingestion.auto_confirm import check_and_confirm_links
+from ingestion.ingestion.derived_laps import run_derivation_for_race
 
 logger = get_logger(__name__)
 
@@ -504,32 +505,18 @@ class IngestionPipeline:
         race_summary: ConnectorRaceSummary,
         race_package: ConnectorRacePackage,
         event_id: UUID,
-        event_entries_cache: Dict[str, List[EventEntry]],
+        event_entries_plain_cache: Dict[str, List[Dict[str, Any]]],
     ) -> Tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Process CPU-bound operations for a single race (synchronous, runs in thread pool).
-        
-        This function performs all CPU-intensive work (normalization, validation, matching)
-        without accessing the database. Database writes happen separately in the main thread.
-        
-        Args:
-            race_summary: Race summary
-            race_package: Race package with results and laps
-            event_id: Event ID for validation
-            event_entries_cache: Cached event entries by class name
-        
-        Returns:
-            Tuple of (normalized_race, processed_results, race_laps)
-            - normalized_race: Normalized race data dict
-            - processed_results: List of dicts with result, normalized_result, matched_event_entry info
-            - race_laps: List of normalized lap dicts (without race_result_id)
+        Uses plain dicts only so no SQLAlchemy session is touched from worker threads.
         """
         # Normalize race data (CPU-bound)
         normalized_race = Normalizer.normalize_race(race_package.race_summary)
-        
+
         processed_results = []
         race_laps = []
-        
+
         # Process results (CPU-bound)
         for result in race_package.results:
             # Validate result (CPU-bound)
@@ -538,14 +525,14 @@ class IngestionPipeline:
             # Normalize result (CPU-bound)
             normalized_result = Normalizer.normalize_result(result)
             
-            # Match race result driver to EventEntry record (CPU-bound, uses cached entries)
+            # Match race result driver to event entry (CPU-bound, plain dicts only - thread-safe)
             class_name = normalized_race["class_name"]
-            event_entries = event_entries_cache.get(class_name, [])
-            
-            matched_event_entry = None
-            if event_entries:
-                matched_event_entry = DriverMatcher.match_race_result_to_event_entry(
-                    event_entries=event_entries,
+            event_entries_plain = event_entries_plain_cache.get(class_name, [])
+
+            matched_event_entry_plain = None
+            if event_entries_plain:
+                matched_event_entry_plain = DriverMatcher.match_race_result_to_event_entry_plain(
+                    event_entries_plain=event_entries_plain,
                     race_result=result,
                     class_name=class_name,
                 )
@@ -587,7 +574,7 @@ class IngestionPipeline:
             processed_results.append({
                 "result": result,
                 "normalized_result": normalized_result,
-                "matched_event_entry": matched_event_entry,
+                "matched_event_entry": matched_event_entry_plain,  # plain dict or None
             })
             race_laps.extend(driver_race_laps)
         
@@ -598,27 +585,15 @@ class IngestionPipeline:
         race_summary: ConnectorRaceSummary,
         race_package: ConnectorRacePackage,
         event_id: UUID,
-        event_entries_cache: Dict[str, List[EventEntry]],
+        event_entries_plain_cache: Dict[str, List[Dict[str, Any]]],
     ) -> Tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """
-        Process CPU-bound operations for a single race (async wrapper for thread pool).
-        
-        Args:
-            race_summary: Race summary
-            race_package: Race package with results and laps
-            event_id: Event ID for validation
-            event_entries_cache: Cached event entries by class name
-        
-        Returns:
-            Tuple of (normalized_race, processed_results, race_laps)
-        """
-        # Run CPU-bound work in thread pool to bypass GIL
+        """Process CPU-bound work in thread pool; uses plain dicts only (thread-safe)."""
         return await asyncio.to_thread(
             self._process_race_cpu_sync,
             race_summary,
             race_package,
             event_id,
-            event_entries_cache,
+            event_entries_plain_cache,
         )
     
     def _batch_write_races_data(
@@ -626,8 +601,9 @@ class IngestionPipeline:
         repo: Repository,
         event_id: UUID,
         batch_races_data: List[Dict[str, Any]],
-        event_entries_cache: Dict[str, List[EventEntry]],
-    ) -> Tuple[int, int, int]:
+        event_entries_plain_cache: Dict[str, List[Dict[str, Any]]],
+        event_entry_by_id: Dict[str, EventEntry],
+    ) -> Tuple[int, int, int, List[Dict[str, Any]], List[str]]:
         """
         Batch write multiple races' data to the database.
         
@@ -636,7 +612,7 @@ class IngestionPipeline:
         2. Bulk writes all races
         3. Bulk writes all race_drivers
         4. Bulk writes all race_results
-        5. Returns accumulated laps for later bulk write
+        5. Returns accumulated laps for later bulk write and race IDs for lap annotation derivation
         
         Args:
             repo: Repository instance
@@ -647,15 +623,17 @@ class IngestionPipeline:
                 - normalized_race: Dict
                 - processed_results: List[Dict]
                 - race_laps: List[Dict]
-            event_entries_cache: Cached event entries by class name
+            event_entries_plain_cache: Plain entry cache by class name (for metrics)
+            event_entry_by_id: Event entry id -> EventEntry for resolving matched dict to ORM
         
         Returns:
-            Tuple of (races_ingested, results_ingested, laps_ingested, accumulated_laps)
+            Tuple of (races_ingested, results_ingested, laps_ingested, accumulated_laps, batch_race_ids)
         """
         races_ingested = 0
         results_ingested = 0
         laps_ingested = 0
         accumulated_laps: List[Dict[str, Any]] = []
+        batch_race_ids: List[str] = []
         
         # Step 1: Process driver updates first (these must happen before race_drivers)
         # Collect all drivers that need to be updated/created
@@ -691,7 +669,7 @@ class IngestionPipeline:
                     "race_label": normalized_race["race_label"],
                     "race_order": normalized_race["race_order"],
                     "race_url": normalized_race["race_url"],
-                    "start_time": normalized_race["start_time"],
+                    "start_time": normalized_race.get("start_time"),
                     "duration_seconds": normalized_race["duration_seconds"],
                     "session_type": normalized_race.get("session_type", "race"),  # Default to "race" if not inferred
                 })
@@ -706,25 +684,30 @@ class IngestionPipeline:
                 "race_label": normalized_race["race_label"],
                 "race_order": normalized_race["race_order"],
                 "race_url": normalized_race["race_url"],
-                "start_time": normalized_race["start_time"],
+                "start_time": normalized_race.get("start_time"),
                 "duration_seconds": normalized_race["duration_seconds"],
                 "session_type": normalized_race.get("session_type", "race"),  # Default to "race" if not inferred
             })
             
             # Process results to collect driver and race_driver/result data
             class_name = normalized_race["class_name"]
-            event_entries = event_entries_cache.get(class_name, [])
-            
+            event_entries_plain = event_entries_plain_cache.get(class_name, [])
+
             for processed in processed_results:
                 result = processed["result"]
                 normalized_result = processed["normalized_result"]
-                matched_event_entry = processed["matched_event_entry"]
-                
+                matched_event_entry = processed["matched_event_entry"]  # plain dict or None
+
+                # Resolve plain dict to EventEntry in main thread (session-safe)
+                if matched_event_entry is not None and isinstance(matched_event_entry, dict):
+                    entry_id = matched_event_entry.get("id")
+                    matched_event_entry = event_entry_by_id.get(entry_id) if entry_id else None
+
                 # Track cache usage
                 metrics.record_event_entry_cache_lookup(str(event_id))
-                if event_entries:
+                if event_entries_plain:
                     metrics.record_event_entry_cache_hit(str(event_id))
-                
+
                 # SKIP unmatched drivers - they don't belong in this class
                 # This ensures data integrity: drivers only appear in classes they're entered in.
                 # Multi-class drivers will still be processed when we encounter them in their actual classes.
@@ -797,10 +780,13 @@ class IngestionPipeline:
                     "position_final": normalized_result["position_final"],
                     "laps_completed": normalized_result["laps_completed"],
                     "total_time_raw": normalized_result.get("total_time_raw"),
-                    "total_time_seconds": normalized_result["total_time_seconds"],
+                    "total_time_seconds": normalized_result.get("total_time_seconds"),
                     "fast_lap_time": normalized_result["fast_lap_time"],
                     "avg_lap_time": normalized_result["avg_lap_time"],
                     "consistency": normalized_result["consistency"],
+                    "qualifying_position": normalized_result.get("qualifying_position"),
+                    "seconds_behind": normalized_result.get("seconds_behind"),
+                    "raw_fields_json": normalized_result.get("raw_fields_json"),
                     "_source_race_id": normalized_race["source_race_id"],  # Temporary for mapping
                     "_source_driver_id": normalized_result["source_driver_id"],  # Temporary for mapping
                 })
@@ -889,7 +875,38 @@ class IngestionPipeline:
             
             laps_ingested = len(accumulated_laps)
         
-        return races_ingested, results_ingested, laps_ingested, accumulated_laps
+        batch_race_ids = list(race_id_map.values())
+        return races_ingested, results_ingested, laps_ingested, accumulated_laps, batch_race_ids
+    
+    def _run_lap_annotation_derivation(
+        self,
+        repo: Repository,
+        race_ids: List[str],
+    ) -> None:
+        """
+        Run lap annotation derivation for the given race IDs (post-ingestion).
+        Loads race data, runs derivation rules, deletes old annotations, upserts new ones.
+        """
+        if not race_ids:
+            return
+        for race_id in race_ids:
+            try:
+                race_data = repo.get_race_with_results_laps_for_derivation(race_id)
+                if not race_data:
+                    continue
+                annotations = run_derivation_for_race(race_data)
+                repo.delete_lap_annotations_for_race(race_id)
+                if annotations:
+                    repo.bulk_upsert_lap_annotations(annotations)
+            except Exception as e:
+                logger.warning(
+                    "lap_annotation_derivation_failed",
+                    race_id=race_id,
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    message="Lap annotation derivation failed for race; continuing",
+                )
+        repo.session.commit()
     
     async def _process_races_parallel(
         self,
@@ -920,65 +937,61 @@ class IngestionPipeline:
         results_ingested = 0
         laps_ingested = 0
         
-        # Preload all event entries for this event and cache by class name
-        # This eliminates redundant database queries inside the race processing loop
+        # Preload all event entries and build plain cache for thread pool (no ORM in workers)
         all_event_entries = repo.get_event_entries_by_event(event_id=event_id)
-        event_entries_cache: Dict[str, List[EventEntry]] = {}
+        event_entries_plain_cache: Dict[str, List[Dict[str, Any]]] = {}
+        event_entry_by_id: Dict[str, EventEntry] = {}
         for entry in all_event_entries:
+            event_entry_by_id[str(entry.id)] = entry
             class_name = entry.class_name
-            if class_name not in event_entries_cache:
-                event_entries_cache[class_name] = []
-            event_entries_cache[class_name].append(entry)
-        
+            if class_name not in event_entries_plain_cache:
+                event_entries_plain_cache[class_name] = []
+            # Plain dict for thread-safe use in _process_race_cpu_sync
+            event_entries_plain_cache[class_name].append({
+                "id": str(entry.id),
+                "driver_id": str(entry.driver_id),
+                "source_driver_id": entry.driver.source_driver_id,
+                "display_name": entry.driver.display_name,
+            })
         logger.debug(
             "event_entries_cached",
             event_id=str(event_id),
             total_entries=len(all_event_entries),
-            classes=len(event_entries_cache),
+            classes=len(event_entries_plain_cache),
         )
         
-        # Process races in batches to limit concurrent requests
-        batch_size = self.RACE_FETCH_CONCURRENCY
+        # Process races in batches to limit concurrent requests. Batch size is
+        # recalculated before each fetch so adaptive concurrency adjustments
+        # take effect during a single ingestion run.
         # Commit in batches to reduce transaction overhead (every 35 races, increased from 20)
         COMMIT_BATCH_SIZE = 35
         races_since_commit = 0
-        
+
         # Accumulate laps across races within commit batches for better batching efficiency
         # This reduces function call overhead and allows larger, more efficient batches
         accumulated_laps: List[Dict[str, Any]] = []
-        
-        total_batches = (len(race_summaries) + batch_size - 1) // batch_size  # Ceiling division
-        
+        race_ids_for_derivation: List[str] = []
+        total_races = len(race_summaries)
+
         # Create ONE shared HTTPXClient for ALL batches to enable connection pooling
         # This significantly improves performance by reusing TCP connections across batches
         async with HTTPXClient(self.connector._site_policy) as shared_client:
-            # Pipeline optimization: Start fetching next batch while processing current batch
-            # This overlaps network I/O with CPU/DB work for better throughput
-            next_batch_fetch_task: Optional[asyncio.Task] = None
-            
-            for batch_num, batch_start in enumerate(range(0, len(race_summaries), batch_size)):
-                batch = race_summaries[batch_start:batch_start + batch_size]
-                
-                # If we have a prefetched batch from previous iteration, use it
-                if next_batch_fetch_task is not None:
-                    # Wait for the prefetched batch to complete
-                    race_data_pairs = await next_batch_fetch_task
-                    next_batch_fetch_task = None
-                else:
-                    # First batch - fetch it now
-                    race_data_pairs = await self._process_races_batch(batch, event_id, shared_client)
-                
-                # Start fetching next batch in parallel (if there is one)
-                # This allows network I/O to happen while we process current batch
-                if batch_num + 1 < total_batches:
-                    next_batch = race_summaries[(batch_num + 1) * batch_size:(batch_num + 2) * batch_size]
-                    next_batch_fetch_task = asyncio.create_task(
-                        self._process_races_batch(next_batch, event_id, shared_client)
-                    )
-                
-                # Process CPU-bound work in parallel (normalization, validation, matching)
+            batch_index = 0
+            while batch_index < total_races:
+                batch_size = max(1, self.RACE_FETCH_CONCURRENCY)
+                batch = race_summaries[batch_index:batch_index + batch_size]
+                batch_index += len(batch)
+
+                if not batch:
+                    break
+
+                race_data_pairs = await self._process_races_batch(batch, event_id, shared_client)
+
+                # Process CPU-bound work in parallel (plain cache only - thread-safe)
                 cpu_tasks = [
-                    self._process_race_cpu(race_summary, race_package, event_id, event_entries_cache)
+                    self._process_race_cpu(
+                        race_summary, race_package, event_id, event_entries_plain_cache
+                    )
                     for race_summary, race_package in race_data_pairs
                 ]
                 processed_races = await asyncio.gather(*cpu_tasks, return_exceptions=True)
@@ -1009,26 +1022,31 @@ class IngestionPipeline:
                 
                 # Batch write all races in this batch
                 if batch_races_data:
-                    batch_races, batch_results, batch_laps, batch_accumulated_laps = self._batch_write_races_data(
+                    batch_races, batch_results, batch_laps, batch_accumulated_laps, batch_race_ids = self._batch_write_races_data(
                         repo=repo,
                         event_id=event_id,
                         batch_races_data=batch_races_data,
-                        event_entries_cache=event_entries_cache,
+                        event_entries_plain_cache=event_entries_plain_cache,
+                        event_entry_by_id=event_entry_by_id,
                     )
                     races_ingested += batch_races
                     results_ingested += batch_results
                     laps_ingested += batch_laps
                     accumulated_laps.extend(batch_accumulated_laps)
                     races_since_commit += batch_races
+                    race_ids_for_derivation.extend(batch_race_ids)
                     self._record_activity()  # Record progress
                     
                     # Commit in batches
-                    is_last_batch = (batch_num + 1) == total_batches
+                    is_last_batch = batch_index >= total_races
                     if races_since_commit >= COMMIT_BATCH_SIZE or is_last_batch:
                         if accumulated_laps:
                             repo.bulk_upsert_laps(accumulated_laps)
                             accumulated_laps = []  # Clear for next commit batch
                         repo.session.commit()
+                        # Post-ingestion: derive lap annotations for races we just wrote laps for
+                        self._run_lap_annotation_derivation(repo, race_ids_for_derivation)
+                        race_ids_for_derivation.clear()
                         races_since_commit = 0
                         self._record_activity()  # Record progress after commit
             
@@ -1037,6 +1055,7 @@ class IngestionPipeline:
             if accumulated_laps:
                 repo.bulk_upsert_laps(accumulated_laps)
                 repo.session.commit()
+                self._run_lap_annotation_derivation(repo, race_ids_for_derivation)
 
         return races_ingested, results_ingested, laps_ingested
     

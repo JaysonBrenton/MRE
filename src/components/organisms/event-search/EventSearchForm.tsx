@@ -23,6 +23,7 @@ import TrackSelectionModal from "./TrackSelectionModal"
 import { type Track } from "./TrackRow"
 import DateRangePicker from "./DateRangePicker"
 import MonthYearPicker from "../practice-days/MonthYearPicker"
+import LabeledSwitch from "@/components/molecules/LabeledSwitch"
 import { clientLogger } from "@/lib/client-logger"
 import { isPracticeDaysEnabled } from "@/lib/feature-flags"
 
@@ -239,55 +240,15 @@ export default function EventSearchForm({
               <label className="block text-sm font-medium text-[var(--token-text-primary)] mb-2">
                 Search Type
               </label>
-              <div className="flex items-center gap-3">
-                <span
-                  className={`text-sm font-medium transition-colors ${
-                    searchMode === "events"
-                      ? "text-[var(--token-text-primary)]"
-                      : "text-[var(--token-text-secondary)]"
-                  }`}
-                >
-                  Events
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={searchMode === "practice-days"}
-                  aria-label={`Switch to ${searchMode === "events" ? "Practice Days" : "Events"}`}
-                  onClick={() =>
-                    onSearchModeChange(searchMode === "events" ? "practice-days" : "events")
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault()
-                      onSearchModeChange(searchMode === "events" ? "practice-days" : "events")
-                    } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                      e.preventDefault()
-                      onSearchModeChange(e.key === "ArrowLeft" ? "events" : "practice-days")
-                    }
-                  }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] focus:ring-offset-[var(--token-surface)] ${
-                    searchMode === "events"
-                      ? "bg-[var(--token-surface-elevated)] border-[var(--token-border-default)]"
-                      : "bg-[var(--token-accent)]/30 border-[var(--token-accent)]/50"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-[var(--token-surface)] border border-[var(--token-border-default)] shadow-sm transition-transform duration-200 ease-in-out ${
-                      searchMode === "events" ? "translate-x-1" : "translate-x-6"
-                    }`}
-                  />
-                </button>
-                <span
-                  className={`text-sm font-medium transition-colors ${
-                    searchMode === "practice-days"
-                      ? "text-[var(--token-text-primary)]"
-                      : "text-[var(--token-text-secondary)]"
-                  }`}
-                >
-                  Practice Days
-                </span>
-              </div>
+              <LabeledSwitch
+                leftLabel="Events"
+                rightLabel="Practice Days"
+                checked={searchMode === "practice-days"}
+                onChange={(checked) =>
+                  onSearchModeChange(checked ? "practice-days" : "events")
+                }
+                aria-label={`Switch to ${searchMode === "events" ? "Practice Days" : "Events"}`}
+              />
             </div>
           )}
 

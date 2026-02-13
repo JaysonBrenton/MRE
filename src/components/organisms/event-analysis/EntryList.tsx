@@ -19,7 +19,6 @@
 
 import { useState, useMemo, useEffect } from "react"
 import ListPagination from "./ListPagination"
-import ClassFilter from "./ClassFilter"
 import ChartContainer from "./ChartContainer"
 import ClassDetailsModal from "./ClassDetailsModal"
 
@@ -58,32 +57,12 @@ export default function EntryList({ entries, raceClasses, eventId }: EntryListPr
   const [sortField, setSortField] = useState<SortField>("driverName")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedClass, setSelectedClass] = useState<string | null>(null)
   const [itemsPerPage, setItemsPerPage] = useState(5)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalClassName, setModalClassName] = useState<string | null>(null)
 
-  // Extract unique classes from entries
-  const availableClasses = useMemo(() => {
-    const classes = new Set<string>()
-    entries.forEach((entry) => {
-      if (entry.className) {
-        classes.add(entry.className)
-      }
-    })
-    return Array.from(classes).sort()
-  }, [entries])
-
-  // Filter entries by class
-  const filteredEntries = useMemo(() => {
-    if (!selectedClass) {
-      return entries
-    }
-    return entries.filter((entry) => entry.className === selectedClass)
-  }, [entries, selectedClass])
-
   const sortedEntries = useMemo(() => {
-    const sorted = [...filteredEntries].sort((a, b) => {
+    const sorted = [...entries].sort((a, b) => {
       let aValue: number | string | null
       let bValue: number | string | null
 
@@ -114,7 +93,7 @@ export default function EntryList({ entries, raceClasses, eventId }: EntryListPr
     })
 
     return sorted
-  }, [filteredEntries, sortField, sortDirection])
+  }, [entries, sortField, sortDirection])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -142,7 +121,7 @@ export default function EntryList({ entries, raceClasses, eventId }: EntryListPr
     setTimeout(() => {
       setCurrentPage(1)
     }, 0)
-  }, [sortField, sortDirection, selectedClass, itemsPerPage])
+  }, [sortField, sortDirection, itemsPerPage])
 
   return (
     <ChartContainer
@@ -151,15 +130,6 @@ export default function EntryList({ entries, raceClasses, eventId }: EntryListPr
       aria-label="Entry list with driver names, classes, transponders, and car numbers"
     >
       <div className="space-y-4">
-        {/* Class Filter */}
-        <div className="flex justify-end">
-          <ClassFilter
-            classes={availableClasses}
-            selectedClass={selectedClass}
-            onClassChange={setSelectedClass}
-          />
-        </div>
-
         {/* Table layout */}
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">

@@ -342,6 +342,8 @@ class RaceResult(Base):
     fast_lap_time = Column("fast_lap_time", Float, nullable=True)
     avg_lap_time = Column("avg_lap_time", Float, nullable=True)
     consistency = Column("consistency", Float, nullable=True)
+    qualifying_position = Column("qualifying_position", Integer, nullable=True)
+    seconds_behind = Column("seconds_behind", Float, nullable=True)
     raw_fields_json = Column("raw_fields_json", JSONB, nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -349,6 +351,7 @@ class RaceResult(Base):
     race = relationship("Race", back_populates="results")
     race_driver = relationship("RaceDriver", back_populates="results")
     laps = relationship("Lap", back_populates="race_result", cascade="all, delete-orphan")
+    lap_annotations = relationship("LapAnnotation", back_populates="race_result", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("race_id", "race_driver_id", name="race_results_race_id_race_driver_id_key"),
@@ -382,6 +385,29 @@ class Lap(Base):
         Index("laps_race_result_id_lap_number_idx", "race_result_id", "lap_number"),
         Index("laps_race_result_id_idx", "race_result_id"),
         Index("laps_lap_number_idx", "lap_number"),
+    )
+
+
+class LapAnnotation(Base):
+    """LapAnnotation model for derived lap annotations (invalid laps, incidents, fuel stop, flame out)."""
+    __tablename__ = "lap_annotations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    race_result_id = Column("race_result_id", String, ForeignKey("race_results.id", ondelete="CASCADE"), nullable=False)
+    lap_number = Column("lap_number", Integer, nullable=False)
+    invalid_reason = Column("invalid_reason", String, nullable=True)
+    incident_type = Column("incident_type", String, nullable=True)
+    confidence = Column("confidence", Float, nullable=True)
+    annotation_metadata = Column("metadata", JSONB, nullable=True)  # Python attr != 'metadata' (reserved in Declarative)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    race_result = relationship("RaceResult", back_populates="lap_annotations")
+
+    __table_args__ = (
+        UniqueConstraint("race_result_id", "lap_number", name="lap_annotations_race_result_id_lap_number_key"),
+        Index("lap_annotations_race_result_id_lap_number_idx", "race_result_id", "lap_number"),
+        Index("lap_annotations_race_result_id_idx", "race_result_id"),
     )
 
 

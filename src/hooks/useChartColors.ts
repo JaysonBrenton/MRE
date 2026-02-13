@@ -26,6 +26,9 @@ export type SeriesName =
   | "bestLap"
   | "averageLap"
   | "consistency"
+  | "xAxis"
+  | "yAxis"
+  | "yAxisRight"
 
 const STORAGE_PREFIX = "mre-chart-color"
 
@@ -102,16 +105,12 @@ export function useChartColor(
     return readColorFromStorage(chartInstanceId, seriesName, defaultValue)
   })
 
-  // Hydrate from localStorage when dependencies change (client-side only)
-  // Use setTimeout to avoid synchronous setState in effect
+  // Hydrate from localStorage only when chart instance or series changes (not when color
+  // changes), so that user color picks are not overwritten by a re-run of this effect.
   useEffect(() => {
     const stored = readColorFromStorage(chartInstanceId, seriesName, defaultValue)
-    if (stored !== color) {
-      setTimeout(() => {
-        setColorState(stored)
-      }, 0)
-    }
-  }, [chartInstanceId, seriesName, defaultValue, color])
+    setColorState(stored)
+  }, [chartInstanceId, seriesName, defaultValue])
 
   const setColor = useCallback(
     (newColor: string) => {

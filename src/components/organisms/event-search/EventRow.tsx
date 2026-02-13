@@ -7,7 +7,7 @@
  *
  * @description Individual event row/card in the event table
  *
- * @purpose Displays event information with action buttons (Import, Select, Retry).
+ * @purpose Displays event information with action buttons (Upload, Analyse, Retry).
  *          Desktop-optimized table row layout.
  *
  * @relatedFiles
@@ -36,6 +36,8 @@ export interface EventRowProps {
   containsDriver?: boolean // Whether the driver name was found in the entry list
   importProgress?: { stage?: string; counts?: { races: number; results: number; laps: number } } // Progress information for ongoing imports
   onSelectForDashboard?: (eventId: string) => void // Callback for selecting an event for dashboard context
+  /** When true, Import/Retry buttons are disabled (e.g. another import is in progress) */
+  importDisabled?: boolean
 }
 
 function getStatusFromIngestDepth(
@@ -82,6 +84,7 @@ export default function EventRow({
   containsDriver = false,
   importProgress,
   onSelectForDashboard,
+  importDisabled = false,
 }: EventRowProps) {
   const router = useRouter()
   const derivedStatus = getStatusFromIngestDepth(event.ingestDepth, event.id, event.eventDate)
@@ -101,14 +104,16 @@ export default function EventRow({
   const isImportable = status === "new" && !isScheduled // Future events are not importable
   const canSelect = isImported && !isLiveRCOnly // Show Select button for all imported events
 
+  const importButtonDisabled = isImporting || importDisabled
+
   const handleImport = () => {
-    if (onImport && !isImporting) {
+    if (onImport && !importButtonDisabled) {
       onImport(event)
     }
   }
 
   const handleRetry = () => {
-    if (onImport && !isImporting) {
+    if (onImport && !importButtonDisabled) {
       onImport(event)
     }
   }
@@ -207,16 +212,17 @@ export default function EventRow({
       <div className="flex items-center justify-center gap-4">
         {/* Action Buttons */}
         <div className="flex gap-2">
-          {/* Import Button - shown for importable events */}
+          {/* Upload Button - shown for importable events */}
           {isImportable && onImport && (
             <button
               type="button"
               onClick={handleImport}
-              disabled={isImporting}
+              disabled={importButtonDisabled}
+              title={importDisabled && !isImporting ? "Finish the current import first" : undefined}
               className="flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
-              aria-label={`Import ${event.eventName}`}
+              aria-label={`Upload ${event.eventName}`}
             >
-              Import
+              Upload
             </button>
           )}
 
@@ -225,7 +231,8 @@ export default function EventRow({
             <button
               type="button"
               onClick={handleRetry}
-              disabled={isImporting}
+              disabled={importButtonDisabled}
+              title={importDisabled && !isImporting ? "Finish the current import first" : undefined}
               className="flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-5 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
               aria-label={`Retry import for ${event.eventName}`}
             >
@@ -233,15 +240,15 @@ export default function EventRow({
             </button>
           )}
 
-          {/* Select Button - shown for imported events */}
+          {/* Analyse Button - shown for imported events */}
           {canSelect && (
             <button
               type="button"
               onClick={handleSelect}
               className="flex items-center justify-center rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-text)]/10 px-5 text-sm font-medium text-[var(--token-status-success-text)] transition-colors hover:bg-[var(--token-status-success-text)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
-              aria-label={`Select ${event.eventName} for dashboard`}
+              aria-label={`Analyse ${event.eventName}`}
             >
-              Select
+              Analyse
             </button>
           )}
         </div>

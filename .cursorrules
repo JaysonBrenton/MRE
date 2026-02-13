@@ -20,6 +20,7 @@
 - Architecture docs are in `docs/architecture/`
 - Operations guides are in `docs/operations/`
 - Always check `docs/AGENTS.md` Section 1 for Docker environment rules
+- For frontend: follow `docs/architecture/atomic-design-system.md` and Redux store patterns in `src/store/`
 
 ## When Troubleshooting
 

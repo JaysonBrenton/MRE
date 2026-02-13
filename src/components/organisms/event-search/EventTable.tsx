@@ -40,6 +40,10 @@ export interface EventTableProps {
     { stage?: string; counts?: { races: number; results: number; laps: number } }
   > // Progress information per event
   onSelectForDashboard?: (eventId: string) => void // Callback for selecting an event for dashboard context
+  /** When true, all Import buttons are disabled (e.g. while any import is in progress) */
+  importDisabled?: boolean
+  /** Persisted set of event ids we've seen as fully imported; used so after reopen we show "Ready" if API returns stale/empty ingest_depth */
+  knownImportedIds?: Set<string>
 }
 
 export default function EventTable({
@@ -49,13 +53,45 @@ export default function EventTable({
   isCheckingLiveRC = false,
   onImportEvent,
   statusOverrides,
+  knownImportedIds,
   errorMessages = {},
   driverInEvents = {},
   eventImportProgress = {},
   onSelectForDashboard,
+  importDisabled = false,
 }: EventTableProps) {
   const [sortField, setSortField] = useState<SortField>("date")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+
+  // Resolve override/progress/error by event.id or by liverc-{sourceEventId}.
+  // When import is started for a LiveRC event (id = liverc-xxx) and the user
+  // searches another track then returns, the same event appears with its DB id;
+  // lookups by DB id would miss the state keyed by liverc-xxx, so we fall back.
+  // If no override but event is in knownImportedIds (persisted after reopen), show "imported" so we don't show "Not imported" for events we've already seen as ready.
+  function getStatusOverrideForEvent(event: Event): EventStatus | undefined {
+    const fromState =
+      statusOverrides?.[event.id] ??
+      (event.sourceEventId ? statusOverrides?.[`liverc-${event.sourceEventId}`] : undefined)
+    if (fromState) return fromState
+    if (knownImportedIds?.size) {
+      if (knownImportedIds.has(event.id)) return "imported"
+      if (event.sourceEventId && knownImportedIds.has(`liverc-${event.sourceEventId}`))
+        return "imported"
+    }
+    return undefined
+  }
+  function getImportProgressForEvent(event: Event) {
+    return (
+      eventImportProgress[event.id] ??
+      (event.sourceEventId ? eventImportProgress[`liverc-${event.sourceEventId}`] : undefined)
+    )
+  }
+  function getErrorMessageForEvent(event: Event): string | undefined {
+    return (
+      errorMessages[event.id] ??
+      (event.sourceEventId ? errorMessages[`liverc-${event.sourceEventId}`] : undefined)
+    )
+  }
 
   // Helper function to get event status for sorting (matches logic in EventRow)
   function getEventStatus(
@@ -67,8 +103,8 @@ export default function EventTable({
       return "scheduled"
     }
 
-    // Check for status override
-    const overrideStatus = statusOverrides?.[event.id]
+    // Check for status override (by event.id or liverc-{sourceEventId})
+    const overrideStatus = getStatusOverrideForEvent(event)
     if (overrideStatus) {
       return overrideStatus
     }
@@ -115,7 +151,7 @@ export default function EventTable({
     if (isEventInFuture(event.eventDate)) {
       return false
     }
-    const overrideStatus = statusOverrides?.[event.id]
+    const overrideStatus = getStatusOverrideForEvent(event)
     if (overrideStatus) {
       return overrideStatus === "new"
     }
@@ -295,11 +331,12 @@ export default function EventTable({
               key={event.id}
               event={event}
               onImport={onImportEvent}
-              statusOverride={statusOverrides?.[event.id]}
-              errorMessage={errorMessages[event.id]}
+              statusOverride={getStatusOverrideForEvent(event)}
+              errorMessage={getErrorMessageForEvent(event)}
               containsDriver={containsDriver}
-              importProgress={eventImportProgress[event.id]}
+              importProgress={getImportProgressForEvent(event)}
               onSelectForDashboard={onSelectForDashboard}
+              importDisabled={importDisabled}
             />
           )
         })}

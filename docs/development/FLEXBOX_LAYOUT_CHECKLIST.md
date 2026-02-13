@@ -115,9 +115,59 @@ items-center/justify-center:**
 - [ ] Tested on mobile viewport (375px width)
 - [ ] Verified no horizontal scrolling occurs
 
+## ✅ Centered Content with Flex (items-center/justify-center)
+
+**⚠️ CRITICAL: Always specify `flex-col` when centering text content vertically.**
+
+When using `flex items-center justify-center` to center content, forgetting `flex-col` causes width collapse and vertical text wrapping.
+
+**The Problem:**
+
+- You use `flex items-center justify-center` to center a message ✅
+- You add a `max-w-md` inner container for text ✅
+- But you forget `flex-col` to specify vertical stacking ❌
+- Result: Content collapses to minimal width, text wraps vertically (one word per line)
+
+**The Solution:**
+
+- [ ] **Always add `flex-col`** when centering content blocks with text
+- [ ] Add `w-full` to inner content containers to allow them to expand
+- [ ] Test with real text content to verify proper width
+
+**Example Pattern:**
+
+```tsx
+// ✅ CORRECT - flex-col ensures proper vertical stacking
+<div className="flex flex-col items-center justify-center h-64 px-4">
+  <div className="max-w-md w-full text-center">
+    <p className="text-[var(--token-text-primary)] mb-2">
+      User did not compete in this event.
+    </p>
+    <p className="text-[var(--token-text-secondary)]">
+      You can find your events on the My Events page.
+    </p>
+  </div>
+</div>
+
+// ❌ WRONG - Missing flex-col causes width collapse
+<div className="flex items-center justify-center h-64 text-center px-4">
+  <div className="max-w-md">
+    <p>This will wrap vertically!</p>
+  </div>
+</div>
+```
+
+**When to Apply:**
+
+- Any centered content block with text (`flex items-center justify-center`)
+- Empty states, loading messages, error messages
+- Any time you're centering a message or content block
+
+**Remember:** `items-center` alone can cause horizontal compression. Always pair with `flex-col` for vertical content layouts.
+
 ## ✅ Content Blocks in Scrollable Flex Containers
 
-**⚠️ CRITICAL: This is the #1 cause of horizontal compression bugs. Read this
+**⚠️ CRITICAL: This is the #2 cause of horizontal compression bugs. Read this
 section carefully.**
 
 When you create a scrollable flex layout (e.g., "form fixed, results scroll"),
@@ -241,9 +291,9 @@ If you see any of these, you have a layout bug:
 - Text overlaps with buttons/icons
 - Content appears as a thin grey bar
 - **Text wraps vertically (one word per line) in empty states or messages** ⚠️
-  **Most common flex compression bug**
-- **Content blocks have width: 0px in browser inspector** ⚠️ **Check inline
-  width styles**
+  **Most common flex compression bug - check for missing `flex-col`**
+- **Content blocks have width: 0px or very narrow (12px) in browser inspector** ⚠️ 
+  **Check for missing `flex-col` or inline width styles**
 - Pagination controls appear too close to footer
 - Footer overlaps pagination controls
 

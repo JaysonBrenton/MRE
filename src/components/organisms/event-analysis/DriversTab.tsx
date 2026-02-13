@@ -3,58 +3,39 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-27
+ * @lastModified 2026-01-31
  *
  * @description Drivers tab content for event analysis
  *
- * @purpose Displays driver list with stats, supports selection and sorting.
- *          Mobile-friendly with card layout on small screens.
+ * @purpose Displays combined entry list with driver stats (one table, no selection).
  *
  * @relatedFiles
- * - src/components/event-analysis/DriverList.tsx (driver list)
+ * - src/components/event-analysis/CombinedDriversTable.tsx (combined table)
  */
 
 "use client"
 
-import DriverList from "./DriverList"
+import CombinedDriversTable from "./CombinedDriversTable"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface DriversTabProps {
   data: EventAnalysisData
-  selectedDriverIds: string[]
-  onSelectionChange: (driverIds: string[]) => void
+  selectedClass?: string | null
+  onClassChange?: (className: string | null) => void
 }
 
 export default function DriversTab({
   data,
-  selectedDriverIds,
-  onSelectionChange,
+  selectedClass,
+  onClassChange,
 }: DriversTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
-      <div>
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">Drivers</h2>
-        <p className="text-sm text-[var(--token-text-secondary)] mb-4">
-          Select drivers to compare in the Comparisons tab
-        </p>
-      </div>
-
-      {data.drivers.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-[var(--token-text-secondary)]">
-            No driver data available for this event.
-          </p>
-        </div>
-      ) : (
-        <DriverList
-          drivers={data.drivers}
-          selectedDriverIds={selectedDriverIds}
-          onSelectionChange={onSelectionChange}
-          races={data.races}
-          raceClasses={data.raceClasses}
-          eventId={data.event.id}
-        />
-      )}
+      <CombinedDriversTable
+        data={data}
+        selectedClass={selectedClass}
+        onClassChange={onClassChange}
+      />
     </div>
   )
 }

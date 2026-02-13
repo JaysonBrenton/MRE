@@ -10,7 +10,7 @@
 #          (with transponder numbers) to race result drivers
 
 from datetime import datetime
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Any
 from uuid import UUID
 
 from rapidfuzz.distance import JaroWinkler
@@ -167,7 +167,61 @@ class DriverMatcher:
             entry_count=len(event_entries),
         )
         return None
-    
+
+    @staticmethod
+    def match_race_result_to_event_entry_plain(
+        event_entries_plain: List[Dict[str, Any]],
+        race_result: ConnectorRaceResult,
+        class_name: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Match race result driver to a plain event entry dict (thread-safe).
+        Use this when running in a thread pool; do not pass ORM objects across threads.
+        Plain entry dict must have: "id", "driver_id", "source_driver_id", "display_name".
+        """
+        if not event_entries_plain:
+            logger.debug(
+                "driver_match_no_event_entries",
+                driver_id=race_result.source_driver_id,
+                class_name=class_name,
+            )
+            return None
+
+        normalized_race_name = Normalizer.normalize_driver_name(race_result.display_name)
+
+        for entry in event_entries_plain:
+            if entry.get("source_driver_id") == race_result.source_driver_id:
+                logger.debug(
+                    "event_entry_match_by_id",
+                    driver_id=race_result.source_driver_id,
+                    driver_name=race_result.display_name,
+                    class_name=class_name,
+                )
+                return entry
+
+        for entry in event_entries_plain:
+            normalized_driver_name = Normalizer.normalize_driver_name(
+                entry.get("display_name") or ""
+            )
+            if normalized_driver_name == normalized_race_name:
+                logger.debug(
+                    "event_entry_match_by_name",
+                    driver_id=race_result.source_driver_id,
+                    driver_name=race_result.display_name,
+                    entry_driver_name=entry.get("display_name"),
+                    class_name=class_name,
+                )
+                return entry
+
+        logger.debug(
+            "event_entry_match_not_found",
+            driver_id=race_result.source_driver_id,
+            driver_name=race_result.display_name,
+            class_name=class_name,
+            entry_count=len(event_entries_plain),
+        )
+        return None
+
     @staticmethod
     def normalize_driver_name(name: str) -> str:
         """

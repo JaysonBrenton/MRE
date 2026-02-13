@@ -6,6 +6,9 @@ storage, processing, and query. This spec is designed to fit the existing MRE
 Postgres plus Prisma schema, and introduce a dedicated high-performance
 time-series store. status: Draft v1
 
+**Storage authority:** Parquet is canonical; ClickHouse is a derived cache. See
+`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`.
+
 ## 1. Scope
 
 This document defines:
@@ -62,10 +65,11 @@ Postgres remains the system of record for:
 
 ### 3.2 Time-series store, high-rate samples
 
-For the highest performance analytical queries on telemetry samples, use
-**ClickHouse** as the time-series store.
+**Parquet in object storage is canonical.** **ClickHouse** is a derived,
+rebuildable cache for interactive queries. See
+`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`.
 
-Rationale:
+Rationale for ClickHouse as the query cache:
 
 - ClickHouse is optimised for high ingestion and fast analytical queries over
   large columnar time series, and its MergeTree family supports ordering and

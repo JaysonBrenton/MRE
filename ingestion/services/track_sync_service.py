@@ -257,7 +257,6 @@ class TrackSyncService:
     ) -> Tuple[Dict[str, TrackDashboardData], List[str]]:
         metadata: Dict[str, TrackDashboardData] = {}
         failures: List[str] = []
-        semaphore = asyncio.Semaphore(self._metadata_concurrency)
         total = len(tracks)
         completed = 0
 
@@ -307,26 +306,40 @@ class TrackSyncService:
             # Should not reach here, but return None if all retries exhausted
             return None
 
-        async def worker(summary: TrackSummary) -> None:
+        queue: asyncio.Queue[TrackSummary] = asyncio.Queue()
+        for summary in tracks:
+            queue.put_nowait(summary)
+
+        async def worker() -> None:
             nonlocal completed
-            try:
-                async with semaphore:
+            while True:
+                try:
+                    summary = queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+                try:
                     data = await _fetch_with_retry(summary.source_track_slug)
                     if data:
                         metadata[summary.source_track_slug] = data
-            except Exception as exc:  # pragma: no cover - guarded by connector
-                failures.append(summary.source_track_slug)
-                logger.warning(
-                    "track_metadata_fetch_error",
-                    slug=summary.source_track_slug,
-                    error=str(exc),
-                )
-            finally:
-                completed += 1
-                if progress_cb:
-                    progress_cb("metadata", completed, total)
+                except Exception as exc:  # pragma: no cover - guarded by connector
+                    failures.append(summary.source_track_slug)
+                    logger.warning(
+                        "track_metadata_fetch_error",
+                        slug=summary.source_track_slug,
+                        error=str(exc),
+                    )
+                finally:
+                    completed += 1
+                    if progress_cb:
+                        progress_cb("metadata", completed, total)
+                    queue.task_done()
 
-        await asyncio.gather(*(worker(summary) for summary in tracks))
+        worker_tasks = [
+            asyncio.create_task(worker())
+            for _ in range(max(1, self._metadata_concurrency))
+        ]
+
+        await asyncio.gather(*worker_tasks)
         return metadata, failures
 
     def _upsert_tracks_bulk(
@@ -618,4 +631,3 @@ class TrackSyncService:
         _update("total_races", metadata.total_races)
         _update("total_events", metadata.total_events)
         return changed
-

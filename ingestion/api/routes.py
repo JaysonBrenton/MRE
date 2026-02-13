@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
@@ -36,6 +37,13 @@ from ingestion.services.practice_day_discovery import (
     search_practice_days,
 )
 from ingestion.api.jobs import TRACK_SYNC_JOBS
+from ingestion.api.job_queue import (
+    enqueue_by_event_id,
+    enqueue_by_source_id,
+    get_job,
+    is_queue_enabled,
+    queue_position_for_job,
+)
 
 logger = get_logger(__name__)
 
@@ -475,39 +483,56 @@ async def discover_events(
         }
 
 
+@router.get("/ingestion/jobs/{job_id}")
+async def get_ingestion_job(job_id: str) -> Dict[str, Any]:
+    """
+    Get status of a queued ingestion job.
+    Returns 404 if job_id is unknown (e.g. wrong worker or job expired).
+    When status is queued, includes queue_position (1-based).
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    position = queue_position_for_job(job)
+    return {"success": True, "data": job.to_response(queue_position=position)}
+
+
 @router.post("/events/{event_id}/ingest")
 async def ingest_event(
     event_id: str,
     request: IngestRequest,
-    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Trigger event ingestion.
-    
-    Args:
-        event_id: Event ID
-        request: Ingestion request with depth
-    
-    Returns:
-        Ingestion summary
-    
-    Raises:
-        HTTPException: On ingestion errors
+    When queue is enabled (INGESTION_USE_QUEUE=true), returns 202 with job_id
+    and processes in background. Otherwise runs synchronously.
     """
     try:
         logger.info("ingest_event_api_start", event_id=event_id, depth=request.depth)
-        
+
+        if is_queue_enabled():
+            job_id = enqueue_by_event_id(event_id=event_id, depth=request.depth)
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "success": True,
+                    "queued": True,
+                    "job_id": job_id,
+                    "data": {"job_id": job_id, "status": "queued"},
+                },
+            )
+
         pipeline = IngestionPipeline()
         result = await pipeline.ingest_event(
             event_id=UUID(event_id),
             depth=request.depth,
         )
-        
+
         return {
             "success": True,
             "data": result,
         }
-    
+
     except IngestionInProgressError as e:
         return {
             "success": False,
@@ -612,21 +637,36 @@ async def ingest_event_by_source_id(
                     "details": {},
                 },
             }
-        
+
+        if is_queue_enabled():
+            job_id = enqueue_by_source_id(
+                source_event_id=request.source_event_id,
+                track_id=track_id_str,
+                depth=request.depth,
+            )
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "success": True,
+                    "queued": True,
+                    "job_id": job_id,
+                    "data": {"job_id": job_id, "status": "queued"},
+                },
+            )
+
         pipeline = IngestionPipeline()
-        # Pipeline expects UUID type - convert validated string back to UUID for pipeline
         track_uuid = UUID(track_id_str)
         result = await pipeline.ingest_event_by_source_id(
             source_event_id=request.source_event_id,
-            track_id=track_uuid,  # Pass UUID object (repository converts to string internally)
+            track_id=track_uuid,
             depth=request.depth,
         )
-        
+
         return {
             "success": True,
             "data": result,
         }
-    
+
     except IngestionInProgressError as e:
         return {
             "success": False,

@@ -582,6 +582,9 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     setSuccessStats(null)
     setIsSuccessModalOpen(false)
 
+    const JOB_POLL_INTERVAL_MS = 2000
+    const JOB_POLL_MAX_ATTEMPTS = 450 // ~15 min at 2s
+
     try {
       const response = await fetch(`/api/v1/events/${selectedEventId}/ingest`, {
         method: "POST",
@@ -598,7 +601,67 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
         return
       }
 
-      const ingestionData = data.data
+      const ingestionData = data.data as {
+        job_id?: string
+        status?: string
+        races_ingested?: number
+        results_ingested?: number
+        laps_ingested?: number
+        last_ingested_at?: string
+      }
+
+      // Queued (202): poll job status until completed or failed
+      if (response.status === 202 && ingestionData?.job_id) {
+        const jobId = ingestionData.job_id
+        for (let attempt = 0; attempt < JOB_POLL_MAX_ATTEMPTS; attempt++) {
+          const jobRes = await fetch(`/api/v1/ingestion/jobs/${jobId}`)
+          const jobJson = await jobRes.json()
+          const jobData = jobJson?.data as {
+            status?: string
+            result?: {
+              races_ingested?: number
+              results_ingested?: number
+              laps_ingested?: number
+              last_ingested_at?: string
+            }
+            error_message?: string
+          } | undefined
+
+          if (!jobJson?.success || !jobData) {
+            setErrorMessage("Could not read ingestion job status.")
+            setIsErrorModalOpen(true)
+            return
+          }
+
+          if (jobData.status === "completed" && jobData.result) {
+            const r = jobData.result
+            setSuccessStats({
+              racesIngested: r.races_ingested ?? 0,
+              resultsIngested: r.results_ingested ?? 0,
+              lapsIngested: r.laps_ingested ?? 0,
+              status: "updated",
+              lastIngestedAt: r.last_ingested_at ?? undefined,
+            })
+            await new Promise((resolve) => setTimeout(resolve, 500))
+            router.refresh()
+            setIsSuccessModalOpen(true)
+            return
+          }
+
+          if (jobData.status === "failed") {
+            setErrorMessage(jobData.error_message ?? "Import failed.")
+            setIsErrorModalOpen(true)
+            return
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL_MS))
+        }
+        setErrorMessage("Import is taking longer than expected. The page will update when it completes.")
+        setIsErrorModalOpen(true)
+        return
+      }
+
+      // Synchronous 200 response
       const status = ingestionData?.status
       const racesIngested = ingestionData?.races_ingested ?? 0
       const resultsIngested = ingestionData?.results_ingested ?? 0
@@ -612,13 +675,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
         status: status || "unknown",
         lastIngestedAt,
       })
-
-      if (response.status === 202 || status === "in_progress") {
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-        router.refresh()
-        setIsSuccessModalOpen(true)
-        return
-      }
 
       await new Promise((resolve) => setTimeout(resolve, 1000))
       router.refresh()
@@ -687,9 +743,10 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     selectedDriverIds,
     onDriverSelectionChange: setSelectedDriverIds,
     selectedClass,
-    onClassChange: setSelectedClass,
+    onClassChange: handleClassChangeFromDropdown,
     selectedEventId,
     hasEventSelected: !!selectedEventId,
+    classesForFilter: classesSorted.map((c) => ({ className: c.className, count: c.driverCount })),
   }
 
   return (

@@ -35,6 +35,29 @@ export function formatDateDisplay(dateString: string | null | undefined): string
 }
 
 /**
+ * Format a time for display (e.g., "2:30 pm")
+ * @param dateValue - ISO date string or Date object
+ * @returns Formatted time string using Australian locale, or "Time not available" if invalid
+ */
+export function formatTimeDisplay(dateValue: string | Date | null | undefined): string {
+  if (!dateValue) {
+    return "Time not available"
+  }
+
+  const date = new Date(dateValue)
+
+  if (isNaN(date.getTime())) {
+    return "Time not available"
+  }
+
+  return date.toLocaleTimeString("en-AU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
+}
+
+/**
  * Format a date string for long display (e.g., "13 December 2025")
  * @param dateValue - ISO date string or Date object
  * @returns Formatted date string
@@ -76,6 +99,29 @@ export function formatDateForInput(dateString: string | null | undefined): strin
   }
 
   return date.toISOString().split("T")[0]
+}
+
+/**
+ * Normalize a date to noon UTC for that calendar day.
+ * Use when returning date ranges from the server so the displayed calendar day
+ * does not shift in the user's timezone (e.g. UTC midnight can become the
+ * previous/next day in some timezones).
+ *
+ * @param date - Date or ISO string
+ * @returns New Date with same UTC year/month/day at 12:00:00.000Z, or null if invalid
+ */
+export function toDateOnlyUTC(date: Date | string | null | undefined): Date | null {
+  if (!date) {
+    return null
+  }
+  const d = typeof date === "string" ? new Date(date) : date
+  if (isNaN(d.getTime())) {
+    return null
+  }
+  const y = d.getUTCFullYear()
+  const m = d.getUTCMonth()
+  const day = d.getUTCDate()
+  return new Date(Date.UTC(y, m, day, 12, 0, 0, 0))
 }
 
 /**

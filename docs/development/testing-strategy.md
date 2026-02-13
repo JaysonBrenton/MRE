@@ -501,6 +501,8 @@ vitest --coverage
 - HTML fixtures stored in `ingestion/tests/fixtures/liverc/`
 - Fixtures organized by event ID
 - Metadata files describe fixture contents
+- Telemetry fixtures in `ingestion/tests/fixtures/telemetry/` (synthetic CSV,
+  KML track templates). Generate with `ingestion/scripts/generate-telemetry-seed.py`. See [Telemetry Seed Data Guide](../telemetry/Design/Telemetry_Seed_Data_Guide.md)
 
 **Next.js Application (Future):**
 
@@ -528,6 +530,8 @@ is implemented.
   Detailed ingestion testing
 - [Integration Testing Guide](./integration-testing-guide.md) - Detailed
   integration testing guide
+- [Telemetry Seed Data Guide](../telemetry/Design/Telemetry_Seed_Data_Guide.md) -
+  Telemetry fixture creation and generator usage
 - [Quality & Automation Engineer Role](../roles/quality-automation-engineer.md) -
   Role responsibilities
 - [Contributing Guidelines](./CONTRIBUTING.md) - Testing requirements for

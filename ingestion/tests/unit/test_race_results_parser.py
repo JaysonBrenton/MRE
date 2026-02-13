@@ -3,7 +3,10 @@
 import pytest
 from pathlib import Path
 
-from ingestion.connectors.liverc.parsers.race_results_parser import RaceResultsParser
+from ingestion.connectors.liverc.parsers.race_results_parser import (
+    RaceResultsParser,
+    parse_race_duration_seconds,
+)
 from ingestion.connectors.liverc.models import ConnectorRaceResult
 from ingestion.ingestion.errors import RacePageFormatError
 
@@ -120,7 +123,38 @@ def test_parse_race_results_extracts_consistency(parser, race_html):
 def test_parse_race_results_invalid_html(parser):
     """Test parsing invalid HTML raises error."""
     url = "https://canberraoffroad.liverc.com/results/?p=view_race_result&id=6304829"
-    
+
     with pytest.raises(RacePageFormatError):
         parser.parse("<html><body>No results here</body></html>", url)
+
+
+def test_parse_race_duration_seconds_from_fixture(race_html):
+    """Test that race duration is parsed from 'Length: 30:00 Timed' in fixture."""
+    duration = parse_race_duration_seconds(race_html)
+    assert duration == 1800  # 30 * 60
+
+
+def test_parse_race_duration_seconds_no_match():
+    """Test that None is returned when Length is not present."""
+    assert parse_race_duration_seconds("<html><body>No length</body></html>") is None
+
+
+def test_parse_race_results_extracts_qual_behind_and_total_time_seconds(parser, race_html):
+    """Test that Qual, Behind, and total_time_seconds are extracted."""
+    url = "https://canberraoffroad.liverc.com/results/?p=view_race_result&id=6304829"
+    results = parser.parse(race_html, url)
+
+    # First result (winner) should have qual, no seconds_behind, and total_time_seconds
+    first = next((r for r in results if r.position_final == 1), None)
+    assert first is not None
+    assert first.qualifying_position is not None  # e.g. 1
+    assert first.seconds_behind is None  # winner has no "behind"
+    if first.total_time_raw and "/" in first.total_time_raw:
+        assert first.total_time_seconds is not None
+        assert first.total_time_seconds > 0
+
+    # Second place should have seconds_behind
+    second = next((r for r in results if r.position_final == 2), None)
+    if second and second.seconds_behind is not None:
+        assert second.seconds_behind >= 0
 

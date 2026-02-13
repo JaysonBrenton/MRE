@@ -48,6 +48,9 @@ class ConnectorRaceResult(BaseModel):
     fast_lap_time: Optional[float] = None
     avg_lap_time: Optional[float] = None
     consistency: Optional[float] = None
+    qualifying_position: Optional[int] = None
+    seconds_behind: Optional[float] = None
+    raw_fields_json: Optional[dict] = None
 
 
 class ConnectorLap(BaseModel):

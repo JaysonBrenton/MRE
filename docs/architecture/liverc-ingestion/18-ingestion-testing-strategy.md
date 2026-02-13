@@ -358,7 +358,16 @@ Further tests may be added incrementally.
 
 ---
 
-## 10. Long-Term Testing Strategy
+## 10. Related: Telemetry fixtures
+
+This document governs LiveRC ingestion testing. Telemetry fixtures (synthetic
+GNSS/IMU seed data) use a separate strategy. See
+`docs/telemetry/Design/Telemetry_Seed_Data_Guide.md` and
+`docs/telemetry/Design/Test Strategy and Synthetic Datasets.md`.
+
+---
+
+## 11. Long-Term Testing Strategy
 
 Future upgrades include:
 

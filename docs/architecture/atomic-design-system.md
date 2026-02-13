@@ -44,9 +44,9 @@ may import from a higher tier (e.g. no atom may import an organism).
 ```
 src/components/
   atoms/           Button, ListRow, LoadingState, StandardButton, StandardInput,
-                   StatusBadge, ChartIcon, Breadcrumbs
+                   StatusBadge, ChartIcon, Breadcrumbs, Switch
   molecules/       Modal, Tooltip, StandardTable, EventStatusBadge, ErrorDisplay,
-                   ContentWrapper, PageContainer
+                   ContentWrapper, PageContainer, LabeledSwitch
   organisms/       event-analysis/, event-search/, admin/, dashboard/, practice-days/,
                    search/, track-maps/, events/, users/
   templates/       DashboardLayout
@@ -75,15 +75,16 @@ src/components/
 | Component       | Path                                                   |
 | --------------- | ------------------------------------------------------ |
 | Modal           | `@/components/molecules/Modal`                         |
-| Tooltip         | `@/components/molecules/Tooltip`                       |
+| Tooltip         | `@/components/molecules/Tooltip` (wraps long text; use for all tooltips) |
 | StandardTable   | `@/components/molecules/StandardTable`                 |
 | ListRow         | `@/components/atoms/ListRow`                           |
 | Breadcrumbs     | `@/components/atoms/Breadcrumbs`                       |
 | PageContainer   | `@/components/molecules/PageContainer`                 |
 | ContentWrapper  | `@/components/molecules/ContentWrapper`                |
 | ListPagination  | `@/components/organisms/event-analysis/ListPagination` |
-| ChartContainer  | `@/components/organisms/event-analysis/ChartContainer` |
-| DashboardLayout | `@/components/templates/DashboardLayout`               |
+| ChartContainer   | `@/components/organisms/event-analysis/ChartContainer`   |
+| LapTimeLineChart | `@/components/organisms/event-analysis/LapTimeLineChart` |
+| DashboardLayout  | `@/components/templates/DashboardLayout`                |
 
 ---
 
@@ -95,6 +96,15 @@ src/components/
 3. **Respect the dependency rule**—do not import from a higher tier
 4. **Use `@/components/` paths** in imports, not relative paths when crossing
    tiers
+5. **Charts (including line graphs):** New chart organisms in
+   `organisms/event-analysis/` must follow `docs/design/chart-design-standards.md`
+   and use `ChartContainer`. Future lap-time line graphs should follow the same
+   pattern as `LapTimeLineChart` (ChartContainer, ParentSize, Visx, legend,
+   wrapper `minHeight` when content is below the SVG).
+6. **Tooltips:** Use the shared `@/components/molecules/Tooltip` for all
+   tooltips (not native `title` for long text). It wraps long content within its
+   border and shows instantly; do not change it to `whitespace-nowrap` or the
+   text will overflow.
 
 ---
 

@@ -52,6 +52,9 @@ export interface EventActionsContextValue {
   // Event state
   selectedEventId: string | null
   hasEventSelected: boolean
+
+  // Class filter list (for "Select a Class" dropdown in Actions menu)
+  classesForFilter: Array<{ className: string; count: number }>
 }
 
 export const EventActionsContext = createContext<EventActionsContextValue | null>(null)

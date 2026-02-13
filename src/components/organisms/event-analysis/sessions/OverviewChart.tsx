@@ -31,11 +31,14 @@ import ChartContainer from "../ChartContainer"
 import type { SessionData } from "@/core/events/get-sessions-data"
 import type { DriverLapTrend } from "@/core/events/get-sessions-data"
 
+const DEFAULT_AXIS_COLOR = "#ffffff"
+
 export interface OverviewChartProps {
   sessions: SessionData[]
   driverLapTrends?: DriverLapTrend[]
   height?: number
   className?: string
+  chartInstanceId?: string
 }
 
 const defaultMargin = { top: 20, right: 100, bottom: 100, left: 80 }
@@ -88,6 +91,7 @@ export default function OverviewChart({
   driverLapTrends = [],
   height = 500,
   className = "",
+  chartInstanceId = "sessions-overview",
 }: OverviewChartProps) {
   const chartTitleId = useId()
   const chartDescId = useId()
@@ -135,7 +139,15 @@ export default function OverviewChart({
       height={height}
       className={className}
       aria-label="Sessions overview chart with timeline, duration, and participants"
-    >
+      chartInstanceId={chartInstanceId}
+      axisColorPicker={["x", "y", "yRight"]}
+      defaultAxisColors={{
+        x: DEFAULT_AXIS_COLOR,
+        y: DEFAULT_AXIS_COLOR,
+        yRight: participantColor,
+      }}
+      renderContent={({ xAxisColor, yAxisColor, yAxisRightColor }) => (
+      <>
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>
           {({ width: parentWidth }) => {
@@ -357,17 +369,17 @@ export default function OverviewChart({
                   <AxisLeft
                     scale={yScaleDuration}
                     tickFormat={(value) => formatDuration(Number(value))}
-                    stroke={borderColor}
-                    tickStroke={borderColor}
+                    stroke={yAxisColor}
+                    tickStroke={yAxisColor}
                     tickLabelProps={() => ({
-                      fill: textSecondaryColor,
+                      fill: yAxisColor,
                       fontSize: 12,
                       textAnchor: "end",
                       dx: -8,
                     })}
                     label="Duration"
                     labelProps={{
-                      fill: textSecondaryColor,
+                      fill: yAxisColor,
                       fontSize: 12,
                       textAnchor: "middle",
                       dy: -50,
@@ -378,17 +390,17 @@ export default function OverviewChart({
                   <AxisRight
                     left={innerWidth}
                     scale={yScaleParticipants}
-                    stroke={borderColor}
-                    tickStroke={borderColor}
+                    stroke={yAxisRightColor}
+                    tickStroke={yAxisRightColor}
                     tickLabelProps={() => ({
-                      fill: participantColor,
+                      fill: yAxisRightColor,
                       fontSize: 12,
                       textAnchor: "start",
                       dx: 8,
                     })}
                     label="Participants"
                     labelProps={{
-                      fill: participantColor,
+                      fill: yAxisRightColor,
                       fontSize: 12,
                       textAnchor: "middle",
                       dy: -50,
@@ -399,10 +411,10 @@ export default function OverviewChart({
                   <AxisBottom
                     top={innerHeight}
                     scale={xScale}
-                    stroke={borderColor}
-                    tickStroke={borderColor}
+                    stroke={xAxisColor}
+                    tickStroke={xAxisColor}
                     tickLabelProps={() => ({
-                      fill: textSecondaryColor,
+                      fill: xAxisColor,
                       fontSize: 11,
                       textAnchor: "end",
                       angle: -45,
@@ -473,6 +485,8 @@ export default function OverviewChart({
           </div>
         )}
       </div>
-    </ChartContainer>
+      </>
+      )}
+      />
   )
 }

@@ -527,8 +527,10 @@ Beta:
 
 ## 14. Test data storage and governance
 
-- Synthetic dataset packs live in repo if small, otherwise in versioned object
-  storage
+- Synthetic dataset packs live in repo under
+  `ingestion/tests/fixtures/telemetry/synth/` (Pack A, B, C). See
+  `docs/telemetry/Design/Telemetry_Seed_Data_Guide.md`. Larger packs may use
+  versioned object storage.
 - Every dataset pack is versioned and checksummed
 - Provide a “dataset manifest” that lists all included datasets and expected
   ranges
@@ -540,9 +542,12 @@ Beta:
 
 ## 15. Implementation checklist
 
-- [ ] Build synthetic dataset generator with seeded determinism
-- [ ] Define track templates and ground truth descriptors
-- [ ] Generate Pack A and Pack B dataset packs
+- [x] Build synthetic dataset generator with seeded determinism
+  (`ingestion/scripts/generate-telemetry-seed.py`)
+- [x] Define track templates and ground truth descriptors
+  (Cormcc KML in `ingestion/tests/fixtures/telemetry/track-templates/`)
+- [x] Generate Pack A dataset pack (cormcc-clean-position-only)
+- [ ] Expand to Pack B dataset pack
 - [ ] Implement golden fixture tests for parsers
 - [ ] Implement lap, segment, corner tests against ground truth
 - [ ] Implement fusion tests with numeric tolerance thresholds

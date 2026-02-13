@@ -128,6 +128,11 @@ async def general_exception_handler(request: Request, exc: Exception):
 async def startup_event():
     """Startup event handler."""
     logger.info("ingestion_service_startup")
+    # Start ingestion queue workers when queue mode is enabled
+    from ingestion.api.job_queue import is_queue_enabled, start_workers
+    if is_queue_enabled():
+        start_workers(num_workers=1)
+        logger.info("ingestion_queue_enabled", workers=1)
 
 
 @app.on_event("shutdown")

@@ -5,6 +5,11 @@
 This document describes where each part of MRE should run, which services own
 which responsibilities, and how data should flow through the system.
 
+**Storage authority:** Time series storage decisions (Parquet canonical, ClickHouse
+as derived cache) are defined in
+`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`.
+This blueprint aligns with that ADR.
+
 ---
 
 # Glossary (Plain English)
@@ -102,12 +107,14 @@ keep only metadata (hash, size, type, parse version). See
 
 ### Tier 2: Processed artifact store and time series queries
 
-Time series queries are served from **ClickHouse** (authoritative). Parquet is
-used for worker output and exports only.
+**Parquet is the canonical system of record** for time series. **ClickHouse is a
+derived, query-optimised cache** that must be rebuildable from Parquet. See
+`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`.
 
-- Store canonical streams and derived outputs as columnar files (Parquet for
-  worker output and export)
-- Partition by session_id and stream type
+- Store canonical streams and derived outputs as Parquet in object storage
+  (authoritative)
+- Materialise into ClickHouse for fast interactive queries (derived cache)
+- Partition by session_id, processing_run_id, and stream type
 
 Example processed outputs:
 

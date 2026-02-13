@@ -9,7 +9,7 @@
 # @purpose Extracts driver results from race result page
 
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from selectolax.parser import HTMLParser
 
 from ingestion.common.logging import get_logger
@@ -17,6 +17,40 @@ from ingestion.connectors.liverc.models import ConnectorRaceResult
 from ingestion.ingestion.errors import RacePageFormatError
 
 logger = get_logger(__name__)
+
+# Regex for "Length: 30:00 Timed" or "Length: 20:00 Timed" on race result page
+RACE_DURATION_PATTERN = re.compile(
+    r"Length:\s*(\d+):(\d+)\s*(?:Timed)?",
+    re.IGNORECASE,
+)
+
+
+def parse_race_duration_seconds(html: str) -> Optional[int]:
+    """
+    Parse race duration in seconds from race result page HTML.
+    Looks for "Length: MM:SS Timed" (e.g. "Length: 30:00 Timed" -> 1800).
+    """
+    match = RACE_DURATION_PATTERN.search(html)
+    if not match:
+        return None
+    try:
+        minutes = int(match.group(1))
+        seconds = int(match.group(2))
+        return minutes * 60 + seconds
+    except (ValueError, IndexError):
+        return None
+
+
+def _parse_float_from_cell(elem) -> Optional[float]:
+    """Extract a float from a cell (prefer div.hidden, else strip text)."""
+    if not elem:
+        return None
+    hidden = elem.css_first("div.hidden")
+    text = (hidden.text() if hidden else elem.text()).strip() if elem else ""
+    if not text:
+        return None
+    match = re.search(r"([\d.]+)", text)
+    return float(match.group(1)) if match else None
 
 
 class RaceResultsParser:
@@ -151,11 +185,20 @@ class RaceResultsParser:
                         # Continue anyway - we'll use a placeholder or skip
                         continue
                     
-                    # Extract laps/time
+                    # Extract Qual (qualifying position) - td:nth-child(3)
+                    qualifying_position = None
+                    qual_elem = row.css_first("td:nth-child(3)")
+                    if qual_elem:
+                        qual_text = qual_elem.text().strip()
+                        if qual_text and qual_text.isdigit():
+                            qualifying_position = int(qual_text)
+
+                    # Extract laps/time - td:nth-child(4)
                     laps_time_elem = row.css_first("td:nth-child(4)")
                     laps_completed = 0
                     total_time_raw = None
-                    
+                    total_time_seconds = None
+
                     if laps_time_elem:
                         laps_time_text = laps_time_elem.text().strip()
                         if laps_time_text:
@@ -167,7 +210,12 @@ class RaceResultsParser:
                                     laps_completed = int(parts[0].strip())
                                     # Preserve full original format in total_time_raw
                                     total_time_raw = laps_time_text.strip()
-                                except ValueError:
+                                    # Parse time part to seconds (MM:SS.mmm)
+                                    time_part = parts[1].strip()
+                                    if ":" in time_part:
+                                        m, s = time_part.split(":", 1)
+                                        total_time_seconds = int(m) * 60 + float(s)
+                                except (ValueError, TypeError):
                                     logger.warning("result_row_invalid_laps_time", text=laps_time_text, driver_id=source_driver_id, url=url)
                             else:
                                 # Format: "0" (non-starting driver)
@@ -176,7 +224,18 @@ class RaceResultsParser:
                                     total_time_raw = None
                                 except ValueError:
                                     logger.warning("result_row_invalid_laps", text=laps_time_text, driver_id=source_driver_id, url=url)
-                    
+
+                    # Extract Behind (seconds behind winner) - td:nth-child(5)
+                    seconds_behind = None
+                    behind_elem = row.css_first("td:nth-child(5)")
+                    if behind_elem:
+                        behind_text = behind_elem.text().strip()
+                        if behind_text:
+                            try:
+                                seconds_behind = float(behind_text)
+                            except ValueError:
+                                pass  # e.g. "1 Lap" - leave None
+
                     # Extract fastest lap
                     fast_lap_elem = row.css_first("td:nth-child(6)")
                     fast_lap_time = None
@@ -202,7 +261,7 @@ class RaceResultsParser:
                             except ValueError:
                                 logger.warning("result_row_invalid_avg_lap", text=avg_lap_text, driver_id=source_driver_id, url=url)
                     
-                    # Extract consistency
+                    # Extract consistency - td:nth-child(13)
                     consistency_elem = row.css_first("td:nth-child(13)")
                     consistency = None
                     if consistency_elem:
@@ -215,22 +274,46 @@ class RaceResultsParser:
                                     consistency = float(consistency_match.group(1))
                                 except ValueError:
                                     logger.warning("result_row_invalid_consistency", text=consistency_text, driver_id=source_driver_id, url=url)
-                    
+
+                    # Extra stats (Avg Top 5, Avg Top 10, Avg Top 15, Top 3 Consecutive, Std. Deviation) - td 8,9,10,11,12
+                    raw_fields_json: Optional[Dict[str, Any]] = None
+                    avg_top_5 = _parse_float_from_cell(row.css_first("td:nth-child(8)"))
+                    avg_top_10 = _parse_float_from_cell(row.css_first("td:nth-child(9)"))
+                    avg_top_15 = _parse_float_from_cell(row.css_first("td:nth-child(10)"))
+                    top_3_consecutive = _parse_float_from_cell(row.css_first("td:nth-child(11)"))
+                    std_deviation = _parse_float_from_cell(row.css_first("td:nth-child(12)"))
+                    if any(x is not None for x in (avg_top_5, avg_top_10, avg_top_15, top_3_consecutive, std_deviation)):
+                        raw_fields_json = {}
+                        if avg_top_5 is not None:
+                            raw_fields_json["avg_top_5"] = avg_top_5
+                        if avg_top_10 is not None:
+                            raw_fields_json["avg_top_10"] = avg_top_10
+                        if avg_top_15 is not None:
+                            raw_fields_json["avg_top_15"] = avg_top_15
+                        if top_3_consecutive is not None:
+                            raw_fields_json["top_3_consecutive"] = top_3_consecutive
+                        if std_deviation is not None:
+                            raw_fields_json["std_deviation"] = std_deviation
+
                     # Handle non-starting drivers (laps_completed = 0)
                     if laps_completed == 0:
                         total_time_raw = None
+                        total_time_seconds = None
                         # fast_lap_time, avg_lap_time, consistency already None if not found
-                    
+
                     result = ConnectorRaceResult(
                         source_driver_id=str(source_driver_id),
                         display_name=display_name,
                         position_final=position_final,
                         laps_completed=laps_completed,
                         total_time_raw=total_time_raw,
-                        total_time_seconds=None,  # Not parsed from this format
+                        total_time_seconds=total_time_seconds,
                         fast_lap_time=fast_lap_time,
                         avg_lap_time=avg_lap_time,
                         consistency=consistency,
+                        qualifying_position=qualifying_position,
+                        seconds_behind=seconds_behind,
+                        raw_fields_json=raw_fields_json,
                     )
                     results.append(result)
                     

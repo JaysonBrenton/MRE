@@ -338,11 +338,11 @@ function getAvailableClasses(sessions: SessionData[]): string[] {
 }
 
 /**
- * Filter sessions by class
+ * Filter sessions by class. When className is null ("All Classes"), returns all sessions.
  */
 function filterSessionsByClass(sessions: SessionData[], className: string | null): SessionData[] {
-  if (className === null) {
-    return []
+  if (className === null || (typeof className === "string" && className.trim() === "")) {
+    return sessions
   }
   return sessions.filter((session) => session.className === className)
 }
