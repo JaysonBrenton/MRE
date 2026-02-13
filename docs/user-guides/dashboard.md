@@ -1,11 +1,12 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-01-27
+lastModified: 2026-02-01
 description: Guide to using the user dashboard in My Race Engineer
 purpose:
-  Provides comprehensive instructions for using the dashboard, understanding
-  widgets, customizing layouts, and viewing statistics.
+  Explains how to navigate the My Event Analysis dashboard, select events,
+  launch searches, and read the Event Analysis experience that appears on the
+  page once an event is selected.
 relatedFiles:
   - docs/architecture/dashboard-architecture.md
   - docs/specs/mre-v0.1-feature-scope.md
@@ -13,294 +14,110 @@ relatedFiles:
 
 # My Event Analysis Guide
 
-Learn how to use your personal event analysis in My Race Engineer to view
-statistics, customize widgets, and track your racing performance over time.
+The My Event Analysis dashboard is the entry point for reviewing imported race
+events. Rather than free-form widgets, the current build centers on choosing an
+event and then displaying the Event Analysis experience directly within the
+dashboards area.
 
 ## Introduction
 
-My Event Analysis is your personal command center in MRE. It provides quick
-access to your statistics, recent events, and key actions. You can customize
-your event analysis to show the information most important to you.
+When you sign in and navigate past the welcome screen, the dashboard shows a
+protected “Select an Event” surface. Once you choose an event, the familiar
+Event Analysis tabs (Overview, Drivers, Sessions, My Events) render in place so
+you can review lap charts, driver cards, and weather from the same view.
 
 ## Prerequisites
 
-- You must be logged into MRE
-- You should have imported at least one event (for meaningful statistics)
+- You must be logged in.
+- At least one event must exist in the system. You can ingest or discover events
+  through **Event Search** if nothing appears yet.
 
 ## Accessing My Event Analysis
 
-1. Log into your MRE account
-2. Click **"My Event Analysis"** in the main navigation menu
-3. Or click **"Home"** from any breadcrumb navigation
-
-My Event Analysis is typically the first page you see after logging in (after
-the welcome page).
-
-## My Event Analysis Overview
-
-Your event analysis displays:
-
-- **Statistics Cards**: Key metrics and counts
-- **Recent Activity**: Your latest events and actions
-- **Quick Actions**: Fast access to common tasks
-- **Widgets**: Customizable information displays
-
-## Understanding Widgets
-
-Widgets are modular components that display specific information. Common widget
-types include:
-
-### Stat Cards
-
-Display key metrics:
-
-- **User Count**: Total number of users (if applicable)
-- **Event Count**: Number of events you've imported or discovered
-- **Track Count**: Number of tracks you've searched
-- **Database Size**: System statistics (if applicable)
-
-**Features:**
-
-- Trend indicators (up/down arrows)
-- Counts and totals
-- Averages and percentages
-
-### Charts and Graphs
-
-Visual representations of data:
-
-- **Line Charts**: Show trends over time
-- **Bar Charts**: Compare different metrics
-- **Pie Charts**: Show distributions
-
-**Features:**
-
-- Interactive (hover for details)
-- Responsive (adapts to screen size)
-- Exportable (some charts)
-
-### Recent Activity Feeds
-
-Show your latest actions:
-
-- Recent events imported
-- Recent events analyzed
-- Recent searches performed
-- System updates or notifications
-
-### Quick Action Buttons
-
-Fast access to common tasks:
-
-- **Search Events**: Go directly to Event Search
-- **View My Events**: See all your events
-- **Import Event**: Quick import action
-- **View Guides**: Access user guides
-
-## Customizing Your Dashboard
-
-### Showing and Hiding Widgets
-
-1. Look for widget controls (usually a settings icon or menu)
-2. Click to open widget settings
-3. Toggle widgets on or off
-4. Changes save automatically
-
-### Rearranging Widgets
-
-**Drag and Drop:**
-
-1. Click and hold on a widget
-2. Drag it to a new position
-3. Release to drop it in place
-4. Other widgets automatically adjust
-
-**Layout Options:**
-
-- Single column layout (mobile)
-- Multi-column layout (desktop)
-- Custom grid layouts
-
-### Resizing Widgets
-
-Some widgets can be resized:
-
-1. Look for resize handles (usually corners or edges)
-2. Click and drag to resize
-3. Widget content adjusts automatically
-4. Size preferences are saved
-
-### Saving Custom Layouts
-
-**Automatic Saving:**
-
-- Your layout changes save automatically
-- Preferences are stored per user
-- Layout persists across sessions
-
-**Reset to Default:**
-
-- Use "Reset Layout" button if available
-- Returns to default widget arrangement
-- Confirms before resetting
-
-## Viewing Statistics
-
-### Personal Statistics
-
-My Event Analysis shows statistics relevant to you:
-
-- **Events Imported**: Total number of events you've imported
-- **Events Analyzed**: Number of events you've viewed analysis for
-- **Tracks Searched**: Number of unique tracks you've searched
-- **Performance Trends**: How your performance is changing over time
-
-### Performance Metrics
-
-If you have event data:
-
-- **Best Lap Time**: Your fastest lap across all events
-- **Average Lap Time**: Your average lap time
-- **Consistency Score**: How consistent your lap times are
-- **Improvement Trends**: Whether you're getting faster over time
-
-### Activity Statistics
-
-Track your usage:
-
-- **Recent Activity**: Last 5-10 actions
-- **Most Active Periods**: When you use MRE most
-- **Favorite Tracks**: Tracks you search most often
-
-## Quick Actions
-
-My Event Analysis provides quick access to common tasks:
-
-### Search for Events
-
-1. Click **"Search Events"** button or link
-2. Navigate directly to Event Search
-3. Your last search criteria may be pre-filled
-
-### View My Events
-
-1. Click **"My Events"** button or link
-2. See all events you've imported or discovered
-3. Filter and sort your events
-
-### Import New Event
-
-1. Click **"Import Event"** quick action
-2. Opens Event Search with import focus
-3. Quickly add new events to your collection
-
-### Access Guides
-
-1. Click **"Guides"** or **"Help"** button
-2. Navigate to User Guides section
-3. Find help for specific features
-
-## My Event Analysis Navigation
-
-### Breadcrumb Navigation
-
-My Event Analysis breadcrumbs show:
-
-**Home** (current page)
-
-Click "Home" to return to My Event Analysis from other pages.
-
-### Navigation Menu
-
-Access other sections:
-
-- **My Event Analysis**: Return to event analysis
-- **Event Search**: Search for events
-- **My Events**: View your events
-- **Guides**: User guides and help
-
-## Tips and Best Practices
-
-### Organizing My Event Analysis
-
-1. **Prioritize Important Widgets**: Place most-used widgets at the top
-2. **Group Related Widgets**: Put similar widgets together
-3. **Use Available Space**: Take advantage of multi-column layouts on desktop
-4. **Keep It Simple**: Don't overcrowd with too many widgets
-
-### Monitoring Performance
-
-1. **Check Regularly**: Review statistics to track progress
-2. **Compare Periods**: Look at trends over time
-3. **Set Goals**: Use statistics to set improvement targets
-4. **Celebrate Wins**: Acknowledge improvements in your performance
-
-### Using Quick Actions
-
-1. **Customize Actions**: Show only actions you use frequently
-2. **Learn Shortcuts**: Use keyboard shortcuts when available
-3. **Stay Organized**: Use My Event Analysis as your starting point
-
-## Common Issues
-
-### Widgets Not Displaying
-
-**Possible Causes:**
-
-- No data available yet
-- Widget disabled in settings
-- Browser compatibility issue
-
-**Solutions:**
-
-- Import some events to generate data
-- Check widget settings
-- Try refreshing the page
-
-### Layout Not Saving
-
-**Possible Causes:**
-
-- Browser storage disabled
-- Session expired
-- Browser cache issue
-
-**Solutions:**
-
-- Enable browser local storage
-- Log out and log back in
-- Clear browser cache
-
-### Statistics Not Updating
-
-**Possible Causes:**
-
-- Data not yet processed
-- Cache issue
-- Recent activity not reflected
-
-**Solutions:**
-
-- Wait a few minutes for processing
-- Refresh the page
-- Check that events are fully imported
-
-## Related Guides
-
-- **[Event Search Guide](event-search.md)**: Learn how to find and import events
-- **[Event Analysis Guide](event-analysis.md)**: Analyze your race data
-- **[Navigation Guide](navigation.md)**: Master navigation patterns
-
-## Next Steps
-
-After setting up your dashboard:
-
-1. Import events to populate statistics
-2. Customize widgets to show what matters to you
-3. Use quick actions to streamline your workflow
-4. Monitor your performance trends over time
-
----
-
-**Ready to customize?** Start by importing some events and then arrange your
-dashboard to show the information most important to you.
+1. Sign into My Race Engineer.
+2. From the navigation rail, click **My Event Analysis** (the home icon).
+3. Use the breadcrumb labeled “My Event Analysis” to return here from other
+   authenticated pages.
+
+## Page Layout
+
+The dashboard contains three main elements:
+
+### 1. Event Selector & Empty State
+
+- The top of the page renders the **Dashboard Event Selector**. If an event ID
+  is present in the URL (`/dashboard?eventId=uuid`) the selector loads that
+  event automatically. Otherwise, the page shows a card prompting you to search
+  for events.
+- The selector includes quick filters for “Recent Events” once data is loaded,
+  making it easy to jump back to something you viewed earlier.
+
+### 2. Dashboard Event Search Drawer
+
+- Clicking **Search for Events** or the event selector’s search action opens the
+  embedded Event Search drawer. This is the same search experience available on
+  the dedicated `/event-search` page.
+- You can search by track, date range, or mode (standard events vs. practice
+  days). When you choose **Practice Days**, the form exposes the month picker
+  from `PracticeDaySearchContainer` so you can discover LiveRC practice entries.
+- Selecting an event from the search results automatically sets it as the active
+  dashboard event and closes the drawer.
+
+### 3. Event Analysis Section
+
+- Once an event is selected, the **EventAnalysisSection** component mounts in
+  place of the empty state. It fetches `/api/v1/events/{eventId}/summary`,
+  `/analysis`, and `/weather` to power charts and telemetry-derived insights.
+- Tabs correspond to the same content you see on the standalone Event Analysis
+  route:
+  - **Overview** – hero metrics, pace charts, weather, track summary.
+  - **Drivers** – driver cards with consistency, lap counts, best laps.
+  - **Sessions** – session list and lap charts, including the My Events sub-tab.
+  - **My Events** – fuzzy-matched races linked to your driver persona, including
+    confirm/reject controls.
+- The weather panel shows cached vs. live fetch status and explains failures,
+  exactly matching the `/api/v1/events/[eventId]/weather` endpoint behavior.
+
+## Selecting an Event
+
+1. Click **Search for Events** (or open the selector dropdown).
+2. Filter by track, date, or practice-day mode as needed.
+3. Choose **Import** for new LiveRC data or select an already ingested event.
+4. The dashboard URL updates with `?eventId=...`, and Event Analysis loads in
+   place.
+
+If you navigate away and return later, the persisted Redux state restores the
+last selected event. On a hard reload, the page briefly shows “Loading
+dashboard…” while Redux rehydrates; this prevents flicker before the event data
+is re-fetched.
+
+## Reading the Event Analysis Tabs
+
+Because the dashboard embeds the same Event Analysis implementation, you can use
+all familiar interactions:
+
+- Hover or tap chart legends to isolate drivers.
+- Use the **Sessions** tab to switch between mains, qualifiers, and practice
+  runs.
+- In **My Events**, confirm or reject fuzzy matches; the UI calls
+  `/api/v1/users/me/driver-links/events/{eventId}` so you never have to look up
+  your user ID.
+- Open driver rows to see transponder overrides, lap consistency, and class
+  participation.
+
+## Troubleshooting
+
+| Symptom                                 | Resolution                                                                                                                           |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Dashboard only shows “Select an Event”  | No event has been chosen yet. Use the search drawer or append `?eventId=` with a valid event ID.                                     |
+| Weather pane shows a warning            | The weather endpoint could not fetch live data and no cache exists. Try again later; the rest of Event Analysis is still usable.     |
+| Practice Days mode missing              | Ensure the event search drawer toggle is set to “Practice Days.” The dashboard uses the same mode selector as the Event Search page. |
+| Driver matches missing in My Events tab | Confirm your driver persona is configured, and verify driver links via `/api/v1/users/me/driver-links`.                              |
+
+## Key Takeaways
+
+- The current dashboard is an event-centric workflow: select ➝ analyze.
+- Widget layout customization is not part of version 0.1.1 even though future
+  releases plan drag-and-drop dashboards.
+- For additional analytics, switch to the dedicated **Events**, **Event
+  Search**, or **Admin** pages via the navigation rail or breadcrumbs.

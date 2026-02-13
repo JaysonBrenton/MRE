@@ -95,7 +95,7 @@ Data storage for race events, drivers, results, and laps
 
 See docs/architecture/liverc-ingestion/ for complete architecture specification.
 
-✔ 2.5.5 Telemetry Ingestion
+-✔ 2.5.5 Telemetry Ingestion
 
 - Upload telemetry files (GNSS, IMU) from devices
 - Synthetic seed data and fixtures for development and testing
@@ -123,11 +123,15 @@ Version 0.1.1 includes expanded UI features:
 
 **Dashboard System:**
 
-- User dashboard (personal stats, recent events)
-- Driver dashboard (performance metrics, lap times)
-- Team dashboard (team statistics, member performance)
-- Track dashboard (track-specific statistics)
-- Customizable widgets (drag-and-drop, resize, rearrange)
+- User dashboard (event selector + Event Analysis integration)
+- Driver dashboard (performance metrics, lap times) _(future; redirects to
+  under-development page)_
+- Team dashboard (team statistics, member performance) _(future; redirects to
+  under-development page)_
+- Track dashboard (track-specific statistics) _(future; redirects to
+  under-development page)_
+- Customizable widgets (drag-and-drop, resize, rearrange) _(planned - current
+  dashboard renders Event Analysis components once an event is selected)_
 
 **Telemetry Visualizations:**
 
@@ -167,6 +171,8 @@ The following pages are in scope for version 0.1.1:
 - Event Search page (search and import events from LiveRC)
 - Event Analysis page (view and analyze event data with charts)
 - Driver detail pages (view driver information and transponder overrides)
+  _(currently redirect to `/under-development` until the driver detail UI is
+  built)_
 
 See docs/specs/mre-v0.1-feature-scope.md for complete feature specifications.
 
@@ -521,13 +527,16 @@ docker exec -it mre-liverc-ingestion-service python /app/ingestion/scripts/gener
 
 Fixtures live under ingestion/tests/fixtures/telemetry/.
 
-**Speed test (event vs practice search):** Run indicative timings for event search, practice search, event discover, and practice discover (see docs/development/speed-test-search.md or script header):
+**Speed test (event vs practice search):** Run indicative timings for event
+search, practice search, event discover, and practice discover (see
+docs/development/speed-test-search.md or script header):
 
 ```bash
 docker exec -it mre-app npx tsx scripts/speed-test-search.ts [trackId]
 ```
 
-Optional env: `TRACK_ID`, `START_DATE`, `END_DATE`, `YEAR`, `MONTH`. Default: first active track, current month.
+Optional env: `TRACK_ID`, `START_DATE`, `END_DATE`, `YEAR`, `MONTH`. Default:
+first active track, current month.
 
 13.5 API Endpoints
 

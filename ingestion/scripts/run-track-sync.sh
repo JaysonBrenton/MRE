@@ -11,6 +11,12 @@
 
 set -e
 
+# Cron runs with minimal PATH; ensure python3 is found (e.g. /usr/local/bin)
+export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+
+# Load container env (DATABASE_URL, MRE_SCRAPE_ENABLED) written by entrypoint
+[ -f /app/.env.cron ] && . /app/.env.cron
+
 if [ "${MRE_SCRAPE_ENABLED:-true}" != "true" ]; then
   echo "track sync skipped (MRE_SCRAPE_ENABLED != true)"
   exit 0
@@ -25,5 +31,5 @@ export PYTHONPATH=/app
 # Change to app directory
 cd /app
 
-# Execute track sync command (python3 for cron PATH compatibility)
+# Execute track sync command
 python3 -m ingestion.cli ingest liverc refresh-tracks

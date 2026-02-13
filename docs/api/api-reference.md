@@ -2755,6 +2755,97 @@ curl -X POST "http://localhost:3001/api/v1/users/me/persona" \
 
 ---
 
+### GET /api/v1/users/me
+
+Returns basic information about the authenticated user. This endpoint is used by
+dashboard components to determine admin capabilities or to fetch the user ID for
+driver link operations.
+
+**Authentication:** Required
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "uuid",
+    "email": "driver@example.com",
+    "name": "Driver Name",
+    "isAdmin": false
+  }
+}
+```
+
+**Error Codes:**
+
+- `UNAUTHORIZED` (401) – Missing or invalid session
+- `INTERNAL_ERROR` (500) – Unexpected failure retrieving the session
+
+**Example:**
+
+```bash
+curl -H "Cookie: next-auth.session-token=..." \
+  "http://localhost:3001/api/v1/users/me"
+```
+
+---
+
+### PATCH /api/v1/users/me/driver-links/events/[eventId]
+
+Updates the driver link status for the currently authenticated user without
+requiring the caller to know their user ID. This is the endpoint used by the My
+Events tab and dashboard to confirm or reject fuzzy matches.
+
+**Authentication:** Required
+
+**Path Parameters:**
+
+- `eventId` (string, required) – Event UUID
+
+**Request Body:**
+
+```json
+{
+  "status": "confirmed" // or "rejected"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "link": {
+      "id": "uuid",
+      "userId": "uuid",
+      "driverId": "uuid",
+      "status": "confirmed"
+    }
+  },
+  "message": "Driver link updated successfully"
+}
+```
+
+**Error Codes:**
+
+- `UNAUTHORIZED` (401) – Authentication required
+- `NOT_FOUND` (404) – Driver link not found for the user/event combination
+- `VALIDATION_ERROR` (400) – Invalid status value
+- `INTERNAL_ERROR` (500) – Server error
+
+**Example:**
+
+```bash
+curl -X PATCH "http://localhost:3001/api/v1/users/me/driver-links/events/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"status": "confirmed"}'
+```
+
+---
+
 ### PATCH /api/v1/users/[userId]/driver-links/events/[eventId]
 
 Updates driver link status for a specific event. This endpoint allows users to

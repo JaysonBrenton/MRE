@@ -446,7 +446,9 @@ when part of the public landing page.
 - Events list page (browse imported events)
 - Event Search page (search and import events from LiveRC)
 - Event Analysis page (view and analyze event data with charts)
-- Driver detail pages (view driver information and transponder overrides)
+- Driver detail pages (view driver information and transponder overrides) _(UI
+  route exists but currently redirects to `/under-development`; full page build
+  remains pending and must follow this spec when implemented)._
 
 **Note:** Navigation features ARE in scope for version 0.1.1:
 

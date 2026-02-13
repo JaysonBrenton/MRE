@@ -45,6 +45,19 @@ if [ "$IS_ROOT" = "true" ]; then
         echo "Warning: Could not verify cron daemon is running"
         cron_pid=""
     fi
+    # Write env file for cron jobs (cron runs with minimal env, so jobs need DATABASE_URL etc.)
+    if [ -n "${DATABASE_URL}" ]; then
+        env_file="/app/.env.cron"
+        # Escape single quotes in values for shell sourcing
+        safe_value() { printf '%s' "$1" | sed "s/'/'\\\\''/g"; }
+        {
+            echo "export DATABASE_URL='$(safe_value "$DATABASE_URL")'"
+            echo "export MRE_SCRAPE_ENABLED='$(safe_value "${MRE_SCRAPE_ENABLED:-true}")'"
+        } > "$env_file"
+        chown ingestion:ingestion "$env_file"
+        chmod 600 "$env_file"
+        echo "Wrote cron env file for ingestion user"
+    fi
 else
     # Running as non-root - cron typically needs root
     echo "Warning: Running as non-root user. Cron daemon may not start."
