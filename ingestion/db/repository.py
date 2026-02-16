@@ -370,6 +370,7 @@ class Repository:
         source_driver_id: str,
         display_name: str,
         transponder_number: Optional[str] = None,
+        normalized_name: Optional[str] = None,
     ) -> Driver:
         """
         Upsert normalized driver by natural key (source, source_driver_id).
@@ -379,12 +380,15 @@ class Repository:
             source_driver_id: Driver ID from LiveRC
             display_name: Driver display name
             transponder_number: Optional transponder number (set if not already set, or if new value provided)
+            normalized_name: Optional pre-computed normalized name (e.g. from Normalizer.normalize_driver_name);
+                           if not provided, computed from display_name
         
         Returns:
             Driver model instance
         """
-        # Compute normalized name for fuzzy matching
-        normalized_name = Normalizer.normalize_driver_name(display_name)
+        # Use provided normalized name or compute for fuzzy matching
+        if normalized_name is None:
+            normalized_name = Normalizer.normalize_driver_name(display_name)
         
         # Check if driver exists - use WITH (NOWAIT) to avoid blocking
         stmt = select(Driver).where(
@@ -1309,7 +1313,31 @@ class Repository:
             metrics.record_db_update("races", updated_count)
         
         return updated_count
-    
+
+    def update_race_metadata(
+        self,
+        race_id: Union[UUID, str],
+        race_metadata: Dict[str, Any],
+    ) -> None:
+        """
+        Update race_metadata for a single race (practice day detail phase).
+        
+        Used by practice day detail phase to store end_time and practiceSessionStats.
+        
+        Args:
+            race_id: Race ID (UUID or string)
+            race_metadata: JSON-serializable dict (e.g. end_time, practiceSessionStats)
+        """
+        from sqlalchemy import update
+        race_id_str = _uuid_to_str(race_id) if isinstance(race_id, UUID) else str(race_id)
+        stmt = update(Race).where(Race.id == race_id_str).values(
+            race_metadata=race_metadata,
+            updated_at=datetime.utcnow(),
+        )
+        self.session.execute(stmt)
+        logger.debug("race_metadata_updated", race_id=race_id_str)
+        metrics.record_db_update("races")
+
     def bulk_upsert_laps(
         self,
         laps: List[Dict[str, Any]],

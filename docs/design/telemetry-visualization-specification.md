@@ -560,6 +560,11 @@ screens, or touch-optimized interactions in the web app for telemetry features.
   specifications
 - [Dashboard Architecture](../architecture/dashboard-architecture.md) -
   Dashboard widget system
+- [Telemetry Documentation Index](../telemetry/README.md) - Telemetry ingestion,
+  processing, and UX design
+- [Telemetry API Contract](../telemetry/Design/API_Contract_Telemetry.md) -
+  Endpoints, query patterns, and response shapes for telemetry sessions, laps,
+  timeseries, and map data
 
 ---
 

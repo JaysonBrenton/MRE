@@ -72,45 +72,51 @@ MRE for detailed analysis.
 
 ## Setting Date Ranges
 
-### Date Range Picker
+### Date Range Presets
 
-1. Click on the **Start Date** field to open the date picker
-2. Select the start date for your search
-3. Click on the **End Date** field to open the date picker
-4. Select the end date for your search
+Event Search uses **preset** buttons for the "When" date range (Events mode):
+
+1. **No filter** — Search all events for the track (no date limit).
+2. **Last 3 months** — From 3 months ago through today.
+3. **Last 6 months** — From 6 months ago through today.
+4. **Last 12 months** — From 12 months ago through today (default).
+5. **This year** — From 1 January of the current year through today.
+6. **Custom** — You choose the start and end dates; two date fields appear.
+
+For **Custom** only:
+
+- Click the **Start date** and **End date** fields to pick dates.
+- Dates are interpreted in your **local timezone** (e.g. "This year" is Jan 1–today where you are).
 
 ### Date Range Rules
 
-**Maximum Range:**
+**Maximum range:**
 
-- Date ranges cannot exceed **3 months** (90 days)
-- If you select a range longer than 3 months, you'll see an error message
-- Adjust your dates to fit within the 3-month limit
+- **Presets** (e.g. "Last 12 months", "This year") can span up to **12 months** (366 days). The API accepts this range.
+- **Custom** range is limited to **90 days** in the UI. If you pick a range longer than 90 days, you'll see a validation error and must shorten it.
 
-**No Future Dates:**
+**No future dates:**
 
-- You cannot select future dates
-- The system only searches for past events
-- If you try to select a future date, you'll see an error message
+- You cannot select future dates. Only past and today are allowed.
+- If you try to select a future date, you'll see a validation error.
 
-**Start Date Before End Date:**
+**Start date before end date:**
 
-- The start date must be before or equal to the end date
-- If you select an invalid range, you'll see a validation error
+- The start date must be before or equal to the end date.
+- If the range is invalid, you'll see a validation error.
 
 ### Date Range Tips
 
-- Start with a 30-day range if you're unsure of exact dates
-- Narrow your range after finding events to reduce search time
-- Your last selected date range is automatically saved for your next search
+- Use **Last 12 months** or **This year** for a broad search, then narrow with Custom if needed.
+- Your last selected **preset** and date range are saved and restored on your next visit.
 
 ## Performing a Search
 
 ### Step-by-Step Search Process
 
-1. **Select a Track**: Choose the track from the track selection modal
-2. **Set Date Range**: Enter your start and end dates
-3. **Click Search**: Click the **"Search"** button to begin searching
+1. **Select a track** — Choose the track from the track selection modal.
+2. **Set date range (optional)** — Use a preset (e.g. "Last 12 months", "This year") or choose **Custom** and pick start and end dates.
+3. **Click Search** — Click the **Search** button to run the search.
 
 ### What Happens During Search
 
@@ -228,9 +234,9 @@ If no events are found:
 
 MRE remembers your last search:
 
-- **Last Selected Track**: Automatically populated on next visit
-- **Last Date Range**: Automatically populated on next visit
-- **Reset Button**: Click "Reset" to clear saved values and start fresh
+- **Last selected track** — Restored on next visit.
+- **Last date range** — Preset (e.g. "Last 12 months") and start/end dates are saved and restored.
+- **Reset** — Click "Reset" to clear saved values; date range returns to "Last 12 months" and a fresh range.
 
 ## Troubleshooting Search Issues
 
@@ -278,7 +284,7 @@ MRE remembers your last search:
 
 1. **Use Favourites**: Add frequently searched tracks to favourites for quick
    access
-2. **Narrow Date Ranges**: Start with a 30-day range, then narrow if needed
+2. **Use presets first**: Try "Last 12 months" or "This year"; use Custom to narrow if needed
 3. **Check Status**: Pay attention to event status indicators to understand what
    actions are available
 4. **Bulk Import**: Import multiple events at once to save time

@@ -261,6 +261,7 @@ class Race(Base):
     start_time = Column("start_time", DateTime(timezone=True), nullable=True)
     duration_seconds = Column("duration_seconds", Integer, nullable=True)
     session_type = Column("session_type", SessionTypeType(), nullable=True)
+    race_metadata = Column("race_metadata", JSONB, nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

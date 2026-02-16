@@ -83,6 +83,18 @@ export function formatDateLong(dateValue: string | Date | null | undefined): str
 }
 
 /**
+ * Format a Date as YYYY-MM-DD in the local timezone.
+ * Use for date range presets and "today" so boundaries match the user's calendar
+ * (e.g. "This year" = Jan 1 through today in local time; avoids UTC shifting dates).
+ */
+export function toLocalDateString(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+/**
  * Format a date for input field (YYYY-MM-DD)
  * @param dateString - ISO date string or date object
  * @returns Formatted date string for HTML date input
@@ -98,7 +110,7 @@ export function formatDateForInput(dateString: string | null | undefined): strin
     return ""
   }
 
-  return date.toISOString().split("T")[0]
+  return toLocalDateString(date)
 }
 
 /**

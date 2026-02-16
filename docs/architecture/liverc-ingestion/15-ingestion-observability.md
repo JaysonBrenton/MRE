@@ -121,6 +121,19 @@ Metrics MUST be emitted from ingestion in a consistent, connector-agnostic way.
 - metric: `connector_errors_total`
 - labels: stage, error_code
 
+#### 2.1.6 Practice day full ingestion
+
+- metric: `practice_day_ingestion_duration_seconds` — labels: track_slug, date, result
+- metric: `practice_day_ingestion_requests_total` — labels: track_slug, result
+- metric: `practice_day_sessions_ingested_total` — labels: track_slug
+- metric: `practice_day_sessions_with_laps_total` — sessions for which at least one lap was written
+- metric: `practice_day_laps_ingested_total` — total laps ingested
+- metric: `practice_day_sessions_detail_failed_total` — sessions whose detail fetch failed
+
+Log events: `ingest_practice_day_start`, `ingest_practice_day_success` (with
+sessions_ingested, sessions_with_laps, laps_ingested, sessions_detail_failed),
+`practice_session_detail_fetch_failed` (session_id, error).
+
 ### 2.2 Metric Obligations
 
 Metrics MUST be:

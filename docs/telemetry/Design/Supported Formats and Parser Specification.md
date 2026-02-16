@@ -277,6 +277,23 @@ If available or computed:
 Derived streams must carry provenance, for example derived from onboard pose or
 server-fused pose.
 
+### 7.4 Minimum stream requirements by feature
+
+**Lap detection** requires at minimum:
+
+- GNSS position stream (or pose stream) with `t` and position (`lat_deg`,
+  `lon_deg` or `x_e_m`, `y_n_m` in local ENU).
+- Monotonic timestamps after `time_align`.
+- Velocity (`speed_mps` or `vx_mps`, `vy_mps`) strongly recommended for
+  crossing validation.
+
+**Quality scoring** requires at minimum:
+
+- Timestamps and at least one of: GNSS quality fields (`fix_type`, `sat_count`,
+  `hdop`, `h_acc_m`, etc.) or IMU stream presence.
+- If neither GNSS quality nor IMU is available, quality score is capped and
+  must be disclosed as "limited quality data".
+
 ## 8. Parser architecture
 
 ### 8.1 High level flow

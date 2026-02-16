@@ -31,7 +31,24 @@ import MyEventsContent from "@/components/organisms/event-analysis/MyEventsConte
 import EventAnalysisHeader from "@/components/organisms/event-analysis/EventAnalysisHeader"
 import { useEventActions } from "@/components/organisms/dashboard/EventActionsContext"
 import DriverCardsAndWeatherGrid from "@/components/organisms/dashboard/DriverCardsAndWeatherGrid"
+import LinkYourDriverPrompt from "@/components/organisms/event-analysis/LinkYourDriverPrompt"
+import PracticeMyDayTab from "@/components/organisms/event-analysis/PracticeMyDayTab"
+import PracticeMySessionsTab from "@/components/organisms/event-analysis/PracticeMySessionsTab"
+import PracticeClassLeaderboard from "@/components/organisms/event-analysis/PracticeClassLeaderboard"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+
+const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
+  { id: "my-day", label: "My Day" },
+  { id: "my-sessions", label: "My Sessions" },
+  { id: "class-reference", label: "Class Reference" },
+  { id: "all-sessions", label: "All Sessions" },
+]
+const EVENT_TABS: { id: TabId; label: string }[] = [
+  { id: "overview", label: "Event Overview" },
+  { id: "sessions", label: "Event Sessions" },
+  { id: "my-events", label: "My Events" },
+  { id: "drivers", label: "Drivers" },
+]
 
 // Type for API response with ISO string dates (matches what's stored in Redux)
 type EventAnalysisDataApiResponse = {
@@ -41,6 +58,7 @@ type EventAnalysisDataApiResponse = {
     eventDate: string // ISO string
     trackName: string
   }
+  isPracticeDay?: boolean
   races: Array<{
     id: string
     raceId: string
@@ -115,6 +133,7 @@ function transformApiResponseToEventAnalysisData(
       eventDate: new Date(apiData.event.eventDate),
       trackName: apiData.event.trackName,
     },
+    isPracticeDay: apiData.isPracticeDay,
     races: apiData.races.map((race) => ({
       ...race,
       startTime: race.startTime ? new Date(race.startTime) : null,
@@ -146,6 +165,7 @@ export default function EventAnalysisSection() {
   const analysisError = useAppSelector((state) => state.dashboard.analysisError)
   const eventData = useAppSelector((state) => state.dashboard.eventData)
   const isEventLoading = useAppSelector((state) => state.dashboard.isEventLoading)
+  const selectedPracticeDriverId = useAppSelector((state) => state.dashboard.selectedPracticeDriverId)
   // Check if Redux has rehydrated from sessionStorage
   // This prevents showing empty states during the brief rehydration window after hard reload
   const isRehydrated = useAppSelector((state) => {
@@ -305,12 +325,23 @@ export default function EventAnalysisSection() {
     return transformApiResponseToEventAnalysisData(analysisData)
   }, [analysisData])
 
-  const availableTabs = [
-    { id: "overview" as TabId, label: "Event Overview" },
-    { id: "sessions" as TabId, label: "Event Sessions" },
-    { id: "my-events" as TabId, label: "My Events" },
-    { id: "drivers" as TabId, label: "Drivers" },
-  ]
+  const isPracticeDay = analysisData?.isPracticeDay ?? eventData?.isPracticeDay ?? false
+  const availableTabs = isPracticeDay ? PRACTICE_DAY_TABS : EVENT_TABS
+  const viewingDriverName =
+    isPracticeDay && transformedData && selectedPracticeDriverId
+      ? transformedData.drivers.find((d) => d.driverId === selectedPracticeDriverId)?.driverName ?? null
+      : null
+
+  // When data switches between practice day and event, sync active tab
+  useEffect(() => {
+    const practiceTabIds: TabId[] = ["my-day", "my-sessions", "class-reference", "all-sessions"]
+    const eventTabIds: TabId[] = ["overview", "sessions", "my-events", "drivers"]
+    if (isPracticeDay && eventTabIds.includes(activeTab)) {
+      setActiveTab("my-day")
+    } else if (!isPracticeDay && practiceTabIds.includes(activeTab)) {
+      setActiveTab("overview")
+    }
+  }, [isPracticeDay])
 
   // Hide section entirely during rehydration to avoid duplicate loading messages
   // DashboardClient handles the initial loading state
@@ -363,6 +394,8 @@ export default function EventAnalysisSection() {
               eventName={transformedData.event.eventName}
               eventDate={transformedData.event.eventDate}
               trackName={transformedData.event.trackName}
+              isPracticeDay={isPracticeDay}
+              viewingDriverName={viewingDriverName}
             />
 
             <div className="space-y-6">
@@ -425,6 +458,54 @@ export default function EventAnalysisSection() {
                   selectedClass={selectedClass}
                   onClassChange={eventActions.onClassChange}
                 />
+              )}
+
+              {/* Practice day tabs - no driver cards or weather panel */}
+              {isPracticeDay && activeTab === "my-day" && transformedData && (
+                <PracticeMyDayTab
+                  data={transformedData}
+                  selectedDriverId={selectedPracticeDriverId}
+                />
+              )}
+              {isPracticeDay && activeTab === "my-sessions" && transformedData && (
+                <PracticeMySessionsTab
+                  data={transformedData}
+                  selectedDriverId={selectedPracticeDriverId}
+                  selectedClass={selectedClass}
+                  onClassChange={eventActions.onClassChange}
+                  eventId={selectedEventId}
+                />
+              )}
+              {isPracticeDay && activeTab === "class-reference" && transformedData && (
+                <div className="space-y-6" role="tabpanel" id="tabpanel-class-reference" aria-labelledby="tab-class-reference">
+                  <PracticeClassLeaderboard
+                    data={transformedData}
+                    selectedClass={selectedClass}
+                  />
+                  <DriversTab
+                    data={transformedData}
+                    selectedClass={selectedClass}
+                    onClassChange={eventActions.onClassChange}
+                  />
+                </div>
+              )}
+              {isPracticeDay && activeTab === "all-sessions" && transformedData && (
+                <div className="space-y-6" role="tabpanel" id="tabpanel-all-sessions" aria-labelledby="tab-all-sessions">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
+                      All Sessions
+                    </h2>
+                    <p className="text-sm text-[var(--token-text-secondary)]">
+                      Full session list for the practice day. Sort by time, driver, or class.
+                    </p>
+                  </div>
+                  <SessionsTab
+                    data={transformedData}
+                    selectedDriverIds={[]}
+                    selectedClass={selectedClass}
+                    onClassChange={eventActions.onClassChange}
+                  />
+                </div>
               )}
             </div>
           </>

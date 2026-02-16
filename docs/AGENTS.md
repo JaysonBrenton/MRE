@@ -29,11 +29,12 @@ ENVIRONMENT.**
   containers. There is no local development server. The application is accessed
   via Docker containers (`mre-app` for Next.js, `mre-liverc-ingestion-service`
   for Python ingestion).
-  - **Docker Runtime:** On macOS, **Colima is the recommended and primary Docker
-    runtime** (see `docs/operations/docker-user-guide.md` for Colima setup).
-    Colima provides command-line memory configuration, is lighter than Docker
-    Desktop, and offers better resource control. Docker Desktop is supported as
-    an alternative option.
+  - **Docker Runtime:** On macOS, **Colima is the required Docker runtime for
+    this project** (see `docs/operations/docker-user-guide.md` for Colima
+    setup). Do NOT use Docker Desktop. When troubleshooting Docker/container
+    issues (e.g. "too many open files", mount errors), use `colima stop &&
+    colima start` to restart the Docker runtime. Never run `open -a Docker` or
+    suggest Docker Desktop.
 - **All Commands Run in Docker** – When suggesting commands, always prefix with
   `docker exec -it mre-app` (for Next.js) or
   `docker exec -it mre-liverc-ingestion-service` (for Python). Never suggest
@@ -63,11 +64,14 @@ ENVIRONMENT.**
 
 **When troubleshooting build or runtime errors:**
 
-1. First check if dependencies are installed in the container:
+1. For Docker runtime issues ("too many open files", mount errors): restart
+   Colima with `colima stop && colima start`. Never use Docker Desktop
+   (`open -a Docker`).
+2. First check if dependencies are installed in the container:
    `docker exec mre-app ls node_modules | grep <package-name>`
-2. Restart the container to trigger automatic dependency installation:
+3. Restart the container to trigger automatic dependency installation:
    `docker compose restart app`
-3. If needed, rebuild the image: `docker compose build app`
+4. If needed, rebuild the image: `docker compose build app`
 
 ### Other Global Guardrails
 

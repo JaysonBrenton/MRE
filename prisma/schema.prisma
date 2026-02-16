@@ -203,6 +203,7 @@ model Race {
   startTime                DateTime?             @map("start_time")
   durationSeconds          Int?                  @map("duration_seconds")
   sessionType              SessionType?          @map("session_type")
+  raceMetadata             Json?                 @map("race_metadata") @db.JsonB
   createdAt                DateTime              @default(now()) @map("created_at")
   updatedAt                DateTime              @updatedAt @map("updated_at")
   drivers                  RaceDriver[]

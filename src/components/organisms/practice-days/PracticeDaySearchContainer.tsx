@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { type Track } from "../event-search/TrackRow"
+import EventSearchTableHeader from "../event-search/EventSearchTableHeader"
 import PracticeDayRow from "./PracticeDayRow"
 import { parseApiResponse } from "@/lib/api-response-helper"
 import { clientLogger } from "@/lib/client-logger"
@@ -71,6 +72,8 @@ export default function PracticeDaySearchContainer({
     Map<string, IngestedPracticeDay>
   >(new Map())
   const [isLoading, setIsLoading] = useState(false)
+  /** Date string (YYYY-MM-DD) of the practice day currently being uploaded, if any */
+  const [ingestingDate, setIngestingDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
@@ -107,22 +110,29 @@ export default function PracticeDaySearchContainer({
       searchTrigger,
     })
 
+    const abortControllerRef = new AbortController()
+
     const fetchPracticeDays = async () => {
       setIsLoading(true)
       setError(null)
 
       try {
-        // First, discover practice days from LiveRC
+        // First, discover practice days from LiveRC (uses same cache as discover-range when available)
+        const discoverBody: { track_id: string; year: number; month: number; track_slug?: string } = {
+          track_id: selectedTrack.id,
+          year,
+          month,
+        }
+        if (selectedTrack.sourceTrackSlug?.trim()) {
+          discoverBody.track_slug = selectedTrack.sourceTrackSlug.trim()
+        }
         const discoverResponse = await fetch("/api/v1/practice-days/discover", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            track_id: selectedTrack.id,
-            year: year,
-            month: month,
-          }),
+          body: JSON.stringify(discoverBody),
+          signal: abortControllerRef.signal,
         })
 
         const discoverData = await parseApiResponse<{ practiceDays: PracticeDaySummary[] }>(
@@ -214,7 +224,7 @@ export default function PracticeDaySearchContainer({
 
             return {
               date: pd.date,
-              trackSlug: pd.track_slug || pd.trackSlug,
+              trackSlug: pd.track_slug || pd.trackSlug || "",
               sessionCount,
               totalLaps,
               totalTrackTimeSeconds:
@@ -228,10 +238,10 @@ export default function PracticeDaySearchContainer({
               timeRangeStart: pd.time_range_start || pd.timeRangeStart,
               timeRangeEnd: pd.time_range_end || pd.timeRangeEnd,
               sessions: (pd.sessions || []).map((s: SessionApiItem) => ({
-                sessionId: s.session_id || s.sessionId,
-                driverName: s.driver_name || s.driverName,
-                className: s.class_name || s.className,
-                startTime: s.start_time || s.startTime,
+                sessionId: s.session_id || s.sessionId || "",
+                driverName: s.driver_name || s.driverName || "",
+                className: s.class_name || s.className || "",
+                startTime: s.start_time || s.startTime || "",
                 durationSeconds:
                   typeof s.duration_seconds === "number"
                     ? s.duration_seconds
@@ -266,7 +276,8 @@ export default function PracticeDaySearchContainer({
 
         // Also fetch already-ingested practice days
         const searchResponse = await fetch(
-          `/api/v1/practice-days/search?track_id=${selectedTrack.id}&start_date=${startDate}&end_date=${endDate}`
+          `/api/v1/practice-days/search?track_id=${selectedTrack.id}&start_date=${startDate}&end_date=${endDate}`,
+          { signal: abortControllerRef.signal }
         )
 
         const searchData = await parseApiResponse<{ practiceDays: IngestedPracticeDay[] }>(
@@ -307,6 +318,9 @@ export default function PracticeDaySearchContainer({
           })
         }
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return
+        }
         const errorMessage = err instanceof Error ? err.message : "Failed to fetch practice days"
         clientLogger.error("Failed to fetch practice days", { error: err, message: errorMessage })
         setError(errorMessage || "An unexpected error occurred while fetching practice days")
@@ -316,12 +330,16 @@ export default function PracticeDaySearchContainer({
     }
 
     fetchPracticeDays()
+    return () => {
+      abortControllerRef.abort()
+    }
   }, [selectedTrack, year, month, startDate, endDate, searchTrigger])
 
   const handleIngest = async (date: string) => {
     if (!selectedTrack) return
 
-    setIsLoading(true)
+    const dateOnly = date.split("T")[0]
+    setIngestingDate(dateOnly)
     setError(null)
 
     try {
@@ -364,6 +382,7 @@ export default function PracticeDaySearchContainer({
       clientLogger.error("Failed to ingest practice day", { error: err })
       setError(err instanceof Error ? err.message : "Failed to ingest practice day")
     } finally {
+      setIngestingDate(null)
       setIsLoading(false)
     }
   }
@@ -439,33 +458,38 @@ export default function PracticeDaySearchContainer({
         </div>
       ) : (
         <>
-          <div className="bg-gray-900 rounded-lg border border-gray-700">
-            {paginatedPracticeDays.map((practiceDay) => {
-              const ingested = ingestedPracticeDays.get(practiceDay.date)
-              return (
-                <PracticeDayRow
-                  key={practiceDay.date}
-                  date={practiceDay.date}
-                  trackName={selectedTrack.trackName}
-                  sessionCount={
-                    typeof practiceDay.sessionCount === "number" ? practiceDay.sessionCount : 0
-                  }
-                  totalLaps={typeof practiceDay.totalLaps === "number" ? practiceDay.totalLaps : 0}
-                  uniqueDrivers={
-                    typeof practiceDay.uniqueDrivers === "number" ? practiceDay.uniqueDrivers : 0
-                  }
-                  uniqueClasses={
-                    typeof practiceDay.uniqueClasses === "number" ? practiceDay.uniqueClasses : 0
-                  }
-                  timeRangeStart={practiceDay.timeRangeStart}
-                  timeRangeEnd={practiceDay.timeRangeEnd}
-                  isIngested={!!ingested}
-                  eventId={ingested?.id}
-                  onIngest={() => handleIngest(practiceDay.date)}
-                  onView={ingested ? () => handleView(ingested.id) : undefined}
-                />
-              )
-            })}
+          <div className="mt-8 w-full min-w-0">
+            <EventSearchTableHeader />
+            <div className="divide-y divide-[var(--token-border-default)]">
+              {paginatedPracticeDays.map((practiceDay) => {
+                const ingested = ingestedPracticeDays.get(practiceDay.date)
+                return (
+                  <PracticeDayRow
+                    key={practiceDay.date}
+                    date={practiceDay.date}
+                    trackName={selectedTrack.trackName}
+                    sessionCount={
+                      typeof practiceDay.sessionCount === "number" ? practiceDay.sessionCount : 0
+                    }
+                    totalLaps={typeof practiceDay.totalLaps === "number" ? practiceDay.totalLaps : 0}
+                    uniqueDrivers={
+                      typeof practiceDay.uniqueDrivers === "number" ? practiceDay.uniqueDrivers : 0
+                    }
+                    uniqueClasses={
+                      typeof practiceDay.uniqueClasses === "number" ? practiceDay.uniqueClasses : 0
+                    }
+                    timeRangeStart={practiceDay.timeRangeStart}
+                    timeRangeEnd={practiceDay.timeRangeEnd}
+                    isIngested={!!ingested}
+                    eventId={ingested?.id}
+                    onIngest={() => handleIngest(practiceDay.date)}
+                    onView={ingested ? () => handleView(ingested.id) : undefined}
+                    isIngesting={ingestingDate === practiceDay.date.split("T")[0]}
+                    importDisabled={!!ingestingDate}
+                  />
+                )
+              })}
+            </div>
           </div>
 
           {totalPages > 1 && (

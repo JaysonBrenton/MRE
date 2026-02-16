@@ -71,6 +71,12 @@ Unit tests verify isolated functions:
 
 Unit tests use synthetic, minimal HTML snippets (not full fixtures).
 
+Practice day full ingestion: unit tests for the driver identity helper
+(`get_practice_source_driver_id`: transponder vs missing, “Unknown Driver” with
+transponder); integration tests (fixture-based full import, idempotency, partial
+detail failure, no-transponder). See fixture management (19) for practice
+session detail HTML fixtures.
+
 ---
 
 ### 2.2 Integration Tests (Fixture-Based)

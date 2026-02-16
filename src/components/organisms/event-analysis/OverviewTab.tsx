@@ -43,14 +43,6 @@ export interface OverviewTabProps {
   onClassChange: (className: string | null) => void
 }
 
-// Debug: Verify onClassChange prop
-let onClassChangeCallCount = 0
-
-type ClassChangeCallback = ((className: string | null) => void) & {
-  __CALLBACK_ID?: string
-  __IS_OUR_FUNCTION?: boolean
-}
-
 export default function OverviewTab({
   data,
   selectedDriverIds,
@@ -58,20 +50,6 @@ export default function OverviewTab({
   selectedClass,
   onClassChange,
 }: OverviewTabProps) {
-  // Log the prop immediately when component receives it
-  console.log("[OverviewTab] ====== COMPONENT RENDERED ======")
-  console.log("[OverviewTab] onClassChange prop received:", onClassChange)
-  console.log("[OverviewTab] onClassChange type:", typeof onClassChange)
-  console.log(
-    "[OverviewTab] onClassChange.__CALLBACK_ID:",
-    (onClassChange as ClassChangeCallback)?.__CALLBACK_ID
-  )
-  console.log("[OverviewTab] onClassChange.name:", onClassChange?.name)
-  console.log(
-    "[OverviewTab] onClassChange.toString():",
-    onClassChange?.toString?.()?.substring(0, 100)
-  )
-
   const lastLoggedMissingState = useRef<string | null>(null)
 
   const [paginationState, setPaginationState] = useState({
@@ -605,47 +583,13 @@ export default function OverviewTab({
         handleSelectionChange(allDriverIds)
       }
 
-      // Call the parent's onClassChange callback
-      onClassChangeCallCount++
-      console.log("[OverviewTab] ====== CALLING onClassChange ======")
-      console.log("[OverviewTab] Call #", onClassChangeCallCount)
-      console.log("[OverviewTab] className to pass:", className, "Type:", typeof className)
-      console.log("[OverviewTab] onClassChange function:", onClassChange)
-      console.log("[OverviewTab] onClassChange type:", typeof onClassChange)
-      console.log("[OverviewTab] onClassChange is defined:", !!onClassChange)
-      type ClassChangeCallback = ((className: string | null) => void) & {
-        __CALLBACK_ID?: string
-        __IS_OUR_FUNCTION?: boolean
-      }
-      console.log(
-        "[OverviewTab] onClassChange.__CALLBACK_ID:",
-        (onClassChange as ClassChangeCallback)?.__CALLBACK_ID
-      )
-      console.log("[OverviewTab] onClassChange.name:", onClassChange?.name)
+      if (!onClassChange) return
 
-      if (!onClassChange) {
-        console.error("[OverviewTab] CRITICAL ERROR: onClassChange is undefined or null!")
-        return
-      }
-
-      // Normalize the value before passing
       const normalized =
         className && typeof className === "string" && className.trim() !== ""
           ? className.trim()
           : null
-
-      try {
-        console.log("[OverviewTab] About to call onClassChange with normalized value:", normalized)
-
-        // Call onClassChange with normalized value
-        // Even if it's setSelectedClass directly, this should update the state
-        onClassChange(normalized)
-
-        console.log("[OverviewTab] onClassChange called successfully")
-      } catch (error) {
-        console.error("[OverviewTab] ERROR calling onClassChange:", error)
-        throw error
-      }
+      onClassChange(normalized)
     },
     [data.races, driverOptions, handleSelectionChange, onClassChange]
   )

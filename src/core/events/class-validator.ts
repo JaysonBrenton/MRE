@@ -34,13 +34,21 @@ import type { EventAnalysisData } from "./get-event-analysis-data"
 export function getValidClasses(data: EventAnalysisData): string[] {
   const classes = new Set<string>()
 
-  // Use EventEntry.className (race classes from entry list)
-  data.entryList.forEach((entry) => {
-    if (entry.className && entry.className.trim()) {
-      classes.add(entry.className.trim())
-    }
-  })
+  if (data.entryList.length > 0) {
+    // Use EventEntry.className (race classes from entry list)
+    data.entryList.forEach((entry) => {
+      if (entry.className?.trim()) {
+        classes.add(entry.className.trim())
+      }
+    })
+  } else {
+    // Practice days have no entry list; derive from Race.className
+    data.races.forEach((race) => {
+      if (race.className?.trim()) {
+        classes.add(race.className.trim())
+      }
+    })
+  }
 
-  // Return sorted array of unique race classes
   return Array.from(classes).sort()
 }

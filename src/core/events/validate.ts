@@ -22,7 +22,7 @@ export interface ValidationError {
   field?: string
 }
 
-const MAX_DATE_RANGE_DAYS = 90 // 3 months
+const MAX_DATE_RANGE_DAYS = 366 // Allow up to 12 months for presets (Last 12 months, This year)
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
 /**
@@ -140,7 +140,7 @@ export function validateEventSearchParams(
     if (daysDiff > MAX_DATE_RANGE_DAYS) {
       return {
         code: "VALIDATION_ERROR",
-        message: `Date range cannot exceed ${MAX_DATE_RANGE_DAYS} days (3 months). Please select a shorter range.`,
+        message: `Date range cannot exceed ${MAX_DATE_RANGE_DAYS} days (12 months). Please select a shorter range.`,
         field: "end_date",
       }
     }

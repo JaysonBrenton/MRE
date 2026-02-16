@@ -5,6 +5,8 @@
 **THE APPLICATION ONLY RUNS IN DOCKER. NEVER ASSUME A LOCAL DEVELOPMENT ENVIRONMENT.**
 
 - The MRE application runs exclusively in Docker containers
+- **Docker Runtime: Colima only.** This project uses Colima for Docker on macOS. Do NOT use or suggest Docker Desktop. Never run `open -a Docker` or any Docker Desktop commands.
+- When restarting the Docker runtime (e.g. "too many open files" or mount errors): `colima stop && colima start` — never restart Docker Desktop
 - Container names: `mre-app` (Next.js) and `mre-liverc-ingestion-service` (Python)
 - All commands must be prefixed with `docker exec -it mre-app` or `docker exec -it mre-liverc-ingestion-service`
 - Never suggest running `npm install`, `npm run dev`, `pytest`, etc. directly on the host
@@ -24,7 +26,8 @@
 
 ## When Troubleshooting
 
-1. Check if dependencies exist in container: `docker exec mre-app ls node_modules | grep <package>`
-2. Restart container to trigger auto-install: `docker compose restart app`
-3. Rebuild if needed: `docker compose build app`
+1. For Docker runtime issues ("too many open files", mount errors): `colima stop && colima start` — never use Docker Desktop
+2. Check if dependencies exist in container: `docker exec mre-app ls node_modules | grep <package>`
+3. Restart container to trigger auto-install: `docker compose restart app`
+4. Rebuild if needed: `docker compose build app`
 

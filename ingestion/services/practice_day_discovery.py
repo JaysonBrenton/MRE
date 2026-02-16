@@ -9,9 +9,10 @@
 # @purpose Orchestrates practice day discovery from LiveRC track practice pages
 
 from datetime import date, timedelta
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 
+import os
 import time
 import asyncio
 from ingestion.common.logging import get_logger
@@ -26,6 +27,48 @@ from ingestion.connectors.liverc.client.httpx_client import ConnectorHTTPError
 from sqlalchemy import select, and_
 
 logger = get_logger(__name__)
+
+# Short-lived cache for discovered practice days per (track_slug, year, month)
+# TTL in seconds (default 10 minutes); set PRACTICE_DISCOVER_CACHE_TTL_SECONDS to override.
+_PRACTICE_DISCOVER_CACHE: Dict[Tuple[str, int, int], Tuple[List[PracticeDaySummary], float]] = {}
+_PRACTICE_DISCOVER_CACHE_TTL = max(0, int(os.getenv("PRACTICE_DISCOVER_CACHE_TTL_SECONDS", "600")))
+
+# Timeouts so one slow request doesn't dominate (seconds)
+_PRACTICE_MONTH_VIEW_TIMEOUT = float(os.getenv("PRACTICE_DISCOVER_MONTH_VIEW_TIMEOUT_SECONDS", "15"))
+_PRACTICE_DAY_OVERVIEW_TIMEOUT = float(os.getenv("PRACTICE_DISCOVER_DAY_OVERVIEW_TIMEOUT_SECONDS", "25"))
+
+
+def _get_cached_practice_days(track_slug: str, year: int, month: int) -> Optional[List[PracticeDaySummary]]:
+    key = (track_slug, year, month)
+    entry = _PRACTICE_DISCOVER_CACHE.get(key)
+    if not entry:
+        return None
+    results, expiry = entry
+    if time.time() > expiry:
+        del _PRACTICE_DISCOVER_CACHE[key]
+        return None
+    return results
+
+
+def _set_cached_practice_days(
+    track_slug: str, year: int, month: int, practice_days: List[PracticeDaySummary]
+) -> None:
+    key = (track_slug, year, month)
+    _PRACTICE_DISCOVER_CACHE[key] = (practice_days, time.time() + _PRACTICE_DISCOVER_CACHE_TTL)
+
+
+def get_cached_practice_days(
+    track_slug: str, year: int, month: int, start_date: date, end_date: date
+) -> Optional[List[PracticeDaySummary]]:
+    """
+    Return cached practice days for (track_slug, year, month) if valid and in range.
+    Used by the API route to return immediately on cache hit without calling discover_practice_days.
+    """
+    cached = _get_cached_practice_days(track_slug, year, month)
+    if cached is None:
+        return None
+    in_range = [s for s in cached if start_date <= s.date <= end_date]
+    return in_range
 
 
 async def discover_practice_days(
@@ -81,34 +124,80 @@ async def discover_practice_days(
         month = current_date.month
         
         try:
-            # Fetch practice month view
-            dates_with_practice = await connector.fetch_practice_month_view(
-                track_slug=track_slug,
-                year=year,
-                month=month,
-            )
-            
-            if len(dates_with_practice) > 0:
-                month_view_working = True
-            
-            # Filter dates within range
-            for practice_date in dates_with_practice:
-                if start_date <= practice_date <= end_date:
-                    try:
-                        # Fetch practice day overview
-                        summary = await connector.fetch_practice_day_overview(
+            # Check cache first (per month)
+            cached = _get_cached_practice_days(track_slug, year, month)
+            if cached is not None:
+                in_range = [s for s in cached if start_date <= s.date <= end_date]
+                practice_days.extend(in_range)
+                if in_range:
+                    month_view_working = True
+            else:
+                # Fetch practice month view (with timeout so one slow month doesn't block)
+                try:
+                    dates_with_practice = await asyncio.wait_for(
+                        connector.fetch_practice_month_view(
                             track_slug=track_slug,
-                            practice_date=practice_date,
-                        )
-                        practice_days.append(summary)
-                    except Exception as e:
-                        logger.warning(
-                            "practice_day_overview_fetch_error",
-                            track_slug=track_slug,
-                            date=practice_date.isoformat(),
-                            error=str(e),
-                        )
-                        continue
+                            year=year,
+                            month=month,
+                        ),
+                        timeout=_PRACTICE_MONTH_VIEW_TIMEOUT,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "practice_month_view_timeout",
+                        track_slug=track_slug,
+                        year=year,
+                        month=month,
+                        timeout_seconds=_PRACTICE_MONTH_VIEW_TIMEOUT,
+                    )
+                    dates_with_practice = []
+
+                if len(dates_with_practice) > 0:
+                    month_view_working = True
+
+                # Filter dates within range and fetch day overviews in parallel (bounded concurrency + per-day timeout)
+                dates_in_range = [d for d in dates_with_practice if start_date <= d <= end_date]
+                month_summaries: List[PracticeDaySummary] = []
+                if dates_in_range:
+                    semaphore = asyncio.Semaphore(10)
+
+                    async def fetch_one(practice_date: date) -> Optional[PracticeDaySummary]:
+                        try:
+                            async with semaphore:
+                                return await asyncio.wait_for(
+                                    connector.fetch_practice_day_overview(
+                                        track_slug=track_slug,
+                                        practice_date=practice_date,
+                                    ),
+                                    timeout=_PRACTICE_DAY_OVERVIEW_TIMEOUT,
+                                )
+                        except asyncio.TimeoutError:
+                            logger.warning(
+                                "practice_day_overview_timeout",
+                                track_slug=track_slug,
+                                date=practice_date.isoformat(),
+                                timeout_seconds=_PRACTICE_DAY_OVERVIEW_TIMEOUT,
+                            )
+                            return None
+                        except Exception as e:
+                            logger.warning(
+                                "practice_day_overview_fetch_error",
+                                track_slug=track_slug,
+                                date=practice_date.isoformat(),
+                                error=str(e),
+                            )
+                            return None
+
+                    results = await asyncio.gather(
+                        *(fetch_one(d) for d in dates_in_range),
+                        return_exceptions=False,
+                    )
+                    for summary in results:
+                        if summary is not None:
+                            month_summaries.append(summary)
+                            practice_days.append(summary)
+
+                _set_cached_practice_days(track_slug, year, month, month_summaries)
         
         except Exception as e:
             logger.warning(

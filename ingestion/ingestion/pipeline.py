@@ -11,6 +11,7 @@
 
 import asyncio
 import math
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, date
@@ -29,6 +30,7 @@ from ingestion.connectors.liverc.models import (
     ConnectorEntryList,
     PracticeDaySummary,
     PracticeSessionDetail,
+    PracticeSessionSummary,
 )
 from ingestion.connectors.liverc.utils import build_event_url
 from ingestion.db.models import (
@@ -39,6 +41,7 @@ from ingestion.db.models import (
     Track,
     Event,
 )
+from ingestion.ingestion.practice_driver_identity import get_practice_source_driver_id
 from ingestion.db.repository import Repository
 from ingestion.db.session import db_session
 from sqlalchemy import select, and_, func
@@ -93,7 +96,9 @@ class IngestionPipeline:
     # Percentile thresholds for adaptive concurrency adjustments
     CONCURRENCY_INCREASE_THRESHOLD_SECONDS = 2.5
     CONCURRENCY_DECREASE_THRESHOLD_SECONDS = 8.0
-    
+    # Practice day session detail fetch concurrency (cap to avoid hammering LiveRC)
+    PRACTICE_DAY_DETAIL_CONCURRENCY = 5
+
     def __init__(self):
         """Initialize pipeline."""
         self.connector = LiveRCConnector()
@@ -1642,6 +1647,38 @@ class IngestionPipeline:
             entry_list=entry_list,
         )
     
+    async def _fetch_practice_session_details_with_concurrency(
+        self,
+        track_slug: str,
+        sessions: List[PracticeSessionSummary],
+    ) -> List[Tuple[PracticeSessionSummary, Optional[PracticeSessionDetail], Optional[Exception]]]:
+        """
+        Fetch practice session detail pages with bounded concurrency.
+        Returns list of (session_summary, detail_or_none, error_or_none).
+        Concurrency limit: PRACTICE_DAY_DETAIL_CONCURRENCY env or class constant (default 5).
+        """
+        raw = os.environ.get("PRACTICE_DAY_DETAIL_CONCURRENCY")
+        limit = int(raw) if (raw and raw.isdigit()) else self.PRACTICE_DAY_DETAIL_CONCURRENCY
+        sem = asyncio.Semaphore(max(1, limit))
+
+        async def fetch_one(ss: PracticeSessionSummary) -> Tuple[PracticeSessionSummary, Optional[PracticeSessionDetail], Optional[Exception]]:
+            async with sem:
+                try:
+                    detail = await self.connector.fetch_practice_session_detail(
+                        track_slug, ss.session_id, transponder_number=ss.transponder_number
+                    )
+                    return (ss, detail, None)
+                except Exception as e:
+                    return (ss, None, e)
+
+        if not sessions:
+            return []
+        results = await asyncio.gather(
+            *[fetch_one(ss) for ss in sessions],
+            return_exceptions=False,
+        )
+        return results
+
     async def ingest_practice_day(
         self,
         track_id: UUID,
@@ -1685,7 +1722,25 @@ class IngestionPipeline:
             track_slug=track_slug,
             practice_date=practice_date,
         )
-        
+        session_count = len(practice_day_summary.sessions) if practice_day_summary.sessions else 0
+        logger.info(
+            "ingest_practice_day_overview_loaded",
+            track_slug=track_slug,
+            practice_date=practice_date.isoformat(),
+            session_count=session_count,
+            total_laps=practice_day_summary.total_laps,
+            unique_drivers=practice_day_summary.unique_drivers,
+        )
+        if session_count == 0 and (practice_day_summary.total_laps or practice_day_summary.unique_drivers):
+            logger.warning(
+                "ingest_practice_day_overview_sessions_empty_but_stats_nonzero",
+                track_slug=track_slug,
+                practice_date=practice_date.isoformat(),
+                total_laps=practice_day_summary.total_laps,
+                unique_drivers=practice_day_summary.unique_drivers,
+                message="Overview has aggregate stats but no session rows; races/laps will not be created.",
+            )
+
         # Create source_event_id for practice day: {track-slug}-practice-{YYYY-MM-DD}
         source_event_id = f"{track_slug}-practice-{practice_date.strftime('%Y-%m-%d')}"
         
@@ -1702,27 +1757,19 @@ class IngestionPipeline:
                 )
             
             try:
-                # Check if Event already exists
-                from ingestion.db.models import Event
-                existing_event = session.query(Event).filter(
-                    Event.source == "liverc",
-                    Event.source_event_id == source_event_id,
-                ).first()
+                # Resolve event (use repo to get a single Event entity; avoid Row vs entity confusion)
+                existing_event = repo.get_event_by_source_event_id("liverc", source_event_id)
                 
-                # Create or update Event record
                 event_date = datetime.combine(practice_date, datetime.min.time())
                 if existing_event:
                     event_id = existing_event.id
-                    # Update event metadata with practice day stats
-                    # Handle metadata - it might be None, dict, or a JSONB object
+                    existing_event.event_drivers = practice_day_summary.unique_drivers
                     if existing_event.event_metadata is None:
                         metadata = {}
                     elif isinstance(existing_event.event_metadata, dict):
-                        metadata = dict(existing_event.event_metadata)  # Create a copy
+                        metadata = dict(existing_event.event_metadata)
                     else:
-                        # If it's a JSONB object or other type, convert to dict
                         metadata = dict(existing_event.event_metadata) if hasattr(existing_event.event_metadata, '__iter__') and not isinstance(existing_event.event_metadata, str) else {}
-                    
                     metadata["practiceDayStats"] = {
                         "totalLaps": practice_day_summary.total_laps,
                         "totalTrackTimeSeconds": practice_day_summary.total_track_time_seconds,
@@ -1733,20 +1780,17 @@ class IngestionPipeline:
                     }
                     existing_event.event_metadata = metadata
                     existing_event.updated_at = datetime.utcnow()
-                    session.commit()
                 else:
-                    # Create new Event
                     event = repo.upsert_event(
                         source="liverc",
                         source_event_id=source_event_id,
                         track_id=track_id,
                         event_name=f"Practice Day - {practice_date.strftime('%Y-%m-%d')}",
                         event_date=event_date,
-                        event_entries=0,  # Practice days don't have entry lists
+                        event_entries=0,
                         event_drivers=practice_day_summary.unique_drivers,
                         event_url=f"https://{track_slug}.liverc.com/practice/?p=session_list&d={practice_date.strftime('%Y-%m-%d')}",
                     )
-                    # Set metadata
                     event.event_metadata = {
                         "practiceDayStats": {
                             "totalLaps": practice_day_summary.total_laps,
@@ -1757,68 +1801,244 @@ class IngestionPipeline:
                             "timeRangeEnd": practice_day_summary.time_range_end.isoformat() if practice_day_summary.time_range_end else None,
                         }
                     }
+                    session.flush()
                     event_id = event.id
-                    session.commit()
+                session.flush()
                 
-                # Ingest each practice session
+                # Commit event + metadata first so overview data is persisted even if list/detail phase fails
+                session.commit()
+                # Ensure event_id is a non-None string for list phase (avoid UUID() constructor error)
+                event_id_str = str(event_id) if event_id is not None else None
+                if not event_id_str:
+                    raise StateMachineError(
+                        "Event id is missing after commit; cannot create races",
+                        event_id=str(event_id),
+                    )
+                event_id = event_id_str  # use string for rest of pipeline (logging, return)
+                logger.info(
+                    "ingest_practice_day_event_committed",
+                    event_id=event_id,
+                    session_count=len(practice_day_summary.sessions) if practice_day_summary.sessions else 0,
+                )
+                
                 sessions_ingested = 0
                 sessions_failed = 0
+                race_results_by_key: Dict[Tuple[str, str], Any] = {}
                 
-                for session_summary in practice_day_summary.sessions:
+                if practice_day_summary.sessions:
                     try:
-                        # Create Race record with sessionType = "practiceday"
-                        race_data = {
-                            "event_id": UUID(event_id),
-                            "source": "liverc",
-                            "source_race_id": session_summary.session_id,
-                            "class_name": session_summary.class_name,
-                            "race_label": f"Practice - {session_summary.driver_name}",
-                            "race_order": None,
-                            "race_url": session_summary.session_url,
-                            "start_time": session_summary.start_time,
-                            "duration_seconds": session_summary.duration_seconds,
-                            "session_type": "practiceday",
-                        }
+                        races_data = [
+                            {
+                                "event_id": UUID(event_id_str),
+                                "source": "liverc",
+                                "source_race_id": s.session_id,
+                                "class_name": s.class_name,
+                                "race_label": f"Practice - {s.driver_name}",
+                                "race_order": None,
+                                "race_url": s.session_url,
+                                "start_time": s.start_time,
+                                "duration_seconds": s.duration_seconds,
+                                "session_type": "practiceday",
+                            }
+                            for s in practice_day_summary.sessions
+                        ]
+                        races = repo.bulk_upsert_races(races_data)
+                        sessions_ingested = len(races)
                         
-                        # Use repository to upsert race
-                        races_to_write = [race_data]
-                        races = repo.bulk_upsert_races(races_to_write)
-                        sessions_ingested += 1
+                        race_drivers_data: List[Dict[str, Any]] = []
+                        for session_summary in practice_day_summary.sessions:
+                            source_driver_id = get_practice_source_driver_id(
+                                session_summary.session_id,
+                                session_summary.transponder_number,
+                            )
+                            driver = repo.upsert_driver(
+                                "liverc",
+                                source_driver_id,
+                                session_summary.driver_name,
+                                session_summary.transponder_number,
+                                normalized_name=Normalizer.normalize_driver_name(session_summary.driver_name),
+                            )
+                            race = races[session_summary.session_id]
+                            race_drivers_data.append({
+                                "race_id": str(race.id),
+                                "driver_id": str(driver.id),
+                                "source": "liverc",
+                                "source_driver_id": source_driver_id,
+                                "display_name": session_summary.driver_name,
+                                "transponder_number": session_summary.transponder_number,
+                            })
                         
-                    except Exception as e:
-                        logger.warning(
-                            "practice_session_ingestion_error",
-                            session_id=session_summary.session_id,
-                            error=str(e),
+                        race_drivers = repo.bulk_upsert_race_drivers(race_drivers_data)
+                        
+                        race_results_data: List[Dict[str, Any]] = []
+                        for session_summary in practice_day_summary.sessions:
+                            source_driver_id = get_practice_source_driver_id(
+                                session_summary.session_id,
+                                session_summary.transponder_number,
+                            )
+                            race = races[session_summary.session_id]
+                            race_driver = race_drivers[(str(race.id), source_driver_id)]
+                            race_results_data.append({
+                                "race_id": str(race.id),
+                                "race_driver_id": str(race_driver.id),
+                                "position_final": 1,
+                                "laps_completed": session_summary.lap_count,
+                                "total_time_raw": None,
+                                "total_time_seconds": None,
+                                "fast_lap_time": session_summary.fastest_lap,
+                                "avg_lap_time": session_summary.average_lap,
+                                "consistency": None,
+                                "qualifying_position": None,
+                                "seconds_behind": None,
+                                "raw_fields_json": None,
+                            })
+                        
+                        race_results_by_key = repo.bulk_upsert_race_results(race_results_data)
+
+                        # Create EventRaceClass for each unique class so event.race_classes is populated
+                        event_id_uuid = UUID(event_id_str)
+                        for class_name in {s.class_name for s in practice_day_summary.sessions}:
+                            repo.upsert_event_race_class(
+                                event_id_uuid,
+                                class_name,
+                                vehicle_type=None,
+                                vehicle_type_needs_review=True,
+                            )
+
+                        # Commit list phase so races + drivers + results + classes are persisted
+                        session.commit()
+                        logger.info(
+                            "ingest_practice_day_list_phase_committed",
+                            event_id=event_id,
+                            sessions_ingested=sessions_ingested,
                         )
-                        sessions_failed += 1
-                        continue
-                
+                    except Exception as list_err:
+                        logger.exception(
+                            "ingest_practice_day_list_phase_failed",
+                            event_id=event_id,
+                            session_count=len(practice_day_summary.sessions),
+                            error_type=type(list_err).__name__,
+                            error_message=str(list_err),
+                            message="List phase failed; event + metadata already committed. Check traceback.",
+                        )
+                        raise
+
+                    # Detail phase: fetch session detail with bounded concurrency, persist race_metadata, result stats, laps
+                    detail_results = await self._fetch_practice_session_details_with_concurrency(
+                        track_slug, practice_day_summary.sessions
+                    )
+                    accumulated_laps_list: List[Dict[str, Any]] = []
+                    sessions_detail_failed = 0
+                    sessions_with_laps = 0
+                    for session_summary, detail, detail_error in detail_results:
+                        if detail_error is not None:
+                            logger.warning(
+                                "practice_session_detail_fetch_failed",
+                                session_id=session_summary.session_id,
+                                error=str(detail_error),
+                            )
+                            sessions_detail_failed += 1
+                            continue
+                        if detail is None:
+                            continue
+                        race = races[session_summary.session_id]
+                        race_id = str(race.id)
+                        source_driver_id = get_practice_source_driver_id(
+                            session_summary.session_id,
+                            session_summary.transponder_number,
+                        )
+                        race_driver = race_drivers[(race_id, source_driver_id)]
+                        race_driver_id = str(race_driver.id)
+                        race_result = race_results_by_key[(race_id, race_driver_id)]
+                        race_result_id = str(race_result.id)
+
+                        repo.update_race_metadata(race_id, {
+                            "end_time": detail.end_time.isoformat() if detail.end_time else None,
+                            "practiceSessionStats": {
+                                "top_3_consecutive": detail.top_3_consecutive,
+                                "avg_top_5": detail.avg_top_5,
+                                "avg_top_10": detail.avg_top_10,
+                                "avg_top_15": detail.avg_top_15,
+                                "std_deviation": detail.std_deviation,
+                                "valid_lap_range": list(detail.valid_lap_range) if detail.valid_lap_range else None,
+                            },
+                        })
+                        raw_fields_json = {
+                            "top_3_consecutive": detail.top_3_consecutive,
+                            "avg_top_5": detail.avg_top_5,
+                            "avg_top_10": detail.avg_top_10,
+                            "avg_top_15": detail.avg_top_15,
+                            "std_deviation": detail.std_deviation,
+                            "valid_lap_range": list(detail.valid_lap_range) if detail.valid_lap_range else None,
+                        }
+                        repo.bulk_upsert_race_results([{
+                            "race_id": race_id,
+                            "race_driver_id": race_driver_id,
+                            "position_final": 1,
+                            "laps_completed": detail.lap_count if detail.lap_count is not None else session_summary.lap_count,
+                            "total_time_raw": None,
+                            "total_time_seconds": None,
+                            "fast_lap_time": detail.fastest_lap if detail.fastest_lap is not None else session_summary.fastest_lap,
+                            "avg_lap_time": detail.average_lap if detail.average_lap is not None else session_summary.average_lap,
+                            "consistency": detail.consistency,
+                            "qualifying_position": None,
+                            "seconds_behind": None,
+                            "raw_fields_json": raw_fields_json,
+                        }])
+                        for lap in detail.laps:
+                            accumulated_laps_list.append({
+                                "race_result_id": race_result_id,
+                                "lap_number": lap.lap_number,
+                                "position_on_lap": lap.position_on_lap,
+                                "lap_time_raw": lap.lap_time_raw,
+                                "lap_time_seconds": lap.lap_time_seconds,
+                                "pace_string": lap.pace_string,
+                                "elapsed_race_time": lap.elapsed_race_time if lap.elapsed_race_time is not None else 0.0,
+                                "segments_json": list(lap.segments) if lap.segments else None,
+                            })
+                        if detail.laps:
+                            sessions_with_laps += 1
+                    laps_ingested = len(accumulated_laps_list)
+                    if accumulated_laps_list:
+                        repo.bulk_upsert_laps(accumulated_laps_list)
+                else:
+                    laps_ingested = 0
+                    sessions_with_laps = 0
+                    sessions_detail_failed = 0
+
                 session.commit()
-                
                 success = True
                 duration = time.time() - start_time
-                
+
                 logger.info(
                     "ingest_practice_day_success",
                     event_id=event_id,
                     sessions_ingested=sessions_ingested,
                     sessions_failed=sessions_failed,
+                    sessions_with_laps=sessions_with_laps,
+                    laps_ingested=laps_ingested,
+                    sessions_detail_failed=sessions_detail_failed,
                     duration_seconds=duration,
                 )
-                
+
                 metrics.record_practice_day_ingestion(
                     track_slug=track_slug,
                     date=practice_date.isoformat(),
                     duration_seconds=duration,
                     success=success,
                     sessions_ingested=sessions_ingested,
+                    sessions_with_laps=sessions_with_laps,
+                    laps_ingested=laps_ingested,
+                    sessions_detail_failed=sessions_detail_failed,
                 )
-                
+
                 return {
-                    "event_id": event_id,
+                    "event_id": str(event_id) if event_id is not None else None,
                     "sessions_ingested": sessions_ingested,
                     "sessions_failed": sessions_failed,
+                    "sessions_with_laps": sessions_with_laps,
+                    "laps_ingested": laps_ingested,
+                    "sessions_detail_failed": sessions_detail_failed,
                     "status": "completed",
                 }
             
@@ -1837,6 +2057,9 @@ class IngestionPipeline:
                     duration_seconds=duration,
                     success=success,
                     sessions_ingested=0,
+                    sessions_with_laps=0,
+                    laps_ingested=0,
+                    sessions_detail_failed=0,
                 )
                 raise
             

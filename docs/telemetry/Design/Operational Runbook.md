@@ -241,6 +241,21 @@ Actions:
 - temporarily disable format family via feature flag
 - provide user-facing reason codes and workaround suggestions
 
+#### 7.2.1 Known bad patterns for ingestion
+
+These patterns cause parser or pipeline failures and have stable error codes.
+Check job attempt `last_error_code` and `last_error_message` for these:
+
+| Pattern | Error code (example) | First checks |
+| -------- | -------------------- | ------------- |
+| **Timebase mismatch** | `TIME_ALIGNMENT_DRIFT`, `TIMESTAMP_NON_MONOTONIC` | GNSS vs IMU clock drift; device time vs UTC mapping; duplicate timestamps |
+| **IMU axis confusion** | `IMU_AXIS_MISMATCH`, `FRAME_AMBIGUOUS` | Device family axis convention (RH_Z_UP vs RH_Z_DOWN); coordinate frame metadata |
+| **GNSS jitter** | `GNSS_JITTER_HIGH`, `GNSS_TELEPORT_EVENTS` | HDOP spikes; dropout spans; multipath near structures |
+| **Missing timestamps** | `CSV_NO_TIME_COLUMN`, `GPX_MISSING_TIME` | Header mapping; time column detection; fallback to relative time |
+
+Operator actions: run golden fixtures to confirm parser baseline; check device
+family in parse metadata; suggest user re-export with timestamps enabled.
+
 ### 7.3 Queue backlog
 
 Symptoms:

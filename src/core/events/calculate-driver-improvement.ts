@@ -111,9 +111,13 @@ function normalizeLapTimeImprovement(lapTimeImprovement: number, firstFastLap: n
  * Returns top 3 drivers per class.
  *
  * @param eventId - Event ID
+ * @param isPracticeDay - When true, use lap-time-only improvement (no position); for practice days each session has one driver so position is always 1.
  * @returns Array of most improved drivers, grouped by class, top 3 per class
  */
-export async function calculateMostImprovedDrivers(eventId: string): Promise<MostImprovedDriver[]> {
+export async function calculateMostImprovedDrivers(
+  eventId: string,
+  isPracticeDay?: boolean
+): Promise<MostImprovedDriver[]> {
   // Get all race results for the event, ordered by raceOrder then startTime
   // startTime is needed as fallback since some events have all races with raceOrder=1
   const raceResults = await prisma.raceResult.findMany({
@@ -241,13 +245,17 @@ export async function calculateMostImprovedDrivers(eventId: string): Promise<Mos
         lapTimeScore = normalizeLapTimeImprovement(lapTimeImprovement, validFirstFastLap)
       }
 
-      // Combined score: 50% position, 50% lap time
-      // If lap time data is missing, use 100% position score
-      const improvementScore =
-        lapTimeScore > 0 ? positionScore * 0.5 + lapTimeScore * 0.5 : positionScore
+      // Combined score: 50% position, 50% lap time (or 100% lap time for practice days)
+      const improvementScore = isPracticeDay
+        ? lapTimeScore
+        : lapTimeScore > 0
+          ? positionScore * 0.5 + lapTimeScore * 0.5
+          : positionScore
 
-      // Only include drivers with positive improvement
-      if (positionImprovement > 0 || (lapTimeImprovement !== null && lapTimeImprovement > 0)) {
+      // Only include drivers with positive improvement (position or lap time; for practice day, lap time only)
+      const hasImprovement =
+        positionImprovement > 0 || (lapTimeImprovement !== null && lapTimeImprovement > 0)
+      if (hasImprovement) {
         improvements.push({
           driverId,
           driverName: firstResult.raceDriver.displayName,

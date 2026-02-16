@@ -361,15 +361,15 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/trac
 
 ### GET /api/v1/events/search
 
-Searches for events by track and date range.
+Searches for events by track and optional date range.
 
 **Authentication:** Required
 
 **Query Parameters:**
 
 - `track_id` (string, required) - Track UUID
-- `start_date` (string, optional) - Start date in ISO 8601 format (YYYY-MM-DD)
-- `end_date` (string, optional) - End date in ISO 8601 format (YYYY-MM-DD)
+- `start_date` (string, optional) - Start date in ISO 8601 format (YYYY-MM-DD). When provided with `end_date`, both must be valid, start ≤ end, no future dates, and the range must not exceed 12 months (366 days).
+- `end_date` (string, optional) - End date in ISO 8601 format (YYYY-MM-DD). See `start_date` for validation rules when both are provided.
 
 **Response (200 OK):**
 
@@ -403,7 +403,7 @@ Searches for events by track and date range.
 
 **Error Codes:**
 
-- `VALIDATION_ERROR` (400) - Missing or invalid query parameters
+- `VALIDATION_ERROR` (400) - Missing or invalid query parameters (e.g. invalid `track_id`, missing `end_date` when `start_date` is set, date range &gt; 12 months, or future dates).
 - `NOT_FOUND` (404) - Track not found
 - `INTERNAL_ERROR` (500) - Server error
 
@@ -1952,6 +1952,9 @@ Ingests practice day data for a specific track and date.
     "eventId": "uuid",
     "sessionsIngested": 15,
     "sessionsFailed": 0,
+    "sessionsWithLaps": 12,
+    "lapsIngested": 450,
+    "sessionsDetailFailed": 0,
     "status": "completed"
   }
 }
@@ -1962,6 +1965,9 @@ Ingests practice day data for a specific track and date.
 - `eventId` (string) - UUID of the created event
 - `sessionsIngested` (number) - Number of sessions successfully ingested
 - `sessionsFailed` (number) - Number of sessions that failed to ingest
+- `sessionsWithLaps` (number, optional) - Sessions for which at least one lap was written (full ingestion)
+- `lapsIngested` (number, optional) - Total laps ingested (full ingestion)
+- `sessionsDetailFailed` (number, optional) - Sessions whose detail fetch failed (full ingestion)
 - `status` (string) - Ingestion status (e.g., "completed", "partial", "failed")
 
 **Error Codes:**
@@ -1976,9 +1982,9 @@ Ingests practice day data for a specific track and date.
 
 **Notes:**
 
-- Creates an Event with session type `practiceday`
+- Creates an Event with session type `practiceday`. Full ingestion fetches the session list, creates Driver/RaceDriver/RaceResult per session, then fetches each session's detail page (with bounded concurrency) and persists race_metadata, result stats, and laps.
 - Ingests all practice sessions for the specified date
-- Results include counts of successful and failed session ingestions
+- Results include counts of successful and failed session ingestions. Optional fields `sessionsWithLaps`, `lapsIngested`, and `sessionsDetailFailed` are returned when full ingestion is enabled (additive, non-breaking).
 
 **Example:**
 

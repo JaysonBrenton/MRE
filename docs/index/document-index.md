@@ -152,6 +152,20 @@ complete architectural framework ensuring the system is mobile-safe, API-first,
 and future-native for iOS/Android clients. All code must follow these
 guidelines.
 
+#### [Event Search: Include Practice Days Design](../architecture/event-search-include-practice-days-design.md)
+
+Design for Event Search with optional “Include practice days”: single combined
+list (events + practice days), practice range = event min/max, in-app Prisma for
+practice-day list, single discover-range request (or streaming), 180-day default,
+and cache for fast repeat searches.
+
+#### [Practice Day Search Performance Design](../architecture/practice-day-search-performance-design.md)
+
+Practice day discovery performance: design options and **implemented** improvements
+(single discover-range request, cache, timeouts, streaming, 180-day default, skip
+when covered, optimistic import). Includes before/after timings and env vars for
+cache TTL and timeouts.
+
 #### [Dashboard Architecture](../architecture/dashboard-architecture.md)
 
 Dashboard architecture and widget system for MRE version 0.1.1. Defines
@@ -794,6 +808,12 @@ identified issues.
 
 Migration plan for implementing Redux state management. Defines migration
 strategy, implementation steps, and transition plan.
+
+### [Practice Day Full Ingestion Implementation Plan](../implimentation_plans/practice-day-full-ingestion-implementation-plan.md)
+
+Phased implementation plan for full practice day ingestion: list + drivers/results
+from list + session detail fetch with concurrency + race_metadata, result stats,
+and laps. References design doc and covers schema, pipeline, API, docs, and tests.
 
 ---
 

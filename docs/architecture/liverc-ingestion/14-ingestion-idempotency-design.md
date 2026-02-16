@@ -75,6 +75,11 @@ Idempotency applies to:
 
 It does **NOT** apply to logs or metrics (those may vary per run).
 
+**Practice day re-import:** Re-importing the same practice day is idempotent.
+Event, Races, Drivers, RaceDrivers, RaceResults, and Laps are upserted by
+natural keys; detail re-fetch overwrites Race.race_metadata and RaceResult
+stats and laps (ON CONFLICT DO UPDATE). No duplicate rows.
+
 ---
 
 ## 3. Primary Keys and Uniqueness Principles

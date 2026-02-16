@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800" style="background:#0f1117;font-family:'Inter',sans-serif">
+  <rect x="40" y="40" width="380" height="720" rx="18" fill="#181b24" stroke="#3d445b" stroke-width="3"/>
+  <text x="60" y="80" font-size="22" fill="#f4f5f8">EventSearchForm (existing)</text>
+  <line x1="60" y1="100" x2="400" y2="100" stroke="#2f3445" stroke-width="2"/>
+  <g fill="#9ea4c7" font-size="16" text-anchor="start">
+    <text x="60" y="135">• Track selector + favourites chips</text>
+    <text x="60" y="165">• Search Type toggle (Events / Practice Days)</text>
+    <text x="60" y="195">• Filter by date range checkbox</text>
+    <text x="60" y="225">• Include practice days checkbox</text>
+    <text x="60" y="255">• Date Range picker (if enabled)</text>
+    <text x="60" y="285">• Search / Reset / Check Entry Lists buttons</text>
+  </g>
+
+  <rect x="460" y="40" width="880" height="720" rx="18" fill="#141824" stroke="#3d445b" stroke-width="3"/>
+  <text x="480" y="80" font-size="24" fill="#f4f5f8">Timeline Results (new wrapper)</text>
+  <rect x="480" y="100" width="840" height="60" rx="10" fill="#1f2333" stroke="#30354b"/>
+  <text x="500" y="135" font-size="16" fill="#c3c7e6">Status: Phase 1 Ready • Discovering practice days…</text>
+
+  <g>
+    <rect x="480" y="180" width="840" height="170" rx="14" fill="#1b1f2e" stroke="#30354b"/>
+    <text x="500" y="210" font-size="18" fill="#f4f5f8">Events Lane (EventRow with import controls)</text>
+    <rect x="1080" y="192" width="180" height="34" rx="10" fill="#30354b" stroke="#4d5472"/>
+    <text x="1090" y="214" font-size="14" fill="#d0d4ef">Lane filter / Hide</text>
+    <g font-size="15" fill="#c5c9e8">
+      <rect x="500" y="230" width="790" height="36" rx="8" fill="#262c3f" stroke="#3c425c"/>
+      <text x="512" y="253">Event item — {date} • entries • Import / View Dashboard</text>
+      <rect x="500" y="270" width="790" height="36" rx="8" fill="#262c3f" stroke="#3c425c"/>
+      <text x="512" y="293">Event item — {date} • driver badge • status override</text>
+      <rect x="500" y="310" width="790" height="36" rx="8" fill="#262c3f" stroke="#3c425c"/>
+      <text x="512" y="333">Event item — LiveRC discover appended via SSE</text>
+    </g>
+  </g>
+
+  <g>
+    <rect x="480" y="370" width="840" height="170" rx="14" fill="#202437" stroke="#30354b"/>
+    <text x="500" y="400" font-size="18" fill="#f4f5f8">Practice — Ingested (PracticeDayRow)</text>
+    <rect x="1080" y="382" width="180" height="34" rx="10" fill="#30354b" stroke="#4d5472"/>
+    <text x="1090" y="404" font-size="14" fill="#d0d4ef">Lane filter / Hide</text>
+    <g font-size="15" fill="#c5c9e8">
+      <rect x="500" y="420" width="790" height="36" rx="8" fill="#262c3f" stroke="#3c425c"/>
+      <text x="512" y="443">Practice day — {date} • sessions • View</text>
+      <rect x="500" y="460" width="790" height="36" rx="8" fill="#262c3f" stroke="#3c425c"/>
+      <text x="512" y="483">Practice day — {date} • stats pill • View</text>
+    </g>
+  </g>
+
+  <g>
+    <rect x="480" y="560" width="840" height="170" rx="14" fill="#1b1f2e" stroke="#30354b"/>
+    <text x="500" y="590" font-size="18" fill="#f4f5f8">Practice — Discovered (streamed deltas)</text>
+    <rect x="1080" y="572" width="180" height="34" rx="10" fill="#30354b" stroke="#4d5472"/>
+    <text x="1090" y="594" font-size="14" fill="#d0d4ef">Lane filter / Hide</text>
+    <g font-size="15" fill="#c5c9e8">
+      <rect x="500" y="610" width="790" height="36" rx="8" fill="#262c3f" stroke="#3c425c"/>
+      <text x="512" y="633">Discovered day — {date} • Import button (handleImportPracticeDay)</text>
+      <rect x="500" y="650" width="790" height="36" rx="8" fill="#262c3f" stroke="#3c425c"/>
+      <text x="512" y="673">Discovered day — streaming badge “LiveRC update”</text>
+    </g>
+  </g>
+
+  <rect x="480" y="740" width="840" height="40" rx="10" fill="#1f2333" stroke="#30354b"/>
+  <text x="500" y="766" font-size="16" fill="#cad0f0">Import All newly discovered practice days — sequentially reuse handleImportPracticeDay()</text>
+
+  <text x="460" y="780" font-size="14" fill="#9ea4c7">Legend: lanes stream DB rows immediately, discovery deltas append via SSE / polling • Virtualized list keeps DOM small</text>
+</svg>

@@ -12,18 +12,19 @@
  *
  * @relatedFiles
  * - src/components/event-search/TrackSelectionModal.tsx (track modal)
- * - src/components/event-search/DateRangePicker.tsx (date picker)
+ * - src/components/event-search/DateRangePresetPicker.tsx (date range presets)
  * - docs/frontend/liverc/user-workflow.md (UX specification)
  */
 
 "use client"
 
 import { useState } from "react"
-import TrackSelectionModal from "./TrackSelectionModal"
+import TrackAndFavouritesModal from "./TrackAndFavouritesModal"
 import { type Track } from "./TrackRow"
-import DateRangePicker from "./DateRangePicker"
+import DateRangePresetPicker, { type DateRangePreset, PRESETS as DATE_RANGE_PRESETS } from "./DateRangePresetPicker"
+import DateRangeModal from "./DateRangeModal"
 import MonthYearPicker from "../practice-days/MonthYearPicker"
-import LabeledSwitch from "@/components/molecules/LabeledSwitch"
+import Button from "@/components/atoms/Button"
 import { clientLogger } from "@/lib/client-logger"
 import { isPracticeDaysEnabled } from "@/lib/feature-flags"
 
@@ -31,7 +32,7 @@ export interface EventSearchFormProps {
   selectedTrack: Track | null
   startDate: string
   endDate: string
-  useDateFilter: boolean
+  dateRangePreset?: DateRangePreset
   favourites: string[]
   tracks: Track[]
   errors?: {
@@ -45,28 +46,24 @@ export interface EventSearchFormProps {
   onTrackSelect: (track: Track) => void
   onStartDateChange: (date: string) => void
   onEndDateChange: (date: string) => void
-  onUseDateFilterChange: (checked: boolean) => void
+  onDateRangePresetChange?: (preset: DateRangePreset) => void
   onToggleFavourite: (trackId: string) => void
   onSearch: (track?: Track) => void
-  onReset: () => void
-  livercEventsCount?: number
-  hasSearched?: boolean
-  isCheckingEntryLists?: boolean
-  driverInEvents?: Record<string, boolean>
-  onCheckEntryLists?: () => void
   searchMode?: "events" | "practice-days"
   onSearchModeChange?: (mode: "events" | "practice-days") => void
   practiceYear?: number
   practiceMonth?: number
   onPracticeYearChange?: (year: number) => void
   onPracticeMonthChange?: (month: number) => void
+  /** When true, event search also includes practice days in the same list (events mode only) */
+  includePracticeDays?: boolean
+  onIncludePracticeDaysChange?: (checked: boolean) => void
 }
 
 export default function EventSearchForm({
   selectedTrack,
   startDate,
   endDate,
-  useDateFilter,
   favourites,
   tracks,
   errors,
@@ -74,21 +71,18 @@ export default function EventSearchForm({
   onTrackSelect,
   onStartDateChange,
   onEndDateChange,
-  onUseDateFilterChange,
+  dateRangePreset = "last12",
+  onDateRangePresetChange,
   onToggleFavourite,
   onSearch,
-  onReset,
-  livercEventsCount = 0,
-  hasSearched = false,
-  isCheckingEntryLists = false,
-  driverInEvents = {},
-  onCheckEntryLists,
   searchMode = "events",
   onSearchModeChange,
   practiceYear,
   practiceMonth,
   onPracticeYearChange,
   onPracticeMonthChange,
+  includePracticeDays = false,
+  onIncludePracticeDaysChange,
 }: EventSearchFormProps) {
   const practiceDaysEnabled = isPracticeDaysEnabled()
 
@@ -96,17 +90,9 @@ export default function EventSearchForm({
   const currentDate = new Date()
   const defaultYear = practiceYear ?? currentDate.getFullYear()
   const defaultMonth = practiceMonth ?? currentDate.getMonth() + 1
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [favouritesExpanded, setFavouritesExpanded] = useState(false)
+  const [isTrackModalOpen, setIsTrackModalOpen] = useState(false)
+  const [isDateRangeModalOpen, setIsDateRangeModalOpen] = useState(false)
   const trackErrorId = errors?.track ? "track-selector-error" : undefined
-  const favouriteTrackOptions = favourites
-    .map((trackId) => tracks.find((track) => track.id === trackId))
-    .filter((track): track is Track => Boolean(track))
-  const FAVOURITES_VISIBLE_CAP = 4
-  const visibleFavourites = favouritesExpanded
-    ? favouriteTrackOptions
-    : favouriteTrackOptions.slice(0, FAVOURITES_VISIBLE_CAP)
-  const remainingCount = favouriteTrackOptions.length - FAVOURITES_VISIBLE_CAP
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -122,153 +108,132 @@ export default function EventSearchForm({
     }
   }
 
-  const handleReset = () => {
-    onReset()
-  }
-
-  const handleUseDateFilterToggle = (checked: boolean) => {
-    onUseDateFilterChange(checked)
-  }
+  const errorKeys = errors
+    ? (Object.keys(errors) as (keyof typeof errors)[]).filter((k) => errors![k])
+    : []
 
   return (
     <>
       <form onSubmit={handleSearch} className="space-y-6">
-        {/* Where: Track + Favourites */}
+        {errorKeys.length > 1 && (
+          <div
+            className="rounded-lg border border-[var(--token-error-text)]/30 bg-[var(--token-error-text)]/10 px-4 py-3 text-sm text-[var(--token-text-primary)]"
+            role="alert"
+            aria-live="polite"
+          >
+            <p className="font-medium mb-1">Please fix the following:</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              {errorKeys.map((k) => (
+                <li key={k}>{errors![k]}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <h2 className="text-base font-semibold text-[var(--token-text-primary)] mb-4">
+          Search Filters
+        </h2>
+        {/* Where: Track + Date range side by side */}
         <div className="space-y-3" role="group" aria-labelledby="event-search-where">
           <span id="event-search-where" className="sr-only">
             Where
           </span>
-          <div>
-            <label
-              htmlFor="track-selector"
-              className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
-            >
-              Track
-            </label>
-            <button
-              type="button"
-              id="track-selector"
-              onClick={() => setIsModalOpen(true)}
-              className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-left text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
-              aria-haspopup="dialog"
-              aria-expanded={isModalOpen}
-              aria-describedby={trackErrorId}
-            >
-              {selectedTrack ? selectedTrack.trackName : "Select a track"}
-            </button>
-            {errors?.track && (
-              <p
-                id={trackErrorId}
-                className="mt-1 text-sm text-[var(--token-error-text)]"
-                role="alert"
+          <div className="flex flex-wrap gap-6 items-start">
+            <div>
+              <label
+                htmlFor="track-selector-trigger"
+                className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
               >
-                {errors.track}
-              </p>
-            )}
-            {favouriteTrackOptions.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-[var(--token-text-secondary)] mb-2 mt-3">
-                  Favourite tracks
+                Track
+              </label>
+              <Button
+                type="button"
+                id="track-selector-trigger"
+                aria-describedby={trackErrorId}
+                onClick={() => setIsTrackModalOpen(true)}
+                variant="default"
+                className="h-11 w-[9rem] min-w-[9rem] justify-start"
+                aria-haspopup="dialog"
+                aria-expanded={isTrackModalOpen}
+                aria-label="Select a track"
+              >
+                Select a Track
+              </Button>
+              {errors?.track && (
+                <p
+                  id={trackErrorId}
+                  className="mt-1 text-sm text-[var(--token-error-text)]"
+                  role="alert"
+                >
+                  {errors.track}
                 </p>
-                <div className="flex flex-wrap gap-2" aria-label="Favourite tracks">
-                  {visibleFavourites.map((track) => (
-                    <div
-                      key={track.id}
-                      className="group rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] flex items-center gap-1"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onTrackSelect(track)
-                          // Pass track directly to search to avoid stale state issue
-                          if (onSearch) {
-                            onSearch(track)
-                          }
-                        }}
-                        className="pl-3 pr-1 py-1 text-xs font-medium text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        {track.trackName}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onToggleFavourite(track.id)}
-                        className="mr-1 p-0.5 rounded-full hover:bg-[var(--token-surface-alt)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] flex items-center justify-center"
-                        aria-label={`Remove ${track.trackName} from favourites`}
-                        title="Remove from favourites"
-                      >
-                        <svg
-                          className="w-3 h-3 text-[var(--token-text-secondary)] group-hover:text-[var(--token-text-primary)]"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                  {!favouritesExpanded && remainingCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setFavouritesExpanded(true)}
-                      className="rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] px-3 py-1 text-xs font-medium text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                    >
-                      +{remainingCount} more
-                    </button>
-                  )}
-                </div>
+              )}
+            </div>
+            {searchMode === "events" && onDateRangePresetChange && (
+              <div>
+                <label
+                  htmlFor="date-range-trigger"
+                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                >
+                  Date range
+                </label>
+                <Button
+                  type="button"
+                  id="date-range-trigger"
+                  variant="default"
+                  onClick={() => setIsDateRangeModalOpen(true)}
+                  className="h-11 w-[9rem] min-w-[9rem] justify-start"
+                  aria-haspopup="dialog"
+                  aria-expanded={isDateRangeModalOpen}
+                >
+                  {DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ?? "Date range"}
+                </Button>
               </div>
             )}
+            {searchMode === "events" && practiceDaysEnabled && onIncludePracticeDaysChange && (
+              <div>
+                <label
+                  htmlFor="include-practice-days-trigger"
+                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                >
+                  Include practice days
+                </label>
+                <Button
+                  type="button"
+                  id="include-practice-days-trigger"
+                  variant={includePracticeDays ? "primary" : "default"}
+                  onClick={() => onIncludePracticeDaysChange(!includePracticeDays)}
+                  className="h-11 w-[9rem] min-w-[9rem] justify-center"
+                  aria-pressed={includePracticeDays}
+                  aria-label="Include practice days in results"
+                >
+                  {includePracticeDays ? "On" : "Off"}
+                </Button>
+              </div>
+            )}
+            <div>
+              <label
+                htmlFor="event-search-execute"
+                className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+              >
+                Execute
+              </label>
+              <div className="flex flex-wrap gap-4">
+                <Button
+                  type="submit"
+                  id="event-search-execute"
+                  variant="primary"
+                  disabled={isLoading || !selectedTrack}
+                  className="h-11 w-[9rem] min-w-[9rem]"
+                >
+                  {isLoading ? "Searching..." : "Search"}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* When: Search Type, Date Filter, Date Range / Month-Year */}
-        <div className="space-y-4" role="group" aria-labelledby="event-search-when">
-          <span id="event-search-when" className="sr-only">
-            When
-          </span>
-
-          {/* Search Mode Toggle (Practice Days vs Events) */}
-          {practiceDaysEnabled && onSearchModeChange && (
-            <div>
-              <label className="block text-sm font-medium text-[var(--token-text-primary)] mb-2">
-                Search Type
-              </label>
-              <LabeledSwitch
-                leftLabel="Events"
-                rightLabel="Practice Days"
-                checked={searchMode === "practice-days"}
-                onChange={(checked) =>
-                  onSearchModeChange(checked ? "practice-days" : "events")
-                }
-                aria-label={`Switch to ${searchMode === "events" ? "Practice Days" : "Events"}`}
-              />
-            </div>
-          )}
-
-          {/* Date Filter Toggle - Hidden for practice days (always required) */}
-          {searchMode === "events" && (
-            <div>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useDateFilter}
-                  onChange={(e) => handleUseDateFilterToggle(e.target.checked)}
-                  className="w-4 h-4 rounded border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-interactive-focus-ring)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                />
-                <span className="text-sm text-[var(--token-text-primary)]">
-                  Filter by date range
-                </span>
-              </label>
-            </div>
-          )}
-
+        {/* When: Month-Year (practice days mode) */}
+        <div className="space-y-4" role="group">
           {/* Month/Year Picker - For practice days */}
           {searchMode === "practice-days" &&
             practiceDaysEnabled &&
@@ -289,88 +254,51 @@ export default function EventSearchForm({
               </div>
             )}
 
-          {/* Date Range Picker - For events mode */}
-          {searchMode === "events" && useDateFilter && (
-            <div className="transition-all duration-200">
-              <DateRangePicker
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateChange={onStartDateChange}
-                onEndDateChange={onEndDateChange}
-                errors={errors}
-                required={false}
-                disabled={false}
-              />
-            </div>
-          )}
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap gap-4">
-          <button
-            type="submit"
-            disabled={isLoading || !selectedTrack}
-            className="mobile-button flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 text-sm font-medium text-white transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90 h-11"
-          >
-            {isLoading ? "Searching..." : "Search"}
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-transparent px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-elevated)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
-          >
-            Reset
-          </button>
-          {/* Check Entry Lists Button - Only show when there are events to check (LiveRC or DB) */}
-          {livercEventsCount > 0 && hasSearched && onCheckEntryLists && (
-            <button
-              type="button"
-              onClick={onCheckEntryLists}
-              disabled={isCheckingEntryLists}
-              className="flex items-center justify-center gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
-              aria-label="Check for Participation"
-            >
-              {isCheckingEntryLists ? (
-                <>
-                  <svg
-                    className="h-4 w-4 animate-spin text-[var(--token-text-secondary)]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <span>Checking entry lists...</span>
-                </>
-              ) : (
-                <span>Check for Participation</span>
-              )}
-            </button>
-          )}
-        </div>
+        <p
+          className="text-sm mt-2 mb-4"
+          style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="font-medium text-[var(--token-text-secondary)]">
+            Current Track:{" "}
+          </span>
+          <span className="text-[var(--token-text-primary)]">
+            {selectedTrack ? selectedTrack.trackName : "No track selected"}
+          </span>
+        </p>
       </form>
 
-      {/* Track Selection Modal */}
-      <TrackSelectionModal
+      {/* Track & Favourites modal (contains track selector + favourites; Change opens full track list inside) */}
+      <TrackAndFavouritesModal
+        isOpen={isTrackModalOpen}
+        onClose={() => setIsTrackModalOpen(false)}
+        selectedTrack={selectedTrack}
         tracks={tracks}
         favourites={favourites}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSelect={onTrackSelect}
+        trackError={errors?.track}
+        onTrackSelect={onTrackSelect}
         onToggleFavourite={onToggleFavourite}
+        onSearch={onSearch}
       />
+
+      {/* Date range modal (Events mode) */}
+      {searchMode === "events" && onDateRangePresetChange && (
+        <DateRangeModal
+          isOpen={isDateRangeModalOpen}
+          onClose={() => setIsDateRangeModalOpen(false)}
+          preset={dateRangePreset}
+          startDate={startDate}
+          endDate={endDate}
+          onPresetChange={onDateRangePresetChange}
+          onStartDateChange={onStartDateChange}
+          onEndDateChange={onEndDateChange}
+          errors={errors}
+          disabled={isLoading}
+        />
+      )}
     </>
   )
 }

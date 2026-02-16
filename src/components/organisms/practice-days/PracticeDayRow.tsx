@@ -5,12 +5,14 @@
  * @creator System
  * @lastModified 2026-01-XX
  *
- * @description Displays individual practice day in search results
+ * @description Displays individual practice day in search results using the same
+ *              table layout as EventRow (Event Name | Event Status | Event Date | Actions).
  */
 
 "use client"
 
-import { format } from "date-fns"
+import EventStatusBadge, { type EventStatus } from "@/components/molecules/EventStatusBadge"
+import { formatDateDisplay } from "@/lib/date-utils"
 
 export interface PracticeDayRowProps {
   date: string
@@ -25,6 +27,10 @@ export interface PracticeDayRowProps {
   eventId?: string
   onIngest?: () => void
   onView?: () => void
+  /** When true, show loading state on Upload button (disabled + "Importing...") */
+  isIngesting?: boolean
+  /** When true, disable Upload button (e.g. while another practice day is uploading) */
+  importDisabled?: boolean
 }
 
 export default function PracticeDayRow({
@@ -34,82 +40,78 @@ export default function PracticeDayRow({
   totalLaps = 0,
   uniqueDrivers = 0,
   uniqueClasses = 0,
-  timeRangeStart,
-  timeRangeEnd,
   isIngested = false,
   eventId,
   onIngest,
   onView,
+  isIngesting = false,
+  importDisabled = false,
 }: PracticeDayRowProps) {
-  const formattedDate = format(new Date(date), "MMM d, yyyy")
-  const timeRange =
-    timeRangeStart && timeRangeEnd
-      ? `${format(new Date(timeRangeStart), "h:mm a")} - ${format(new Date(timeRangeEnd), "h:mm a")}`
-      : null
+  const formattedDate = formatDateDisplay(date)
+  const status: EventStatus = isIngesting ? "importing" : isIngested ? "imported" : "new"
+  const canView = isIngested && eventId && onView
+  const canImport = !isIngested && onIngest
+  const uploadButtonDisabled = isIngesting || importDisabled
 
-  // Normalize numeric values to ensure they're always numbers
-  // Handle all edge cases: undefined, null, NaN, or non-number types
-  const safeSessionCount =
-    typeof sessionCount === "number" && !isNaN(sessionCount) ? sessionCount : 0
-  const safeTotalLaps = typeof totalLaps === "number" && !isNaN(totalLaps) ? totalLaps : 0
-  const safeUniqueDrivers =
-    typeof uniqueDrivers === "number" && !isNaN(uniqueDrivers) ? uniqueDrivers : 0
-  const safeUniqueClasses =
-    typeof uniqueClasses === "number" && !isNaN(uniqueClasses) ? uniqueClasses : 0
+  // Display name: "Practice – {date}" with optional subtitle (sessions, laps)
+  const subtitle =
+    [sessionCount, totalLaps].some((n) => typeof n === "number" && n > 0) &&
+    `${sessionCount} session${sessionCount !== 1 ? "s" : ""}, ${totalLaps.toLocaleString()} laps`
 
   return (
-    <div className="border-b border-gray-700 py-4 px-4 hover:bg-gray-800/50 transition-colors">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-semibold text-white">{formattedDate}</h3>
-            <span className="text-sm text-gray-400">{trackName}</span>
-            {isIngested && (
-              <span className="px-2 py-1 text-xs bg-green-600/20 text-green-400 rounded">
-                Ingested
-              </span>
-            )}
-          </div>
+    <div className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr] items-center gap-4 px-4 py-4 border-b transition-colors duration-200 border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]">
+      {/* Column 1 - Event Name */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <h3 className="text-[var(--token-text-primary)] font-medium">
+          Practice – {formattedDate}
+          {trackName ? (
+            <span className="ml-2 text-sm font-normal text-[var(--token-text-secondary)]">
+              {trackName}
+            </span>
+          ) : null}
+        </h3>
+        {subtitle && (
+          <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
+            {subtitle}
+          </span>
+        )}
+      </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-300">
-            <div>
-              <span className="text-gray-500">Sessions:</span>{" "}
-              <span className="font-medium">{safeSessionCount}</span>
-            </div>
-            <div>
-              <span className="text-gray-500">Total Laps:</span>{" "}
-              <span className="font-medium">
-                {typeof safeTotalLaps === "number" ? safeTotalLaps.toLocaleString() : "0"}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500">Drivers:</span>{" "}
-              <span className="font-medium">{safeUniqueDrivers}</span>
-            </div>
-            <div>
-              <span className="text-gray-500">Classes:</span>{" "}
-              <span className="font-medium">{safeUniqueClasses}</span>
-            </div>
-          </div>
+      {/* Column 2 - Event Status */}
+      <div className="flex flex-col items-center gap-1">
+        <EventStatusBadge
+          status={status}
+          progress={isIngesting ? 25 : undefined}
+          stage={isIngesting ? "Importing..." : undefined}
+        />
+      </div>
 
-          {timeRange && <div className="mt-2 text-xs text-gray-400">Time Range: {timeRange}</div>}
-        </div>
+      {/* Column 3 - Event Date */}
+      <p className="text-sm text-[var(--token-text-secondary)] text-center">{formattedDate}</p>
 
-        <div className="flex gap-2 ml-4">
-          {isIngested && eventId && onView && (
+      {/* Column 4 - Actions (same styling as EventRow: accent Import, success Analyse) */}
+      <div className="flex items-center justify-center gap-4">
+        <div className="flex gap-2">
+          {canImport && (
             <button
-              onClick={onView}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+              type="button"
+              onClick={onIngest}
+              disabled={uploadButtonDisabled}
+              title={importDisabled && !isIngesting ? "Finish the current upload first" : undefined}
+              className="flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
+              aria-label={`Upload practice ${formattedDate}`}
             >
-              View
+              {isIngesting ? "Importing…" : "Upload"}
             </button>
           )}
-          {!isIngested && onIngest && (
+          {canView && (
             <button
-              onClick={onIngest}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+              type="button"
+              onClick={onView}
+              className="flex items-center justify-center rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-text)]/10 px-5 text-sm font-medium text-[var(--token-status-success-text)] transition-colors hover:bg-[var(--token-status-success-text)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
+              aria-label={`Analyse practice ${formattedDate}`}
             >
-              Ingest
+              Analyse
             </button>
           )}
         </div>

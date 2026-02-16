@@ -442,6 +442,73 @@ multi-stage Dockerfile is used.
 INGESTION_BUILD_TARGET=development
 ```
 
+### PRACTICE_DAY_DETAIL_CONCURRENCY
+
+**Type:** Number  
+**Required:** No  
+**Default:** 5 (in code)
+
+Maximum concurrent session-detail fetches during practice day full ingestion.
+Used to avoid hammering LiveRC when importing a day with many sessions.
+
+**Example:**
+
+```bash
+PRACTICE_DAY_DETAIL_CONCURRENCY=3
+```
+
+---
+
+### PRACTICE_DISCOVER_CACHE_TTL_SECONDS
+
+**Type:** Number (seconds)  
+**Required:** No  
+**Default:** `600` (10 minutes)  
+**Environment:** Python ingestion service
+
+TTL for the in-memory cache of discovered practice days per (track_slug, year, month).
+Repeat requests for the same track and month within the TTL are served from cache without re-scraping LiveRC, improving performance for repeat searches.
+
+**Example:**
+
+```bash
+PRACTICE_DISCOVER_CACHE_TTL_SECONDS=600
+```
+
+---
+
+### PRACTICE_DISCOVER_MONTH_VIEW_TIMEOUT_SECONDS
+
+**Type:** Number (seconds)  
+**Required:** No  
+**Default:** `15`  
+**Environment:** Python ingestion service
+
+Timeout for fetching the practice month view from LiveRC. Prevents one slow month from blocking the whole discover.
+
+**Example:**
+
+```bash
+PRACTICE_DISCOVER_MONTH_VIEW_TIMEOUT_SECONDS=15
+```
+
+---
+
+### PRACTICE_DISCOVER_DAY_OVERVIEW_TIMEOUT_SECONDS
+
+**Type:** Number (seconds)  
+**Required:** No  
+**Default:** `25`  
+**Environment:** Python ingestion service
+
+Timeout for each practice day overview fetch within a month. Prevents one slow day from dominating latency.
+
+**Example:**
+
+```bash
+PRACTICE_DISCOVER_DAY_OVERVIEW_TIMEOUT_SECONDS=25
+```
+
 ---
 
 ## Performance Monitoring Variables

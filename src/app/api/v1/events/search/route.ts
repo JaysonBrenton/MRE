@@ -13,7 +13,11 @@
 
 import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
-import { searchEvents, type SearchEventsInput } from "@/core/events/search-events"
+import {
+  searchEvents,
+  type SearchEventsInput,
+  type SearchEventsWithPracticeDaysResult,
+} from "@/core/events/search-events"
 import { successResponse, errorResponse } from "@/lib/api-utils"
 import { createRequestLogger, generateRequestId } from "@/lib/request-context"
 import { handleApiError } from "@/lib/server-error-handler"
@@ -48,13 +52,15 @@ export async function GET(request: NextRequest) {
     const trackId = searchParams.get("track_id")
     const startDate = searchParams.get("start_date")
     const endDate = searchParams.get("end_date")
+    const includePracticeDays =
+      searchParams.get("include_practice_days") === "true" ||
+      searchParams.get("include_practice_days") === "1"
 
     requestLogger.debug("Event search request", {
       trackId,
       startDate,
       endDate,
-      trackIdType: typeof trackId,
-      trackIdLength: trackId?.length,
+      includePracticeDays,
     })
 
     // Validate track_id is provided before proceeding
@@ -66,10 +72,9 @@ export async function GET(request: NextRequest) {
       return errorResponse("VALIDATION_ERROR", "track_id is required", { field: "track_id" }, 400)
     }
 
-    // Call core business logic function (will validate and throw if invalid)
-    // Only include dates if they are provided (not empty strings)
     const searchInput: SearchEventsInput = {
       trackId: trackId.trim(),
+      includePracticeDays,
     }
 
     if (startDate && startDate.trim() !== "") {
@@ -85,9 +90,10 @@ export async function GET(request: NextRequest) {
     requestLogger.info("Event search successful", {
       trackId: result.track.id,
       eventCount: result.events.length,
+      practiceDayCount: "practiceDays" in result ? result.practiceDays.length : 0,
     })
 
-    return successResponse({
+    const payload: Record<string, unknown> = {
       track: {
         id: result.track.id,
         source: result.track.source,
@@ -95,7 +101,16 @@ export async function GET(request: NextRequest) {
         track_name: result.track.trackName,
       },
       events: result.events,
-    })
+    }
+
+    if (includePracticeDays && "practiceDays" in result) {
+      const withPractice = result as SearchEventsWithPracticeDaysResult
+      payload.practice_days = withPractice.practiceDays
+      payload.practice_range_min = withPractice.practiceRangeMin
+      payload.practice_range_max = withPractice.practiceRangeMax
+    }
+
+    return successResponse(payload)
   } catch (error: unknown) {
     // Handle validation errors
     if (hasErrorCode(error)) {

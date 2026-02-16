@@ -157,15 +157,18 @@ def build_practice_month_url(track_slug: str, year: int, month: int) -> str:
     """
     Build practice month view URL.
     
+    LiveRC expects p=calendar&d=YYYY-MM (not y/m). Using y/m returns the wrong month
+    or "no synched up practice sessions" for some tracks (e.g. Canberra).
+    
     Args:
         track_slug: Track subdomain slug
         year: Year (e.g., 2025)
         month: Month (1-12)
     
     Returns:
-        Full practice month URL (e.g., "https://canberraoffroad.liverc.com/practice/?y=2025&m=10")
+        Full practice month URL (e.g., "https://canberraoffroad.liverc.com/practice/?p=calendar&d=2025-11")
     """
-    return f"https://{track_slug}.liverc.com/practice/?y={year}&m={month}"
+    return f"https://{track_slug}.liverc.com/practice/?p=calendar&d={year}-{month:02d}"
 
 
 def build_practice_day_url(track_slug: str, practice_date: date) -> str:

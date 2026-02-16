@@ -110,6 +110,8 @@ export interface EventSummary {
     eventDate: Date
     trackName: string
   }
+  /** True when event.sourceEventId contains '-practice-' (practice day). */
+  isPracticeDay?: boolean
   summary: {
     totalRaces: number
     totalDrivers: number
@@ -192,6 +194,8 @@ export interface EventAnalysisData {
     eventDate: Date
     trackName: string
   }
+  /** True when event.sourceEventId contains '-practice-' (practice day). */
+  isPracticeDay?: boolean
   races: Array<{
     id: string
     raceId: string
@@ -269,6 +273,7 @@ export async function getEventSummary(
       id: true,
       eventName: true,
       eventDate: true,
+      sourceEventId: true,
       track: {
         select: {
           trackName: true,
@@ -280,6 +285,8 @@ export async function getEventSummary(
   if (!event) {
     return null
   }
+
+  const isPracticeDay = event.sourceEventId?.includes("-practice-") ?? false
 
   // Get race count and date range using aggregations
   const raceStats = await prisma.race.aggregate({
@@ -558,8 +565,8 @@ export async function getEventSummary(
     .sort((a, b) => a.avgLapTime - b.avgLapTime)
     .slice(0, 3)
 
-  // Get most improved drivers
-  const mostImprovedDrivers = await calculateMostImprovedDrivers(eventId)
+  // Get most improved drivers (lap-time-only for practice days)
+  const mostImprovedDrivers = await calculateMostImprovedDrivers(eventId, isPracticeDay)
 
   // Get user's best lap if userId provided
   let userBestLap: { lapTime: number; position: number; gapToFastest: number } | undefined
@@ -882,6 +889,7 @@ export async function getEventSummary(
       eventDate: event.eventDate,
       trackName: event.track.trackName,
     },
+    isPracticeDay,
     summary: {
       totalRaces: raceStats._count.id,
       totalDrivers: distinctDrivers.length,
@@ -1228,6 +1236,8 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     carNumber: entry.carNumber,
   }))
 
+  const isPracticeDay = event.sourceEventId?.includes("-practice-") ?? false
+
   return {
     event: {
       id: event.id,
@@ -1235,6 +1245,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       eventDate: event.eventDate,
       trackName: event.track.trackName,
     },
+    isPracticeDay,
     races: racesData,
     drivers: driversData,
     entryList: entryListData,

@@ -18,11 +18,8 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-01-13 (Added practiceday value to SessionType enum
-documentation; previous updates: Added SessionType enum documentation; added
-sessionType field to Race model documentation; added AuditLog and ApplicationLog
-models; removed duplicate UserDriverLink and EventDriverLink sections; updated
-schema overview)  
+**Last Updated:** 2026-02-14 (Added raceMetadata to Race model for practice day
+full ingestion; previous: practiceday in SessionType, sessionType on Race, etc.)  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -512,7 +509,8 @@ Individual races within an event.
 | `raceUrl`         | String        | Required              | LiveRC race page URL                                                                                                                                                                                               |
 | `startTime`       | DateTime      | Optional              | Race start time                                                                                                                                                                                                    |
 | `durationSeconds` | Int           | Optional              | Race duration in seconds                                                                                                                                                                                           |
-| `sessionType`     | SessionType   | Optional              | Type of session (race, practice, qualifying)                                                                                                                                                                       |
+| `sessionType`     | SessionType   | Optional              | Type of session (race, practice, qualifying, practiceday)                                                                                                                                                         |
+| `raceMetadata`    | Json          | Optional              | Practice sessions only: end_time and practiceSessionStats (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../architecture/practice-day-full-ingestion-design.md). |
 | `createdAt`       | DateTime      | Auto-generated        | Record creation timestamp                                                                                                                                                                                          |
 | `updatedAt`       | DateTime      | Auto-updated          | Last update timestamp                                                                                                                                                                                              |
 
@@ -521,6 +519,8 @@ Individual races within an event.
 - `eventId` + `sourceRaceId` must be unique (composite unique constraint)
 - Races are created during event ingestion
 - Deleted when parent Event is deleted (cascade delete)
+- `raceMetadata` is populated only for practice day sessions (session type
+  `practiceday`) during full practice day ingestion; null for all other races
 - `className` is currently stored as free-form text extracted from LiveRC labels
 - `className` may contain car classes (vehicle types), modification rules
   (Modified/Stock), or skill groupings (Junior/Pro/Expert)

@@ -17,7 +17,7 @@ import Switch from "@/components/atoms/Switch"
 
 export interface LabeledSwitchProps {
   leftLabel: string
-  rightLabel: string
+  rightLabel?: string
   checked: boolean
   onChange: (checked: boolean) => void
   disabled?: boolean
@@ -31,14 +31,14 @@ export interface LabeledSwitchProps {
  */
 export default function LabeledSwitch({
   leftLabel,
-  rightLabel,
+  rightLabel = "",
   checked,
   onChange,
   disabled = false,
   "aria-label": ariaLabel,
   className = "",
 }: LabeledSwitchProps) {
-  const switchAriaLabel = ariaLabel ?? `Switch to ${checked ? leftLabel : rightLabel}`
+  const switchAriaLabel = ariaLabel ?? `Switch to ${checked ? leftLabel : rightLabel || leftLabel}`
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
@@ -55,13 +55,15 @@ export default function LabeledSwitch({
         disabled={disabled}
         aria-label={switchAriaLabel}
       />
-      <span
-        className={`text-sm font-medium transition-colors ${
-          checked ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"
-        }`}
-      >
-        {rightLabel}
-      </span>
+      {rightLabel ? (
+        <span
+          className={`text-sm font-medium transition-colors ${
+            checked ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"
+          }`}
+        >
+          {rightLabel}
+        </span>
+      ) : null}
     </div>
   )
 }

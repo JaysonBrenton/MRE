@@ -90,7 +90,15 @@ Stage 4: Racing semantics
 - `build_indexes`: precompute query helpers, for example lap to time ranges,
   segment to time ranges
 
-Stage 5: Publish
+Stage 5: Materialise (ClickHouse cache)
+
+- `materialise_clickhouse`: write derived tables to ClickHouse from canonical
+  Parquet for interactive reads. Inputs: canonical Parquet location,
+  `session_id`, `processing_run_id`, `schema_version`. Output: derived tables
+  and materialisation record. See
+  `docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`.
+
+Stage 6: Publish
 
 - `publish_session`: mark session query-ready and emit domain events for UI
   refresh
@@ -291,7 +299,8 @@ detail.
 Define a minimal required set per run:
 
 - Required jobs: `artifact_validate`, `artifact_classify`, `parse_raw`,
-  `normalise_units`, `time_align`, `downsample_L1`, `publish_session`
+  `normalise_units`, `time_align`, `downsample_L1`, `materialise_clickhouse`,
+  `publish_session`
 - Optional jobs: `fuse_gnss_imu`, `detect_laps`, `detect_segments`,
   `compute_metrics`, `build_indexes`
 

@@ -8,10 +8,11 @@
 # 
 # @purpose Extracts practice day summaries and session details from LiveRC practice pages
 
-from typing import List, Optional
+from typing import Any, List, Optional
 from datetime import datetime, date
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
+import json
 import re
 
 from ingestion.common.logging import get_logger
@@ -40,10 +41,9 @@ class PracticeDayParser:
         """
         Parse practice month view to extract list of dates with practice days.
         
-        HTML Structure:
-        - Table with class "table" containing practice dates
-        - Rows in tbody with date links: <a href="/practice/?p=session_list&d=2025-10-25">Sat, Oct 25, 2025</a>
-        - Date is in the href parameter: d=YYYY-MM-DD
+        Uses all session_list links on the page (href containing d=YYYY-MM-DD) so the
+        correct calendar is found even when the page has multiple tables (e.g. a
+        "no sessions" table for another date appearing before the month calendar).
         
         Args:
             html: HTML content from practice month view page
@@ -62,53 +62,33 @@ class PracticeDayParser:
         try:
             soup = BeautifulSoup(html, 'html.parser')
             dates: List[date] = []
+            seen: set = set()  # dedupe by date
             
-            # Find the table with practice dates
-            # The table structure is: <table class="table"> with tbody containing rows
-            table = soup.find('table', class_='table')
-            if not table:
-                logger.warning("practice_month_view_no_table", track_slug=track_slug, year=year, month=month)
-                return dates
-            
-            # Find all rows in tbody (skip header row)
-            tbody = table.find('tbody')
-            if not tbody:
-                logger.warning("practice_month_view_no_tbody", track_slug=track_slug, year=year, month=month)
-                return dates
-            
-            rows = tbody.find_all('tr')
-            for row in rows:
+            # LiveRC page can have multiple tables with class "table" (e.g. "no sessions" for
+            # another date above the calendar). Use all session_list date links on the page
+            # so we get the calendar for the requested month regardless of table order.
+            date_link_re = re.compile(r"d=(\d{4}-\d{2}-\d{2})")
+            for a in soup.find_all("a", href=True):
+                href = a.get("href", "")
+                href_lower = href.lower()
+                if "session_list" not in href_lower and "session%5flist" not in href_lower:
+                    continue
+                match = date_link_re.search(href)
+                if not match:
+                    continue
+                date_str = match.group(1)
                 try:
-                    # Find the date link in the first column
-                    first_cell = row.find('td')
-                    if not first_cell:
+                    practice_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    if practice_date.year != year or practice_date.month != month:
                         continue
-                    
-                    date_link = first_cell.find('a', href=True)
-                    if not date_link:
-                        continue
-                    
-                    # Extract date from href: /practice/?p=session_list&d=2025-10-25
-                    href = date_link.get('href', '')
-                    if not href:
-                        continue
-                    
-                    # Parse date from href parameter
-                    # Format: /practice/?p=session_list&d=2025-10-25
-                    if "d=" in href:
-                        date_str = href.split("d=")[1].split("&")[0].split("#")[0]
-                        try:
-                            # Parse YYYY-MM-DD format
-                            practice_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-                            dates.append(practice_date)
-                        except ValueError as e:
-                            logger.warning("practice_month_view_invalid_date", date_str=date_str, error=str(e))
-                            continue
-                
-                except Exception as e:
-                    logger.warning("practice_month_view_row_parse_error", error=str(e), track_slug=track_slug)
+                    if practice_date not in seen:
+                        seen.add(practice_date)
+                        dates.append(practice_date)
+                except ValueError as e:
+                    logger.warning("practice_month_view_invalid_date", date_str=date_str, error=str(e))
                     continue
             
+            dates.sort()
             logger.debug("parse_practice_month_view_success", date_count=len(dates), track_slug=track_slug, year=year, month=month)
             return dates
         
@@ -401,14 +381,81 @@ class PracticeDayParser:
                 f"Failed to parse practice day overview: {str(e)}",
                 url=f"practice day overview for {track_slug} on {practice_date}",
             )
-    
+
+    def _extract_laps_from_lapsobj(self, html: str, session_id: str) -> List[ConnectorLap]:
+        """
+        Extract lap list from practice session detail page JavaScript.
+        Practice view_session pages use: var lapsObj = [{"x":"1","lap_time":"44.564",...}, ...];
+        (not racerLaps[transponder] which is used on race pages).
+        """
+        laps: List[ConnectorLap] = []
+        match = re.search(r"var\s+lapsObj\s*=\s*\[", html)
+        if not match:
+            return laps
+        start_pos = match.end() - 1  # position of [
+        bracket_count = 0
+        pos = start_pos
+        end_pos = None
+        while pos < len(html):
+            ch = html[pos]
+            if ch == "[":
+                bracket_count += 1
+            elif ch == "]":
+                bracket_count -= 1
+                if bracket_count == 0:
+                    end_pos = pos + 1
+                    break
+            pos += 1
+        if end_pos is None:
+            return laps
+        js_array_str = html[start_pos:end_pos]
+        try:
+            raw = json.loads(js_array_str)
+        except json.JSONDecodeError:
+            try:
+                js_array_str_clean = js_array_str.replace("'", '"')
+                raw = json.loads(js_array_str_clean)
+            except json.JSONDecodeError:
+                logger.warning("practice_lapsobj_json_error", session_id=session_id)
+                return laps
+        if not isinstance(raw, list):
+            return laps
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            try:
+                x = item.get("x", item.get("lapNum", 0))
+                lap_num = int(x) if isinstance(x, (int, float)) else int(str(x).strip())
+                lap_time_str = str(item.get("lap_time", item.get("time", ""))).strip()
+                lap_time_sec = float(lap_time_str) if lap_time_str else 0.0
+                laps.append(
+                    ConnectorLap(
+                        lap_number=lap_num,
+                        position_on_lap=1,
+                        lap_time_seconds=lap_time_sec,
+                        lap_time_raw=lap_time_str,
+                        pace_string=None,
+                        elapsed_race_time=0.0,
+                        segments=[],
+                    )
+                )
+            except (ValueError, TypeError) as e:
+                logger.warning("practice_lapsobj_lap_error", session_id=session_id, error=str(e))
+                continue
+        return laps
+
     def parse_practice_session_detail(
         self,
         html: str,
         session_id: str,
+        transponder_from_list: Optional[str] = None,
     ) -> PracticeSessionDetail:
         """
         Parse individual practice session page for complete lap data.
+        
+        Lap data: practice view_session pages use lapsObj = [{x, lap_time, ...}]; we
+        parse that first. If absent, we fall back to racerLaps[transponder] (transponder
+        from session list or from detail page table).
         
         CSS Selectors (based on reference material):
         - Driver name: table.table tbody tr:first-child td (or from title)
@@ -526,140 +573,139 @@ class PracticeDayParser:
                                 except (ValueError, IndexError):
                                     pass
             
-            # Extract lap count
+            # Map rows by header so we stay correct if LiveRC order changes (Driver, Class, Transponder,
+            # Session Time, Num Laps, Fastest Lap, Top 3 Consec, Averages, Valid Lap Range).
+            def _cell_for_header(rows: list, header_substr: str) -> Optional[Any]:
+                for row in rows:
+                    th = row.find("th")
+                    if th and header_substr.lower() in th.get_text(strip=True).lower():
+                        td = row.find("td")
+                        return td.get_text(separator="\n", strip=True) if td else None
+                return None
+
+            # Extract lap count (row "Num Laps")
             lap_count = 0
-            if len(table_rows) > 4:
-                lap_count_cell = table_rows[4].find('td')
-                if lap_count_cell:
-                    try:
-                        lap_count = int(lap_count_cell.get_text(strip=True))
-                    except ValueError:
-                        pass
-            
+            num_laps_text = _cell_for_header(table_rows, "Num Laps")
+            if num_laps_text:
+                try:
+                    lap_count = int(num_laps_text.strip())
+                except ValueError:
+                    pass
+
             # Extract fastest lap
             fastest_lap = None
-            if len(table_rows) > 5:
-                fastest_cell = table_rows[5].find('td')
-                if fastest_cell:
-                    try:
-                        fastest_lap = float(fastest_cell.get_text(strip=True))
-                    except ValueError:
-                        pass
-            
-            # Extract averages and metrics
+            fast_text = _cell_for_header(table_rows, "Fastest Lap")
+            if fast_text:
+                try:
+                    fastest_lap = float(fast_text.strip())
+                except ValueError:
+                    pass
+
+            # Extract Top 3 Consecutive
             top_3_consecutive = None
+            top3_text = _cell_for_header(table_rows, "Top 3")
+            if top3_text:
+                try:
+                    top_3_consecutive = float(top3_text.strip())
+                except ValueError:
+                    pass
+
+            # Extract averages and metrics (row "Averages")
             average_lap = None
             avg_top_5 = None
             avg_top_10 = None
             avg_top_15 = None
             std_deviation = None
             consistency = None
-            
-            if len(table_rows) > 6:
-                averages_cell = table_rows[6].find('td')
-                if averages_cell:
-                    averages_text = averages_cell.get_text(separator='\n')
-                    # Parse "Avg: 45.815\nTop 5: 45.815\nTop 10: \nTop 15: \nStd Deviation: 2.430\nConsistency: 94.695%"
-                    for line in averages_text.split("\n"):
-                        line = line.strip()
-                        if line.startswith("Avg:"):
-                            try:
-                                average_lap = float(line.replace("Avg:", "").strip())
-                            except ValueError:
-                                pass
-                        elif line.startswith("Top 5:"):
-                            try:
-                                avg_top_5 = float(line.replace("Top 5:", "").strip())
-                            except ValueError:
-                                pass
-                        elif line.startswith("Top 10:"):
-                            try:
-                                value = line.replace("Top 10:", "").strip()
-                                if value:
-                                    avg_top_10 = float(value)
-                            except ValueError:
-                                pass
-                        elif line.startswith("Top 15:"):
-                            try:
-                                value = line.replace("Top 15:", "").strip()
-                                if value:
-                                    avg_top_15 = float(value)
-                            except ValueError:
-                                pass
-                        elif line.startswith("Std Deviation:"):
-                            try:
-                                std_deviation = float(line.replace("Std Deviation:", "").strip())
-                            except ValueError:
-                                pass
-                        elif line.startswith("Consistency:"):
-                            try:
-                                consistency_str = line.replace("Consistency:", "").strip().rstrip("%")
-                                consistency = float(consistency_str)
-                            except ValueError:
-                                pass
-            
-            # Extract Top 3 Consecutive
-            if len(table_rows) > 5:
-                # Check if there's a "Top 3 Consec" row (might be between fastest and averages)
-                for row in table_rows:
-                    header = row.find('th')
-                    if header and "Top 3" in header.get_text():
-                        cell = row.find('td')
-                        if cell:
-                            try:
-                                top_3_consecutive = float(cell.get_text(strip=True))
-                            except ValueError:
-                                pass
-                        break
-            
-            # Extract valid lap range
-            valid_lap_range = None
-            if len(table_rows) > 7:
-                range_cell = table_rows[7].find('td')
-                if range_cell:
-                    range_text = range_cell.get_text(separator='\n')
-                    # Parse "20 to 1:10" format
-                    if "to" in range_text:
+            averages_text = _cell_for_header(table_rows, "Averages")
+            if averages_text:
+                for line in averages_text.split("\n"):
+                    line = line.strip()
+                    if line.startswith("Avg:"):
                         try:
-                            parts = range_text.split("to")
-                            min_str = parts[0].strip()
-                            max_str = parts[1].strip().split("\n")[0].strip()
-                            # Convert "1:10" to seconds
-                            min_seconds = float(min_str)
-                            if ":" in max_str:
-                                max_parts = max_str.split(":")
-                                max_seconds = int(max_parts[0]) * 60 + float(max_parts[1])
-                            else:
-                                max_seconds = float(max_str)
-                            valid_lap_range = (int(min_seconds), int(max_seconds))
-                        except (ValueError, IndexError):
+                            average_lap = float(line.replace("Avg:", "").strip())
+                        except ValueError:
                             pass
-            
-            # Extract lap data using existing lap parser
-            # Practice sessions use similar JavaScript structure
-            laps: List[ConnectorLap] = []
-            if transponder_number:
-                lap_parser = RaceLapParser()
+                    elif line.startswith("Top 5:"):
+                        try:
+                            avg_top_5 = float(line.replace("Top 5:", "").strip())
+                        except ValueError:
+                            pass
+                    elif line.startswith("Top 10:"):
+                        try:
+                            value = line.replace("Top 10:", "").strip()
+                            if value:
+                                avg_top_10 = float(value)
+                        except ValueError:
+                            pass
+                    elif line.startswith("Top 15:"):
+                        try:
+                            value = line.replace("Top 15:", "").strip()
+                            if value:
+                                avg_top_15 = float(value)
+                        except ValueError:
+                            pass
+                    elif line.startswith("Std Deviation:"):
+                        try:
+                            std_deviation = float(line.replace("Std Deviation:", "").strip())
+                        except ValueError:
+                            pass
+                    elif line.startswith("Consistency:"):
+                        try:
+                            consistency_str = line.replace("Consistency:", "").strip().rstrip("%")
+                            consistency = float(consistency_str)
+                        except ValueError:
+                            pass
+
+            # Extract valid lap range (row "Valid Lap Range")
+            valid_lap_range = None
+            range_text = _cell_for_header(table_rows, "Valid Lap Range")
+            if range_text and "to" in range_text:
                 try:
-                    driver_laps_data = lap_parser._extract_driver_laps_data(html, transponder_number)
-                    if driver_laps_data and "laps" in driver_laps_data:
-                        for lap_dict in driver_laps_data["laps"]:
-                            try:
-                                lap = ConnectorLap(
-                                    lap_number=int(lap_dict.get("lapNum", 0)),
-                                    position_on_lap=int(lap_dict.get("pos", 0)),
-                                    lap_time_seconds=float(lap_dict.get("time", 0)),
-                                    lap_time_raw=lap_dict.get("time", ""),
-                                    pace_string=lap_dict.get("pace"),
-                                    elapsed_race_time=0.0,  # Practice sessions don't have race time
-                                    segments=lap_dict.get("segments", []),
-                                )
-                                laps.append(lap)
-                            except (ValueError, KeyError) as e:
-                                logger.warning("practice_lap_parse_error", error=str(e), session_id=session_id)
-                                continue
-                except Exception as e:
-                    logger.warning("practice_lap_extraction_error", error=str(e), session_id=session_id)
+                    parts = range_text.split("to")
+                    min_str = parts[0].strip()
+                    max_str = parts[1].strip().split("\n")[0].strip()
+                    min_seconds = float(min_str)
+                    if ":" in max_str:
+                        max_parts = max_str.split(":")
+                        max_seconds = int(max_parts[0]) * 60 + float(max_parts[1])
+                    else:
+                        max_seconds = float(max_str)
+                    valid_lap_range = (int(min_seconds), int(max_seconds))
+                except (ValueError, IndexError):
+                    pass
+            
+            # Extract lap data: practice view_session pages use lapsObj = [{x, lap_time, ...}], not racerLaps[id]
+            laps: List[ConnectorLap] = []
+            # 1) Try lapsObj (practice session detail page structure)
+            laps_from_lapsobj = self._extract_laps_from_lapsobj(html, session_id)
+            if laps_from_lapsobj:
+                laps = laps_from_lapsobj
+            else:
+                # 2) Fallback: racerLaps[transponder] (race-style structure, if present)
+                lap_transponder = (transponder_from_list or transponder_number or "").strip() or None
+                if lap_transponder:
+                    lap_parser = RaceLapParser()
+                    try:
+                        driver_laps_data = lap_parser._extract_driver_laps_data(html, lap_transponder)
+                        if driver_laps_data and "laps" in driver_laps_data:
+                            for lap_dict in driver_laps_data["laps"]:
+                                try:
+                                    lap = ConnectorLap(
+                                        lap_number=int(lap_dict.get("lapNum", 0)),
+                                        position_on_lap=int(lap_dict.get("pos", 0)),
+                                        lap_time_seconds=float(lap_dict.get("time", 0)),
+                                        lap_time_raw=lap_dict.get("time", ""),
+                                        pace_string=lap_dict.get("pace"),
+                                        elapsed_race_time=0.0,
+                                        segments=lap_dict.get("segments", []),
+                                    )
+                                    laps.append(lap)
+                                except (ValueError, KeyError) as e:
+                                    logger.warning("practice_lap_parse_error", error=str(e), session_id=session_id)
+                                    continue
+                    except Exception as e:
+                        logger.warning("practice_lap_extraction_error", error=str(e), session_id=session_id)
             
             if not session_date:
                 # Fallback: try to extract from page title or other sources

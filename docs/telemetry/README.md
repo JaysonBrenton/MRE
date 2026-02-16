@@ -18,6 +18,8 @@ import and analysis.
 
 | Document | Purpose |
 | -------- | ------- |
+| [**Telemetry Implementation Design**](Design/Telemetry_Implementation_Design.md) | Master implementation spec: roadmap, data models, parsers, fusion, IMU tiers, quality, reason codes |
+| [**Telemetry Import UX Design**](Design/Telemetry_Import_UX_Design.md) | End-user import flow: entry points, upload, capture hints, processing feedback, error states |
 | [Architecture Blueprint](Design/Architecture_Blueprint_Telemetry_Ingest_Storage_Compute_Query.md) | Ingest, storage, compute, query system design |
 | [API Contract](Design/API_Contract_Telemetry.md) | Endpoints, query patterns, service boundaries |
 | [Concrete Data Model and Contracts](Design/Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md) | Postgres plus ClickHouse schema and contracts |

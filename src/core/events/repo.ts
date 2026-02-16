@@ -139,6 +139,89 @@ export async function searchEvents(params: SearchEventsParams): Promise<SearchEv
   }
 }
 
+export interface SearchPracticeDayEventsParams {
+  trackId: string
+  startDate?: Date
+  endDate?: Date
+}
+
+export interface PracticeDayEventResult {
+  id: string
+  eventName: string
+  eventDate: string | null
+  sourceEventId: string
+  trackId: string
+  ingestDepth: string
+}
+
+/**
+ * Search practice day events by track and optional date range.
+ * Practice days have sourceEventId containing "-practice-".
+ */
+export async function searchPracticeDayEvents(
+  params: SearchPracticeDayEventsParams
+): Promise<{ track: SearchEventsResult["track"]; practiceDays: PracticeDayEventResult[] }> {
+  const { trackId, startDate, endDate } = params
+
+  const track = await prisma.track.findUnique({
+    where: { id: trackId },
+    select: {
+      id: true,
+      source: true,
+      sourceTrackSlug: true,
+      trackName: true,
+    },
+  })
+
+  if (!track) {
+    throw new Error("Track not found")
+  }
+
+  const whereClause: Prisma.EventWhereInput = {
+    trackId,
+    sourceEventId: { contains: "-practice-" },
+    ...(startDate && endDate
+      ? {
+          eventDate: {
+            gte: startDate,
+            lte: endDate,
+          },
+        }
+      : {}),
+  }
+
+  const events = await prisma.event.findMany({
+    where: whereClause,
+    select: {
+      id: true,
+      sourceEventId: true,
+      eventName: true,
+      eventDate: true,
+      trackId: true,
+      ingestDepth: true,
+    },
+    orderBy: { eventDate: "desc" },
+    take: 1000,
+  })
+
+  return {
+    track: {
+      id: track.id,
+      source: track.source,
+      sourceTrackSlug: track.sourceTrackSlug,
+      trackName: track.trackName,
+    },
+    practiceDays: events.map((e) => ({
+      id: e.id,
+      eventName: e.eventName,
+      eventDate: e.eventDate ? e.eventDate.toISOString() : null,
+      sourceEventId: e.sourceEventId,
+      trackId: e.trackId,
+      ingestDepth: e.ingestDepth,
+    })),
+  }
+}
+
 /**
  * Get track metadata without any event queries
  *

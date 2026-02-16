@@ -84,6 +84,58 @@ describe("GET /api/v1/events/search", () => {
         track_name: mockResult.track.trackName,
       })
       expect(body.data.events).toEqual(mockResult.events)
+      expect(body.data.practice_days).toBeUndefined()
+    })
+
+    it("should return practice_days and practice range when include_practice_days=true", async () => {
+      const mockResult = {
+        track: {
+          id: "track-123",
+          source: "liverc",
+          sourceTrackSlug: "test-track",
+          trackName: "Test Track",
+        },
+        events: [
+          {
+            id: "event-1",
+            source: "liverc",
+            sourceEventId: "12345",
+            eventName: "Test Event",
+            eventDate: "2025-01-15T00:00:00Z",
+            eventEntries: 50,
+            eventDrivers: 45,
+            eventUrl: "https://liverc.com/event/12345",
+            ingestDepth: "none",
+            lastIngestedAt: null,
+          },
+        ],
+        practiceDays: [
+          {
+            id: "pd-1",
+            eventName: "Practice 2025-01-10",
+            eventDate: "2025-01-10T00:00:00Z",
+            sourceEventId: "test-track-practice-2025-01-10",
+            trackId: "track-123",
+            ingestDepth: "laps_full",
+          },
+        ],
+        practiceRangeMin: "2025-01-10T00:00:00Z",
+        practiceRangeMax: "2025-01-15T00:00:00Z",
+      }
+
+      vi.mocked(searchEvents).mockResolvedValue(mockResult)
+
+      const request = new NextRequest(
+        "http://localhost:3001/api/v1/events/search?track_id=track-123&include_practice_days=true"
+      )
+      const response = await GET(request)
+      const body = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(body.success).toBe(true)
+      expect(body.data.practice_days).toEqual(mockResult.practiceDays)
+      expect(body.data.practice_range_min).toBe(mockResult.practiceRangeMin)
+      expect(body.data.practice_range_max).toBe(mockResult.practiceRangeMax)
     })
   })
 

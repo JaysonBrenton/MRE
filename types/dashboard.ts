@@ -1,4 +1,6 @@
 export interface EventAnalysisSummary {
+  /** True when this is a practice day (sourceEventId contains '-practice-'). */
+  isPracticeDay?: boolean
   event: {
     id: string
     eventName: string

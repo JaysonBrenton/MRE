@@ -174,6 +174,8 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 - Improving error messages
 - Performance improvements
 
+**Example (v1 additive change):** The response for `POST /api/v1/practice-days/ingest` was extended with optional fields `sessions_with_laps`, `laps_ingested`, and `sessions_detail_failed` (and equivalent camelCase when consumed via the Next.js API). Existing fields were unchanged; new fields are additive and non-breaking.
+
 ### Breaking Change Process
 
 1. **Create ADR** - Document the breaking change

@@ -121,6 +121,10 @@ Prefer:
 - adding tables
 - adding nullable fields
 
+**Example:** Migration `20260214120000_add_race_metadata` added nullable
+`races.race_metadata` (JSONB) for practice day full ingestion (end_time,
+practiceSessionStats). Ingestion version bump per project policy if applicable.
+
 Avoid:
 
 - changing semantics of existing fields

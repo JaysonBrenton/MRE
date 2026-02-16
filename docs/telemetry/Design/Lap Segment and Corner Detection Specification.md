@@ -405,6 +405,19 @@ Quality checks:
   segments low confidence
 - Store alignment stats and reason codes like `TRACK_TEMPLATE_MISMATCH`
 
+#### 8.4.1 Wrong track or catalogue mismatch
+
+When the user assigns a track that does not match the session trajectory, or
+the catalogue track layout differs materially from the driven path:
+
+- **Reason code:** `TRACK_CATALOGUE_MISMATCH`
+- **Behaviour:** Degrade segment confidence to Low; fall back to
+  auto-inferred segments only. Do not use template segment names or boundaries.
+- **UI:** Show "Assigned track does not match session path; using inferred
+  segments" and offer to clear track assignment or choose a different track.
+- **Avoid:** Do not silently apply a mismatched template; it produces
+  misleading segment labels and metrics.
+
 ### 8.5 Auto-inferred segments
 
 Auto inference must be conservative. The goal is to provide useful structure

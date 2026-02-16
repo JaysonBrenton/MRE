@@ -38,5 +38,14 @@ export async function ingestPracticeDay(
     throw new Error(data.error?.message || "Failed to ingest practice day")
   }
 
-  return data.data
+  const payload = data.data as Record<string, unknown>
+  return {
+    eventId: payload.event_id as string,
+    sessionsIngested: payload.sessions_ingested as number,
+    sessionsFailed: payload.sessions_failed as number,
+    status: payload.status as string,
+    ...(payload.sessions_with_laps !== undefined && { sessionsWithLaps: payload.sessions_with_laps as number }),
+    ...(payload.laps_ingested !== undefined && { lapsIngested: payload.laps_ingested as number }),
+    ...(payload.sessions_detail_failed !== undefined && { sessionsDetailFailed: payload.sessions_detail_failed as number }),
+  }
 }

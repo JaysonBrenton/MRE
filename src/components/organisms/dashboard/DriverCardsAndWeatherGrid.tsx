@@ -40,6 +40,7 @@ export default function DriverCardsAndWeatherGrid({
   selectedClass,
   selectedDriverIds,
   races,
+  isPracticeDay = false,
 }: {
   event: EventAnalysisSummary["event"]
   topDrivers?: EventAnalysisSummary["topDrivers"]
@@ -56,6 +57,8 @@ export default function DriverCardsAndWeatherGrid({
   selectedClass?: string | null
   selectedDriverIds?: string[]
   races?: EventAnalysisData["races"]
+  /** When true (practice day), show cards for single driver and use "Most Improved (Lap Time)" label */
+  isPracticeDay?: boolean
 }) {
   const eventDate = event?.eventDate ? new Date(event.eventDate) : null
   const [currentSection, setCurrentSection] = useState(0)
@@ -77,12 +80,25 @@ export default function DriverCardsAndWeatherGrid({
   const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const programmaticScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const sections = [
-    { title: "Fastest Laps", data: topDrivers, type: "fastest" as const },
-    { title: "Most Consistent Drivers", data: mostConsistentDrivers, type: "consistency" as const },
-    { title: "Best Overall Average Lap", data: bestAvgLapDrivers, type: "avgLap" as const },
-    { title: "Most Improved", data: mostImprovedDrivers, type: "improvement" as const },
-  ]
+  const sections = useMemo(
+    () => [
+      { title: "Fastest Laps", data: topDrivers, type: "fastest" as const },
+      { title: "Most Consistent Drivers", data: mostConsistentDrivers, type: "consistency" as const },
+      { title: "Best Overall Average Lap", data: bestAvgLapDrivers, type: "avgLap" as const },
+      {
+        title: isPracticeDay ? "Most Improved (Lap Time)" : "Most Improved",
+        data: mostImprovedDrivers,
+        type: "improvement" as const,
+      },
+    ],
+    [
+      topDrivers,
+      mostConsistentDrivers,
+      bestAvgLapDrivers,
+      mostImprovedDrivers,
+      isPracticeDay,
+    ]
+  )
 
   const hasData =
     topDrivers?.length ||
@@ -90,11 +106,12 @@ export default function DriverCardsAndWeatherGrid({
     bestAvgLapDrivers?.length ||
     mostImprovedDrivers?.length
 
-  // Only show driver cards if a class is selected OR more than 1 driver is selected
+  // Only show driver cards if a class is selected OR enough drivers selected (2+ for events, 1+ for practice day)
   const shouldShowDriverCards =
     hasData &&
     ((selectedClass !== null && selectedClass !== undefined) ||
-      (selectedDriverIds && selectedDriverIds.length > 1))
+      (selectedDriverIds &&
+        (isPracticeDay ? selectedDriverIds.length >= 1 : selectedDriverIds.length > 1)))
 
   // Get union of all classes from all sections (all classes that appear in any section)
   const getAllClasses = (): string[] => {

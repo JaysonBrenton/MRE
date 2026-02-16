@@ -23,6 +23,10 @@ export interface EventAnalysisHeaderProps {
   eventName: string
   eventDate: Date | string
   trackName: string
+  /** When true, show practice day format: "Practice – {date} @ {trackName}" */
+  isPracticeDay?: boolean
+  /** When set, show "Viewing: [Driver Name]" (practice day). */
+  viewingDriverName?: string | null
 }
 
 function MapPinIcon({ className }: { className?: string }) {
@@ -69,24 +73,42 @@ export default function EventAnalysisHeader({
   eventName,
   eventDate,
   trackName,
+  isPracticeDay = false,
+  viewingDriverName = null,
 }: EventAnalysisHeaderProps) {
   const hasMetadata = trackName || eventDate
+  const primaryTitle = isPracticeDay
+    ? `Practice – ${formatDateLong(eventDate)} @ ${trackName}`
+    : eventName
+  const viewingLabel =
+    viewingDriverName !== undefined && viewingDriverName !== null && viewingDriverName !== ""
+      ? viewingDriverName
+      : isPracticeDay
+        ? "All sessions"
+        : null
 
   return (
     <div className="mb-8 flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-5">
-      {/* Left: accent bar + event name */}
-      <div className="flex min-w-0 items-center">
-        <div
-          className="mr-4 w-1 shrink-0 self-stretch rounded-full bg-[var(--token-accent)]"
-          aria-hidden
-        />
-        <h1 className="truncate text-3xl font-semibold tracking-tight text-[var(--token-text-primary)] sm:text-4xl">
-          {eventName}
-        </h1>
+      {/* Left: accent bar + title */}
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 items-center">
+          <div
+            className="mr-4 w-1 shrink-0 self-stretch rounded-full bg-[var(--token-accent)]"
+            aria-hidden
+          />
+          <h1 className="truncate text-3xl font-semibold tracking-tight text-[var(--token-text-primary)] sm:text-4xl">
+            {primaryTitle}
+          </h1>
+        </div>
+        {isPracticeDay && viewingLabel && (
+          <p className="ml-5 text-sm text-[var(--token-text-secondary)]">
+            Viewing: {viewingLabel}
+          </p>
+        )}
       </div>
 
-      {/* Right: track and date */}
-      {hasMetadata && (
+      {/* Right: track and date (event) or just metadata (practice) */}
+      {hasMetadata && !isPracticeDay && (
         <div className="flex shrink-0 flex-col items-end gap-1 text-sm text-[var(--token-text-muted)]">
           {trackName && (
             <span className="flex items-center gap-1.5">

@@ -61,11 +61,11 @@ Docker Compose. The environment consists of:
 - **PostgreSQL Database** (`mre-postgres`) - External database container
   (managed separately)
 
-**Docker Runtime:** On macOS, **Colima is the recommended and primary Docker
-runtime** for this project. It provides better command-line control, lighter
-resource usage, and easier memory/CPU configuration. Docker Desktop is supported
-as an alternative. See the [Prerequisites](#prerequisites) section for setup
-instructions.
+**Docker Runtime:** On macOS, **Colima is the required Docker runtime** for this
+project. Docker Desktop must NOT be used. When troubleshooting Docker or
+container issues (e.g. "too many open files", mount errors), restart Colima with
+`colima stop && colima start` — never use Docker Desktop. See the
+[Prerequisites](#prerequisites) section for setup instructions.
 
 ### Goals
 
@@ -135,10 +135,10 @@ All containers communicate through a Docker bridge network:
 
 ### Required Software
 
-You need a Docker runtime environment. **Colima is the recommended and primary
-Docker runtime for macOS.** Docker Desktop is supported as an alternative.
+You need a Docker runtime environment. **Colima is the required Docker runtime
+for macOS.** Docker Desktop must NOT be used for this project.
 
-#### Option 1: Colima (Recommended for macOS - Primary Setup)
+#### Colima (Required for macOS)
 
 - **Colima** - Lightweight Docker runtime for macOS
   - Installation: `brew install colima` (requires Homebrew)
@@ -156,14 +156,9 @@ Docker runtime for macOS.** Docker Desktop is supported as an alternative.
   - **Note:** After installing Colima, ensure Docker context is set:
     `docker context use colima`
 
-#### Option 2: Docker Desktop (Alternative)
-
-- **Docker Desktop** (version 20.10 or later)
-  - Download: https://www.docker.com/products/docker-desktop
-  - Includes Docker Engine and Docker Compose
-  - Verify: `docker --version` and `docker compose version`
-  - **Note:** Docker Desktop can be used as an alternative to Colima, but Colima
-    is recommended for better command-line control and lighter resource usage.
+**Important:** Do not install or use Docker Desktop. This project uses Colima
+exclusively. When troubleshooting (e.g. "too many open files"), restart Colima:
+`colima stop && colima start`.
 
 ### System Requirements
 
@@ -309,18 +304,6 @@ colima logs
 colima status
 ```
 
-### Switching Back to Docker Desktop
-
-If you need to switch back to Docker Desktop:
-
-```bash
-# Switch to Docker Desktop context
-docker context use desktop-linux
-
-# Verify
-docker info | grep "Total Memory"
-```
-
 ### Troubleshooting Colima
 
 **Issue: Architecture mismatch error**
@@ -332,6 +315,12 @@ docker info | grep "Total Memory"
 
 - **Solution:** Restart Colima:
   `colima stop && colima start --memory 14 --cpu 4`
+
+**Issue: "too many open files" or mount errors (re-open fd, create mountpoint)**
+
+- **Solution:** Restart Colima to clear file descriptor limits:
+  `colima stop && colima start --memory 14 --cpu 4`
+- **Never** use Docker Desktop (`open -a Docker`) — this project uses Colima only.
 
 **Issue: Docker commands not working**
 
@@ -1024,6 +1013,20 @@ documentation.
 ## Troubleshooting
 
 ### Common Issues
+
+#### Issue: "too many open files" or Docker Mount Errors
+
+**Error:** `reopen fd: too many open files` or similar when starting containers
+
+**Solution:** This project uses Colima (not Docker Desktop). Restart Colima:
+
+```bash
+colima stop
+colima start --memory 14 --cpu 4
+```
+
+Then start services: `docker compose up -d`. Never run `open -a Docker` or use
+Docker Desktop.
 
 #### Issue: Docker Network Not Found
 

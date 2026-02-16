@@ -46,7 +46,8 @@ function resolveAxisColorForPicker(color: string): string {
 export type AxisColorKey = "x" | "y" | "yRight"
 
 export interface ChartContainerProps {
-  children: ReactNode
+  /** Chart content; omit when using renderContent */
+  children?: ReactNode
   title?: string
   /** Optional class for the title element; when set, overrides default title styling (e.g. to match label style) */
   titleClassName?: string

@@ -153,6 +153,7 @@ A Race (or Session) is one class run (e.g., A-Main, Q1, Heat 3/3).
 | `race_url`         | text        | Canonical race result URL                                                                                                                                                                                                                                                                                                                                                                                      |
 | `start_time`       | timestamptz | Parsed from race list (e.g. `"Nov 16, 2025 at 5:30pm"`)                                                                                                                                                                                                                                                                                                                                                        |
 | `duration_seconds` | int         | Parsed from the **race result page** (e.g. `"Length: 30:00 Timed"` in `span.class_sub_header`). Not on the race list; populated when each race page is fetched. Fallback: if null, may be derived from max `total_time_seconds` of results after ingestion.                                                                                                                                                       |
+| `race_metadata`    | JSONB (nullable) | Used for practice sessions to store `end_time` and `practiceSessionStats` (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../../practice-day-full-ingestion-design.md). |
 
 ### Natural Key
 
@@ -160,6 +161,14 @@ A Race (or Session) is one class run (e.g., A-Main, Q1, Heat 3/3).
 
 If LiveRC ever changes reliability of this ID, a synthetic fallback will be
 defined.
+
+### Practice day persistence
+
+For practice day full ingestion, each practice session is stored as one Race
+(with `session_type = practiceday`). Driver, RaceDriver, RaceResult, and Lap
+rows are created from the session list and session detail pages. See
+[Practice Day Full Ingestion design](../../practice-day-full-ingestion-design.md)
+and the implementation plan in `docs/implimentation_plans/`.
 
 ### Class Name Extraction
 

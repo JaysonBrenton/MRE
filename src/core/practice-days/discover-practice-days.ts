@@ -14,10 +14,15 @@ import { getTrackById } from "@/core/tracks/repo"
 export async function discoverPracticeDays(
   params: DiscoverPracticeDaysInput
 ): Promise<DiscoverPracticeDaysResult> {
-  // Get track to retrieve track_slug
-  const track = await getTrackById(params.trackId)
-  if (!track) {
-    throw new Error(`Track not found: ${params.trackId}`)
+  let trackSlug: string
+  if (params.trackSlug != null && params.trackSlug !== "") {
+    trackSlug = params.trackSlug
+  } else {
+    const track = await getTrackById(params.trackId)
+    if (!track) {
+      throw new Error(`Track not found: ${params.trackId}`)
+    }
+    trackSlug = track.sourceTrackSlug
   }
 
   // Read environment variable at runtime (Next.js may not have it at module load time)
@@ -28,18 +33,27 @@ export async function discoverPracticeDays(
 
   let response: Response
   try {
+    const timeoutSignal = AbortSignal.timeout(60000)
+    let signal: AbortSignal = timeoutSignal
+    if (params.signal) {
+      const c = new AbortController()
+      const abort = (): void => c.abort()
+      timeoutSignal.addEventListener("abort", abort)
+      params.signal.addEventListener("abort", abort)
+      signal = c.signal
+    }
+
     response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        track_slug: track.sourceTrackSlug,
+        track_slug: trackSlug,
         year: params.year,
         month: params.month,
       }),
-      // Add timeout signal (60 seconds for practice day discovery)
-      signal: AbortSignal.timeout(60000),
+      signal,
     })
   } catch (error: unknown) {
     // Handle network errors (connection refused, timeout, etc.)
@@ -93,4 +107,77 @@ export async function discoverPracticeDays(
   return {
     practiceDays: data.data.practice_days,
   }
+}
+
+/** Max months to request for range discovery (aligns with client default). */
+const DISCOVER_RANGE_MONTHS_CAP = 12
+/** Concurrency for per-month discovery calls. */
+const DISCOVER_RANGE_CONCURRENCY = 6
+
+export interface DiscoverPracticeDaysRangeInput {
+  trackId: string
+  startDate: string
+  endDate: string
+  /** When provided, skips getTrackById per month (performance). */
+  trackSlug?: string
+  signal?: AbortSignal
+}
+
+/**
+ * Returns list of { year, month } for every month between two ISO date strings (inclusive).
+ * Exported for use by streaming route.
+ */
+export function getMonthsBetween(
+  startDateStr: string,
+  endDateStr: string
+): { year: number; month: number }[] {
+  const start = new Date(startDateStr)
+  const end = new Date(endDateStr)
+  const months: { year: number; month: number }[] = []
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
+  const endFirst = new Date(end.getFullYear(), end.getMonth(), 1)
+  while (cursor <= endFirst) {
+    months.push({ year: cursor.getFullYear(), month: cursor.getMonth() + 1 })
+    cursor.setMonth(cursor.getMonth() + 1)
+  }
+  return months
+}
+
+/**
+ * Discover practice days for a date range by calling per-month discovery in parallel chunks.
+ * Merges all results and returns a single list. Respects DISCOVER_RANGE_MONTHS_CAP.
+ */
+export async function discoverPracticeDaysRange(
+  params: DiscoverPracticeDaysRangeInput
+): Promise<DiscoverPracticeDaysResult> {
+  const months = getMonthsBetween(params.startDate, params.endDate)
+  const capped =
+    months.length > DISCOVER_RANGE_MONTHS_CAP
+      ? months.slice(-DISCOVER_RANGE_MONTHS_CAP)
+      : months
+
+  const allPracticeDays: Awaited<DiscoverPracticeDaysResult>["practiceDays"] = []
+
+  for (let b = 0; b < capped.length; b += DISCOVER_RANGE_CONCURRENCY) {
+    if (params.signal?.aborted) break
+    const batch = capped.slice(b, b + DISCOVER_RANGE_CONCURRENCY)
+    const results = await Promise.allSettled(
+      batch.map(({ year, month }) =>
+        discoverPracticeDays({
+          trackId: params.trackId,
+          year,
+          month,
+          trackSlug: params.trackSlug,
+          signal: params.signal,
+        })
+      )
+    )
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        allPracticeDays.push(...result.value.practiceDays)
+      }
+    }
+  }
+
+  return { practiceDays: allPracticeDays }
 }

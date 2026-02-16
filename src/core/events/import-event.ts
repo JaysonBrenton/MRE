@@ -73,12 +73,13 @@ export async function importEvent(input: ImportEventInput): Promise<ImportEventR
       success: true,
       eventId: input.eventId,
       status: "started", // Ingestion is async, returns immediately
-      ingestDepth: result.ingest_depth,
+      ingestDepth:
+        "ingest_depth" in result ? result.ingest_depth : input.depth ?? "laps_full",
       // Note: racesIngested, resultsIngested, lapsIngested will be available
       // after ingestion completes, but initial response shows 0 as ingestion is async
-      racesIngested: result.races_ingested || 0,
-      resultsIngested: result.results_ingested || 0,
-      lapsIngested: result.laps_ingested || 0,
+      racesIngested: "races_ingested" in result ? (result.races_ingested || 0) : 0,
+      resultsIngested: "results_ingested" in result ? (result.results_ingested || 0) : 0,
+      lapsIngested: "laps_ingested" in result ? (result.laps_ingested || 0) : 0,
     }
   } catch (error) {
     return {

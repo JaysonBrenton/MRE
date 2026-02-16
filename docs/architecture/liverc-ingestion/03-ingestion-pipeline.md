@@ -264,6 +264,26 @@ processed in the background.
 
 ---
 
+# Practice day full ingestion
+
+Practice day import (single “import practice day” action) performs:
+
+1. **List phase:** Fetch practice day overview; create/update Event and bulk upsert
+   Races (one per session). For each session: resolve Driver (transponder or
+   `practice_session_{session_id}`), bulk upsert RaceDrivers and RaceResults
+   from list data (lap_count, fastest_lap, average_lap).
+2. **Detail phase:** Fetch each session’s detail page with bounded concurrency
+   (configurable via `PRACTICE_DAY_DETAIL_CONCURRENCY`, default 5). For each
+   success: update Race.race_metadata (end_time, practiceSessionStats), update
+   RaceResult (consistency, raw_fields_json, optional laps_completed/fast_lap_time/avg_lap_time), and bulk upsert Laps.
+
+Partial failure (e.g. one session detail fetch fails) does not abort the import;
+list-phase data for that session is already persisted. Re-import is idempotent.
+See [Practice Day Full Ingestion design](../practice-day-full-ingestion-design.md)
+and the implementation plan in `docs/implimentation_plans/`.
+
+---
+
 # Idempotency Rules
 
 The ingestion service must enforce predictable behaviour:

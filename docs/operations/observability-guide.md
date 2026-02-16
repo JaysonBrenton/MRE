@@ -163,6 +163,7 @@ ingestion metrics.
 - Lap extraction count
 - Database write operations
 - Error rates
+- **Practice day full ingestion:** duration, success/failure, sessions_ingested, sessions_with_laps, laps_ingested, sessions_detail_failed (see ingestion observability doc)
 
 ---
 

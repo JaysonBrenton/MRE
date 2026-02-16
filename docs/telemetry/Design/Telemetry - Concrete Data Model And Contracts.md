@@ -679,7 +679,7 @@ Engine:
 - PARTITION BY toYYYYMM(ts)
 - ORDER BY (session_id, ts)
 
-### 8.5 Fused pose stream
+### 8.8 Fused pose stream
 
 **Table:** `telemetry_pose_v1`
 
@@ -704,7 +704,7 @@ Engine:
 - PARTITION BY toYYYYMM(ts)
 - ORDER BY (session_id, ts)
 
-### 8.6 Downsampled tables
+### 8.9 Downsampled tables
 
 Downsampled tables exist to accelerate UI.
 

@@ -139,6 +139,27 @@ _PRACTICE_DAY_SESSIONS_INGESTED = Counter(
     registry=REGISTRY,
 )
 
+_PRACTICE_DAY_SESSIONS_WITH_LAPS = Counter(
+    "practice_day_sessions_with_laps_total",
+    "Practice day sessions for which at least one lap was written",
+    labelnames=("track_slug",),
+    registry=REGISTRY,
+)
+
+_PRACTICE_DAY_LAPS_INGESTED = Counter(
+    "practice_day_laps_ingested_total",
+    "Total laps ingested for practice days",
+    labelnames=("track_slug",),
+    registry=REGISTRY,
+)
+
+_PRACTICE_DAY_SESSIONS_DETAIL_FAILED = Counter(
+    "practice_day_sessions_detail_failed_total",
+    "Practice day sessions whose detail fetch failed",
+    labelnames=("track_slug",),
+    registry=REGISTRY,
+)
+
 
 def record_db_insert(table: str, count: int = 1) -> None:
     """Increment the DB insert counter."""
@@ -248,13 +269,28 @@ def record_practice_day_discovery(track_slug: str, duration_seconds: float, succ
     _PRACTICE_DAY_DISCOVERY_REQUESTS.labels(track_slug=track_slug, result=result).inc()
 
 
-def record_practice_day_ingestion(track_slug: str, date: str, duration_seconds: float, success: bool, sessions_ingested: int = 0) -> None:
-    """Record practice day ingestion operation."""
+def record_practice_day_ingestion(
+    track_slug: str,
+    date: str,
+    duration_seconds: float,
+    success: bool,
+    sessions_ingested: int = 0,
+    sessions_with_laps: int = 0,
+    laps_ingested: int = 0,
+    sessions_detail_failed: int = 0,
+) -> None:
+    """Record practice day ingestion operation (full ingestion: list + detail + laps)."""
     result = "success" if success else "failure"
     _PRACTICE_DAY_INGESTION_DURATION.labels(track_slug=track_slug, date=date, result=result).observe(duration_seconds)
     _PRACTICE_DAY_INGESTION_REQUESTS.labels(track_slug=track_slug, result=result).inc()
     if success and sessions_ingested > 0:
         _PRACTICE_DAY_SESSIONS_INGESTED.labels(track_slug=track_slug).inc(sessions_ingested)
+    if success and sessions_with_laps > 0:
+        _PRACTICE_DAY_SESSIONS_WITH_LAPS.labels(track_slug=track_slug).inc(sessions_with_laps)
+    if success and laps_ingested > 0:
+        _PRACTICE_DAY_LAPS_INGESTED.labels(track_slug=track_slug).inc(laps_ingested)
+    if success and sessions_detail_failed > 0:
+        _PRACTICE_DAY_SESSIONS_DETAIL_FAILED.labels(track_slug=track_slug).inc(sessions_detail_failed)
 
 
 __all__ = [

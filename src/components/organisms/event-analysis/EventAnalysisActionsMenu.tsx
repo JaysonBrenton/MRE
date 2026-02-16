@@ -2,8 +2,9 @@
  * @fileoverview Event analysis actions dropdown menu
  *
  * @description Actions menu visible when viewing Event Overview, Event Sessions, or Drivers.
- *              Replaces the former sidebar event-actions block. Five items: Select a Class,
- *              Select Drivers, Find and Import Events, Refresh Event Data, Clear Event.
+ *              Replaces the former sidebar event-actions block. Items: Find and Import Events,
+ *              Refresh Event Data, Select a Class, Select Drivers, Clear Event.
+ *              "View as driver" (practice day) is in the Select Drivers modal.
  *
  * @purpose Single "Actions" control in the tab row; click opens dropdown with event actions.
  */
@@ -12,6 +13,7 @@
 
 import { useRef, useEffect, useCallback, useState, type KeyboardEvent } from "react"
 import { createPortal } from "react-dom"
+import { useAppSelector } from "@/store/hooks"
 import { useEventActionsOptional } from "@/components/organisms/dashboard/EventActionsContext"
 
 function SearchIcon({ className }: { className?: string }) {
@@ -113,6 +115,10 @@ const classItemClass =
 const CLASS_LIST_POPOVER_GAP = 8
 const CLASS_LIST_ESTIMATE_WIDTH = 200
 const CLASS_LIST_ESTIMATE_HEIGHT = 240
+
+export interface EventAnalysisActionsMenuProps {
+  /** Reserved for future use. */
+}
 
 export default function EventAnalysisActionsMenu() {
   const eventActions = useEventActionsOptional()
@@ -305,7 +311,7 @@ export default function EventAnalysisActionsMenu() {
               </button>
             )}
 
-            {/* Select Drivers - when event selected */}
+            {/* Select Drivers - when event selected; count shown in label so "23" is clear */}
             {hasEventSelected && (
               <button
                 type="button"
@@ -313,17 +319,15 @@ export default function EventAnalysisActionsMenu() {
                 onClick={() => handleItemClick(eventActions.openDriverSelection)}
                 disabled={!hasEventSelected}
                 className={itemClass}
-                aria-label={`Select Drivers (⌘D) - ${selectedDriverCount > 0 ? `${selectedDriverCount} selected` : "No drivers selected"}`}
+                aria-label={`Select Drivers (⌘D)${selectedDriverCount > 0 ? ` — ${selectedDriverCount} selected` : " — no drivers selected"}`}
                 aria-haspopup="dialog"
                 aria-expanded={eventActions.isDriverModalOpen}
               >
                 <DriversIcon className={iconClass} />
-                <span>Select Drivers</span>
-                {selectedDriverCount > 0 && (
-                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--token-accent)] px-1.5 text-[10px] font-medium text-[var(--token-text-primary)]">
-                    {selectedDriverCount}
-                  </span>
-                )}
+                <span>
+                  Select Drivers
+                  {selectedDriverCount > 0 && ` (${selectedDriverCount})`}
+                </span>
               </button>
             )}
 

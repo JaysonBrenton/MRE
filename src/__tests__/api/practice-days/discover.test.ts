@@ -52,7 +52,7 @@ describe("POST /api/v1/practice-days/discover", () => {
       method: "POST",
       body: JSON.stringify({
         track_id: "test-track",
-        // Missing start_date and end_date
+        // Missing year and month
       }),
     })
 
@@ -86,8 +86,8 @@ describe("POST /api/v1/practice-days/discover", () => {
       method: "POST",
       body: JSON.stringify({
         track_id: "test-track",
-        start_date: "2025-01-01",
-        end_date: "2025-01-31",
+        year: 2025,
+        month: 1,
       }),
     })
 
@@ -96,6 +96,16 @@ describe("POST /api/v1/practice-days/discover", () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(data.data.practiceDays).toEqual(mockPracticeDays)
+    expect(data.data.practice_days).toHaveLength(1)
+    expect(data.data.practice_days[0]).toMatchObject({
+      date: "2025-01-15",
+      trackSlug: "testtrack",
+      sessionCount: 10,
+      totalLaps: 500,
+      uniqueDrivers: 5,
+      uniqueClasses: 2,
+    })
+    // Summary-only: sessions stripped for list view
+    expect(data.data.practice_days[0]).not.toHaveProperty("sessions")
   })
 })

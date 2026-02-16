@@ -42,7 +42,7 @@ The complete Driver workflow follows this sequence:
 1. **Driver logs into MRE** (authentication required)
 2. **Driver navigates to Event Search** (top-level navigation item)
 3. **Driver selects a track** via searchable track modal with favourites support
-4. **Driver selects a date range** (max 3 months, no future dates)
+4. **Driver selects a date range** (preset or Custom; Custom max 90 days, API accepts up to 12 months; no future dates)
 5. **Driver clicks Search** → System queries MRE database for matching events
 6. **If no DB results** → System automatically queries LiveRC for events
 7. **Driver views event list** with status indicators (Stored, New, Importing,
@@ -232,10 +232,11 @@ For detailed technical implementation, see
 
 ### 1.4 Date Range Selection
 
-**Date Range Picker:**
+**When / date range (Events mode):**
 
-- Use a **calendar-based date range picker**
-- Two date inputs: "Start Date" and "End Date"
+- A **"When"** section with **date range presets**: No filter, Last 3/6/12 months, This year, Custom.
+- Preset chips set start/end in the user's **local timezone** (e.g. "This year" = 1 Jan–today locally).
+- **Custom** shows two date inputs: "Start date" and "End date"; same validation and tokens as below.
 - Labels appear directly above each input per
   [UX Principles](../../design/mre-ux-principles.md) Section 4.1
 
@@ -252,11 +253,9 @@ For detailed technical implementation, see
 
 **Date Range Validation:**
 
-- **Maximum Range:** Enforce maximum range of **3 months** (90 days) per search
-  - If user selects range > 3 months: Show validation error
-  - Error message: "Date range cannot exceed 3 months. Please select a shorter
-    range."
-  - Error appears beneath end date field
+- **Maximum range:**
+  - **API:** Date range may be up to **12 months** (366 days). Presets (e.g. "Last 12 months", "This year") can use this full range.
+  - **Custom preset:** When the user chooses "Custom", the UI enforces a maximum of **90 days** between start and end. Error message: "Date range cannot exceed 3 months. Please select a shorter range." (appears beneath end date field).
 - **No Future Dates:** Do not allow selecting a **future date**
   - If user attempts to select future date: Validate and show clear error
     message
@@ -276,22 +275,19 @@ For detailed technical implementation, see
 - Form submission disabled until all validation passes
 - Real-time validation on blur (not on every keystroke)
 
-**Default Date Range:**
+**Default date range:**
 
-- **Initial Load:** Last 30 days (if no persisted values)
-  - Start date: 30 days ago
-  - End date: Today
-- **After Reset:** Same default (last 30 days)
+- **Initial load:** "Last 12 months" preset (if no persisted values), with start/end set accordingly.
+- **After reset:** Preset and range reset to "Last 12 months".
 
-**Date Range Persistence:**
+**Date range persistence:**
 
-- Persist **last selected date range** per user
+- Persist **last selected preset** and **last date range** per user.
 - **Phase 1 (Alpha):** localStorage
-  - Key: `mre_last_date_range` (object with `startDate` and `endDate` ISO
-    strings)
-  - Persist on form submission
-  - Load on page load
-- **Future Phase:** Server-side user preferences (do not design DB schema yet)
+  - `mre_date_range_preset` — selected preset (e.g. `"last12"`, `"thisYear"`, `"custom"`).
+  - `mre_last_date_range` — object with `startDate` and `endDate` (YYYY-MM-DD, local date semantics).
+  - Persist on form submission (Search); load on page load.
+- **Future phase:** Server-side user preferences (do not design DB schema yet).
 
 ### 1.5 Form Persistence and Reset
 
@@ -307,9 +303,9 @@ For detailed technical implementation, see
 - Prominent **"Reset"** button located below form (or in form footer)
 - Button uses standard outlined/secondary style per
   [UX Principles](../../design/mre-ux-principles.md) Section 4.3
-- **Reset Behavior:**
+- **Reset behavior:**
   - Clears track selection (back to empty/unselected state)
-  - Clears date range (back to default: last 30 days)
+  - Clears date range (back to default: "Last 12 months" preset)
   - Clears any cached LiveRC results for that search
   - Clears event list/results table
   - Resets form to initial state

@@ -38,6 +38,10 @@ export interface DiscoverPracticeDaysInput {
   trackId: string
   year: number
   month: number
+  /** When provided, skips getTrackById lookup (performance). */
+  trackSlug?: string
+  /** Optional abort signal (e.g. from range request). */
+  signal?: AbortSignal
 }
 
 export interface DiscoverPracticeDaysResult {
@@ -70,5 +74,11 @@ export interface IngestPracticeDayResult {
   eventId: string
   sessionsIngested: number
   sessionsFailed: number
+  /** Sessions for which at least one lap was written (optional, from full ingestion). */
+  sessionsWithLaps?: number
+  /** Total laps ingested (optional, from full ingestion). */
+  lapsIngested?: number
+  /** Sessions whose detail fetch failed (optional, from full ingestion). */
+  sessionsDetailFailed?: number
   status: string
 }

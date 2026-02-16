@@ -19,7 +19,16 @@
 
 import { KeyboardEvent } from "react"
 
-export type TabId = "overview" | "sessions" | "my-events" | "drivers"
+export type TabId =
+  | "overview"
+  | "sessions"
+  | "my-events"
+  | "drivers"
+  // Practice day tabs
+  | "my-day"
+  | "my-sessions"
+  | "class-reference"
+  | "all-sessions"
 
 export interface Tab {
   id: TabId

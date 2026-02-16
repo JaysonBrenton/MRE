@@ -738,6 +738,9 @@ class LiveRCConnector:
         """
         Fetch and parse practice day overview page.
         
+        Tries HTTPX first; falls back to Playwright when the page is JS-rendered
+        (no session table in initial HTML) so we get the full session list.
+        
         Args:
             track_slug: Track subdomain slug
             practice_date: Date of practice day
@@ -751,46 +754,100 @@ class LiveRCConnector:
         self._ensure_enabled()
         url = build_practice_day_url(track_slug, practice_date)
         logger.debug("fetch_practice_day_overview_start", url=url, track_slug=track_slug, date=practice_date)
-        
-        try:
-            # Try HTTPX first
-            async with HTTPXClient(self._site_policy) as client:
-                response = await client.get(url)
-                html = response.text
-                
-                parser = PracticeDayParser()
+
+        parser = PracticeDayParser()
+        requires_playwright = self._page_type_cache.get(url, False)
+        html: Optional[str] = None
+        fetch_method = "httpx"
+
+        if not requires_playwright:
+            try:
+                async with HTTPXClient(self._site_policy) as client:
+                    response = await client.get(url)
+                    html = response.text
                 summary = parser.parse_practice_day_overview(html, track_slug, practice_date)
-                
-                logger.info("fetch_practice_day_overview_success", url=url, session_count=summary.session_count)
-                return summary
-        
-        except EventPageFormatError as err:
-            self._record_error("fetch_practice_day_overview", err)
-            raise
-        
-        except ConnectorHTTPError as err:
-            self._record_error("fetch_practice_day_overview", err)
-            raise
-        
-        except Exception as e:
-            self._record_error("fetch_practice_day_overview", e)
-            logger.error("fetch_practice_day_overview_error", url=url, error=str(e))
-            raise EventPageFormatError(
-                f"Failed to fetch practice day overview: {str(e)}",
+                if summary.session_count == 0:
+                    logger.debug(
+                        "fetch_practice_day_overview_empty_sessions_retry_playwright",
+                        url=url,
+                        message="HTTPX returned page with 0 sessions; may be JS-rendered, trying Playwright",
+                    )
+                    requires_playwright = True
+                    self._page_type_cache[url] = True
+                    self._trim_page_type_cache()
+                    html = None
+                else:
+                    logger.info("fetch_practice_day_overview_success", url=url, session_count=summary.session_count)
+                    return summary
+            except EventPageFormatError as err:
+                requires_playwright = True
+                self._page_type_cache[url] = True
+                self._trim_page_type_cache()
+                self._record_error("fetch_practice_day_overview", err)
+                logger.debug(
+                    "fetch_practice_day_overview_parse_error_retry_playwright",
+                    url=url,
+                    error=str(err),
+                    message="Trying Playwright for JS-rendered session list",
+                )
+            except ConnectorHTTPError as err:
+                self._record_error("fetch_practice_day_overview", err)
+                raise
+            except Exception as e:
+                self._record_error("fetch_practice_day_overview", e)
+                logger.error("fetch_practice_day_overview_error", url=url, error=str(e))
+                raise EventPageFormatError(
+                    f"Failed to fetch practice day overview: {str(e)}",
+                    url=url,
+                )
+
+        if requires_playwright or html is None:
+            try:
+                html = await self._fetch_with_playwright(
+                    url,
+                    wait_for_selector="table.practice_session_list",
+                )
+                fetch_method = "playwright"
+            except Exception as e:
+                self._record_error("fetch_practice_day_overview", e)
+                logger.error("fetch_practice_day_overview_playwright_error", url=url, error=str(e))
+                raise EventPageFormatError(
+                    f"Failed to fetch practice day overview with Playwright: {str(e)}",
+                    url=url,
+                )
+
+        if html:
+            summary = parser.parse_practice_day_overview(html, track_slug, practice_date)
+            logger.info(
+                "fetch_practice_day_overview_success",
                 url=url,
+                session_count=summary.session_count,
+                fetch_method=fetch_method,
             )
+            return summary
+
+        raise EventPageFormatError(
+            "Failed to fetch practice day overview (no HTML)",
+            url=url,
+        )
     
     async def fetch_practice_session_detail(
         self,
         track_slug: str,
         session_id: str,
+        transponder_number: Optional[str] = None,
     ) -> PracticeSessionDetail:
         """
         Fetch and parse individual practice session detail page.
         
+        When transponder_number from the session list is provided, it is passed to the
+        parser so lap extraction (racerLaps[transponder] lookup) works even if the
+        detail page table formats transponder differently.
+        
         Args:
             track_slug: Track subdomain slug
             session_id: Practice session ID
+            transponder_number: Optional transponder from session list (for lap extraction)
         
         Returns:
             PracticeSessionDetail object
@@ -809,7 +866,9 @@ class LiveRCConnector:
                 html = response.text
                 
                 parser = PracticeDayParser()
-                detail = parser.parse_practice_session_detail(html, session_id)
+                detail = parser.parse_practice_session_detail(
+                    html, session_id, transponder_from_list=transponder_number
+                )
                 
                 logger.info("fetch_practice_session_detail_success", url=url, session_id=session_id)
                 return detail

@@ -803,7 +803,65 @@ curl -X POST http://localhost:8000/api/v1/events/c3d4e5f6-a7b8-9012-cdef-1234567
 
 ---
 
-#### 4. Get Ingestion Status
+#### 4. Ingest Practice Day (full)
+
+**Endpoint**: `POST /api/v1/practice-days/ingest`
+
+**Description**: Imports a practice day for a track and date. Full ingestion
+fetches the session list, creates one Race per session, creates Driver,
+RaceDriver, and RaceResult from list data (lap count, fastest/average lap), then
+fetches each session’s detail page with bounded concurrency and persists
+end_time and practiceSessionStats to Race.race_metadata, updates RaceResult
+(consistency, raw_fields_json), and bulk-inserts laps. “Unknown Driver” sessions
+are differentiated by transponder when present (laps can still be extracted);
+only when transponder is missing are laps not extracted. Concurrency limit:
+env `PRACTICE_DAY_DETAIL_CONCURRENCY` (default 5).
+
+**Request**:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/practice-days/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"track_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "date": "2025-10-25"}'
+```
+
+**Request Body**:
+
+```json
+{
+  "track_id": "<track_uuid>",
+  "date": "YYYY-MM-DD"
+}
+```
+
+**Response** (success): Optional fields are additive, non-breaking.
+
+```json
+{
+  "success": true,
+  "data": {
+    "event_id": "<uuid>",
+    "sessions_ingested": 12,
+    "sessions_failed": 0,
+    "sessions_with_laps": 10,
+    "laps_ingested": 450,
+    "sessions_detail_failed": 0,
+    "status": "completed"
+  }
+}
+```
+
+**Use Case**: Import all practice sessions for a given track and date from the
+UI or automation.
+
+**Verification (after import):** Query the DB for the event by `source_event_id`
+(e.g. `{track_slug}-practice-{YYYY-MM-DD}`); count `races`, `race_drivers`,
+`race_results`, `laps`; spot-check one session’s `race_metadata` and one
+`race_result.raw_fields_json` for practice stats.
+
+---
+
+#### 5. Get Ingestion Status
 
 **Endpoint**: `GET /api/v1/ingestion/status/{event_id}`
 
@@ -1327,6 +1385,19 @@ database.
 ---
 
 ## Troubleshooting
+
+### Practice day import (full)
+
+- **No laps for some sessions:** Check that the session has a transponder in the
+  list/detail. “Unknown Driver” sessions often have a transponder and can still
+  have laps extracted; only when transponder is missing are laps skipped. Inspect
+  `race_results` and `laps` for the event’s races.
+- **Detail fetch failed:** Check logs for `practice_session_detail_fetch_failed`
+  (session_id, error). Common causes: HTTP/network errors, or parser failure
+  due to LiveRC HTML change. Re-import will retry detail for that session.
+- **Import slow or high latency:** Reduce `PRACTICE_DAY_DETAIL_CONCURRENCY` (env,
+  default 5) to lower concurrent session-detail requests; respect LiveRC
+  throttling.
 
 ### Common Issues
 

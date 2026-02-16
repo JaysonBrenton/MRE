@@ -15,13 +15,25 @@
  * - src/core/events/validate.ts (validation logic)
  */
 
-import { searchEvents as searchEventsFromRepo, type SearchEventsResult } from "./repo"
+import {
+  searchEvents as searchEventsFromRepo,
+  searchPracticeDayEvents as searchPracticeDayEventsFromRepo,
+  type SearchEventsResult,
+  type PracticeDayEventResult,
+} from "./repo"
 import { validateEventSearchParams } from "./validate"
 
 export interface SearchEventsInput {
   trackId: string
   startDate?: string // ISO date string (optional)
   endDate?: string // ISO date string (optional)
+  includePracticeDays?: boolean
+}
+
+export interface SearchEventsWithPracticeDaysResult extends SearchEventsResult {
+  practiceDays: PracticeDayEventResult[]
+  practiceRangeMin: string | null // ISO date string, earliest date in events or practice
+  practiceRangeMax: string | null // ISO date string, latest date in events or practice
 }
 
 /**
@@ -29,12 +41,15 @@ export interface SearchEventsInput {
  *
  * Validates parameters and ensures track exists before searching.
  * If dates are not provided, returns all events for the track.
+ * When includePracticeDays is true, also returns practice day events and date range for discover.
  *
  * @param input - Search parameters
- * @returns Search result with track info and matching events
+ * @returns Search result with track info and matching events (and optionally practice days + range)
  * @throws Error if validation fails or track not found
  */
-export async function searchEvents(input: SearchEventsInput): Promise<SearchEventsResult> {
+export async function searchEvents(
+  input: SearchEventsInput
+): Promise<SearchEventsResult | SearchEventsWithPracticeDaysResult> {
   // Validate parameters
   const validationError = validateEventSearchParams(
     input.trackId,
@@ -47,8 +62,6 @@ export async function searchEvents(input: SearchEventsInput): Promise<SearchEven
   }
 
   // Convert date strings to Date objects if provided
-  // Start date: set to beginning of day (midnight)
-  // End date: set to end of day (23:59:59.999) to include all events on that day
   let startDate: Date | undefined
   let endDate: Date | undefined
 
@@ -64,10 +77,34 @@ export async function searchEvents(input: SearchEventsInput): Promise<SearchEven
     endDate = date
   }
 
-  // Search events (repo will throw if track not found)
-  return searchEventsFromRepo({
-    trackId: input.trackId,
-    startDate,
-    endDate,
-  })
+  const repoParams = { trackId: input.trackId, startDate, endDate }
+
+  if (!input.includePracticeDays) {
+    return searchEventsFromRepo(repoParams)
+  }
+
+  // Run event search and practice-day search in parallel
+  const [eventsResult, practiceResult] = await Promise.all([
+    searchEventsFromRepo(repoParams),
+    searchPracticeDayEventsFromRepo(repoParams),
+  ])
+
+  const allDates: string[] = []
+  for (const e of eventsResult.events) {
+    if (e.eventDate) allDates.push(e.eventDate)
+  }
+  for (const pd of practiceResult.practiceDays) {
+    if (pd.eventDate) allDates.push(pd.eventDate)
+  }
+  const practiceRangeMin =
+    allDates.length > 0 ? allDates.reduce((a, b) => (a < b ? a : b)) : null
+  const practiceRangeMax =
+    allDates.length > 0 ? allDates.reduce((a, b) => (a > b ? a : b)) : null
+
+  return {
+    ...eventsResult,
+    practiceDays: practiceResult.practiceDays,
+    practiceRangeMin,
+    practiceRangeMax,
+  }
 }

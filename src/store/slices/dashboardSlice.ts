@@ -7,6 +7,7 @@ type EventAnalysisDataApiResponse = Omit<
   EventAnalysisData,
   "event" | "races" | "summary" | "raceClasses"
 > & {
+  isPracticeDay?: boolean
   event: {
     id: string
     eventName: string
@@ -58,6 +59,8 @@ interface DashboardState {
   isAnalysisLoading: boolean
   analysisError: string | null
   currentFetchRequestId: string | null // Track current fetch to ignore stale responses
+  /** For practice days: currently viewed driver id (null = "All sessions"). */
+  selectedPracticeDriverId: string | null
 }
 
 interface FetchEventError {
@@ -76,6 +79,7 @@ const initialState: DashboardState = {
   isAnalysisLoading: false,
   analysisError: null,
   currentFetchRequestId: null,
+  selectedPracticeDriverId: null,
 }
 
 // Async thunk for fetching event data
@@ -233,6 +237,7 @@ const dashboardSlice = createSlice({
         state.eventError = null
         state.analysisData = null
         state.analysisError = null
+        state.selectedPracticeDriverId = null
       }
 
       if (!nextSelected) {
@@ -244,6 +249,7 @@ const dashboardSlice = createSlice({
         state.isEventLoading = false
         state.isAnalysisLoading = false
         state.currentFetchRequestId = null
+        state.selectedPracticeDriverId = null
       } else if (nextSelected !== prevSelected) {
         // Only set isEventLoading - isAnalysisLoading will be set when fetchEventAnalysisData actually starts
         state.isEventLoading = true
@@ -259,6 +265,10 @@ const dashboardSlice = createSlice({
       state.analysisError = null
       state.isAnalysisLoading = false
       state.currentFetchRequestId = null
+      state.selectedPracticeDriverId = null
+    },
+    setSelectedPracticeDriverId: (state, action: PayloadAction<string | null>) => {
+      state.selectedPracticeDriverId = action.payload
     },
   },
   extraReducers: (builder) => {
@@ -349,5 +359,5 @@ const dashboardSlice = createSlice({
   },
 })
 
-export const { selectEvent, clearEvent } = dashboardSlice.actions
+export const { selectEvent, clearEvent, setSelectedPracticeDriverId } = dashboardSlice.actions
 export default dashboardSlice.reducer

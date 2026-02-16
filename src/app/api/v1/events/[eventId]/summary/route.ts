@@ -72,6 +72,7 @@ export async function GET(
           eventDate: summaryData.event.eventDate.toISOString(),
           trackName: summaryData.event.trackName,
         },
+        isPracticeDay: summaryData.isPracticeDay ?? false,
         summary: {
           totalRaces: summaryData.summary.totalRaces,
           totalDrivers: summaryData.summary.totalDrivers,

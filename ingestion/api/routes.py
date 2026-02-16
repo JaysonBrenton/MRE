@@ -10,6 +10,7 @@
 
 import asyncio
 import os
+import time
 from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional
 from uuid import UUID
@@ -34,6 +35,7 @@ from ingestion.ingestion.pipeline import IngestionPipeline
 from ingestion.services.track_sync_service import TrackSyncService
 from ingestion.services.practice_day_discovery import (
     discover_practice_days,
+    get_cached_practice_days,
     search_practice_days,
 )
 from ingestion.api.jobs import TRACK_SYNC_JOBS
@@ -902,6 +904,7 @@ async def discover_practice_days_endpoint(
     else:
         end_date_obj = date(request.year, request.month + 1, 1) - timedelta(days=1)
     
+    start_time = time.perf_counter()
     logger.info(
         "discover_practice_days_start",
         track_slug=request.track_slug,
@@ -910,7 +913,59 @@ async def discover_practice_days_endpoint(
         calculated_start_date=start_date_obj.isoformat(),
         calculated_end_date=end_date_obj.isoformat(),
     )
-    
+
+    # Return cached result immediately when available (avoids LiveRC calls)
+    cached = get_cached_practice_days(
+        request.track_slug,
+        request.year,
+        request.month,
+        start_date_obj,
+        end_date_obj,
+    )
+    if cached is not None:
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        practice_days_data = [
+            {
+                "date": pd.date.isoformat(),
+                "track_slug": pd.track_slug,
+                "session_count": pd.session_count,
+                "total_laps": pd.total_laps,
+                "total_track_time_seconds": pd.total_track_time_seconds,
+                "unique_drivers": pd.unique_drivers,
+                "unique_classes": pd.unique_classes,
+                "time_range_start": pd.time_range_start.isoformat() if pd.time_range_start else None,
+                "time_range_end": pd.time_range_end.isoformat() if pd.time_range_end else None,
+                "sessions": [
+                    {
+                        "session_id": s.session_id,
+                        "driver_name": s.driver_name,
+                        "class_name": s.class_name,
+                        "transponder_number": s.transponder_number,
+                        "start_time": s.start_time.isoformat(),
+                        "duration_seconds": s.duration_seconds,
+                        "lap_count": s.lap_count,
+                        "fastest_lap": s.fastest_lap,
+                        "average_lap": s.average_lap,
+                        "session_url": s.session_url,
+                    }
+                    for s in pd.sessions
+                ],
+            }
+            for pd in cached
+        ]
+        logger.info(
+            "discover_practice_days_cache_hit",
+            track_slug=request.track_slug,
+            year=request.year,
+            month=request.month,
+            practice_day_count=len(practice_days_data),
+            duration_ms=duration_ms,
+        )
+        return {
+            "success": True,
+            "data": {"practice_days": practice_days_data},
+        }
+
     try:
         # Discover practice days
         practice_days = await discover_practice_days(
@@ -949,10 +1004,14 @@ async def discover_practice_days_endpoint(
                 ],
             })
         
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
             "discover_practice_days_success",
             track_slug=request.track_slug,
+            year=request.year,
+            month=request.month,
             practice_day_count=len(practice_days_data),
+            duration_ms=duration_ms,
         )
         
         return {

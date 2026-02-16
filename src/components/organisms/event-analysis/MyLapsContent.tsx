@@ -351,7 +351,7 @@ export default function MyLapsContent({
   const [error, setError] = useState<string | null>(null)
 
   const userDriverId = useMemo(
-    () => resolveUserDriverId(userDriverName, data?.entryList),
+    () => resolveUserDriverId(userDriverName, data?.entryList ?? []),
     [userDriverName, data?.entryList]
   )
 
@@ -559,7 +559,7 @@ export default function MyLapsContent({
       style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
     >
       <Stepper
-        steps={WIZARD_STEPS}
+        steps={[...WIZARD_STEPS]}
         currentStep={step}
         onStepClick={handleStepClick}
         aria-label="Lap Analysis wizard steps"

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { track_id, year, month } = body
+    const { track_id, track_slug, year, month } = body
 
     // Validate required fields
     if (!track_id) {
@@ -45,21 +45,36 @@ export async function POST(request: NextRequest) {
 
     requestLogger.debug("Practice day discovery request", {
       trackId: track_id,
+      trackSlug: track_slug != null ? "(provided)" : "(will lookup)",
       year: year,
       month: month,
     })
 
+    const startMs = Date.now()
     const result = await discoverPracticeDays({
       trackId: track_id,
       year: year,
       month: month,
+      trackSlug: typeof track_slug === "string" && track_slug.trim() !== "" ? track_slug.trim() : undefined,
     })
+    const durationMs = Date.now() - startMs
 
     requestLogger.info("Practice day discovery successful", {
+      trackId: track_id,
+      year,
+      month,
       practiceDayCount: result.practiceDays.length,
+      durationMs,
     })
 
-    return successResponse(result)
+    // Summary-only: strip sessions for list view (reduces payload size)
+    const practiceDaysSummary = result.practiceDays.map((pd) => {
+      const { sessions: _s, ...rest } = pd as unknown as { sessions?: unknown; [k: string]: unknown }
+      return rest
+    })
+
+    // Return snake_case for API consistency (event search uses practice_days; frontend expects either)
+    return successResponse({ practice_days: practiceDaysSummary })
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)

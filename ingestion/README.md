@@ -138,6 +138,7 @@ pytest
 - `POST /api/v1/events/sync` - Sync events for track
 - `POST /api/v1/events/{event_id}/ingest` - Trigger event ingestion
 - `POST /api/v1/events/ingest` - Ingest event by source_event_id + track_id
+- `POST /api/v1/practice-days/ingest` - Ingest practice day (full: list + session detail + laps). See [Practice Day Full Ingestion](../docs/architecture/practice-day-full-ingestion-design.md) and [implementation plan](../docs/implimentation_plans/practice-day-full-ingestion-implementation-plan.md).
 - `GET /api/v1/ingestion/jobs/{job_id}` - Get queued ingestion job status (when queue enabled)
 - `GET /api/v1/ingestion/status/{event_id}` - Get ingestion status
 - `GET /health` - Health check

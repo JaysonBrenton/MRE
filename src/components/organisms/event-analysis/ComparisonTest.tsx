@@ -345,7 +345,7 @@ export default function ComparisonTest({ selectedClass, eventId, data }: Compari
       aria-labelledby="tab-comparison-test"
     >
       <Stepper
-        steps={WIZARD_STEPS}
+        steps={[...WIZARD_STEPS]}
         currentStep={step}
         onStepClick={handleStepClick}
         aria-label="Comparison wizard steps"

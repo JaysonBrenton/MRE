@@ -92,22 +92,76 @@ class TestPracticeDayParser:
                 practice_date=practice_date,
             )
     
-    def test_parse_practice_month_view(self):
-        """Test parsing practice month view (placeholder - needs implementation)."""
+    def test_parse_practice_month_view_empty(self):
+        """Test parsing practice month view with no calendar returns empty list."""
         parser = PracticeDayParser()
-        
-        # This is a placeholder test - implementation needs to be completed
         html = "<html><body>Month view</body></html>"
-        
         dates = parser.parse_practice_month_view(
             html=html,
             track_slug="testtrack",
             year=2025,
             month=10,
         )
-        
-        # For now, this should return empty list until implementation is complete
-        assert isinstance(dates, list)
+        assert dates == []
+
+    def test_parse_practice_month_view_canberra_october_2025(self):
+        """Test parsing LiveRC October 2025 calendar returns all three practice days.
+        Page can have multiple tables (e.g. 'no sessions' for another date first);
+        parser must find session_list links for the requested month only.
+        """
+        parser = PracticeDayParser()
+        # Mimic LiveRC: first table (wrong one), then calendar table with dates
+        html = """
+        <html><body>
+        <div class="panel-body">
+            <table class="table">
+                <tbody>
+                    <tr><td>Practice Sessions on February 14, 2026 (Saturday)</td></tr>
+                    <tr><td>There are no practice sessions available for the given date.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="panel-body no_padding">
+            <table class="table">
+                <tbody>
+                    <tr><td><a href="/practice/?p=session_list&d=2025-10-25">Sat, Oct 25, 2025</a></td><td><a href="/practice/?p=session_list&d=2025-10-25">56</a></td></tr>
+                    <tr><td><a href="https://canberraoffroad.liverc.com/practice/?p=session_list&d=2025-10-12">Sun, Oct 12, 2025</a></td><td><a href="/practice/?p=session_list&d=2025-10-12">2</a></td></tr>
+                    <tr><td><a href="/practice/?p=session_list&d=2025-10-11">Sat, Oct 11, 2025</a></td><td><a href="/practice/?p=session_list&d=2025-10-11">13</a></td></tr>
+                </tbody>
+            </table>
+        </div>
+        </body></html>
+        """
+        dates = parser.parse_practice_month_view(
+            html=html,
+            track_slug="canberraoffroad",
+            year=2025,
+            month=10,
+        )
+        assert len(dates) == 3
+        assert dates[0].isoformat() == "2025-10-11"
+        assert dates[1].isoformat() == "2025-10-12"
+        assert dates[2].isoformat() == "2025-10-25"
+
+    def test_parse_practice_month_view_filters_other_months(self):
+        """Test that only dates in the requested year/month are returned."""
+        parser = PracticeDayParser()
+        html = """
+        <html><body>
+        <a href="/practice/?p=session_list&d=2025-10-25">Oct 25</a>
+        <a href="/practice/?p=session_list&d=2025-11-01">Nov 1</a>
+        <a href="/practice/?p=session_list&d=2025-10-11">Oct 11</a>
+        </body></html>
+        """
+        dates = parser.parse_practice_month_view(
+            html=html,
+            track_slug="testtrack",
+            year=2025,
+            month=10,
+        )
+        assert len(dates) == 2
+        assert dates[0].isoformat() == "2025-10-11"
+        assert dates[1].isoformat() == "2025-10-25"
     
     def test_parse_practice_session_detail(self):
         """Test parsing practice session detail (placeholder - needs implementation)."""

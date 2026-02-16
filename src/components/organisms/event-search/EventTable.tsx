@@ -20,11 +20,14 @@
 
 import { useState } from "react"
 import EventRow, { type Event } from "./EventRow"
+import EventSearchTableHeader, {
+  type SortField,
+  type SortDirection,
+} from "./EventSearchTableHeader"
 import type { EventStatus } from "@/components/molecules/EventStatusBadge"
 import { isEventInFuture } from "@/lib/date-utils"
 
-export type SortField = "date" | "name" | "status"
-export type SortDirection = "asc" | "desc"
+export type { SortField, SortDirection } from "./EventSearchTableHeader"
 
 export interface EventTableProps {
   events: Event[]
@@ -249,72 +252,11 @@ export default function EventTable({
 
   return (
     <div className="mt-8 w-full min-w-0">
-      {/* Desktop: Table Header (hidden on mobile) */}
-      <div className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr] gap-4 px-4 py-3 border-b border-[var(--token-border-default)]">
-        <div
-          className="text-left"
-          aria-sort={
-            sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"
-          }
-        >
-          <button
-            type="button"
-            onClick={() => handleSort("name")}
-            className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
-            aria-label={`Sort by event name ${sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
-          >
-            Event Name
-            {sortField === "name" && (
-              <span className="ml-2" aria-hidden="true">
-                {sortDirection === "asc" ? "↑" : "↓"}
-              </span>
-            )}
-          </button>
-        </div>
-        <div
-          className="text-center"
-          aria-sort={
-            sortField === "status" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"
-          }
-        >
-          <button
-            type="button"
-            onClick={() => handleSort("status")}
-            className="text-center text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
-            aria-label={`Sort by event status ${sortField === "status" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
-          >
-            Event Status
-            {sortField === "status" && (
-              <span className="ml-2" aria-hidden="true">
-                {sortDirection === "asc" ? "↑" : "↓"}
-              </span>
-            )}
-          </button>
-        </div>
-        <div
-          className="text-center"
-          aria-sort={
-            sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"
-          }
-        >
-          <button
-            type="button"
-            onClick={() => handleSort("date")}
-            className="text-center text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
-            aria-label={`Sort by event date ${sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
-          >
-            Event Date
-            {sortField === "date" && (
-              <span className="ml-2" aria-hidden="true">
-                {sortDirection === "asc" ? "↑" : "↓"}
-              </span>
-            )}
-          </button>
-        </div>
-        <div className="text-sm font-medium text-[var(--token-text-secondary)] text-center">
-          <span aria-label="Actions column">Actions</span>
-        </div>
-      </div>
+      <EventSearchTableHeader
+        sortField={sortField}
+        sortDirection={sortDirection}
+        onSort={handleSort}
+      />
 
       {/* Event List */}
       <div className="divide-y divide-[var(--token-border-default)]">

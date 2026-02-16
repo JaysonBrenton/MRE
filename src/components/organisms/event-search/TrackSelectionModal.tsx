@@ -29,6 +29,8 @@ export interface TrackSelectionModalProps {
   onClose: () => void
   onSelect: (track: Track) => void
   onToggleFavourite: (trackId: string) => void
+  /** When opening from another modal (e.g. TrackAndFavouritesModal), pass 110 to stack above */
+  overlayZIndex?: number
 }
 
 const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
@@ -40,6 +42,7 @@ export default function TrackSelectionModal({
   onClose,
   onSelect,
   onToggleFavourite,
+  overlayZIndex = 50,
 }: TrackSelectionModalProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [favourites, setFavourites] = useState<string[]>(initialFavourites)
@@ -135,7 +138,8 @@ export default function TrackSelectionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+      style={{ minWidth: 0, zIndex: overlayZIndex }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
@@ -144,7 +148,6 @@ export default function TrackSelectionModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="track-modal-title"
-      style={{ minWidth: 0 }}
     >
       <div
         ref={modalRef}

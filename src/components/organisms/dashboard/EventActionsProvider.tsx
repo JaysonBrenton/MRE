@@ -27,6 +27,7 @@ import { clearEvent } from "@/store/slices/dashboardSlice"
 import { useDashboardEventSearch } from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 import Modal from "@/components/molecules/Modal"
 import ClassDetailsModal from "@/components/organisms/event-analysis/ClassDetailsModal"
+import PracticeDriverSelector from "@/components/organisms/event-analysis/PracticeDriverSelector"
 import { EventActionsContext, type EventActionsContextValue } from "./EventActionsContext"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
@@ -245,6 +246,11 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   const selectedEventId = useAppSelector((state) => state.dashboard.selectedEventId)
   const eventData = useAppSelector((state) => state.dashboard.eventData)
   const analysisData = useAppSelector((state) => state.dashboard.analysisData)
+  const selectedPracticeDriverId = useAppSelector(
+    (state) => state.dashboard.selectedPracticeDriverId
+  )
+
+  const isPracticeDay = analysisData?.isPracticeDay ?? eventData?.isPracticeDay ?? false
 
   // Modal states
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
@@ -795,6 +801,37 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
           }
         >
           <div className="space-y-4 p-4">
+            {/* View as driver - practice day only; integrated so it lives with driver selection */}
+            {isPracticeDay && drivers.length > 0 && (
+              <div
+                role="group"
+                aria-label="View as driver (practice day)"
+                className="flex flex-col gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-3"
+              >
+                <div className="flex items-center gap-2 text-sm font-medium text-[var(--token-text-primary)]">
+                  <svg
+                    className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
+                  </svg>
+                  <span>View as driver</span>
+                </div>
+                <PracticeDriverSelector
+                  drivers={drivers.map((d) => ({ driverId: d.driverId, driverName: d.driverName }))}
+                  selectedDriverId={selectedPracticeDriverId}
+                  hideLabel
+                  className="w-full"
+                />
+              </div>
+            )}
+
             {/* Controls Row */}
             <div className="flex gap-2">
               {/* Class Filter Dropdown */}
