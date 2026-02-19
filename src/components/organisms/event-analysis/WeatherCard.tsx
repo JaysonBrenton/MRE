@@ -1,0 +1,125 @@
+/**
+ * @fileoverview Compact weather card for Event Analysis Overview
+ *
+ * @description Displays event weather in the same compact label-value card
+ * style as EventStats. Uses existing weather API and condition-to-icon mapping.
+ *
+ * @relatedFiles
+ * - src/components/organisms/event-analysis/EventStats.tsx (styling reference)
+ * - src/components/organisms/event-analysis/OverviewTab.tsx (uses this)
+ * - docs/design/event-analysis-weather-card-design.md
+ * - docs/design/compact-label-value-card.md
+ */
+
+"use client"
+
+import type { EventWeatherData } from "@/types/weather"
+import { getWeatherIcon, getWeatherIconColor } from "@/lib/weather-icons"
+import { getWeatherErrorMessage } from "@/lib/weather-utils"
+import { formatTimeDisplay } from "@/lib/date-utils"
+import TemperatureSparkline from "./TemperatureSparkline"
+
+const CARD_CLASS =
+  "mb-6 w-fit rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2"
+const GRID_CLASS =
+  "grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-sm text-[var(--token-text-primary)]"
+const LABEL_CLASS = "text-[var(--token-text-secondary)]"
+
+export interface WeatherCardProps {
+  weather: EventWeatherData | null
+  weatherLoading: boolean
+  weatherError: string | null
+}
+
+export default function WeatherCard({
+  weather,
+  weatherLoading,
+  weatherError,
+}: WeatherCardProps) {
+  if (weatherLoading) {
+    return (
+      <div className={CARD_CLASS}>
+        <div className={GRID_CLASS}>
+          <span className={LABEL_CLASS}>Condition:</span>
+          <span className="animate-pulse bg-[var(--token-surface)] rounded h-4 w-24" />
+          <span className={LABEL_CLASS}>Air:</span>
+          <span className="animate-pulse bg-[var(--token-surface)] rounded h-4 w-10" />
+          <span className={LABEL_CLASS}>Track:</span>
+          <span className="animate-pulse bg-[var(--token-surface)] rounded h-4 w-10" />
+          <span className={LABEL_CLASS}>Wind:</span>
+          <span className="animate-pulse bg-[var(--token-surface)] rounded h-4 w-16" />
+          <span className={LABEL_CLASS}>Humidity:</span>
+          <span className="animate-pulse bg-[var(--token-surface)] rounded h-4 w-8" />
+          <span className={LABEL_CLASS}>Precip:</span>
+          <span className="animate-pulse bg-[var(--token-surface)] rounded h-4 w-8" />
+        </div>
+      </div>
+    )
+  }
+
+  if (weatherError) {
+    const message = getWeatherErrorMessage(weatherError)
+    return (
+      <div className={CARD_CLASS}>
+        <p className="text-sm text-[var(--token-text-secondary)]">{message}</p>
+      </div>
+    )
+  }
+
+  if (!weather) {
+    return null
+  }
+
+  const ConditionIcon = getWeatherIcon(weather.condition)
+  const iconColorClass = getWeatherIconColor(weather.condition)
+  const summary = weather.dailyTemperatureSummary
+
+  return (
+    <div className={CARD_CLASS}>
+      <div className={GRID_CLASS}>
+        <span className={LABEL_CLASS}>Condition:</span>
+        <span className="flex items-center gap-1.5">
+          <ConditionIcon
+            className={`h-4 w-4 shrink-0 ${iconColorClass}`}
+            aria-hidden
+          />
+          {weather.condition}
+        </span>
+        <span className={LABEL_CLASS}>Air:</span>
+        <span>{Math.round(weather.air)}°C</span>
+        {summary && (
+          <>
+            <span className={LABEL_CLASS}>Max:</span>
+            <span>
+              {Math.round(summary.maxTemp)}°C at {formatTimeDisplay(summary.maxTempTime)}
+            </span>
+            <span className={LABEL_CLASS}>Min:</span>
+            <span>
+              {Math.round(summary.minTemp)}°C at {formatTimeDisplay(summary.minTempTime)}
+            </span>
+          </>
+        )}
+        <span className={LABEL_CLASS}>Track:</span>
+        <span>{Math.round(weather.track)}°C</span>
+        <span className={LABEL_CLASS}>Wind:</span>
+        <span>{weather.wind}</span>
+        <span className={LABEL_CLASS}>Humidity:</span>
+        <span>{weather.humidity}%</span>
+        <span className={LABEL_CLASS}>Precip:</span>
+        <span>{weather.precip}%</span>
+        {summary && summary.hourly.length >= 2 && (
+          <>
+            <span className={LABEL_CLASS}>Day:</span>
+            <span>
+              <TemperatureSparkline
+                hourly={summary.hourly}
+                minTemp={summary.minTemp}
+                maxTemp={summary.maxTemp}
+              />
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

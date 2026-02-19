@@ -85,6 +85,7 @@ export async function GET(
           latest: analysisData.summary.dateRange.latest?.toISOString() || null,
         },
       },
+      multiMainResults: analysisData.multiMainResults ?? [],
     })
   } catch (error) {
     // Log the error with more context for debugging

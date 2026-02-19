@@ -19,6 +19,7 @@ import and analysis.
 | Document | Purpose |
 | -------- | ------- |
 | [**Telemetry Implementation Design**](Design/Telemetry_Implementation_Design.md) | Master implementation spec: roadmap, data models, parsers, fusion, IMU tiers, quality, reason codes |
+| [**Telemetry MVP Implementation Decisions**](Design/Telemetry_MVP_Implementation_Decisions.md) | Authoritative MVP decisions: job table, upload/artifact lifecycle, storage, session time, fixtures, naming, sharing |
 | [**Telemetry Import UX Design**](Design/Telemetry_Import_UX_Design.md) | End-user import flow: entry points, upload, capture hints, processing feedback, error states |
 | [Architecture Blueprint](Design/Architecture_Blueprint_Telemetry_Ingest_Storage_Compute_Query.md) | Ingest, storage, compute, query system design |
 | [API Contract](Design/API_Contract_Telemetry.md) | Endpoints, query patterns, service boundaries |
@@ -76,13 +77,14 @@ import and analysis.
 
 Suggested order for moving from docs to code:
 
-1. Processing pipeline and state machine
-2. API contract
-3. Data model and schema
-4. Trust, quality, honesty rules
+1. Infrastructure (object storage, job queue, worker)
+2. Data model and schema (Postgres + Parquet layout)
+3. API contract (upload, finalise, sessions)
+4. Processing pipeline and state machine
 5. Supported formats and parser spec
+6. Trust, quality, honesty rules (v1)
 
-See the design review for the full recommended action list.
+**Task-level plan:** [docs/implimentation_plans/telemetry-implementation-plan.md](../implimentation_plans/telemetry-implementation-plan.md) — prerequisites, phase dependencies, MVP task breakdown, testing, documentation, and operations. See also [Telemetry Implementation Design](Design/Telemetry_Implementation_Design.md) §9 and the [design review](reviews/telemetry-implementation-plan-review.md).
 
 ## Seed Data and Fixtures
 

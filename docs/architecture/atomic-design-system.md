@@ -10,6 +10,7 @@ relatedFiles:
   - docs/implimentation_plans/OLD/atomic-design-system-implementation-plan.md
   - docs/standards/typescript-react-style-guide.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
+  - docs/design/compact-label-value-card.md
 ---
 
 # MRE Atomic Design System
@@ -84,6 +85,8 @@ src/components/
 | ListPagination  | `@/components/organisms/event-analysis/ListPagination` |
 | ChartContainer   | `@/components/organisms/event-analysis/ChartContainer`   |
 | LapTimeLineChart | `@/components/organisms/event-analysis/LapTimeLineChart` |
+| EventStats       | `@/components/organisms/event-analysis/EventStats`       |
+| WeatherCard      | `@/components/organisms/event-analysis/WeatherCard`       |
 | DashboardLayout  | `@/components/templates/DashboardLayout`                |
 
 ---
@@ -101,10 +104,21 @@ src/components/
    and use `ChartContainer`. Future lap-time line graphs should follow the same
    pattern as `LapTimeLineChart` (ChartContainer, ParentSize, Visx, legend,
    wrapper `minHeight` when content is below the SVG).
+5a. **Compact label–value cards:** Any new card that displays multiple "Label:
+    value" rows in a single compact box must follow
+    `docs/design/compact-label-value-card.md` (grid alignment, left-aligned labels,
+    content-width card, table-style dates). Reference: `EventStats.tsx`.
+5b. **Lookup/filter fields:** Lookup fields, filter inputs, and similar form
+    controls (e.g. "Find driver") must use the standard width
+    `w-[9rem] min-w-[9rem]` per `docs/design/standard-form-field-width.md` to
+    match the Event Search form. Reference: `CombinedDriversTable.tsx`.
 6. **Tooltips:** Use the shared `@/components/molecules/Tooltip` for all
    tooltips (not native `title` for long text). It wraps long content within its
    border and shows instantly; do not change it to `whitespace-nowrap` or the
    text will overflow.
+7. **Icons:** Prefer `lucide-react` for new UI icons (tree-shaken named imports).
+   Existing inline SVGs (e.g. in EventAnalysisHeader) remain valid; no need to
+   migrate them.
 
 ---
 

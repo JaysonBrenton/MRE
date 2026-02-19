@@ -89,14 +89,20 @@ export default function Tooltip({ text, children, position = "top" }: TooltipPro
 
   // Clone the child element to attach event handlers and ref
   const childProps = children.props as {
+    className?: string
     onMouseEnter?: (e: React.MouseEvent) => void
     onMouseLeave?: (e: React.MouseEvent) => void
     onFocus?: (e: React.FocusEvent) => void
     onBlur?: (e: React.FocusEvent) => void
     title?: string
   }
+  const existingClassName = childProps.className ?? ""
+  const mergedClassName = existingClassName
+    ? `${existingClassName} cursor-help`
+    : "cursor-help"
   const childWithProps = React.cloneElement(children, {
     ref: refCallback,
+    className: mergedClassName,
     onMouseEnter: (e: React.MouseEvent) => {
       setShowTooltip(true)
       childProps.onMouseEnter?.(e)

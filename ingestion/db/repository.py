@@ -33,6 +33,8 @@ from ingestion.db.models import (
     RaceResult,
     Lap,
     LapAnnotation,
+    MultiMainResult,
+    MultiMainResultEntry,
     IngestDepth,
     User,
     UserDriverLink,
@@ -926,7 +928,7 @@ class Repository:
                 - race_url: str
                 - start_time: Optional[datetime]
                 - duration_seconds: Optional[int]
-                - session_type: Optional[str] (values: "race", "practice", "qualifying", "practiceday")
+                - session_type: Optional[str] (values: "race", "practice", "qualifying", "practiceday", "heat", "main")
         
         Returns:
             Dictionary mapping source_race_id to Race instance
@@ -1252,6 +1254,112 @@ class Repository:
         logger.debug("bulk_upsert_race_results_complete", count=len(race_results_data))
         
         return race_results
+
+    def get_event_driver_name_to_id_map(self, event_id: UUID) -> Dict[str, str]:
+        """
+        Build mapping of normalized driver display names to driver_ids for an event.
+        Uses RaceDriver records from races in this event.
+        """
+        stmt = (
+            select(RaceDriver.display_name, RaceDriver.driver_id)
+            .join(Race, Race.id == RaceDriver.race_id)
+            .where(Race.event_id == _uuid_to_str(event_id))
+        )
+        rows = self.session.execute(stmt).all()
+        return {display_name.strip().upper(): driver_id for display_name, driver_id in rows if display_name}
+
+    def upsert_multi_main_result(
+        self,
+        event_id: UUID,
+        source_multi_main_id: str,
+        class_label: str,
+        tie_breaker: Optional[str],
+        completed_mains: int,
+        total_mains: int,
+        entries: List[Dict[str, Any]],
+        driver_name_to_id: Dict[str, str],
+    ) -> int:
+        """
+        Upsert multi-main result and its entries.
+        Skips entries where driver cannot be resolved.
+        Returns count of entries upserted.
+        """
+        event_id_str = _uuid_to_str(event_id)
+        now = datetime.utcnow()
+
+        multi_main = self.session.scalar(
+            select(MultiMainResult).where(
+                and_(
+                    MultiMainResult.event_id == event_id_str,
+                    MultiMainResult.source_multi_main_id == source_multi_main_id,
+                )
+            )
+        )
+        if not multi_main:
+            multi_main = MultiMainResult(
+                event_id=event_id_str,
+                source="liverc",
+                source_multi_main_id=source_multi_main_id,
+                class_label=class_label,
+                tie_breaker=tie_breaker,
+                completed_mains=completed_mains,
+                total_mains=total_mains,
+            )
+            self.session.add(multi_main)
+            self.session.flush()
+            metrics.record_db_insert("multi_main_results")
+        else:
+            multi_main.class_label = class_label
+            multi_main.tie_breaker = tie_breaker
+            multi_main.completed_mains = completed_mains
+            multi_main.total_mains = total_mains
+            multi_main.updated_at = now
+            metrics.record_db_update("multi_main_results")
+
+        upserted = 0
+        for entry in entries:
+            driver_name = entry.get("driver_name", "")
+            driver_id = driver_name_to_id.get(driver_name.strip().upper())
+            if not driver_id:
+                logger.warning(
+                    "multi_main_entry_driver_not_found",
+                    event_id=str(event_id),
+                    driver_name=driver_name,
+                    class_label=class_label,
+                    message="Skipping multi-main entry - driver not in event races",
+                )
+                continue
+
+            existing = self.session.scalar(
+                select(MultiMainResultEntry).where(
+                    and_(
+                        MultiMainResultEntry.multi_main_result_id == multi_main.id,
+                        MultiMainResultEntry.driver_id == driver_id,
+                    )
+                )
+            )
+            if existing:
+                existing.position = entry["position"]
+                existing.seeded_position = entry.get("seeded_position")
+                existing.points = entry["points"]
+                existing.main_breakdown_json = entry.get("main_breakdown")
+                existing.updated_at = now
+                metrics.record_db_update("multi_main_result_entries")
+            else:
+                mm_entry = MultiMainResultEntry(
+                    multi_main_result_id=multi_main.id,
+                    position=entry["position"],
+                    seeded_position=entry.get("seeded_position"),
+                    driver_id=driver_id,
+                    points=entry["points"],
+                    main_breakdown_json=entry.get("main_breakdown"),
+                )
+                self.session.add(mm_entry)
+                metrics.record_db_insert("multi_main_result_entries")
+            upserted += 1
+
+        self.session.flush()
+        return upserted
     
     def calculate_and_update_race_durations(
         self,

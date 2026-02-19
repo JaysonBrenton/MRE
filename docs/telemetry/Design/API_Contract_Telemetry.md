@@ -205,7 +205,7 @@ Primary resources:
 
 #### POST `/api/v1/telemetry/uploads`
 
-Creates an upload record and returns a signed URL for direct upload.
+Creates an artifact row (with `sessionId` null, `status` UPLOADED) and returns a signed URL for direct upload. The artifact id is returned as the upload id. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §2.
 
 Request:
 
@@ -273,7 +273,7 @@ Response `200`:
 
 #### POST `/api/v1/telemetry/uploads/{uploadId}/finalise`
 
-Signals upload completion, creates a session, and triggers ingestion.
+Signals upload completion: creates a session, sets the artifact(s) `sessionId`, creates a processing run, and enqueues job(s). Triggers ingestion. Upload id is the artifact id.
 
 Response `202`:
 
@@ -330,6 +330,10 @@ Session detail and overview summary.
 
 Response `200`:
 
+When `session.status` is `failed`, the response MUST include `session.failure`: `{ "code": "<stable code>", "message": "<user-facing message>" }`. Omit `failure` when status is not failed. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §7 and [Telemetry Import UX Design](Telemetry_Import_UX_Design.md) §6.4 for code → message mapping.
+
+Response `200`:
+
 ```json
 {
   "session": {
@@ -379,10 +383,13 @@ Response `200`:
         "fusion": "fusion_0.2.1",
         "lap_detect": "lap_0.1.0"
       }
-    }
+    },
+    "failure": { "code": "string", "message": "string" }
   }
 }
 ```
+
+When `status` is `failed`, include `failure` with the run's error code and a user-facing message; omit `failure` otherwise.
 
 ---
 

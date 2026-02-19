@@ -24,11 +24,14 @@ from ingestion.connectors.liverc.models import (
     ConnectorRaceSummary,
     ConnectorLap,
     ConnectorEntryList,
+    ConnectorMultiMainResult,
 )
 from ingestion.connectors.liverc.parsers.track_list_parser import TrackListParser, TrackSummary
 from ingestion.connectors.liverc.parsers.event_list_parser import EventListParser, EventSummary
 from ingestion.connectors.liverc.parsers.event_metadata_parser import EventMetadataParser
 from ingestion.connectors.liverc.parsers.race_list_parser import RaceListParser
+from ingestion.connectors.liverc.parsers.multi_main_list_parser import MultiMainListParser
+from ingestion.connectors.liverc.parsers.multi_main_result_parser import MultiMainResultParser
 from ingestion.connectors.liverc.parsers.race_results_parser import (
     RaceResultsParser,
     parse_race_duration_seconds,
@@ -45,6 +48,7 @@ from ingestion.connectors.liverc.utils import (
     build_event_url,
     build_events_url,
     build_race_url,
+    build_multi_main_url,
     build_entry_list_url,
     normalize_race_url,
     parse_track_slug_from_url,
@@ -279,11 +283,13 @@ class LiveRCConnector:
                 return await playwright.fetch_page(url, wait_for_selector=wait_for_selector)
 
     def _parse_event_page(self, html: str, url: str, source_event_id: str) -> ConnectorEventSummary:
-        """Parse metadata and race list from event HTML."""
+        """Parse metadata, race list, and multi-main links from event HTML."""
         metadata_parser = EventMetadataParser()
         race_list_parser = RaceListParser()
+        multi_main_parser = MultiMainListParser()
         metadata = metadata_parser.parse(html, url)
         races = race_list_parser.parse(html, url)
+        multi_main_summaries = multi_main_parser.parse(html, url)
         return ConnectorEventSummary(
             source_event_id=source_event_id,
             event_name=metadata.event_name,
@@ -291,6 +297,7 @@ class LiveRCConnector:
             event_entries=metadata.event_entries,
             event_drivers=metadata.event_drivers,
             races=races,
+            multi_main_summaries=multi_main_summaries,
         )
     
     async def fetch_event_page(
@@ -469,7 +476,73 @@ class LiveRCConnector:
                 url=url,
                 race_id=race_summary.source_race_id,
             )
-    
+
+    async def fetch_multi_main_result(
+        self,
+        track_slug: str,
+        source_multi_main_id: str,
+        class_label: str,
+        shared_client: Optional[HTTPXClient] = None,
+    ) -> ConnectorMultiMainResult:
+        """
+        Fetch and parse view_multi_main_result page.
+
+        Args:
+            track_slug: Track subdomain slug
+            source_multi_main_id: Multi-main ID from LiveRC
+            class_label: Class label (e.g. "1/8 Electric Buggy Triple A-Main")
+            shared_client: Optional HTTPXClient to reuse
+
+        Returns:
+            ConnectorMultiMainResult with overall standings
+        """
+        self._ensure_enabled()
+        url = build_multi_main_url(track_slug, source_multi_main_id)
+        logger.info(
+            "fetch_multi_main_start",
+            url=url,
+            source_multi_main_id=source_multi_main_id,
+        )
+
+        try:
+            if shared_client is not None:
+                response = await shared_client.get(url)
+                html = response.text
+            else:
+                async with HTTPXClient(self._site_policy) as client:
+                    response = await client.get(url)
+                    html = response.text
+
+            parser = MultiMainResultParser()
+            result = parser.parse(
+                html, url,
+                source_multi_main_id=source_multi_main_id,
+                class_label=class_label,
+            )
+            logger.info(
+                "fetch_multi_main_success",
+                source_multi_main_id=source_multi_main_id,
+                entry_count=len(result.entries),
+            )
+            return result
+        except ConnectorHTTPError as err:
+            self._record_error("fetch_multi_main", err)
+            raise
+        except RacePageFormatError as err:
+            self._record_error("fetch_multi_main", err)
+            raise
+        except Exception as e:
+            self._record_error("fetch_multi_main", e)
+            logger.error(
+                "fetch_multi_main_error",
+                url=url,
+                error=str(e),
+            )
+            raise RacePageFormatError(
+                f"Failed to fetch multi-main result: {str(e)}",
+                url=url,
+            )
+
     async def fetch_lap_series(
         self,
         race_summary: ConnectorRaceSummary,

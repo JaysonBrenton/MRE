@@ -10,7 +10,7 @@
 #          connector, forming the contract between connector and ingestion layers.
 
 from datetime import datetime, date
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 from pydantic import BaseModel, Field
 
@@ -23,6 +23,10 @@ class ConnectorEventSummary(BaseModel):
     event_entries: int
     event_drivers: int
     races: List["ConnectorRaceSummary"]
+    multi_main_summaries: List["ConnectorMultiMainSummary"] = Field(
+        default_factory=list,
+        description="Multi-main result links (triple/double main overall standings)",
+    )
 
 
 class ConnectorRaceSummary(BaseModel):
@@ -143,6 +147,34 @@ class PracticeSessionDetail(BaseModel):
     consistency: Optional[float] = None
     valid_lap_range: Optional[tuple[int, int]] = None
     laps: List[ConnectorLap] = Field(default_factory=list)
+
+
+class ConnectorMultiMainSummary(BaseModel):
+    """Multi-main result link from event page."""
+    source_multi_main_id: str
+    class_label: str
+
+
+class ConnectorMultiMainEntry(BaseModel):
+    """Single driver's overall result in a multi-main."""
+    position: int
+    seeded_position: Optional[int] = None
+    driver_name: str
+    points: int
+    main_breakdown: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Per-main results keyed by main label (A1, A2, A3): {position, points, laps_time}"
+    )
+
+
+class ConnectorMultiMainResult(BaseModel):
+    """Complete multi-main overall result from view_multi_main_result page."""
+    source_multi_main_id: str
+    class_label: str
+    tie_breaker: Optional[str] = None
+    completed_mains: int
+    total_mains: int
+    entries: List[ConnectorMultiMainEntry] = Field(default_factory=list)
 
 
 # Update forward references

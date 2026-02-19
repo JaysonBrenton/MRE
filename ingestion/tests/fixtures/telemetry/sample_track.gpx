@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="MRE fixture">
+  <trk>
+    <name>Sample track</name>
+    <trkseg>
+      <trkpt lat="-35.33670471" lon="149.15954002">
+        <ele>600.0</ele>
+        <time>2026-02-18T00:00:00Z</time>
+      </trkpt>
+      <trkpt lat="-35.33670150" lon="149.15952602">
+        <ele>600.0</ele>
+        <time>2026-02-18T00:00:00.1Z</time>
+      </trkpt>
+      <trkpt lat="-35.33669607" lon="149.15951472">
+        <ele>600.1</ele>
+        <time>2026-02-18T00:00:00.2Z</time>
+      </trkpt>
+      <trkpt lat="-35.33668742" lon="149.15950737">
+        <ele>600.1</ele>
+        <time>2026-02-18T00:00:00.3Z</time>
+      </trkpt>
+      <trkpt lat="-35.33668931" lon="149.15948710">
+        <ele>600.0</ele>
+        <time>2026-02-18T00:00:00.4Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

@@ -42,7 +42,8 @@ export async function GET(
 
   try {
     const { eventId } = await params
-    const weatherData = await getWeatherForEvent(eventId)
+    const refresh = request.nextUrl.searchParams.get("refresh") === "true"
+    const weatherData = await getWeatherForEvent(eventId, { skipCache: refresh })
 
     requestLogger.info("Weather data fetched successfully", {
       eventId,

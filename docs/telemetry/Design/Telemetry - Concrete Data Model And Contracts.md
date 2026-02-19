@@ -210,6 +210,10 @@ Canonical frames:
 
 All new tables use UUID PKs, plus `createdAt`, `updatedAt`.
 
+**Naming:** Column names in this document use camelCase (Prisma convention). Migrations define the actual database column names; Python workers must use the same names as the database.
+
+**MVP scope:** For MVP, tables `teams`, `team_members`, `telemetry_share_grants`, `telemetry_public_shares` are deferred (all sessions private). See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §9.
+
 ### 7.1 TelemetrySession
 
 **Table:** `telemetry_sessions`
@@ -233,6 +237,8 @@ Columns:
 - `status` enum `UPLOADING | PROCESSING | READY | FAILED | DELETED` (default
   `UPLOADING`)
 - `deletedAt` timestamptz (optional)
+
+**MVP session time:** At creation, set `startTimeUtc` and `endTimeUtc` to the session creation time. When the first processing run succeeds, update both from the canonical data time range (min/max timestamp from parsed streams). See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §4.
 
 Constraints:
 
@@ -299,10 +305,12 @@ Indexes:
 
 Purpose: uploaded inputs, retained as metadata only after canonicalisation.
 
+**Upload lifecycle (MVP):** The artifact row is created on POST /uploads (upload) with `sessionId` null and `status` UPLOADED. On POST finalise, the session is created, `artifact.sessionId` is set, and processing is enqueued. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §2.
+
 Columns:
 
 - `id` UUID PK
-- `sessionId` UUID FK to `telemetry_sessions.id` (required)
+- `sessionId` UUID FK to `telemetry_sessions.id` (optional until finalise; required after)
 - `ownerUserId` UUID FK to `users.id` (required)
 - `deviceId` UUID FK to `telemetry_devices.id` (optional)
 - `artifactRole` enum `GNSS | IMU | FUSED | MIXED | UNKNOWN` (default `UNKNOWN`)
@@ -311,6 +319,7 @@ Columns:
 - `byteSize` bigint (required)
 - `sha256` text (required)
 - `uploadedAt` timestamptz (required)
+- `storagePath` text (required when status = UPLOADED) — object-storage key or local path for raw bytes; worker reads from here before canonicalisation. Cleared or null after raw bytes discarded.
 - `formatDetected` text (optional), for example `racebox_csv_v2`
 - `status` enum `UPLOADED | CANONICALISED | REJECTED | DELETED` (default
   `UPLOADED`)
@@ -327,7 +336,34 @@ Indexes:
 - `(ownerUserId, uploadedAt)`
 - Unique `(sessionId, sha256, byteSize)`
 
-### 7.4 TelemetryProcessingRun
+### 7.4 TelemetryJob (MVP queue)
+
+**Table:** `telemetry_jobs`
+
+Purpose: Postgres-backed job queue for processing pipeline. Single table for MVP; no separate attempt table. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §1 and [Processing Pipeline](Telemetry%20Processing%20Pipeline%20Job%20Orchestration%20and%20State%20Machine.md).
+
+Columns:
+
+- `id` UUID PK
+- `runId` UUID FK to `telemetry_processing_runs.id` (required)
+- `jobType` text (required), e.g. artifact_validate, artifact_classify, parse_raw
+- `status` text (required): QUEUED | RUNNING | SUCCEEDED | FAILED | CANCELLED
+- `payload` jsonb (optional), job-specific arguments
+- `attemptCount` int (default 0)
+- `maxAttempts` int (default 3)
+- `lockedAt` timestamptz (optional), set when claimed
+- `lockedBy` text (optional), worker identifier
+- `lastErrorCode` text (optional), stable code e.g. CSV_NO_TIME_COLUMN
+- `lastErrorMessage` text (optional), operator detail
+- `nextRetryAt` timestamptz (optional), for backoff
+- `createdAt` timestamptz (required)
+- `updatedAt` timestamptz (required)
+
+Indexes:
+
+- `(status, nextRetryAt, createdAt)` for claim query (QUEUED, nextRetryAt null or past)
+
+### 7.5 TelemetryProcessingRun
 
 **Table:** `telemetry_processing_runs`
 
@@ -359,7 +395,7 @@ Indexes:
 
 - `(sessionId, startedAt DESC)`
 
-### 7.5 TelemetryDataset
+### 7.6 TelemetryDataset
 
 **Table:** `telemetry_datasets`
 
@@ -395,11 +431,11 @@ Indexes:
 - `(sessionId, datasetType)`
 - `(runId)`
 
-### 7.6 Laps, segments, and manual edits
+### 7.7 Laps, segments, and manual edits
 
 Telemetry lap structure is derived from start/finish crossings.
 
-#### 7.6.1 TelemetryLap
+#### 7.7.1 TelemetryLap
 
 **Table:** `telemetry_laps`
 
@@ -424,7 +460,7 @@ Indexes:
 - `(sessionId, lapNumber)`
 - `(runId, lapNumber)`
 
-#### 7.6.2 TelemetrySegment
+#### 7.7.2 TelemetrySegment
 
 **Table:** `telemetry_segments`
 
@@ -443,7 +479,7 @@ Indexes:
 
 - Unique `(sessionId, orderIndex)`
 
-#### 7.6.3 TelemetryEdit
+#### 7.7.3 TelemetryEdit
 
 **Table:** `telemetry_edits`
 
@@ -463,9 +499,11 @@ Indexes:
 
 - `(sessionId, createdAt DESC)`
 
-### 7.7 Team and share grants
+### 7.8 Team and share grants (v1; deferred in MVP)
 
-#### 7.7.1 Team
+**MVP:** Tables in this section are not created in MVP; all sessions are private. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §9.
+
+#### 7.8.1 Team
 
 **Table:** `teams`
 
@@ -479,7 +517,7 @@ Constraints:
 
 - Unique `(name)` initially, can be relaxed to `(ownerUserId, name)` later.
 
-#### 7.7.2 TeamMember
+#### 7.8.2 TeamMember
 
 **Table:** `team_members`
 
@@ -493,7 +531,7 @@ Constraints:
 
 - PK `(teamId, userId)`
 
-#### 7.7.3 TelemetryShareGrant
+#### 7.8.3 TelemetryShareGrant
 
 **Table:** `telemetry_share_grants`
 
@@ -512,7 +550,7 @@ Rules:
 - For team share, set `teamId`.
 - For direct share, set `granteeUserId`.
 
-#### 7.7.4 TelemetryPublicShare
+#### 7.8.4 TelemetryPublicShare
 
 **Table:** `telemetry_public_shares`
 

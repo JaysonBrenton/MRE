@@ -20,11 +20,22 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import EventStats from "./EventStats"
+import WeatherCard from "./WeatherCard"
+import ClassStatsCard from "./ClassStatsCard"
+import ClassTopFastestLapsCard from "./ClassTopFastestLapsCard"
+import ClassTopAverageLapsCard from "./ClassTopAverageLapsCard"
+import ClassMostImprovedCard from "./ClassMostImprovedCard"
+import MainPodiumCard from "./MainPodiumCard"
+import MultiMainOverallCard from "./MultiMainOverallCard"
 import ChartControls from "./ChartControls"
 import UnifiedPerformanceChart, { type ChartViewType } from "./UnifiedPerformanceChart"
 import ChartSection from "./ChartSection"
+import ChartDriverPicker from "./ChartDriverPicker"
+import LapByLapTrendChart from "./LapByLapTrendChart"
 import type { DriverPerformanceData } from "./UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import type { EventLapTrendResponse } from "@/core/events/get-lap-data"
+import type { EventWeatherData } from "@/types/weather"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 import ChartDataNotice from "./ChartDataNotice"
 import {
@@ -52,15 +63,87 @@ export default function OverviewTab({
 }: OverviewTabProps) {
   const lastLoggedMissingState = useRef<string | null>(null)
 
+  const [weather, setWeather] = useState<EventWeatherData | null>(null)
+  const [weatherLoading, setWeatherLoading] = useState(false)
+  const [weatherError, setWeatherError] = useState<string | null>(null)
+  const [isEventSummaryOpen, setIsEventSummaryOpen] = useState(false)
+  const [isFastestLapsOpen, setIsFastestLapsOpen] = useState(false)
+  const [isBestAverageOpen, setIsBestAverageOpen] = useState(false)
+  const [isMostImprovedOpen, setIsMostImprovedOpen] = useState(false)
+  const [isResultsOpen, setIsResultsOpen] = useState(false)
+  const [isDriverPerformanceOpen, setIsDriverPerformanceOpen] = useState(false)
+  const [isLapTrendOpen, setIsLapTrendOpen] = useState(false)
+
+  useEffect(() => {
+    const eventId = data.event.id
+    if (!eventId) {
+      setWeather(null)
+      setWeatherError(null)
+      return
+    }
+    setWeatherLoading(true)
+    setWeatherError(null)
+    const fetchWeather = (refresh = false) => {
+      const url = `/api/v1/events/${eventId}/weather${refresh ? "?refresh=true" : ""}`
+      return fetch(url, { cache: "no-store" }).then(async (response) => {
+        if (!response.ok) {
+          if (response.status === 404) {
+            setWeatherError("Event not found")
+            return null
+          }
+          const errorData = await response.json().catch(() => ({}))
+          setWeatherError(errorData.error?.message ?? "Failed to load weather data")
+          return null
+        }
+        const result = await response.json()
+        if (result.success && result.data) {
+          return result.data as EventWeatherData
+        }
+        setWeatherError("Invalid response from server")
+        return null
+      })
+    }
+    fetchWeather()
+      .then((data) => {
+        if (!data) return
+        setWeather(data)
+        setWeatherError(null)
+        // If cached response lacks daily temperature summary, refetch once to populate and upgrade cache
+        if (!data.dailyTemperatureSummary) {
+          return fetchWeather(true).then((fresh) => {
+            if (fresh) setWeather(fresh)
+          })
+        }
+      })
+      .catch((error) => {
+        clientLogger.error("Error fetching weather data", { error })
+        setWeatherError("Failed to fetch weather data")
+      })
+      .finally(() => {
+        setWeatherLoading(false)
+      })
+  }, [data.event.id])
+
   const [paginationState, setPaginationState] = useState({
     page: 1,
     selectionKey: "",
   })
   const [selectAllClickedForCurrentClass, setSelectAllClickedForCurrentClass] = useState(false)
   const [chartViewState, setChartViewState] = useState<ChartViewType>("column")
+  const [lapTrendData, setLapTrendData] = useState<EventLapTrendResponse | null>(null)
+  const [lapTrendLoading, setLapTrendLoading] = useState(false)
+  const [lapTrendError, setLapTrendError] = useState<string | null>(null)
+  // Per-chart driver selection for unified chart only; lap trend uses global selection (Actions menu)
+  const [unifiedChartDriverIds, setUnifiedChartDriverIds] = useState<string[]>([])
+  // Lap-trend chart: which drivers to show (subset of expandedSelectedDriverIds); cap at 8 when many selected
+  const [lapTrendChartDriverIds, setLapTrendChartDriverIds] = useState<string[]>([])
+  // Lap-trend sort: order drivers in chart/legend by this metric
+  const [lapTrendSortBy, setLapTrendSortBy] = useState<
+    "bestLap" | "averageLap" | "consistency" | "gapToFastest" | "averagePosition" | "podiumFinishes"
+  >("bestLap")
   const selectionKey = selectedDriverIds.join("|")
-  const currentPage = paginationState.selectionKey === selectionKey ? paginationState.page : 1
   const driversPerPage = 25
+  const MAX_LAP_TREND_DRIVERS = 8
 
   // Get race classes from entry list
   const validClasses = useMemo(() => getValidClasses(data), [data])
@@ -307,82 +390,169 @@ export default function OverviewTab({
     return map
   }, [data.drivers, data.races])
 
-  // Expand selectedDriverIds to include all driverIds that match by normalized name
-  // This handles cases where there are multiple Driver records with the same/similar name
-  // We check data.drivers, driverStatsByClass, AND race results directly to catch all matches
-  const expandedSelectedDriverIds = useMemo(() => {
-    if (selectedDriverIds.length === 0) {
-      return []
-    }
-
-    // Get normalized names of selected drivers from data.drivers
-    const selectedNormalizedNames = new Set<string>()
-    data.drivers.forEach((driver) => {
-      if (selectedDriverIds.includes(driver.driverId)) {
-        selectedNormalizedNames.add(normalizeDriverName(driver.driverName))
-      }
-    })
-
-    // Find all driverIds that match any of the selected normalized names
-    const expandedIds = new Set<string>(selectedDriverIds)
-
-    // Check data.drivers
-    data.drivers.forEach((driver) => {
-      const normalizedName = normalizeDriverName(driver.driverName)
-      if (selectedNormalizedNames.has(normalizedName)) {
-        expandedIds.add(driver.driverId)
-      }
-    })
-
-    // Check driverStatsByClass (aggregated from race results)
-    driverStatsByClass.forEach((driver) => {
-      const normalizedName = normalizeDriverName(driver.driverName)
-      if (selectedNormalizedNames.has(normalizedName)) {
-        expandedIds.add(driver.driverId)
-      }
-    })
-
-    // Also check race results directly - check both filtered and all races
-    // This catches any driverIds that might not be in aggregates or filtered races
-    // Only include drivers with laps > 0 (exclude non-starting drivers)
-    filteredRaces.forEach((race) => {
-      race.results.forEach((result) => {
-        if (result.lapsCompleted > 0) {
-          const normalizedName = normalizeDriverName(result.driverName)
-          if (selectedNormalizedNames.has(normalizedName)) {
+  // Helper: expand driver IDs by normalized name (same logic for overview and per-chart)
+  const expandDriverIdsByName = useCallback(
+    (seedIds: string[]) => {
+      if (seedIds.length === 0) return []
+      const selectedNormalizedNames = new Set<string>()
+      data.drivers.forEach((driver) => {
+        if (seedIds.includes(driver.driverId)) {
+          selectedNormalizedNames.add(normalizeDriverName(driver.driverName))
+        }
+      })
+      driverStatsByClass.forEach((driver) => {
+        if (seedIds.includes(driver.driverId)) {
+          selectedNormalizedNames.add(normalizeDriverName(driver.driverName))
+        }
+      })
+      const expandedIds = new Set<string>(seedIds)
+      data.drivers.forEach((driver) => {
+        if (selectedNormalizedNames.has(normalizeDriverName(driver.driverName))) {
+          expandedIds.add(driver.driverId)
+        }
+      })
+      driverStatsByClass.forEach((driver) => {
+        if (selectedNormalizedNames.has(normalizeDriverName(driver.driverName))) {
+          expandedIds.add(driver.driverId)
+        }
+      })
+      filteredRaces.forEach((race) => {
+        race.results.forEach((result) => {
+          if (result.lapsCompleted > 0 && selectedNormalizedNames.has(normalizeDriverName(result.driverName))) {
             expandedIds.add(result.driverId)
           }
-        }
+        })
       })
-    })
-
-    // Also check all races (not just filtered) to catch drivers in other classes
-    // Include ALL drivers from race results (even with 0 laps) to ensure we catch all matches
-    data.races.forEach((race) => {
-      race.results.forEach((result) => {
-        // Include all drivers, not just those with laps > 0, to ensure name matching works
-        // for drivers who may have 0 laps in some races but > 0 in others
-        const normalizedName = normalizeDriverName(result.driverName)
-        if (selectedNormalizedNames.has(normalizedName)) {
-          expandedIds.add(result.driverId)
-        }
+      data.races.forEach((race) => {
+        race.results.forEach((result) => {
+          if (selectedNormalizedNames.has(normalizeDriverName(result.driverName))) {
+            expandedIds.add(result.driverId)
+          }
+        })
       })
-    })
+      const driverNameLookupSnapshot = new Map(driverNameLookup)
+      return Array.from(expandedIds).filter((id) => driverNameLookupSnapshot.has(id))
+    },
+    [data.drivers, data.races, driverStatsByClass, filteredRaces, driverNameLookup]
+  )
 
-    // Filter to only include driverIds that we have names for in driverNameLookup
-    // This prevents "Unknown Driver" from appearing
-    const driverNameLookupSnapshot = new Map(driverNameLookup)
-    return Array.from(expandedIds).filter((driverId) => driverNameLookupSnapshot.has(driverId))
-  }, [
-    selectedDriverIds,
-    data.drivers,
-    driverStatsByClass,
-    filteredRaces,
-    data.races,
-    driverNameLookup,
-  ])
+  // Expand selectedDriverIds to include all driverIds that match by normalized name
+  const expandedSelectedDriverIds = useMemo(
+    () => expandDriverIdsByName(selectedDriverIds),
+    [expandDriverIdsByName, selectedDriverIds]
+  )
+
+  // Per-chart expanded IDs (unified chart only); lap trend uses expandedSelectedDriverIds
+  const expandedUnifiedChartDriverIds = useMemo(
+    () => expandDriverIdsByName(unifiedChartDriverIds),
+    [expandDriverIdsByName, unifiedChartDriverIds]
+  )
+
+  // Pagination for unified chart is keyed by that chart's driver selection
+  const unifiedChartSelectionKey = expandedUnifiedChartDriverIds.join("|")
+  const currentPage =
+    paginationState.selectionKey === unifiedChartSelectionKey ? paginationState.page : 1
 
   const shouldShowSelectionNotices = expandedSelectedDriverIds.length > 0
+
+  // Sync per-chart driver state from overview when event or class changes (start in sync)
+  const prevEventIdRef = useRef<string | null>(null)
+  const prevSelectedClassRef = useRef<string | null>(null)
+  useEffect(() => {
+    const eventChanged = prevEventIdRef.current !== data.event.id
+    const classChanged = prevSelectedClassRef.current !== selectedClass
+    prevEventIdRef.current = data.event.id
+    prevSelectedClassRef.current = selectedClass
+    if (eventChanged || classChanged) {
+      setUnifiedChartDriverIds(selectedDriverIds)
+    }
+  }, [data.event.id, selectedClass, selectedDriverIds])
+
+  // When event changes, default lap trend chart to 0 drivers selected (user picks via chart "Select Drivers")
+  useEffect(() => {
+    setLapTrendChartDriverIds([])
+  }, [data.event.id])
+
+  // Fetch lap-by-lap trend for drivers selected in the chart (lapTrendChartDriverIds)
+  useEffect(() => {
+    if (lapTrendChartDriverIds.length === 0) {
+      setLapTrendData(null)
+      setLapTrendError(null)
+      return
+    }
+    setLapTrendLoading(true)
+    setLapTrendError(null)
+    const url = `/api/v1/events/${data.event.id}/lap-trend?driverIds=${encodeURIComponent(lapTrendChartDriverIds.join(","))}`
+    fetch(url, { cache: "no-store", credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          const message =
+            err?.error?.message ?? `Failed to load lap trend (${res.status})`
+          throw new Error(message)
+        }
+        const json = await res.json()
+        if (json.success && json.data) {
+          setLapTrendData(json.data as EventLapTrendResponse)
+        } else {
+          setLapTrendData({ drivers: [] })
+        }
+      })
+      .catch((err) => {
+        setLapTrendError(err instanceof Error ? err.message : "Failed to load lap trend")
+        setLapTrendData(null)
+      })
+      .finally(() => setLapTrendLoading(false))
+  }, [data.event.id, lapTrendChartDriverIds])
+
+  // Lap-trend driver options: drivers that are in global selection (for chart-specific picker)
+  const lapTrendDriverOptions = useMemo(
+    () =>
+      driverStatsByClass
+        .filter((d) => expandedSelectedDriverIds.includes(d.driverId))
+        .map((d) => ({ driverId: d.driverId, driverName: d.driverName })),
+    [driverStatsByClass, expandedSelectedDriverIds]
+  )
+
+  // Sort lap-trend drivers by selected metric (order in chart/legend)
+  const sortedLapTrendDrivers = useMemo(() => {
+    if (!lapTrendData?.drivers?.length) return []
+    const statsMap = new Map(driverStatsByClass.map((d) => [d.driverId, d]))
+    const key =
+      lapTrendSortBy === "bestLap"
+        ? "bestLapTime"
+        : lapTrendSortBy === "averageLap"
+          ? "avgLapTime"
+          : lapTrendSortBy === "consistency"
+            ? "averageConsistency"
+            : lapTrendSortBy === "gapToFastest"
+              ? "gapToFastest"
+              : lapTrendSortBy === "averagePosition"
+                ? "averagePosition"
+                : "podiumFinishes"
+    const ascending =
+      lapTrendSortBy === "consistency" || lapTrendSortBy === "podiumFinishes" ? false : true
+    return [...lapTrendData.drivers].sort((a, b) => {
+      const sa = statsMap.get(a.driverId)
+      const sb = statsMap.get(b.driverId)
+      const va = sa ? (sa as Record<string, unknown>)[key] : null
+      const vb = sb ? (sb as Record<string, unknown>)[key] : null
+      const aNum =
+        va === null || va === undefined || (typeof va === "number" && !isFinite(va))
+          ? ascending
+            ? Infinity
+            : -Infinity
+          : (va as number)
+      const bNum =
+        vb === null || vb === undefined || (typeof vb === "number" && !isFinite(vb))
+          ? ascending
+            ? Infinity
+            : -Infinity
+          : (vb as number)
+      if (ascending) return aNum - bNum
+      return bNum - aNum
+    })
+  }, [lapTrendData, driverStatsByClass, lapTrendSortBy])
 
   // Only consider selected drivers who are in the current class for "missing best lap" / "missing avg vs fastest"
   // so we don't incorrectly flag drivers from other classes when a class is selected
@@ -507,11 +677,18 @@ export default function OverviewTab({
     [selectedDriverIds, handleSelectionChange]
   )
 
+  // Per-chart: toggle one driver in the unified chart's selection (legend click)
+  const handleUnifiedChartDriverToggle = useCallback((driverId: string) => {
+    setUnifiedChartDriverIds((prev) =>
+      prev.includes(driverId) ? prev.filter((id) => id !== driverId) : [...prev, driverId]
+    )
+  }, [])
+
   const handlePageChange = useCallback(
     (page: number) => {
-      setPaginationState({ page, selectionKey })
+      setPaginationState({ page, selectionKey: unifiedChartSelectionKey })
     },
-    [selectionKey]
+    [unifiedChartSelectionKey]
   )
 
   // Auto-select all drivers when "All Classes" is the default on initial load
@@ -651,6 +828,14 @@ export default function OverviewTab({
     filteredRaces.length,
   ])
 
+  const eventSummaryContentId = "event-summary-content"
+  const fastestLapsContentId = "fastest-laps-content"
+  const bestAverageContentId = "best-average-lap-content"
+  const mostImprovedContentId = "most-improved-content"
+  const resultsContentId = "results-content"
+  const driverPerformanceContentId = "driver-performance-content"
+  const lapTrendContentId = "lap-trend-content"
+
   return (
     <div
       className="space-y-6"
@@ -658,25 +843,287 @@ export default function OverviewTab({
       id="tabpanel-overview"
       aria-labelledby="tab-overview"
     >
-      {/* Event Statistics */}
-      <section className="space-y-4">
-        <div className="border-b border-[var(--token-border-default)] pb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
-              Event Statistics
-            </h2>
+      {/* Always-visible event headline metrics */}
+      <section className="space-y-3">
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-3 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80"
+          style={{
+            backgroundColor: "var(--glass-bg)",
+            backdropFilter: "var(--glass-blur)",
+            borderRadius: 16,
+            border: "1px solid var(--glass-border)",
+            boxShadow: "var(--glass-shadow)",
+          }}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]">
+              Event overview
+            </p>
+            <p className="truncate text-sm font-medium text-[var(--token-text-primary)]">
+              {data.event.trackName}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--token-text-secondary)]">
+            <span className="rounded-full bg-[var(--token-surface-elevated)]/80 px-2 py-1">
+              {data.summary.totalRaces} races
+            </span>
+            <span className="rounded-full bg-[var(--token-surface-elevated)]/80 px-2 py-1">
+              {data.summary.totalDrivers} drivers
+            </span>
+            <span className="rounded-full bg-[var(--token-surface-elevated)]/80 px-2 py-1">
+              {data.entryList.length} entries
+            </span>
           </div>
         </div>
-
-        <EventStats
-          totalRaces={data.summary.totalRaces}
-          totalDrivers={data.summary.totalDrivers}
-          totalLaps={data.summary.totalLaps}
-          dateRange={data.summary.dateRange}
-        />
       </section>
 
-      {/* Chart Configuration Section */}
+      <section className="space-y-4">
+        <div className="space-y-6">
+          <div
+            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+            style={{
+              backgroundColor: "var(--glass-bg)",
+              backdropFilter: "var(--glass-blur)",
+              borderRadius: 16,
+              border: "1px solid var(--glass-border)",
+              boxShadow: "var(--glass-shadow)",
+            }}
+          >
+            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+                aria-expanded={isEventSummaryOpen}
+                aria-controls={eventSummaryContentId}
+                onClick={() => setIsEventSummaryOpen((prev) => !prev)}
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span>Event summary</span>
+                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                    {data.summary.totalRaces} races • {data.summary.totalDrivers} drivers •{" "}
+                    {data.entryList.length} entries
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 transition-transform duration-150 ${
+                    isEventSummaryOpen ? "rotate-0" : "-rotate-90"
+                  }`}
+                  aria-hidden="true"
+                >
+                  ▾
+                </span>
+              </button>
+            </h2>
+            {isEventSummaryOpen && (
+              <div
+                id={eventSummaryContentId}
+                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
+              >
+                <EventStats
+                  trackName={data.event.trackName}
+                  totalRaces={data.summary.totalRaces}
+                  totalDrivers={data.summary.totalDrivers}
+                  totalLaps={data.summary.totalLaps}
+                  classCount={data.raceClasses.size}
+                  entries={data.entryList.length}
+                  dateRange={data.summary.dateRange}
+                />
+                <WeatherCard
+                  weather={weather}
+                  weatherLoading={weatherLoading}
+                  weatherError={weatherError}
+                />
+                <ClassStatsCard
+                  raceClasses={data.raceClasses}
+                  races={data.races}
+                  entryList={data.entryList}
+                />
+              </div>
+            )}
+          </div>
+
+          <div
+            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+            style={{
+              backgroundColor: "var(--glass-bg)",
+              backdropFilter: "var(--glass-blur)",
+              borderRadius: 16,
+              border: "1px solid var(--glass-border)",
+              boxShadow: "var(--glass-shadow)",
+            }}
+          >
+            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+                aria-expanded={isFastestLapsOpen}
+                aria-controls={fastestLapsContentId}
+                onClick={() => setIsFastestLapsOpen((prev) => !prev)}
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span>Fastest Laps for Event</span>
+                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                    {data.raceClasses.size} classes with fastest lap data
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 transition-transform duration-150 ${
+                    isFastestLapsOpen ? "rotate-0" : "-rotate-90"
+                  }`}
+                  aria-hidden="true"
+                >
+                  ▾
+                </span>
+              </button>
+            </h2>
+            {isFastestLapsOpen && (
+              <div
+                id={fastestLapsContentId}
+                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
+              >
+                <ClassTopFastestLapsCard races={data.races} />
+              </div>
+            )}
+          </div>
+
+          <div
+            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+            style={{
+              backgroundColor: "var(--glass-bg)",
+              backdropFilter: "var(--glass-blur)",
+              borderRadius: 16,
+              border: "1px solid var(--glass-border)",
+              boxShadow: "var(--glass-shadow)",
+            }}
+          >
+            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+                aria-expanded={isBestAverageOpen}
+                aria-controls={bestAverageContentId}
+                onClick={() => setIsBestAverageOpen((prev) => !prev)}
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span>Fastest Average Laps for Event</span>
+                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                    Average pace across {driverStatsByClass.length} drivers in current view
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 transition-transform duration-150 ${
+                    isBestAverageOpen ? "rotate-0" : "-rotate-90"
+                  }`}
+                  aria-hidden="true"
+                >
+                  ▾
+                </span>
+              </button>
+            </h2>
+            {isBestAverageOpen && (
+              <div
+                id={bestAverageContentId}
+                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
+              >
+                <ClassTopAverageLapsCard races={data.races} />
+              </div>
+            )}
+          </div>
+
+          <div
+            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+            style={{
+              backgroundColor: "var(--glass-bg)",
+              backdropFilter: "var(--glass-blur)",
+              borderRadius: 16,
+              border: "1px solid var(--glass-border)",
+              boxShadow: "var(--glass-shadow)",
+            }}
+          >
+            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+                aria-expanded={isMostImprovedOpen}
+                aria-controls={mostImprovedContentId}
+                onClick={() => setIsMostImprovedOpen((prev) => !prev)}
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span>Most Improved Drivers for Event</span>
+                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                    Improvement across {data.races.length} races
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 transition-transform duration-150 ${
+                    isMostImprovedOpen ? "rotate-0" : "-rotate-90"
+                  }`}
+                  aria-hidden="true"
+                >
+                  ▾
+                </span>
+              </button>
+            </h2>
+            {isMostImprovedOpen && (
+              <div
+                id={mostImprovedContentId}
+                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
+              >
+                <ClassMostImprovedCard
+                  races={data.races}
+                  isPracticeDay={data.isPracticeDay}
+                />
+              </div>
+            )}
+          </div>
+
+          <div
+            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+            style={{
+              backgroundColor: "var(--glass-bg)",
+              backdropFilter: "var(--glass-blur)",
+              borderRadius: 16,
+              border: "1px solid var(--glass-border)",
+              boxShadow: "var(--glass-shadow)",
+            }}
+          >
+            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+                aria-expanded={isResultsOpen}
+                aria-controls={resultsContentId}
+                onClick={() => setIsResultsOpen((prev) => !prev)}
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span>Event Results</span>
+                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                    Final results from {data.races.length} races
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 transition-transform duration-150 ${
+                    isResultsOpen ? "rotate-0" : "-rotate-90"
+                  }`}
+                  aria-hidden="true"
+                >
+                  ▾
+                </span>
+              </button>
+            </h2>
+            {isResultsOpen && (
+              <div
+                id={resultsContentId}
+                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
+              >
+                <MainPodiumCard races={data.races} />
+                <MultiMainOverallCard multiMainResults={data.multiMainResults ?? []} />
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       <section className="space-y-4">
         <ChartControls
           drivers={driverOptions}
@@ -710,50 +1157,211 @@ export default function OverviewTab({
         )}
       </section>
 
-      {/* Chart Visualization */}
       <section className="space-y-4">
-        <div className="border-b border-[var(--token-border-default)] pb-4">
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
-            Driver Statistics
+        <div
+          className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+          style={{
+            backgroundColor: "var(--glass-bg)",
+            backdropFilter: "var(--glass-blur)",
+            borderRadius: 16,
+            border: "1px solid var(--glass-border)",
+            boxShadow: "var(--glass-shadow)",
+          }}
+        >
+          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+              aria-expanded={isDriverPerformanceOpen}
+              aria-controls={driverPerformanceContentId}
+              onClick={() => setIsDriverPerformanceOpen((prev) => !prev)}
+            >
+              <span className="flex min-w-0 flex-col">
+                <span>Driver performance comparison</span>
+                <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                  Best lap, average lap, consistency, and position by driver.
+                </span>
+              </span>
+              <span
+                className={`shrink-0 transition-transform duration-150 ${
+                  isDriverPerformanceOpen ? "rotate-0" : "-rotate-90"
+                }`}
+                aria-hidden="true"
+              >
+                ▾
+              </span>
+            </button>
           </h2>
+          {isDriverPerformanceOpen && (
+            <div
+              id={driverPerformanceContentId}
+              className="space-y-4 border-t border-[var(--token-border-default)] px-4 py-4"
+            >
+              {missingBestLapDriverNames.length > 0 && (
+                <ChartDataNotice
+                  title="Some selected drivers have no recorded best lap"
+                  description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
+                  driverNames={missingBestLapDriverNames}
+                  eventId={data.event.id}
+                  noticeType="best-lap"
+                />
+              )}
+              {missingAvgVsFastestDriverNames.length > 0 && (
+                <ChartDataNotice
+                  title="Missing average lap telemetry"
+                  description="These drivers were selected, but the data feed does not include both best and average lap times for them."
+                  driverNames={missingAvgVsFastestDriverNames}
+                  eventId={data.event.id}
+                  noticeType="avg-vs-fastest"
+                />
+              )}
+              <ChartSection>
+                <UnifiedPerformanceChart
+                  data={unifiedChartData}
+                  selectedDriverIds={expandedUnifiedChartDriverIds}
+                  currentPage={currentPage}
+                  driversPerPage={driversPerPage}
+                  onPageChange={handlePageChange}
+                  onDriverToggle={handleUnifiedChartDriverToggle}
+                  chartInstanceId={`overview-${data.event.id}-unified`}
+                  selectedClass={selectedClass}
+                  allDriversInClassSelected={allDriversInClassSelected && selectAllClickedForCurrentClass}
+                  chartView={chartViewState}
+                  onChartViewChange={setChartViewState}
+                  chartDriverOptions={driverStatsByClass.map((d) => ({ driverId: d.driverId, driverName: d.driverName }))}
+                  chartSelectedDriverIds={unifiedChartDriverIds}
+                  onChartDriverSelectionChange={setUnifiedChartDriverIds}
+                  availableClasses={validClasses}
+                  onClassChange={onClassChange}
+                />
+              </ChartSection>
+            </div>
+          )}
         </div>
+      </section>
 
-        {missingBestLapDriverNames.length > 0 && (
-          <ChartDataNotice
-            title="Some selected drivers have no recorded best lap"
-            description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
-            driverNames={missingBestLapDriverNames}
-            eventId={data.event.id}
-            noticeType="best-lap"
-          />
-        )}
-
-        {missingAvgVsFastestDriverNames.length > 0 && (
-          <ChartDataNotice
-            title="Missing average lap telemetry"
-            description="These drivers were selected, but the data feed does not include both best and average lap times for them."
-            driverNames={missingAvgVsFastestDriverNames}
-            eventId={data.event.id}
-            noticeType="avg-vs-fastest"
-          />
-        )}
-
-        {/* Chart Section */}
-        <ChartSection>
-          <UnifiedPerformanceChart
-            data={unifiedChartData}
-            selectedDriverIds={expandedSelectedDriverIds}
-            currentPage={currentPage}
-            driversPerPage={driversPerPage}
-            onPageChange={handlePageChange}
-            onDriverToggle={handleDriverToggle}
-            chartInstanceId={`overview-${data.event.id}-unified`}
-            selectedClass={selectedClass}
-            allDriversInClassSelected={allDriversInClassSelected && selectAllClickedForCurrentClass}
-            chartView={chartViewState}
-            onChartViewChange={setChartViewState}
-          />
-        </ChartSection>
+      <section className="space-y-4">
+        <div
+          className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+          style={{
+            backgroundColor: "var(--glass-bg)",
+            backdropFilter: "var(--glass-blur)",
+            borderRadius: 16,
+            border: "1px solid var(--glass-border)",
+            boxShadow: "var(--glass-shadow)",
+          }}
+        >
+          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+              aria-expanded={isLapTrendOpen}
+              aria-controls={lapTrendContentId}
+              onClick={() => setIsLapTrendOpen((prev) => !prev)}
+            >
+              <span className="flex min-w-0 flex-col">
+                <span>Lap-by-lap trend</span>
+                <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                  All lap times from first session to last. Use Actions to select class or drivers.
+                </span>
+              </span>
+              <span
+                className={`shrink-0 transition-transform duration-150 ${
+                  isLapTrendOpen ? "rotate-0" : "-rotate-90"
+                }`}
+                aria-hidden="true"
+              >
+                ▾
+              </span>
+            </button>
+          </h2>
+          {isLapTrendOpen && (
+            <div
+              id={lapTrendContentId}
+              className="space-y-4 border-t border-[var(--token-border-default)] px-4 py-4"
+            >
+              <ChartSection>
+                {expandedSelectedDriverIds.length === 0 ? (
+                  <div
+                    className="flex items-center justify-center text-[var(--token-text-secondary)] rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] min-h-[400px]"
+                    style={{
+                      minWidth: 0,
+                      backgroundColor: "var(--glass-bg)",
+                      backdropFilter: "var(--glass-blur)",
+                      borderRadius: 16,
+                      border: "1px solid var(--glass-border)",
+                      boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
+                    }}
+                  >
+                    Select drivers via Actions (class or Select Drivers) to view lap-by-lap trend.
+                  </div>
+                ) : (
+                  <>
+                    {expandedSelectedDriverIds.length > MAX_LAP_TREND_DRIVERS &&
+                      lapTrendChartDriverIds.length === MAX_LAP_TREND_DRIVERS && (
+                        <p className="mb-2 text-sm text-[var(--token-text-secondary)]">
+                          Showing first {MAX_LAP_TREND_DRIVERS} of{" "}
+                          {expandedSelectedDriverIds.length} selected. Use Drivers to add or change.
+                        </p>
+                      )}
+                    <LapByLapTrendChart
+                      drivers={
+                        lapTrendData?.drivers?.some((d) => d.laps.length > 0)
+                          ? sortedLapTrendDrivers
+                          : []
+                      }
+                      height={450}
+                      chartInstanceId={`overview-${data.event.id}-lap-trend`}
+                      chartTitle={
+                        selectedClass === null ? "All Classes" : selectedClass ?? "All Classes"
+                      }
+                      headerControls={
+                        <div className="flex flex-wrap items-center gap-4">
+                          {validClasses.length > 0 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-[var(--token-text-secondary)]">
+                                Choose a Class:
+                              </span>
+                              <select
+                                value={selectedClass ?? ""}
+                                onChange={(e) => onClassChange(e.target.value || null)}
+                                className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+                                aria-label="Choose a Class for lap trend"
+                              >
+                                <option value="">All Classes</option>
+                                {validClasses.map((cls) => (
+                                  <option key={cls} value={cls}>
+                                    {cls}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          {lapTrendDriverOptions.length > 0 && (
+                            <ChartDriverPicker
+                              drivers={lapTrendDriverOptions}
+                              selectedDriverIds={lapTrendChartDriverIds}
+                              onSelectionChange={setLapTrendChartDriverIds}
+                              label="Select Drivers"
+                            />
+                          )}
+                        </div>
+                      }
+                      emptyMessage={
+                        lapTrendLoading
+                          ? "Loading lap data…"
+                          : lapTrendError ??
+                            (lapTrendChartDriverIds.length === 0
+                              ? "No drivers selected for this chart. Use Drivers to add."
+                              : "No lap data for selected drivers.")
+                      }
+                    />
+                  </>
+                )}
+              </ChartSection>
+            </div>
+          )}
+        </div>
       </section>
     </div>
   )

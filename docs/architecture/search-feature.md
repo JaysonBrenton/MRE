@@ -36,7 +36,7 @@ and sessions (races, practice, qualifying) with optional filtering by:
   names)
 - Driver name (exact match with fuzzy fallback, only drivers with valid lap
   times)
-- Session type (race, practice, qualifying)
+- Session type (race, practice, qualifying, heat, main)
 - Date range
 
 **Key Features:**
@@ -103,7 +103,7 @@ architecture.
 
 TypeScript type definitions for search domain:
 
-- `SessionType` - Session type enum (race, practice, qualifying)
+- `SessionType` - Session type enum (race, practice, qualifying, heat, main)
 - `UnifiedSearchParams` - Search parameters
 - `UnifiedSearchResult` - Search results
 - `EventSearchResult` - Individual event result
@@ -278,7 +278,7 @@ Main search page:
 **Race Model:**
 
 - `id`, `eventId`, `raceLabel`, `className`
-- `sessionType` - Session type enum (race, practice, qualifying)
+- `sessionType` - Session type enum (race, practice, qualifying, heat, main)
 - `startTime`, `durationSeconds`, `raceOrder`
 - Relationship to `Event` (for event name and date)
 - Relationship to `RaceDriver` (for driver filtering)

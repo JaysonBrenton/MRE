@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useMemo } from "react"
 import {
-  formatDateLong,
   formatLapTime,
   formatPositionImprovement,
   formatLapTimeImprovement,
@@ -10,19 +9,6 @@ import {
 import type { EventAnalysisSummary } from "@root-types/dashboard"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import ImprovementDriverCard from "./ImprovementDriverCard"
-
-export interface WeatherData {
-  condition: string
-  wind: string
-  humidity: number
-  air: number
-  track: number
-  precip: number
-  forecast: Array<{ label: string; detail: string }>
-  cachedAt?: string
-  isCached?: boolean
-}
-
 
 export default function DriverCardsAndWeatherGrid({
   event,
@@ -34,9 +20,6 @@ export default function DriverCardsAndWeatherGrid({
   userBestConsistency,
   userBestAvgLap,
   userBestImprovement,
-  weather,
-  weatherLoading,
-  weatherError,
   selectedClass,
   selectedDriverIds,
   races,
@@ -51,9 +34,6 @@ export default function DriverCardsAndWeatherGrid({
   userBestConsistency?: EventAnalysisSummary["userBestConsistency"]
   userBestAvgLap?: EventAnalysisSummary["userBestAvgLap"]
   userBestImprovement?: EventAnalysisSummary["userBestImprovement"]
-  weather: WeatherData | null
-  weatherLoading: boolean
-  weatherError: string | null
   selectedClass?: string | null
   selectedDriverIds?: string[]
   races?: EventAnalysisData["races"]
@@ -1334,21 +1314,6 @@ export default function DriverCardsAndWeatherGrid({
         </div>
       </div>
 
-      {weather ? (
-        <WeatherPanel
-          className="col-span-12 lg:col-span-4"
-          weather={weather}
-          eventDate={event?.eventDate}
-          trackName={event?.trackName}
-          eventName={event?.eventName}
-        />
-      ) : weatherLoading ? (
-        <WeatherLoadingState className="col-span-12 lg:col-span-4" />
-      ) : weatherError ? (
-        <WeatherErrorState className="col-span-12 lg:col-span-4" error={weatherError} />
-      ) : (
-        <div className="col-span-12 rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-[var(--dashboard-card-padding)] lg:col-span-4" />
-      )}
     </section>
   )
 }
@@ -1434,172 +1399,5 @@ function DriverCard({
         <p className="text-[10px] text-[var(--token-text-muted)] truncate">{driver.className}</p>
       </div>
     </div>
-  )
-}
-
-function WeatherStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 shadow-[0_2px_6px_rgba(0,0,0,0.1)]">
-      <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
-        {label}
-      </p>
-      <p className="mt-1 text-lg font-semibold text-[var(--token-text-primary)]">{value}</p>
-    </div>
-  )
-}
-
-function WeatherPanel({
-  className,
-  weather,
-  eventDate,
-  trackName,
-  eventName,
-}: {
-  className?: string
-  weather: WeatherData
-  eventDate?: string
-  trackName?: string
-  eventName?: string
-}) {
-  return (
-    <article
-      className={`relative ${className || ""}`}
-      style={{
-        borderRadius: "24px",
-        border: "1px solid var(--glass-border)",
-        backgroundColor: "var(--glass-bg)",
-        backdropFilter: "var(--glass-blur)",
-        WebkitBackdropFilter: "var(--glass-blur)",
-        boxShadow: "var(--glass-shadow), var(--glass-shadow-inset)",
-        padding: "var(--dashboard-card-padding)",
-        overflow: "hidden",
-      }}
-    >
-      {/* Subtle gradient overlay for extra glass depth */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%)",
-          borderRadius: "24px",
-        }}
-      />
-      {/* Subtle top highlight for glass edge effect */}
-      <div
-        className="absolute top-0 left-0 right-0 h-px pointer-events-none"
-        style={{
-          background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)",
-          borderRadius: "24px 24px 0 0",
-        }}
-      />
-      {/* Content wrapper */}
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
-            Track state
-          </p>
-          {weather.isCached && weather.cachedAt && (
-            <p className="text-[9px] uppercase tracking-[0.3em] text-[var(--token-text-muted)]">
-              Cached
-            </p>
-          )}
-        </div>
-        {eventName && trackName && eventDate && (
-          <p className="text-sm text-[var(--token-text-secondary)] mt-2">
-            {eventName} • {trackName} • {formatDateLong(eventDate)}
-          </p>
-        )}
-        <h3 className="mt-2 text-xl font-semibold text-[var(--token-text-primary)]">
-          {weather.condition}
-        </h3>
-        <p className="text-sm text-[var(--token-text-secondary)]">
-          Wind {weather.wind} • Humidity {weather.humidity}%
-        </p>
-        <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-          <WeatherStat label="Air" value={`${Math.round(weather.air)}°C`} />
-          <WeatherStat label="Track" value={`${Math.round(weather.track)}°C`} />
-          <WeatherStat label="Chance" value={`${weather.precip}%`} />
-        </div>
-        <div className="mt-6 space-y-2 text-xs text-[var(--token-text-secondary)]">
-          {weather.forecast.map((entry) => (
-            <div
-              key={entry.label}
-              className="flex items-center justify-between rounded-2xl border border-[var(--token-border-muted)] px-3 py-2"
-            >
-              <span>{entry.label}</span>
-              <span>{entry.detail}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </article>
-  )
-}
-
-
-function WeatherLoadingState({ className }: { className?: string }) {
-  return (
-    <article
-      className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] ${className}`}
-    >
-      <div className="animate-pulse">
-        <div className="h-4 w-24 bg-[var(--token-surface)] rounded mb-4" />
-        <div className="h-6 w-48 bg-[var(--token-surface)] rounded mb-2" />
-        <div className="h-4 w-32 bg-[var(--token-surface)] rounded mb-6" />
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-[var(--token-surface)] rounded-2xl" />
-          ))}
-        </div>
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 bg-[var(--token-surface)] rounded-2xl" />
-          ))}
-        </div>
-      </div>
-    </article>
-  )
-}
-
-
-function WeatherErrorState({ className, error }: { className?: string; error: string }) {
-  // Parse error message to show user-friendly version
-  const getUserFriendlyError = (errorMsg: string): string => {
-    // Check for network connectivity issues first
-    if (
-      errorMsg.includes("Network error") ||
-      errorMsg.includes("network connectivity") ||
-      errorMsg.includes("Unable to reach")
-    ) {
-      return "Unable to load weather data - network connectivity issue"
-    }
-    if (errorMsg.includes("geocode") || errorMsg.includes("Geocoding")) {
-      return "Weather data unavailable for this location"
-    }
-    if (errorMsg.includes("404") || errorMsg.includes("not found")) {
-      return "Weather data not available"
-    }
-    if (errorMsg.includes("Failed to fetch") || errorMsg.includes("network")) {
-      return "Unable to load weather data"
-    }
-    // Default fallback - show first sentence or truncate long technical errors
-    const firstSentence = errorMsg.split(".")[0]
-    if (firstSentence.length > 100) {
-      return "Weather data unavailable"
-    }
-    return firstSentence
-  }
-
-  const friendlyError = getUserFriendlyError(error)
-
-  return (
-    <article
-      className={`rounded-3xl border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-[var(--dashboard-card-padding)] ${className}`}
-    >
-      <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]">
-        Track state
-      </p>
-      <p className="mt-4 text-sm text-[var(--token-text-secondary)]">{friendlyError}</p>
-    </article>
   )
 }

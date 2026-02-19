@@ -23,6 +23,18 @@ See `docs/telemetry/Design/Telemetry_Seed_Data_Guide.md` for full usage and opti
 
 ## Current fixtures
 
+### MVP parser fixtures (required for Phase 3 tests)
+
+| File                   | Purpose |
+| ---------------------- | ------- |
+| sample_gnss_10hz.csv  | Valid 10 Hz GNSS CSV (timestamp_ms, lat, lon, alt_m, speed_mps). Parser must produce gnss_pvt. |
+| sample_track.gpx       | Valid GPX track with trkpt, ele, time. Parser must produce gnss_pvt. |
+| csv_no_time.csv        | CSV with lat, lon, speed_mps but no time column. Parser must emit error code CSV_NO_TIME_COLUMN. |
+
+See [Telemetry MVP Implementation Decisions](../../../../docs/telemetry/Design/Telemetry_MVP_Implementation_Decisions.md) §5.
+
+### Synthetic / generator output
+
 | Dataset                    | Capability   | Laps | Notes                    |
 | -------------------------- | ------------ | ---- | ------------------------ |
 | cormcc-clean-position-only | position-only| 10   | Cormcc track, smoke test |

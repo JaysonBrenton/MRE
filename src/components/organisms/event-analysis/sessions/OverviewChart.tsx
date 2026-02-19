@@ -146,7 +146,10 @@ export default function OverviewChart({
         y: DEFAULT_AXIS_COLOR,
         yRight: participantColor,
       }}
-      renderContent={({ xAxisColor, yAxisColor, yAxisRightColor }) => (
+      renderContent={({
+        axisColors: { xAxisColor, yAxisColor, yAxisRightColor },
+        onAxisColorPickerRequest,
+      }) => (
       <>
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>
@@ -365,63 +368,105 @@ export default function OverviewChart({
                     </>
                   )}
 
-                  {/* Left Y-axis (Duration) */}
-                  <AxisLeft
-                    scale={yScaleDuration}
-                    tickFormat={(value) => formatDuration(Number(value))}
-                    stroke={yAxisColor}
-                    tickStroke={yAxisColor}
-                    tickLabelProps={() => ({
-                      fill: yAxisColor,
-                      fontSize: 12,
-                      textAnchor: "end",
-                      dx: -8,
-                    })}
-                    label="Duration"
-                    labelProps={{
-                      fill: yAxisColor,
-                      fontSize: 12,
-                      textAnchor: "middle",
-                      dy: -50,
-                    }}
-                  />
+                  {/* Left Y-axis (Duration) - clickable to open color picker */}
+                  <Group
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => onAxisColorPickerRequest("y", e)}
+                    aria-label="Y-axis (Duration) - Click to change color"
+                  >
+                    <AxisLeft
+                      scale={yScaleDuration}
+                      tickFormat={(value) => formatDuration(Number(value))}
+                      stroke={yAxisColor}
+                      tickStroke={yAxisColor}
+                      tickLabelProps={() => ({
+                        fill: yAxisColor,
+                        fontSize: 12,
+                        textAnchor: "end",
+                        dx: -8,
+                      })}
+                      label="Duration"
+                      labelProps={{
+                        fill: yAxisColor,
+                        fontSize: 12,
+                        textAnchor: "middle",
+                        dy: -50,
+                      }}
+                    />
+                    <rect
+                      x={0}
+                      y={0}
+                      width={80}
+                      height={innerHeight}
+                      fill="transparent"
+                      pointerEvents="all"
+                    />
+                  </Group>
 
-                  {/* Right Y-axis (Participants) */}
-                  <AxisRight
-                    left={innerWidth}
-                    scale={yScaleParticipants}
-                    stroke={yAxisRightColor}
-                    tickStroke={yAxisRightColor}
-                    tickLabelProps={() => ({
-                      fill: yAxisRightColor,
-                      fontSize: 12,
-                      textAnchor: "start",
-                      dx: 8,
-                    })}
-                    label="Participants"
-                    labelProps={{
-                      fill: yAxisRightColor,
-                      fontSize: 12,
-                      textAnchor: "middle",
-                      dy: -50,
-                    }}
-                  />
+                  {/* Right Y-axis (Participants) - clickable to open color picker */}
+                  <Group
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => onAxisColorPickerRequest("yRight", e)}
+                    aria-label="Y-axis (right) - Click to change color"
+                  >
+                    <AxisRight
+                      left={innerWidth}
+                      scale={yScaleParticipants}
+                      stroke={yAxisRightColor}
+                      tickStroke={yAxisRightColor}
+                      tickLabelProps={() => ({
+                        fill: yAxisRightColor,
+                        fontSize: 12,
+                        textAnchor: "start",
+                        dx: 8,
+                      })}
+                      label="Participants"
+                      labelProps={{
+                        fill: yAxisRightColor,
+                        fontSize: 12,
+                        textAnchor: "middle",
+                        dy: -50,
+                      }}
+                    />
+                    <rect
+                      x={innerWidth - 80}
+                      y={0}
+                      width={80}
+                      height={innerHeight}
+                      fill="transparent"
+                      pointerEvents="all"
+                    />
+                  </Group>
 
-                  {/* X-axis */}
-                  <AxisBottom
-                    top={innerHeight}
-                    scale={xScale}
-                    stroke={xAxisColor}
-                    tickStroke={xAxisColor}
-                    tickLabelProps={() => ({
-                      fill: xAxisColor,
-                      fontSize: 11,
-                      textAnchor: "end",
-                      angle: -45,
-                      dx: -5,
-                      dy: 8,
-                    })}
-                  />
+                  {/* X-axis - clickable to open color picker */}
+                  <Group
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => onAxisColorPickerRequest("x", e)}
+                    aria-label="X-axis - Click to change color"
+                  >
+                    <AxisBottom
+                      top={innerHeight}
+                      scale={xScale}
+                      stroke={xAxisColor}
+                      tickStroke={xAxisColor}
+                      tickLabelProps={() => ({
+                        fill: xAxisColor,
+                        fontSize: 11,
+                        textAnchor: "end",
+                        angle: -45,
+                        dx: -5,
+                        dy: 8,
+                      })}
+                    />
+                    <rect
+                      x={0}
+                      y={innerHeight}
+                      width={innerWidth}
+                      height={60}
+                      fill="transparent"
+                      pointerEvents="all"
+                    />
+                  </Group>
                 </Group>
               </svg>
             )

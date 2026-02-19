@@ -277,3 +277,114 @@ export async function getLapData(
     throw error
   }
 }
+
+/** Single lap point for trend chart (global lap index + time) */
+export interface LapTrendPoint {
+  lapIndex: number
+  raceId: string
+  raceLabel: string
+  className: string
+  lapNumber: number
+  lapTimeSeconds: number
+  /** Session start time (ISO string) when available */
+  raceStartTime?: string | null
+}
+
+/** Per-driver lap trend for the event (every lap in order) */
+export interface DriverLapTrendSeries {
+  driverId: string
+  driverName: string
+  laps: LapTrendPoint[]
+}
+
+export interface EventLapTrendResponse {
+  drivers: DriverLapTrendSeries[]
+}
+
+/**
+ * Get lap-by-lap trend data for selected drivers in an event.
+ * Returns every single lap in race order with a global 1-based lap index for charting.
+ *
+ * @param eventId - Event ID
+ * @param driverIds - Driver IDs to include (empty = no drivers)
+ */
+export async function getEventLapTrend(
+  eventId: string,
+  driverIds: string[]
+): Promise<EventLapTrendResponse> {
+  if (driverIds.length === 0) {
+    return { drivers: [] }
+  }
+
+  const driverIdSet = new Set(driverIds)
+
+  const races = await prisma.race.findMany({
+    where: { eventId },
+    include: {
+      results: {
+        where: {
+          raceDriver: {
+            driverId: { in: driverIds },
+          },
+        },
+        include: {
+          raceDriver: {
+            include: {
+              driver: {
+                select: { id: true, displayName: true },
+              },
+            },
+          },
+          laps: {
+            orderBy: { lapNumber: "asc" },
+          },
+        },
+      },
+    },
+    orderBy: { raceOrder: "asc" },
+  })
+
+  const driverMap = new Map<string, { driverName: string; laps: LapTrendPoint[] }>()
+
+  for (const race of races) {
+    for (const result of race.results) {
+      const driverId = result.raceDriver.driverId
+      if (!driverIdSet.has(driverId)) continue
+
+      const driverName =
+        result.raceDriver.displayName ||
+        result.raceDriver.driver?.displayName ||
+        "Unknown Driver"
+
+      if (!driverMap.has(driverId)) {
+        driverMap.set(driverId, { driverName, laps: [] })
+      }
+      const entry = driverMap.get(driverId)!
+      const startIndex = entry.laps.length
+      const raceStartTime = race.startTime
+        ? race.startTime.toISOString()
+        : null
+      result.laps.forEach((lap, i) => {
+        entry.laps.push({
+          lapIndex: startIndex + i + 1,
+          raceId: race.id,
+          raceLabel: race.raceLabel,
+          className: race.className,
+          lapNumber: lap.lapNumber,
+          lapTimeSeconds: lap.lapTimeSeconds,
+          raceStartTime,
+        })
+      })
+    }
+  }
+
+  const drivers: DriverLapTrendSeries[] = Array.from(driverMap.entries()).map(
+    ([driverId, { driverName, laps }]) => ({
+      driverId,
+      driverName,
+      laps,
+    })
+  )
+
+  return { drivers }
+}

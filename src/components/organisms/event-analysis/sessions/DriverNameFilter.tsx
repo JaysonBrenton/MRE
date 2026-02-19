@@ -24,6 +24,8 @@ export interface DriverNameFilterProps {
   onChange: (value: string) => void
   placeholder?: string
   className?: string
+  /** Optional id for the input element (for label association) */
+  id?: string
 }
 
 export default function DriverNameFilter({
@@ -32,6 +34,7 @@ export default function DriverNameFilter({
   onChange,
   placeholder = "Filter by driver name...",
   className = "",
+  id,
 }: DriverNameFilterProps) {
   const [inputValue, setInputValue] = useState(value)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -141,6 +144,7 @@ export default function DriverNameFilter({
       <div className="relative">
         <input
           ref={inputRef}
+          id={id}
           type="text"
           value={inputValue}
           onChange={handleInputChange}

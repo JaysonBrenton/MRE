@@ -20,7 +20,10 @@
  */
 
 import { geocodeTrack } from "./geocode-track"
-import { fetchWeather } from "./fetch-weather"
+import {
+  fetchWeather,
+  type DailyTemperatureSummary,
+} from "./fetch-weather"
 import { calculateTrackTemperature } from "./calculate-track-temp"
 import {
   getCachedWeather,
@@ -39,6 +42,7 @@ export interface WeatherForEvent {
   track: number // calculated track temperature
   precip: number // precipitation chance percentage
   forecast: Array<{ label: string; detail: string }>
+  dailyTemperatureSummary?: DailyTemperatureSummary
   cachedAt?: string // ISO timestamp if showing cached data
   isCached: boolean
 }
@@ -64,17 +68,23 @@ const HISTORICAL_WEATHER_TTL_HOURS = 24 * 7 // 7 days for historical (since it w
  * If API calls fail, attempts to return last cached data (even if expired).
  *
  * @param eventId - The event ID to get weather for
+ * @param options - Optional: skipCache to force a fresh fetch (e.g. to get daily temperature summary)
  * @returns Weather data for the event
  * @throws Error if event not found, or if no cache available and API fails
  */
-export async function getWeatherForEvent(eventId: string): Promise<WeatherForEvent> {
-  // Check for valid cached data
-  const cached = await getCachedWeather(eventId)
-  if (cached) {
-    return formatWeatherResponse(cached)
+export async function getWeatherForEvent(
+  eventId: string,
+  options?: { skipCache?: boolean }
+): Promise<WeatherForEvent> {
+  // Check for valid cached data unless skipCache requested
+  if (!options?.skipCache) {
+    const cached = await getCachedWeather(eventId)
+    if (cached) {
+      return formatWeatherResponse(cached)
+    }
   }
 
-  // Cache miss or expired - need to fetch fresh data
+  // Cache miss, expired, or skipCache - fetch fresh data
   try {
     // Get event with track information
     const event = await getEventWithTrack(eventId)
@@ -189,6 +199,7 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
       condition: weatherResponse.current.condition,
       trackTemperature,
       forecast: weatherResponse.forecast,
+      dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
       isHistorical,
       expiresAt,
     }
@@ -207,6 +218,7 @@ export async function getWeatherForEvent(eventId: string): Promise<WeatherForEve
       track: trackTemperature,
       precip: weatherResponse.current.precipitation,
       forecast: weatherResponse.forecast,
+      dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
       isCached: false,
     }
 
@@ -238,11 +250,16 @@ function formatWeatherResponse(weatherData: {
   trackTemperature: number
   precipitation: number
   forecast: unknown
+  dailyTemperatureSummary?: unknown
   cachedAt: Date
 }): WeatherForEvent {
   const forecast = Array.isArray(weatherData.forecast)
     ? (weatherData.forecast as Array<{ label: string; detail: string }>)
     : []
+
+  const dailyTemperatureSummary = parseDailyTemperatureSummary(
+    weatherData.dailyTemperatureSummary
+  )
 
   return {
     condition: weatherData.condition,
@@ -252,8 +269,30 @@ function formatWeatherResponse(weatherData: {
     track: weatherData.trackTemperature,
     precip: weatherData.precipitation,
     forecast,
+    dailyTemperatureSummary,
     cachedAt: weatherData.cachedAt.toISOString(),
     isCached: true,
+  }
+}
+
+function parseDailyTemperatureSummary(
+  value: unknown
+): DailyTemperatureSummary | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const o = value as Record<string, unknown>
+  if (
+    typeof o.minTemp !== "number" ||
+    typeof o.maxTemp !== "number" ||
+    !Array.isArray(o.hourly)
+  ) {
+    return undefined
+  }
+  return {
+    hourly: o.hourly as Array<{ time: string; temperature: number }>,
+    minTemp: o.minTemp,
+    minTempTime: String(o.minTempTime ?? ""),
+    maxTemp: o.maxTemp,
+    maxTempTime: String(o.maxTempTime ?? ""),
   }
 }
 

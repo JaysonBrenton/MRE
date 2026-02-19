@@ -122,7 +122,10 @@ export default function HeatProgressionChart({
       chartInstanceId={chartInstanceId}
       axisColorPicker
       defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
-      renderContent={({ xAxisColor, yAxisColor }) => (
+      renderContent={({
+        axisColors: { xAxisColor, yAxisColor },
+        onAxisColorPickerRequest,
+      }) => (
       <>
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <ParentSize>
@@ -227,39 +230,67 @@ export default function HeatProgressionChart({
                     })
                   })}
 
-                  {/* Y-axis */}
-                  <AxisLeft
-                    scale={yScale}
-                    stroke={yAxisColor}
-                    tickStroke={yAxisColor}
-                    tickLabelProps={() => ({
-                      fill: yAxisColor,
-                      fontSize: 12,
-                      textAnchor: "end",
-                      dx: -8,
-                    })}
-                    label="Number of Sessions"
-                    labelProps={{
-                      fill: yAxisColor,
-                      fontSize: 12,
-                      textAnchor: "middle",
-                      dy: -50,
-                    }}
-                  />
+                  {/* Y-axis - clickable to open color picker */}
+                  <Group
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => onAxisColorPickerRequest("y", e)}
+                    aria-label="Y-axis - Click to change color"
+                  >
+                    <AxisLeft
+                      scale={yScale}
+                      stroke={yAxisColor}
+                      tickStroke={yAxisColor}
+                      tickLabelProps={() => ({
+                        fill: yAxisColor,
+                        fontSize: 12,
+                        textAnchor: "end",
+                        dx: -8,
+                      })}
+                      label="Number of Sessions"
+                      labelProps={{
+                        fill: yAxisColor,
+                        fontSize: 12,
+                        textAnchor: "middle",
+                        dy: -50,
+                      }}
+                    />
+                    <rect
+                      x={0}
+                      y={0}
+                      width={80}
+                      height={innerHeight}
+                      fill="transparent"
+                      pointerEvents="all"
+                    />
+                  </Group>
 
-                  {/* X-axis */}
-                  <AxisBottom
-                    top={innerHeight}
-                    scale={xScale}
-                    stroke={xAxisColor}
-                    tickStroke={xAxisColor}
-                    tickLabelProps={() => ({
-                      fill: xAxisColor,
-                      fontSize: 12,
-                      textAnchor: "middle",
-                      dy: 8,
-                    })}
-                  />
+                  {/* X-axis - clickable to open color picker */}
+                  <Group
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => onAxisColorPickerRequest("x", e)}
+                    aria-label="X-axis - Click to change color"
+                  >
+                    <AxisBottom
+                      top={innerHeight}
+                      scale={xScale}
+                      stroke={xAxisColor}
+                      tickStroke={xAxisColor}
+                      tickLabelProps={() => ({
+                        fill: xAxisColor,
+                        fontSize: 12,
+                        textAnchor: "middle",
+                        dy: 8,
+                      })}
+                    />
+                    <rect
+                      x={0}
+                      y={innerHeight}
+                      width={innerWidth}
+                      height={60}
+                      fill="transparent"
+                      pointerEvents="all"
+                    />
+                  </Group>
                 </Group>
               </svg>
             )

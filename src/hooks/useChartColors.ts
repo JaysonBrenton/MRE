@@ -29,6 +29,16 @@ export type SeriesName =
   | "xAxis"
   | "yAxis"
   | "yAxisRight"
+  | "sessionBand1"
+  | "sessionBand2"
+  | "driver0"
+  | "driver1"
+  | "driver2"
+  | "driver3"
+  | "driver4"
+  | "driver5"
+  | "driver6"
+  | "driver7"
 
 const STORAGE_PREFIX = "mre-chart-color"
 

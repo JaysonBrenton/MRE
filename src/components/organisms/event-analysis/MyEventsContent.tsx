@@ -76,7 +76,12 @@ const formatSimilarityScore = (score: number): string => {
   return `${Math.round(score * 100)}%`
 }
 
-export default function MyEventsContent() {
+interface MyEventsContentProps {
+  /** When provided (e.g. from dashboard tab), selects event in Redux and switches tab. When omitted (standalone page), navigates to dashboard with eventId. */
+  onEventSelect?: (eventId: string) => void
+}
+
+export default function MyEventsContent({ onEventSelect }: MyEventsContentProps) {
   const router = useRouter()
   const [events, setEvents] = useState<Event[]>([])
   const [participationDetails, setParticipationDetails] = useState<ParticipationDetail[]>([])
@@ -198,7 +203,11 @@ export default function MyEventsContent() {
   }, [])
 
   const handleEventClick = (eventId: string) => {
-    router.push(`/dashboard?eventId=${eventId}`)
+    if (onEventSelect) {
+      onEventSelect(eventId)
+    } else {
+      router.push(`/dashboard?eventId=${eventId}`)
+    }
   }
 
   const refreshEvents = async () => {

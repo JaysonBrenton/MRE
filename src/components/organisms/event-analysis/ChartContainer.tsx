@@ -20,6 +20,7 @@
 
 import { ReactNode, useState, useCallback } from "react"
 import ChartColorPicker from "./ChartColorPicker"
+import Tooltip from "@/components/molecules/Tooltip"
 import { useChartColor } from "@/hooks/useChartColors"
 
 const DEFAULT_AXIS_COLOR = "#ffffff"
@@ -62,8 +63,11 @@ export interface ChartContainerProps {
   axisColorPicker?: boolean | AxisColorKey[]
   /** Default colors for axis pickers when no custom color is stored. Used for swatch display and picker default. */
   defaultAxisColors?: { x?: string; y?: string; yRight?: string }
-  /** When provided with axisColorPicker, chart content receives current axis colors so picker changes update the chart. */
-  renderContent?: (axisColors: AxisColors) => ReactNode
+  /** When provided with axisColorPicker, chart content receives axis colors and callback to open color picker from axis click. */
+  renderContent?: (props: {
+    axisColors: AxisColors
+    onAxisColorPickerRequest: (key: AxisColorKey, event: React.MouseEvent) => void
+  }) => ReactNode
   /** Optional controls (e.g. chart type toggle, sort dropdown) rendered in the header row between title and axis pickers. */
   headerControls?: ReactNode
 }
@@ -145,13 +149,12 @@ export default function ChartContainer({
     yRight: setYAxisRightColor,
   }
 
-  const handleAxisPickerClick = useCallback((key: AxisColorKey, event: React.MouseEvent) => {
+  const handleAxisColorPickerRequest = useCallback((key: AxisColorKey, event: React.MouseEvent) => {
     event.stopPropagation()
-    const target = event.currentTarget
-    const rect = target.getBoundingClientRect()
-    setAxisPickerPosition({ top: rect.bottom + 8, left: rect.left })
+    if (!axisKeys.includes(key)) return
+    setAxisPickerPosition({ top: event.clientY + 12, left: event.clientX })
     setAxisPickerOpen(key)
-  }, [])
+  }, [axisKeys])
 
   const handleAxisColorChange = useCallback(
     (key: AxisColorKey) => (color: string) => {
@@ -196,64 +199,71 @@ export default function ChartContainer({
       />
       {/* Content wrapper */}
       <div className="relative z-10">
-        {(title || headerControls || showAxisPickers) && (
+        {(title || headerControls) && (
           <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
             <div className="flex flex-wrap items-center gap-4 min-w-0 flex-1">
-              {title && (
+              {title && (description ? (
+                <Tooltip text={description} position="top">
+                  <h3
+                    className={
+                      titleClassName ??
+                      `text-lg font-semibold text-[var(--token-text-primary)] ${
+                        onTitleClick
+                          ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
+                          : ""
+                      }`
+                    }
+                    onClick={onTitleClick}
+                    onKeyDown={(e) => {
+                      if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault()
+                        onTitleClick()
+                      }
+                    }}
+                    tabIndex={onTitleClick ? 0 : undefined}
+                    role={onTitleClick ? "button" : undefined}
+                    aria-label={
+                      onTitleClick
+                        ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
+                        : undefined
+                    }
+                  >
+                    {title}
+                    {selectedClass ? ` - ${selectedClass}` : ""}
+                  </h3>
+                </Tooltip>
+              ) : (
                 <h3
-                className={
-                  titleClassName ??
-                  `text-lg font-semibold text-[var(--token-text-primary)] ${
-                    onTitleClick
-                      ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
-                      : ""
-                  }`
-                }
-                onClick={onTitleClick}
-                onKeyDown={(e) => {
-                  if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault()
-                    onTitleClick()
+                  className={
+                    titleClassName ??
+                    `text-lg font-semibold text-[var(--token-text-primary)] ${
+                      onTitleClick
+                        ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
+                        : ""
+                    }`
                   }
-                }}
-                tabIndex={onTitleClick ? 0 : undefined}
-                role={onTitleClick ? "button" : undefined}
-                aria-label={
-                  onTitleClick
-                    ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
-                    : undefined
-                }
-              >
-                {title}
-                {selectedClass ? ` - ${selectedClass}` : ""}
-              </h3>
-              )}
+                  onClick={onTitleClick}
+                  onKeyDown={(e) => {
+                    if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault()
+                      onTitleClick()
+                    }
+                  }}
+                  tabIndex={onTitleClick ? 0 : undefined}
+                  role={onTitleClick ? "button" : undefined}
+                  aria-label={
+                    onTitleClick
+                      ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
+                      : undefined
+                  }
+                >
+                  {title}
+                  {selectedClass ? ` - ${selectedClass}` : ""}
+                </h3>
+              ))}
               {headerControls}
             </div>
-            {showAxisPickers && (
-              <div className="flex items-center gap-1.5 shrink-0" role="group" aria-label="Axis colors">
-                {axisKeys.map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={(e) => handleAxisPickerClick(key, e)}
-                    className="flex items-center gap-1 px-2 py-1 rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)] transition-colors text-xs text-[var(--token-text-secondary)]"
-                    title={`${axisKeyLabel(key)} color`}
-                    aria-label={`Set ${axisKeyLabel(key).toLowerCase()} color`}
-                  >
-                    <span
-                      className="w-4 h-4 rounded border border-[var(--token-border-default)] flex-shrink-0"
-                      style={{ backgroundColor: axisColorByKey[key] }}
-                    />
-                    <span>{key === "yRight" ? "Y₂" : key.toUpperCase()}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-        )}
-        {description && (
-          <p className="text-sm text-[var(--token-text-secondary)] mb-4">{description}</p>
         )}
         <div
           className="w-full"
@@ -264,9 +274,12 @@ export default function ChartContainer({
         >
           {renderContent
             ? renderContent({
-                xAxisColor: axisColorByKey.x,
-                yAxisColor: axisColorByKey.y,
-                yAxisRightColor: axisColorByKey.yRight,
+                axisColors: {
+                  xAxisColor: axisColorByKey.x,
+                  yAxisColor: axisColorByKey.y,
+                  yAxisRightColor: axisColorByKey.yRight,
+                },
+                onAxisColorPickerRequest: handleAxisColorPickerRequest,
               })
             : children}
         </div>

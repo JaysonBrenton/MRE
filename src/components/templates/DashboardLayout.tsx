@@ -46,9 +46,15 @@ function DashboardShell({
       <AdaptiveNavigationRail user={user ?? null} />
       <div
         className={`flex min-h-screen flex-1 flex-col transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarMargin}`}
+        style={{ "--nav-width": isNavCollapsed ? "80px" : "256px" } as React.CSSProperties}
       >
+        {/* Spacer for fixed TopStatusBar (h-16) */}
+        <div className="h-16 shrink-0" aria-hidden />
         <TopStatusBar user={user ?? null} userId={userId} />
-        <div className="flex-1 overflow-y-auto px-1 py-6 pb-12 sm:px-2 md:px-2 lg:px-2 xl:px-4 2xl:px-6">
+        <div
+          data-scroll-container
+          className="flex-1 overflow-y-auto px-1 py-6 pb-12 sm:px-2 md:px-2 lg:px-2 xl:px-4 2xl:px-6"
+        >
           {children}
         </div>
       </div>

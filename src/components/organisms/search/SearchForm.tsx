@@ -94,6 +94,8 @@ export default function SearchForm() {
           >
             <option value="">All Types</option>
             <option value="race">Race</option>
+            <option value="heat">Heat</option>
+            <option value="main">Main</option>
             <option value="practice">Practice</option>
             <option value="qualifying">Qualifying</option>
           </select>

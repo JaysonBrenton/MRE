@@ -22,7 +22,6 @@ import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { FixedSizeList } from "react-window"
 import Modal from "@/components/molecules/Modal"
-import ClassDetailsModal from "./ClassDetailsModal"
 import SidebarAction from "./SidebarAction"
 import { useDashboardEventSearch } from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
@@ -254,7 +253,6 @@ export default function EventAnalysisSidebar({
     return stored === "true"
   })
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
-  const [isClassDetailsModalOpen, setIsClassDetailsModalOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const { openEventSearch, registerAction, unregisterAction } = useDashboardEventSearch()
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false)
@@ -846,31 +844,6 @@ export default function EventAnalysisSidebar({
                       />
                     </svg>
                   </button>
-                  {selectedClass && onClassChange && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsClassDetailsModalOpen(true)
-                      }}
-                      className="p-1.5 text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
-                      aria-label={`View details for ${selectedClass}`}
-                      title="View class details"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    </button>
-                  )}
                   {needsReview && (
                     <span
                       className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
@@ -1001,66 +974,7 @@ export default function EventAnalysisSidebar({
         </Modal>
       )}
 
-      {/* Class Details Modal */}
-      {eventId && selectedClass && raceClasses && (
-        <ClassDetailsModal
-          isOpen={isClassDetailsModalOpen}
-          onClose={() => setIsClassDetailsModalOpen(false)}
-          eventId={eventId}
-          className={selectedClass}
-          vehicleType={raceClasses.get(selectedClass)?.vehicleType ?? null}
-          vehicleTypeNeedsReview={raceClasses.get(selectedClass)?.vehicleTypeNeedsReview ?? true}
-          onSave={async (vehicleType, acceptInference) => {
-            const url = `/api/v1/events/${eventId}/race-classes/${encodeURIComponent(selectedClass)}/vehicle-type`
-            console.log("[EventAnalysisSidebar] Saving vehicle type:", {
-              eventId,
-              className: selectedClass,
-              vehicleType,
-              acceptInference,
-              url,
-            })
-
-            const response = await fetch(url, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ vehicleType, acceptInference }),
-              credentials: "include",
-              cache: "no-store",
-            })
-
-            if (!response.ok) {
-              // Parse error response to get actual error message
-              let errorMessage = "Failed to save vehicle type"
-              try {
-                const errorData = await response.json()
-                console.error("[EventAnalysisSidebar] Save failed:", errorData)
-                if (errorData.error?.message) {
-                  errorMessage = errorData.error.message
-                } else if (errorData.error?.code) {
-                  errorMessage = `${errorData.error.code}: ${errorMessage}`
-                }
-              } catch {
-                // If response is not JSON, use status text
-                errorMessage = response.statusText || errorMessage
-              }
-              throw new Error(errorMessage)
-            }
-
-            // Verify response body indicates success
-            const result = await response.json()
-            console.log("[EventAnalysisSidebar] Save response:", result)
-            if (!result.success) {
-              const errorMessage = result.error?.message || "Save operation failed"
-              console.error("[EventAnalysisSidebar] Save returned success:false:", result)
-              throw new Error(errorMessage)
-            }
-
-            console.log("[EventAnalysisSidebar] Save successful, reloading page...")
-            window.location.reload()
-          }}
-        />
-      )}
-
+      {/* Error Modal */}
       {/* Error Modal */}
       <Modal
         isOpen={isErrorModalOpen}

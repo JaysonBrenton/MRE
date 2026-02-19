@@ -26,7 +26,6 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { clearEvent } from "@/store/slices/dashboardSlice"
 import { useDashboardEventSearch } from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 import Modal from "@/components/molecules/Modal"
-import ClassDetailsModal from "@/components/organisms/event-analysis/ClassDetailsModal"
 import PracticeDriverSelector from "@/components/organisms/event-analysis/PracticeDriverSelector"
 import { EventActionsContext, type EventActionsContextValue } from "./EventActionsContext"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
@@ -254,8 +253,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
 
   // Modal states
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
-  const [isClassDetailsModalOpen, setIsClassDetailsModalOpen] = useState(false)
-  const [selectedClassForDetails, setSelectedClassForDetails] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -272,7 +269,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   // Default to "All Classes" (null) when event is first loaded
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
-  const [isCompact, setIsCompact] = useState(false)
+  const isCompact = false // Always expanded view
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
@@ -515,9 +512,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   )
 
   const selectedClassInfo = selectedClass ? driversByClass.get(selectedClass) : null
-  const raceClassInfo = selectedClass ? raceClasses?.get(selectedClass) : null
-  const vehicleType = raceClassInfo?.vehicleType
-  const needsReview = raceClassInfo?.vehicleTypeNeedsReview ?? false
   const displayClass = selectedClassInfo
     ? `${selectedClassInfo.className} (${selectedClassInfo.driverCount})`
     : "All Classes"
@@ -706,16 +700,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     setIsDriverModalOpen(false)
   }, [])
 
-  const handleOpenClassDetails = useCallback((className: string) => {
-    setSelectedClassForDetails(className)
-    setIsClassDetailsModalOpen(true)
-  }, [])
-
-  const handleCloseClassDetails = useCallback(() => {
-    setIsClassDetailsModalOpen(false)
-    setSelectedClassForDetails(null)
-  }, [])
-
   // Register actions with DashboardEventSearchProvider for keyboard shortcuts
   useEffect(() => {
     registerAction("refresh", handleRefreshEventData)
@@ -741,10 +725,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     openDriverSelection: handleOpenDriverSelection,
     closeDriverSelection: handleCloseDriverSelection,
     isDriverModalOpen,
-    openClassDetails: handleOpenClassDetails,
-    closeClassDetails: handleCloseClassDetails,
-    isClassDetailsModalOpen,
-    selectedClassForDetails,
     clearEvent: handleClearEvent,
     selectedDriverIds,
     onDriverSelectionChange: setSelectedDriverIds,
@@ -835,12 +815,15 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
             {/* Controls Row */}
             <div className="flex gap-2">
               {/* Class Filter Dropdown */}
-              <div className="relative flex-initial max-w-[200px]" ref={dropdownRef}>
-                <div className="flex items-center gap-1">
+              <div className="relative flex-initial w-[220px] min-w-[220px]" ref={dropdownRef}>
+                <label className="block text-xs font-medium text-[var(--token-text-secondary)] mb-1">
+                  Class
+                </label>
+                <div className="flex items-center gap-1 w-full">
                   <button
                     type="button"
                     onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-                    className="flex items-center justify-between px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="w-full min-w-0 flex items-center justify-between px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                     aria-label="Filter by class"
                     aria-expanded={isClassDropdownOpen}
                   >
@@ -861,39 +844,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                       />
                     </svg>
                   </button>
-                  {selectedClass && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleOpenClassDetails(selectedClass)
-                      }}
-                      className="p-1.5 text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
-                      aria-label={`View details for ${selectedClass}`}
-                      title="View class details"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                  {needsReview && (
-                    <span
-                      className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
-                      title="Vehicle type needs review"
-                    >
-                      ⚠
-                    </span>
-                  )}
                 </div>
                 {isClassDropdownOpen && (
                   <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
@@ -925,7 +875,13 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
               </div>
 
               {/* Search Input */}
-              <div className="flex-initial max-w-[250px] relative">
+              <div className="flex-initial w-[220px] min-w-[220px] relative">
+                <label
+                  htmlFor="driver-search-input"
+                  className="block text-xs font-medium text-[var(--token-text-secondary)] mb-1"
+                >
+                  Search drivers
+                </label>
                 <input
                   type="text"
                   value={searchQuery}
@@ -958,33 +914,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                   </button>
                 )}
               </div>
-
-              {/* Compact Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsCompact(!isCompact)}
-                className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                aria-label={isCompact ? "Switch to expanded view" : "Switch to compact view"}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {isCompact ? (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  ) : (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 10h16M4 14h16M4 18h16"
-                    />
-                  )}
-                </svg>
-                <span className="ml-2">{isCompact ? "Expanded" : "Compact"}</span>
-              </button>
             </div>
 
             {/* Virtualized Driver List */}
@@ -1016,65 +945,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
         </Modal>
       )}
 
-      {/* Class Details Modal */}
-      {selectedEventId && selectedClassForDetails && raceClasses && (
-        <ClassDetailsModal
-          isOpen={isClassDetailsModalOpen}
-          onClose={handleCloseClassDetails}
-          eventId={selectedEventId}
-          className={selectedClassForDetails}
-          vehicleType={raceClasses.get(selectedClassForDetails)?.vehicleType ?? null}
-          vehicleTypeNeedsReview={
-            raceClasses.get(selectedClassForDetails)?.vehicleTypeNeedsReview ?? true
-          }
-          onSave={async (vehicleType, acceptInference) => {
-            const url = `/api/v1/events/${selectedEventId}/race-classes/${encodeURIComponent(selectedClassForDetails)}/vehicle-type`
-            console.log("[EventActionsProvider] Saving vehicle type:", {
-              eventId: selectedEventId,
-              className: selectedClassForDetails,
-              vehicleType,
-              acceptInference,
-              url,
-            })
-
-            const response = await fetch(url, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ vehicleType, acceptInference }),
-              credentials: "include",
-              cache: "no-store",
-            })
-
-            if (!response.ok) {
-              let errorMessage = "Failed to save vehicle type"
-              try {
-                const errorData = await response.json()
-                console.error("[EventActionsProvider] Save failed:", errorData)
-                if (errorData.error?.message) {
-                  errorMessage = errorData.error.message
-                } else if (errorData.error?.code) {
-                  errorMessage = `${errorData.error.code}: ${errorMessage}`
-                }
-              } catch {
-                errorMessage = response.statusText || errorMessage
-              }
-              throw new Error(errorMessage)
-            }
-
-            const result = await response.json()
-            console.log("[EventActionsProvider] Save response:", result)
-            if (!result.success) {
-              const errorMessage = result.error?.message || "Save operation failed"
-              console.error("[EventActionsProvider] Save returned success:false:", result)
-              throw new Error(errorMessage)
-            }
-
-            console.log("[EventActionsProvider] Save successful, reloading page...")
-            window.location.reload()
-          }}
-        />
-      )}
-
+      {/* Error Modal */}
       {/* Error Modal */}
       <Modal
         isOpen={isErrorModalOpen}

@@ -67,6 +67,8 @@ class SessionType(PyEnum):
     PRACTICE = "practice"
     QUALIFYING = "qualifying"
     PRACTICEDAY = "practiceday"
+    HEAT = "heat"
+    MAIN = "main"
 
 
 class SessionTypeType(TypeDecorator):
@@ -185,6 +187,7 @@ class Event(Base):
     entries = relationship("EventEntry", back_populates="event", cascade="all, delete-orphan")
     driver_links = relationship("EventDriverLink", back_populates="event", cascade="all, delete-orphan")
     race_classes = relationship("EventRaceClass", back_populates="event", cascade="all, delete-orphan")
+    multi_main_results = relationship("MultiMainResult", back_populates="event", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("source", "source_event_id", name="events_source_source_event_id_key"),
@@ -294,6 +297,7 @@ class Driver(Base):
     event_entries = relationship("EventEntry", back_populates="driver", cascade="all, delete-orphan")
     user_driver_link = relationship("UserDriverLink", back_populates="driver", uselist=False)
     event_driver_links = relationship("EventDriverLink", back_populates="driver", cascade="all, delete-orphan")
+    multi_main_result_entries = relationship("MultiMainResultEntry", back_populates="driver", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("source", "source_driver_id", name="drivers_source_source_driver_id_key"),
@@ -360,6 +364,55 @@ class RaceResult(Base):
         Index("race_results_race_id_idx", "race_id"),
         Index("race_results_race_driver_id_idx", "race_driver_id"),
         Index("race_results_position_final_idx", "position_final"),
+    )
+
+
+class MultiMainResult(Base):
+    """MultiMainResult model for triple/double main overall standings from LiveRC."""
+    __tablename__ = "multi_main_results"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    event_id = Column("event_id", String, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    source = Column(String, nullable=False)
+    source_multi_main_id = Column("source_multi_main_id", String, nullable=False)
+    class_label = Column("class_label", String, nullable=False)
+    tie_breaker = Column("tie_breaker", String, nullable=True)
+    completed_mains = Column("completed_mains", Integer, nullable=False)
+    total_mains = Column("total_mains", Integer, nullable=False)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    event = relationship("Event", back_populates="multi_main_results")
+    entries = relationship("MultiMainResultEntry", back_populates="multi_main_result", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("event_id", "source_multi_main_id", name="multi_main_results_event_id_source_multi_main_id_key"),
+        Index("multi_main_results_event_id_idx", "event_id"),
+        Index("multi_main_results_event_id_source_multi_main_id_idx", "event_id", "source_multi_main_id"),
+    )
+
+
+class MultiMainResultEntry(Base):
+    """MultiMainResultEntry model for individual driver overall result in multi-main."""
+    __tablename__ = "multi_main_result_entries"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    multi_main_result_id = Column("multi_main_result_id", String, ForeignKey("multi_main_results.id", ondelete="CASCADE"), nullable=False)
+    position = Column("position", Integer, nullable=False)
+    seeded_position = Column("seeded_position", Integer, nullable=True)
+    driver_id = Column("driver_id", String, ForeignKey("drivers.id", ondelete="CASCADE"), nullable=False)
+    points = Column("points", Integer, nullable=False)
+    main_breakdown_json = Column("main_breakdown_json", JSONB, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    multi_main_result = relationship("MultiMainResult", back_populates="entries")
+    driver = relationship("Driver", back_populates="multi_main_result_entries")
+
+    __table_args__ = (
+        UniqueConstraint("multi_main_result_id", "driver_id", name="multi_main_result_entries_multi_main_result_id_driver_id_key"),
+        Index("multi_main_result_entries_multi_main_result_id_idx", "multi_main_result_id"),
+        Index("multi_main_result_entries_driver_id_idx", "driver_id"),
     )
 
 

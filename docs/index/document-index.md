@@ -436,6 +436,12 @@ structures, menu patterns, and user flow patterns.
 Table component specification and design guidelines. Defines table patterns,
 sorting, filtering, pagination, and responsive behavior.
 
+### [Event Analysis Weather Card and Icon Library](../design/event-analysis-weather-card-design.md)
+
+Design for the Overview tab weather card (placement next to EventStats, compact
+label-value layout, condition icons) and adoption of `lucide-react`. Reuses
+existing weather API, types, and dashboard patterns.
+
 ### [Telemetry Visualization Specification](../design/telemetry-visualization-specification.md)
 
 Telemetry visualization specification for lap data and sensor data. Defines
@@ -814,6 +820,17 @@ strategy, implementation steps, and transition plan.
 Phased implementation plan for full practice day ingestion: list + drivers/results
 from list + session detail fetch with concurrency + race_metadata, result stats,
 and laps. References design doc and covers schema, pipeline, API, docs, and tests.
+
+### [Telemetry MVP Implementation Decisions](../telemetry/Design/Telemetry_MVP_Implementation_Decisions.md)
+
+Authoritative MVP decisions for telemetry: job table (single-table queue), upload/artifact lifecycle, raw file storage path, session time placeholders, fixture files, pyarrow dependency, failure response when session failed, naming convention, and deferral of teams/sharing to v1. Reference when implementing Phase 2–3.
+
+### [Telemetry Implementation Plan](../implimentation_plans/telemetry-implementation-plan.md)
+
+Phased implementation plan for telemetry: prerequisites, phase dependencies,
+infrastructure (object storage, job queue, worker), config, MVP task breakdown
+(schema, API, parsers, Parquet, session list UI), testing, documentation, and
+operations. References Telemetry Implementation Design; v1/v2 scoped in design.
 
 ---
 

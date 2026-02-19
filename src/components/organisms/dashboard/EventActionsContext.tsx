@@ -34,12 +34,6 @@ export interface EventActionsContextValue {
   closeDriverSelection: () => void
   isDriverModalOpen: boolean
 
-  // Class details modal
-  openClassDetails: (className: string) => void
-  closeClassDetails: () => void
-  isClassDetailsModalOpen: boolean
-  selectedClassForDetails: string | null
-
   // Clear event
   clearEvent: () => void
 

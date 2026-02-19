@@ -38,3 +38,6 @@ prometheus-client>=0.20.0
 
 # Fuzzy string matching
 rapidfuzz>=3.0.0
+
+# Parquet (telemetry canonical write)
+pyarrow>=14.0.0

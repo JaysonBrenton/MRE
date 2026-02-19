@@ -8,8 +8,8 @@
  * @description Page header component for event analysis page
  *
  * @purpose Displays event name as hero on the left, with track and date
- *          metadata on the right. Uses left accent bar, card treatment,
- *          and two-column layout. Desktop-optimized following MRE guidelines.
+ *          metadata on the right. Card treatment and two-column layout.
+ *          Desktop-optimized following MRE guidelines.
  *
  * @relatedFiles
  * - src/components/dashboard/EventAnalysisSection.tsx (uses this)
@@ -88,20 +88,14 @@ export default function EventAnalysisHeader({
         : null
 
   return (
-    <div className="mb-8 flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-5">
-      {/* Left: accent bar + title */}
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex min-w-0 items-center">
-          <div
-            className="mr-4 w-1 shrink-0 self-stretch rounded-full bg-[var(--token-accent)]"
-            aria-hidden
-          />
-          <h1 className="truncate text-3xl font-semibold tracking-tight text-[var(--token-text-primary)] sm:text-4xl">
-            {primaryTitle}
-          </h1>
-        </div>
+    <div className="mb-8 flex items-start justify-between gap-4 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-5">
+      {/* Left: title */}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <h1 className="min-w-0 break-words text-3xl font-semibold tracking-tight text-[var(--token-text-primary)] sm:text-4xl">
+          {primaryTitle}
+        </h1>
         {isPracticeDay && viewingLabel && (
-          <p className="ml-5 text-sm text-[var(--token-text-secondary)]">
+          <p className="text-sm text-[var(--token-text-secondary)]">
             Viewing: {viewingLabel}
           </p>
         )}

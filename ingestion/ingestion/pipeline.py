@@ -28,6 +28,7 @@ from ingestion.connectors.liverc.models import (
     ConnectorRacePackage,
     ConnectorRaceSummary,
     ConnectorEntryList,
+    ConnectorMultiMainSummary,
     PracticeDaySummary,
     PracticeSessionDetail,
     PracticeSessionSummary,
@@ -1063,6 +1064,75 @@ class IngestionPipeline:
                 self._run_lap_annotation_derivation(repo, race_ids_for_derivation)
 
         return races_ingested, results_ingested, laps_ingested
+
+    async def _process_multi_main_results(
+        self,
+        multi_main_summaries: List[ConnectorMultiMainSummary],
+        event_id: UUID,
+        track_slug: str,
+        repo: Repository,
+    ) -> int:
+        """
+        Fetch and persist multi-main overall results (triple/double main standings).
+
+        Returns:
+            Count of multi-main result sets persisted
+        """
+        if not multi_main_summaries:
+            return 0
+
+        driver_name_to_id = repo.get_event_driver_name_to_id_map(event_id)
+        if not driver_name_to_id:
+            logger.warning(
+                "multi_main_no_drivers",
+                event_id=str(event_id),
+                message="No drivers in event - skipping multi-main ingestion",
+            )
+            return 0
+
+        persisted = 0
+        async with HTTPXClient(self.connector._site_policy) as shared_client:
+            for summary in multi_main_summaries:
+                try:
+                    mm_result = await self.connector.fetch_multi_main_result(
+                        track_slug=track_slug,
+                        source_multi_main_id=summary.source_multi_main_id,
+                        class_label=summary.class_label,
+                        shared_client=shared_client,
+                    )
+                    entries_data = [
+                        {
+                            "driver_name": e.driver_name,
+                            "position": e.position,
+                            "seeded_position": e.seeded_position,
+                            "points": e.points,
+                            "main_breakdown": e.main_breakdown,
+                        }
+                        for e in mm_result.entries
+                    ]
+                    upserted = repo.upsert_multi_main_result(
+                        event_id=event_id,
+                        source_multi_main_id=mm_result.source_multi_main_id,
+                        class_label=mm_result.class_label,
+                        tie_breaker=mm_result.tie_breaker,
+                        completed_mains=mm_result.completed_mains,
+                        total_mains=mm_result.total_mains,
+                        entries=entries_data,
+                        driver_name_to_id=driver_name_to_id,
+                    )
+                    if upserted > 0:
+                        persisted += 1
+                        self._record_activity()
+                except Exception as e:
+                    logger.warning(
+                        "multi_main_fetch_failed",
+                        event_id=str(event_id),
+                        source_multi_main_id=getattr(summary, "source_multi_main_id", "?"),
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                        message="Skipping failed multi-main; continuing with others",
+                    )
+        return persisted
     
     def _process_entry_list(
         self,
@@ -1520,6 +1590,23 @@ class IngestionPipeline:
                     depth=depth,
                 )
                 repo.session.commit()
+
+                # Ingest multi-main overall results (triple/double main standings)
+                if event_data.multi_main_summaries:
+                    self._set_stage("persist_multi_main", event_id)
+                    multi_main_ingested = await self._process_multi_main_results(
+                        multi_main_summaries=event_data.multi_main_summaries,
+                        event_id=event_id,
+                        track_slug=event_context.track_slug,
+                        repo=repo,
+                    )
+                    if multi_main_ingested > 0:
+                        repo.session.commit()
+                        logger.info(
+                            "multi_main_persisted",
+                            event_id=str(event_id),
+                            multi_main_count=multi_main_ingested,
+                        )
             else:
                 logger.info(
                     "skipping_race_processing",

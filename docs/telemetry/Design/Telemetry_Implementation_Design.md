@@ -708,6 +708,8 @@ Reference: [Trust Quality Scoring](Trust%20Quality%20Scoring%20and%20Honesty%20R
 - Algorithm infers start/finish line from trajectory geometry (e.g. most-crossed line, density clustering)
 - Lap boundaries from crossings with validity rules (minimum lap time, maximum lap time, pit handling)
 
+**Acceptance criteria and tuning:** Implementation acceptance (e.g. lap count within X% of manual for a reference fixture, or no false crossings on straight) and tuning parameters (grid resolution, clustering method) are defined in [Lap Segment and Corner Detection Specification](Lap%20Segment%20and%20Corner%20Detection%20Specification.md). v1 MVP: auto SFL is acceptable when detected lap count matches manual for at least one reference session fixture; otherwise document as best-effort and allow user override in a later release.
+
 **Auto SFL algorithm outline (v1):**
 1. Project trajectory into local ENU (origin at session centroid or first point).
 2. Identify candidate SFLs: lines with high crossing density (grid search or clustering).
@@ -745,7 +747,21 @@ Reference: [Lap Segment and Corner Detection Specification](Lap%20Segment%20and%
 
 ## 9. Implementation Roadmap
 
-### 9.1 Phase MVP
+**Task-level plan:** A phased implementation plan with prerequisites, phase dependencies, infrastructure, config, task breakdown for MVP, testing, documentation, and operations is in [docs/implimentation_plans/telemetry-implementation-plan.md](../../implimentation_plans/telemetry-implementation-plan.md). Execute that plan for implementation; this section summarises phase scope and suggested order.
+
+### 9.1 Phase Dependencies
+
+| Phase | Depends on | Notes |
+| ----- | --------- | ----- |
+| **Infrastructure** | — | Object storage, job queue, worker topology (see implementation plan §2). |
+| **MVP: Schema + API + pipeline** | Infrastructure | Postgres telemetry_* tables, upload API, validate/classify/parse skeleton. |
+| **MVP: Parsers + Parquet + UI** | MVP Schema + API | CSV/GPX Level 1, canonical Parquet write, session list UI. |
+| **v1** | MVP complete | All text parsers, fusion, lap detection, ClickHouse, quality (see §9.2). |
+| **v2** | v1 | Binary parsers, track SFL, user SFL, 9-axis, segments (see §9.3). |
+
+Suggested implementation order aligns with dependencies: (1) infrastructure and config, (2) schema and API contract, (3) processing pipeline and state machine, (4) parsers and canonical write, (5) trust/quality rules, (6) fusion and lap detection (v1), (7) ClickHouse materialisation (v1).
+
+### 9.2 Phase MVP
 
 1. Postgres metadata (sessions, artifacts, devices)
 2. CSV and GPX parsers (Level 1)
@@ -753,7 +769,7 @@ Reference: [Lap Segment and Corner Detection Specification](Lap%20Segment%20and%
 4. Basic session list UI
 5. Upload API, artifact validation
 
-### 9.2 Phase v1
+### 9.3 Phase v1
 
 1. All text parsers: CSV, GPX, NMEA, JSON, FIT
 2. Full canonical stream set (GNSS, accel, gyro, mag as present)
@@ -766,7 +782,7 @@ Reference: [Lap Segment and Corner Detection Specification](Lap%20Segment%20and%
 9. Optional LiveRC link (eventId, practiceDayId)
 10. API: session CRUD, time-series read, lap list, quality explain
 
-### 9.3 Phase v2
+### 9.4 Phase v2
 
 1. UBX and binary format parsers
 2. Track catalogue SFL
@@ -775,15 +791,18 @@ Reference: [Lap Segment and Corner Detection Specification](Lap%20Segment%20and%
 5. Segment and corner detection
 6. Extended comparison and coaching features
 
-### 9.4 Suggested Implementation Order
+### 9.5 Suggested Implementation Order
 
-1. Processing pipeline and state machine
-2. API contract
-3. Data model and schema (Postgres + Parquet + ClickHouse)
-4. Trust, quality, honesty rules
-5. Supported formats and parser spec
+Aligned with phase dependencies (§9.1): infrastructure first, then schema and API, then pipeline and parsers.
 
-### 9.5 Milestone Checklist
+1. Infrastructure (object storage, job queue, worker) — see implementation plan §2
+2. Data model and schema (Postgres telemetry_* + job table; Parquet layout; ClickHouse in v1)
+3. API contract (upload, finalise, sessions list and detail)
+4. Processing pipeline and state machine (validate → classify → parse → canonicalise)
+5. Supported formats and parser spec (CSV, GPX for MVP)
+6. Trust, quality, honesty rules (v1)
+
+### 9.6 Milestone Checklist
 
 #### Phase MVP
 

@@ -19,9 +19,9 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
-import { fetchEventAnalysisData } from "@/store/slices/dashboardSlice"
+import { fetchEventAnalysisData, selectEvent } from "@/store/slices/dashboardSlice"
 import EventAnalysisToolbar from "@/components/organisms/event-analysis/EventAnalysisToolbar"
 import { type TabId } from "@/components/organisms/event-analysis/TabNavigation"
 import OverviewTab from "@/components/organisms/event-analysis/OverviewTab"
@@ -30,7 +30,6 @@ import SessionsTab from "@/components/organisms/event-analysis/SessionsTab"
 import MyEventsContent from "@/components/organisms/event-analysis/MyEventsContent"
 import EventAnalysisHeader from "@/components/organisms/event-analysis/EventAnalysisHeader"
 import { useEventActions } from "@/components/organisms/dashboard/EventActionsContext"
-import DriverCardsAndWeatherGrid from "@/components/organisms/dashboard/DriverCardsAndWeatherGrid"
 import LinkYourDriverPrompt from "@/components/organisms/event-analysis/LinkYourDriverPrompt"
 import PracticeMyDayTab from "@/components/organisms/event-analysis/PracticeMyDayTab"
 import PracticeMySessionsTab from "@/components/organisms/event-analysis/PracticeMySessionsTab"
@@ -76,6 +75,7 @@ type EventAnalysisDataApiResponse = {
       lapsCompleted: number
       totalTimeSeconds: number | null
       fastLapTime: number | null
+      fastLapLapNumber?: number | null
       avgLapTime: number | null
       consistency: number | null
       // laps array removed - not used by any components
@@ -98,6 +98,7 @@ type EventAnalysisDataApiResponse = {
     carNumber: string | null
   }>
   raceClasses: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
+  multiMainResults?: EventAnalysisData["multiMainResults"]
   summary: {
     totalRaces: number
     totalDrivers: number
@@ -141,6 +142,7 @@ function transformApiResponseToEventAnalysisData(
     drivers: apiData.drivers,
     entryList: apiData.entryList,
     raceClasses: raceClassesMap,
+    multiMainResults: apiData.multiMainResults ?? [],
     summary: {
       totalRaces: apiData.summary.totalRaces,
       totalDrivers: apiData.summary.totalDrivers,
@@ -175,67 +177,6 @@ export default function EventAnalysisSection() {
     return dashboardState._persist?.rehydrated ?? true
   })
 
-  // Weather state - moved from DashboardClient
-  const [weather, setWeather] = useState<{
-    condition: string
-    wind: string
-    humidity: number
-    air: number
-    track: number
-    precip: number
-    forecast: Array<{ label: string; detail: string }>
-    cachedAt?: string
-    isCached?: boolean
-  } | null>(null)
-  const [weatherLoading, setWeatherLoading] = useState(false)
-  const [weatherError, setWeatherError] = useState<string | null>(null)
-
-  // Fetch weather data when event is selected
-  useEffect(() => {
-    if (!selectedEventId) {
-      // Reset weather state when no event is selected
-      // Using setTimeout to avoid synchronous setState in effect
-      setTimeout(() => {
-        setWeather(null)
-        setWeatherError(null)
-      }, 0)
-      return
-    }
-
-    // Use setTimeout to avoid synchronous setState in effect
-    setTimeout(() => {
-      setWeatherLoading(true)
-      setWeatherError(null)
-    }, 0)
-
-    fetch(`/api/v1/events/${selectedEventId}/weather`, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) {
-          if (response.status === 404) {
-            setWeatherError("Event not found")
-            return
-          }
-          const errorData = await response.json().catch(() => ({}))
-          setWeatherError(errorData.error?.message || "Failed to load weather data")
-          return
-        }
-
-        const result = await response.json()
-        if (result.success && result.data) {
-          setWeather(result.data)
-        } else {
-          setWeatherError("Invalid response from server")
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching weather data", error)
-        setWeatherError("Failed to fetch weather data")
-      })
-      .finally(() => {
-        setWeatherLoading(false)
-      })
-  }, [selectedEventId])
-
   const [activeTab, setActiveTab] = useState<TabId>("overview")
   const [hasInitiatedFetch, setHasInitiatedFetch] = useState(false)
   const eventActions = useEventActions()
@@ -243,6 +184,8 @@ export default function EventAnalysisSection() {
   const selectedClass = eventActions.selectedClass
   const sectionRef = useRef<HTMLElement>(null)
   const lastFetchedEventId = useRef<string | null>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
+  const [headerHeight, setHeaderHeight] = useState(0)
 
   // Reset fetch state when event is deselected or changes
   useEffect(() => {
@@ -343,6 +286,18 @@ export default function EventAnalysisSection() {
     }
   }, [isPracticeDay])
 
+  // Measure fixed header height for spacer (must run after transformedData/isPracticeDay are defined)
+  useLayoutEffect(() => {
+    if (!headerRef.current) return
+    const el = headerRef.current
+    const observer = new ResizeObserver(() => {
+      setHeaderHeight(el.offsetHeight)
+    })
+    observer.observe(el)
+    setHeaderHeight(el.offsetHeight)
+    return () => observer.disconnect()
+  }, [transformedData?.event.id, activeTab, isPracticeDay])
+
   // Hide section entirely during rehydration to avoid duplicate loading messages
   // DashboardClient handles the initial loading state
   if (!isRehydrated) {
@@ -387,23 +342,33 @@ export default function EventAnalysisSection() {
           </div>
         )}
 
-        {/* Render analysis content */}
+        {/* Render analysis content - header+toolbar fixed with position:fixed */}
         {selectedEventId && transformedData && (
           <>
-            <EventAnalysisHeader
-              eventName={transformedData.event.eventName}
-              eventDate={transformedData.event.eventDate}
-              trackName={transformedData.event.trackName}
-              isPracticeDay={isPracticeDay}
-              viewingDriverName={viewingDriverName}
-            />
-
+            {/* Spacer - reserves space so content doesn't jump (height matches fixed header) */}
+            <div style={{ height: headerHeight || 180 }} aria-hidden />
+            {/* Fixed header+toolbar - stays visible when scrolling */}
+            <div
+              ref={headerRef}
+              className="fixed left-0 top-16 right-0 z-20 bg-[var(--token-surface)] px-1 shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:px-2 md:px-2 lg:left-[var(--nav-width)] lg:px-2 xl:px-4 2xl:px-6"
+            >
+              <div className="content-wrapper mx-auto flex w-full min-w-0 max-w-full flex-col gap-6 pb-4 pt-4">
+                <EventAnalysisHeader
+                  eventName={transformedData.event.eventName}
+                  eventDate={transformedData.event.eventDate}
+                  trackName={transformedData.event.trackName}
+                  isPracticeDay={isPracticeDay}
+                  viewingDriverName={viewingDriverName}
+                />
+                <EventAnalysisToolbar
+                  tabs={availableTabs}
+                  activeTab={activeTab}
+                  onTabChange={handleTabChange}
+                />
+              </div>
+            </div>
+            {/* Tab content - scrolls normally */}
             <div className="space-y-6">
-              <EventAnalysisToolbar
-                tabs={availableTabs}
-                activeTab={activeTab}
-                onTabChange={handleTabChange}
-              />
 
               {activeTab === "overview" && (
                 <>
@@ -414,26 +379,6 @@ export default function EventAnalysisSection() {
                     selectedClass={selectedClass}
                     onClassChange={eventActions.onClassChange}
                   />
-                  {/* Driver Cards and Weather Grid - moved from DashboardHero */}
-                  {eventData && transformedData && (
-                    <DriverCardsAndWeatherGrid
-                      event={eventData.event}
-                      topDrivers={eventData.topDrivers}
-                      mostConsistentDrivers={eventData.mostConsistentDrivers}
-                      bestAvgLapDrivers={eventData.bestAvgLapDrivers}
-                      mostImprovedDrivers={eventData.mostImprovedDrivers}
-                      userBestLap={eventData.userBestLap}
-                      userBestConsistency={eventData.userBestConsistency}
-                      userBestAvgLap={eventData.userBestAvgLap}
-                      userBestImprovement={eventData.userBestImprovement}
-                      weather={weather}
-                      weatherLoading={weatherLoading}
-                      weatherError={weatherError}
-                      selectedClass={selectedClass}
-                      selectedDriverIds={selectedDriverIds}
-                      races={transformedData.races}
-                    />
-                  )}
                 </>
               )}
 
@@ -447,7 +392,12 @@ export default function EventAnalysisSection() {
 
               {activeTab === "my-events" && (
                 <div className="space-y-6" role="tabpanel" id="tabpanel-my-events" aria-labelledby="tab-my-events">
-                  <MyEventsContent />
+                  <MyEventsContent
+                    onEventSelect={(eventId) => {
+                      dispatch(selectEvent(eventId))
+                      setActiveTab("overview")
+                    }}
+                  />
                 </div>
               )}
 

@@ -68,6 +68,20 @@ def build_race_url(track_slug: str, source_race_id: str) -> str:
     return f"https://{track_slug}.liverc.com/results/?p=view_race_result&id={source_race_id}"
 
 
+def build_multi_main_url(track_slug: str, source_multi_main_id: str) -> str:
+    """
+    Build multi-main result page URL.
+
+    Args:
+        track_slug: Track subdomain slug
+        source_multi_main_id: Multi-main ID from LiveRC (from view_multi_main_result&id=...)
+
+    Returns:
+        Full URL (e.g., "https://canberraoffroad.liverc.com/results/?p=view_multi_main_result&id=939156")
+    """
+    return f"https://{track_slug}.liverc.com/results/?p=view_multi_main_result&id={source_multi_main_id}"
+
+
 def build_entry_list_url(track_slug: str, source_event_id: str) -> str:
     """
     Build entry list page URL.

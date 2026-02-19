@@ -154,6 +154,8 @@ Recommended stale lock threshold: 10 to 30 minutes, configurable per job type.
 This section describes the minimum metadata entities required for orchestration.
 Exact columns are illustrative.
 
+**MVP implementation:** For MVP, the **authoritative** job schema is the single table `telemetry_jobs` defined in [Concrete Data Model §7.4](Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md) and [Telemetry MVP Implementation Decisions §1](Telemetry_MVP_Implementation_Decisions.md). No separate `telemetry_job_attempt` table in MVP; retry and error fields are on the job row. The schema below (§6.3–6.5) is a fuller conceptual model; implement MVP per the Concrete Data Model and MVP Decisions.
+
 ### 6.1 `telemetry_artifact`
 
 Represents raw uploads.
@@ -187,12 +189,14 @@ Represents one processing execution with pinned versions.
 
 ### 6.3 `telemetry_job`
 
-Represents a unit of work.
+Represents a unit of work. **MVP:** Use the single-table schema in [Concrete Data Model §7.4](Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md) (id, runId, jobType, status, payload, attemptCount, maxAttempts, lockedAt, lockedBy, lastErrorCode, lastErrorMessage, nextRetryAt, createdAt, updatedAt). No separate attempt table; no depends_on in MVP.
+
+Conceptual (v1+ optional):
 
 - `id` (uuid)
 - `run_id`
 - `job_type` (enum)
-- `depends_on` (list of job ids or derived datasets, modelled via join table)
+- `depends_on` (list of job ids or derived datasets, modelled via join table) — MVP: not implemented
 - `state` (see state machine)
 - `priority` (default 0)
 - `attempt_count`

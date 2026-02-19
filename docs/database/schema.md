@@ -509,7 +509,7 @@ Individual races within an event.
 | `raceUrl`         | String        | Required              | LiveRC race page URL                                                                                                                                                                                               |
 | `startTime`       | DateTime      | Optional              | Race start time                                                                                                                                                                                                    |
 | `durationSeconds` | Int           | Optional              | Race duration in seconds                                                                                                                                                                                           |
-| `sessionType`     | SessionType   | Optional              | Type of session (race, practice, qualifying, practiceday)                                                                                                                                                         |
+| `sessionType`     | SessionType   | Optional              | Type of session (race, practice, qualifying, practiceday, heat, main). See [SessionType](#sessiontype) for definitions.                                                                                                                                                         |
 | `raceMetadata`    | Json          | Optional              | Practice sessions only: end_time and practiceSessionStats (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../architecture/practice-day-full-ingestion-design.md). |
 | `createdAt`       | DateTime      | Auto-generated        | Record creation timestamp                                                                                                                                                                                          |
 | `updatedAt`       | DateTime      | Auto-updated          | Last update timestamp                                                                                                                                                                                              |
@@ -1201,14 +1201,16 @@ Type of matching algorithm used to create event-driver links.
 
 ### SessionType
 
-Type of racing session (race, practice, qualifying, or practiceday).
+Type of racing session (race, practice, qualifying, practiceday, heat, main).
 
 **Values:**
 
-- `race` - Race session (main competition)
+- `race` - Race session (generic fallback when heat/main cannot be inferred)
 - `practice` - Practice session
-- `qualifying` - Qualifying session
+- `qualifying` - Qualifying session (q1, q2, q3, qualifier rounds)
 - `practiceday` - Practice day session (standalone practice day events)
+- `heat` - Qualifying heat (e.g., "Heat 1/3", "Heat 2/3") — sets positions for mains
+- `main` - Main event (e.g., "A1-Main", "B2-Main", "C-Main") — the actual race finals
 
 **Usage:**
 
@@ -1220,7 +1222,10 @@ Type of racing session (race, practice, qualifying, or practiceday).
 **Notes:**
 
 - Session type can be inferred from race label (e.g., "Qualifier" →
-  `qualifying`, "Practice" → `practice`)
+  `qualifying`, "Practice" → `practice`, "Heat 1/3" → `heat`, "A1-Main" →
+  `main`)
+- `heat` = qualifying heats that determine who advances to mains
+- `main` = finals (A-Main, B-Main, C-Main, etc.)
 - `practiceday` session type is used for practice day events discovered from
   LiveRC
 - Default behavior: if not set, race is treated as a race session

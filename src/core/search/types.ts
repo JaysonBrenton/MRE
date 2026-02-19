@@ -8,7 +8,13 @@
  * @description TypeScript type definitions for unified search feature
  */
 
-export type SessionType = "race" | "practice" | "qualifying" | "practiceday"
+export type SessionType =
+  | "race"
+  | "practice"
+  | "qualifying"
+  | "practiceday"
+  | "heat"
+  | "main"
 
 export interface UnifiedSearchParams {
   query?: string

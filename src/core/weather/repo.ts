@@ -20,6 +20,14 @@
 import { prisma } from "@/lib/prisma"
 import type { WeatherData, Prisma } from "@prisma/client"
 
+export interface DailyTemperatureSummaryCache {
+  hourly: Array<{ time: string; temperature: number }>
+  minTemp: number
+  minTempTime: string
+  maxTemp: number
+  maxTempTime: string
+}
+
 export interface WeatherCacheData {
   latitude: number
   longitude: number
@@ -32,6 +40,7 @@ export interface WeatherCacheData {
   condition: string
   trackTemperature: number
   forecast: Array<{ label: string; detail: string }>
+  dailyTemperatureSummary?: DailyTemperatureSummaryCache
   isHistorical: boolean
   expiresAt: Date
 }
@@ -135,6 +144,9 @@ export async function cacheWeatherData(
         condition: data.condition,
         trackTemperature: data.trackTemperature,
         forecast: data.forecast as Prisma.InputJsonValue,
+        dailyTemperatureSummary: data.dailyTemperatureSummary
+          ? (data.dailyTemperatureSummary as unknown as Prisma.InputJsonValue)
+          : undefined,
         isHistorical: data.isHistorical,
         expiresAt: data.expiresAt,
       },

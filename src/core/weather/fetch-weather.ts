@@ -34,9 +34,23 @@ export interface ForecastEntry {
   detail: string
 }
 
+export interface HourlyTemperature {
+  time: string // ISO string
+  temperature: number
+}
+
+export interface DailyTemperatureSummary {
+  hourly: HourlyTemperature[]
+  minTemp: number
+  minTempTime: string // ISO string
+  maxTemp: number
+  maxTempTime: string // ISO string
+}
+
 export interface WeatherResponse {
   current: WeatherData
   forecast: ForecastEntry[]
+  dailyTemperatureSummary?: DailyTemperatureSummary
 }
 
 interface OpenMeteoResponse {
@@ -273,9 +287,39 @@ export async function fetchWeather(
       })
     }
 
+    // Build hourly temperature series and compute min/max for the day
+    const temps = data.hourly.temperature_2m
+    const hourly: HourlyTemperature[] = hourlyTimes.map((timeStr, i) => ({
+      time: timeStr,
+      temperature: temps[i] ?? 0,
+    }))
+    let minTemp = temps[0] ?? 0
+    let minTempIndex = 0
+    let maxTemp = temps[0] ?? 0
+    let maxTempIndex = 0
+    for (let i = 1; i < temps.length; i++) {
+      const t = temps[i] ?? 0
+      if (t < minTemp) {
+        minTemp = t
+        minTempIndex = i
+      }
+      if (t > maxTemp) {
+        maxTemp = t
+        maxTempIndex = i
+      }
+    }
+    const dailyTemperatureSummary: DailyTemperatureSummary = {
+      hourly,
+      minTemp,
+      minTempTime: hourlyTimes[minTempIndex] ?? hourlyTimes[0],
+      maxTemp,
+      maxTempTime: hourlyTimes[maxTempIndex] ?? hourlyTimes[0],
+    }
+
     return {
       current: currentWeather,
       forecast,
+      dailyTemperatureSummary,
     }
   } catch (error) {
     if (error instanceof Error) {

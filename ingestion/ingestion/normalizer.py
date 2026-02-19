@@ -323,12 +323,20 @@ class Normalizer:
         if "practice" in label_lower or "/practice/" in url_lower:
             return "practice"
         
-        # Qualifying sessions
+        # Qualifying sessions (q1, q2, q3, qualifier rounds - distinct from heats)
         if any(term in label_lower for term in ["qualifying", "qualify", "q1", "q2", "q3"]):
             # Use word boundaries to avoid false positives
             if re.search(r'\b(q1|q2|q3|qualifying|qualify)\b', label_lower):
                 return "qualifying"
-        
+
+        # Main events (A-Main, B-Main, C1-Main, etc.) - the actual race finals
+        if "main" in label_lower:
+            return "main"
+
+        # Qualifying heats (Heat 1/3, Heat 2/3, etc.) - set positions for mains
+        if "heat" in label_lower:
+            return "heat"
+
         # Default to race (or None, which will default to "race" in pipeline)
         return "race"
     

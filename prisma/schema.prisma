@@ -140,6 +140,7 @@ model Event {
   transponderOverrides TransponderOverride[]
   weatherData          WeatherData[]
   raceClasses          EventRaceClass[]
+  multiMainResults     MultiMainResult[]
 
   @@unique([source, sourceEventId])
   @@index([source, sourceEventId])
@@ -231,9 +232,10 @@ model Driver {
   transponderNumber    String?               @map("transponder_number")
   eventDriverLinks     EventDriverLink[]
   eventEntries         EventEntry[]
-  raceDrivers          RaceDriver[]
-  transponderOverrides TransponderOverride[]
-  userDriverLink       UserDriverLink?
+  raceDrivers            RaceDriver[]
+  transponderOverrides   TransponderOverride[]
+  userDriverLink         UserDriverLink?
+  multiMainResultEntries MultiMainResultEntry[]
 
   @@unique([source, sourceDriverId])
   @@index([source, sourceDriverId])
@@ -290,6 +292,45 @@ model RaceResult {
   @@index([raceDriverId])
   @@index([positionFinal])
   @@map("race_results")
+}
+
+model MultiMainResult {
+  id                 String                  @id @default(uuid())
+  eventId            String                  @map("event_id")
+  source             String
+  sourceMultiMainId  String                  @map("source_multi_main_id")
+  classLabel         String                  @map("class_label")
+  tieBreaker         String?                 @map("tie_breaker")
+  completedMains     Int                     @map("completed_mains")
+  totalMains         Int                     @map("total_mains")
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+  event              Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  entries            MultiMainResultEntry[]
+
+  @@unique([eventId, sourceMultiMainId])
+  @@index([eventId])
+  @@index([eventId, sourceMultiMainId])
+  @@map("multi_main_results")
+}
+
+model MultiMainResultEntry {
+  id                String          @id @default(uuid())
+  multiMainResultId String          @map("multi_main_result_id")
+  position          Int
+  seededPosition    Int?            @map("seeded_position")
+  driverId          String          @map("driver_id")
+  points            Int
+  mainBreakdownJson Json?           @map("main_breakdown_json") @db.JsonB
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  multiMainResult   MultiMainResult @relation(fields: [multiMainResultId], references: [id], onDelete: Cascade)
+  driver            Driver         @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([multiMainResultId, driverId])
+  @@index([multiMainResultId])
+  @@index([driverId])
+  @@map("multi_main_result_entries")
 }
 
 model Lap {
@@ -440,28 +481,31 @@ enum SessionType {
   practice
   qualifying
   practiceday
+  heat
+  main
 }
 
 model WeatherData {
-  id               String   @id @default(uuid())
-  eventId          String   @map("event_id")
-  latitude         Float
-  longitude        Float
-  timestamp        DateTime
-  airTemperature   Float    @map("air_temperature")
-  humidity         Int
-  windSpeed        Float    @map("wind_speed")
-  windDirection    Int?     @map("wind_direction")
-  precipitation    Int
-  condition        String
-  trackTemperature Float    @map("track_temperature")
-  forecast         Json
-  isHistorical     Boolean  @default(false) @map("is_historical")
-  cachedAt         DateTime @default(now()) @map("cached_at")
-  expiresAt        DateTime @map("expires_at")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  event            Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id                      String   @id @default(uuid())
+  eventId                 String   @map("event_id")
+  latitude                Float
+  longitude               Float
+  timestamp               DateTime
+  airTemperature          Float    @map("air_temperature")
+  humidity                Int
+  windSpeed               Float    @map("wind_speed")
+  windDirection           Int?     @map("wind_direction")
+  precipitation           Int
+  condition               String
+  trackTemperature        Float    @map("track_temperature")
+  forecast                Json
+  dailyTemperatureSummary Json?    @map("daily_temperature_summary")
+  isHistorical            Boolean  @default(false) @map("is_historical")
+  cachedAt                DateTime @default(now()) @map("cached_at")
+  expiresAt               DateTime @map("expires_at")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+  event                   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([expiresAt])

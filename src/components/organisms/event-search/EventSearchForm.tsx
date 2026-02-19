@@ -257,7 +257,7 @@ export default function EventSearchForm({
         </div>
 
         <p
-          className="text-sm mt-2 mb-4"
+          className="text-base mt-2 mb-4"
           style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
           role="status"
           aria-live="polite"
@@ -265,7 +265,7 @@ export default function EventSearchForm({
           <span className="font-medium text-[var(--token-text-secondary)]">
             Current Track:{" "}
           </span>
-          <span className="text-[var(--token-text-primary)]">
+          <span className="font-semibold text-[var(--token-accent)]">
             {selectedTrack ? selectedTrack.trackName : "No track selected"}
           </span>
         </p>

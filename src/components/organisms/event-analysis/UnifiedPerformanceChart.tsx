@@ -23,7 +23,7 @@
 
 import { useMemo, useId, useState, useRef, useCallback, useEffect } from "react"
 import { Group } from "@visx/group"
-import { Bar, LinePath, Circle } from "@visx/shape"
+import { Bar, LinePath } from "@visx/shape"
 import { curveMonotoneX } from "@visx/curve"
 import { scaleBand, scaleLinear } from "@visx/scale"
 import { AxisBottom, AxisLeft } from "@visx/axis"
@@ -31,6 +31,7 @@ import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip"
 import { localPoint } from "@visx/event"
 import { ParentSize } from "@visx/responsive"
 import ChartContainer from "./ChartContainer"
+import ChartDriverPicker from "./ChartDriverPicker"
 import ChartPagination from "./ChartPagination"
 import ChartColorPicker from "./ChartColorPicker"
 import Tooltip from "@/components/molecules/Tooltip"
@@ -59,6 +60,11 @@ export interface DriverPerformanceData {
   podiumFinishes?: number | null // Count of finishes in positions 1, 2, or 3
 }
 
+export interface ChartDriverOption {
+  driverId: string
+  driverName: string
+}
+
 export interface UnifiedPerformanceChartProps {
   data: DriverPerformanceData[]
   selectedDriverIds?: string[]
@@ -74,6 +80,14 @@ export interface UnifiedPerformanceChartProps {
   /** Chart view: column (bars) or line (same data as lines). Default 'column'. */
   chartView?: ChartViewType
   onChartViewChange?: (view: ChartViewType) => void
+  /** Per-chart driver picker: options and current raw selection (optional) */
+  chartDriverOptions?: ChartDriverOption[]
+  chartSelectedDriverIds?: string[]
+  onChartDriverSelectionChange?: (driverIds: string[]) => void
+  /** Available race classes for per-chart class picker. */
+  availableClasses?: string[]
+  /** Handler for changing the global class filter from the chart header. */
+  onClassChange?: (className: string | null) => void
 }
 
 /** Metrics that can be used to sort drivers (best to worst). */
@@ -365,6 +379,11 @@ export default function UnifiedPerformanceChart({
   allDriversInClassSelected,
   chartView = "column",
   onChartViewChange,
+  chartDriverOptions,
+  chartSelectedDriverIds = [],
+  onChartDriverSelectionChange,
+  availableClasses,
+  onClassChange,
 }: UnifiedPerformanceChartProps) {
   const chartDescId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -640,6 +659,32 @@ export default function UnifiedPerformanceChart({
 
   const headerControlsContent = (
     <>
+      {availableClasses && availableClasses.length > 0 && onClassChange && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[var(--token-text-secondary)]">Choose a Class:</span>
+          <select
+            value={selectedClass ?? ""}
+            onChange={(e) => onClassChange(e.target.value || null)}
+            className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+            aria-label="Choose a Class"
+          >
+            <option value="">All Classes</option>
+            {availableClasses.map((cls) => (
+              <option key={cls} value={cls}>
+                {cls}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {chartDriverOptions && onChartDriverSelectionChange && (
+        <ChartDriverPicker
+          drivers={chartDriverOptions}
+          selectedDriverIds={chartSelectedDriverIds}
+          onSelectionChange={onChartDriverSelectionChange}
+          label="Select Drivers"
+        />
+      )}
       {onChartViewChange && (
         <ChartViewToggle chartView={chartView} onChartViewChange={onChartViewChange} />
       )}
@@ -680,7 +725,10 @@ export default function UnifiedPerformanceChart({
         chartInstanceId={chartInstanceId}
         axisColorPicker
         defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
-        renderContent={({ xAxisColor, yAxisColor }) => (
+        renderContent={({
+          axisColors: { xAxisColor, yAxisColor },
+          onAxisColorPickerRequest,
+        }) => (
         <>
         <div className="relative w-full" style={{ height: `${height}px` }}>
           <ParentSize>
@@ -794,6 +842,37 @@ export default function UnifiedPerformanceChart({
                             tabIndex={0}
                             aria-label={`${metricConfig[metric].label} - Click to change color`}
                           >
+                            {/* Invisible wide path for easier line hover + tooltip */}
+                            <LinePath
+                              data={points}
+                              x={(p) => p.x}
+                              y={(p) => p.y}
+                              stroke="transparent"
+                              strokeWidth={20}
+                              curve={curveMonotoneX}
+                              pointerEvents="stroke"
+                              onMouseMove={(event) => {
+                                const svgElement = (event.target as SVGElement).ownerSVGElement
+                                if (!svgElement || points.length === 0) return
+                                const coords = localPoint(svgElement, event)
+                                if (!coords) return
+                                const innerX = coords.x - margin.left
+                                let nearest = points[0]
+                                let minDist = Math.abs(points[0].x - innerX)
+                                for (let i = 1; i < points.length; i++) {
+                                  const dist = Math.abs(points[i].x - innerX)
+                                  if (dist < minDist) {
+                                    minDist = dist
+                                    nearest = points[i]
+                                  }
+                                }
+                                showTooltip({
+                                  tooltipLeft: coords.x,
+                                  tooltipTop: coords.y,
+                                  tooltipData: nearest.driver,
+                                })
+                              }}
+                            />
                             <LinePath
                               data={points}
                               x={(p) => p.x}
@@ -801,35 +880,8 @@ export default function UnifiedPerformanceChart({
                               stroke={color}
                               strokeWidth={2}
                               curve={curveMonotoneX}
-                              pointerEvents="stroke"
+                              pointerEvents="none"
                             />
-                            {points.map((p, i) => (
-                              <Circle
-                                key={`${metric}-${p.driver.driverId}-${i}`}
-                                cx={p.x}
-                                cy={p.y}
-                                r={4}
-                                fill={color}
-                                stroke={borderColor}
-                                strokeWidth={1}
-                                onMouseMove={(event) => {
-                                  const svgElement = (event.target as SVGElement).ownerSVGElement
-                                  if (!svgElement) return
-                                  const coords = localPoint(svgElement, event)
-                                  if (coords) {
-                                    showTooltip({
-                                      tooltipLeft: coords.x,
-                                      tooltipTop: coords.y,
-                                      tooltipData: p.driver,
-                                    })
-                                  }
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleBarClickForColorPicker(metric, e)
-                                }}
-                              />
-                            ))}
                           </Group>
                         )
                       })}
@@ -981,50 +1033,78 @@ export default function UnifiedPerformanceChart({
                       )
                     })}
 
-                    {/* Y-axis */}
-                    <AxisLeft
-                      scale={yScale}
-                      tickFormat={(value) => {
-                        if (yAxisFormatType === "gap") {
-                          return formatGapToFastest(Number(value))
-                        }
-                        if (yAxisFormatType === "position") {
-                          return formatPosition(Number(value))
-                        }
-                        if (yAxisFormatType === "count") {
-                          return Math.round(Number(value)).toString()
-                        }
-                        if (yAxisFormatType === "percentage") {
-                          return `${Number(value).toFixed(1)}%`
-                        }
-                        return formatLapTime(Number(value))
-                      }}
-                      stroke={yAxisColor}
-                      tickStroke={yAxisColor}
-                      tickLabelProps={() => ({
-                        fill: yAxisColor,
-                        fontSize: 12,
-                        textAnchor: "end",
-                        dx: -8,
-                      })}
-                    />
+                    {/* Y-axis - clickable to open color picker */}
+                    <Group
+                      style={{ cursor: "pointer" }}
+                      onClick={(e) => onAxisColorPickerRequest("y", e)}
+                      aria-label="Y-axis - Click to change color"
+                    >
+                      <AxisLeft
+                        scale={yScale}
+                        tickFormat={(value) => {
+                          if (yAxisFormatType === "gap") {
+                            return formatGapToFastest(Number(value))
+                          }
+                          if (yAxisFormatType === "position") {
+                            return formatPosition(Number(value))
+                          }
+                          if (yAxisFormatType === "count") {
+                            return Math.round(Number(value)).toString()
+                          }
+                          if (yAxisFormatType === "percentage") {
+                            return `${Number(value).toFixed(1)}%`
+                          }
+                          return formatLapTime(Number(value))
+                        }}
+                        stroke={yAxisColor}
+                        tickStroke={yAxisColor}
+                        tickLabelProps={() => ({
+                          fill: yAxisColor,
+                          fontSize: 12,
+                          textAnchor: "end",
+                          dx: -8,
+                        })}
+                      />
+                      <rect
+                        x={0}
+                        y={0}
+                        width={80}
+                        height={innerHeight}
+                        fill="transparent"
+                        pointerEvents="all"
+                      />
+                    </Group>
 
-                    {/* X-axis - show every driver name (tickValues overrides default numTicks thinning) */}
-                    <AxisBottom
-                      top={innerHeight}
-                      scale={xScale}
-                      tickValues={paginatedData.map((d) => d.driverName)}
-                      stroke={xAxisColor}
-                      tickStroke={xAxisColor}
-                      tickLabelProps={() => ({
-                        fill: xAxisColor,
-                        fontSize: 11,
-                        textAnchor: "end",
-                        angle: -45,
-                        dx: -5,
-                        dy: 8,
-                      })}
-                    />
+                    {/* X-axis - clickable to open color picker */}
+                    <Group
+                      style={{ cursor: "pointer" }}
+                      onClick={(e) => onAxisColorPickerRequest("x", e)}
+                      aria-label="X-axis - Click to change color"
+                    >
+                      <AxisBottom
+                        top={innerHeight}
+                        scale={xScale}
+                        tickValues={paginatedData.map((d) => d.driverName)}
+                        stroke={xAxisColor}
+                        tickStroke={xAxisColor}
+                        tickLabelProps={() => ({
+                          fill: xAxisColor,
+                          fontSize: 11,
+                          textAnchor: "end",
+                          angle: -45,
+                          dx: -5,
+                          dy: 8,
+                        })}
+                      />
+                      <rect
+                        x={0}
+                        y={innerHeight}
+                        width={innerWidth}
+                        height={60}
+                        fill="transparent"
+                        pointerEvents="all"
+                      />
+                    </Group>
                   </Group>
                 </svg>
               )

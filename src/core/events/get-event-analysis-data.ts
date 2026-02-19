@@ -44,6 +44,22 @@ function sanitizeDuration(value: number | null | undefined): number | null {
   return value
 }
 
+const LAP_TIME_TOLERANCE = 0.001
+
+function findFastLapLapNumber(
+  laps: Array<{ lapNumber: number; lapTimeSeconds: number }>,
+  fastLapTime: number
+): number | null {
+  if (!laps || laps.length === 0) return null
+  const match = laps.find(
+    (lap) =>
+      lap.lapTimeSeconds != null &&
+      Number.isFinite(lap.lapTimeSeconds) &&
+      Math.abs(lap.lapTimeSeconds - fastLapTime) < LAP_TIME_TOLERANCE
+  )
+  return match?.lapNumber ?? null
+}
+
 function deriveLapMetrics(
   laps: Array<{
     lapTimeSeconds: number
@@ -213,6 +229,8 @@ export interface EventAnalysisData {
       lapsCompleted: number
       totalTimeSeconds: number | null
       fastLapTime: number | null
+      /** Lap number (1-based) that produced fastLapTime, when lap data available. Optional for API compatibility. */
+      fastLapLapNumber?: number | null
       avgLapTime: number | null
       consistency: number | null
       // laps array removed - not used by any components, only needed for metric derivation
@@ -241,6 +259,21 @@ export interface EventAnalysisData {
       vehicleTypeNeedsReview: boolean
     }
   >
+  /** Multi-main overall results (triple/double main standings) from LiveRC */
+  multiMainResults: Array<{
+    id: string
+    classLabel: string
+    tieBreaker: string | null
+    completedMains: number
+    totalMains: number
+    entries: Array<{
+      position: number
+      seededPosition: number | null
+      driverName: string
+      points: number
+      mainBreakdown: Record<string, { position: number; points: number; lapsTime: string }> | null
+    }>
+  }>
   summary: {
     totalRaces: number
     totalDrivers: number
@@ -929,6 +962,22 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     where: { id: eventId },
     include: {
       track: true,
+      multiMainResults: {
+        include: {
+          entries: {
+            include: {
+              driver: {
+                select: {
+                  displayName: true,
+                },
+              },
+            },
+            orderBy: {
+              position: "asc",
+            },
+          },
+        },
+      },
       races: {
         include: {
           results: {
@@ -1119,6 +1168,11 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
         driverData.consistencies.push(result.consistency)
       }
 
+      const fastLapLapNumber =
+        normalizedFastLap !== null && result.laps?.length
+          ? findFastLapLapNumber(result.laps, normalizedFastLap)
+          : null
+
       return {
         raceResultId: result.id,
         raceDriverId: result.raceDriverId,
@@ -1128,6 +1182,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
         lapsCompleted: result.lapsCompleted,
         totalTimeSeconds,
         fastLapTime: normalizedFastLap,
+        fastLapLapNumber,
         avgLapTime: normalizedAvgLap,
         consistency: result.consistency,
         // Note: laps array removed from response to reduce payload size
@@ -1238,6 +1293,24 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
 
   const isPracticeDay = event.sourceEventId?.includes("-practice-") ?? false
 
+  const multiMainResultsData = (event.multiMainResults ?? []).map((mm) => ({
+    id: mm.id,
+    classLabel: mm.classLabel,
+    tieBreaker: mm.tieBreaker,
+    completedMains: mm.completedMains,
+    totalMains: mm.totalMains,
+    entries: mm.entries.map((e) => ({
+      position: e.position,
+      seededPosition: e.seededPosition,
+      driverName: e.driver.displayName,
+      points: e.points,
+      mainBreakdown: e.mainBreakdownJson as Record<
+        string,
+        { position: number; points: number; lapsTime: string }
+      > | null,
+    })),
+  }))
+
   return {
     event: {
       id: event.id,
@@ -1250,6 +1323,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     drivers: driversData,
     entryList: entryListData,
     raceClasses: raceClassesMap,
+    multiMainResults: multiMainResultsData,
     summary: {
       totalRaces: event.races.length,
       totalDrivers: driversData.length,

@@ -16,7 +16,8 @@
 import { useState, useMemo, useEffect } from "react"
 import ListPagination from "./ListPagination"
 import ChartContainer from "./ChartContainer"
-import ClassDetailsModal from "./ClassDetailsModal"
+import Tooltip from "@/components/molecules/Tooltip"
+import DriverNameFilter from "./sessions/DriverNameFilter"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface CombinedRow {
@@ -42,6 +43,7 @@ export interface CombinedDriversTableProps {
 type SortField =
   | "driverName"
   | "className"
+  | "vehicleType"
   | "transponderNumber"
   | "carNumber"
   | "racesParticipated"
@@ -76,8 +78,7 @@ export default function CombinedDriversTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(5)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalClassName, setModalClassName] = useState<string | null>(null)
+  const [driverLookup, setDriverLookup] = useState("")
 
   const selectedClass = selectedClassProp ?? null
 
@@ -121,9 +122,20 @@ export default function CombinedDriversTable({
   }, [data.entryList, driverStatsByDriverId])
 
   const filteredRows = useMemo(() => {
-    if (!selectedClass) return mergedRows
-    return mergedRows.filter((row) => row.className === selectedClass)
-  }, [mergedRows, selectedClass])
+    let rows = mergedRows
+    if (selectedClass) {
+      rows = rows.filter((row) => row.className === selectedClass)
+    }
+    const lookup = driverLookup.trim().toLowerCase()
+    if (lookup) {
+      rows = rows.filter(
+        (row) =>
+          row.driverName.toLowerCase().includes(lookup) ||
+          (row.transponderNumber ?? "").toLowerCase().includes(lookup)
+      )
+    }
+    return rows
+  }, [mergedRows, selectedClass, driverLookup])
 
   const sortedRows = useMemo(() => {
     return [...filteredRows].sort((a, b) => {
@@ -137,6 +149,10 @@ export default function CombinedDriversTable({
         case "className":
           aVal = a.className.toLowerCase()
           bVal = b.className.toLowerCase()
+          break
+        case "vehicleType":
+          aVal = (data.raceClasses?.get(a.className)?.vehicleType ?? "").toLowerCase()
+          bVal = (data.raceClasses?.get(b.className)?.vehicleType ?? "").toLowerCase()
           break
         case "transponderNumber":
           aVal = a.transponderNumber ?? ""
@@ -169,7 +185,7 @@ export default function CombinedDriversTable({
       if (aVal > bVal) return sortDirection === "asc" ? 1 : -1
       return 0
     })
-  }, [filteredRows, sortField, sortDirection])
+  }, [filteredRows, sortField, sortDirection, data.raceClasses])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -189,9 +205,22 @@ export default function CombinedDriversTable({
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedRows = sortedRows.slice(startIndex, startIndex + itemsPerPage)
 
+  const lookupSuggestions = useMemo(() => {
+    const rows = selectedClass
+      ? mergedRows.filter((r) => r.className === selectedClass)
+      : mergedRows
+    const names = new Set(rows.map((r) => r.driverName))
+    const transponders = new Set(
+      rows.map((r) => r.transponderNumber).filter((t): t is string => t != null && t !== "")
+    )
+    return Array.from(new Set([...names, ...transponders])).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true })
+    )
+  }, [mergedRows, selectedClass])
+
   useEffect(() => {
     setTimeout(() => setCurrentPage(1), 0)
-  }, [sortField, sortDirection, selectedClass, itemsPerPage])
+  }, [sortField, sortDirection, selectedClass, driverLookup, itemsPerPage])
 
   const { raceClasses, event } = data
   const eventId = event.id
@@ -218,6 +247,31 @@ export default function CombinedDriversTable({
       selectedClass={selectedClass || undefined}
     >
       <div className="space-y-4">
+        <div
+          className="w-[9rem] min-w-[9rem]"
+          role="group"
+          aria-labelledby="drivers-driver-lookup-label"
+        >
+          <Tooltip
+            text="Search by driver name or transponder number."
+            position="top"
+          >
+            <label
+              id="drivers-driver-lookup-label"
+              htmlFor="drivers-driver-lookup-input"
+              className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+            >
+              Find a Driver
+            </label>
+          </Tooltip>
+          <DriverNameFilter
+            id="drivers-driver-lookup-input"
+            driverNames={lookupSuggestions}
+            value={driverLookup}
+            onChange={setDriverLookup}
+            placeholder="Type to search"
+          />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
@@ -244,7 +298,14 @@ export default function CombinedDriversTable({
                 </th>
                 {raceClasses && (
                   <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-                    Vehicle Type
+                    <button
+                      type="button"
+                      onClick={() => handleSort("vehicleType")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Vehicle Type
+                      <SortIcon field="vehicleType" activeField={sortField} direction={sortDirection} />
+                    </button>
                   </th>
                 )}
                 <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
@@ -286,34 +347,61 @@ export default function CombinedDriversTable({
                   </button>
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("bestLapTime")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  <Tooltip
+                    text="Fastest single lap time across all races in this event. Lower is better."
+                    position="top"
                   >
-                    Best Lap
-                    <SortIcon field="bestLapTime" activeField={sortField} direction={sortDirection} />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("bestLapTime")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Best Lap
+                      <SortIcon
+                        field="bestLapTime"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </Tooltip>
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("avgLapTime")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  <Tooltip
+                    text="Average of this driver's average lap time per race across all races they participated in. Lower is better."
+                    position="top"
                   >
-                    Avg Lap
-                    <SortIcon field="avgLapTime" activeField={sortField} direction={sortDirection} />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("avgLapTime")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Avg Lap
+                      <SortIcon
+                        field="avgLapTime"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </Tooltip>
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("consistency")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  <Tooltip
+                    text="Average consistency percentage across races from the timing system. Higher means more consistent lap times within each race."
+                    position="top"
                   >
-                    Consistency
-                    <SortIcon field="consistency" activeField={sortField} direction={sortDirection} />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("consistency")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Consistency
+                      <SortIcon
+                        field="consistency"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </Tooltip>
                 </th>
               </tr>
             </thead>
@@ -329,35 +417,7 @@ export default function CombinedDriversTable({
                       {row.driverName}
                     </td>
                     <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
-                      <div className="flex items-center gap-2">
-                        <span>{row.className}</span>
-                        {eventId && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setModalClassName(row.className)
-                              setModalOpen(true)
-                            }}
-                            className="p-1 text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
-                            aria-label={`View details for ${row.className}`}
-                            title="View class details"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
+                      {row.className}
                     </td>
                     {raceClasses && (
                       <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
@@ -400,48 +460,6 @@ export default function CombinedDriversTable({
           onRowsPerPageChange={handleRowsPerPageChange}
         />
       </div>
-
-      {eventId && modalClassName && raceClasses && (
-        <ClassDetailsModal
-          isOpen={modalOpen}
-          onClose={() => {
-            setModalOpen(false)
-            setModalClassName(null)
-          }}
-          eventId={eventId}
-          className={modalClassName}
-          vehicleType={raceClasses.get(modalClassName)?.vehicleType ?? null}
-          vehicleTypeNeedsReview={raceClasses.get(modalClassName)?.vehicleTypeNeedsReview ?? true}
-          onSave={async (vehicleType, acceptInference) => {
-            const response = await fetch(
-              `/api/v1/events/${eventId}/race-classes/${encodeURIComponent(modalClassName)}/vehicle-type`,
-              {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ vehicleType, acceptInference }),
-                credentials: "include",
-                cache: "no-store",
-              }
-            )
-            if (!response.ok) {
-              let msg = "Failed to save vehicle type"
-              try {
-                const err = await response.json()
-                if (err.error?.message) msg = err.error.message
-                else if (err.error?.code) msg = `${err.error.code}: ${msg}`
-              } catch {
-                msg = response.statusText || msg
-              }
-              throw new Error(msg)
-            }
-            const result = await response.json()
-            if (!result.success) {
-              throw new Error(result.error?.message ?? "Save failed")
-            }
-            window.location.reload()
-          }}
-        />
-      )}
     </ChartContainer>
   )
 }
