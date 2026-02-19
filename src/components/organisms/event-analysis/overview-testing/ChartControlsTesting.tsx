@@ -229,7 +229,7 @@ export default function ChartControlsTesting({
   onClassChange,
   selectedClass: selectedClassProp = null,
   raceClasses,
-  eventId,
+  eventId: _eventId,
 }: ChartControlsProps) {
   const [isCompact, setIsCompact] = useState(false)
   const selectedClass = selectedClassProp
@@ -239,7 +239,7 @@ export default function ChartControlsTesting({
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
   // Track whether drivers were manually selected via the driver modal
   // vs auto-selected via class selection
-  const [driversManuallySelected, setDriversManuallySelected] = useState(false)
+  const [, setDriversManuallySelected] = useState(false)
 
   // Debug: Log selectedClass value to verify it's updating
   useEffect(() => {
@@ -425,7 +425,6 @@ export default function ChartControlsTesting({
 
   const selectedClassInfo = selectedClass ? driversByClass.get(selectedClass) : null
   const raceClassInfo = selectedClass ? raceClasses?.get(selectedClass) : null
-  const vehicleType = raceClassInfo?.vehicleType
   const needsReview = raceClassInfo?.vehicleTypeNeedsReview ?? false
   const displayClass = selectedClassInfo
     ? `${selectedClassInfo.className} (${selectedClassInfo.driverCount})`

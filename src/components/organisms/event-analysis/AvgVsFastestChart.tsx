@@ -54,7 +54,7 @@ const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
 const defaultFastestColor = "var(--token-accent)"
 const defaultAverageColor = "#5aa2ff"
 const textColor = "var(--token-text-primary)"
-const textSecondaryColor = "var(--token-text-secondary)"
+const _textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
 const DEFAULT_AXIS_COLOR = "#ffffff"
 
@@ -65,7 +65,7 @@ const DEFAULT_AXIS_COLOR = "#ffffff"
 function calculateBottomMargin(labels: string[], minMargin = 100): number {
   if (labels.length === 0) return minMargin
 
-  const fontSize = 11 // Match the fontSize in tickLabelProps
+  const _fontSize = 11 // Match the fontSize in tickLabelProps
   const avgCharWidth = 6.5 // Approximate width per character for 11px font
   const rotationRadians = Math.PI / 4 // 45 degrees
   const padding = 20 // Extra padding for safety
@@ -211,382 +211,379 @@ export default function AvgVsFastestChart({
         selectedClass={selectedClass}
         axisColorPicker
         defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
-        renderContent={({
-          axisColors: { xAxisColor, yAxisColor },
-          onAxisColorPickerRequest,
-        }) => (
-        <>
-        <div className="relative w-full" style={{ height: `${height}px` }}>
-          <ParentSize>
-            {({ width: parentWidth }) => {
-              // Use parentWidth if available, otherwise fallback to 800 for SSR
-              // ParentSize will return 0 or undefined during SSR, which is fine
-              const width = parentWidth || 800
+        renderContent={({ axisColors: { xAxisColor, yAxisColor }, onAxisColorPickerRequest }) => (
+          <>
+            <div className="relative w-full" style={{ height: `${height}px` }}>
+              <ParentSize>
+                {({ width: parentWidth }) => {
+                  // Use parentWidth if available, otherwise fallback to 800 for SSR
+                  // ParentSize will return 0 or undefined during SSR, which is fine
+                  const width = parentWidth || 800
 
-              // Don't render chart if width is 0 (during initial SSR)
-              if (width === 0) {
-                return null
-              }
+                  // Don't render chart if width is 0 (during initial SSR)
+                  if (width === 0) {
+                    return null
+                  }
 
-              const innerWidth = width - margin.left - margin.right
-              const innerHeight = height - margin.top - margin.bottom
+                  const innerWidth = width - margin.left - margin.right
+                  const innerHeight = height - margin.top - margin.bottom
 
-              // Scales
-              const xScale = scaleBand({
-                range: [0, innerWidth],
-                domain: paginatedData.map((d) => d.driverName),
-                padding: 0.3,
-              })
+                  // Scales
+                  const xScale = scaleBand({
+                    range: [0, innerWidth],
+                    domain: paginatedData.map((d) => d.driverName),
+                    padding: 0.3,
+                  })
 
-              const maxLapTime = Math.max(
-                ...paginatedData.flatMap((d) => [d.fastestLap, d.averageLap])
-              )
-              const minLapTime = Math.min(
-                ...paginatedData.flatMap((d) => [d.fastestLap, d.averageLap])
-              )
-              const padding = (maxLapTime - minLapTime) * 0.1
-              const yScale = scaleLinear({
-                range: [innerHeight, 0],
-                domain: [
-                  Math.max(0, minLapTime - padding), // Clamp to 0 to prevent negative values
-                  maxLapTime + padding,
-                ],
-                nice: true,
-              })
+                  const maxLapTime = Math.max(
+                    ...paginatedData.flatMap((d) => [d.fastestLap, d.averageLap])
+                  )
+                  const minLapTime = Math.min(
+                    ...paginatedData.flatMap((d) => [d.fastestLap, d.averageLap])
+                  )
+                  const padding = (maxLapTime - minLapTime) * 0.1
+                  const yScale = scaleLinear({
+                    range: [innerHeight, 0],
+                    domain: [
+                      Math.max(0, minLapTime - padding), // Clamp to 0 to prevent negative values
+                      maxLapTime + padding,
+                    ],
+                    nice: true,
+                  })
 
-              const barWidth = xScale.bandwidth() / 2
+                  const barWidth = xScale.bandwidth() / 2
 
-              return (
-                <svg
-                  width={width}
-                  height={height}
-                  aria-labelledby={chartDescId}
-                  role="img"
-                  overflow="visible"
-                >
-                  <desc id={chartDescId}>
-                    Bar chart comparing each driver&apos;s average lap time against their fastest
-                    lap.
-                  </desc>
-                  <Group left={margin.left} top={margin.top}>
-                    {/* Grid lines */}
-                    {yScale.ticks(5).map((tick) => (
-                      <line
-                        key={tick}
-                        x1={0}
-                        x2={innerWidth}
-                        y1={yScale(tick)}
-                        y2={yScale(tick)}
-                        stroke={borderColor}
-                        strokeWidth={1}
-                        strokeDasharray="2,2"
-                        opacity={0.3}
-                      />
-                    ))}
-
-                    {/* Bars */}
-                    {paginatedData.map((d) => {
-                      const x = xScale(d.driverName) || 0
-                      const isSelected =
-                        selectedDriverIds === undefined ||
-                        selectedDriverIds.length === 0 ||
-                        selectedDriverIds.includes(d.driverId)
-
-                      const handleClick = () => {
-                        if (onDriverToggle) {
-                          onDriverToggle(d.driverId)
-                        }
-                      }
-
-                      return (
-                        <Group key={d.driverId}>
-                          {/* Fastest lap bar */}
-                          <Bar
-                            x={x}
-                            y={yScale(d.fastestLap)}
-                            width={barWidth}
-                            height={innerHeight - yScale(d.fastestLap)}
-                            fill={colors.fastest}
-                            opacity={isSelected ? 1 : 0.3}
-                            stroke={
-                              isSelected &&
-                              selectedDriverIds !== undefined &&
-                              selectedDriverIds.length > 0
-                                ? colors.fastest
-                                : "none"
-                            }
-                            strokeWidth={
-                              isSelected &&
-                              selectedDriverIds !== undefined &&
-                              selectedDriverIds.length > 0
-                                ? 1.5
-                                : 0
-                            }
-                            onClick={handleClick}
-                            onMouseMove={(event) => {
-                              const svgElement = (event.target as SVGElement).ownerSVGElement
-                              if (!svgElement) return
-                              const coords = localPoint(svgElement, event)
-                              if (coords) {
-                                showTooltip({
-                                  tooltipLeft: coords.x,
-                                  tooltipTop: coords.y,
-                                  tooltipData: d,
-                                })
-                              }
-                            }}
-                            onMouseLeave={() => hideTooltip()}
-                            onTouchStart={(event) => {
-                              const svgElement = (event.target as SVGElement).ownerSVGElement
-                              if (!svgElement) return
-                              const coords = localPoint(svgElement, event)
-                              if (coords) {
-                                showTooltip({
-                                  tooltipLeft: coords.x,
-                                  tooltipTop: coords.y,
-                                  tooltipData: d,
-                                })
-                              }
-                            }}
-                            onTouchEnd={() => {
-                              hideTooltip()
-                              if (onDriverToggle) {
-                                onDriverToggle(d.driverId)
-                              }
-                            }}
-                            style={{ cursor: "pointer" }}
-                            aria-label={`${d.driverName}: Fastest lap ${formatLapTime(d.fastestLap)}`}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault()
-                                handleClick()
-                              }
-                            }}
+                  return (
+                    <svg
+                      width={width}
+                      height={height}
+                      aria-labelledby={chartDescId}
+                      role="img"
+                      overflow="visible"
+                    >
+                      <desc id={chartDescId}>
+                        Bar chart comparing each driver&apos;s average lap time against their
+                        fastest lap.
+                      </desc>
+                      <Group left={margin.left} top={margin.top}>
+                        {/* Grid lines */}
+                        {yScale.ticks(5).map((tick) => (
+                          <line
+                            key={tick}
+                            x1={0}
+                            x2={innerWidth}
+                            y1={yScale(tick)}
+                            y2={yScale(tick)}
+                            stroke={borderColor}
+                            strokeWidth={1}
+                            strokeDasharray="2,2"
+                            opacity={0.3}
                           />
+                        ))}
 
-                          {/* Average lap bar */}
-                          <Bar
-                            x={x + barWidth}
-                            y={yScale(d.averageLap)}
-                            width={barWidth}
-                            height={innerHeight - yScale(d.averageLap)}
-                            fill={colors.average}
-                            opacity={isSelected ? 1 : 0.3}
-                            stroke={
-                              isSelected &&
-                              selectedDriverIds !== undefined &&
-                              selectedDriverIds.length > 0
-                                ? colors.average
-                                : "none"
+                        {/* Bars */}
+                        {paginatedData.map((d) => {
+                          const x = xScale(d.driverName) || 0
+                          const isSelected =
+                            selectedDriverIds === undefined ||
+                            selectedDriverIds.length === 0 ||
+                            selectedDriverIds.includes(d.driverId)
+
+                          const handleClick = () => {
+                            if (onDriverToggle) {
+                              onDriverToggle(d.driverId)
                             }
-                            strokeWidth={
-                              isSelected &&
-                              selectedDriverIds !== undefined &&
-                              selectedDriverIds.length > 0
-                                ? 1.5
-                                : 0
-                            }
-                            onClick={handleClick}
-                            onMouseMove={(event) => {
-                              const svgElement = (event.target as SVGElement).ownerSVGElement
-                              if (!svgElement) return
-                              const coords = localPoint(svgElement, event)
-                              if (coords) {
-                                showTooltip({
-                                  tooltipLeft: coords.x,
-                                  tooltipTop: coords.y,
-                                  tooltipData: d,
-                                })
-                              }
-                            }}
-                            onMouseLeave={() => hideTooltip()}
-                            onTouchStart={(event) => {
-                              const svgElement = (event.target as SVGElement).ownerSVGElement
-                              if (!svgElement) return
-                              const coords = localPoint(svgElement, event)
-                              if (coords) {
-                                showTooltip({
-                                  tooltipLeft: coords.x,
-                                  tooltipTop: coords.y,
-                                  tooltipData: d,
-                                })
-                              }
-                            }}
-                            onTouchEnd={() => {
-                              hideTooltip()
-                              if (onDriverToggle) {
-                                onDriverToggle(d.driverId)
-                              }
-                            }}
-                            style={{ cursor: "pointer" }}
-                            aria-label={`${d.driverName}: Average lap ${formatLapTime(d.averageLap)}`}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault()
-                                handleClick()
-                              }
-                            }}
+                          }
+
+                          return (
+                            <Group key={d.driverId}>
+                              {/* Fastest lap bar */}
+                              <Bar
+                                x={x}
+                                y={yScale(d.fastestLap)}
+                                width={barWidth}
+                                height={innerHeight - yScale(d.fastestLap)}
+                                fill={colors.fastest}
+                                opacity={isSelected ? 1 : 0.3}
+                                stroke={
+                                  isSelected &&
+                                  selectedDriverIds !== undefined &&
+                                  selectedDriverIds.length > 0
+                                    ? colors.fastest
+                                    : "none"
+                                }
+                                strokeWidth={
+                                  isSelected &&
+                                  selectedDriverIds !== undefined &&
+                                  selectedDriverIds.length > 0
+                                    ? 1.5
+                                    : 0
+                                }
+                                onClick={handleClick}
+                                onMouseMove={(event) => {
+                                  const svgElement = (event.target as SVGElement).ownerSVGElement
+                                  if (!svgElement) return
+                                  const coords = localPoint(svgElement, event)
+                                  if (coords) {
+                                    showTooltip({
+                                      tooltipLeft: coords.x,
+                                      tooltipTop: coords.y,
+                                      tooltipData: d,
+                                    })
+                                  }
+                                }}
+                                onMouseLeave={() => hideTooltip()}
+                                onTouchStart={(event) => {
+                                  const svgElement = (event.target as SVGElement).ownerSVGElement
+                                  if (!svgElement) return
+                                  const coords = localPoint(svgElement, event)
+                                  if (coords) {
+                                    showTooltip({
+                                      tooltipLeft: coords.x,
+                                      tooltipTop: coords.y,
+                                      tooltipData: d,
+                                    })
+                                  }
+                                }}
+                                onTouchEnd={() => {
+                                  hideTooltip()
+                                  if (onDriverToggle) {
+                                    onDriverToggle(d.driverId)
+                                  }
+                                }}
+                                style={{ cursor: "pointer" }}
+                                aria-label={`${d.driverName}: Fastest lap ${formatLapTime(d.fastestLap)}`}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault()
+                                    handleClick()
+                                  }
+                                }}
+                              />
+
+                              {/* Average lap bar */}
+                              <Bar
+                                x={x + barWidth}
+                                y={yScale(d.averageLap)}
+                                width={barWidth}
+                                height={innerHeight - yScale(d.averageLap)}
+                                fill={colors.average}
+                                opacity={isSelected ? 1 : 0.3}
+                                stroke={
+                                  isSelected &&
+                                  selectedDriverIds !== undefined &&
+                                  selectedDriverIds.length > 0
+                                    ? colors.average
+                                    : "none"
+                                }
+                                strokeWidth={
+                                  isSelected &&
+                                  selectedDriverIds !== undefined &&
+                                  selectedDriverIds.length > 0
+                                    ? 1.5
+                                    : 0
+                                }
+                                onClick={handleClick}
+                                onMouseMove={(event) => {
+                                  const svgElement = (event.target as SVGElement).ownerSVGElement
+                                  if (!svgElement) return
+                                  const coords = localPoint(svgElement, event)
+                                  if (coords) {
+                                    showTooltip({
+                                      tooltipLeft: coords.x,
+                                      tooltipTop: coords.y,
+                                      tooltipData: d,
+                                    })
+                                  }
+                                }}
+                                onMouseLeave={() => hideTooltip()}
+                                onTouchStart={(event) => {
+                                  const svgElement = (event.target as SVGElement).ownerSVGElement
+                                  if (!svgElement) return
+                                  const coords = localPoint(svgElement, event)
+                                  if (coords) {
+                                    showTooltip({
+                                      tooltipLeft: coords.x,
+                                      tooltipTop: coords.y,
+                                      tooltipData: d,
+                                    })
+                                  }
+                                }}
+                                onTouchEnd={() => {
+                                  hideTooltip()
+                                  if (onDriverToggle) {
+                                    onDriverToggle(d.driverId)
+                                  }
+                                }}
+                                style={{ cursor: "pointer" }}
+                                aria-label={`${d.driverName}: Average lap ${formatLapTime(d.averageLap)}`}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault()
+                                    handleClick()
+                                  }
+                                }}
+                              />
+                            </Group>
+                          )
+                        })}
+
+                        {/* Y-axis - clickable to open color picker */}
+                        <Group
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => onAxisColorPickerRequest("y", e)}
+                          aria-label="Y-axis - Click to change color"
+                        >
+                          <AxisLeft
+                            scale={yScale}
+                            tickFormat={(value) => formatLapTime(Number(value))}
+                            stroke={yAxisColor}
+                            tickStroke={yAxisColor}
+                            tickLabelProps={() => ({
+                              fill: yAxisColor,
+                              fontSize: 12,
+                              textAnchor: "end",
+                              dx: -8,
+                            })}
+                          />
+                          <rect
+                            x={0}
+                            y={0}
+                            width={80}
+                            height={innerHeight}
+                            fill="transparent"
+                            pointerEvents="all"
                           />
                         </Group>
-                      )
-                    })}
 
-                    {/* Y-axis - clickable to open color picker */}
-                    <Group
-                      style={{ cursor: "pointer" }}
-                      onClick={(e) => onAxisColorPickerRequest("y", e)}
-                      aria-label="Y-axis - Click to change color"
-                    >
-                      <AxisLeft
-                        scale={yScale}
-                        tickFormat={(value) => formatLapTime(Number(value))}
-                        stroke={yAxisColor}
-                        tickStroke={yAxisColor}
-                        tickLabelProps={() => ({
-                          fill: yAxisColor,
-                          fontSize: 12,
-                          textAnchor: "end",
-                          dx: -8,
-                        })}
-                      />
-                      <rect
-                        x={0}
-                        y={0}
-                        width={80}
-                        height={innerHeight}
-                        fill="transparent"
-                        pointerEvents="all"
-                      />
-                    </Group>
+                        {/* X-axis - clickable to open color picker */}
+                        <Group
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => onAxisColorPickerRequest("x", e)}
+                          aria-label="X-axis - Click to change color"
+                        >
+                          <AxisBottom
+                            top={innerHeight}
+                            scale={xScale}
+                            stroke={xAxisColor}
+                            tickStroke={xAxisColor}
+                            tickLabelProps={() => ({
+                              fill: xAxisColor,
+                              fontSize: 11,
+                              textAnchor: "end",
+                              angle: -45,
+                              dx: -5,
+                              dy: 8,
+                            })}
+                          />
+                          <rect
+                            x={0}
+                            y={innerHeight}
+                            width={innerWidth}
+                            height={60}
+                            fill="transparent"
+                            pointerEvents="all"
+                          />
+                        </Group>
+                      </Group>
+                    </svg>
+                  )
+                }}
+              </ParentSize>
 
-                    {/* X-axis - clickable to open color picker */}
-                    <Group
-                      style={{ cursor: "pointer" }}
-                      onClick={(e) => onAxisColorPickerRequest("x", e)}
-                      aria-label="X-axis - Click to change color"
-                    >
-                      <AxisBottom
-                        top={innerHeight}
-                        scale={xScale}
-                        stroke={xAxisColor}
-                        tickStroke={xAxisColor}
-                        tickLabelProps={() => ({
-                          fill: xAxisColor,
-                          fontSize: 11,
-                          textAnchor: "end",
-                          angle: -45,
-                          dx: -5,
-                          dy: 8,
-                        })}
-                      />
-                      <rect
-                        x={0}
-                        y={innerHeight}
-                        width={innerWidth}
-                        height={60}
-                        fill="transparent"
-                        pointerEvents="all"
-                      />
-                    </Group>
-                  </Group>
-                </svg>
-              )
-            }}
-          </ParentSize>
+              {/* Tooltip */}
+              {tooltipOpen && tooltipData && (
+                <TooltipWithBounds
+                  top={tooltipTop}
+                  left={tooltipLeft}
+                  style={{
+                    ...defaultStyles,
+                    backgroundColor: "var(--token-surface-elevated)",
+                    border: `1px solid ${borderColor}`,
+                    color: textColor,
+                    padding: "8px 12px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <div className="space-y-1">
+                    <div className="font-semibold text-[var(--token-text-primary)]">
+                      {tooltipData.driverName}
+                    </div>
+                    <div className="text-sm text-[var(--token-text-secondary)]">
+                      Fastest: {formatLapTime(tooltipData.fastestLap)}
+                    </div>
+                    <div className="text-sm text-[var(--token-text-secondary)]">
+                      Average: {formatLapTime(tooltipData.averageLap)}
+                    </div>
+                  </div>
+                </TooltipWithBounds>
+              )}
+            </div>
 
-          {/* Tooltip */}
-          {tooltipOpen && tooltipData && (
-            <TooltipWithBounds
-              top={tooltipTop}
-              left={tooltipLeft}
-              style={{
-                ...defaultStyles,
-                backgroundColor: "var(--token-surface-elevated)",
-                border: `1px solid ${borderColor}`,
-                color: textColor,
-                padding: "8px 12px",
-                borderRadius: "4px",
-              }}
-            >
-              <div className="space-y-1">
-                <div className="font-semibold text-[var(--token-text-primary)]">
-                  {tooltipData.driverName}
-                </div>
-                <div className="text-sm text-[var(--token-text-secondary)]">
-                  Fastest: {formatLapTime(tooltipData.fastestLap)}
-                </div>
-                <div className="text-sm text-[var(--token-text-secondary)]">
-                  Average: {formatLapTime(tooltipData.averageLap)}
-                </div>
+            {/* Legend */}
+            <div className="flex items-center gap-4 mt-4 text-sm">
+              <div
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={(e) => handleLegendClick("fastest", e)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setColorPickerPosition({
+                      top: rect.bottom + 8,
+                      left: rect.left,
+                    })
+                    setColorPickerSeries("fastest")
+                    setShowColorPicker(true)
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label="Fastest Lap - Click to customize color"
+              >
+                <div className="w-4 h-4" style={{ backgroundColor: colors.fastest }} />
+                <span className="text-[var(--token-text-secondary)]">Fastest Lap</span>
               </div>
-            </TooltipWithBounds>
-          )}
-        </div>
+              <div
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={(e) => handleLegendClick("average", e)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setColorPickerPosition({
+                      top: rect.bottom + 8,
+                      left: rect.left,
+                    })
+                    setColorPickerSeries("average")
+                    setShowColorPicker(true)
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label="Average Lap - Click to customize color"
+              >
+                <div className="w-4 h-4" style={{ backgroundColor: colors.average }} />
+                <span className="text-[var(--token-text-secondary)]">Average Lap</span>
+              </div>
+            </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 mt-4 text-sm">
-          <div
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={(e) => handleLegendClick("fastest", e)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                const rect = e.currentTarget.getBoundingClientRect()
-                setColorPickerPosition({
-                  top: rect.bottom + 8,
-                  left: rect.left,
-                })
-                setColorPickerSeries("fastest")
-                setShowColorPicker(true)
-              }
-            }}
-            tabIndex={0}
-            role="button"
-            aria-label="Fastest Lap - Click to customize color"
-          >
-            <div className="w-4 h-4" style={{ backgroundColor: colors.fastest }} />
-            <span className="text-[var(--token-text-secondary)]">Fastest Lap</span>
-          </div>
-          <div
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={(e) => handleLegendClick("average", e)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                const rect = e.currentTarget.getBoundingClientRect()
-                setColorPickerPosition({
-                  top: rect.bottom + 8,
-                  left: rect.left,
-                })
-                setColorPickerSeries("average")
-                setShowColorPicker(true)
-              }
-            }}
-            tabIndex={0}
-            role="button"
-            aria-label="Average Lap - Click to customize color"
-          >
-            <div className="w-4 h-4" style={{ backgroundColor: colors.average }} />
-            <span className="text-[var(--token-text-secondary)]">Average Lap</span>
-          </div>
-        </div>
-
-        {/* Pagination */}
-        {onPageChange && totalPages > 1 && (
-          <ChartPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-            itemsPerPage={driversPerPage}
-            totalItems={sortedData.length}
-            itemLabel="drivers"
-          />
-        )}
-        </>
+            {/* Pagination */}
+            {onPageChange && totalPages > 1 && (
+              <ChartPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={onPageChange}
+                itemsPerPage={driversPerPage}
+                totalItems={sortedData.length}
+                itemLabel="drivers"
+              />
+            )}
+          </>
         )}
       />
 

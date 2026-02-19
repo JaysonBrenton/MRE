@@ -88,7 +88,7 @@ export default function DriverNameFilter({
     }
   }
 
-  const handleInputBlur = (e: React.FocusEvent) => {
+  const handleInputBlur = (_e: React.FocusEvent) => {
     // Delay hiding suggestions to allow click events to fire
     setTimeout(() => {
       if (!suggestionsRef.current?.contains(document.activeElement)) {
@@ -155,6 +155,7 @@ export default function DriverNameFilter({
           className="w-full px-4 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
           aria-label="Filter by driver name"
           aria-autocomplete="list"
+          role="combobox"
           aria-expanded={showSuggestions}
           aria-controls="driver-name-suggestions"
         />

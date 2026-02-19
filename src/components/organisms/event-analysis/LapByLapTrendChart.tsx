@@ -44,7 +44,7 @@ const driverColors = [
 ]
 const borderColor = "var(--token-border-default)"
 const DIM_OPACITY = 0.2
-const SESSION_BAND_OPACITY = 0.3
+const _SESSION_BAND_OPACITY = 0.3
 const SESSION_BAND_DEFAULT_HEX = ["#6366f1", "#fbbf24"] as const
 const SESSION_BAND_OPACITIES = [0.52, 0.48] as const
 
@@ -155,10 +155,7 @@ export default function LapByLapTrendChart({
   const defaultDriverColors = useMemo(
     () =>
       Object.fromEntries(
-        Array.from({ length: 8 }, (_, i) => [
-          `driver${i}`,
-          driverColors[i % driverColors.length],
-        ])
+        Array.from({ length: 8 }, (_, i) => [`driver${i}`, driverColors[i % driverColors.length]])
       ) as Record<string, string>,
     []
   )
@@ -260,10 +257,7 @@ export default function LapByLapTrendChart({
       chartInstanceId={chartInstanceId}
       axisColorPicker
       defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
-      renderContent={({
-        axisColors: { xAxisColor, yAxisColor },
-        onAxisColorPickerRequest,
-      }) => (
+      renderContent={({ axisColors: { xAxisColor, yAxisColor }, onAxisColorPickerRequest }) => (
         <>
           <div className="relative w-full" style={{ height: `${height}px` }}>
             <ParentSize>
@@ -295,143 +289,132 @@ export default function LapByLapTrendChart({
                       style={{ display: "block" }}
                     >
                       <desc id={chartDescId}>
-                        Line chart of every lap time for selected drivers; X = lap number, Y = lap time.
+                        Line chart of every lap time for selected drivers; X = lap number, Y = lap
+                        time.
                       </desc>
                       <Group left={defaultMargin.left} top={defaultMargin.top}>
                         <Group>
                           {yScale.ticks(5).map((tick) => (
-                                <line
-                                  key={tick}
-                                  x1={0}
-                                  x2={innerWidth}
-                                  y1={yScale(tick)}
-                                  y2={yScale(tick)}
-                                  stroke={borderColor}
-                                  strokeWidth={1}
-                                  strokeDasharray="2,2"
-                                  opacity={0.3}
+                            <line
+                              key={tick}
+                              x1={0}
+                              x2={innerWidth}
+                              y1={yScale(tick)}
+                              y2={yScale(tick)}
+                              stroke={borderColor}
+                              strokeWidth={1}
+                              strokeDasharray="2,2"
+                              opacity={0.3}
+                            />
+                          ))}
+
+                          {drivers.map((driver, driverIndex) => {
+                            const color =
+                              driverColorMap[`driver${driverIndex}`] ??
+                              driverColors[driverIndex % driverColors.length]
+                            const data = driver.laps as LapTrendPoint[]
+                            if (data.length === 0) return null
+                            const isHighlighted =
+                              hoveredDriverId == null || driver.driverId === hoveredDriverId
+                            const lineOpacity = isHighlighted ? 1 : DIM_OPACITY
+
+                            return (
+                              <Group
+                                key={driver.driverId}
+                                onMouseEnter={() => setHoveredDriverId(driver.driverId)}
+                                onMouseLeave={() => {
+                                  setHoveredDriverId(null)
+                                  hideTooltip()
+                                }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                {/* Invisible wide path for easier line hover + tooltip */}
+                                <LinePath
+                                  data={data}
+                                  x={(d) => xScale(d.lapIndex)}
+                                  y={(d) => yScale(d.lapTimeSeconds)}
+                                  stroke="transparent"
+                                  strokeWidth={16}
+                                  curve={curveMonotoneX}
+                                  pointerEvents="stroke"
+                                  onMouseMove={(event) => {
+                                    setHoveredDriverId(driver.driverId)
+                                    const svgEl = (event.target as SVGElement).ownerSVGElement
+                                    if (!svgEl) return
+                                    const coords = localPoint(svgEl, event)
+                                    if (!coords) return
+                                    const innerX = coords.x - defaultMargin.left
+                                    const lapIndexValue = xScale.invert(innerX)
+                                    let nearest = data[0]
+                                    let minDist = Math.abs(data[0].lapIndex - lapIndexValue)
+                                    for (let i = 1; i < data.length; i++) {
+                                      const d = Math.abs(data[i].lapIndex - lapIndexValue)
+                                      if (d < minDist) {
+                                        minDist = d
+                                        nearest = data[i]
+                                      }
+                                    }
+                                    const band = sessionBands.find(
+                                      (b) => b.raceId === nearest.raceId
+                                    )
+                                    const totalLapsInSession = band
+                                      ? band.endLapIndex - band.startLapIndex + 1
+                                      : null
+                                    const sessionLapRange = band
+                                      ? band.startLapIndex === band.endLapIndex
+                                        ? `Lap ${band.startLapIndex}`
+                                        : `Laps ${band.startLapIndex}–${band.endLapIndex}`
+                                      : undefined
+                                    const lapInSession =
+                                      totalLapsInSession != null
+                                        ? `Lap ${nearest.lapNumber} of ${totalLapsInSession}`
+                                        : undefined
+                                    const className = nearest.className ?? nearest.raceLabel
+                                    const sessionName = nearest.raceLabel.startsWith(className)
+                                      ? nearest.raceLabel.slice(className.length).trim()
+                                      : nearest.raceLabel
+                                    showTooltip({
+                                      tooltipLeft: coords.x,
+                                      tooltipTop: coords.y,
+                                      tooltipData: {
+                                        driverName: driver.driverName,
+                                        className,
+                                        sessionName: sessionName || nearest.raceLabel,
+                                        lapNumber: nearest.lapNumber,
+                                        lapTimeSeconds: nearest.lapTimeSeconds,
+                                        sessionLapRange,
+                                        lapInSession,
+                                        overallLapIndex: nearest.lapIndex,
+                                        raceStartTime: nearest.raceStartTime ?? null,
+                                      },
+                                    })
+                                  }}
                                 />
-                              ))}
-
-                              {drivers.map((driver, driverIndex) => {
-                                const color =
-                                  driverColorMap[`driver${driverIndex}`] ??
-                                  driverColors[driverIndex % driverColors.length]
-                                const data = driver.laps as LapTrendPoint[]
-                                if (data.length === 0) return null
-                                const isHighlighted = hoveredDriverId == null || driver.driverId === hoveredDriverId
-                                const lineOpacity = isHighlighted ? 1 : DIM_OPACITY
-
-                                return (
-                                  <Group
-                                    key={driver.driverId}
-                                    onMouseEnter={() => setHoveredDriverId(driver.driverId)}
-                                    onMouseLeave={() => {
-                                      setHoveredDriverId(null)
-                                      hideTooltip()
-                                    }}
-                                    style={{ cursor: "pointer" }}
-                                  >
-                                    {/* Invisible wide path for easier line hover + tooltip */}
-                                    <LinePath
-                                      data={data}
-                                      x={(d) => xScale(d.lapIndex)}
-                                      y={(d) => yScale(d.lapTimeSeconds)}
-                                      stroke="transparent"
-                                      strokeWidth={16}
-                                      curve={curveMonotoneX}
-                                      pointerEvents="stroke"
-                                      onMouseMove={(event) => {
-                                        setHoveredDriverId(driver.driverId)
-                                        const svgEl = (event.target as SVGElement).ownerSVGElement
-                                        if (!svgEl) return
-                                        const coords = localPoint(svgEl, event)
-                                        if (!coords) return
-                                        const innerX = coords.x - defaultMargin.left
-                                        const lapIndexValue = xScale.invert(innerX)
-                                        let nearest = data[0]
-                                        let minDist = Math.abs(data[0].lapIndex - lapIndexValue)
-                                        for (let i = 1; i < data.length; i++) {
-                                          const d = Math.abs(data[i].lapIndex - lapIndexValue)
-                                          if (d < minDist) {
-                                            minDist = d
-                                            nearest = data[i]
-                                          }
-                                        }
-                                        const band = sessionBands.find(
-                                          (b) => b.raceId === nearest.raceId
-                                        )
-                                        const totalLapsInSession = band
-                                          ? band.endLapIndex - band.startLapIndex + 1
-                                          : null
-                                        const sessionLapRange = band
-                                          ? band.startLapIndex === band.endLapIndex
-                                            ? `Lap ${band.startLapIndex}`
-                                            : `Laps ${band.startLapIndex}–${band.endLapIndex}`
-                                          : undefined
-                                        const lapInSession =
-                                          totalLapsInSession != null
-                                            ? `Lap ${nearest.lapNumber} of ${totalLapsInSession}`
-                                            : undefined
-                                        const className =
-                                          nearest.className ?? nearest.raceLabel
-                                        const sessionName = nearest.raceLabel
-                                          .startsWith(className)
-                                            ? nearest.raceLabel
-                                                .slice(className.length)
-                                                .trim()
-                                            : nearest.raceLabel
-                                        showTooltip({
-                                          tooltipLeft: coords.x,
-                                          tooltipTop: coords.y,
-                                          tooltipData: {
-                                            driverName: driver.driverName,
-                                            className,
-                                            sessionName:
-                                              sessionName || nearest.raceLabel,
-                                            lapNumber: nearest.lapNumber,
-                                            lapTimeSeconds:
-                                              nearest.lapTimeSeconds,
-                                            sessionLapRange,
-                                            lapInSession,
-                                            overallLapIndex: nearest.lapIndex,
-                                            raceStartTime:
-                                              nearest.raceStartTime ?? null,
-                                          },
-                                        })
-                                      }}
-                                    />
-                                    <LinePath
-                                      data={data}
-                                      x={(d) => xScale(d.lapIndex)}
-                                      y={(d) => yScale(d.lapTimeSeconds)}
-                                      stroke={color}
-                                      strokeWidth={2}
-                                      curve={curveMonotoneX}
-                                      opacity={lineOpacity}
-                                      pointerEvents="none"
-                                    />
-                                  </Group>
-                                )
-                              })}
+                                <LinePath
+                                  data={data}
+                                  x={(d) => xScale(d.lapIndex)}
+                                  y={(d) => yScale(d.lapTimeSeconds)}
+                                  stroke={color}
+                                  strokeWidth={2}
+                                  curve={curveMonotoneX}
+                                  opacity={lineOpacity}
+                                  pointerEvents="none"
+                                />
+                              </Group>
+                            )
+                          })}
 
                           {/* Session bands: on top so they receive clicks for color picker */}
                           {showSessionOverlay &&
                             sessionBands.map((band, bandIndex) => {
                               const colorIndex = bandIndex % 2
                               const hexColor =
-                                colorIndex === 0
-                                  ? sessionBand1Color
-                                  : sessionBand2Color
-                              const opacity =
-                                SESSION_BAND_OPACITIES[colorIndex]
+                                colorIndex === 0 ? sessionBand1Color : sessionBand2Color
+                              const opacity = SESSION_BAND_OPACITIES[colorIndex]
                               const xLeft = xScale(band.startLapIndex - 0.5)
                               const xRight = xScale(band.endLapIndex + 0.5)
                               const x = Math.max(0, xLeft)
-                              const w = Math.max(
-                                1,
-                                Math.min(innerWidth, xRight) - x
-                              )
+                              const w = Math.max(1, Math.min(innerWidth, xRight) - x)
                               const fill = hexToRgba(hexColor, opacity)
                               return (
                                 <rect
@@ -461,7 +444,7 @@ export default function LapByLapTrendChart({
                                     if (!coords) return
                                     const innerX = coords.x - defaultMargin.left
                                     const lapIndexValue = xScale.invert(innerX)
-                                    let nearestDriver: typeof drivers[0] | null = null
+                                    let nearestDriver: (typeof drivers)[0] | null = null
                                     let nearest: LapTrendPoint | null = null
                                     let minDist = Infinity
                                     for (const drv of drivers) {
@@ -476,7 +459,9 @@ export default function LapByLapTrendChart({
                                       }
                                     }
                                     if (nearest && nearestDriver) {
-                                      const band = sessionBands.find((b) => b.raceId === nearest!.raceId)
+                                      const band = sessionBands.find(
+                                        (b) => b.raceId === nearest!.raceId
+                                      )
                                       const totalLapsInSession = band
                                         ? band.endLapIndex - band.startLapIndex + 1
                                         : null
@@ -519,69 +504,69 @@ export default function LapByLapTrendChart({
                               )
                             })}
 
-                              <Group
-                                style={{ cursor: "pointer" }}
-                                onClick={(e) => onAxisColorPickerRequest("y", e)}
-                                aria-label="Y-axis - Click to change color"
-                              >
-                                <AxisLeft
-                                  scale={yScale}
-                                  tickFormat={(v) => formatLapTime(Number(v))}
-                                  stroke={yAxisColor}
-                                  tickStroke={yAxisColor}
-                                  tickLabelProps={() => ({
-                                    fill: yAxisColor,
-                                    fontSize: 12,
-                                    textAnchor: "end",
-                                    dx: -8,
-                                  })}
-                                />
-                                {/* Hit area in margin only so it doesn't block tooltips on the plot */}
-                                <rect
-                                  x={-defaultMargin.left}
-                                  y={0}
-                                  width={defaultMargin.left}
-                                  height={innerHeight}
-                                  fill="transparent"
-                                  pointerEvents="all"
-                                />
-                              </Group>
-
-                              <Group
-                                style={{ cursor: "pointer" }}
-                                onClick={(e) => onAxisColorPickerRequest("x", e)}
-                                aria-label="X-axis - Click to change color"
-                              >
-                                <AxisBottom
-                                  top={innerHeight}
-                                  scale={xScale}
-                                  stroke={xAxisColor}
-                                  tickStroke={xAxisColor}
-                                  tickLabelProps={() => ({
-                                    fill: xAxisColor,
-                                    fontSize: 11,
-                                    textAnchor: "middle",
-                                  })}
-                                  label="Lap number"
-                                  labelProps={{
-                                    fill: xAxisColor,
-                                    fontSize: 12,
-                                    textAnchor: "middle",
-                                    dy: 10,
-                                  }}
-                                />
-                                <rect
-                                  x={0}
-                                  y={innerHeight}
-                                  width={innerWidth}
-                                  height={40}
-                                  fill="transparent"
-                                  pointerEvents="all"
-                                />
-                              </Group>
-                            </Group>
+                          <Group
+                            style={{ cursor: "pointer" }}
+                            onClick={(e) => onAxisColorPickerRequest("y", e)}
+                            aria-label="Y-axis - Click to change color"
+                          >
+                            <AxisLeft
+                              scale={yScale}
+                              tickFormat={(v) => formatLapTime(Number(v))}
+                              stroke={yAxisColor}
+                              tickStroke={yAxisColor}
+                              tickLabelProps={() => ({
+                                fill: yAxisColor,
+                                fontSize: 12,
+                                textAnchor: "end",
+                                dx: -8,
+                              })}
+                            />
+                            {/* Hit area in margin only so it doesn't block tooltips on the plot */}
+                            <rect
+                              x={-defaultMargin.left}
+                              y={0}
+                              width={defaultMargin.left}
+                              height={innerHeight}
+                              fill="transparent"
+                              pointerEvents="all"
+                            />
                           </Group>
-                        </svg>
+
+                          <Group
+                            style={{ cursor: "pointer" }}
+                            onClick={(e) => onAxisColorPickerRequest("x", e)}
+                            aria-label="X-axis - Click to change color"
+                          >
+                            <AxisBottom
+                              top={innerHeight}
+                              scale={xScale}
+                              stroke={xAxisColor}
+                              tickStroke={xAxisColor}
+                              tickLabelProps={() => ({
+                                fill: xAxisColor,
+                                fontSize: 11,
+                                textAnchor: "middle",
+                              })}
+                              label="Lap number"
+                              labelProps={{
+                                fill: xAxisColor,
+                                fontSize: 12,
+                                textAnchor: "middle",
+                                dy: 10,
+                              }}
+                            />
+                            <rect
+                              x={0}
+                              y={innerHeight}
+                              width={innerWidth}
+                              height={40}
+                              fill="transparent"
+                              pointerEvents="all"
+                            />
+                          </Group>
+                        </Group>
+                      </Group>
+                    </svg>
                   </div>
                 )
               }}
@@ -617,8 +602,7 @@ export default function LapByLapTrendChart({
                   <div className="text-sm text-[var(--token-text-tertiary)]">
                     {[
                       tooltipData.lapInSession,
-                      tooltipData.sessionLapRange &&
-                        `Chart: ${tooltipData.sessionLapRange}`,
+                      tooltipData.sessionLapRange && `Chart: ${tooltipData.sessionLapRange}`,
                       tooltipData.overallLapIndex != null &&
                         `Overall lap ${tooltipData.overallLapIndex}`,
                     ]
@@ -628,8 +612,7 @@ export default function LapByLapTrendChart({
                 )}
                 {tooltipData.raceStartTime && (
                   <div className="text-sm text-[var(--token-text-secondary)]">
-                    Start Time:{" "}
-                    {formatTimeUTC(new Date(tooltipData.raceStartTime))}
+                    Start Time: {formatTimeUTC(new Date(tooltipData.raceStartTime))}
                   </div>
                 )}
                 <div className="text-sm text-[var(--token-text-secondary)]">
@@ -642,9 +625,7 @@ export default function LapByLapTrendChart({
           {sessionBandPickerOpen != null && sessionBandPickerPosition != null && (
             <ChartColorPicker
               currentColor={
-                sessionBandPickerOpen === "sessionBand1"
-                  ? sessionBand1Color
-                  : sessionBand2Color
+                sessionBandPickerOpen === "sessionBand1" ? sessionBand1Color : sessionBand2Color
               }
               onColorChange={
                 sessionBandPickerOpen === "sessionBand1"
@@ -690,8 +671,7 @@ export default function LapByLapTrendChart({
           <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
             {drivers.map((driver, index) => {
               const color =
-                driverColorMap[`driver${index}`] ??
-                driverColors[index % driverColors.length]
+                driverColorMap[`driver${index}`] ?? driverColors[index % driverColors.length]
               const isHighlighted = hoveredDriverId == null || driver.driverId === hoveredDriverId
               return (
                 <div
@@ -703,8 +683,7 @@ export default function LapByLapTrendChart({
                 >
                   <button
                     type="button"
-                    className="w-4 h-4 shrink-0 rounded-full border-2 border-[var(--token-border-default)] cursor-pointer hover:ring-2 hover:ring-[var(--token-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
-                    style={{ backgroundColor: color }}
+                    className="flex items-center gap-2 cursor-pointer rounded px-0 py-0 text-left hover:ring-2 hover:ring-[var(--token-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
                     aria-label={`Change line color for ${driver.driverName}`}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -714,32 +693,33 @@ export default function LapByLapTrendChart({
                       })
                       setDriverPickerOpen(index)
                     }}
-                  />
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 cursor-pointer text-left"
-                    onClick={() => onDriverDeselect?.(driver.driverId)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        onDriverDeselect?.(driver.driverId)
-                      }
-                    }}
-                    aria-label={
-                      onDriverDeselect
-                        ? `Remove ${driver.driverName} from chart`
-                        : `Highlight ${driver.driverName} in chart`
-                    }
                   >
-                  <span className="text-[var(--token-text-secondary)]">
-                    {driver.driverName}
-                    {driver.laps.length > 0 && (
-                      <span className="ml-1 text-[var(--token-text-tertiary)]">
-                        ({driver.laps.length} laps)
-                      </span>
-                    )}
-                  </span>
+                    <div
+                      className="w-4 h-4 shrink-0 rounded-full border-2 border-[var(--token-border-default)]"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span className="text-[var(--token-text-secondary)]">
+                      {driver.driverName}
+                      {driver.laps.length > 0 && (
+                        <span className="ml-1 text-[var(--token-text-tertiary)]">
+                          ({driver.laps.length} laps)
+                        </span>
+                      )}
+                    </span>
                   </button>
+                  {onDriverDeselect && (
+                    <button
+                      type="button"
+                      className="shrink-0 rounded p-0.5 text-[var(--token-text-tertiary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+                      aria-label={`Remove ${driver.driverName} from chart`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDriverDeselect(driver.driverId)
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               )
             })}

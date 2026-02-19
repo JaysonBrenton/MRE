@@ -602,7 +602,6 @@ export default function EventAnalysisSidebar({
 
   const selectedClassInfo = selectedClass ? driversByClass.get(selectedClass) : null
   const raceClassInfo = selectedClass ? raceClasses?.get(selectedClass) : null
-  const vehicleType = raceClassInfo?.vehicleType
   const needsReview = raceClassInfo?.vehicleTypeNeedsReview ?? false
   const displayClass = selectedClassInfo
     ? `${selectedClassInfo.className} (${selectedClassInfo.driverCount})`

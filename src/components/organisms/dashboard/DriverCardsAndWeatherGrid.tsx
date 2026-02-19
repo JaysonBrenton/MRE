@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo, useSyncExternalStore } from "react"
 import {
   formatLapTime,
   formatPositionImprovement,
@@ -11,7 +11,7 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import ImprovementDriverCard from "./ImprovementDriverCard"
 
 export default function DriverCardsAndWeatherGrid({
-  event,
+  event: _event,
   topDrivers,
   mostConsistentDrivers,
   bestAvgLapDrivers,
@@ -40,10 +40,8 @@ export default function DriverCardsAndWeatherGrid({
   /** When true (practice day), show cards for single driver and use "Most Improved (Lap Time)" label */
   isPracticeDay?: boolean
 }) {
-  const eventDate = event?.eventDate ? new Date(event.eventDate) : null
   const [currentSection, setCurrentSection] = useState(0)
   const [currentClassIndex, setCurrentClassIndex] = useState<number>(0)
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const [isCarouselVisible, setIsCarouselVisible] = useState(true)
   const carouselRef = useRef<HTMLDivElement>(null)
   const sectionRef0 = useRef<HTMLDivElement>(null)
@@ -63,7 +61,11 @@ export default function DriverCardsAndWeatherGrid({
   const sections = useMemo(
     () => [
       { title: "Fastest Laps", data: topDrivers, type: "fastest" as const },
-      { title: "Most Consistent Drivers", data: mostConsistentDrivers, type: "consistency" as const },
+      {
+        title: "Most Consistent Drivers",
+        data: mostConsistentDrivers,
+        type: "consistency" as const,
+      },
       { title: "Best Overall Average Lap", data: bestAvgLapDrivers, type: "avgLap" as const },
       {
         title: isPracticeDay ? "Most Improved (Lap Time)" : "Most Improved",
@@ -71,13 +73,7 @@ export default function DriverCardsAndWeatherGrid({
         type: "improvement" as const,
       },
     ],
-    [
-      topDrivers,
-      mostConsistentDrivers,
-      bestAvgLapDrivers,
-      mostImprovedDrivers,
-      isPracticeDay,
-    ]
+    [topDrivers, mostConsistentDrivers, bestAvgLapDrivers, mostImprovedDrivers, isPracticeDay]
   )
 
   const hasData =
@@ -94,30 +90,17 @@ export default function DriverCardsAndWeatherGrid({
         (isPracticeDay ? selectedDriverIds.length >= 1 : selectedDriverIds.length > 1)))
 
   // Get union of all classes from all sections (all classes that appear in any section)
-  const getAllClasses = (): string[] => {
+  const allClasses = useMemo(() => {
     const allClassesSet = new Set<string>()
-
-    // Add all classes from each section
     topDrivers?.forEach((d) => allClassesSet.add(d.className))
     mostConsistentDrivers?.forEach((d) => allClassesSet.add(d.className))
     bestAvgLapDrivers?.forEach((d) => allClassesSet.add(d.className))
     mostImprovedDrivers?.forEach((d) => allClassesSet.add(d.className))
-
-    // Add all classes from races data
     races?.forEach((race) => {
-      if (race.className) {
-        allClassesSet.add(race.className)
-      }
+      if (race.className) allClassesSet.add(race.className)
     })
-
-    // Return sorted array of all unique classes
     return Array.from(allClassesSet).sort()
-  }
-
-  const allClasses = useMemo(
-    () => getAllClasses(),
-    [topDrivers, mostConsistentDrivers, bestAvgLapDrivers, mostImprovedDrivers, races]
-  )
+  }, [topDrivers, mostConsistentDrivers, bestAvgLapDrivers, mostImprovedDrivers, races])
 
   // Calculate user metrics filtered by selected class
   const filteredUserMetrics = useMemo(() => {
@@ -246,7 +229,6 @@ export default function DriverCardsAndWeatherGrid({
 
     // Calculate user's best lap in selected class
     let userBestLapInClass: number | null = null
-    let userBestLapRaceLabel: string | null = null
     for (const race of classRaces) {
       for (const result of race.results) {
         if (
@@ -255,7 +237,6 @@ export default function DriverCardsAndWeatherGrid({
           (userBestLapInClass === null || result.fastLapTime < userBestLapInClass)
         ) {
           userBestLapInClass = result.fastLapTime
-          userBestLapRaceLabel = race.raceLabel
         }
       }
     }
@@ -795,14 +776,19 @@ export default function DriverCardsAndWeatherGrid({
   }
 
   // Respect prefers-reduced-motion: do not auto-scroll when user prefers less motion
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const handleChange = () => setPrefersReducedMotion(mq.matches)
-    setPrefersReducedMotion(mq.matches)
-    mq.addEventListener("change", handleChange)
-    return () => mq.removeEventListener("change", handleChange)
-  }, [])
+  const prefersReducedMotion = useSyncExternalStore(
+    (callback) => {
+      if (typeof window === "undefined") return () => {}
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+      mq.addEventListener("change", callback)
+      return () => mq.removeEventListener("change", callback)
+    },
+    () =>
+      typeof window !== "undefined"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        : false,
+    () => false
+  )
 
   // Pause auto-scroll when carousel is not visible or document is hidden
   useEffect(() => {
@@ -954,7 +940,7 @@ export default function DriverCardsAndWeatherGrid({
 
     carousel.addEventListener("scroll", handleScroll, { passive: true })
     return () => carousel.removeEventListener("scroll", handleScroll)
-  }, [currentSection, sections.length])
+  }, [currentSection, sections.length, sectionRefs])
 
   return (
     <section className="grid grid-cols-12 gap-4 lg:gap-6">
@@ -1313,7 +1299,6 @@ export default function DriverCardsAndWeatherGrid({
           )}
         </div>
       </div>
-
     </section>
   )
 }
@@ -1323,7 +1308,6 @@ type DriverCardData =
   | NonNullable<EventAnalysisSummary["mostConsistentDrivers"]>[number]
   | NonNullable<EventAnalysisSummary["bestAvgLapDrivers"]>[number]
   | NonNullable<EventAnalysisSummary["mostImprovedDrivers"]>[number]
-
 
 function DriverCard({
   driver,

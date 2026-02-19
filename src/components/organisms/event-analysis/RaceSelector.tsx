@@ -39,9 +39,12 @@ function sortRaces(races: Race[], sortKey: SortKey, sortDir: SortDir): Race[] {
   return [...races].sort((a, b) => {
     switch (sortKey) {
       case "race":
-        return mult * (a.raceLabel.localeCompare(b.raceLabel, undefined, { sensitivity: "base" }))
+        return mult * a.raceLabel.localeCompare(b.raceLabel, undefined, { sensitivity: "base" })
       case "class":
-        return mult * ((a.className ?? "").localeCompare(b.className ?? "", undefined, { sensitivity: "base" }))
+        return (
+          mult *
+          (a.className ?? "").localeCompare(b.className ?? "", undefined, { sensitivity: "base" })
+        )
       case "date":
       case "startTime": {
         const ta = a.startTime?.getTime() ?? Number.MAX_SAFE_INTEGER
@@ -109,9 +112,11 @@ export default function RaceSelector({
     setCurrentPage(1)
   }
 
-  useEffect(() => setCurrentPage(1), [selectedClass])
   useEffect(() => {
-    setCurrentPage((prev) => Math.min(prev, totalPages))
+    queueMicrotask(() => setCurrentPage(1))
+  }, [selectedClass])
+  useEffect(() => {
+    queueMicrotask(() => setCurrentPage((prev) => Math.min(prev, totalPages)))
   }, [totalPages])
 
   const handlePageChange = (page: number) => {
@@ -151,8 +156,11 @@ export default function RaceSelector({
                 ] as const
               ).map(({ key, label }) => {
                 const isActive = sortKey === key
-                const ariaSort =
-                  !isActive ? undefined : sortDir === "asc" ? "ascending" : "descending"
+                const ariaSort = !isActive
+                  ? undefined
+                  : sortDir === "asc"
+                    ? "ascending"
+                    : "descending"
                 return (
                   <th
                     key={key}
@@ -189,7 +197,11 @@ export default function RaceSelector({
                 <StandardTableRow
                   key={race.id}
                   onClick={() => onRaceSelect(race.id)}
-                  className={isSelected ? "bg-[var(--token-accent)]/10 border-l-4 border-l-[var(--token-accent)]" : ""}
+                  className={
+                    isSelected
+                      ? "bg-[var(--token-accent)]/10 border-l-4 border-l-[var(--token-accent)]"
+                      : ""
+                  }
                 >
                   <StandardTableCell>
                     <span className="font-medium text-[var(--token-text-primary)]">

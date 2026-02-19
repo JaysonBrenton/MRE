@@ -30,7 +30,6 @@ import SessionsTab from "@/components/organisms/event-analysis/SessionsTab"
 import MyEventsContent from "@/components/organisms/event-analysis/MyEventsContent"
 import EventAnalysisHeader from "@/components/organisms/event-analysis/EventAnalysisHeader"
 import { useEventActions } from "@/components/organisms/dashboard/EventActionsContext"
-import LinkYourDriverPrompt from "@/components/organisms/event-analysis/LinkYourDriverPrompt"
 import PracticeMyDayTab from "@/components/organisms/event-analysis/PracticeMyDayTab"
 import PracticeMySessionsTab from "@/components/organisms/event-analysis/PracticeMySessionsTab"
 import PracticeClassLeaderboard from "@/components/organisms/event-analysis/PracticeClassLeaderboard"
@@ -166,8 +165,9 @@ export default function EventAnalysisSection() {
   const isAnalysisLoading = useAppSelector((state) => state.dashboard.isAnalysisLoading)
   const analysisError = useAppSelector((state) => state.dashboard.analysisError)
   const eventData = useAppSelector((state) => state.dashboard.eventData)
-  const isEventLoading = useAppSelector((state) => state.dashboard.isEventLoading)
-  const selectedPracticeDriverId = useAppSelector((state) => state.dashboard.selectedPracticeDriverId)
+  const selectedPracticeDriverId = useAppSelector(
+    (state) => state.dashboard.selectedPracticeDriverId
+  )
   // Check if Redux has rehydrated from sessionStorage
   // This prevents showing empty states during the brief rehydration window after hard reload
   const isRehydrated = useAppSelector((state) => {
@@ -272,19 +272,23 @@ export default function EventAnalysisSection() {
   const availableTabs = isPracticeDay ? PRACTICE_DAY_TABS : EVENT_TABS
   const viewingDriverName =
     isPracticeDay && transformedData && selectedPracticeDriverId
-      ? transformedData.drivers.find((d) => d.driverId === selectedPracticeDriverId)?.driverName ?? null
+      ? (transformedData.drivers.find((d) => d.driverId === selectedPracticeDriverId)?.driverName ??
+        null)
       : null
 
   // When data switches between practice day and event, sync active tab
   useEffect(() => {
     const practiceTabIds: TabId[] = ["my-day", "my-sessions", "class-reference", "all-sessions"]
     const eventTabIds: TabId[] = ["overview", "sessions", "my-events", "drivers"]
-    if (isPracticeDay && eventTabIds.includes(activeTab)) {
-      setActiveTab("my-day")
-    } else if (!isPracticeDay && practiceTabIds.includes(activeTab)) {
-      setActiveTab("overview")
+    const sync = () => {
+      if (isPracticeDay && eventTabIds.includes(activeTab)) {
+        setActiveTab("my-day")
+      } else if (!isPracticeDay && practiceTabIds.includes(activeTab)) {
+        setActiveTab("overview")
+      }
     }
-  }, [isPracticeDay])
+    queueMicrotask(sync)
+  }, [isPracticeDay, activeTab])
 
   // Measure fixed header height for spacer (must run after transformedData/isPracticeDay are defined)
   useLayoutEffect(() => {
@@ -369,7 +373,6 @@ export default function EventAnalysisSection() {
             </div>
             {/* Tab content - scrolls normally */}
             <div className="space-y-6">
-
               {activeTab === "overview" && (
                 <>
                   <OverviewTab
@@ -391,7 +394,12 @@ export default function EventAnalysisSection() {
               )}
 
               {activeTab === "my-events" && (
-                <div className="space-y-6" role="tabpanel" id="tabpanel-my-events" aria-labelledby="tab-my-events">
+                <div
+                  className="space-y-6"
+                  role="tabpanel"
+                  id="tabpanel-my-events"
+                  aria-labelledby="tab-my-events"
+                >
                   <MyEventsContent
                     onEventSelect={(eventId) => {
                       dispatch(selectEvent(eventId))
@@ -427,11 +435,13 @@ export default function EventAnalysisSection() {
                 />
               )}
               {isPracticeDay && activeTab === "class-reference" && transformedData && (
-                <div className="space-y-6" role="tabpanel" id="tabpanel-class-reference" aria-labelledby="tab-class-reference">
-                  <PracticeClassLeaderboard
-                    data={transformedData}
-                    selectedClass={selectedClass}
-                  />
+                <div
+                  className="space-y-6"
+                  role="tabpanel"
+                  id="tabpanel-class-reference"
+                  aria-labelledby="tab-class-reference"
+                >
+                  <PracticeClassLeaderboard data={transformedData} selectedClass={selectedClass} />
                   <DriversTab
                     data={transformedData}
                     selectedClass={selectedClass}
@@ -440,7 +450,12 @@ export default function EventAnalysisSection() {
                 </div>
               )}
               {isPracticeDay && activeTab === "all-sessions" && transformedData && (
-                <div className="space-y-6" role="tabpanel" id="tabpanel-all-sessions" aria-labelledby="tab-all-sessions">
+                <div
+                  className="space-y-6"
+                  role="tabpanel"
+                  id="tabpanel-all-sessions"
+                  aria-labelledby="tab-all-sessions"
+                >
                   <div>
                     <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
                       All Sessions

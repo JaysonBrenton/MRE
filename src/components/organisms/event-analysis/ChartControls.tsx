@@ -229,7 +229,7 @@ export default function ChartControls({
   onClassChange,
   selectedClass: selectedClassProp = null,
   raceClasses,
-  eventId,
+  eventId: _eventId,
   onSelectAllClick,
 }: ChartControlsProps) {
   const [isCompact, setIsCompact] = useState(false)
@@ -240,7 +240,7 @@ export default function ChartControls({
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false)
   // Track whether drivers were manually selected via the driver modal
   // vs auto-selected via class selection
-  const [driversManuallySelected, setDriversManuallySelected] = useState(false)
+  const [, setDriversManuallySelected] = useState(false)
 
   // Debug: Log selectedClass value to verify it's updating
   useEffect(() => {
@@ -427,18 +427,10 @@ export default function ChartControls({
 
   const selectedClassInfo = selectedClass ? driversByClass.get(selectedClass) : null
   const raceClassInfo = selectedClass ? raceClasses?.get(selectedClass) : null
-  const vehicleType = raceClassInfo?.vehicleType
   const needsReview = raceClassInfo?.vehicleTypeNeedsReview ?? false
   const displayClass = selectedClassInfo
     ? `${selectedClassInfo.className} (${selectedClassInfo.driverCount})`
     : "All Classes"
-
-  const selectionText =
-    selectedCount === 0
-      ? "No drivers selected"
-      : selectedCount === totalDriverCount
-        ? `All ${totalDriverCount} drivers selected`
-        : `${selectedCount} of ${totalDriverCount} drivers selected`
 
   return (
     <div className="space-y-4 mb-6">

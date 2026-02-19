@@ -63,7 +63,7 @@ export interface LapTimeLineChartProps {
 
 const defaultMargin = { top: 20, right: 20, bottom: 60, left: 80 }
 const textColor = "var(--token-text-primary)"
-const textSecondaryColor = "var(--token-text-secondary)"
+const _textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
 const DEFAULT_AXIS_COLOR = "#ffffff"
 
@@ -156,9 +156,10 @@ export default function LapTimeLineChart({
   const [hoveredDriverId, setHoveredDriverId] = useState<string | null>(null)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [colorPickerDriverId, setColorPickerDriverId] = useState<string | null>(null)
-  const [colorPickerPosition, setColorPickerPosition] = useState<{ top: number; left: number } | null>(
-    null
-  )
+  const [colorPickerPosition, setColorPickerPosition] = useState<{
+    top: number
+    left: number
+  } | null>(null)
 
   // Generate default colors for drivers
   const defaultColors = useMemo(() => {
@@ -232,7 +233,6 @@ export default function LapTimeLineChart({
 
       const rect = svgRef.current.getBoundingClientRect()
       const innerWidth = rect.width - defaultMargin.left - defaultMargin.right
-      const innerHeight = rect.height - defaultMargin.top - defaultMargin.bottom
 
       const xScale = scaleLinear({
         range: [0, innerWidth],
@@ -245,8 +245,7 @@ export default function LapTimeLineChart({
       const rawLap =
         typeof xScale.invert === "function"
           ? xScale.invert(mouseX)
-          : originalXDomain[0] +
-            (mouseX / innerWidth) * (originalXDomain[1] - originalXDomain[0])
+          : originalXDomain[0] + (mouseX / innerWidth) * (originalXDomain[1] - originalXDomain[0])
       const lapNumber = Math.round(rawLap)
       const clampedLap = Math.max(
         Math.floor(originalXDomain[0]),
@@ -291,18 +290,15 @@ export default function LapTimeLineChart({
     []
   )
 
-  const handleLineClick = useCallback(
-    (driverId: string, event: React.MouseEvent<SVGElement>) => {
-      event.stopPropagation()
-      setColorPickerPosition({
-        top: event.clientY + 8,
-        left: event.clientX,
-      })
-      setColorPickerDriverId(driverId)
-      setShowColorPicker(true)
-    },
-    []
-  )
+  const handleLineClick = useCallback((driverId: string, event: React.MouseEvent<SVGElement>) => {
+    event.stopPropagation()
+    setColorPickerPosition({
+      top: event.clientY + 8,
+      left: event.clientX,
+    })
+    setColorPickerDriverId(driverId)
+    setShowColorPicker(true)
+  }, [])
 
   // Get computed colors for SVG
   const computedColors = useMemo(() => {
@@ -344,351 +340,351 @@ export default function LapTimeLineChart({
         selectedClass={selectedClass}
         axisColorPicker
         defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
-        renderContent={({
-          axisColors: { xAxisColor, yAxisColor },
-          onAxisColorPickerRequest,
-        }) => (
+        renderContent={({ axisColors: { xAxisColor, yAxisColor }, onAxisColorPickerRequest }) => (
           <div className="relative w-full" style={{ minHeight: `${height}px` }}>
-        <ParentSize>
-          {({ width: parentWidth }) => {
-            const width = parentWidth || 800
+            <ParentSize>
+              {({ width: parentWidth }) => {
+                const width = parentWidth || 800
 
-            if (width === 0) {
-              return null
-            }
+                if (width === 0) {
+                  return null
+                }
 
-            const innerWidth = width - defaultMargin.left - defaultMargin.right
-            const innerHeight = height - defaultMargin.top - defaultMargin.bottom
+                const innerWidth = width - defaultMargin.left - defaultMargin.right
+                const innerHeight = height - defaultMargin.top - defaultMargin.bottom
 
-            // X scale (lap numbers)
-            const xScale = scaleLinear({
-              range: [0, innerWidth],
-              domain: originalXDomain,
-              nice: true,
-            })
+                // X scale (lap numbers)
+                const xScale = scaleLinear({
+                  range: [0, innerWidth],
+                  domain: originalXDomain,
+                  nice: true,
+                })
 
-            // Y scale (lap times)
-            const yScale = scaleLinear({
-              range: [innerHeight, 0],
-              domain: originalYDomain,
-              nice: true,
-            })
+                // Y scale (lap times)
+                const yScale = scaleLinear({
+                  range: [innerHeight, 0],
+                  domain: originalYDomain,
+                  nice: true,
+                })
 
-            return (
-              <>
-                <svg
-                  ref={svgRef}
-                  width={width}
-                  height={height}
-                  aria-labelledby={chartDescId}
-                  role="img"
-                  overflow="visible"
-                  onMouseMove={handleTooltipHover}
-                  onMouseLeave={hideTooltip}
-                >
-                  <desc id={chartDescId}>
-                    Line chart showing lap times for each driver across all laps in the race.
-                    {visibleData.length > 0 &&
-                      `Showing ${visibleData.length} driver${visibleData.length !== 1 ? "s" : ""}.`}
-                  </desc>
-                  <Group left={defaultMargin.left} top={defaultMargin.top}>
-                    {/* Grid lines (5 ticks per design standards) */}
-                    {yScale.ticks(5).map((tick) => (
-                      <line
-                        key={tick}
-                        x1={0}
-                        x2={innerWidth}
-                        y1={yScale(tick)}
-                        y2={yScale(tick)}
-                        stroke={borderColor}
-                        strokeWidth={1}
-                        strokeDasharray="2,2"
-                        opacity={0.3}
-                      />
-                    ))}
-
-                    {/* Driver lines */}
-                    {visibleData.map((driver) => {
-                      const color = computedColors[driver.driverId]
-                      const validLaps = driver.laps.filter(
-                        (lap) =>
-                          lap.lapNumber >= originalXDomain[0] &&
-                          lap.lapNumber <= originalXDomain[1] &&
-                          lap.lapTimeSeconds >= originalYDomain[0] &&
-                          lap.lapTimeSeconds <= originalYDomain[1]
-                      )
-
-                      if (validLaps.length === 0) return null
-
-                      const isEmphasized =
-                        !hoveredDriverId || driver.driverId === hoveredDriverId
-                      const strokeWidth = isEmphasized ? (hoveredDriverId ? 3 : 2) : 1.5
-                      const strokeOpacity = isEmphasized ? 1 : 0.4
-
-                      const bestLap =
-                        highlightBestLaps && validLaps.length > 0
-                          ? validLaps.reduce((best, l) =>
-                              l.lapTimeSeconds < best.lapTimeSeconds ? l : best
-                            )
-                          : null
-
-                      return (
-                        <Group
-                          key={driver.driverId}
-                          onClick={(e) => handleLineClick(driver.driverId, e)}
-                          style={{ cursor: "pointer" }}
-                          aria-label={`${driver.driverName} - Click to change line color`}
-                        >
-                          <LinePath
-                            data={validLaps}
-                            x={(d) => xScale(d.lapNumber)}
-                            y={(d) => yScale(d.lapTimeSeconds)}
-                            stroke={color}
-                            strokeWidth={strokeWidth}
-                            curve={curveMonotoneX}
-                            strokeOpacity={strokeOpacity}
-                            pointerEvents="stroke"
+                return (
+                  <>
+                    <svg
+                      ref={svgRef}
+                      width={width}
+                      height={height}
+                      aria-labelledby={chartDescId}
+                      role="img"
+                      overflow="visible"
+                      onMouseMove={handleTooltipHover}
+                      onMouseLeave={hideTooltip}
+                    >
+                      <desc id={chartDescId}>
+                        Line chart showing lap times for each driver across all laps in the race.
+                        {visibleData.length > 0 &&
+                          `Showing ${visibleData.length} driver${visibleData.length !== 1 ? "s" : ""}.`}
+                      </desc>
+                      <Group left={defaultMargin.left} top={defaultMargin.top}>
+                        {/* Grid lines (5 ticks per design standards) */}
+                        {yScale.ticks(5).map((tick) => (
+                          <line
+                            key={tick}
+                            x1={0}
+                            x2={innerWidth}
+                            y1={yScale(tick)}
+                            y2={yScale(tick)}
+                            stroke={borderColor}
+                            strokeWidth={1}
+                            strokeDasharray="2,2"
+                            opacity={0.3}
                           />
-                          {/* Data points on lines */}
-                          {validLaps.map((d) => {
-                            const pointRadius = validLaps.length > 30 ? 2 : 3
-                            return (
-                              <Circle
-                                key={`${driver.driverId}-${d.lapNumber}`}
-                                cx={xScale(d.lapNumber)}
-                                cy={yScale(d.lapTimeSeconds)}
-                                r={pointRadius}
-                                fill={color}
+                        ))}
+
+                        {/* Driver lines */}
+                        {visibleData.map((driver) => {
+                          const color = computedColors[driver.driverId]
+                          const validLaps = driver.laps.filter(
+                            (lap) =>
+                              lap.lapNumber >= originalXDomain[0] &&
+                              lap.lapNumber <= originalXDomain[1] &&
+                              lap.lapTimeSeconds >= originalYDomain[0] &&
+                              lap.lapTimeSeconds <= originalYDomain[1]
+                          )
+
+                          if (validLaps.length === 0) return null
+
+                          const isEmphasized =
+                            !hoveredDriverId || driver.driverId === hoveredDriverId
+                          const strokeWidth = isEmphasized ? (hoveredDriverId ? 3 : 2) : 1.5
+                          const strokeOpacity = isEmphasized ? 1 : 0.4
+
+                          const bestLap =
+                            highlightBestLaps && validLaps.length > 0
+                              ? validLaps.reduce((best, l) =>
+                                  l.lapTimeSeconds < best.lapTimeSeconds ? l : best
+                                )
+                              : null
+
+                          return (
+                            <Group
+                              key={driver.driverId}
+                              onClick={(e) => handleLineClick(driver.driverId, e)}
+                              style={{ cursor: "pointer" }}
+                              aria-label={`${driver.driverName} - Click to change line color`}
+                            >
+                              <LinePath
+                                data={validLaps}
+                                x={(d) => xScale(d.lapNumber)}
+                                y={(d) => yScale(d.lapTimeSeconds)}
                                 stroke={color}
-                                strokeWidth={1}
+                                strokeWidth={strokeWidth}
+                                curve={curveMonotoneX}
+                                strokeOpacity={strokeOpacity}
+                                pointerEvents="stroke"
                               />
-                            )
-                          })}
-                          {/* Best lap marker */}
-                          {bestLap && (
-                            <Circle
-                              cx={xScale(bestLap.lapNumber)}
-                              cy={yScale(bestLap.lapTimeSeconds)}
-                              r={5}
-                              fill="#1a1a1a"
-                              stroke={color}
-                              strokeWidth={2}
-                            />
-                          )}
-                        </Group>
-                      )
-                    })}
-
-                    {/* Reference lines */}
-                    {referenceLines.map((ref, i) => (
-                      <line
-                        key={i}
-                        x1={0}
-                        x2={innerWidth}
-                        y1={yScale(ref.value)}
-                        y2={yScale(ref.value)}
-                        stroke={ref.stroke ?? borderColor}
-                        strokeDasharray="6,4"
-                        strokeWidth={1}
-                        opacity={0.5}
-                      />
-                    ))}
-
-                    {/* Vertical crosshair at hovered lap */}
-                    {tooltipOpen && tooltipData && (
-                      <line
-                        x1={xScale(tooltipData.lapNumber)}
-                        x2={xScale(tooltipData.lapNumber)}
-                        y1={0}
-                        y2={innerHeight}
-                        stroke={borderColor}
-                        strokeDasharray="4,4"
-                        opacity={0.6}
-                      />
-                    )}
-
-                    {/* Y-axis - clickable to open color picker */}
-                    <Group
-                      style={{ cursor: "pointer" }}
-                      onClick={(e) => onAxisColorPickerRequest("y", e)}
-                      aria-label="Y-axis - Click to change color"
-                    >
-                      <AxisLeft
-                        scale={yScale}
-                        tickFormat={(value) => formatLapTime(Number(value))}
-                        stroke={yAxisColor}
-                        tickStroke={yAxisColor}
-                        tickLabelProps={() => ({
-                          fill: yAxisColor,
-                          fontSize: 12,
-                          textAnchor: "end",
-                          dx: -8,
+                              {/* Data points on lines */}
+                              {validLaps.map((d) => {
+                                const pointRadius = validLaps.length > 30 ? 2 : 3
+                                return (
+                                  <Circle
+                                    key={`${driver.driverId}-${d.lapNumber}`}
+                                    cx={xScale(d.lapNumber)}
+                                    cy={yScale(d.lapTimeSeconds)}
+                                    r={pointRadius}
+                                    fill={color}
+                                    stroke={color}
+                                    strokeWidth={1}
+                                  />
+                                )
+                              })}
+                              {/* Best lap marker */}
+                              {bestLap && (
+                                <Circle
+                                  cx={xScale(bestLap.lapNumber)}
+                                  cy={yScale(bestLap.lapTimeSeconds)}
+                                  r={5}
+                                  fill="#1a1a1a"
+                                  stroke={color}
+                                  strokeWidth={2}
+                                />
+                              )}
+                            </Group>
+                          )
                         })}
-                      />
-                      <rect
-                        x={0}
-                        y={0}
-                        width={80}
-                        height={innerHeight}
-                        fill="transparent"
-                        pointerEvents="all"
-                      />
-                    </Group>
 
-                    {/* X-axis - clickable to open color picker */}
-                    <Group
-                      style={{ cursor: "pointer" }}
-                      onClick={(e) => onAxisColorPickerRequest("x", e)}
-                      aria-label="X-axis - Click to change color"
-                    >
-                      <AxisBottom
-                        top={innerHeight}
-                        scale={xScale}
-                        stroke={xAxisColor}
-                        tickStroke={xAxisColor}
-                        tickLabelProps={() => ({
-                          fill: xAxisColor,
-                          fontSize: 12,
-                          textAnchor: "middle",
-                          dy: 8,
-                        })}
-                      />
-                      <rect
-                        x={0}
-                        y={innerHeight}
-                        width={innerWidth}
-                        height={60}
-                        fill="transparent"
-                        pointerEvents="all"
-                      />
-                    </Group>
-                  </Group>
-                </svg>
+                        {/* Reference lines */}
+                        {referenceLines.map((ref, i) => (
+                          <line
+                            key={i}
+                            x1={0}
+                            x2={innerWidth}
+                            y1={yScale(ref.value)}
+                            y2={yScale(ref.value)}
+                            stroke={ref.stroke ?? borderColor}
+                            strokeDasharray="6,4"
+                            strokeWidth={1}
+                            opacity={0.5}
+                          />
+                        ))}
 
-                {/* Tooltip (multi-driver at same lap) */}
-                {tooltipOpen && tooltipData && (
-                  <TooltipWithBounds
-                    top={tooltipTop}
-                    left={tooltipLeft}
-                    style={{
-                      ...defaultStyles,
-                      backgroundColor: "var(--token-surface-elevated)",
-                      border: `1px solid ${borderColor}`,
-                      color: textColor,
-                      padding: "8px 12px",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    <div className="space-y-1">
-                      <div className="font-semibold text-[var(--token-text-primary)]">
-                        Lap {tooltipData.lapNumber}
-                      </div>
-                      {tooltipData.drivers.map(({ driver, point }) => (
-                        <div
-                          key={driver.driverId}
-                          className="flex items-center justify-between gap-4 text-sm text-[var(--token-text-secondary)]"
+                        {/* Vertical crosshair at hovered lap */}
+                        {tooltipOpen && tooltipData && (
+                          <line
+                            x1={xScale(tooltipData.lapNumber)}
+                            x2={xScale(tooltipData.lapNumber)}
+                            y1={0}
+                            y2={innerHeight}
+                            stroke={borderColor}
+                            strokeDasharray="4,4"
+                            opacity={0.6}
+                          />
+                        )}
+
+                        {/* Y-axis - clickable to open color picker */}
+                        <Group
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => onAxisColorPickerRequest("y", e)}
+                          aria-label="Y-axis - Click to change color"
                         >
-                          <span
-                            className="flex items-center gap-1.5"
-                            style={{ color: computedColors[driver.driverId] }}
-                          >
-                            <span
-                              className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: computedColors[driver.driverId] }}
-                            />
-                            {driver.driverName}
-                          </span>
-                          <span className="tabular-nums">
-                            {formatLapTime(point.lapTimeSeconds)}
-                          </span>
+                          <AxisLeft
+                            scale={yScale}
+                            tickFormat={(value) => formatLapTime(Number(value))}
+                            stroke={yAxisColor}
+                            tickStroke={yAxisColor}
+                            tickLabelProps={() => ({
+                              fill: yAxisColor,
+                              fontSize: 12,
+                              textAnchor: "end",
+                              dx: -8,
+                            })}
+                          />
+                          <rect
+                            x={0}
+                            y={0}
+                            width={80}
+                            height={innerHeight}
+                            fill="transparent"
+                            pointerEvents="all"
+                          />
+                        </Group>
+
+                        {/* X-axis - clickable to open color picker */}
+                        <Group
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => onAxisColorPickerRequest("x", e)}
+                          aria-label="X-axis - Click to change color"
+                        >
+                          <AxisBottom
+                            top={innerHeight}
+                            scale={xScale}
+                            stroke={xAxisColor}
+                            tickStroke={xAxisColor}
+                            tickLabelProps={() => ({
+                              fill: xAxisColor,
+                              fontSize: 12,
+                              textAnchor: "middle",
+                              dy: 8,
+                            })}
+                          />
+                          <rect
+                            x={0}
+                            y={innerHeight}
+                            width={innerWidth}
+                            height={60}
+                            fill="transparent"
+                            pointerEvents="all"
+                          />
+                        </Group>
+                      </Group>
+                    </svg>
+
+                    {/* Tooltip (multi-driver at same lap) */}
+                    {tooltipOpen && tooltipData && (
+                      <TooltipWithBounds
+                        top={tooltipTop}
+                        left={tooltipLeft}
+                        style={{
+                          ...defaultStyles,
+                          backgroundColor: "var(--token-surface-elevated)",
+                          border: `1px solid ${borderColor}`,
+                          color: textColor,
+                          padding: "8px 12px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        <div className="space-y-1">
+                          <div className="font-semibold text-[var(--token-text-primary)]">
+                            Lap {tooltipData.lapNumber}
+                          </div>
+                          {tooltipData.drivers.map(({ driver, point }) => (
+                            <div
+                              key={driver.driverId}
+                              className="flex items-center justify-between gap-4 text-sm text-[var(--token-text-secondary)]"
+                            >
+                              <span
+                                className="flex items-center gap-1.5"
+                                style={{ color: computedColors[driver.driverId] }}
+                              >
+                                <span
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: computedColors[driver.driverId] }}
+                                />
+                                {driver.driverName}
+                              </span>
+                              <span className="tabular-nums">
+                                {formatLapTime(point.lapTimeSeconds)}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </TooltipWithBounds>
-                )}
-              </>
-            )
-          }}
-        </ParentSize>
+                      </TooltipWithBounds>
+                    )}
+                  </>
+                )
+              }}
+            </ParentSize>
 
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
-          {data.map((driver) => {
-            const isVisible = visibleDrivers.has(driver.driverId)
-            const canToggle = isVisible ? visibleDrivers.size > 1 : true
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
+              {data.map((driver) => {
+                const isVisible = visibleDrivers.has(driver.driverId)
+                const canToggle = isVisible ? visibleDrivers.size > 1 : true
 
-            return (
-              <div
-                key={driver.driverId}
-                className={`flex items-center gap-2 transition-opacity ${!isVisible ? "opacity-40" : ""}`}
-                onMouseEnter={() => setHoveredDriverId(driver.driverId)}
-                onMouseLeave={() => setHoveredDriverId(null)}
-                role="group"
-                aria-label={`${driver.driverName} - ${isVisible ? "Visible" : "Hidden"}`}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => handleColorPickerClick(driver.driverId, e)}
-                  className="w-4 h-4 rounded-sm flex-shrink-0 border-2 border-transparent hover:border-[var(--token-accent)]/50 transition-all cursor-pointer"
-                  style={{
-                    backgroundColor: computedColors[driver.driverId],
-                    borderColor: computedColors[driver.driverId],
-                    opacity: isVisible ? 1 : 0.3,
-                  }}
-                  aria-label={`${driver.driverName} - Change color`}
-                  title="Click to change color"
-                />
-                <button
-                  type="button"
-                  onClick={() => canToggle && toggleDriver(driver.driverId)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault()
-                      if (canToggle) toggleDriver(driver.driverId)
-                    }
-                  }}
-                  disabled={!canToggle}
-                  tabIndex={0}
-                  className={`flex items-center gap-2 text-left ${
-                    canToggle ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed opacity-50"
-                  }`}
-                  aria-label={`${driver.driverName} - ${isVisible ? "Visible" : "Hidden"}. Click to toggle`}
-                  title={`${driver.driverName} - Click to ${isVisible ? "hide" : "show"}`}
-                >
-                  <span
-                    className={`text-[var(--token-text-secondary)] ${
-                      !isVisible ? "line-through opacity-50" : ""
-                    }`}
+                return (
+                  <div
+                    key={driver.driverId}
+                    className={`flex items-center gap-2 transition-opacity ${!isVisible ? "opacity-40" : ""}`}
+                    onMouseEnter={() => setHoveredDriverId(driver.driverId)}
+                    onMouseLeave={() => setHoveredDriverId(null)}
+                    role="group"
+                    aria-label={`${driver.driverName} - ${isVisible ? "Visible" : "Hidden"}`}
                   >
-                    {driver.driverName}
-                  </span>
-                  {!isVisible && (
-                    <span className="text-xs text-[var(--token-text-muted)]">(hidden)</span>
-                  )}
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+                    <button
+                      type="button"
+                      onClick={(e) => handleColorPickerClick(driver.driverId, e)}
+                      className="w-4 h-4 rounded-sm flex-shrink-0 border-2 border-transparent hover:border-[var(--token-accent)]/50 transition-all cursor-pointer"
+                      style={{
+                        backgroundColor: computedColors[driver.driverId],
+                        borderColor: computedColors[driver.driverId],
+                        opacity: isVisible ? 1 : 0.3,
+                      }}
+                      aria-label={`${driver.driverName} - Change color`}
+                      title="Click to change color"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => canToggle && toggleDriver(driver.driverId)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          if (canToggle) toggleDriver(driver.driverId)
+                        }
+                      }}
+                      disabled={!canToggle}
+                      tabIndex={0}
+                      className={`flex items-center gap-2 text-left ${
+                        canToggle
+                          ? "cursor-pointer hover:opacity-80"
+                          : "cursor-not-allowed opacity-50"
+                      }`}
+                      aria-label={`${driver.driverName} - ${isVisible ? "Visible" : "Hidden"}. Click to toggle`}
+                      title={`${driver.driverName} - Click to ${isVisible ? "hide" : "show"}`}
+                    >
+                      <span
+                        className={`text-[var(--token-text-secondary)] ${
+                          !isVisible ? "line-through opacity-50" : ""
+                        }`}
+                      >
+                        {driver.driverName}
+                      </span>
+                      {!isVisible && (
+                        <span className="text-xs text-[var(--token-text-muted)]">(hidden)</span>
+                      )}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
       />
 
-    {/* Color picker for driver colors */}
-    {showColorPicker && colorPickerPosition && colorPickerDriverId && (
-      <ChartColorPicker
-        currentColor={colors[colorPickerDriverId] || defaultColors[colorPickerDriverId] || "#3a8eff"}
-        onColorChange={(color) => setColor(colorPickerDriverId, color)}
-        onClose={() => {
-          setShowColorPicker(false)
-          setColorPickerDriverId(null)
-          setColorPickerPosition(null)
-        }}
-        position={colorPickerPosition}
-        label={`${data.find((d) => d.driverId === colorPickerDriverId)?.driverName ?? "Driver"} color`}
-      />
-    )}
-
-  </div>
+      {/* Color picker for driver colors */}
+      {showColorPicker && colorPickerPosition && colorPickerDriverId && (
+        <ChartColorPicker
+          currentColor={
+            colors[colorPickerDriverId] || defaultColors[colorPickerDriverId] || "#3a8eff"
+          }
+          onColorChange={(color) => setColor(colorPickerDriverId, color)}
+          onClose={() => {
+            setShowColorPicker(false)
+            setColorPickerDriverId(null)
+            setColorPickerPosition(null)
+          }}
+          position={colorPickerPosition}
+          label={`${data.find((d) => d.driverId === colorPickerDriverId)?.driverName ?? "Driver"} color`}
+        />
+      )}
+    </div>
   )
 }

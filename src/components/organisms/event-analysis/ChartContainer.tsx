@@ -18,7 +18,7 @@
 
 "use client"
 
-import { ReactNode, useState, useCallback } from "react"
+import { ReactNode, useState, useCallback, useMemo } from "react"
 import ChartColorPicker from "./ChartColorPicker"
 import Tooltip from "@/components/molecules/Tooltip"
 import { useChartColor } from "@/hooks/useChartColors"
@@ -78,10 +78,6 @@ export interface AxisColors {
   yAxisRightColor: string
 }
 
-function axisKeyToSeriesName(key: AxisColorKey): "xAxis" | "yAxis" | "yAxisRight" {
-  return key === "x" ? "xAxis" : key === "y" ? "yAxis" : "yAxisRight"
-}
-
 function axisKeyLabel(key: AxisColorKey): string {
   return key === "x" ? "X-axis" : key === "y" ? "Y-axis" : "Y-axis (right)"
 }
@@ -105,19 +101,19 @@ export default function ChartContainer({
   renderContent,
   headerControls,
 }: ChartContainerProps) {
-  const axisKeys: AxisColorKey[] =
-    axisColorPicker === true
-      ? ["x", "y"]
-      : Array.isArray(axisColorPicker)
-        ? axisColorPicker
-        : []
+  const axisKeys = useMemo<AxisColorKey[]>(
+    () =>
+      axisColorPicker === true ? ["x", "y"] : Array.isArray(axisColorPicker) ? axisColorPicker : [],
+    [axisColorPicker]
+  )
 
   const showAxisPickers = axisKeys.length > 0 && Boolean(chartInstanceId)
 
   const [axisPickerOpen, setAxisPickerOpen] = useState<AxisColorKey | null>(null)
-  const [axisPickerPosition, setAxisPickerPosition] = useState<{ top: number; left: number } | null>(
-    null
-  )
+  const [axisPickerPosition, setAxisPickerPosition] = useState<{
+    top: number
+    left: number
+  } | null>(null)
 
   const [xAxisColor, setXAxisColor] = useChartColor(
     chartInstanceId ?? "",
@@ -140,27 +136,30 @@ export default function ChartContainer({
     y: yAxisColor,
     yRight: yAxisRightColor,
   }
-  const setAxisColorByKey: Record<
-    AxisColorKey,
-    (color: string) => void
-  > = {
-    x: setXAxisColor,
-    y: setYAxisColor,
-    yRight: setYAxisRightColor,
-  }
+  const setAxisColorByKey = useMemo<Record<AxisColorKey, (color: string) => void>>(
+    () => ({
+      x: setXAxisColor,
+      y: setYAxisColor,
+      yRight: setYAxisRightColor,
+    }),
+    [setXAxisColor, setYAxisColor, setYAxisRightColor]
+  )
 
-  const handleAxisColorPickerRequest = useCallback((key: AxisColorKey, event: React.MouseEvent) => {
-    event.stopPropagation()
-    if (!axisKeys.includes(key)) return
-    setAxisPickerPosition({ top: event.clientY + 12, left: event.clientX })
-    setAxisPickerOpen(key)
-  }, [axisKeys])
+  const handleAxisColorPickerRequest = useCallback(
+    (key: AxisColorKey, event: React.MouseEvent) => {
+      event.stopPropagation()
+      if (!axisKeys.includes(key)) return
+      setAxisPickerPosition({ top: event.clientY + 12, left: event.clientX })
+      setAxisPickerOpen(key)
+    },
+    [axisKeys]
+  )
 
   const handleAxisColorChange = useCallback(
     (key: AxisColorKey) => (color: string) => {
       setAxisColorByKey[key](color)
     },
-    []
+    [setAxisColorByKey]
   )
 
   return (
@@ -202,8 +201,38 @@ export default function ChartContainer({
         {(title || headerControls) && (
           <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
             <div className="flex flex-wrap items-center gap-4 min-w-0 flex-1">
-              {title && (description ? (
-                <Tooltip text={description} position="top">
+              {title &&
+                (description ? (
+                  <Tooltip text={description} position="top">
+                    <h3
+                      className={
+                        titleClassName ??
+                        `text-lg font-semibold text-[var(--token-text-primary)] ${
+                          onTitleClick
+                            ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
+                            : ""
+                        }`
+                      }
+                      onClick={onTitleClick}
+                      onKeyDown={(e) => {
+                        if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault()
+                          onTitleClick()
+                        }
+                      }}
+                      tabIndex={onTitleClick ? 0 : undefined}
+                      role={onTitleClick ? "button" : undefined}
+                      aria-label={
+                        onTitleClick
+                          ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
+                          : undefined
+                      }
+                    >
+                      {title}
+                      {selectedClass ? ` - ${selectedClass}` : ""}
+                    </h3>
+                  </Tooltip>
+                ) : (
                   <h3
                     className={
                       titleClassName ??
@@ -231,36 +260,7 @@ export default function ChartContainer({
                     {title}
                     {selectedClass ? ` - ${selectedClass}` : ""}
                   </h3>
-                </Tooltip>
-              ) : (
-                <h3
-                  className={
-                    titleClassName ??
-                    `text-lg font-semibold text-[var(--token-text-primary)] ${
-                      onTitleClick
-                        ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
-                        : ""
-                    }`
-                  }
-                  onClick={onTitleClick}
-                  onKeyDown={(e) => {
-                    if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
-                      e.preventDefault()
-                      onTitleClick()
-                    }
-                  }}
-                  tabIndex={onTitleClick ? 0 : undefined}
-                  role={onTitleClick ? "button" : undefined}
-                  aria-label={
-                    onTitleClick
-                      ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
-                      : undefined
-                  }
-                >
-                  {title}
-                  {selectedClass ? ` - ${selectedClass}` : ""}
-                </h3>
-              ))}
+                ))}
               {headerControls}
             </div>
           </div>

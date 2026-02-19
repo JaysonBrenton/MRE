@@ -77,12 +77,16 @@ export default function OverviewTab({
   useEffect(() => {
     const eventId = data.event.id
     if (!eventId) {
-      setWeather(null)
-      setWeatherError(null)
+      queueMicrotask(() => {
+        setWeather(null)
+        setWeatherError(null)
+      })
       return
     }
-    setWeatherLoading(true)
-    setWeatherError(null)
+    queueMicrotask(() => {
+      setWeatherLoading(true)
+      setWeatherError(null)
+    })
     const fetchWeather = (refresh = false) => {
       const url = `/api/v1/events/${eventId}/weather${refresh ? "?refresh=true" : ""}`
       return fetch(url, { cache: "no-store" }).then(async (response) => {
@@ -138,10 +142,9 @@ export default function OverviewTab({
   // Lap-trend chart: which drivers to show (subset of expandedSelectedDriverIds); cap at 8 when many selected
   const [lapTrendChartDriverIds, setLapTrendChartDriverIds] = useState<string[]>([])
   // Lap-trend sort: order drivers in chart/legend by this metric
-  const [lapTrendSortBy, setLapTrendSortBy] = useState<
+  const [lapTrendSortBy] = useState<
     "bestLap" | "averageLap" | "consistency" | "gapToFastest" | "averagePosition" | "podiumFinishes"
   >("bestLap")
-  const selectionKey = selectedDriverIds.join("|")
   const driversPerPage = 25
   const MAX_LAP_TREND_DRIVERS = 8
 
@@ -418,7 +421,10 @@ export default function OverviewTab({
       })
       filteredRaces.forEach((race) => {
         race.results.forEach((result) => {
-          if (result.lapsCompleted > 0 && selectedNormalizedNames.has(normalizeDriverName(result.driverName))) {
+          if (
+            result.lapsCompleted > 0 &&
+            selectedNormalizedNames.has(normalizeDriverName(result.driverName))
+          ) {
             expandedIds.add(result.driverId)
           }
         })
@@ -464,31 +470,34 @@ export default function OverviewTab({
     prevEventIdRef.current = data.event.id
     prevSelectedClassRef.current = selectedClass
     if (eventChanged || classChanged) {
-      setUnifiedChartDriverIds(selectedDriverIds)
+      queueMicrotask(() => setUnifiedChartDriverIds(selectedDriverIds))
     }
   }, [data.event.id, selectedClass, selectedDriverIds])
 
   // When event changes, default lap trend chart to 0 drivers selected (user picks via chart "Select Drivers")
   useEffect(() => {
-    setLapTrendChartDriverIds([])
+    queueMicrotask(() => setLapTrendChartDriverIds([]))
   }, [data.event.id])
 
   // Fetch lap-by-lap trend for drivers selected in the chart (lapTrendChartDriverIds)
   useEffect(() => {
     if (lapTrendChartDriverIds.length === 0) {
-      setLapTrendData(null)
-      setLapTrendError(null)
+      queueMicrotask(() => {
+        setLapTrendData(null)
+        setLapTrendError(null)
+      })
       return
     }
-    setLapTrendLoading(true)
-    setLapTrendError(null)
+    queueMicrotask(() => {
+      setLapTrendLoading(true)
+      setLapTrendError(null)
+    })
     const url = `/api/v1/events/${data.event.id}/lap-trend?driverIds=${encodeURIComponent(lapTrendChartDriverIds.join(","))}`
     fetch(url, { cache: "no-store", credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
           const err = await res.json().catch(() => ({}))
-          const message =
-            err?.error?.message ?? `Failed to load lap trend (${res.status})`
+          const message = err?.error?.message ?? `Failed to load lap trend (${res.status})`
           throw new Error(message)
         }
         const json = await res.json()
@@ -644,8 +653,7 @@ export default function OverviewTab({
   const prevAllDriversInClassSelected = useRef(false)
   useEffect(() => {
     if (prevAllDriversInClassSelected.current && !allDriversInClassSelected) {
-      // User had all drivers selected, but now they don't - clear the flag
-      setSelectAllClickedForCurrentClass(false)
+      queueMicrotask(() => setSelectAllClickedForCurrentClass(false))
     }
     prevAllDriversInClassSelected.current = allDriversInClassSelected
   }, [allDriversInClassSelected])
@@ -664,17 +672,6 @@ export default function OverviewTab({
       onDriverSelectionChange(driverIds)
     },
     [onDriverSelectionChange]
-  )
-
-  const handleDriverToggle = useCallback(
-    (driverId: string) => {
-      if (selectedDriverIds.includes(driverId)) {
-        handleSelectionChange(selectedDriverIds.filter((id) => id !== driverId))
-      } else {
-        handleSelectionChange([...selectedDriverIds, driverId])
-      }
-    },
-    [selectedDriverIds, handleSelectionChange]
   )
 
   // Per-chart: toggle one driver in the unified chart's selection (legend click)
@@ -706,7 +703,7 @@ export default function OverviewTab({
       const allSelected = allDriverIds.every((id) => selectedDriverIds.includes(id))
       if (!allSelected) {
         hasAutoSelectedOnLoad.current = eventId
-        handleSelectionChange(allDriverIds)
+        queueMicrotask(() => handleSelectionChange(allDriverIds))
       }
     }
   }, [driverOptions, selectedClass, selectedDriverIds, handleSelectionChange, data.event.id])
@@ -1069,10 +1066,7 @@ export default function OverviewTab({
                 id={mostImprovedContentId}
                 className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
               >
-                <ClassMostImprovedCard
-                  races={data.races}
-                  isPracticeDay={data.isPracticeDay}
-                />
+                <ClassMostImprovedCard races={data.races} isPracticeDay={data.isPracticeDay} />
               </div>
             )}
           </div>
@@ -1140,21 +1134,21 @@ export default function OverviewTab({
         {selectedClass &&
           selectedDriverIds.length > 0 &&
           unselectedDriversInClassNames.length > 0 && (
-          <ChartDataNotice
-            title="Some drivers in this class are not selected"
-            description={
-              <>
-                These drivers are in the selected class but were not included in your selection.
-                They may have been manually deselected or were not included when the class was
-                selected. You can select them in the driver selection panel above to include them in
-                the chart.
-              </>
-            }
-            driverNames={unselectedDriversInClassNames}
-            eventId={data.event.id}
-            noticeType="unselected-drivers"
-          />
-        )}
+            <ChartDataNotice
+              title="Some drivers in this class are not selected"
+              description={
+                <>
+                  These drivers are in the selected class but were not included in your selection.
+                  They may have been manually deselected or were not included when the class was
+                  selected. You can select them in the driver selection panel above to include them
+                  in the chart.
+                </>
+              }
+              driverNames={unselectedDriversInClassNames}
+              eventId={data.event.id}
+              noticeType="unselected-drivers"
+            />
+          )}
       </section>
 
       <section className="space-y-4">
@@ -1225,10 +1219,15 @@ export default function OverviewTab({
                   onDriverToggle={handleUnifiedChartDriverToggle}
                   chartInstanceId={`overview-${data.event.id}-unified`}
                   selectedClass={selectedClass}
-                  allDriversInClassSelected={allDriversInClassSelected && selectAllClickedForCurrentClass}
+                  allDriversInClassSelected={
+                    allDriversInClassSelected && selectAllClickedForCurrentClass
+                  }
                   chartView={chartViewState}
                   onChartViewChange={setChartViewState}
-                  chartDriverOptions={driverStatsByClass.map((d) => ({ driverId: d.driverId, driverName: d.driverName }))}
+                  chartDriverOptions={driverStatsByClass.map((d) => ({
+                    driverId: d.driverId,
+                    driverName: d.driverName,
+                  }))}
                   chartSelectedDriverIds={unifiedChartDriverIds}
                   onChartDriverSelectionChange={setUnifiedChartDriverIds}
                   availableClasses={validClasses}
@@ -1313,7 +1312,7 @@ export default function OverviewTab({
                       height={450}
                       chartInstanceId={`overview-${data.event.id}-lap-trend`}
                       chartTitle={
-                        selectedClass === null ? "All Classes" : selectedClass ?? "All Classes"
+                        selectedClass === null ? "All Classes" : (selectedClass ?? "All Classes")
                       }
                       headerControls={
                         <div className="flex flex-wrap items-center gap-4">
@@ -1350,10 +1349,10 @@ export default function OverviewTab({
                       emptyMessage={
                         lapTrendLoading
                           ? "Loading lap data…"
-                          : lapTrendError ??
+                          : (lapTrendError ??
                             (lapTrendChartDriverIds.length === 0
                               ? "No drivers selected for this chart. Use Drivers to add."
-                              : "No lap data for selected drivers.")
+                              : "No lap data for selected drivers."))
                       }
                     />
                   </>

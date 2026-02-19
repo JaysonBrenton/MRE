@@ -447,7 +447,7 @@ export async function getEventSummary(
   }
 
   // Sort drivers within each class by fastest lap time
-  for (const [className, drivers] of driversByClass.entries()) {
+  for (const [_className, drivers] of driversByClass.entries()) {
     drivers.sort((a, b) => a.fastestLapTime - b.fastestLapTime)
   }
 
@@ -932,9 +932,7 @@ export async function getEventSummary(
         earliest: toDateOnlyUTC(event.eventDate),
         latest: toDateOnlyUTC(
           raceStats._max.startTime != null
-            ? new Date(
-                Math.max(event.eventDate.getTime(), raceStats._max.startTime.getTime())
-              )
+            ? new Date(Math.max(event.eventDate.getTime(), raceStats._max.startTime.getTime()))
             : event.eventDate
         ),
       },
@@ -1230,12 +1228,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
   const earliestDate = toDateOnlyUTC(event.eventDate)
   const latestDate = toDateOnlyUTC(
     raceDates.length > 0
-      ? new Date(
-          Math.max(
-            event.eventDate.getTime(),
-            ...raceDates.map((d) => d.getTime())
-          )
-        )
+      ? new Date(Math.max(event.eventDate.getTime(), ...raceDates.map((d) => d.getTime())))
       : event.eventDate
   )
 

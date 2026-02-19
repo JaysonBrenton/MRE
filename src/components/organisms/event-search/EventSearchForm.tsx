@@ -21,7 +21,7 @@
 import { useState } from "react"
 import TrackAndFavouritesModal from "./TrackAndFavouritesModal"
 import { type Track } from "./TrackRow"
-import DateRangePresetPicker, { type DateRangePreset, PRESETS as DATE_RANGE_PRESETS } from "./DateRangePresetPicker"
+import { type DateRangePreset, PRESETS as DATE_RANGE_PRESETS } from "./DateRangePresetPicker"
 import DateRangeModal from "./DateRangeModal"
 import MonthYearPicker from "../practice-days/MonthYearPicker"
 import Button from "@/components/atoms/Button"
@@ -76,7 +76,7 @@ export default function EventSearchForm({
   onToggleFavourite,
   onSearch,
   searchMode = "events",
-  onSearchModeChange,
+  onSearchModeChange: _onSearchModeChange,
   practiceYear,
   practiceMonth,
   onPracticeYearChange,
@@ -185,7 +185,8 @@ export default function EventSearchForm({
                   aria-haspopup="dialog"
                   aria-expanded={isDateRangeModalOpen}
                 >
-                  {DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ?? "Date range"}
+                  {DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ??
+                    "Date range"}
                 </Button>
               </div>
             )}
@@ -253,7 +254,6 @@ export default function EventSearchForm({
                 />
               </div>
             )}
-
         </div>
 
         <p
@@ -262,9 +262,7 @@ export default function EventSearchForm({
           role="status"
           aria-live="polite"
         >
-          <span className="font-medium text-[var(--token-text-secondary)]">
-            Current Track:{" "}
-          </span>
+          <span className="font-medium text-[var(--token-text-secondary)]">Current Track: </span>
           <span className="font-semibold text-[var(--token-accent)]">
             {selectedTrack ? selectedTrack.trackName : "No track selected"}
           </span>

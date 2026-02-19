@@ -28,7 +28,6 @@ import { useDashboardEventSearch } from "@/components/organisms/dashboard/Dashbo
 import Modal from "@/components/molecules/Modal"
 import PracticeDriverSelector from "@/components/organisms/event-analysis/PracticeDriverSelector"
 import { EventActionsContext, type EventActionsContextValue } from "./EventActionsContext"
-import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 // Types for driver selection modal
 interface Driver {
@@ -273,7 +272,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
-  const [driversManuallySelected, setDriversManuallySelected] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -282,7 +280,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   useEffect(() => {
     setSelectedDriverIds([])
     setSelectedClass(null) // Default to "All Classes" when event changes
-    setDriversManuallySelected(false)
   }, [selectedEventId])
 
   // Debounce search query
@@ -294,7 +291,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   }, [searchQuery])
 
   // Transform analysis data to get drivers and races
-  const { drivers, races, raceClasses } = useMemo(() => {
+  const { drivers, races } = useMemo(() => {
     if (!analysisData) {
       return {
         drivers: [],
@@ -330,18 +327,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
 
     const driverList = Array.from(driverMap.values())
 
-    // Convert raceClasses object to Map
-    const raceClassesMap = new Map<
-      string,
-      { vehicleType: string | null; vehicleTypeNeedsReview: boolean }
-    >()
-    if (analysisData.raceClasses) {
-      Object.entries(analysisData.raceClasses).forEach(([key, value]) => {
-        raceClassesMap.set(key, value)
-      })
-    }
-
-    return { drivers: driverList, races: raceList, raceClasses: raceClassesMap }
+    return { drivers: driverList, races: raceList }
   }, [analysisData])
 
   // Group drivers by class
@@ -387,7 +373,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   // Handle class change from dropdown
   const handleClassChangeFromDropdown = useCallback(
     (className: string | null) => {
-      setDriversManuallySelected(true)
       setSelectedClass(className)
 
       if (className !== null) {
@@ -411,7 +396,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
 
   const handleDriverToggle = useCallback(
     (driverId: string) => {
-      setDriversManuallySelected(true)
       const newDriverIds = selectedDriverIds.includes(driverId)
         ? selectedDriverIds.filter((id) => id !== driverId)
         : [...selectedDriverIds, driverId]
@@ -427,7 +411,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   )
 
   const handleSelectAll = useCallback(() => {
-    setDriversManuallySelected(true)
     setSelectedDriverIds(visibleDrivers)
 
     const determinedClass = determineClassFromDrivers(visibleDrivers, races)
@@ -437,7 +420,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   }, [visibleDrivers, races, selectedClass])
 
   const handleClearSelection = useCallback(() => {
-    setDriversManuallySelected(true)
     setSelectedDriverIds([])
     setSelectedClass(null)
   }, [])
@@ -466,13 +448,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
 
     return validSelectedIds.length
   }, [selectedDriverIds, drivers, selectedClass, driversByClass])
-
-  const selectionText =
-    selectedCount === 0
-      ? "No drivers selected"
-      : selectedCount === totalDriverCount
-        ? `All ${totalDriverCount} drivers selected`
-        : `${selectedCount} of ${totalDriverCount} drivers selected`
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -616,16 +591,18 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
         for (let attempt = 0; attempt < JOB_POLL_MAX_ATTEMPTS; attempt++) {
           const jobRes = await fetch(`/api/v1/ingestion/jobs/${jobId}`)
           const jobJson = await jobRes.json()
-          const jobData = jobJson?.data as {
-            status?: string
-            result?: {
-              races_ingested?: number
-              results_ingested?: number
-              laps_ingested?: number
-              last_ingested_at?: string
-            }
-            error_message?: string
-          } | undefined
+          const jobData = jobJson?.data as
+            | {
+                status?: string
+                result?: {
+                  races_ingested?: number
+                  results_ingested?: number
+                  laps_ingested?: number
+                  last_ingested_at?: string
+                }
+                error_message?: string
+              }
+            | undefined
 
           if (!jobJson?.success || !jobData) {
             setErrorMessage("Could not read ingestion job status.")
@@ -656,7 +633,9 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
 
           await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL_MS))
         }
-        setErrorMessage("Import is taking longer than expected. The page will update when it completes.")
+        setErrorMessage(
+          "Import is taking longer than expected. The page will update when it completes."
+        )
         setIsErrorModalOpen(true)
         return
       }

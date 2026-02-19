@@ -223,7 +223,7 @@ export default function CombinedDriversTable({
   }, [sortField, sortDirection, selectedClass, driverLookup, itemsPerPage])
 
   const { raceClasses, event } = data
-  const eventId = event.id
+  const _eventId = event.id
 
   if (data.entryList.length === 0) {
     return (
@@ -252,10 +252,7 @@ export default function CombinedDriversTable({
           role="group"
           aria-labelledby="drivers-driver-lookup-label"
         >
-          <Tooltip
-            text="Search by driver name or transponder number."
-            position="top"
-          >
+          <Tooltip text="Search by driver name or transponder number." position="top">
             <label
               id="drivers-driver-lookup-label"
               htmlFor="drivers-driver-lookup-input"
@@ -283,7 +280,11 @@ export default function CombinedDriversTable({
                     className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                   >
                     Driver Name
-                    <SortIcon field="driverName" activeField={sortField} direction={sortDirection} />
+                    <SortIcon
+                      field="driverName"
+                      activeField={sortField}
+                      direction={sortDirection}
+                    />
                   </button>
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
@@ -304,7 +305,11 @@ export default function CombinedDriversTable({
                       className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Vehicle Type
-                      <SortIcon field="vehicleType" activeField={sortField} direction={sortDirection} />
+                      <SortIcon
+                        field="vehicleType"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
                     </button>
                   </th>
                 )}

@@ -97,9 +97,7 @@ export default function Tooltip({ text, children, position = "top" }: TooltipPro
     title?: string
   }
   const existingClassName = childProps.className ?? ""
-  const mergedClassName = existingClassName
-    ? `${existingClassName} cursor-help`
-    : "cursor-help"
+  const mergedClassName = existingClassName ? `${existingClassName} cursor-help` : "cursor-help"
   const childWithProps = React.cloneElement(children, {
     ref: refCallback,
     className: mergedClassName,
@@ -207,9 +205,6 @@ export default function Tooltip({ text, children, position = "top" }: TooltipPro
 
     // Use a slight delay to allow tooltip to render and get dimensions
     const timeoutId = setTimeout(updatePosition, 0)
-
-    const handleScroll = () => updatePosition()
-    const handleResize = () => updatePosition()
 
     // Use requestAnimationFrame for smoother updates
     let rafId: number

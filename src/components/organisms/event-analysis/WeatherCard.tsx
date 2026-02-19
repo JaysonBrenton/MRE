@@ -13,11 +13,20 @@
 
 "use client"
 
+import React from "react"
 import type { EventWeatherData } from "@/types/weather"
 import { getWeatherIcon, getWeatherIconColor } from "@/lib/weather-icons"
 import { getWeatherErrorMessage } from "@/lib/weather-utils"
 import { formatTimeDisplay } from "@/lib/date-utils"
 import TemperatureSparkline from "./TemperatureSparkline"
+
+// Stable component for weather condition icon - uses createElement to avoid "component during render" lint
+function WeatherConditionIcon({ condition, className }: { condition: string; className?: string }) {
+  return React.createElement(getWeatherIcon(condition), {
+    className,
+    "aria-hidden": true,
+  })
+}
 
 const CARD_CLASS =
   "mb-6 w-fit rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2"
@@ -31,11 +40,7 @@ export interface WeatherCardProps {
   weatherError: string | null
 }
 
-export default function WeatherCard({
-  weather,
-  weatherLoading,
-  weatherError,
-}: WeatherCardProps) {
+export default function WeatherCard({ weather, weatherLoading, weatherError }: WeatherCardProps) {
   if (weatherLoading) {
     return (
       <div className={CARD_CLASS}>
@@ -70,7 +75,6 @@ export default function WeatherCard({
     return null
   }
 
-  const ConditionIcon = getWeatherIcon(weather.condition)
   const iconColorClass = getWeatherIconColor(weather.condition)
   const summary = weather.dailyTemperatureSummary
 
@@ -79,9 +83,9 @@ export default function WeatherCard({
       <div className={GRID_CLASS}>
         <span className={LABEL_CLASS}>Condition:</span>
         <span className="flex items-center gap-1.5">
-          <ConditionIcon
+          <WeatherConditionIcon
+            condition={weather.condition}
             className={`h-4 w-4 shrink-0 ${iconColorClass}`}
-            aria-hidden
           />
           {weather.condition}
         </span>

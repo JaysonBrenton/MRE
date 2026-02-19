@@ -52,7 +52,7 @@ function SortIcon({ field, activeField, direction }: SortIconProps) {
   return <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
 }
 
-export default function EntryList({ entries, raceClasses, eventId }: EntryListProps) {
+export default function EntryList({ entries, raceClasses, eventId: _eventId }: EntryListProps) {
   const [sortField, setSortField] = useState<SortField>("driverName")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)

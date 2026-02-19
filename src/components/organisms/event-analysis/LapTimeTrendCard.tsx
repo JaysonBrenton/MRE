@@ -52,7 +52,8 @@ export default function LapTimeTrendCard({
   const [lapTrendLoading, setLapTrendLoading] = useState(false)
   const [lapTrendError, setLapTrendError] = useState<string | null>(null)
 
-  const effectiveDriverIds = trendCompareDriverIds !== null ? trendCompareDriverIds : selectedDriverIds
+  const effectiveDriverIds =
+    trendCompareDriverIds !== null ? trendCompareDriverIds : selectedDriverIds
   const driverLapTrends = useMemo(
     () => getDriverLapTrends(data, effectiveDriverIds),
     [data, effectiveDriverIds]
@@ -94,12 +95,16 @@ export default function LapTimeTrendCard({
 
   useEffect(() => {
     if (!modalOpen || effectiveDriverIds.length === 0) {
-      setLapTrendData(null)
-      setLapTrendError(null)
+      queueMicrotask(() => {
+        setLapTrendData(null)
+        setLapTrendError(null)
+      })
       return
     }
-    setLapTrendLoading(true)
-    setLapTrendError(null)
+    queueMicrotask(() => {
+      setLapTrendLoading(true)
+      setLapTrendError(null)
+    })
     const url = `/api/v1/events/${data.event.id}/lap-trend?driverIds=${effectiveDriverIds.join(",")}`
     fetch(url, { cache: "no-store" })
       .then(async (res) => {
@@ -124,9 +129,7 @@ export default function LapTimeTrendCard({
   return (
     <div className={CARD_CLASS}>
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-sm font-medium text-[var(--token-text-primary)]">
-          Lap time trend
-        </span>
+        <span className="text-sm font-medium text-[var(--token-text-primary)]">Lap time trend</span>
         <div className="flex items-center gap-2">
           {trendCompareDriverIds !== null ? (
             <button

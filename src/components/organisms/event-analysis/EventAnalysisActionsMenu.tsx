@@ -13,7 +13,6 @@
 
 import { useRef, useEffect, useCallback, useState, type KeyboardEvent } from "react"
 import { createPortal } from "react-dom"
-import { useAppSelector } from "@/store/hooks"
 import { useEventActionsOptional } from "@/components/organisms/dashboard/EventActionsContext"
 
 function SearchIcon({ className }: { className?: string }) {
@@ -116,9 +115,8 @@ const CLASS_LIST_POPOVER_GAP = 8
 const CLASS_LIST_ESTIMATE_WIDTH = 200
 const CLASS_LIST_ESTIMATE_HEIGHT = 240
 
-export interface EventAnalysisActionsMenuProps {
-  /** Reserved for future use. */
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- Reserved for future use
+export interface EventAnalysisActionsMenuProps {}
 
 export default function EventAnalysisActionsMenu() {
   const eventActions = useEventActionsOptional()

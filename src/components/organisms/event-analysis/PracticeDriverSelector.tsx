@@ -38,7 +38,7 @@ export default function PracticeDriverSelector({
   const selectedLabel =
     selectedDriverId === null
       ? "All sessions"
-      : drivers.find((d) => d.driverId === selectedDriverId)?.driverName ?? "All sessions"
+      : (drivers.find((d) => d.driverId === selectedDriverId)?.driverName ?? "All sessions")
 
   const options = useMemo(() => {
     const list: Array<{ id: string | null; label: string }> = [
@@ -115,7 +115,7 @@ export default function PracticeDriverSelector({
 
   useEffect(() => {
     if (isOpen && filteredOptions.length > 0) {
-      setHighlightedIndex(0)
+      queueMicrotask(() => setHighlightedIndex(0))
     }
   }, [query, isOpen, filteredOptions.length])
 
@@ -130,7 +130,10 @@ export default function PracticeDriverSelector({
   return (
     <div className={`relative inline-block ${className}`}>
       {!hideLabel && (
-        <label htmlFor="practice-driver-select" className="mb-2 block text-sm font-medium text-[var(--token-text-primary)]">
+        <label
+          htmlFor="practice-driver-select"
+          className="mb-2 block text-sm font-medium text-[var(--token-text-primary)]"
+        >
           Viewing
         </label>
       )}
@@ -143,7 +146,11 @@ export default function PracticeDriverSelector({
         aria-autocomplete="list"
         aria-controls="practice-driver-list"
         aria-label="Select driver to view"
-        aria-activedescendant={isOpen && filteredOptions[highlightedIndex] ? `practice-driver-opt-${highlightedIndex}` : undefined}
+        aria-activedescendant={
+          isOpen && filteredOptions[highlightedIndex]
+            ? `practice-driver-opt-${highlightedIndex}`
+            : undefined
+        }
         value={isOpen ? query : selectedLabel}
         placeholder={isOpen ? "Search drivers..." : undefined}
         onChange={(e) => {
@@ -165,9 +172,7 @@ export default function PracticeDriverSelector({
           style={{ minWidth: `${inputWidthCh}ch` }}
         >
           {filteredOptions.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-[var(--token-text-muted)]">
-              No drivers match
-            </div>
+            <div className="px-3 py-2 text-sm text-[var(--token-text-muted)]">No drivers match</div>
           ) : (
             filteredOptions.map((opt, i) => (
               <button

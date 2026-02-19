@@ -52,7 +52,7 @@ export interface BestLapBarChartProps {
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
 const defaultAccentColor = "var(--token-accent)"
 const textColor = "var(--token-text-primary)"
-const textSecondaryColor = "var(--token-text-secondary)"
+const _textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
 const DEFAULT_AXIS_COLOR = "#ffffff"
 
@@ -118,7 +118,7 @@ function getComputedColor(color: string, fallback: string = "#3a8eff"): string {
 function calculateBottomMargin(labels: string[], minMargin = 100): number {
   if (labels.length === 0) return minMargin
 
-  const fontSize = 11 // Match the fontSize in tickLabelProps
+  const _fontSize = 11 // Match the fontSize in tickLabelProps
   const avgCharWidth = 6.5 // Approximate width per character for 11px font
   const rotationRadians = Math.PI / 4 // 45 degrees
   const padding = 20 // Extra padding for safety
@@ -277,301 +277,299 @@ export default function BestLapBarChart({
         selectedClass={selectedClass}
         axisColorPicker
         defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
-        renderContent={({
-          axisColors: { xAxisColor, yAxisColor },
-          onAxisColorPickerRequest,
-        }) => (
-        <>
-        <div className="relative w-full" style={{ height: `${height}px` }}>
-          <ParentSize>
-            {({ width: parentWidth }) => {
-              // Use parentWidth if available, otherwise fallback to 800 for SSR
-              // ParentSize will return 0 or undefined during SSR, which is fine
-              const width = parentWidth || 800
+        renderContent={({ axisColors: { xAxisColor, yAxisColor }, onAxisColorPickerRequest }) => (
+          <>
+            <div className="relative w-full" style={{ height: `${height}px` }}>
+              <ParentSize>
+                {({ width: parentWidth }) => {
+                  // Use parentWidth if available, otherwise fallback to 800 for SSR
+                  // ParentSize will return 0 or undefined during SSR, which is fine
+                  const width = parentWidth || 800
 
-              // Don't render chart if width is 0 (during initial SSR)
-              if (width === 0) {
-                return null
-              }
+                  // Don't render chart if width is 0 (during initial SSR)
+                  if (width === 0) {
+                    return null
+                  }
 
-              const innerWidth = width - margin.left - margin.right
-              const innerHeight = height - margin.top - margin.bottom
+                  const innerWidth = width - margin.left - margin.right
+                  const innerHeight = height - margin.top - margin.bottom
 
-              // Scales
-              const xScale = scaleBand({
-                range: [0, innerWidth],
-                domain: paginatedData.map((d) => d.driverName),
-                padding: 0.3,
-              })
+                  // Scales
+                  const xScale = scaleBand({
+                    range: [0, innerWidth],
+                    domain: paginatedData.map((d) => d.driverName),
+                    padding: 0.3,
+                  })
 
-              const maxLapTime = Math.max(...paginatedData.map((d) => d.bestLapTime))
-              const minLapTime = Math.min(...paginatedData.map((d) => d.bestLapTime))
-              const padding = (maxLapTime - minLapTime) * 0.1
-              const yScale = scaleLinear({
-                range: [innerHeight, 0],
-                domain: [
-                  Math.max(0, minLapTime - padding), // Clamp to 0 to prevent negative values
-                  maxLapTime + padding,
-                ],
-                nice: true,
-              })
+                  const maxLapTime = Math.max(...paginatedData.map((d) => d.bestLapTime))
+                  const minLapTime = Math.min(...paginatedData.map((d) => d.bestLapTime))
+                  const padding = (maxLapTime - minLapTime) * 0.1
+                  const yScale = scaleLinear({
+                    range: [innerHeight, 0],
+                    domain: [
+                      Math.max(0, minLapTime - padding), // Clamp to 0 to prevent negative values
+                      maxLapTime + padding,
+                    ],
+                    nice: true,
+                  })
 
-              return (
-                <svg
-                  width={width}
-                  height={height}
-                  aria-labelledby={chartDescId}
-                  role="img"
-                  overflow="visible"
-                >
-                  <desc id={chartDescId}>
-                    Bar chart showing each driver&apos;s best lap time, sorted fastest to slowest.
-                  </desc>
-                  <Group left={margin.left} top={margin.top}>
-                    {/* Grid lines */}
-                    {yScale.ticks(5).map((tick) => (
-                      <line
-                        key={tick}
-                        x1={0}
-                        x2={innerWidth}
-                        y1={yScale(tick)}
-                        y2={yScale(tick)}
-                        stroke={borderColor}
-                        strokeWidth={1}
-                        strokeDasharray="2,2"
-                        opacity={0.3}
-                      />
-                    ))}
+                  return (
+                    <svg
+                      width={width}
+                      height={height}
+                      aria-labelledby={chartDescId}
+                      role="img"
+                      overflow="visible"
+                    >
+                      <desc id={chartDescId}>
+                        Bar chart showing each driver&apos;s best lap time, sorted fastest to
+                        slowest.
+                      </desc>
+                      <Group left={margin.left} top={margin.top}>
+                        {/* Grid lines */}
+                        {yScale.ticks(5).map((tick) => (
+                          <line
+                            key={tick}
+                            x1={0}
+                            x2={innerWidth}
+                            y1={yScale(tick)}
+                            y2={yScale(tick)}
+                            stroke={borderColor}
+                            strokeWidth={1}
+                            strokeDasharray="2,2"
+                            opacity={0.3}
+                          />
+                        ))}
 
-                    {/* Bars */}
-                    {paginatedData.map((d) => {
-                      const barWidth = xScale.bandwidth()
-                      const barHeight = innerHeight - yScale(d.bestLapTime)
-                      const x = xScale(d.driverName) || 0
-                      const y = yScale(d.bestLapTime)
+                        {/* Bars */}
+                        {paginatedData.map((d) => {
+                          const barWidth = xScale.bandwidth()
+                          const barHeight = innerHeight - yScale(d.bestLapTime)
+                          const x = xScale(d.driverName) || 0
+                          const y = yScale(d.bestLapTime)
 
-                      const isSelected =
-                        selectedDriverIds === undefined ||
-                        selectedDriverIds.length === 0 ||
-                        selectedDriverIds.includes(d.driverId)
+                          const isSelected =
+                            selectedDriverIds === undefined ||
+                            selectedDriverIds.length === 0 ||
+                            selectedDriverIds.includes(d.driverId)
 
-                      const handleClick = () => {
-                        if (onDriverToggle) {
-                          onDriverToggle(d.driverId)
-                        }
-                      }
-
-                      return (
-                        <Group key={d.driverId}>
-                          <Bar
-                            x={x}
-                            y={y}
-                            width={barWidth}
-                            height={barHeight}
-                            fill={
-                              isSelected
-                                ? computedBarColor
-                                : getComputedColor("var(--token-text-muted)", "#666666")
+                          const handleClick = () => {
+                            if (onDriverToggle) {
+                              onDriverToggle(d.driverId)
                             }
-                            opacity={isSelected ? 1 : 0.3}
-                            stroke={
-                              isSelected &&
-                              selectedDriverIds !== undefined &&
-                              selectedDriverIds.length > 0
-                                ? computedBarColor
-                                : "none"
-                            }
-                            strokeWidth={
-                              isSelected &&
-                              selectedDriverIds !== undefined &&
-                              selectedDriverIds.length > 0
-                                ? 2
-                                : 0
-                            }
-                            onClick={handleClick}
-                            onMouseMove={(event) => {
-                              const svgElement = (event.target as SVGElement).ownerSVGElement
-                              if (!svgElement) return
-                              const coords = localPoint(svgElement, event)
-                              if (coords) {
-                                showTooltip({
-                                  tooltipLeft: coords.x,
-                                  tooltipTop: coords.y,
-                                  tooltipData: d,
-                                })
-                              }
-                            }}
-                            onMouseLeave={() => hideTooltip()}
-                            onTouchStart={(event) => {
-                              const svgElement = (event.target as SVGElement).ownerSVGElement
-                              if (!svgElement) return
-                              const coords = localPoint(svgElement, event)
-                              if (coords) {
-                                showTooltip({
-                                  tooltipLeft: coords.x,
-                                  tooltipTop: coords.y,
-                                  tooltipData: d,
-                                })
-                              }
-                            }}
-                            onTouchEnd={() => {
-                              hideTooltip()
-                              if (onDriverToggle) {
-                                onDriverToggle(d.driverId)
-                              }
-                            }}
-                            style={{ cursor: "pointer" }}
-                            aria-label={`${d.driverName}: ${formatLapTime(d.bestLapTime)}`}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault()
-                                handleClick()
-                              }
-                            }}
+                          }
+
+                          return (
+                            <Group key={d.driverId}>
+                              <Bar
+                                x={x}
+                                y={y}
+                                width={barWidth}
+                                height={barHeight}
+                                fill={
+                                  isSelected
+                                    ? computedBarColor
+                                    : getComputedColor("var(--token-text-muted)", "#666666")
+                                }
+                                opacity={isSelected ? 1 : 0.3}
+                                stroke={
+                                  isSelected &&
+                                  selectedDriverIds !== undefined &&
+                                  selectedDriverIds.length > 0
+                                    ? computedBarColor
+                                    : "none"
+                                }
+                                strokeWidth={
+                                  isSelected &&
+                                  selectedDriverIds !== undefined &&
+                                  selectedDriverIds.length > 0
+                                    ? 2
+                                    : 0
+                                }
+                                onClick={handleClick}
+                                onMouseMove={(event) => {
+                                  const svgElement = (event.target as SVGElement).ownerSVGElement
+                                  if (!svgElement) return
+                                  const coords = localPoint(svgElement, event)
+                                  if (coords) {
+                                    showTooltip({
+                                      tooltipLeft: coords.x,
+                                      tooltipTop: coords.y,
+                                      tooltipData: d,
+                                    })
+                                  }
+                                }}
+                                onMouseLeave={() => hideTooltip()}
+                                onTouchStart={(event) => {
+                                  const svgElement = (event.target as SVGElement).ownerSVGElement
+                                  if (!svgElement) return
+                                  const coords = localPoint(svgElement, event)
+                                  if (coords) {
+                                    showTooltip({
+                                      tooltipLeft: coords.x,
+                                      tooltipTop: coords.y,
+                                      tooltipData: d,
+                                    })
+                                  }
+                                }}
+                                onTouchEnd={() => {
+                                  hideTooltip()
+                                  if (onDriverToggle) {
+                                    onDriverToggle(d.driverId)
+                                  }
+                                }}
+                                style={{ cursor: "pointer" }}
+                                aria-label={`${d.driverName}: ${formatLapTime(d.bestLapTime)}`}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault()
+                                    handleClick()
+                                  }
+                                }}
+                              />
+                            </Group>
+                          )
+                        })}
+
+                        {/* Y-axis - clickable to open color picker */}
+                        <Group
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => onAxisColorPickerRequest("y", e)}
+                          aria-label="Y-axis - Click to change color"
+                        >
+                          <AxisLeft
+                            scale={yScale}
+                            tickFormat={(value) => formatLapTime(Number(value))}
+                            stroke={yAxisColor}
+                            tickStroke={yAxisColor}
+                            tickLabelProps={() => ({
+                              fill: yAxisColor,
+                              fontSize: 12,
+                              textAnchor: "end",
+                              dx: -8,
+                            })}
+                          />
+                          <rect
+                            x={0}
+                            y={0}
+                            width={80}
+                            height={innerHeight}
+                            fill="transparent"
+                            pointerEvents="all"
                           />
                         </Group>
-                      )
-                    })}
 
-                    {/* Y-axis - clickable to open color picker */}
-                    <Group
-                      style={{ cursor: "pointer" }}
-                      onClick={(e) => onAxisColorPickerRequest("y", e)}
-                      aria-label="Y-axis - Click to change color"
-                    >
-                      <AxisLeft
-                        scale={yScale}
-                        tickFormat={(value) => formatLapTime(Number(value))}
-                        stroke={yAxisColor}
-                        tickStroke={yAxisColor}
-                        tickLabelProps={() => ({
-                          fill: yAxisColor,
-                          fontSize: 12,
-                          textAnchor: "end",
-                          dx: -8,
-                        })}
-                      />
-                      <rect
-                        x={0}
-                        y={0}
-                        width={80}
-                        height={innerHeight}
-                        fill="transparent"
-                        pointerEvents="all"
-                      />
-                    </Group>
+                        {/* X-axis - clickable to open color picker */}
+                        <Group
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => onAxisColorPickerRequest("x", e)}
+                          aria-label="X-axis - Click to change color"
+                        >
+                          <AxisBottom
+                            top={innerHeight}
+                            scale={xScale}
+                            stroke={xAxisColor}
+                            tickStroke={xAxisColor}
+                            tickLabelProps={() => ({
+                              fill: xAxisColor,
+                              fontSize: 11,
+                              textAnchor: "end",
+                              angle: -45,
+                              dx: -5,
+                              dy: 8,
+                            })}
+                          />
+                          <rect
+                            x={0}
+                            y={innerHeight}
+                            width={innerWidth}
+                            height={60}
+                            fill="transparent"
+                            pointerEvents="all"
+                          />
+                        </Group>
+                      </Group>
+                    </svg>
+                  )
+                }}
+              </ParentSize>
 
-                    {/* X-axis - clickable to open color picker */}
-                    <Group
-                      style={{ cursor: "pointer" }}
-                      onClick={(e) => onAxisColorPickerRequest("x", e)}
-                      aria-label="X-axis - Click to change color"
-                    >
-                      <AxisBottom
-                        top={innerHeight}
-                        scale={xScale}
-                        stroke={xAxisColor}
-                        tickStroke={xAxisColor}
-                        tickLabelProps={() => ({
-                          fill: xAxisColor,
-                          fontSize: 11,
-                          textAnchor: "end",
-                          angle: -45,
-                          dx: -5,
-                          dy: 8,
-                        })}
-                      />
-                      <rect
-                        x={0}
-                        y={innerHeight}
-                        width={innerWidth}
-                        height={60}
-                        fill="transparent"
-                        pointerEvents="all"
-                      />
-                    </Group>
-                  </Group>
-                </svg>
-              )
-            }}
-          </ParentSize>
+              {/* Tooltip */}
+              {tooltipOpen && tooltipData && (
+                <TooltipWithBounds
+                  top={tooltipTop}
+                  left={tooltipLeft}
+                  style={{
+                    ...defaultStyles,
+                    backgroundColor: "var(--token-surface-elevated)",
+                    border: `1px solid ${borderColor}`,
+                    color: textColor,
+                    padding: "8px 12px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <div className="space-y-1">
+                    <div className="font-semibold text-[var(--token-text-primary)]">
+                      {tooltipData.driverName}
+                    </div>
+                    <div className="text-sm text-[var(--token-text-secondary)]">
+                      Best Lap: {formatLapTime(tooltipData.bestLapTime)}
+                    </div>
+                  </div>
+                </TooltipWithBounds>
+              )}
+            </div>
 
-          {/* Tooltip */}
-          {tooltipOpen && tooltipData && (
-            <TooltipWithBounds
-              top={tooltipTop}
-              left={tooltipLeft}
-              style={{
-                ...defaultStyles,
-                backgroundColor: "var(--token-surface-elevated)",
-                border: `1px solid ${borderColor}`,
-                color: textColor,
-                padding: "8px 12px",
-                borderRadius: "4px",
-              }}
-            >
-              <div className="space-y-1">
-                <div className="font-semibold text-[var(--token-text-primary)]">
-                  {tooltipData.driverName}
-                </div>
-                <div className="text-sm text-[var(--token-text-secondary)]">
-                  Best Lap: {formatLapTime(tooltipData.bestLapTime)}
-                </div>
+            {/* Legend */}
+            <div className="flex items-center gap-4 mt-4 text-sm">
+              <div
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={handleLegendClick}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setColorPickerPosition({
+                      top: rect.bottom + 8,
+                      left: rect.left,
+                    })
+                    setShowColorPicker(true)
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label="Best Lap - Click to customize color"
+              >
+                <div className="w-4 h-4" style={{ backgroundColor: computedBarColor }} />
+                <span className="text-[var(--token-text-secondary)]">Best Lap</span>
               </div>
-            </TooltipWithBounds>
-          )}
-        </div>
+            </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 mt-4 text-sm">
-          <div
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={handleLegendClick}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                const rect = e.currentTarget.getBoundingClientRect()
-                setColorPickerPosition({
-                  top: rect.bottom + 8,
-                  left: rect.left,
-                })
-                setShowColorPicker(true)
-              }
-            }}
-            tabIndex={0}
-            role="button"
-            aria-label="Best Lap - Click to customize color"
-          >
-            <div className="w-4 h-4" style={{ backgroundColor: computedBarColor }} />
-            <span className="text-[var(--token-text-secondary)]">Best Lap</span>
-          </div>
-        </div>
+            {/* Color Picker */}
+            {showColorPicker && colorPickerPosition && (
+              <ChartColorPicker
+                currentColor={barColor}
+                onColorChange={setBarColor}
+                onClose={() => setShowColorPicker(false)}
+                position={colorPickerPosition}
+                label="Chart Color"
+              />
+            )}
 
-        {/* Color Picker */}
-        {showColorPicker && colorPickerPosition && (
-          <ChartColorPicker
-            currentColor={barColor}
-            onColorChange={setBarColor}
-            onClose={() => setShowColorPicker(false)}
-            position={colorPickerPosition}
-            label="Chart Color"
-          />
-        )}
-
-        {/* Pagination */}
-        {onPageChange && totalPages > 1 && (
-          <ChartPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-            itemsPerPage={driversPerPage}
-            totalItems={sortedData.length}
-            itemLabel="drivers"
-          />
-        )}
-        </>
+            {/* Pagination */}
+            {onPageChange && totalPages > 1 && (
+              <ChartPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={onPageChange}
+                itemsPerPage={driversPerPage}
+                totalItems={sortedData.length}
+                itemLabel="drivers"
+              />
+            )}
+          </>
         )}
       />
     </div>

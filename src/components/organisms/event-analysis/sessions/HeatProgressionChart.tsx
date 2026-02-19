@@ -41,7 +41,7 @@ const qualifyingColor = "#4ecdc4"
 const heatColor = "var(--token-accent)"
 const finalColor = "#ff6b6b"
 const textColor = "var(--token-text-primary)"
-const textSecondaryColor = "var(--token-text-secondary)"
+const _textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
 
 export default function HeatProgressionChart({
@@ -122,227 +122,224 @@ export default function HeatProgressionChart({
       chartInstanceId={chartInstanceId}
       axisColorPicker
       defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
-      renderContent={({
-        axisColors: { xAxisColor, yAxisColor },
-        onAxisColorPickerRequest,
-      }) => (
-      <>
-      <div className="relative w-full" style={{ height: `${height}px` }}>
-        <ParentSize>
-          {({ width: parentWidth }) => {
-            const width = parentWidth || 800
+      renderContent={({ axisColors: { xAxisColor, yAxisColor }, onAxisColorPickerRequest }) => (
+        <>
+          <div className="relative w-full" style={{ height: `${height}px` }}>
+            <ParentSize>
+              {({ width: parentWidth }) => {
+                const width = parentWidth || 800
 
-            if (width === 0) {
-              return null
-            }
+                if (width === 0) {
+                  return null
+                }
 
-            const innerWidth = width - margin.left - margin.right
-            const innerHeight = height - margin.top - margin.bottom
+                const innerWidth = width - margin.left - margin.right
+                const innerHeight = height - margin.top - margin.bottom
 
-            // X scale (classes)
-            const xScale = scaleBand({
-              range: [0, innerWidth],
-              domain: classes,
-              padding: 0.2,
-            })
+                // X scale (classes)
+                const xScale = scaleBand({
+                  range: [0, innerWidth],
+                  domain: classes,
+                  padding: 0.2,
+                })
 
-            // Y scale (session count)
-            const maxSessions = Math.max(...chartData.map((d) => d.sessionCount))
-            const yScale = scaleLinear({
-              range: [innerHeight, 0],
-              domain: [0, maxSessions * 1.1],
-              nice: true,
-            })
+                // Y scale (session count)
+                const maxSessions = Math.max(...chartData.map((d) => d.sessionCount))
+                const yScale = scaleLinear({
+                  range: [innerHeight, 0],
+                  domain: [0, maxSessions * 1.1],
+                  nice: true,
+                })
 
-            // Grouped bar width
-            const groupWidth = xScale.bandwidth()
-            const barWidth = groupWidth / stages.length
+                // Grouped bar width
+                const groupWidth = xScale.bandwidth()
+                const barWidth = groupWidth / stages.length
 
-            return (
-              <svg
-                width={width}
-                height={height}
-                aria-labelledby={`${chartTitleId} ${chartDescId}`}
-                role="img"
-              >
-                <title id={chartTitleId}>Heat progression</title>
-                <desc id={chartDescId}>
-                  Grouped bar chart showing number of sessions per stage (qualifying, heats, finals)
-                  for each class.
-                </desc>
-                <Group left={margin.left} top={margin.top}>
-                  {/* Grid lines */}
-                  {yScale.ticks(5).map((tick) => (
-                    <line
-                      key={tick}
-                      x1={0}
-                      x2={innerWidth}
-                      y1={yScale(tick)}
-                      y2={yScale(tick)}
-                      stroke={borderColor}
-                      strokeWidth={1}
-                      strokeDasharray="2,2"
-                      opacity={0.3}
-                    />
-                  ))}
-
-                  {/* Bars */}
-                  {classes.map((className) => {
-                    const x = xScale(className) || 0
-                    return stages.map((stage, stageIndex) => {
-                      const dataPoint = chartData.find(
-                        (d) => d.className === className && d.stage === stage
-                      )
-                      const sessionCount = dataPoint?.sessionCount || 0
-                      const barX = x + stageIndex * barWidth
-                      const barHeight = innerHeight - yScale(sessionCount)
-                      const barY = yScale(sessionCount)
-                      const color = getStageColor(stage)
-
-                      return (
-                        <Bar
-                          key={`${className}-${stage}`}
-                          x={barX}
-                          y={barY}
-                          width={barWidth * 0.8}
-                          height={barHeight}
-                          fill={color}
-                          opacity={0.8}
-                          onMouseMove={(event) => {
-                            const svgElement = (event.target as SVGElement).ownerSVGElement
-                            if (!svgElement) return
-                            const coords = localPoint(svgElement, event)
-                            if (coords) {
-                              showTooltip({
-                                tooltipLeft: coords.x,
-                                tooltipTop: coords.y,
-                                tooltipData: {
-                                  className,
-                                  stage,
-                                  sessionCount,
-                                },
-                              })
-                            }
-                          }}
-                          onMouseLeave={() => hideTooltip()}
+                return (
+                  <svg
+                    width={width}
+                    height={height}
+                    aria-labelledby={`${chartTitleId} ${chartDescId}`}
+                    role="img"
+                  >
+                    <title id={chartTitleId}>Heat progression</title>
+                    <desc id={chartDescId}>
+                      Grouped bar chart showing number of sessions per stage (qualifying, heats,
+                      finals) for each class.
+                    </desc>
+                    <Group left={margin.left} top={margin.top}>
+                      {/* Grid lines */}
+                      {yScale.ticks(5).map((tick) => (
+                        <line
+                          key={tick}
+                          x1={0}
+                          x2={innerWidth}
+                          y1={yScale(tick)}
+                          y2={yScale(tick)}
+                          stroke={borderColor}
+                          strokeWidth={1}
+                          strokeDasharray="2,2"
+                          opacity={0.3}
                         />
-                      )
-                    })
-                  })}
+                      ))}
 
-                  {/* Y-axis - clickable to open color picker */}
-                  <Group
-                    style={{ cursor: "pointer" }}
-                    onClick={(e) => onAxisColorPickerRequest("y", e)}
-                    aria-label="Y-axis - Click to change color"
-                  >
-                    <AxisLeft
-                      scale={yScale}
-                      stroke={yAxisColor}
-                      tickStroke={yAxisColor}
-                      tickLabelProps={() => ({
-                        fill: yAxisColor,
-                        fontSize: 12,
-                        textAnchor: "end",
-                        dx: -8,
+                      {/* Bars */}
+                      {classes.map((className) => {
+                        const x = xScale(className) || 0
+                        return stages.map((stage, stageIndex) => {
+                          const dataPoint = chartData.find(
+                            (d) => d.className === className && d.stage === stage
+                          )
+                          const sessionCount = dataPoint?.sessionCount || 0
+                          const barX = x + stageIndex * barWidth
+                          const barHeight = innerHeight - yScale(sessionCount)
+                          const barY = yScale(sessionCount)
+                          const color = getStageColor(stage)
+
+                          return (
+                            <Bar
+                              key={`${className}-${stage}`}
+                              x={barX}
+                              y={barY}
+                              width={barWidth * 0.8}
+                              height={barHeight}
+                              fill={color}
+                              opacity={0.8}
+                              onMouseMove={(event) => {
+                                const svgElement = (event.target as SVGElement).ownerSVGElement
+                                if (!svgElement) return
+                                const coords = localPoint(svgElement, event)
+                                if (coords) {
+                                  showTooltip({
+                                    tooltipLeft: coords.x,
+                                    tooltipTop: coords.y,
+                                    tooltipData: {
+                                      className,
+                                      stage,
+                                      sessionCount,
+                                    },
+                                  })
+                                }
+                              }}
+                              onMouseLeave={() => hideTooltip()}
+                            />
+                          )
+                        })
                       })}
-                      label="Number of Sessions"
-                      labelProps={{
-                        fill: yAxisColor,
-                        fontSize: 12,
-                        textAnchor: "middle",
-                        dy: -50,
-                      }}
-                    />
-                    <rect
-                      x={0}
-                      y={0}
-                      width={80}
-                      height={innerHeight}
-                      fill="transparent"
-                      pointerEvents="all"
-                    />
-                  </Group>
 
-                  {/* X-axis - clickable to open color picker */}
-                  <Group
-                    style={{ cursor: "pointer" }}
-                    onClick={(e) => onAxisColorPickerRequest("x", e)}
-                    aria-label="X-axis - Click to change color"
-                  >
-                    <AxisBottom
-                      top={innerHeight}
-                      scale={xScale}
-                      stroke={xAxisColor}
-                      tickStroke={xAxisColor}
-                      tickLabelProps={() => ({
-                        fill: xAxisColor,
-                        fontSize: 12,
-                        textAnchor: "middle",
-                        dy: 8,
-                      })}
-                    />
-                    <rect
-                      x={0}
-                      y={innerHeight}
-                      width={innerWidth}
-                      height={60}
-                      fill="transparent"
-                      pointerEvents="all"
-                    />
-                  </Group>
-                </Group>
-              </svg>
-            )
-          }}
-        </ParentSize>
+                      {/* Y-axis - clickable to open color picker */}
+                      <Group
+                        style={{ cursor: "pointer" }}
+                        onClick={(e) => onAxisColorPickerRequest("y", e)}
+                        aria-label="Y-axis - Click to change color"
+                      >
+                        <AxisLeft
+                          scale={yScale}
+                          stroke={yAxisColor}
+                          tickStroke={yAxisColor}
+                          tickLabelProps={() => ({
+                            fill: yAxisColor,
+                            fontSize: 12,
+                            textAnchor: "end",
+                            dx: -8,
+                          })}
+                          label="Number of Sessions"
+                          labelProps={{
+                            fill: yAxisColor,
+                            fontSize: 12,
+                            textAnchor: "middle",
+                            dy: -50,
+                          }}
+                        />
+                        <rect
+                          x={0}
+                          y={0}
+                          width={80}
+                          height={innerHeight}
+                          fill="transparent"
+                          pointerEvents="all"
+                        />
+                      </Group>
 
-        {/* Tooltip */}
-        {tooltipOpen && tooltipData && (
-          <TooltipWithBounds
-            top={tooltipTop}
-            left={tooltipLeft}
-            style={{
-              ...defaultStyles,
-              backgroundColor: "var(--token-surface-elevated)",
-              border: `1px solid ${borderColor}`,
-              color: textColor,
-              padding: "8px 12px",
-              borderRadius: "4px",
-            }}
-          >
-            <div className="space-y-1">
-              <div className="font-semibold text-[var(--token-text-primary)]">
-                {tooltipData.className}
-              </div>
-              <div className="text-sm text-[var(--token-text-secondary)]">
-                Stage: {tooltipData.stage}
-              </div>
-              <div className="text-sm text-[var(--token-text-secondary)]">
-                Sessions: {tooltipData.sessionCount}
-              </div>
+                      {/* X-axis - clickable to open color picker */}
+                      <Group
+                        style={{ cursor: "pointer" }}
+                        onClick={(e) => onAxisColorPickerRequest("x", e)}
+                        aria-label="X-axis - Click to change color"
+                      >
+                        <AxisBottom
+                          top={innerHeight}
+                          scale={xScale}
+                          stroke={xAxisColor}
+                          tickStroke={xAxisColor}
+                          tickLabelProps={() => ({
+                            fill: xAxisColor,
+                            fontSize: 12,
+                            textAnchor: "middle",
+                            dy: 8,
+                          })}
+                        />
+                        <rect
+                          x={0}
+                          y={innerHeight}
+                          width={innerWidth}
+                          height={60}
+                          fill="transparent"
+                          pointerEvents="all"
+                        />
+                      </Group>
+                    </Group>
+                  </svg>
+                )
+              }}
+            </ParentSize>
+
+            {/* Tooltip */}
+            {tooltipOpen && tooltipData && (
+              <TooltipWithBounds
+                top={tooltipTop}
+                left={tooltipLeft}
+                style={{
+                  ...defaultStyles,
+                  backgroundColor: "var(--token-surface-elevated)",
+                  border: `1px solid ${borderColor}`,
+                  color: textColor,
+                  padding: "8px 12px",
+                  borderRadius: "4px",
+                }}
+              >
+                <div className="space-y-1">
+                  <div className="font-semibold text-[var(--token-text-primary)]">
+                    {tooltipData.className}
+                  </div>
+                  <div className="text-sm text-[var(--token-text-secondary)]">
+                    Stage: {tooltipData.stage}
+                  </div>
+                  <div className="text-sm text-[var(--token-text-secondary)]">
+                    Sessions: {tooltipData.sessionCount}
+                  </div>
+                </div>
+              </TooltipWithBounds>
+            )}
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4" style={{ backgroundColor: qualifyingColor, opacity: 0.8 }} />
+              <span className="text-[var(--token-text-secondary)]">Qualifying</span>
             </div>
-          </TooltipWithBounds>
-        )}
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4" style={{ backgroundColor: qualifyingColor, opacity: 0.8 }} />
-          <span className="text-[var(--token-text-secondary)]">Qualifying</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4" style={{ backgroundColor: heatColor, opacity: 0.8 }} />
-          <span className="text-[var(--token-text-secondary)]">Heats</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4" style={{ backgroundColor: finalColor, opacity: 0.8 }} />
-          <span className="text-[var(--token-text-secondary)]">Finals</span>
-        </div>
-      </div>
-      </>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4" style={{ backgroundColor: heatColor, opacity: 0.8 }} />
+              <span className="text-[var(--token-text-secondary)]">Heats</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4" style={{ backgroundColor: finalColor, opacity: 0.8 }} />
+              <span className="text-[var(--token-text-secondary)]">Finals</span>
+            </div>
+          </div>
+        </>
       )}
-      />
+    />
   )
 }

@@ -109,12 +109,15 @@ export default function ChartDriverPicker({
 
   useLayoutEffect(() => {
     if (!isOpen || typeof document === "undefined") return
-    updatePosition()
-    // Run again next frame in case portal/refs caused layout to shift
+    let id2 = 0
     const id = requestAnimationFrame(() => {
       updatePosition()
+      id2 = requestAnimationFrame(() => updatePosition())
     })
-    return () => cancelAnimationFrame(id)
+    return () => {
+      cancelAnimationFrame(id)
+      if (id2) cancelAnimationFrame(id2)
+    }
   }, [isOpen, updatePosition])
 
   // Keep position in view on scroll/resize
@@ -130,7 +133,7 @@ export default function ChartDriverPicker({
 
   // Reset position when closed so next open starts clean
   useEffect(() => {
-    if (!isOpen) setPopoverStyle(null)
+    if (!isOpen) queueMicrotask(() => setPopoverStyle(null))
   }, [isOpen])
 
   useEffect(() => {
@@ -243,7 +246,9 @@ export default function ChartDriverPicker({
         </svg>
       </button>
 
-      {typeof document !== "undefined" && document.body && createPortal(popoverContent, document.body)}
+      {typeof document !== "undefined" &&
+        document.body &&
+        createPortal(popoverContent, document.body)}
     </div>
   )
 }

@@ -119,7 +119,7 @@ export function useChartColor(
   // changes), so that user color picks are not overwritten by a re-run of this effect.
   useEffect(() => {
     const stored = readColorFromStorage(chartInstanceId, seriesName, defaultValue)
-    setColorState(stored)
+    queueMicrotask(() => setColorState(stored))
   }, [chartInstanceId, seriesName, defaultValue])
 
   const setColor = useCallback(
