@@ -25,13 +25,23 @@ export interface GetTracksFilters {
   active?: boolean
 }
 
+/** Minimal track fields returned for list/dropdown use (event search, track picker, etc.) */
+export interface TrackListItem {
+  id: string
+  trackName: string
+  sourceTrackSlug: string
+  country: string | null
+}
+
 /**
- * Get all tracks with optional filtering
+ * Get tracks for list/dropdown display (event search, track picker, etc.)
+ * Returns only id, trackName, sourceTrackSlug, country to reduce payload size.
+ * With ~1000 tracks, this avoids fetching 25+ columns per row.
  *
  * @param filters - Optional filters for followed and active status
- * @returns Array of Track objects
+ * @returns Array of minimal track objects
  */
-export async function getTracks(filters: GetTracksFilters = {}): Promise<Track[]> {
+export async function getTracks(filters: GetTracksFilters = {}): Promise<TrackListItem[]> {
   const where: {
     isFollowed?: boolean
     isActive?: boolean
@@ -47,6 +57,12 @@ export async function getTracks(filters: GetTracksFilters = {}): Promise<Track[]
 
   return prisma.track.findMany({
     where,
+    select: {
+      id: true,
+      trackName: true,
+      sourceTrackSlug: true,
+      country: true,
+    },
     orderBy: {
       trackName: "asc",
     },

@@ -19,6 +19,7 @@ import {
 } from "@/components/molecules/StandardTable"
 import { useAppSelector } from "@/store/hooks"
 import type { EventSearchResult, SessionSearchResult } from "@/core/search/types"
+import { formatClassName } from "@/lib/format-class-name"
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "—"
@@ -151,7 +152,7 @@ function SessionResultRow({ session }: { session: SessionSearchResult }) {
   return (
     <StandardTableRow>
       <StandardTableCell>{session.raceLabel}</StandardTableCell>
-      <StandardTableCell>{session.className}</StandardTableCell>
+      <StandardTableCell>{formatClassName(session.className)}</StandardTableCell>
       <StandardTableCell>{formatSessionType(session.sessionType)}</StandardTableCell>
       <StandardTableCell>{session.eventName}</StandardTableCell>
       <StandardTableCell>{formatDate(session.eventDate)}</StandardTableCell>

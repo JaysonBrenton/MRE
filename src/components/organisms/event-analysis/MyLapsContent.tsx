@@ -30,6 +30,8 @@ import StandardButton from "@/components/atoms/StandardButton"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { useChartColors } from "@/hooks/useChartColors"
 import { formatLapTime } from "@/lib/date-utils"
+import { formatDateTimeUTC } from "@/lib/format-session-data"
+import { ExternalLink } from "lucide-react"
 
 const WIZARD_STEPS = [
   { id: "race", label: "Select a race" },
@@ -112,8 +114,7 @@ function calculateDriverMetrics(
     let consistency: number | null = null
     if (lapsCompleted >= 2) {
       const mean = avgLapTime
-      const variance =
-        lapTimes.reduce((sum, t) => sum + Math.pow(t - mean, 2), 0) / lapsCompleted
+      const variance = lapTimes.reduce((sum, t) => sum + Math.pow(t - mean, 2), 0) / lapsCompleted
       const stdDev = Math.sqrt(variance)
       const coefficientOfVariation = (stdDev / mean) * 100
       consistency = Math.max(0, 100 - coefficientOfVariation)
@@ -300,9 +301,7 @@ function resolveUserDriverId(
 ): string | null {
   if (!userDriverName || !entryList?.length) return null
   const normalized = userDriverName.trim().toLowerCase()
-  const entry = entryList.find(
-    (e) => e.driverName.trim().toLowerCase() === normalized
-  )
+  const entry = entryList.find((e) => e.driverName.trim().toLowerCase() === normalized)
   return entry?.driverId ?? null
 }
 
@@ -365,9 +364,7 @@ export default function MyLapsContent({
 
     setUserRaceIds(null)
     let cancelled = false
-    const classNameParam = selectedClass
-      ? `?className=${encodeURIComponent(selectedClass)}`
-      : ""
+    const classNameParam = selectedClass ? `?className=${encodeURIComponent(selectedClass)}` : ""
     const normalizedUserName = userDriverName.trim().toLowerCase()
 
     fetch(`/api/v1/events/${eventId}/laps${classNameParam}`)
@@ -413,6 +410,11 @@ export default function MyLapsContent({
     return filtered.length > 0 ? filtered : baseRaces
   }, [showOnlyMyRaces, racesUserCompetedIn, availableRaces, selectedClass])
 
+  const selectedRaceFull = useMemo(() => {
+    if (!selectedRaceId || !data?.races) return null
+    return data.races.find((r) => r.id === selectedRaceId) ?? null
+  }, [selectedRaceId, data?.races])
+
   useEffect(() => {
     if (filteredRaces.length === 0) {
       setSelectedRaceId(null)
@@ -441,16 +443,13 @@ export default function MyLapsContent({
         const classNameParam = selectedClass
           ? `?className=${encodeURIComponent(selectedClass)}`
           : ""
-        const response = await fetch(
-          `/api/v1/events/${eventId}/laps${classNameParam}`
-        )
+        const response = await fetch(`/api/v1/events/${eventId}/laps${classNameParam}`)
 
         if (!response.ok) {
           let errorMessage = "Failed to fetch lap data"
           try {
             const errorData = await response.json()
-            errorMessage =
-              errorData.error?.message || errorData.error?.details || errorMessage
+            errorMessage = errorData.error?.message || errorData.error?.details || errorMessage
           } catch {
             errorMessage = `HTTP ${response.status}: ${response.statusText}`
           }
@@ -461,9 +460,7 @@ export default function MyLapsContent({
 
         if (!result.success) {
           const errorMessage =
-            result.error?.message ||
-            result.error?.details ||
-            "Failed to fetch lap data"
+            result.error?.message || result.error?.details || "Failed to fetch lap data"
           throw new Error(errorMessage)
         }
 
@@ -471,9 +468,7 @@ export default function MyLapsContent({
         setLapsApiDrivers(allDrivers)
       } catch (err) {
         console.error("[MyLapsContent] Error fetching lap data:", err)
-        setError(
-          err instanceof Error ? err.message : "An error occurred while fetching lap data"
-        )
+        setError(err instanceof Error ? err.message : "An error occurred while fetching lap data")
         setLapsApiDrivers(null)
       } finally {
         setLoading(false)
@@ -600,11 +595,12 @@ export default function MyLapsContent({
       )}
 
       {step === 0 && (
-        <div className="space-y-4" style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}>
+        <div
+          className="space-y-4"
+          style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h3 className="text-sm font-medium text-[var(--token-text-primary)]">
-              Select a race
-            </h3>
+            <h3 className="text-sm font-medium text-[var(--token-text-primary)]">Select a race</h3>
             <LabeledSwitch
               leftLabel="All races"
               rightLabel="My races"
@@ -622,27 +618,27 @@ export default function MyLapsContent({
               hideHeading
             />
           ) : (
-        <div
-          className="text-center py-8"
-          style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
-        >
-          <p className="text-sm text-[var(--token-text-secondary)]">
-            {userRaceIds === null && showOnlyMyRaces
-              ? "Loading races you competed in..."
-              : !data
-                ? "Event data is loading..."
-                : !data.races?.length
-                  ? "No races available for this event"
-                  : showOnlyMyRaces
-                    ? selectedClass
-                      ? `No races you competed in for class "${selectedClass}"`
-                      : "No races you competed in"
-                    : selectedClass
-                      ? `No races for class "${selectedClass}"`
-                      : "No races available for this event"}
-          </p>
-        </div>
-      )}
+            <div
+              className="text-center py-8"
+              style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
+            >
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                {userRaceIds === null && showOnlyMyRaces
+                  ? "Loading races you competed in..."
+                  : !data
+                    ? "Event data is loading..."
+                    : !data.races?.length
+                      ? "No races available for this event"
+                      : showOnlyMyRaces
+                        ? selectedClass
+                          ? `No races you competed in for class "${selectedClass}"`
+                          : "No races you competed in"
+                        : selectedClass
+                          ? `No races for class "${selectedClass}"`
+                          : "No races available for this event"}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -760,7 +756,9 @@ export default function MyLapsContent({
                         const avg =
                           userData.laps.reduce((s, l) => s + l.lapTimeSeconds, 0) /
                           userData.laps.length
-                        return [{ value: avg, label: "Your average", stroke: "var(--token-accent)" }]
+                        return [
+                          { value: avg, label: "Your average", stroke: "var(--token-accent)" },
+                        ]
                       })()
                     : []
                 }
@@ -769,20 +767,56 @@ export default function MyLapsContent({
               {/* Driver Performance Comparison Section */}
               {driverMetrics.length > 0 && (
                 <section className="space-y-4">
-                  <h3 className="text-lg font-semibold text-[var(--token-text-primary)]">
-                    Driver Performance Comparison
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div>
+                    <h3 className="w-fit text-lg font-semibold text-[var(--token-text-primary)]">
+                      Driver Performance Comparison
+                    </h3>
+                    {selectedRaceFull && (
+                      <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+                        {selectedRaceFull.raceUrl ? (
+                          <a
+                            href={selectedRaceFull.raceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 underline hover:text-[var(--token-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] focus:ring-offset-2 rounded"
+                            aria-label={`View ${selectedRaceFull.raceOrder != null ? `Race ${selectedRaceFull.raceOrder}: ${selectedRaceFull.raceLabel}` : selectedRaceFull.raceLabel} on LiveRC (opens in new tab)`}
+                          >
+                            {selectedRaceFull.raceOrder != null
+                              ? `Race ${selectedRaceFull.raceOrder}: ${selectedRaceFull.raceLabel}`
+                              : selectedRaceFull.raceLabel}
+                            {selectedRaceFull.startTime && (
+                              <> • {formatDateTimeUTC(new Date(selectedRaceFull.startTime))}</>
+                            )}
+                            <ExternalLink className="size-3.5 shrink-0" aria-hidden />
+                          </a>
+                        ) : (
+                          <>
+                            {selectedRaceFull.raceOrder != null
+                              ? `Race ${selectedRaceFull.raceOrder}: ${selectedRaceFull.raceLabel}`
+                              : selectedRaceFull.raceLabel}
+                            {selectedRaceFull.startTime && (
+                              <> • {formatDateTimeUTC(new Date(selectedRaceFull.startTime))}</>
+                            )}
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                     {driverMetricsByPosition.map((driver) => {
                       const driverColor = colors[driver.driverId] || defaultDriverColors[0]
                       const fastestRank = getRanking(driver.driverId, "fastest", driverMetrics)
-                      const consistentRank = getRanking(driver.driverId, "mostConsistent", driverMetrics)
+                      const consistentRank = getRanking(
+                        driver.driverId,
+                        "mostConsistent",
+                        driverMetrics
+                      )
                       const averageRank = getRanking(driver.driverId, "bestAverage", driverMetrics)
 
                       return (
                         <div
                           key={driver.driverId}
-                          className="p-4 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] space-y-4"
+                          className="p-3 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] space-y-3"
                         >
                           {/* Driver Header */}
                           <div className="flex items-center gap-2">
@@ -797,7 +831,40 @@ export default function MyLapsContent({
                           </div>
 
                           {/* Metrics */}
-                          <div className="space-y-3">
+                          <div className="space-y-2">
+                            {/* Final Position */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-[var(--token-text-secondary)]">
+                                  Final Position
+                                </span>
+                                {(() => {
+                                  const pos = finalPositionByDriver.get(driver.driverId)
+                                  if (pos == null) return null
+                                  const medal =
+                                    pos === 1
+                                      ? "🥇"
+                                      : pos === 2
+                                        ? "🥈"
+                                        : pos === 3
+                                          ? "🥉"
+                                          : `#${pos}`
+                                  return (
+                                    <span
+                                      className={`text-xs px-2 py-0.5 rounded border ${getBadgeColor(pos)}`}
+                                    >
+                                      {medal}
+                                    </span>
+                                  )
+                                })()}
+                              </div>
+                              <div className="text-sm font-medium text-[var(--token-text-primary)]">
+                                {finalPositionByDriver.has(driver.driverId)
+                                  ? finalPositionByDriver.get(driver.driverId)
+                                  : "—"}
+                              </div>
+                            </div>
+
                             {/* Fastest Lap */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
@@ -881,7 +948,9 @@ export default function MyLapsContent({
                                 </span>
                               </div>
                               <div className="text-sm font-medium text-[var(--token-text-primary)]">
-                                {driver.consistency !== null ? driver.consistency.toFixed(2) : "N/A"}
+                                {driver.consistency !== null
+                                  ? driver.consistency.toFixed(2)
+                                  : "N/A"}
                               </div>
                               <div className="w-full h-1.5 bg-[var(--token-surface)] rounded-full mt-1">
                                 <div
@@ -901,18 +970,6 @@ export default function MyLapsContent({
                               </span>
                               <div className="text-sm font-medium text-[var(--token-text-primary)]">
                                 {driver.lapsCompleted}
-                              </div>
-                            </div>
-
-                            {/* Final Position */}
-                            <div>
-                              <span className="text-xs text-[var(--token-text-secondary)]">
-                                Final Position
-                              </span>
-                              <div className="text-sm font-medium text-[var(--token-text-primary)]">
-                                {finalPositionByDriver.has(driver.driverId)
-                                  ? finalPositionByDriver.get(driver.driverId)
-                                  : "—"}
                               </div>
                             </div>
                           </div>

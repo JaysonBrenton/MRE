@@ -26,6 +26,7 @@ import SidebarAction from "./SidebarAction"
 import { useDashboardEventSearch } from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { clearEvent } from "@/store/slices/dashboardSlice"
+import { sanitizeErrorMessage } from "@/lib/sanitize-error-message"
 import type { Driver, Race } from "./ChartControls"
 
 const STORAGE_KEY_SIDEBAR_COLLAPSED = "mre-event-analysis-sidebar-collapsed"
@@ -361,8 +362,8 @@ export default function EventAnalysisSidebar({
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        const errorMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
-        setErrorMessage(errorMsg)
+        const rawMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
+        setErrorMessage(sanitizeErrorMessage(rawMsg))
         setIsErrorModalOpen(true)
         return
       }
@@ -393,8 +394,13 @@ export default function EventAnalysisSidebar({
       router.refresh()
       setIsSuccessModalOpen(true)
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error occurred"
-      setErrorMessage(`Failed to refresh event data: ${errorMsg}`)
+      const rawMsg = error instanceof Error ? error.message : "Unknown error occurred"
+      setErrorMessage(
+        sanitizeErrorMessage(
+          `Failed to refresh event data: ${rawMsg}`,
+          "Something went wrong while refreshing event data. Please try again."
+        )
+      )
       setIsErrorModalOpen(true)
     } finally {
       setIsRefreshing(false)

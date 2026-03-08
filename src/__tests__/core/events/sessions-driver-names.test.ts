@@ -18,6 +18,7 @@ describe("Sessions Data Driver Names", () => {
     const mockData: EventAnalysisData = {
       event: {
         id: "test-event-id",
+        trackId: "test-track-id",
         eventName: "Test Event",
         eventDate: new Date("2025-01-01"),
         trackName: "Test Track",
@@ -166,6 +167,7 @@ describe("Sessions Data Driver Names", () => {
     const mockData: EventAnalysisData = {
       event: {
         id: "test-event-id",
+        trackId: "test-track-id",
         eventName: "Test Event",
         eventDate: new Date("2025-01-01"),
         trackName: "Test Track",

@@ -156,15 +156,21 @@ guidelines.
 
 Design for Event Search with optional “Include practice days”: single combined
 list (events + practice days), practice range = event min/max, in-app Prisma for
-practice-day list, single discover-range request (or streaming), 180-day default,
-and cache for fast repeat searches.
+practice-day list, single discover-range request (or streaming), 180-day
+default, and cache for fast repeat searches.
 
 #### [Practice Day Search Performance Design](../architecture/practice-day-search-performance-design.md)
 
-Practice day discovery performance: design options and **implemented** improvements
-(single discover-range request, cache, timeouts, streaming, 180-day default, skip
-when covered, optimistic import). Includes before/after timings and env vars for
-cache TTL and timeouts.
+Practice day discovery performance: design options and **implemented**
+improvements (single discover-range request, cache, timeouts, streaming, 180-day
+default, skip when covered, optimistic import). Includes before/after timings
+and env vars for cache TTL and timeouts.
+
+#### [Driver Deduplication Design](../architecture/driver-deduplication-design.md)
+
+Design for merging duplicate Driver records using transponder + normalized name.
+Addresses track leaderboard fragmentation (e.g. multiple "Steven Rukavina"
+rows). CLI: `drivers deduplicate` (dry-run) / `drivers deduplicate --execute`.
 
 #### [Dashboard Architecture](../architecture/dashboard-architecture.md)
 
@@ -817,13 +823,18 @@ strategy, implementation steps, and transition plan.
 
 ### [Practice Day Full Ingestion Implementation Plan](../implimentation_plans/practice-day-full-ingestion-implementation-plan.md)
 
-Phased implementation plan for full practice day ingestion: list + drivers/results
-from list + session detail fetch with concurrency + race_metadata, result stats,
-and laps. References design doc and covers schema, pipeline, API, docs, and tests.
+Phased implementation plan for full practice day ingestion: list +
+drivers/results from list + session detail fetch with concurrency +
+race_metadata, result stats, and laps. References design doc and covers schema,
+pipeline, API, docs, and tests.
 
 ### [Telemetry MVP Implementation Decisions](../telemetry/Design/Telemetry_MVP_Implementation_Decisions.md)
 
-Authoritative MVP decisions for telemetry: job table (single-table queue), upload/artifact lifecycle, raw file storage path, session time placeholders, fixture files, pyarrow dependency, failure response when session failed, naming convention, and deferral of teams/sharing to v1. Reference when implementing Phase 2–3.
+Authoritative MVP decisions for telemetry: job table (single-table queue),
+upload/artifact lifecycle, raw file storage path, session time placeholders,
+fixture files, pyarrow dependency, failure response when session failed, naming
+convention, and deferral of teams/sharing to v1. Reference when implementing
+Phase 2–3.
 
 ### [Telemetry Implementation Plan](../implimentation_plans/telemetry-implementation-plan.md)
 

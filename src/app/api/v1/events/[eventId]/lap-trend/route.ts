@@ -28,10 +28,14 @@ export async function GET(
     const driverIdsParam = searchParams.get("driverIds")
     const driverIds =
       driverIdsParam && driverIdsParam.trim() !== ""
-        ? driverIdsParam.split(",").map((id) => id.trim()).filter(Boolean)
+        ? driverIdsParam
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean)
         : []
+    const className = searchParams.get("className") || null
 
-    const data = await getEventLapTrend(eventId, driverIds)
+    const data = await getEventLapTrend(eventId, driverIds, className)
 
     requestLogger.info("Lap trend fetched", {
       eventId,

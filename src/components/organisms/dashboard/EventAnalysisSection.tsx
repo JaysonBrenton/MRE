@@ -33,6 +33,8 @@ import { useEventActions } from "@/components/organisms/dashboard/EventActionsCo
 import PracticeMyDayTab from "@/components/organisms/event-analysis/PracticeMyDayTab"
 import PracticeMySessionsTab from "@/components/organisms/event-analysis/PracticeMySessionsTab"
 import PracticeClassLeaderboard from "@/components/organisms/event-analysis/PracticeClassLeaderboard"
+import TrackLeaderboardTab from "@/components/organisms/event-analysis/TrackLeaderboardTab"
+import CountryLeaderboardCard from "@/components/organisms/event-analysis/CountryLeaderboardCard"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
@@ -40,21 +42,31 @@ const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
   { id: "my-sessions", label: "My Sessions" },
   { id: "class-reference", label: "Class Reference" },
   { id: "all-sessions", label: "All Sessions" },
+  { id: "track-leader-board", label: "Track Leader Board" },
 ]
 const EVENT_TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Event Overview" },
   { id: "sessions", label: "Event Sessions" },
   { id: "my-events", label: "My Events" },
   { id: "drivers", label: "Drivers" },
+  { id: "track-leader-board", label: "Track Leader Board" },
 ]
 
 // Type for API response with ISO string dates (matches what's stored in Redux)
 type EventAnalysisDataApiResponse = {
   event: {
     id: string
+    trackId: string
     eventName: string
     eventDate: string // ISO string
+    eventDateEnd?: string | null // ISO string, for multi-day events
     trackName: string
+    eventUrl?: string
+    website?: string | null
+    facebookUrl?: string | null
+    address?: string | null
+    phone?: string | null
+    email?: string | null
   }
   isPracticeDay?: boolean
   races: Array<{
@@ -65,6 +77,8 @@ type EventAnalysisDataApiResponse = {
     raceOrder: number | null
     startTime: string | null // ISO string
     durationSeconds: number | null
+    sessionType?: string | null
+    sectionHeader?: string | null
     results: Array<{
       raceResultId: string
       raceDriverId: string
@@ -129,14 +143,24 @@ function transformApiResponseToEventAnalysisData(
   return {
     event: {
       id: apiData.event.id,
+      trackId: apiData.event.trackId,
       eventName: apiData.event.eventName,
       eventDate: new Date(apiData.event.eventDate),
+      eventDateEnd: apiData.event.eventDateEnd ? new Date(apiData.event.eventDateEnd) : undefined,
       trackName: apiData.event.trackName,
+      eventUrl: apiData.event.eventUrl,
+      website: apiData.event.website ?? undefined,
+      facebookUrl: apiData.event.facebookUrl ?? undefined,
+      address: apiData.event.address ?? undefined,
+      phone: apiData.event.phone ?? undefined,
+      email: apiData.event.email ?? undefined,
     },
     isPracticeDay: apiData.isPracticeDay,
     races: apiData.races.map((race) => ({
       ...race,
       startTime: race.startTime ? new Date(race.startTime) : null,
+      sessionType: (race as { sessionType?: string | null }).sessionType ?? null,
+      sectionHeader: (race as { sectionHeader?: string | null }).sectionHeader ?? null,
     })),
     drivers: apiData.drivers,
     entryList: apiData.entryList,
@@ -360,6 +384,7 @@ export default function EventAnalysisSection() {
                 <EventAnalysisHeader
                   eventName={transformedData.event.eventName}
                   eventDate={transformedData.event.eventDate}
+                  eventDateEnd={transformedData.event.eventDateEnd}
                   trackName={transformedData.event.trackName}
                   isPracticeDay={isPracticeDay}
                   viewingDriverName={viewingDriverName}
@@ -416,6 +441,18 @@ export default function EventAnalysisSection() {
                   selectedClass={selectedClass}
                   onClassChange={eventActions.onClassChange}
                 />
+              )}
+
+              {activeTab === "track-leader-board" && transformedData && selectedEventId && (
+                <div className="space-y-6">
+                  <TrackLeaderboardTab
+                    eventId={selectedEventId}
+                    trackName={transformedData.event.trackName}
+                    selectedClass={selectedClass}
+                    onClassChange={eventActions.onClassChange}
+                  />
+                  <CountryLeaderboardCard defaultCountry="Australia" />
+                </div>
               )}
 
               {/* Practice day tabs - no driver cards or weather panel */}

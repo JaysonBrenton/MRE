@@ -69,6 +69,7 @@ class SessionType(PyEnum):
     PRACTICEDAY = "practiceday"
     HEAT = "heat"
     MAIN = "main"
+    SEEDING = "seeding"
 
 
 class SessionTypeType(TypeDecorator):
@@ -173,8 +174,10 @@ class Event(Base):
     track_id = Column("track_id", String, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False)
     event_name = Column("event_name", String, nullable=False)
     event_date = Column("event_date", DateTime(timezone=True), nullable=False)
+    event_date_end = Column("event_date_end", DateTime(timezone=True), nullable=True)
     event_entries = Column("event_entries", Integer, nullable=False)
     event_drivers = Column("event_drivers", Integer, nullable=False)
+    total_race_laps = Column("total_race_laps", Integer, nullable=True)
     event_url = Column("event_url", String, nullable=False)
     ingest_depth = Column("ingest_depth", IngestDepthType(), default=IngestDepth.NONE, nullable=False)
     last_ingested_at = Column("last_ingested_at", DateTime(timezone=True), nullable=True)
@@ -188,6 +191,8 @@ class Event(Base):
     driver_links = relationship("EventDriverLink", back_populates="event", cascade="all, delete-orphan")
     race_classes = relationship("EventRaceClass", back_populates="event", cascade="all, delete-orphan")
     multi_main_results = relationship("MultiMainResult", back_populates="event", cascade="all, delete-orphan")
+    qual_points = relationship("EventQualPoints", back_populates="event", cascade="all, delete-orphan")
+    round_rankings = relationship("EventRoundRanking", back_populates="event", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("source", "source_event_id", name="events_source_source_event_id_key"),
@@ -264,6 +269,7 @@ class Race(Base):
     start_time = Column("start_time", DateTime(timezone=True), nullable=True)
     duration_seconds = Column("duration_seconds", Integer, nullable=True)
     session_type = Column("session_type", SessionTypeType(), nullable=True)
+    section_header = Column("section_header", String, nullable=True)
     race_metadata = Column("race_metadata", JSONB, nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -298,6 +304,8 @@ class Driver(Base):
     user_driver_link = relationship("UserDriverLink", back_populates="driver", uselist=False)
     event_driver_links = relationship("EventDriverLink", back_populates="driver", cascade="all, delete-orphan")
     multi_main_result_entries = relationship("MultiMainResultEntry", back_populates="driver", cascade="all, delete-orphan")
+    qual_points_entries = relationship("EventQualPointsEntry", back_populates="driver", cascade="all, delete-orphan")
+    round_ranking_entries = relationship("EventRoundRankingEntry", back_populates="driver", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("source", "source_driver_id", name="drivers_source_source_driver_id_key"),
@@ -413,6 +421,101 @@ class MultiMainResultEntry(Base):
         UniqueConstraint("multi_main_result_id", "driver_id", name="multi_main_result_entries_multi_main_result_id_driver_id_key"),
         Index("multi_main_result_entries_multi_main_result_id_idx", "multi_main_result_id"),
         Index("multi_main_result_entries_driver_id_idx", "driver_id"),
+    )
+
+
+class EventQualPoints(Base):
+    """EventQualPoints model for Qual Points (best X of Y) standings from view_points page."""
+    __tablename__ = "event_qual_points"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    event_id = Column("event_id", String, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    source = Column(String, nullable=False)
+    source_points_id = Column("source_points_id", String, nullable=False)
+    label = Column("label", String, nullable=False)
+    rounds_completed = Column("rounds_completed", Integer, nullable=True)
+    total_rounds = Column("total_rounds", Integer, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    event = relationship("Event", back_populates="qual_points")
+    entries = relationship("EventQualPointsEntry", back_populates="event_qual_points", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("event_id", "source_points_id", name="event_qual_points_event_id_source_points_id_key"),
+        Index("event_qual_points_event_id_idx", "event_id"),
+    )
+
+
+class EventQualPointsEntry(Base):
+    """EventQualPointsEntry model for per-class, per-driver qual points result."""
+    __tablename__ = "event_qual_points_entries"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    event_qual_points_id = Column("event_qual_points_id", String, ForeignKey("event_qual_points.id", ondelete="CASCADE"), nullable=False)
+    driver_id = Column("driver_id", String, ForeignKey("drivers.id", ondelete="CASCADE"), nullable=False)
+    class_name = Column("class_name", String, nullable=False)
+    position = Column("position", Integer, nullable=False)
+    points = Column("points", Integer, nullable=False)
+    round_breakdown_json = Column("round_breakdown_json", JSONB, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    event_qual_points = relationship("EventQualPoints", back_populates="entries")
+    driver = relationship("Driver", back_populates="qual_points_entries")
+
+    __table_args__ = (
+        UniqueConstraint("event_qual_points_id", "driver_id", "class_name", name="event_qual_points_entries_qual_points_driver_class_key"),
+        Index("event_qual_points_entries_event_qual_points_id_idx", "event_qual_points_id"),
+        Index("event_qual_points_entries_driver_id_idx", "driver_id"),
+    )
+
+
+class EventRoundRanking(Base):
+    """EventRoundRanking model for Practice/Qualifier round rankings from view_round_ranking page."""
+    __tablename__ = "event_round_rankings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    event_id = Column("event_id", String, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    source = Column(String, nullable=False)
+    source_round_id = Column("source_round_id", String, nullable=False)
+    label = Column("label", String, nullable=False)
+    order_type = Column("order_type", String, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    event = relationship("Event", back_populates="round_rankings")
+    entries = relationship("EventRoundRankingEntry", back_populates="event_round_ranking", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("event_id", "source_round_id", name="event_round_rankings_event_id_source_round_id_key"),
+        Index("event_round_rankings_event_id_idx", "event_id"),
+    )
+
+
+class EventRoundRankingEntry(Base):
+    """EventRoundRankingEntry model for per-class, per-driver round ranking result."""
+    __tablename__ = "event_round_ranking_entries"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    event_round_ranking_id = Column("event_round_ranking_id", String, ForeignKey("event_round_rankings.id", ondelete="CASCADE"), nullable=False)
+    driver_id = Column("driver_id", String, ForeignKey("drivers.id", ondelete="CASCADE"), nullable=False)
+    class_name = Column("class_name", String, nullable=False)
+    position = Column("position", Integer, nullable=False)
+    laps = Column("laps", Integer, nullable=True)
+    total_time_seconds = Column("total_time_seconds", Float, nullable=True)
+    best_lap_seconds = Column("best_lap_seconds", Float, nullable=True)
+    ranking_value_raw = Column("ranking_value_raw", String, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    event_round_ranking = relationship("EventRoundRanking", back_populates="entries")
+    driver = relationship("Driver", back_populates="round_ranking_entries")
+
+    __table_args__ = (
+        UniqueConstraint("event_round_ranking_id", "driver_id", "class_name", name="event_round_ranking_entries_ranking_driver_class_key"),
+        Index("event_round_ranking_entries_event_round_ranking_id_idx", "event_round_ranking_id"),
+        Index("event_round_ranking_entries_driver_id_idx", "driver_id"),
     )
 
 

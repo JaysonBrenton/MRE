@@ -10,6 +10,7 @@ type EventAnalysisDataApiResponse = Omit<
   isPracticeDay?: boolean
   event: {
     id: string
+    trackId: string
     eventName: string
     eventDate: string // ISO string
     trackName: string

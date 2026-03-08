@@ -22,7 +22,7 @@ from ingestion.common.logging import configure_logging, get_logger
 from ingestion.connectors.liverc.connector import LiveRCConnector
 from ingestion.db.session import db_session
 from ingestion.db.repository import Repository
-from ingestion.db.models import Track, Event, IngestDepth
+from ingestion.db.models import Track, Event, Race, MultiMainResult, IngestDepth
 from ingestion.ingestion.errors import (
     ConnectorHTTPError,
     EventPageFormatError,
@@ -32,7 +32,9 @@ from ingestion.ingestion.errors import (
 )
 from ingestion.ingestion.pipeline import IngestionPipeline
 from ingestion.ingestion.auto_confirm import check_and_confirm_links
+from ingestion.ingestion.driver_deduplication import run_deduplication
 from ingestion.common.site_policy import SitePolicy, ScrapingDisabledError
+from ingestion.common.country_lookup import is_known_country, normalize_country
 from ingestion.services.track_sync_service import TrackSyncService
 
 logger = get_logger(__name__)
@@ -269,6 +271,52 @@ def refresh_tracks(metadata: bool) -> None:
         logger.error("refresh_tracks_error", error=str(e), exc_info=True)
         click.echo(f"Track refresh failed: {str(e)}", err=True)
         sys.exit(2)
+
+
+@liverc.command("backfill-track-countries")
+@click.option("--dry-run", is_flag=True, help="Show what would be updated without committing")
+def backfill_track_countries(dry_run: bool) -> None:
+    """Backfill country field for tracks where ISO code was stored in city/state."""
+    with db_session() as session:
+        from sqlalchemy import select
+        stmt = select(Track).where(Track.country.is_(None))
+        tracks = list(session.scalars(stmt).all())
+
+        updated = 0
+        for track in tracks:
+            new_country = None
+            clear_city = False
+            clear_state = False
+
+            if track.city and len(track.city.strip()) == 2 and track.city.strip().isalpha():
+                if is_known_country(track.city.strip()):
+                    new_country = normalize_country(track.city.strip())
+                    clear_city = True
+
+            if new_country is None and track.state and len(track.state.strip()) == 2 and track.state.strip().isalpha():
+                if is_known_country(track.state.strip()):
+                    new_country = normalize_country(track.state.strip())
+                    clear_state = True
+
+            if new_country:
+                if dry_run:
+                    click.echo(f"  Would update: {track.track_name} -> country={new_country}" + (
+                        ", clear city" if clear_city else ", clear state"
+                    ))
+                else:
+                    track.country = new_country
+                    if clear_city:
+                        track.city = None
+                    if clear_state:
+                        track.state = None
+                    session.flush()
+                updated += 1
+
+        if not dry_run and updated > 0:
+            session.commit()
+            logger.info("backfill_track_countries_complete", updated=updated)
+
+        click.echo(f"Tracks updated: {updated}" + (" (dry run)" if dry_run else ""))
 
 
 @liverc.command("list-events")
@@ -520,10 +568,11 @@ def refresh_followed_events(depth: str, ingest_new_only: bool, ingest_all: bool,
 @liverc.command("ingest-event")
 @click.option("--event-id", required=True, help="Event ID")
 @click.option("--depth", default="laps_full", help="Ingestion depth")
-def ingest_event(event_id: str, depth: str):
+@click.option("--force", is_flag=True, help="Re-process all races (e.g. to fix race_order)")
+def ingest_event(event_id: str, depth: str, force: bool):
     """Perform ingestion for a specific event."""
     _ensure_scraping_enabled("ingest-event")
-    click.echo(f"Ingesting event {event_id} with depth {depth}...")
+    click.echo(f"Ingesting event {event_id} with depth {depth}{' (force)' if force else ''}...")
     
     try:
         pipeline = IngestionPipeline()
@@ -531,6 +580,7 @@ def ingest_event(event_id: str, depth: str):
             pipeline.ingest_event(
                 event_id=UUID(event_id),
                 depth=depth,
+                force=force,
             )
         )
         
@@ -543,6 +593,83 @@ def ingest_event(event_id: str, depth: str):
     except Exception as e:
         click.echo(f"Ingestion failed: {str(e)}", err=True)
         sys.exit(2)
+
+
+@liverc.command("reingest-section-headers")
+@click.option("--dry-run", is_flag=True, help="Only list affected events, do not re-ingest")
+@click.option("--limit", type=int, default=0, help="Limit number of events to process (0 = all)")
+def reingest_section_headers(dry_run: bool, limit: int):
+    """Re-ingest events that have races with null section_header so round headings are populated.
+    Events are reset (races deleted, ingest_depth=NONE) then fully re-ingested.
+    """
+    _ensure_scraping_enabled("reingest-section-headers")
+
+    with db_session() as session:
+        from sqlalchemy import func
+
+        # Events where ALL races have null section_header (count(section_header)=0 excludes nulls)
+        rows = (
+            session.query(Race.event_id)
+            .group_by(Race.event_id)
+            .having(
+                func.count(Race.id) > 0,
+                func.count(Race.section_header) == 0,
+            )
+            .all()
+        )
+        event_ids = [r[0] for r in rows]
+
+    if not event_ids:
+        click.echo("No events need re-ingestion (all events have section_header populated).")
+        sys.exit(0)
+
+    events_to_process = event_ids[:limit] if limit > 0 else event_ids
+    click.echo(f"Found {len(event_ids)} event(s) with null section_header. Processing {len(events_to_process)}.")
+
+    if dry_run:
+        with db_session() as session:
+            for event_id in events_to_process:
+                event = session.get(Event, event_id)
+                race_count = session.query(Race).filter(Race.event_id == event_id).count()
+                if event:
+                    click.echo(f"  {event.id} | {event.event_name[:60]} | {event.source_event_id} | {race_count} races")
+        sys.exit(0)
+
+    pipeline = IngestionPipeline()
+    ok = 0
+    failed = 0
+
+    for event_id in events_to_process:
+        with db_session() as session:
+            event = session.get(Event, event_id)
+            if not event:
+                continue
+            name = event.event_name[:50]
+            race_count = session.query(Race).filter(Race.event_id == event_id).count()
+
+        click.echo(f"Re-ingesting: {name}... ({race_count} races)")
+
+        try:
+            with db_session() as session:
+                session.query(Race).filter(Race.event_id == event_id).delete()
+                session.query(MultiMainResult).filter(MultiMainResult.event_id == event_id).delete()
+                event = session.get(Event, event_id)
+                if event:
+                    event.ingest_depth = IngestDepth.NONE
+                    event.last_ingested_at = None
+                session.commit()
+
+            result = asyncio.run(
+                pipeline.ingest_event(event_id=UUID(event_id), depth="laps_full")
+            )
+            ok += 1
+            click.echo(f"  OK: {result.get('races_ingested', 0)} races")
+        except Exception as e:
+            failed += 1
+            click.echo(f"  FAILED: {e}", err=True)
+
+    click.echo(f"\nDone: {ok} succeeded, {failed} failed.")
+    sys.exit(1 if failed else 0)
 
 
 @liverc.command("status")
@@ -622,6 +749,47 @@ def auto_confirm_links():
     click.echo(f"  Links conflicted: {stats['links_conflicted']}")
     
     logger.info("auto_confirm_links_complete", **stats)
+
+
+@cli.group()
+def drivers():
+    """Driver management operations."""
+    pass
+
+
+@drivers.command("deduplicate")
+@click.option("--execute", is_flag=True, help="Perform merge (default is dry-run)")
+@click.option("--source", default="liverc", help="Source to deduplicate (default: liverc)")
+def drivers_deduplicate(execute: bool, source: str):
+    """Merge duplicate Driver records (transponder + normalized name match).
+    
+    Default is dry-run. Use --execute to perform the merge.
+    See docs/architecture/driver-deduplication-design.md.
+    """
+    logger.info("drivers_deduplicate_start", source=source, execute=execute)
+    dry_run = not execute
+    
+    with db_session() as session:
+        result = run_deduplication(session, source=source, dry_run=dry_run)
+        if not dry_run:
+            session.commit()
+    
+    click.echo(f"\nDriver deduplication ({'dry-run' if dry_run else 'EXECUTED'}):")
+    click.echo(f"  Duplicate groups found: {result['duplicate_groups']}")
+    click.echo(f"  Merge plans: {result['merge_plans']}")
+    click.echo(f"  Drivers to merge (consolidate into canonical): {result['drivers_to_merge']}")
+    
+    if dry_run and result.get("plans"):
+        click.echo("\n  Planned merges:")
+        for p in result["plans"]:
+            click.echo(f"    - {p['normalized_name']} (transponder {p['transponder']})")
+            click.echo(f"      Canonical: {p['canonical_id']}")
+            click.echo(f"      Merge into: {p['merged_ids']}")
+            click.echo(f"      Display names: {p['display_names']}")
+    elif not dry_run and result.get("merges_executed"):
+        click.echo(f"  Merges executed: {result['merges_executed']}")
+    
+    logger.info("drivers_deduplicate_complete", **result)
 
 
 @liverc.command("verify-integrity")

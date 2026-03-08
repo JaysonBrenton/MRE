@@ -145,6 +145,28 @@ class Normalizer:
         value = " ".join(value.split())
         
         return value.strip()
+
+    # Known typos in class names from LiveRC (wrong -> correct)
+    _CLASS_NAME_TYPOS: dict[str, str] = {
+        "Maintainance": "Maintenance",
+        "maintainance": "maintenance",
+    }
+
+    @staticmethod
+    def normalize_class_name(value: str) -> str:
+        """
+        Normalize class name and correct known typos from LiveRC.
+
+        Args:
+            value: Raw class name from connector
+
+        Returns:
+            Normalized class name with typos corrected
+        """
+        normalized = Normalizer.normalize_string(value)
+        for wrong, correct in Normalizer._CLASS_NAME_TYPOS.items():
+            normalized = normalized.replace(wrong, correct)
+        return normalized
     
     @staticmethod
     def parse_lap_time(lap_time_str: str) -> float:
@@ -300,11 +322,19 @@ class Normalizer:
         return normalized, race_order
     
     @staticmethod
-    def infer_session_type(race_label: str, race_url: str = "") -> Optional[str]:
+    def infer_session_type(
+        race_label: str,
+        race_url: str = "",
+        section_header: Optional[str] = None,
+    ) -> Optional[str]:
         """
-        Infer session type from race label and URL.
+        Infer session type from race label, URL, and optional section header.
         
-        Returns: "practice", "qualifying", "race", or None (defaults to "race" in pipeline)
+        Section header (e.g. "Seeding Round 1", "Practice Round 1") takes precedence
+        for distinguishing seeding/practice rounds from qualifier heats when the
+        race label alone is ambiguous (e.g. "Heat 1/4" appears in all).
+        
+        Returns: "practice", "qualifying", "seeding", "race", etc.
         
         Note: Practice day sessions will have sessionType = "practiceday" set explicitly
         during practice day ingestion (not inferred).
@@ -312,14 +342,26 @@ class Normalizer:
         Args:
             race_label: Race label string
             race_url: Race URL string (optional)
+            section_header: Section header from event page (optional, e.g. "Seeding Round 1")
         
         Returns:
             Inferred session type string or None
         """
         label_lower = race_label.lower()
         url_lower = race_url.lower() if race_url else ""
+        header_lower = (section_header or "").lower()
         
-        # Practice sessions (within race events)
+        # Section header takes precedence for round type (Seeding, Practice, Qualifier)
+        if "seeding" in header_lower:
+            return "seeding"
+        if "practice" in header_lower and "ranking" not in header_lower:
+            # "Practice Round 1" = practice; "Practice Round 1 Rankings" = skip (rankings row)
+            return "practice"
+        if "qualifier" in header_lower or "qualifying" in header_lower:
+            # "Qualifier Round 1", "Qualifier Round 4" etc. - heats within qualify rounds
+            return "qualifying"
+        
+        # Practice sessions (within race events) - from label or URL
         if "practice" in label_lower or "/practice/" in url_lower:
             return "practice"
         
@@ -357,6 +399,8 @@ class Normalizer:
             "event_date": event.event_date,  # Already datetime
             "event_entries": event.event_entries,
             "event_drivers": event.event_drivers,
+            "event_date_end": getattr(event, "event_date_end", None),
+            "total_race_laps": getattr(event, "total_race_laps", None),
         }
     
     @staticmethod
@@ -370,20 +414,30 @@ class Normalizer:
         Returns:
             Normalized race data dictionary
         """
-        normalized_label, race_order = Normalizer.parse_race_label(race.race_label)
+        normalized_label, label_race_order = Normalizer.parse_race_label(race.race_label)
         
-        # Infer session type from label and URL
-        session_type = Normalizer.infer_session_type(race.race_label, race.race_url)
+        # Infer session type from label, URL, and section header (for seeding/practice rounds)
+        session_type = Normalizer.infer_session_type(
+            race.race_label,
+            race.race_url,
+            section_header=getattr(race, "section_header", None),
+        )
+        
+        # Prefer parser's race_order (from "Race X:" in full label) over label-derived order.
+        # parse_race_label extracts local numbers (e.g. 1 from "Heat 1/3") which are NOT
+        # the global event order. Using them would put Practice and Heat 1 both at order 1.
+        race_order = race.race_order if race.race_order is not None else label_race_order
         
         return {
             "source_race_id": race.source_race_id,
-            "class_name": Normalizer.normalize_string(race.class_name),
+            "class_name": Normalizer.normalize_class_name(race.class_name),
             "race_label": normalized_label,
-            "race_order": race_order or race.race_order,
+            "race_order": race_order,
             "race_url": race.race_url,
             "start_time": race.start_time,
             "duration_seconds": race.duration_seconds,
             "session_type": session_type,
+            "section_header": getattr(race, "section_header", None),
         }
     
     @staticmethod

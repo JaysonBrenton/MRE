@@ -17,7 +17,7 @@
 
 import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
-import { getWeatherForEvent } from "@/core/weather/get-weather-for-event"
+import { getWeatherForEvent, getWeatherForEventDays } from "@/core/weather/get-weather-for-event"
 import { successResponse, errorResponse } from "@/lib/api-utils"
 import { createRequestLogger, generateRequestId } from "@/lib/request-context"
 import { handleApiError } from "@/lib/server-error-handler"
@@ -43,6 +43,17 @@ export async function GET(
   try {
     const { eventId } = await params
     const refresh = request.nextUrl.searchParams.get("refresh") === "true"
+    const perDay = request.nextUrl.searchParams.get("perDay") === "true"
+
+    if (perDay) {
+      const days = await getWeatherForEventDays(eventId)
+      requestLogger.info("Weather data (per day) fetched successfully", {
+        eventId,
+        dayCount: days.length,
+      })
+      return successResponse({ days })
+    }
+
     const weatherData = await getWeatherForEvent(eventId, { skipCache: refresh })
 
     requestLogger.info("Weather data fetched successfully", {

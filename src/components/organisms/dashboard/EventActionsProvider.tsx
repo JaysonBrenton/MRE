@@ -28,6 +28,7 @@ import { useDashboardEventSearch } from "@/components/organisms/dashboard/Dashbo
 import Modal from "@/components/molecules/Modal"
 import PracticeDriverSelector from "@/components/organisms/event-analysis/PracticeDriverSelector"
 import { EventActionsContext, type EventActionsContextValue } from "./EventActionsContext"
+import { sanitizeErrorMessage } from "@/lib/sanitize-error-message"
 
 // Types for driver selection modal
 interface Driver {
@@ -570,8 +571,8 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        const errorMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
-        setErrorMessage(errorMsg)
+        const rawMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
+        setErrorMessage(sanitizeErrorMessage(rawMsg))
         setIsErrorModalOpen(true)
         return
       }
@@ -626,7 +627,12 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
           }
 
           if (jobData.status === "failed") {
-            setErrorMessage(jobData.error_message ?? "Import failed.")
+            setErrorMessage(
+              sanitizeErrorMessage(
+                jobData.error_message,
+                "Something went wrong while refreshing event data. Please try again. If the problem persists, try again later or contact support."
+              )
+            )
             setIsErrorModalOpen(true)
             return
           }
@@ -659,8 +665,13 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
       router.refresh()
       setIsSuccessModalOpen(true)
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error occurred"
-      setErrorMessage(`Failed to refresh event data: ${errorMsg}`)
+      const rawMsg = error instanceof Error ? error.message : "Unknown error occurred"
+      setErrorMessage(
+        sanitizeErrorMessage(
+          `Failed to refresh event data: ${rawMsg}`,
+          "Something went wrong while refreshing event data. Please try again."
+        )
+      )
       setIsErrorModalOpen(true)
     } finally {
       setIsRefreshing(false)

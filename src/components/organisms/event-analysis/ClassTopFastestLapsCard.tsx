@@ -7,7 +7,7 @@
  * lap time, and session/lap as secondary text.
  *
  * @relatedFiles
- * - src/components/organisms/event-analysis/ClassStatsCard.tsx (styling reference)
+ * - src/components/organisms/event-analysis/EventStats.tsx (styling reference)
  * - src/components/organisms/event-analysis/OverviewTab.tsx (uses this)
  * - docs/design/compact-label-value-card.md
  */
@@ -21,19 +21,15 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 const CARD_CLASS =
   "mb-6 w-fit min-w-[16rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-3"
-const TITLE_CLASS =
-  "text-base font-medium text-[var(--token-text-primary)]"
-const SUBTITLE_CLASS =
-  "text-xs text-[var(--token-text-secondary)] mt-0.5"
-const HEADER_CLASS =
-  "border-b border-[var(--token-border-default)] pb-3 mb-3"
+const TITLE_CLASS = "text-base font-medium text-[var(--token-text-primary)]"
+const SUBTITLE_CLASS = "text-xs text-[var(--token-text-secondary)] mt-0.5"
+const HEADER_CLASS = "border-b border-[var(--token-border-default)] pb-3 mb-3"
 const RANK_BADGE_BASE =
   "inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs font-medium tabular-nums"
 const RANK_1_CLASS = `${RANK_BADGE_BASE} bg-amber-500/15 text-amber-200 border border-amber-500/30`
 const RANK_2_CLASS = `${RANK_BADGE_BASE} bg-slate-400/15 text-slate-200 border border-slate-400/30`
 const RANK_3_CLASS = `${RANK_BADGE_BASE} bg-amber-700/20 text-amber-300/90 border border-amber-700/40`
-const SESSION_CLASS =
-  "block text-xs text-[var(--token-text-secondary)] truncate max-w-[18rem]"
+const SESSION_CLASS = "block text-xs text-[var(--token-text-secondary)] truncate max-w-[18rem]"
 
 interface TopLapEntry {
   driverId: string
@@ -49,9 +45,7 @@ interface ClassTopLaps {
   entries: TopLapEntry[]
 }
 
-function computeTopFastestLapsPerClass(
-  races: EventAnalysisData["races"]
-): ClassTopLaps[] {
+function computeTopFastestLapsPerClass(races: EventAnalysisData["races"]): ClassTopLaps[] {
   // Per class: collect each driver's BEST lap (lowest fastLapTime across their results)
   const byClass = new Map<
     string,
@@ -78,8 +72,7 @@ function computeTopFastestLapsPerClass(
       }
 
       const existing = driverMap.get(result.driverId)
-      const isBetter =
-        !existing || result.fastLapTime < existing.lapTimeSeconds
+      const isBetter = !existing || result.fastLapTime < existing.lapTimeSeconds
 
       if (isBetter) {
         driverMap.set(result.driverId, {
@@ -99,9 +92,7 @@ function computeTopFastestLapsPerClass(
   for (const [className, driverMap] of byClass.entries()) {
     const entries = Array.from(driverMap.values())
     // Sort by lap time ascending
-    const sorted = [...entries].sort(
-      (a, b) => a.lapTimeSeconds - b.lapTimeSeconds
-    )
+    const sorted = [...entries].sort((a, b) => a.lapTimeSeconds - b.lapTimeSeconds)
 
     // Collect unique lap times in order, take first 3
     const distinctTimes: number[] = []
@@ -123,8 +114,7 @@ function computeTopFastestLapsPerClass(
     for (const e of sorted) {
       if (!topTimesSet.has(e.lapTimeSeconds)) continue
 
-      const isNewRank =
-        prevTime === null || Math.abs(e.lapTimeSeconds - prevTime) > 0.001
+      const isNewRank = prevTime === null || Math.abs(e.lapTimeSeconds - prevTime) > 0.001
       if (isNewRank && prevTime !== null) {
         rank++
       }
@@ -167,7 +157,10 @@ function getRankBadgeClass(rank: number): string {
     case 3:
       return RANK_3_CLASS
     default:
-      return RANK_BADGE_BASE + " bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] text-[var(--token-text-secondary)]"
+      return (
+        RANK_BADGE_BASE +
+        " bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] text-[var(--token-text-secondary)]"
+      )
   }
 }
 
@@ -175,13 +168,8 @@ export interface ClassTopFastestLapsCardProps {
   races: EventAnalysisData["races"]
 }
 
-export default function ClassTopFastestLapsCard({
-  races,
-}: ClassTopFastestLapsCardProps) {
-  const classTopLaps = useMemo(
-    () => computeTopFastestLapsPerClass(races),
-    [races]
-  )
+export default function ClassTopFastestLapsCard({ races }: ClassTopFastestLapsCardProps) {
+  const classTopLaps = useMemo(() => computeTopFastestLapsPerClass(races), [races])
 
   if (classTopLaps.length === 0) {
     return null
@@ -195,10 +183,12 @@ export default function ClassTopFastestLapsCard({
             <h3 className={TITLE_CLASS}>{className}</h3>
             <p className={SUBTITLE_CLASS}>Top 3 fastest laps this event</p>
           </header>
-          <ul className="space-y-3 text-sm text-[var(--token-text-primary)] leading-normal" aria-label={`Top fastest laps for ${className} this event`}>
+          <ul
+            className="space-y-3 text-sm text-[var(--token-text-primary)] leading-normal"
+            aria-label={`Top fastest laps for ${className} this event`}
+          >
             {entries.map((entry, i) => {
-              const rankLabel =
-                entry.rank === 1 ? "1st" : entry.rank === 2 ? "2nd" : "3rd"
+              const rankLabel = entry.rank === 1 ? "1st" : entry.rank === 2 ? "2nd" : "3rd"
               const sessionLap = formatSessionLap(entry.session, entry.lapNumber)
               return (
                 <li
@@ -206,9 +196,7 @@ export default function ClassTopFastestLapsCard({
                   className="flex flex-col gap-1"
                 >
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <span className={getRankBadgeClass(entry.rank)}>
-                      {rankLabel}
-                    </span>
+                    <span className={getRankBadgeClass(entry.rank)}>{rankLabel}</span>
                     <span className="font-medium">{entry.driverName}</span>
                     <span className="tabular-nums font-semibold text-[var(--token-text-primary)]">
                       {formatLapTime(entry.lapTimeSeconds)}

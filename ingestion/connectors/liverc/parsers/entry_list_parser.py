@@ -119,7 +119,7 @@ class EntryListParser:
                     
                     # Normalize class name
                     from ingestion.ingestion.normalizer import Normalizer
-                    class_name = Normalizer.normalize_string(class_name)
+                    class_name = Normalizer.normalize_class_name(class_name)
                     
                     # Find entry rows in tbody
                     entry_rows = table.css("tbody tr")

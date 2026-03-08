@@ -174,7 +174,7 @@ export default function ChartContainer({
         border: "1px solid var(--glass-border)",
         boxShadow: "var(--glass-shadow), var(--glass-shadow-inset)",
         padding: "20px",
-        overflow: "hidden",
+        overflow: "visible",
       }}
       role="img"
       aria-label={ariaLabel || title || "Chart"}

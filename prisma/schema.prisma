@@ -125,8 +125,10 @@ model Event {
   trackId              String                @map("track_id")
   eventName            String                @map("event_name")
   eventDate            DateTime              @map("event_date")
+  eventDateEnd         DateTime?             @map("event_date_end")
   eventEntries         Int                   @map("event_entries")
   eventDrivers         Int                   @map("event_drivers")
+  totalRaceLaps        Int?                  @map("total_race_laps")
   eventUrl             String                @map("event_url")
   ingestDepth          IngestDepth           @default(none) @map("ingest_depth")
   lastIngestedAt       DateTime?             @map("last_ingested_at")
@@ -141,6 +143,8 @@ model Event {
   weatherData          WeatherData[]
   raceClasses          EventRaceClass[]
   multiMainResults     MultiMainResult[]
+  qualPoints           EventQualPoints[]
+  roundRankings        EventRoundRanking[]
 
   @@unique([source, sourceEventId])
   @@index([source, sourceEventId])
@@ -149,6 +153,81 @@ model Event {
   @@index([trackId, eventDate])
   @@index([ingestDepth])
   @@map("events")
+}
+
+model EventQualPoints {
+  id               String                   @id @default(uuid())
+  eventId          String                   @map("event_id")
+  source           String
+  sourcePointsId   String                   @map("source_points_id")
+  label            String
+  roundsCompleted Int?                      @map("rounds_completed")
+  totalRounds      Int?                     @map("total_rounds")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+  event            Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  entries          EventQualPointsEntry[]
+
+  @@unique([eventId, sourcePointsId])
+  @@index([eventId])
+  @@map("event_qual_points")
+}
+
+model EventQualPointsEntry {
+  id                String          @id @default(uuid())
+  eventQualPointsId String          @map("event_qual_points_id")
+  driverId          String          @map("driver_id")
+  className         String          @map("class_name")
+  position          Int
+  points            Int
+  roundBreakdownJson Json?          @map("round_breakdown_json") @db.JsonB
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  eventQualPoints   EventQualPoints @relation(fields: [eventQualPointsId], references: [id], onDelete: Cascade)
+  driver            Driver          @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([eventQualPointsId, driverId, className])
+  @@index([eventQualPointsId])
+  @@index([driverId])
+  @@map("event_qual_points_entries")
+}
+
+model EventRoundRanking {
+  id             String                     @id @default(uuid())
+  eventId        String                     @map("event_id")
+  source         String
+  sourceRoundId  String                      @map("source_round_id")
+  label          String
+  orderType      String?                     @map("order_type")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
+  event          Event                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  entries        EventRoundRankingEntry[]
+
+  @@unique([eventId, sourceRoundId])
+  @@index([eventId])
+  @@map("event_round_rankings")
+}
+
+model EventRoundRankingEntry {
+  id                  String             @id @default(uuid())
+  eventRoundRankingId String             @map("event_round_ranking_id")
+  driverId            String             @map("driver_id")
+  className           String             @map("class_name")
+  position            Int
+  laps                Int?
+  totalTimeSeconds    Float?             @map("total_time_seconds")
+  bestLapSeconds     Float?              @map("best_lap_seconds")
+  rankingValueRaw     String?            @map("ranking_value_raw")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  eventRoundRanking   EventRoundRanking  @relation(fields: [eventRoundRankingId], references: [id], onDelete: Cascade)
+  driver              Driver             @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([eventRoundRankingId, driverId, className])
+  @@index([eventRoundRankingId])
+  @@index([driverId])
+  @@map("event_round_ranking_entries")
 }
 
 model EventEntry {
@@ -204,6 +283,7 @@ model Race {
   startTime                DateTime?             @map("start_time")
   durationSeconds          Int?                  @map("duration_seconds")
   sessionType              SessionType?          @map("session_type")
+  sectionHeader            String?               @map("section_header")
   raceMetadata             Json?                 @map("race_metadata") @db.JsonB
   createdAt                DateTime              @default(now()) @map("created_at")
   updatedAt                DateTime              @updatedAt @map("updated_at")
@@ -236,6 +316,8 @@ model Driver {
   transponderOverrides   TransponderOverride[]
   userDriverLink         UserDriverLink?
   multiMainResultEntries MultiMainResultEntry[]
+  qualPointsEntries      EventQualPointsEntry[]
+  roundRankingEntries    EventRoundRankingEntry[]
 
   @@unique([source, sourceDriverId])
   @@index([source, sourceDriverId])
@@ -483,6 +565,7 @@ enum SessionType {
   practiceday
   heat
   main
+  seeding
 }
 
 model WeatherData {

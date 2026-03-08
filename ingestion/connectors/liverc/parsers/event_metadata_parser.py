@@ -8,7 +8,10 @@
 # 
 # @purpose Extracts high-level event metadata from event detail page
 
+import re
 from datetime import datetime
+from typing import Optional
+
 from selectolax.parser import HTMLParser
 
 from ingestion.common.logging import get_logger
@@ -26,12 +29,16 @@ class EventMetadata:
         event_date: datetime,
         event_entries: int,
         event_drivers: int,
+        event_date_end: Optional[datetime] = None,
+        total_race_laps: Optional[int] = None,
     ):
         self.source_event_id = source_event_id
         self.event_name = event_name
         self.event_date = event_date
         self.event_entries = event_entries
         self.event_drivers = event_drivers
+        self.event_date_end = event_date_end
+        self.total_race_laps = total_race_laps
 
 
 class EventMetadataParser:
@@ -123,6 +130,7 @@ class EventMetadataParser:
             # Extract event date from h5.page-header
             event_date_elem = tree.css_first("h5.page-header")
             event_date = None
+            event_date_end = None
             if event_date_elem:
                 date_text = event_date_elem.text().strip()
                 # Remove icon text if present
@@ -136,13 +144,20 @@ class EventMetadataParser:
                 date_text = date_text.strip()
                 if date_text:
                     try:
-                        # Handle date ranges like "Nov 6, 2024 to Nov 9, 2024"
-                        # Extract the start date (first date in the range)
+                        # Handle date ranges like "Mar 5, 2026 to Mar 8, 2026" or "Nov 6, 2024 to Nov 9, 2024"
                         if " to " in date_text.lower():
-                            date_text = date_text.split(" to ", 1)[0].strip()
-                        
-                        # Parse format: "Nov 16, 2025" (date only, no time)
-                        event_date = datetime.strptime(date_text, "%b %d, %Y")
+                            parts = date_text.split(" to ", 1)
+                            start_text = parts[0].strip()
+                            end_text = parts[1].strip() if len(parts) > 1 else None
+                            event_date = datetime.strptime(start_text, "%b %d, %Y")
+                            if end_text:
+                                try:
+                                    event_date_end = datetime.strptime(end_text, "%b %d, %Y")
+                                except ValueError:
+                                    logger.warning("event_date_end_parse_error", end_text=end_text, event_id=event_id, url=url)
+                        else:
+                            # Single date: "Nov 16, 2025"
+                            event_date = datetime.strptime(date_text, "%b %d, %Y")
                     except ValueError as e:
                         logger.warning("event_date_parse_error", date_text=date_text, event_id=event_id, url=url)
             
@@ -152,17 +167,16 @@ class EventMetadataParser:
                     url=url,
                 )
             
-            # Extract entries and drivers from Event Stats table
+            # Extract entries, drivers, and total race laps from Event Stats table
             entries = 0
             drivers = 0
+            total_race_laps = None
             
             stats_rows = tree.css("table.table-sm tbody tr")
             for row in stats_rows:
                 row_text = row.text()
                 # Entries and Drivers are in the same cell, separated by <br />
                 if "Entries:" in row_text and "Drivers:" in row_text:
-                    # Extract both numbers
-                    import re
                     entries_match = re.search(r"Entries:\s*(\d+)", row_text)
                     drivers_match = re.search(r"Drivers:\s*(\d+)", row_text)
                     
@@ -177,6 +191,18 @@ class EventMetadataParser:
                             drivers = int(drivers_match.group(1))
                         except ValueError:
                             logger.warning("event_drivers_parse_error", row_text=row_text, event_id=event_id, url=url)
+                
+                # Total Race Laps in separate row: <th>Total Race Laps</th><td>4,129</td>
+                th_elem = row.css_first("th")
+                if th_elem and "total race laps" in (th_elem.text() or "").lower():
+                    td = row.css_first("td")
+                    if td:
+                        laps_text = td.text().strip().replace(",", "")
+                        if laps_text and laps_text.replace(".", "").isdigit():
+                            try:
+                                total_race_laps = int(float(laps_text))
+                            except (ValueError, TypeError):
+                                logger.warning("total_race_laps_parse_error", laps_text=laps_text, event_id=event_id, url=url)
             
             if entries == 0 and drivers == 0:
                 logger.warning("event_stats_not_found", event_id=event_id, url=url)
@@ -187,6 +213,8 @@ class EventMetadataParser:
                 event_date=event_date,
                 event_entries=entries,
                 event_drivers=drivers,
+                event_date_end=event_date_end,
+                total_race_laps=total_race_laps,
             )
             
             logger.debug("parse_event_metadata_success", event_id=event_id, url=url)

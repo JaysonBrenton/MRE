@@ -27,7 +27,7 @@
     "prepare": "husky"
   },
   "prisma": {
-    "seed": "ts-node --compiler-options {\"module\":\"commonjs\"} prisma/seed.ts"
+    "seed": "node prisma/seed.cjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs}": [

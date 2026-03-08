@@ -442,21 +442,6 @@ export default function LapTimeLineChart({
                                 strokeOpacity={strokeOpacity}
                                 pointerEvents="stroke"
                               />
-                              {/* Data points on lines */}
-                              {validLaps.map((d) => {
-                                const pointRadius = validLaps.length > 30 ? 2 : 3
-                                return (
-                                  <Circle
-                                    key={`${driver.driverId}-${d.lapNumber}`}
-                                    cx={xScale(d.lapNumber)}
-                                    cy={yScale(d.lapTimeSeconds)}
-                                    r={pointRadius}
-                                    fill={color}
-                                    stroke={color}
-                                    strokeWidth={1}
-                                  />
-                                )
-                              })}
                               {/* Best lap marker */}
                               {bestLap && (
                                 <Circle

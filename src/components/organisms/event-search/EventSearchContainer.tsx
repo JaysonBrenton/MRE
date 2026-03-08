@@ -39,6 +39,7 @@ interface ApiTrack {
   id: string
   trackName: string
   sourceTrackSlug: string
+  country?: string | null
 }
 
 /** API response type for event data */
@@ -51,14 +52,19 @@ interface ApiEvent {
   ingest_depth?: string
   sourceEventId?: string
   source_event_id?: string
+  eventUrl?: string
+  event_url?: string
 }
 
 /** API response type for discovered event */
 interface ApiDiscoveredEvent {
   id?: string
   sourceEventId: string
+  source_event_id?: string
   eventName: string
   eventDate: string
+  eventUrl?: string
+  event_url?: string
 }
 
 interface ApiIngestionResult {
@@ -118,7 +124,7 @@ async function pollIngestionJobUntilComplete(
       error_message?: string
     }>(res)
     if (!parsed.success || !parsed.data) {
-      throw new Error(parsed.success ? "No data" : parsed.error?.message ?? "Job status failed")
+      throw new Error(parsed.success ? "No data" : (parsed.error?.message ?? "Job status failed"))
     }
     const { status, result, error_message } = parsed.data
     onStatus?.(status)
@@ -175,6 +181,13 @@ function persistKnownImportedIds(ids: Set<string>) {
   }
 }
 
+/** True when event has race/lap data imported (ingest_depth = laps_full). Excludes LiveRC-only and DB events with ingest_depth = none. */
+function isEventFullyIngested(e: { id: string; ingestDepth?: string }): boolean {
+  if (e.id.startsWith("liverc-")) return false
+  const d = (e.ingestDepth ?? "").trim().toLowerCase()
+  return d === "laps_full" || d === "lapsfull"
+}
+
 // Get default date range (last 30 days) - used for reset
 function getDefaultDateRange(): { startDate: string; endDate: string } {
   const endDate = new Date()
@@ -216,13 +229,7 @@ interface EventSearchContainerProps {
   onSelectForDashboard?: (eventId: string) => void
 }
 
-export type DateRangePreset =
-  | "none"
-  | "last3"
-  | "last6"
-  | "last12"
-  | "thisYear"
-  | "custom"
+export type DateRangePreset = "none" | "last3" | "last6" | "last12" | "thisYear" | "custom"
 
 export default function EventSearchContainer({
   onSelectForDashboard,
@@ -281,6 +288,8 @@ export default function EventSearchContainer({
 
   // Include practice days (events mode): combined list state
   const [includePracticeDays, setIncludePracticeDays] = useState(false)
+  // Ingested events only: skip LiveRC discovery, show only DB events
+  const [ingestedEventsOnly, setIngestedEventsOnly] = useState(false)
   const [practiceDaysFromDb, setPracticeDaysFromDb] = useState<ApiIngestedPracticeDay[]>([])
   const [discoveredPracticeDays, setDiscoveredPracticeDays] = useState<
     DiscoveredPracticeDaySummary[]
@@ -296,6 +305,32 @@ export default function EventSearchContainer({
   const discoverRunIdRef = useRef(0)
   // Abort in-flight practice discover when user starts a new search or toggles off include practice days
   const discoverAbortControllerRef = useRef<AbortController | null>(null)
+  // Run ID for LiveRC check - when a new search starts, we increment this so stale checkLiveRC
+  // callbacks from a previous search don't merge their results over an "ingested only" result
+  const liveRCSearchRunIdRef = useRef(0)
+  // Capture ingestedEventsOnly at search start (avoids stale closure after async fetch)
+  const ingestedEventsOnlyRef = useRef(ingestedEventsOnly)
+  useEffect(() => {
+    ingestedEventsOnlyRef.current = ingestedEventsOnly
+  }, [ingestedEventsOnly])
+
+  // When user toggles "Ingested events only" ON, immediately filter to only fully-ingested events
+  // (laps_full). Excludes LiveRC-only and DB events with ingest_depth = none.
+  useEffect(() => {
+    if (ingestedEventsOnly) {
+      setEvents((prev) => {
+        const filtered = prev.filter((e) => isEventFullyIngested(e))
+        if (filtered.length !== prev.length) {
+          clientLogger.debug("Ingested-only: filtered to fully-ingested events only", {
+            before: prev.length,
+            after: filtered.length,
+          })
+          return filtered
+        }
+        return prev
+      })
+    }
+  }, [ingestedEventsOnly])
 
   const ensureDbEventsVisible = () => {
     // Prevent infinite loops by checking if already executing
@@ -480,7 +515,9 @@ export default function EventSearchContainer({
               if (obj.type === "month" && Array.isArray(obj.practice_days)) {
                 const filtered = obj.practice_days.filter((pd) => {
                   const dateOnly =
-                    typeof pd.date === "string" ? pd.date.split("T")[0] : (pd as { date?: string }).date
+                    typeof pd.date === "string"
+                      ? pd.date.split("T")[0]
+                      : (pd as { date?: string }).date
                   return dateOnly && !ingestedDates.has(dateOnly)
                 })
                 for (const pd of filtered) {
@@ -647,11 +684,14 @@ export default function EventSearchContainer({
 
     // Load date range preset and range from localStorage
     try {
-      const storedPreset = localStorage.getItem(DATE_RANGE_PRESET_STORAGE_KEY) as
-        | DateRangePreset
-        | null
+      const storedPreset = localStorage.getItem(
+        DATE_RANGE_PRESET_STORAGE_KEY
+      ) as DateRangePreset | null
       const storedDateRange = localStorage.getItem(LAST_DATE_RANGE_STORAGE_KEY)
-      if (storedPreset && ["none", "last3", "last6", "last12", "thisYear", "custom"].includes(storedPreset)) {
+      if (
+        storedPreset &&
+        ["none", "last3", "last6", "last12", "thisYear", "custom"].includes(storedPreset)
+      ) {
         setDateRangePreset(storedPreset)
       }
       if (storedDateRange) {
@@ -664,9 +704,11 @@ export default function EventSearchContainer({
         }
       }
       // If preset is not custom/none and we don't have valid dates, set from preset
-      const preset = (storedPreset && ["none", "last3", "last6", "last12", "thisYear", "custom"].includes(storedPreset))
-        ? storedPreset
-        : "last12"
+      const preset =
+        storedPreset &&
+        ["none", "last3", "last6", "last12", "thisYear", "custom"].includes(storedPreset)
+          ? storedPreset
+          : "last12"
       if (preset !== "custom" && preset !== "none") {
         const range = getRangeForPreset(preset)
         setStartDate(range.startDate)
@@ -779,7 +821,9 @@ export default function EventSearchContainer({
   const loadTracks = async () => {
     try {
       setIsLoadingTracks(true)
-      const response = await fetch("/api/v1/tracks?followed=false&active=true")
+      const response = await fetch("/api/v1/tracks?followed=false&active=true", {
+        cache: "no-store",
+      })
       const result = await parseApiResponse<{ tracks: ApiTrack[] }>(response)
 
       if (!result.success) {
@@ -794,6 +838,7 @@ export default function EventSearchContainer({
         id: track.id,
         trackName: track.trackName,
         sourceTrackSlug: track.sourceTrackSlug,
+        country: track.country ?? undefined,
       }))
 
       setTracks(loadedTracks)
@@ -974,6 +1019,11 @@ export default function EventSearchContainer({
         abortControllerRef.current = null
       }
 
+      // Increment run ID immediately so any in-flight checkLiveRC from a prior search
+      // will skip merging when its callback runs (prevents stale LiveRC overwriting ingested-only)
+      liveRCSearchRunIdRef.current = (liveRCSearchRunIdRef.current + 1) | 0
+      ingestedEventsOnlyRef.current = ingestedEventsOnly
+
       // Stop all polling intervals from previous searches to prevent them from
       // competing with the new search request. Any importing events in the new
       // results will have polling restarted by checkImportStatusForEvents.
@@ -1042,6 +1092,7 @@ export default function EventSearchContainer({
       try {
         response = await fetch(`/api/v1/events/search?${params.toString()}`, {
           signal: searchAbortController.signal,
+          cache: "no-store",
         })
       } catch (error) {
         clearTimeout(searchTimeout)
@@ -1101,7 +1152,13 @@ export default function EventSearchContainer({
         eventDate: event.eventDate || event.event_date || "",
         ingestDepth: (event.ingestDepth || event.ingest_depth || "").trim(),
         sourceEventId: event.sourceEventId || event.source_event_id, // Include for matching
+        eventUrl: event.eventUrl || event.event_url,
       }))
+
+      // When ingested-only mode, show only fully-ingested events (laps_full).
+      // Excludes LiveRC-only and DB events with ingest_depth = none.
+      const ingestedOnly = ingestedEventsOnlyRef.current
+      const eventsToSet = ingestedOnly ? dbEvents.filter((e) => isEventFullyIngested(e)) : dbEvents
 
       const practiceDaysFromResponse =
         searchMode === "events" && includePracticeDays
@@ -1135,11 +1192,11 @@ export default function EventSearchContainer({
 
       const practiceRangeMin =
         searchMode === "events" && includePracticeDays
-          ? result.data.practice_range_min ?? null
+          ? (result.data.practice_range_min ?? null)
           : null
       const practiceRangeMax =
         searchMode === "events" && includePracticeDays
-          ? result.data.practice_range_max ?? null
+          ? (result.data.practice_range_max ?? null)
           : null
       if (searchMode === "events" && includePracticeDays) {
         clientLogger.info("Search response practice range", {
@@ -1156,7 +1213,7 @@ export default function EventSearchContainer({
       if (dbEvents.length === 0) {
         // Show empty state immediately - don't block UI on LiveRC discovery
         // This improves perceived performance and gives users control
-        setEvents(dbEvents)
+        setEvents(eventsToSet)
         setHasSearched(true)
         setIsStartingSearch(false) // Clear immediately to show empty state
         setIsLoadingEvents(false) // Show empty state immediately, not loading
@@ -1179,7 +1236,7 @@ export default function EventSearchContainer({
           }
         )
 
-        // Start LiveRC check in background - don't block UI
+        // Start LiveRC check in background - don't block UI (skip if ingested-only mode)
         // Reduced timeout to 60 seconds (matching client timeout) for better UX
         const liveRCTimeout = setTimeout(() => {
           clientLogger.warn("LiveRC check timed out after 60 seconds", {
@@ -1188,26 +1245,31 @@ export default function EventSearchContainer({
           setIsCheckingLiveRC(false)
         }, 60 * 1000) // 60 second timeout (matches client timeout)
 
-        checkLiveRC(trackDataFromSearch, [])
-          .catch((error) => {
-            clientLogger.error("Error in auto-check LiveRC", {
-              trackId: trackToUse.id,
-              error:
-                error instanceof Error
-                  ? {
-                      name: error.name,
-                      message: error.message,
-                      stack: error.stack,
-                    }
-                  : String(error),
+        if (!ingestedEventsOnlyRef.current) {
+          checkLiveRC(trackDataFromSearch, [])
+            .catch((error) => {
+              clientLogger.error("Error in auto-check LiveRC", {
+                trackId: trackToUse.id,
+                error:
+                  error instanceof Error
+                    ? {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack,
+                      }
+                    : String(error),
+              })
+              // Clear LiveRC checking state on error
+              setIsCheckingLiveRC(false)
             })
-            // Clear LiveRC checking state on error
-            setIsCheckingLiveRC(false)
-          })
-          .finally(() => {
-            clearTimeout(liveRCTimeout)
-            setIsCheckingLiveRC(false)
-          })
+            .finally(() => {
+              clearTimeout(liveRCTimeout)
+              setIsCheckingLiveRC(false)
+            })
+        } else {
+          clearTimeout(liveRCTimeout)
+          setIsCheckingLiveRC(false)
+        }
 
         if (includePracticeDays && trackToUse?.id) {
           // Use default lookback (or date filter) for discover so we get full window of practice days.
@@ -1226,30 +1288,24 @@ export default function EventSearchContainer({
           setIsCheckingPracticeDays(true)
           discoverRunIdRef.current = (discoverRunIdRef.current + 1) | 0
           const thisRunId = discoverRunIdRef.current
-          discoverPracticeDaysInRange(
-            trackToUse.id,
-            minStr,
-            maxStr,
-            practiceDaysFromResponse,
-            {
-              trackSlug: trackDataFromSearch?.source_track_slug,
-              signal: discoverAbortControllerRef.current.signal,
-              onStreamMonth: (chunk) => {
-                setDiscoveredPracticeDays((prev) => {
-                  const next = [...prev]
-                  const existingDates = new Set(prev.map((p) => (p.date ?? "").split("T")[0]))
-                  for (const p of chunk) {
-                    const d = (p.date ?? "").split("T")[0]
-                    if (d && !existingDates.has(d)) {
-                      next.push(p)
-                      existingDates.add(d)
-                    }
+          discoverPracticeDaysInRange(trackToUse.id, minStr, maxStr, practiceDaysFromResponse, {
+            trackSlug: trackDataFromSearch?.source_track_slug,
+            signal: discoverAbortControllerRef.current.signal,
+            onStreamMonth: (chunk) => {
+              setDiscoveredPracticeDays((prev) => {
+                const next = [...prev]
+                const existingDates = new Set(prev.map((p) => (p.date ?? "").split("T")[0]))
+                for (const p of chunk) {
+                  const d = (p.date ?? "").split("T")[0]
+                  if (d && !existingDates.has(d)) {
+                    next.push(p)
+                    existingDates.add(d)
                   }
-                  return next
-                })
-              },
-            }
-          )
+                }
+                return next
+              })
+            },
+          })
             .then((discovered) => {
               if (discoverRunIdRef.current === thisRunId) {
                 setDiscoveredPracticeDays(discovered)
@@ -1273,7 +1329,7 @@ export default function EventSearchContainer({
         // DB has results - show them immediately and check LiveRC in background
         // This provides instant feedback to users while LiveRC discovery runs asynchronously
         dbEventsRef.current = dbEvents
-        setEvents(dbEvents)
+        setEvents(eventsToSet)
         setHasSearched(true)
         setIsStartingSearch(false) // Clear immediately to show results
         setIsLoadingEvents(false) // Clear main loading state once DB data is visible
@@ -1283,7 +1339,8 @@ export default function EventSearchContainer({
         // When user started import for a LiveRC event (keyed liverc-xxx) then left and came back,
         // the same event now has a DB id and may be laps_full; clear so we show derived "imported" status.
         const normalizedLapsFull = (d: string | undefined) =>
-          (d || "").trim().toLowerCase() === "laps_full" || (d || "").trim().toLowerCase() === "lapsfull"
+          (d || "").trim().toLowerCase() === "laps_full" ||
+          (d || "").trim().toLowerCase() === "lapsfull"
         setEventStatusOverrides((prev) => {
           const next = { ...prev }
           for (const event of dbEvents) {
@@ -1350,23 +1407,27 @@ export default function EventSearchContainer({
           })
         })
 
-        // Start LiveRC check in background - don't block UI rendering
+        // Start LiveRC check in background - don't block UI rendering (skip if ingested-only mode)
         // Pass track data and event source IDs to avoid duplicate queries
         // Removed setTimeout delay - start immediately for better performance
-        checkLiveRC(
-          trackDataFromSearch,
-          dbEvents.map((e) => e.sourceEventId).filter((id): id is string => id !== undefined)
-        ).catch((error) => {
-          clientLogger.error("Error in auto-check LiveRC", {
-            error:
-              error instanceof Error
-                ? {
-                    name: error.name,
-                    message: error.message,
-                  }
-                : String(error),
+        if (!ingestedEventsOnlyRef.current) {
+          checkLiveRC(
+            trackDataFromSearch,
+            dbEvents.map((e) => e.sourceEventId).filter((id): id is string => id !== undefined)
+          ).catch((error) => {
+            clientLogger.error("Error in auto-check LiveRC", {
+              error:
+                error instanceof Error
+                  ? {
+                      name: error.name,
+                      message: error.message,
+                    }
+                  : String(error),
+            })
           })
-        })
+        } else {
+          setIsCheckingLiveRC(false)
+        }
 
         if (includePracticeDays && selectedTrack?.id) {
           // Use default lookback range (or date filter) for discover so we get practice days
@@ -1387,30 +1448,24 @@ export default function EventSearchContainer({
           setIsCheckingPracticeDays(true)
           discoverRunIdRef.current = (discoverRunIdRef.current + 1) | 0
           const thisRunId = discoverRunIdRef.current
-          discoverPracticeDaysInRange(
-            selectedTrack.id,
-            minStr,
-            maxStr,
-            practiceDaysFromResponse,
-            {
-              trackSlug: trackDataFromSearch?.source_track_slug,
-              signal: discoverAbortControllerRef.current.signal,
-              onStreamMonth: (chunk) => {
-                setDiscoveredPracticeDays((prev) => {
-                  const next = [...prev]
-                  const existingDates = new Set(prev.map((p) => (p.date ?? "").split("T")[0]))
-                  for (const p of chunk) {
-                    const d = (p.date ?? "").split("T")[0]
-                    if (d && !existingDates.has(d)) {
-                      next.push(p)
-                      existingDates.add(d)
-                    }
+          discoverPracticeDaysInRange(selectedTrack.id, minStr, maxStr, practiceDaysFromResponse, {
+            trackSlug: trackDataFromSearch?.source_track_slug,
+            signal: discoverAbortControllerRef.current.signal,
+            onStreamMonth: (chunk) => {
+              setDiscoveredPracticeDays((prev) => {
+                const next = [...prev]
+                const existingDates = new Set(prev.map((p) => (p.date ?? "").split("T")[0]))
+                for (const p of chunk) {
+                  const d = (p.date ?? "").split("T")[0]
+                  if (d && !existingDates.has(d)) {
+                    next.push(p)
+                    existingDates.add(d)
                   }
-                  return next
-                })
-              },
-            }
-          )
+                }
+                return next
+              })
+            },
+          })
             .then((discovered) => {
               if (discoverRunIdRef.current === thisRunId) {
                 setDiscoveredPracticeDays(discovered)
@@ -1468,6 +1523,8 @@ export default function EventSearchContainer({
     existingEventSourceIds: string[] = []
   ) => {
     if (!selectedTrack) return
+
+    const runIdWhenStarted = liveRCSearchRunIdRef.current
 
     // Create new AbortController for this request
     const abortController = new AbortController()
@@ -1643,12 +1700,20 @@ export default function EventSearchContainer({
               isFuture,
             })
           }
+          const sourceId = event.sourceEventId || event.source_event_id
+          const eventUrl =
+            event.eventUrl ||
+            event.event_url ||
+            (sourceTrackSlug && sourceId
+              ? `https://${sourceTrackSlug}.liverc.com/results/?p=view_event&id=${sourceId}`
+              : undefined)
           return {
             id: event.id || `liverc-${event.sourceEventId}`,
             eventName: event.eventName,
             eventDate: event.eventDate,
             ingestDepth: "none", // Not imported yet
-            sourceEventId: event.sourceEventId, // Store for import
+            sourceEventId: sourceId ?? event.sourceEventId, // Store for import
+            eventUrl,
           }
         })
 
@@ -1657,6 +1722,19 @@ export default function EventSearchContainer({
         // Add new events to the events list (they'll show with "New (LiveRC only)" status and Import button)
         // Use a callback to ensure we're working with the latest state
         setEvents((prevEvents) => {
+          if (liveRCSearchRunIdRef.current !== runIdWhenStarted) {
+            clientLogger.debug(
+              "EventSearchContainer: Skipping LiveRC merge - newer search has completed",
+              { runIdWhenStarted, currentRunId: liveRCSearchRunIdRef.current }
+            )
+            return prevEvents
+          }
+          if (ingestedEventsOnlyRef.current) {
+            clientLogger.debug(
+              "EventSearchContainer: Skipping LiveRC merge - ingested-only mode is ON"
+            )
+            return prevEvents
+          }
           clientLogger.debug("EventSearchContainer: Adding LiveRC events to existing events", {
             prevEventCount: prevEvents.length,
             newEventCount: newEvents.length,
@@ -2167,7 +2245,9 @@ export default function EventSearchContainer({
           },
           body: JSON.stringify({ depth: "laps_full" }),
         })
-        const result = await parseApiResponse<ApiIngestionResult | ApiQueuedIngestionResult>(response)
+        const result = await parseApiResponse<ApiIngestionResult | ApiQueuedIngestionResult>(
+          response
+        )
         if (!result.success) {
           if (result.error.code === "INGESTION_IN_PROGRESS") {
             clientLogger.warn("Import already in progress for event", {
@@ -2181,13 +2261,11 @@ export default function EventSearchContainer({
         const data = result.data
         if (data && "job_id" in data) {
           setEventImportProgress((prev) => ({ ...prev, [event.id]: { stage: "Queued..." } }))
-          ingestionResponse = await pollIngestionJobUntilComplete(
-            data.job_id,
-            (status) =>
-              setEventImportProgress((prev) => ({
-                ...prev,
-                [event.id]: { stage: status === "queued" ? "Queued..." : "Importing..." },
-              }))
+          ingestionResponse = await pollIngestionJobUntilComplete(data.job_id, (status) =>
+            setEventImportProgress((prev) => ({
+              ...prev,
+              [event.id]: { stage: status === "queued" ? "Queued..." : "Importing..." },
+            }))
           )
         } else {
           ingestionResponse = data as ApiIngestionResult
@@ -2225,7 +2303,9 @@ export default function EventSearchContainer({
           if (timeoutId) {
             clearTimeout(timeoutId)
           }
-          const result = await parseApiResponse<ApiIngestionResult | ApiQueuedIngestionResult>(response)
+          const result = await parseApiResponse<ApiIngestionResult | ApiQueuedIngestionResult>(
+            response
+          )
           if (!result.success) {
             if (result.error.code === "INGESTION_IN_PROGRESS") {
               clientLogger.warn("Import already in progress for event", {
@@ -2239,13 +2319,11 @@ export default function EventSearchContainer({
           const data = result.data
           if (data && "job_id" in data) {
             setEventImportProgress((prev) => ({ ...prev, [event.id]: { stage: "Queued..." } }))
-            ingestionResponse = await pollIngestionJobUntilComplete(
-              data.job_id,
-              (status) =>
-                setEventImportProgress((prev) => ({
-                  ...prev,
-                  [event.id]: { stage: status === "queued" ? "Queued..." : "Importing..." },
-                }))
+            ingestionResponse = await pollIngestionJobUntilComplete(data.job_id, (status) =>
+              setEventImportProgress((prev) => ({
+                ...prev,
+                [event.id]: { stage: status === "queued" ? "Queued..." : "Importing..." },
+              }))
             )
           } else {
             ingestionResponse = data as ApiIngestionResult
@@ -2913,6 +2991,13 @@ export default function EventSearchContainer({
   const dbEventsCount = events.filter((event) => !event.id.startsWith("liverc-") && event.id).length
   const totalEventsCount = livercEventsCount + dbEventsCount
 
+  // When ingested-only mode, show only fully-ingested events (laps_full).
+  // Excludes LiveRC-only and DB events with ingest_depth = none.
+  const displayedEvents = useMemo(
+    () => (ingestedEventsOnly ? events.filter((e) => isEventFullyIngested(e)) : events),
+    [ingestedEventsOnly, events]
+  )
+
   // Combined list (events + practice days) when include practice days is on.
   // Practice days are merged by date so ingested rows keep discovered metadata (sessions, laps, drivers, classes).
   type CombinedItem =
@@ -2924,7 +3009,7 @@ export default function EventSearchContainer({
       }
   const combinedListItems: CombinedItem[] = useMemo(() => {
     if (!includePracticeDays || searchMode !== "events") {
-      return events.map((e) => ({ kind: "event" as const, event: e }))
+      return displayedEvents.map((e) => ({ kind: "event" as const, event: e }))
     }
     const byDate = new Map<
       string,
@@ -2938,13 +3023,21 @@ export default function EventSearchContainer({
       const d = (pd.date ?? "").split("T")[0]
       if (d) byDate.set(d, { ...byDate.get(d), discovered: pd })
     }
-    const practiceItems: CombinedItem[] = Array.from(byDate.entries()).map(([, v]) => ({
+    let practiceItems: CombinedItem[] = Array.from(byDate.entries()).map(([, v]) => ({
       kind: "practice" as const,
       ingested: v.ingested,
       discovered: v.discovered,
     }))
+    // When ingested-only mode, exclude discovered-only and partially-ingested practice days
+    if (ingestedEventsOnly) {
+      practiceItems = practiceItems.filter(
+        (item) =>
+          item.ingested &&
+          isEventFullyIngested({ id: item.ingested.id, ingestDepth: item.ingested.ingestDepth })
+      )
+    }
     const items: CombinedItem[] = [
-      ...events.map((e) => ({ kind: "event" as const, event: e })),
+      ...displayedEvents.map((e) => ({ kind: "event" as const, event: e })),
       ...practiceItems,
     ]
     const getDate = (item: CombinedItem): string => {
@@ -2961,9 +3054,10 @@ export default function EventSearchContainer({
   }, [
     includePracticeDays,
     searchMode,
-    events,
+    displayedEvents,
     practiceDaysFromDb,
     discoveredPracticeDays,
+    ingestedEventsOnly,
   ])
 
   const filteredCombinedList =
@@ -2977,11 +3071,11 @@ export default function EventSearchContainer({
   const totalItems =
     includePracticeDays && searchMode === "events"
       ? filteredCombinedList.length
-      : events.length
+      : displayedEvents.length
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage))
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedEvents = events.slice(startIndex, endIndex)
+  const paginatedEvents = displayedEvents.slice(startIndex, endIndex)
   const paginatedCombinedItems =
     includePracticeDays && searchMode === "events"
       ? filteredCombinedList.slice(startIndex, endIndex)
@@ -3023,14 +3117,24 @@ export default function EventSearchContainer({
 
   // Reset pagination when list length changes (but keep itemsPerPage)
   useEffect(() => {
-    const len = includePracticeDays && searchMode === "events" ? combinedListItems.length : events.length
+    const len =
+      includePracticeDays && searchMode === "events"
+        ? combinedListItems.length
+        : displayedEvents.length
     if (len > 0) {
       const maxPage = Math.max(1, Math.ceil(len / itemsPerPage))
       if (currentPage > maxPage) {
         setCurrentPage(1)
       }
     }
-  }, [includePracticeDays, searchMode, combinedListItems.length, events.length, itemsPerPage, currentPage])
+  }, [
+    includePracticeDays,
+    searchMode,
+    combinedListItems.length,
+    displayedEvents.length,
+    itemsPerPage,
+    currentPage,
+  ])
 
   if (isLoadingTracks) {
     return (
@@ -3102,6 +3206,8 @@ export default function EventSearchContainer({
           onPracticeMonthChange={setPracticeMonth}
           includePracticeDays={includePracticeDays}
           onIncludePracticeDaysChange={setIncludePracticeDays}
+          ingestedEventsOnly={ingestedEventsOnly}
+          onIngestedEventsOnlyChange={setIngestedEventsOnly}
         />
       </section>
 
@@ -3116,26 +3222,30 @@ export default function EventSearchContainer({
           (searchMode !== "practice-days" || !practiceDaysEnabled) &&
           includePracticeDays &&
           searchMode === "events" && (
-            <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Filter results by type">
-                {(["all", "events", "practice"] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    role="tab"
-                    aria-selected={resultFilter === filter}
-                    onClick={() => {
-                      setResultFilter(filter)
-                      setCurrentPage(1)
-                    }}
-                    className={`min-h-[44px] min-w-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] ${
-                      resultFilter === filter
-                        ? "border-[var(--token-accent)] bg-[var(--token-accent)]/20 text-[var(--token-text-primary)]"
-                        : "border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] hover:bg-[var(--token-surface-raised)]"
-                    }`}
-                  >
-                    {filter === "all" ? "All" : filter === "events" ? "Events" : "Practice days"}
-                  </button>
-                ))}
+            <div
+              className="flex flex-wrap gap-2 mb-4"
+              role="tablist"
+              aria-label="Filter results by type"
+            >
+              {(["all", "events", "practice"] as const).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  role="tab"
+                  aria-selected={resultFilter === filter}
+                  onClick={() => {
+                    setResultFilter(filter)
+                    setCurrentPage(1)
+                  }}
+                  className={`min-h-[44px] min-w-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] ${
+                    resultFilter === filter
+                      ? "border-[var(--token-accent)] bg-[var(--token-accent)]/20 text-[var(--token-text-primary)]"
+                      : "border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] hover:bg-[var(--token-surface-raised)]"
+                  }`}
+                >
+                  {filter === "all" ? "All" : filter === "events" ? "Events" : "Practice days"}
+                </button>
+              ))}
             </div>
           )}
 
@@ -3177,9 +3287,7 @@ export default function EventSearchContainer({
                   }}
                 >
                   <p className="text-[var(--token-text-primary)] font-medium">
-                    {selectedTrack
-                      ? "Ready to search"
-                      : "Select a track to get started"}
+                    {selectedTrack ? "Ready to search" : "Select a track to get started"}
                   </p>
                   <p className="text-sm text-[var(--token-text-secondary)]">
                     {selectedTrack
@@ -3233,7 +3341,11 @@ export default function EventSearchContainer({
                 {totalItems === 0 && !isCheckingLiveRC && !isCheckingPracticeDays && (
                   <div className="py-8 text-center">
                     <p className="text-[var(--token-text-primary)] font-medium mb-1">
-                      No {includePracticeDays && searchMode === "events" ? "events or practice days" : "events"} found
+                      No{" "}
+                      {includePracticeDays && searchMode === "events"
+                        ? "events or practice days"
+                        : "events"}{" "}
+                      found
                     </p>
                     <p className="text-sm text-[var(--token-text-secondary)]">
                       Try a different track or date range.
@@ -3241,15 +3353,17 @@ export default function EventSearchContainer({
                   </div>
                 )}
 
-                {Object.keys(driverInEvents).length > 0 && totalItems > 0 && !(includePracticeDays && searchMode === "events") && (
-                  <div className="mb-4 flex items-center gap-2">
-                    <span className="text-sm text-[var(--token-text-secondary)]">
-                      {Object.values(driverInEvents).filter(Boolean).length} event
-                      {Object.values(driverInEvents).filter(Boolean).length === 1 ? "" : "s"} found
-                      with your participation
-                    </span>
-                  </div>
-                )}
+                {Object.keys(driverInEvents).length > 0 &&
+                  totalItems > 0 &&
+                  !(includePracticeDays && searchMode === "events") && (
+                    <div className="mb-4 flex items-center gap-2">
+                      <span className="text-sm text-[var(--token-text-secondary)]">
+                        {Object.values(driverInEvents).filter(Boolean).length} event
+                        {Object.values(driverInEvents).filter(Boolean).length === 1 ? "" : "s"}{" "}
+                        found with your participation
+                      </span>
+                    </div>
+                  )}
 
                 {totalItems > 0 && includePracticeDays && searchMode === "events" ? (
                   <>
@@ -3261,11 +3375,27 @@ export default function EventSearchContainer({
                             const event = item.event
                             const statusOverride =
                               eventStatusOverrides?.[event.id] ??
-                              (event.sourceEventId ? eventStatusOverrides?.[`liverc-${event.sourceEventId}`] : undefined) ??
-                              (knownImportedIds?.has(event.id) || (event.sourceEventId && knownImportedIds?.has(`liverc-${event.sourceEventId}`)) ? "imported" : undefined)
-                            const errorMsg = eventErrorMessages?.[event.id] ?? (event.sourceEventId ? eventErrorMessages?.[`liverc-${event.sourceEventId}`] : undefined)
-                            const progress = eventImportProgress?.[event.id] ?? (event.sourceEventId ? eventImportProgress?.[`liverc-${event.sourceEventId}`] : undefined)
-                            const containsDriver = event.sourceEventId ? driverInEvents?.[event.sourceEventId] === true : false
+                              (event.sourceEventId
+                                ? eventStatusOverrides?.[`liverc-${event.sourceEventId}`]
+                                : undefined) ??
+                              (knownImportedIds?.has(event.id) ||
+                              (event.sourceEventId &&
+                                knownImportedIds?.has(`liverc-${event.sourceEventId}`))
+                                ? "imported"
+                                : undefined)
+                            const errorMsg =
+                              eventErrorMessages?.[event.id] ??
+                              (event.sourceEventId
+                                ? eventErrorMessages?.[`liverc-${event.sourceEventId}`]
+                                : undefined)
+                            const progress =
+                              eventImportProgress?.[event.id] ??
+                              (event.sourceEventId
+                                ? eventImportProgress?.[`liverc-${event.sourceEventId}`]
+                                : undefined)
+                            const containsDriver = event.sourceEventId
+                              ? driverInEvents?.[event.sourceEventId] === true
+                              : false
                             return (
                               <EventRow
                                 key={`event-${event.id}-${idx}`}
@@ -3278,7 +3408,9 @@ export default function EventSearchContainer({
                                 onSelectForDashboard={onSelectForDashboard}
                                 importDisabled={
                                   Object.keys(eventImportProgress ?? {}).length > 0 ||
-                                  Object.values(eventStatusOverrides ?? {}).some((s) => s === "importing")
+                                  Object.values(eventStatusOverrides ?? {}).some(
+                                    (s) => s === "importing"
+                                  )
                                 }
                               />
                             )
@@ -3286,8 +3418,7 @@ export default function EventSearchContainer({
                           if (item.kind === "practice") {
                             const discovered = item.discovered
                             const ingested = item.ingested
-                            const dateStr =
-                              ingested?.eventDate ?? discovered?.date ?? ""
+                            const dateStr = ingested?.eventDate ?? discovered?.date ?? ""
                             const dateOnly = dateStr.split("T")[0]
                             const isIngesting = dateOnly
                               ? ingestingPracticeDates.has(dateOnly)
@@ -3301,12 +3432,8 @@ export default function EventSearchContainer({
                                 totalLaps={discovered?.total_laps ?? 0}
                                 uniqueDrivers={discovered?.unique_drivers ?? 0}
                                 uniqueClasses={discovered?.unique_classes ?? 0}
-                                timeRangeStart={
-                                  discovered?.time_range_start ?? undefined
-                                }
-                                timeRangeEnd={
-                                  discovered?.time_range_end ?? undefined
-                                }
+                                timeRangeStart={discovered?.time_range_start ?? undefined}
+                                timeRangeEnd={discovered?.time_range_end ?? undefined}
                                 isIngested={!!ingested}
                                 eventId={ingested?.id}
                                 onView={
@@ -3316,11 +3443,7 @@ export default function EventSearchContainer({
                                 }
                                 onIngest={
                                   !ingested && selectedTrack?.id
-                                    ? () =>
-                                        handleImportPracticeDay(
-                                          selectedTrack.id,
-                                          dateStr
-                                        )
+                                    ? () => handleImportPracticeDay(selectedTrack.id, dateStr)
                                     : undefined
                                 }
                                 isIngesting={isIngesting}
@@ -3370,7 +3493,7 @@ export default function EventSearchContainer({
                       }
                     />
 
-                    {hasSearched && events.length > 0 && (
+                    {hasSearched && totalItems > 0 && (
                       <ListPagination
                         currentPage={currentPage}
                         totalPages={totalPages}

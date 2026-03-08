@@ -553,6 +553,22 @@ export default function UnifiedPerformanceChart({
   const { tooltipData, tooltipLeft, tooltipTop, tooltipOpen, showTooltip, hideTooltip } =
     useTooltip<DriverPerformanceData>()
 
+  // DEBUG: trace tooltip state when hovering first few drivers
+  useEffect(() => {
+    if (tooltipOpen && tooltipData && paginatedData.length > 0) {
+      const idx = paginatedData.findIndex((d) => d.driverId === tooltipData.driverId)
+      if (idx >= 0 && idx < 3) {
+        console.debug("[UnifiedPerformanceChart] tooltip", {
+          driverIndex: idx,
+          driverName: tooltipData.driverName,
+          tooltipLeft,
+          tooltipTop,
+          tooltipOpen,
+        })
+      }
+    }
+  }, [tooltipOpen, tooltipData, tooltipLeft, tooltipTop, paginatedData])
+
   // Handle bar click to open color picker for the metric
   const handleBarClickForColorPicker = useCallback(
     (metric: MetricType, event: React.MouseEvent<SVGElement> | React.KeyboardEvent<SVGElement>) => {
@@ -803,382 +819,420 @@ export default function UnifiedPerformanceChart({
                   }
 
                   return (
-                    <svg
-                      width={width}
-                      height={height}
-                      aria-labelledby={chartDescId}
-                      role="img"
-                      overflow="visible"
-                    >
-                      <desc id={chartDescId}>
-                        {chartView === "line"
-                          ? "Line chart showing performance metrics for each driver. Visible metrics: "
-                          : "Bar chart showing performance metrics for each driver. Visible metrics: "}
-                        {Array.from(visibleMetrics)
-                          .map((m) => metricConfig[m].label)
-                          .join(", ")}
-                      </desc>
-                      <Group left={margin.left} top={margin.top}>
-                        {/* Grid lines */}
-                        {yScale.ticks(5).map((tick) => (
-                          <line
-                            key={tick}
-                            x1={0}
-                            x2={innerWidth}
-                            y1={yScale(tick)}
-                            y2={yScale(tick)}
-                            stroke={borderColor}
-                            strokeWidth={1}
-                            strokeDasharray="2,2"
-                            opacity={0.3}
-                          />
-                        ))}
+                    <div className="relative w-full" style={{ width, height }}>
+                      <svg
+                        width={width}
+                        height={height}
+                        aria-labelledby={chartDescId}
+                        role="img"
+                        overflow="visible"
+                      >
+                        <desc id={chartDescId}>
+                          {chartView === "line"
+                            ? "Line chart showing performance metrics for each driver. Visible metrics: "
+                            : "Bar chart showing performance metrics for each driver. Visible metrics: "}
+                          {Array.from(visibleMetrics)
+                            .map((m) => metricConfig[m].label)
+                            .join(", ")}
+                        </desc>
+                        <Group left={margin.left} top={margin.top}>
+                          {/* Grid lines */}
+                          {yScale.ticks(5).map((tick) => (
+                            <line
+                              key={tick}
+                              x1={0}
+                              x2={innerWidth}
+                              y1={yScale(tick)}
+                              y2={yScale(tick)}
+                              stroke={borderColor}
+                              strokeWidth={1}
+                              strokeDasharray="2,2"
+                              opacity={0.3}
+                            />
+                          ))}
 
-                        {/* Chart elements - Line view (same data as column). focus:outline-none prevents browser default focus rectangle. */}
-                        {chartView === "line" &&
-                          lineSeriesByMetric.map(({ metric, points }) => {
-                            const color = computedColors[metric]
-                            return (
-                              <Group
-                                key={metric}
-                                className="focus:outline-none"
-                                onMouseLeave={() => hideTooltip()}
-                                onClick={(e) => handleBarClickForColorPicker(metric, e)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault()
-                                    handleBarClickForColorPicker(
-                                      metric,
-                                      e as React.KeyboardEvent<SVGElement>
-                                    )
-                                  }
-                                }}
-                                style={{ cursor: "pointer" }}
-                                role="button"
-                                tabIndex={0}
-                                aria-label={`${metricConfig[metric].label} - Click to change color`}
-                              >
-                                {/* Invisible wide path for easier line hover + tooltip */}
-                                <LinePath
-                                  data={points}
-                                  x={(p) => p.x}
-                                  y={(p) => p.y}
-                                  stroke="transparent"
-                                  strokeWidth={20}
-                                  curve={curveMonotoneX}
-                                  pointerEvents="stroke"
-                                  onMouseMove={(event) => {
-                                    const svgElement = (event.target as SVGElement).ownerSVGElement
-                                    if (!svgElement || points.length === 0) return
-                                    const coords = localPoint(svgElement, event)
-                                    if (!coords) return
-                                    const innerX = coords.x - margin.left
-                                    let nearest = points[0]
-                                    let minDist = Math.abs(points[0].x - innerX)
-                                    for (let i = 1; i < points.length; i++) {
-                                      const dist = Math.abs(points[i].x - innerX)
-                                      if (dist < minDist) {
-                                        minDist = dist
-                                        nearest = points[i]
-                                      }
+                          {/* Chart elements - Line view (same data as column). focus:outline-none prevents browser default focus rectangle. */}
+                          {chartView === "line" &&
+                            lineSeriesByMetric.map(({ metric, points }) => {
+                              const color = computedColors[metric]
+                              return (
+                                <Group
+                                  key={metric}
+                                  className="focus:outline-none"
+                                  onMouseLeave={() => hideTooltip()}
+                                  onClick={(e) => handleBarClickForColorPicker(metric, e)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault()
+                                      handleBarClickForColorPicker(
+                                        metric,
+                                        e as React.KeyboardEvent<SVGElement>
+                                      )
                                     }
-                                    showTooltip({
-                                      tooltipLeft: coords.x,
-                                      tooltipTop: coords.y,
-                                      tooltipData: nearest.driver,
-                                    })
                                   }}
-                                />
-                                <LinePath
-                                  data={points}
-                                  x={(p) => p.x}
-                                  y={(p) => p.y}
-                                  stroke={color}
-                                  strokeWidth={2}
-                                  curve={curveMonotoneX}
-                                  pointerEvents="none"
-                                />
-                              </Group>
-                            )
-                          })}
-
-                        {/* Chart elements - Bar chart */}
-                        {chartView === "column" &&
-                          paginatedData.map((d) => {
-                            const x = xScale(d.driverName) || 0
-                            const isSelected =
-                              selectedDriverIds === undefined ||
-                              selectedDriverIds.length === 0 ||
-                              selectedDriverIds.includes(d.driverId)
-
-                            const handleDriverToggle = () => {
-                              if (onDriverToggle) {
-                                onDriverToggle(d.driverId)
-                              }
-                            }
-
-                            const handleMouseMove = (event: React.MouseEvent<SVGElement>) => {
-                              const svgElement = (event.target as SVGElement).ownerSVGElement
-                              if (!svgElement) return
-                              const coords = localPoint(svgElement, event)
-                              if (coords) {
-                                showTooltip({
-                                  tooltipLeft: coords.x,
-                                  tooltipTop: coords.y,
-                                  tooltipData: d,
-                                })
-                              }
-                            }
-
-                            return (
-                              <Group key={d.driverId}>
-                                {Array.from(visibleMetrics).map((metric, metricIndex) => {
-                                  const key = metricConfig[metric].key
-                                  const value = d[key]
-
-                                  if (
-                                    value === null ||
-                                    value === undefined ||
-                                    !isFinite(value as number)
-                                  ) {
-                                    return null
-                                  }
-
-                                  // For gapToFastest and podiumFinishes, 0 is a valid value
-                                  if (metric === "gapToFastest" || metric === "podiumFinishes") {
-                                    if ((value as number) < 0) {
-                                      return null
-                                    }
-                                  } else {
-                                    // For other metrics, require > 0
-                                    if ((value as number) <= 0) {
-                                      return null
-                                    }
-                                  }
-
-                                  const metricValue = value as number
-                                  const color = computedColors[metric]
-                                  const metricX = x + metricIndex * barWidth
-
-                                  return (
-                                    <Bar
-                                      key={metric}
-                                      className="focus:outline-none"
-                                      x={metricX}
-                                      y={yScale(metricValue)}
-                                      width={barWidth}
-                                      height={innerHeight - yScale(metricValue)}
-                                      fill={color}
-                                      opacity={isSelected ? 1 : 0.3}
-                                      stroke={
-                                        isSelected &&
-                                        selectedDriverIds !== undefined &&
-                                        selectedDriverIds.length > 0
-                                          ? color
-                                          : "none"
-                                      }
-                                      strokeWidth={
-                                        isSelected &&
-                                        selectedDriverIds !== undefined &&
-                                        selectedDriverIds.length > 0
-                                          ? 1.5
-                                          : 0
-                                      }
-                                      onClick={(e) => {
-                                        // Click on bar opens color picker for that metric
-                                        handleBarClickForColorPicker(metric, e)
-                                      }}
-                                      onContextMenu={(e) => {
-                                        // Right-click toggles driver selection
-                                        e.preventDefault()
-                                        handleDriverToggle()
-                                      }}
-                                      onMouseMove={handleMouseMove}
-                                      onMouseLeave={() => hideTooltip()}
-                                      onTouchStart={(event) => {
-                                        const svgElement = (event.target as SVGElement)
-                                          .ownerSVGElement
-                                        if (!svgElement) return
-                                        const coords = localPoint(svgElement, event)
-                                        if (coords) {
-                                          showTooltip({
-                                            tooltipLeft: coords.x,
-                                            tooltipTop: coords.y,
-                                            tooltipData: d,
-                                          })
+                                  style={{ cursor: "pointer" }}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`${metricConfig[metric].label} - Click to change color`}
+                                >
+                                  {/* Invisible wide path for easier line hover + tooltip */}
+                                  <LinePath
+                                    data={points}
+                                    x={(p) => p.x}
+                                    y={(p) => p.y}
+                                    stroke="transparent"
+                                    strokeWidth={20}
+                                    curve={curveMonotoneX}
+                                    pointerEvents="stroke"
+                                    onMouseMove={(event) => {
+                                      const svgElement = (event.target as SVGElement)
+                                        .ownerSVGElement
+                                      if (!svgElement || points.length === 0) return
+                                      const coords = localPoint(svgElement, event)
+                                      if (!coords) return
+                                      const innerX = coords.x - margin.left
+                                      let nearest = points[0]
+                                      let minDist = Math.abs(points[0].x - innerX)
+                                      for (let i = 1; i < points.length; i++) {
+                                        const dist = Math.abs(points[i].x - innerX)
+                                        if (dist < minDist) {
+                                          minDist = dist
+                                          nearest = points[i]
                                         }
-                                      }}
-                                      onTouchEnd={(e) => {
-                                        hideTooltip()
-                                        // Long press or double tap could open color picker
-                                        // Convert touch event to mouse event for handler
-                                        const syntheticEvent = {
-                                          ...e,
-                                          stopPropagation: () => e.stopPropagation(),
-                                          currentTarget: e.currentTarget,
-                                        } as unknown as React.MouseEvent<SVGElement>
-                                        handleBarClickForColorPicker(metric, syntheticEvent)
-                                      }}
-                                      style={{ cursor: "pointer" }}
-                                      aria-label={`${d.driverName}: ${metricConfig[metric].label} ${
-                                        metric === "gapToFastest"
-                                          ? formatGapToFastest(metricValue)
-                                          : metricConfig[metric].isTimeBased
-                                            ? formatLapTime(metricValue)
-                                            : metric === "averagePosition"
-                                              ? formatPosition(metricValue)
-                                              : metric === "podiumFinishes"
-                                                ? Math.round(metricValue).toString()
-                                                : metricValue.toFixed(2)
-                                      }. Click to customize color, right-click to toggle driver selection`}
-                                      role="button"
-                                      tabIndex={0}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter" || e.key === " ") {
-                                          e.preventDefault()
-                                          // Keyboard event is compatible with the handler signature
-                                          handleBarClickForColorPicker(
-                                            metric,
-                                            e as React.KeyboardEvent<SVGElement>
-                                          )
-                                        }
-                                      }}
-                                    />
+                                      }
+                                      showTooltip({
+                                        tooltipLeft: coords.x,
+                                        tooltipTop: coords.y,
+                                        tooltipData: nearest.driver,
+                                      })
+                                    }}
+                                  />
+                                  <LinePath
+                                    data={points}
+                                    x={(p) => p.x}
+                                    y={(p) => p.y}
+                                    stroke={color}
+                                    strokeWidth={2}
+                                    curve={curveMonotoneX}
+                                    pointerEvents="none"
+                                  />
+                                </Group>
+                              )
+                            })}
+
+                          {/* Chart elements - Bar chart */}
+                          {chartView === "column" &&
+                            paginatedData.map((d) => {
+                              const x = xScale(d.driverName) || 0
+                              const isSelected =
+                                selectedDriverIds === undefined ||
+                                selectedDriverIds.length === 0 ||
+                                selectedDriverIds.includes(d.driverId)
+
+                              const handleDriverToggle = () => {
+                                if (onDriverToggle) {
+                                  onDriverToggle(d.driverId)
+                                }
+                              }
+
+                              const handleMouseMove = (event: React.MouseEvent<SVGElement>) => {
+                                const svgElement = (event.target as SVGElement).ownerSVGElement
+                                if (!svgElement) return
+                                const coords = localPoint(svgElement, event)
+                                if (coords) {
+                                  const driverIdx = paginatedData.findIndex(
+                                    (p) => p.driverId === d.driverId
                                   )
-                                })}
-                              </Group>
-                            )
-                          })}
+                                  if (driverIdx < 3) {
+                                    console.debug("[UnifiedPerformanceChart] showTooltip", {
+                                      driverIndex: driverIdx,
+                                      driverName: d.driverName,
+                                      coordsX: coords.x,
+                                      coordsY: coords.y,
+                                    })
+                                  }
+                                  showTooltip({
+                                    tooltipLeft: coords.x,
+                                    tooltipTop: coords.y,
+                                    tooltipData: d,
+                                  })
+                                }
+                              }
 
-                        {/* Y-axis - clickable to open color picker */}
-                        <Group
-                          style={{ cursor: "pointer" }}
-                          onClick={(e) => onAxisColorPickerRequest("y", e)}
-                          aria-label="Y-axis - Click to change color"
-                        >
-                          <AxisLeft
-                            scale={yScale}
-                            tickFormat={(value) => {
-                              if (yAxisFormatType === "gap") {
-                                return formatGapToFastest(Number(value))
-                              }
-                              if (yAxisFormatType === "position") {
-                                return formatPosition(Number(value))
-                              }
-                              if (yAxisFormatType === "count") {
-                                return Math.round(Number(value)).toString()
-                              }
-                              if (yAxisFormatType === "percentage") {
-                                return `${Number(value).toFixed(1)}%`
-                              }
-                              return formatLapTime(Number(value))
-                            }}
-                            stroke={yAxisColor}
-                            tickStroke={yAxisColor}
-                            tickLabelProps={() => ({
-                              fill: yAxisColor,
-                              fontSize: 12,
-                              textAnchor: "end",
-                              dx: -8,
-                            })}
-                          />
-                          <rect
-                            x={0}
-                            y={0}
-                            width={80}
-                            height={innerHeight}
-                            fill="transparent"
-                            pointerEvents="all"
-                          />
-                        </Group>
+                              return (
+                                <Group key={d.driverId}>
+                                  {Array.from(visibleMetrics).map((metric, metricIndex) => {
+                                    const key = metricConfig[metric].key
+                                    const value = d[key]
 
-                        {/* X-axis - clickable to open color picker */}
-                        <Group
-                          style={{ cursor: "pointer" }}
-                          onClick={(e) => onAxisColorPickerRequest("x", e)}
-                          aria-label="X-axis - Click to change color"
-                        >
-                          <AxisBottom
-                            top={innerHeight}
-                            scale={xScale}
-                            tickValues={paginatedData.map((d) => d.driverName)}
-                            stroke={xAxisColor}
-                            tickStroke={xAxisColor}
-                            tickLabelProps={() => ({
-                              fill: xAxisColor,
-                              fontSize: 11,
-                              textAnchor: "end",
-                              angle: -45,
-                              dx: -5,
-                              dy: 8,
+                                    if (
+                                      value === null ||
+                                      value === undefined ||
+                                      !isFinite(value as number)
+                                    ) {
+                                      return null
+                                    }
+
+                                    // For gapToFastest and podiumFinishes, 0 is a valid value
+                                    if (metric === "gapToFastest" || metric === "podiumFinishes") {
+                                      if ((value as number) < 0) {
+                                        return null
+                                      }
+                                    } else {
+                                      // For other metrics, require > 0
+                                      if ((value as number) <= 0) {
+                                        return null
+                                      }
+                                    }
+
+                                    const metricValue = value as number
+                                    const color = computedColors[metric]
+                                    const metricX = x + metricIndex * barWidth
+
+                                    return (
+                                      <Bar
+                                        key={metric}
+                                        className="focus:outline-none"
+                                        x={metricX}
+                                        y={yScale(metricValue)}
+                                        width={barWidth}
+                                        height={innerHeight - yScale(metricValue)}
+                                        fill={color}
+                                        opacity={isSelected ? 1 : 0.3}
+                                        stroke={
+                                          isSelected &&
+                                          selectedDriverIds !== undefined &&
+                                          selectedDriverIds.length > 0
+                                            ? color
+                                            : "none"
+                                        }
+                                        strokeWidth={
+                                          isSelected &&
+                                          selectedDriverIds !== undefined &&
+                                          selectedDriverIds.length > 0
+                                            ? 1.5
+                                            : 0
+                                        }
+                                        onClick={(e) => {
+                                          // Click on bar opens color picker for that metric
+                                          handleBarClickForColorPicker(metric, e)
+                                        }}
+                                        onContextMenu={(e) => {
+                                          // Right-click toggles driver selection
+                                          e.preventDefault()
+                                          handleDriverToggle()
+                                        }}
+                                        onMouseMove={handleMouseMove}
+                                        onMouseLeave={() => hideTooltip()}
+                                        onTouchStart={(event) => {
+                                          const svgElement = (event.target as SVGElement)
+                                            .ownerSVGElement
+                                          if (!svgElement) return
+                                          const coords = localPoint(svgElement, event)
+                                          if (coords) {
+                                            showTooltip({
+                                              tooltipLeft: coords.x,
+                                              tooltipTop: coords.y,
+                                              tooltipData: d,
+                                            })
+                                          }
+                                        }}
+                                        onTouchEnd={(e) => {
+                                          hideTooltip()
+                                          // Long press or double tap could open color picker
+                                          // Convert touch event to mouse event for handler
+                                          const syntheticEvent = {
+                                            ...e,
+                                            stopPropagation: () => e.stopPropagation(),
+                                            currentTarget: e.currentTarget,
+                                          } as unknown as React.MouseEvent<SVGElement>
+                                          handleBarClickForColorPicker(metric, syntheticEvent)
+                                        }}
+                                        style={{ cursor: "pointer" }}
+                                        aria-label={`${d.driverName}: ${metricConfig[metric].label} ${
+                                          metric === "gapToFastest"
+                                            ? formatGapToFastest(metricValue)
+                                            : metricConfig[metric].isTimeBased
+                                              ? formatLapTime(metricValue)
+                                              : metric === "averagePosition"
+                                                ? formatPosition(metricValue)
+                                                : metric === "podiumFinishes"
+                                                  ? Math.round(metricValue).toString()
+                                                  : metricValue.toFixed(2)
+                                        }. Click to customize color, right-click to toggle driver selection`}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault()
+                                            // Keyboard event is compatible with the handler signature
+                                            handleBarClickForColorPicker(
+                                              metric,
+                                              e as React.KeyboardEvent<SVGElement>
+                                            )
+                                          }
+                                        }}
+                                      />
+                                    )
+                                  })}
+                                </Group>
+                              )
                             })}
-                          />
-                          <rect
-                            x={0}
-                            y={innerHeight}
-                            width={innerWidth}
-                            height={60}
-                            fill="transparent"
-                            pointerEvents="all"
-                          />
+
+                          {/* Y-axis - clickable to open color picker */}
+                          <Group
+                            style={{ cursor: "pointer" }}
+                            onClick={(e) => onAxisColorPickerRequest("y", e)}
+                            aria-label="Y-axis - Click to change color"
+                          >
+                            <AxisLeft
+                              scale={yScale}
+                              tickFormat={(value) => {
+                                if (yAxisFormatType === "gap") {
+                                  return formatGapToFastest(Number(value))
+                                }
+                                if (yAxisFormatType === "position") {
+                                  return formatPosition(Number(value))
+                                }
+                                if (yAxisFormatType === "count") {
+                                  return Math.round(Number(value)).toString()
+                                }
+                                if (yAxisFormatType === "percentage") {
+                                  return `${Number(value).toFixed(1)}%`
+                                }
+                                return formatLapTime(Number(value))
+                              }}
+                              stroke={yAxisColor}
+                              tickStroke={yAxisColor}
+                              tickLabelProps={() => ({
+                                fill: yAxisColor,
+                                fontSize: 12,
+                                textAnchor: "end",
+                                dx: -8,
+                              })}
+                            />
+                            <rect
+                              x={0}
+                              y={0}
+                              width={80}
+                              height={innerHeight}
+                              fill="transparent"
+                              pointerEvents="all"
+                            />
+                          </Group>
+
+                          {/* X-axis - clickable to open color picker */}
+                          <Group
+                            style={{ cursor: "pointer" }}
+                            onClick={(e) => onAxisColorPickerRequest("x", e)}
+                            aria-label="X-axis - Click to change color"
+                          >
+                            <AxisBottom
+                              top={innerHeight}
+                              scale={xScale}
+                              tickValues={paginatedData.map((d) => d.driverName)}
+                              stroke={xAxisColor}
+                              tickStroke={xAxisColor}
+                              tickLabelProps={() => ({
+                                fill: xAxisColor,
+                                fontSize: 11,
+                                textAnchor: "end",
+                                angle: -45,
+                                dx: -5,
+                                dy: 8,
+                              })}
+                            />
+                            <rect
+                              x={0}
+                              y={innerHeight}
+                              width={innerWidth}
+                              height={60}
+                              fill="transparent"
+                              pointerEvents="all"
+                            />
+                          </Group>
                         </Group>
-                      </Group>
-                    </svg>
+                      </svg>
+                    </div>
                   )
                 }}
               </ParentSize>
-
-              {/* Tooltip */}
-              {tooltipOpen && tooltipData && (
-                <TooltipWithBounds
-                  top={tooltipTop}
-                  left={tooltipLeft}
-                  style={{
-                    ...defaultStyles,
-                    backgroundColor: "var(--token-surface-elevated)",
-                    border: `1px solid ${borderColor}`,
-                    color: textColor,
-                    padding: "8px 12px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  <div className="space-y-1">
-                    <div className="font-semibold text-[var(--token-text-primary)]">
-                      {tooltipData.driverName}
-                    </div>
-                    {Array.from(visibleMetrics).map((metric) => {
-                      const key = metricConfig[metric].key
-                      const value = tooltipData[key]
-                      if (value === null || value === undefined) return null
-                      let formattedValue: string
-                      if (metric === "gapToFastest") {
-                        formattedValue = formatGapToFastest(value as number)
-                      } else if (metric === "podiumFinishes") {
-                        formattedValue = Math.round(value as number).toString()
-                      } else if (metric === "averagePosition") {
-                        formattedValue = formatPosition(value as number)
-                      } else if (metric === "consistency") {
-                        formattedValue = `${(value as number).toFixed(1)}%`
-                      } else if (metricConfig[metric].isTimeBased) {
-                        formattedValue = formatLapTime(value as number)
-                      } else {
-                        formattedValue = (value as number).toFixed(2)
-                      }
-                      return (
-                        <div key={metric} className="text-sm text-[var(--token-text-secondary)]">
-                          {metricConfig[metric].label}: {formattedValue}
-                          {metric === "bestLap" && tooltipData.bestLapRaceLabel && (
-                            <span className="text-xs text-[var(--token-text-muted)] ml-2">
-                              ({tooltipData.bestLapRaceLabel})
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </TooltipWithBounds>
-              )}
             </div>
+
+            {/* DEBUG: visible badge when tooltip open for first 2 drivers - remove after fix */}
+            {tooltipOpen &&
+              tooltipData &&
+              paginatedData.findIndex((p) => p.driverId === tooltipData.driverId) < 2 && (
+                <div
+                  style={{
+                    position: "fixed",
+                    top: 8,
+                    right: 8,
+                    zIndex: 9999,
+                    background: "#22c55e",
+                    color: "#000",
+                    padding: "4px 8px",
+                    borderRadius: 4,
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                  aria-hidden
+                >
+                  Tooltip: {tooltipData.driverName} @ ({Math.round(tooltipLeft)},{" "}
+                  {Math.round(tooltipTop)})
+                </div>
+              )}
+
+            {/* Tooltip - structure matches LapByLapTrendChart for consistent bounds/clipping */}
+            {tooltipOpen && tooltipData && (
+              <TooltipWithBounds
+                top={tooltipTop}
+                left={tooltipLeft}
+                style={{
+                  ...defaultStyles,
+                  backgroundColor: "var(--token-surface-elevated)",
+                  border: `1px solid ${borderColor}`,
+                  color: textColor,
+                  padding: "8px 12px",
+                  borderRadius: "4px",
+                }}
+              >
+                <div className="space-y-1">
+                  <div className="font-semibold text-[var(--token-text-primary)]">
+                    {tooltipData.driverName}
+                  </div>
+                  {Array.from(visibleMetrics).map((metric) => {
+                    const key = metricConfig[metric].key
+                    const value = tooltipData[key]
+                    if (value === null || value === undefined) return null
+                    let formattedValue: string
+                    if (metric === "gapToFastest") {
+                      formattedValue = formatGapToFastest(value as number)
+                    } else if (metric === "podiumFinishes") {
+                      formattedValue = Math.round(value as number).toString()
+                    } else if (metric === "averagePosition") {
+                      formattedValue = formatPosition(value as number)
+                    } else if (metric === "consistency") {
+                      formattedValue = `${(value as number).toFixed(1)}%`
+                    } else if (metricConfig[metric].isTimeBased) {
+                      formattedValue = formatLapTime(value as number)
+                    } else {
+                      formattedValue = (value as number).toFixed(2)
+                    }
+                    return (
+                      <div key={metric} className="text-sm text-[var(--token-text-secondary)]">
+                        {metricConfig[metric].label}: {formattedValue}
+                        {metric === "bestLap" && tooltipData.bestLapRaceLabel && (
+                          <span className="text-xs text-[var(--token-text-muted)] ml-2">
+                            ({tooltipData.bestLapRaceLabel})
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </TooltipWithBounds>
+            )}
 
             {/* Clickable Legend */}
             <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">

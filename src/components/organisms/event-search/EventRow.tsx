@@ -26,6 +26,7 @@ export interface Event {
   eventDate: string | null | undefined // ISO string, may be null/undefined
   ingestDepth: string
   sourceEventId?: string // Optional: for unimported events from LiveRC
+  eventUrl?: string // Optional: LiveRC event page URL for linking
 }
 
 export interface EventRowProps {
@@ -171,8 +172,26 @@ export default function EventRow({
   return (
     <div className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr] items-center gap-4 px-4 py-4 border-b transition-colors duration-200 border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]">
       {/* Column 1 - Event Name */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <h3 className="text-[var(--token-text-primary)] font-medium">{event.eventName}</h3>
+      <div className="flex min-w-0 items-center gap-2 flex-wrap">
+        {event.eventUrl ? (
+          <div className="min-w-0 max-w-full overflow-hidden">
+            <a
+              href={event.eventUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block min-w-0 truncate text-[var(--token-text-primary)] font-medium underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
+              aria-label={`View event on LiveRC (opens in new tab)`}
+            >
+              {event.eventName}
+            </a>
+          </div>
+        ) : (
+          <div className="min-w-0 max-w-full overflow-hidden">
+            <h3 className="truncate text-[var(--token-text-primary)] font-medium">
+              {event.eventName}
+            </h3>
+          </div>
+        )}
         {containsDriver && (
           <span
             className="inline-flex items-center gap-1 rounded-full bg-[var(--token-status-success-bg)] px-2 py-1 text-xs font-medium text-[var(--token-status-success-text)]"

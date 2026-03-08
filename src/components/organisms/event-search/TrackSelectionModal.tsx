@@ -18,7 +18,8 @@
 
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
+import Button from "@/components/atoms/Button"
 import TrackRow, { type Track } from "./TrackRow"
 import { clientLogger } from "@/lib/client-logger"
 
@@ -35,6 +36,8 @@ export interface TrackSelectionModalProps {
 
 const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
 
+const ALL_COUNTRIES = ""
+
 export default function TrackSelectionModal({
   tracks,
   favourites: initialFavourites,
@@ -45,9 +48,22 @@ export default function TrackSelectionModal({
   overlayZIndex = 50,
 }: TrackSelectionModalProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCountry, setSelectedCountry] = useState<string>(ALL_COUNTRIES)
   const [favourites, setFavourites] = useState<string[]>(initialFavourites)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
+
+  // Distinct countries from tracks (sorted). Exclude values that are clearly not countries (e.g. emails).
+  const countries = useMemo(() => {
+    const set = new Set<string>()
+    for (const t of tracks) {
+      const c = t.country?.trim()
+      if (!c) continue
+      if (c.includes("@") || c.length > 60) continue
+      set.add(c)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [tracks])
 
   // Focus search input when modal opens
   useEffect(() => {
@@ -101,10 +117,13 @@ export default function TrackSelectionModal({
     }
   }, [isOpen])
 
-  // Filter tracks based on search query
-  const filteredTracks = tracks.filter((track) =>
-    track.trackName.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter tracks based on search query and country
+  const filteredTracks = tracks.filter((track) => {
+    const matchesSearch = track.trackName.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCountry =
+      selectedCountry === ALL_COUNTRIES || (track.country?.trim() ?? "") === selectedCountry
+    return matchesSearch && matchesCountry
+  })
 
   // Separate favourite and non-favourite tracks
   const favouriteTracks = filteredTracks.filter((track) => favourites.includes(track.id))
@@ -138,7 +157,7 @@ export default function TrackSelectionModal({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-[2px] p-4"
       style={{ minWidth: 0, zIndex: overlayZIndex }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -151,7 +170,7 @@ export default function TrackSelectionModal({
     >
       <div
         ref={modalRef}
-        className="max-h-[600px] bg-[var(--token-surface)] rounded-lg shadow-lg flex flex-col"
+        className="max-h-[600px] bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
@@ -164,16 +183,20 @@ export default function TrackSelectionModal({
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4 py-4 border-b border-[var(--token-border-default)]"
+          className="flex items-center justify-between px-4 py-4 border-b border-[var(--token-border-accent-soft)]"
           style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
         >
-          <h2
-            id="track-modal-title"
-            className="text-lg font-semibold text-[var(--token-text-primary)]"
-            style={{ minWidth: 0, flex: "1 1 auto" }}
-          >
-            Select Track
-          </h2>
+          <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+            <h2
+              id="track-modal-title"
+              className="text-lg font-semibold text-[var(--token-text-primary)]"
+            >
+              Select Track
+            </h2>
+            <p className="mt-0.5 text-sm text-[var(--token-text-secondary)]">
+              Click a track to select it
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -191,21 +214,61 @@ export default function TrackSelectionModal({
           </button>
         </div>
 
-        {/* Search Input */}
+        {/* Search and Country Filter */}
         <div
-          className="px-4 py-4 border-b border-[var(--token-border-default)]"
+          className="px-4 py-4 border-b border-[var(--token-border-accent-soft)] space-y-3"
           style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
         >
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tracks..."
-            className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
-            aria-label="Search tracks"
-            style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
-          />
+          <div className="relative">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--token-text-secondary)] pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z"
+              />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Type to filter, then click a track"
+              className="w-full h-11 pl-10 pr-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
+              aria-label="Search tracks"
+              style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
+            />
+          </div>
+          {countries.length > 0 && (
+            <div>
+              <label
+                htmlFor="track-country-filter"
+                className="block text-sm font-medium text-[var(--token-text-secondary)] mb-1.5"
+              >
+                Country
+              </label>
+              <select
+                id="track-country-filter"
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+                className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
+                aria-label="Filter tracks by country"
+              >
+                <option value={ALL_COUNTRIES}>All countries</option>
+                {countries.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Track List */}
@@ -220,9 +283,19 @@ export default function TrackSelectionModal({
           {/* Favourite Tracks Section */}
           {favouriteTracks.length > 0 && (
             <div style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}>
-              <div className="px-4 py-2 bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)]">
+              <div className="px-4 py-2 bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)] flex items-center gap-2">
+                <svg
+                  className="h-4 w-4 text-amber-400 fill-amber-400 shrink-0"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
                 <h3 className="text-sm font-medium text-[var(--token-text-secondary)]">
-                  Favourite Tracks
+                  Your favourites
                 </h3>
               </div>
               {favouriteTracks.map((track) => (
@@ -243,7 +316,7 @@ export default function TrackSelectionModal({
               {favouriteTracks.length > 0 && (
                 <div className="px-4 py-2 bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)] border-t border-[var(--token-border-default)]">
                   <h3 className="text-sm font-medium text-[var(--token-text-secondary)]">
-                    All Tracks
+                    All tracks
                   </h3>
                 </div>
               )}
@@ -261,24 +334,25 @@ export default function TrackSelectionModal({
 
           {/* Empty State */}
           {filteredTracks.length === 0 && (
-            <div className="px-4 py-8 text-center w-full min-w-0">
-              <p className="text-[var(--token-text-secondary)]">No tracks found</p>
+            <div className="px-4 py-12 text-center w-full min-w-0">
+              <p className="text-[var(--token-text-primary)] font-medium">No tracks found</p>
+              <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+                {countries.length > 0
+                  ? "Try a different search term or country"
+                  : "Try a different search term"}
+              </p>
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div
-          className="px-4 py-4 border-t border-[var(--token-border-default)]"
+          className="px-4 py-4 border-t border-[var(--token-border-accent-soft)]"
           style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
-          >
+          <Button type="button" variant="default" onClick={onClose} className="h-11">
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </div>

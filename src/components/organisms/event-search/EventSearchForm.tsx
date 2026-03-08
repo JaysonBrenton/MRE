@@ -25,8 +25,23 @@ import { type DateRangePreset, PRESETS as DATE_RANGE_PRESETS } from "./DateRange
 import DateRangeModal from "./DateRangeModal"
 import MonthYearPicker from "../practice-days/MonthYearPicker"
 import Button from "@/components/atoms/Button"
+import LabeledSwitch from "@/components/molecules/LabeledSwitch"
 import { clientLogger } from "@/lib/client-logger"
 import { isPracticeDaysEnabled } from "@/lib/feature-flags"
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="m6 9 6 6 6-6"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 export interface EventSearchFormProps {
   selectedTrack: Track | null
@@ -58,6 +73,9 @@ export interface EventSearchFormProps {
   /** When true, event search also includes practice days in the same list (events mode only) */
   includePracticeDays?: boolean
   onIncludePracticeDaysChange?: (checked: boolean) => void
+  /** When true, only show events already ingested (skip LiveRC discovery) */
+  ingestedEventsOnly?: boolean
+  onIngestedEventsOnlyChange?: (checked: boolean) => void
 }
 
 export default function EventSearchForm({
@@ -83,6 +101,8 @@ export default function EventSearchForm({
   onPracticeMonthChange,
   includePracticeDays = false,
   onIncludePracticeDaysChange,
+  ingestedEventsOnly = false,
+  onIngestedEventsOnlyChange,
 }: EventSearchFormProps) {
   const practiceDaysEnabled = isPracticeDaysEnabled()
 
@@ -151,12 +171,15 @@ export default function EventSearchForm({
                 aria-describedby={trackErrorId}
                 onClick={() => setIsTrackModalOpen(true)}
                 variant="default"
-                className="h-11 w-[9rem] min-w-[9rem] justify-start"
+                className="h-11 w-[9rem] min-w-[9rem] justify-between px-3"
                 aria-haspopup="dialog"
                 aria-expanded={isTrackModalOpen}
                 aria-label="Select a track"
               >
-                Select a Track
+                <span className="truncate">
+                  {selectedTrack ? selectedTrack.trackName : "Select a Track"}
+                </span>
+                <ChevronDownIcon className="h-4 w-4 shrink-0 text-[var(--token-text-secondary)]" />
               </Button>
               {errors?.track && (
                 <p
@@ -181,12 +204,15 @@ export default function EventSearchForm({
                   id="date-range-trigger"
                   variant="default"
                   onClick={() => setIsDateRangeModalOpen(true)}
-                  className="h-11 w-[9rem] min-w-[9rem] justify-start"
+                  className="h-11 w-[9rem] min-w-[9rem] justify-between px-3"
                   aria-haspopup="dialog"
                   aria-expanded={isDateRangeModalOpen}
                 >
-                  {DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ??
-                    "Date range"}
+                  <span className="truncate">
+                    {DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ??
+                      "Date range"}
+                  </span>
+                  <ChevronDownIcon className="h-4 w-4 shrink-0 text-[var(--token-text-secondary)]" />
                 </Button>
               </div>
             )}
@@ -198,17 +224,38 @@ export default function EventSearchForm({
                 >
                   Include practice days
                 </label>
-                <Button
-                  type="button"
-                  id="include-practice-days-trigger"
-                  variant={includePracticeDays ? "primary" : "default"}
-                  onClick={() => onIncludePracticeDaysChange(!includePracticeDays)}
-                  className="h-11 w-[9rem] min-w-[9rem] justify-center"
-                  aria-pressed={includePracticeDays}
-                  aria-label="Include practice days in results"
+                <div className="flex items-center min-h-11">
+                  <LabeledSwitch
+                    id="include-practice-days-trigger"
+                    leftLabel="Off"
+                    rightLabel="On"
+                    checked={includePracticeDays}
+                    onChange={onIncludePracticeDaysChange}
+                    disabled={isLoading}
+                    aria-label="Include practice days in results"
+                  />
+                </div>
+              </div>
+            )}
+            {searchMode === "events" && onIngestedEventsOnlyChange && (
+              <div>
+                <label
+                  htmlFor="ingested-events-only-trigger"
+                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
                 >
-                  {includePracticeDays ? "On" : "Off"}
-                </Button>
+                  Ingested events only
+                </label>
+                <div className="flex items-center min-h-11">
+                  <LabeledSwitch
+                    id="ingested-events-only-trigger"
+                    leftLabel="Off"
+                    rightLabel="On"
+                    checked={ingestedEventsOnly}
+                    onChange={onIngestedEventsOnlyChange}
+                    disabled={isLoading}
+                    aria-label="Search within ingested events only (skip LiveRC discovery)"
+                  />
+                </div>
               </div>
             )}
             <div>
@@ -216,7 +263,7 @@ export default function EventSearchForm({
                 htmlFor="event-search-execute"
                 className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
               >
-                Execute
+                Search events
               </label>
               <div className="flex flex-wrap gap-4">
                 <Button
@@ -224,7 +271,7 @@ export default function EventSearchForm({
                   id="event-search-execute"
                   variant="primary"
                   disabled={isLoading || !selectedTrack}
-                  className="h-11 w-[9rem] min-w-[9rem]"
+                  className="h-11 w-[9rem] min-w-[9rem] font-semibold"
                 >
                   {isLoading ? "Searching..." : "Search"}
                 </Button>
@@ -279,7 +326,6 @@ export default function EventSearchForm({
         trackError={errors?.track}
         onTrackSelect={onTrackSelect}
         onToggleFavourite={onToggleFavourite}
-        onSearch={onSearch}
       />
 
       {/* Date range modal (Events mode) */}

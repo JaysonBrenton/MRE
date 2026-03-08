@@ -18,7 +18,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { formatDuration, formatDateTimeUTC, formatLapTime } from "@/lib/format-session-data"
+import { formatDuration, formatTimeUTC, formatLapTime } from "@/lib/format-session-data"
+import { formatClassName } from "@/lib/format-class-name"
 import SessionsTableResults from "./SessionsTableResults"
 import type { SessionData } from "@/core/events/get-sessions-data"
 
@@ -114,10 +115,10 @@ export default function SessionsTableRow({
           </div>
         </td>
         <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
-          {session.className}
+          {formatClassName(session.className)}
         </td>
         <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
-          {formatDateTimeUTC(session.startTime)}
+          {formatTimeUTC(session.startTime)}
         </td>
         <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
           {formatDuration(session.durationSeconds)}

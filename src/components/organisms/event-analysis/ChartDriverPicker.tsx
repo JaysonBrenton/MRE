@@ -13,6 +13,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback, useLayoutEffect } from "react"
 import { createPortal } from "react-dom"
+import Tooltip from "@/components/molecules/Tooltip"
 
 export interface ChartDriverPickerDriver {
   driverId: string
@@ -25,8 +26,12 @@ export interface ChartDriverPickerProps {
   onSelectionChange: (driverIds: string[]) => void
   /** Button label prefix; count appended as "Drivers (5)" */
   label?: string
+  /** When true, only one driver can be selected at a time */
+  singleSelect?: boolean
   className?: string
   disabled?: boolean
+  /** Shown when disabled; use a wrapper so the tooltip receives hover (disabled buttons ignore pointer events) */
+  disabledTooltip?: string
 }
 
 export default function ChartDriverPicker({
@@ -34,8 +39,10 @@ export default function ChartDriverPicker({
   selectedDriverIds,
   onSelectionChange,
   label = "Drivers",
+  singleSelect = false,
   className = "",
   disabled = false,
+  disabledTooltip,
 }: ChartDriverPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -59,11 +66,13 @@ export default function ChartDriverPicker({
     (driverId: string) => {
       if (selectedDriverIds.includes(driverId)) {
         onSelectionChange(selectedDriverIds.filter((id) => id !== driverId))
+      } else if (singleSelect) {
+        onSelectionChange([driverId])
       } else {
         onSelectionChange([...selectedDriverIds, driverId])
       }
     },
-    [selectedDriverIds, onSelectionChange]
+    [selectedDriverIds, onSelectionChange, singleSelect]
   )
 
   const handleSelectAll = useCallback(() => {
@@ -178,13 +187,15 @@ export default function ChartDriverPicker({
         />
       </div>
       <div className="flex items-center gap-2 px-2 py-1.5 border-b border-[var(--token-border-default)]">
-        <button
-          type="button"
-          onClick={handleSelectAll}
-          className="text-xs font-medium text-[var(--token-accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
-        >
-          Select all
-        </button>
+        {!singleSelect && (
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            className="text-xs font-medium text-[var(--token-accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+          >
+            Select all
+          </button>
+        )}
         <button
           type="button"
           onClick={handleClear}
@@ -222,29 +233,42 @@ export default function ChartDriverPicker({
     </div>
   )
 
+  const buttonEl = (
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={() => setIsOpen((o) => !o)}
+      disabled={disabled}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+      aria-label={`${label}: ${selectedCount} selected`}
+      aria-expanded={isOpen}
+      aria-haspopup="listbox"
+    >
+      <span>({selectedCount})</span>
+      <svg
+        className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+  )
+
+  const buttonWithOptionalTooltip =
+    disabled && disabledTooltip ? (
+      <Tooltip text={disabledTooltip} position="top">
+        <span className="inline-flex cursor-not-allowed">{buttonEl}</span>
+      </Tooltip>
+    ) : (
+      buttonEl
+    )
+
   return (
     <div ref={containerRef} className={`flex items-center gap-2 relative ${className}`}>
       <span className="text-sm text-[var(--token-text-secondary)]">{label}:</span>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setIsOpen((o) => !o)}
-        disabled={disabled}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-        aria-label={`${label}: ${selectedCount} selected`}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-      >
-        <span>({selectedCount})</span>
-        <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      {buttonWithOptionalTooltip}
 
       {typeof document !== "undefined" &&
         document.body &&

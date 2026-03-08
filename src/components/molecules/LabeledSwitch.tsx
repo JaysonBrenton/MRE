@@ -21,6 +21,7 @@ export interface LabeledSwitchProps {
   checked: boolean
   onChange: (checked: boolean) => void
   disabled?: boolean
+  id?: string
   "aria-label"?: string
   className?: string
 }
@@ -35,6 +36,7 @@ export default function LabeledSwitch({
   checked,
   onChange,
   disabled = false,
+  id,
   "aria-label": ariaLabel,
   className = "",
 }: LabeledSwitchProps) {
@@ -50,6 +52,7 @@ export default function LabeledSwitch({
         {leftLabel}
       </span>
       <Switch
+        id={id}
         checked={checked}
         onChange={onChange}
         disabled={disabled}

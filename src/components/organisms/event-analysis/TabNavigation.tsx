@@ -24,6 +24,7 @@ export type TabId =
   | "sessions"
   | "my-events"
   | "drivers"
+  | "track-leader-board"
   // Practice day tabs
   | "my-day"
   | "my-sessions"

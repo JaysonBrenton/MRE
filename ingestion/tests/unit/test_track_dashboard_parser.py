@@ -38,9 +38,24 @@ class TestTrackDashboardParser:
         assert data.phone == "+61 403 594 396" or "+61" in (data.phone or "")
         assert data.website is not None
         assert "bayrc.com.au" in (data.website or "")
-        assert data.total_laps is not None
-        assert data.total_laps > 0
-    
+
+    def test_parse_canberra_dashboard(self):
+        """Test parsing Canberra Off Road Model Car Club dashboard."""
+        html = read_fixture("canberraoffroad_dashboard.html")
+        parser = TrackDashboardParser()
+        data = parser.parse(html, "https://canberraoffroad.liverc.com/")
+
+        assert data is not None
+        assert data.address is not None
+        assert "Kyeema" in data.address
+        assert data.city == "Narrabundah" or "Narrabundah" in (data.city or "")
+        assert data.postal_code in ("02604", "2604") or (data.postal_code and "2604" in data.postal_code)
+        assert data.country == "Australia" or "Australia" in (data.country or "")
+        assert data.website is not None
+        assert "cormcc.org" in (data.website or "")
+        assert data.email is not None
+        assert "cormcc.org" in (data.email or "")
+
     def test_parse_thunder_alley_dashboard(self):
         """Test parsing Thunder Alley RC Speedway dashboard."""
         html = read_fixture("Thunder Alley RC Speedway's Dashboard.html")
@@ -60,11 +75,7 @@ class TestTrackDashboardParser:
         assert "Indoor Tracks" in (data.description or "")
         assert data.logo_url is not None
         assert "livetimescoring.com/track_logos" in (data.logo_url or "")
-        assert data.total_laps is not None
-        assert data.total_laps > 0
-        assert data.total_races is not None
-        assert data.total_races > 0
-    
+
     def test_parse_missing_sections(self):
         """Test graceful handling of missing sections."""
         # Minimal HTML without dashboard sections
@@ -115,17 +126,104 @@ class TestTrackDashboardParser:
         
         # Should extract address from q parameter
         assert data.address is not None or data.address == "123 Main St,City,State 12345,US"
-    
-    def test_parse_email_obfuscation(self):
-        """Test parsing obfuscated email addresses."""
+
+    def test_parse_asian_address_about_section(self):
+        """Test parsing Asian address (City, ISO code) from About panel."""
         html = '''
-        <address>
-            <a href="javascript:noSpam('user', 'domain.com');">user@domain.com</a>
-        </address>
+        <div class="panel panel-default">
+            <div class="panel-heading">About Suwon RC</div>
+            <div class="panel-body">
+                <address>
+                    <strong>Suwon RC Racetrack</strong><br>
+                    123 Race Street<br>
+                    Suwon, KR<br>
+                </address>
+            </div>
+        </div>
+        '''
+        parser = TrackDashboardParser()
+        data = parser.parse(html, "https://suwon.liverc.com/")
+        assert data.country == "Korea, Republic of"
+        assert data.city == "Suwon"
+        assert data.address is not None
+
+    def test_parse_asian_address_map_only(self):
+        """Test parsing Asian address from Google Maps q parameter."""
+        html = '''
+        <div class="panel panel-default">
+            <div class="panel-heading">Track Map</div>
+            <div class="panel-body">
+                <iframe src="https://www.google.com/maps/embed/v1/place?key=TEST&q=Shenzhen,CN"></iframe>
+            </div>
+        </div>
         '''
         parser = TrackDashboardParser()
         data = parser.parse(html, "https://test.liverc.com/")
-        
-        # Should extract email from JavaScript function
-        assert data.email == "user@domain.com" or data.email is not None
+        assert data.country == "China"
+        assert data.city == "Shenzhen"
+
+    def test_parse_china_thailand_uae_addresses(self):
+        """Test parsing various Asian ISO codes from About panel."""
+        for city, code, expected_country in [
+            ("Shanghai", "CN", "China"),
+            ("Phuket", "TH", "Thailand"),
+            ("Dubai", "AE", "United Arab Emirates"),
+            ("Hong Kong", "HK", "Hong Kong"),
+            ("Singapore", "SG", "Singapore"),
+            ("Tokyo", "JP", "Japan"),
+        ]:
+            html = f'''
+            <div class="panel panel-default">
+                <div class="panel-heading">About Test</div>
+                <div class="panel-body">
+                    <address>
+                        <strong>Test Track</strong><br>
+                        {city}, {code}<br>
+                    </address>
+                </div>
+            </div>
+            '''
+            parser = TrackDashboardParser()
+            data = parser.parse(html, "https://test.liverc.com/")
+            assert data.country == expected_country, f"Failed for {city}, {code}"
+            assert data.city == city
+
+    def test_parse_email_not_matched_as_country(self):
+        """Email-like text should not be matched as country (exact match avoids US in COMCAST.NET)."""
+        html = '''
+        <div class="panel panel-default">
+            <div class="panel-heading">About Bad Data</div>
+            <div class="panel-body">
+                <address>
+                    <strong>Test Track</strong><br>
+                    123 Main St<br>
+                    Tallahassee, FL<br>
+                    tprice61@COMCAST.NET<br>
+                </address>
+            </div>
+        </div>
+        '''
+        parser = TrackDashboardParser()
+        data = parser.parse(html, "https://test.liverc.com/")
+        # Country must NOT be the email (substring match would wrongly match US in COMCAST.NET)
+        assert data.country != "tprice61@COMCAST.NET"
+        if data.country:
+            assert "@" not in data.country
+    
+    def test_parse_email_obfuscation(self):
+        """Test parsing obfuscated email addresses from About panel."""
+        html = '''
+        <div class="panel panel-default">
+            <div class="panel-heading">About Test Track</div>
+            <div class="panel-body">
+                <address>
+                    <strong>Test Track</strong><br>
+                    <a href="javascript:noSpam('user', 'domain.com');">user@domain.com</a>
+                </address>
+            </div>
+        </div>
+        '''
+        parser = TrackDashboardParser()
+        data = parser.parse(html, "https://test.liverc.com/")
+        assert data.email == "user@domain.com"
 

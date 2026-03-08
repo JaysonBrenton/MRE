@@ -75,7 +75,7 @@ class RaceListParser:
                     url=url,
                 )
             
-            # Find all race rows (skip header rows)
+            # Find all race rows (section headers have <th>, data rows have race links)
             race_rows = tree.css("table.entry_list_data tbody tr")
             
             if not race_rows:
@@ -84,14 +84,34 @@ class RaceListParser:
                     url=url,
                 )
             
+            # Track current section header (Main Events, Qualifier Round 3, Seeding Round 1, etc.)
+            current_section_header: Optional[str] = None
+            
+            # CSS selectors for race result links - LiveRC may use view_race_result or
+            # URL-encoded view%5Frace%5Fresult (e.g. Motorama events)
+            RACE_LINK_SELECTORS = [
+                'td a[href*="view_race_result"]',
+                'td a[href*="view%5Frace%5Fresult"]',
+            ]
+            
             for row in race_rows:
                 try:
-                    # Skip header rows (they have <th> elements)
-                    if row.css("th"):
+                    # Check for section header row - capture for subsequent data rows
+                    th_elems = row.css("th")
+                    if th_elems:
+                        first_th = th_elems[0]
+                        header_text = first_th.text(separator=" ", strip=True) if first_th else None
+                        if header_text and header_text != "Time Completed":
+                            current_section_header = header_text
                         continue
                     
-                    # Find race link
-                    race_link_elem = row.css_first('td a[href*="view_race_result"]')
+                    # Find race link - try both selectors (standard and URL-encoded)
+                    race_link_elem = None
+                    for sel in RACE_LINK_SELECTORS:
+                        race_link_elem = row.css_first(sel)
+                        if race_link_elem:
+                            break
+                    
                     if not race_link_elem:
                         continue
                     
@@ -128,6 +148,7 @@ class RaceListParser:
                     # Extract class name and race label from full label
                     # Format: "Race 14: 1/8 Nitro Buggy (1/8 Nitro Buggy A-Main)"
                     # or: "Race 9: Junior (Junior A-Main)"
+                    # or: "Race 31: Semi A (Semi A (Even) Practice A-Main)" → class "Semi A (Even) Practice"
                     class_name = ""
                     race_label = ""
                     
@@ -139,6 +160,13 @@ class RaceListParser:
                     if paren_match:
                         class_name = paren_match.group(1).strip()
                         race_label = paren_match.group(2).strip()
+                        # Derive class_name for Semi A/B: entry list uses "Semi A (Even) Practice"
+                        # race_label may be "Semi A (Even) Practice A-Main" - extract "Semi A (Even) Practice"
+                        semi_practice_match = re.search(
+                            r"Semi\s+[AB]\s+\([^)]+\)\s+Practice", race_label, re.IGNORECASE
+                        )
+                        if semi_practice_match and class_name in ("Semi A", "Semi B"):
+                            class_name = semi_practice_match.group(0).strip()
                     else:
                         # No parentheses - use entire label as class_name
                         class_name = label_without_prefix
@@ -183,6 +211,7 @@ class RaceListParser:
                         race_url=race_url,
                         start_time=start_time,
                         duration_seconds=None,  # Not available in race list
+                        section_header=current_section_header,
                     )
                     races.append(race)
                     

@@ -20,6 +20,7 @@ export interface Track {
   id: string
   trackName: string
   sourceTrackSlug?: string
+  country?: string
 }
 
 export interface TrackRowProps {
@@ -46,7 +47,7 @@ export default function TrackRow({
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[var(--token-surface-raised)] hover:border-l-2 hover:border-l-[var(--token-accent)]/50 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] border-l-2 border-l-transparent"
       onClick={handleRowClick}
       role="button"
       tabIndex={0}
@@ -66,10 +67,19 @@ export default function TrackRow({
       >
         {track.trackName}
       </span>
+      <svg
+        className="h-4 w-4 shrink-0 text-[var(--token-text-muted)] mr-2"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m9 18 6-6-6-6" />
+      </svg>
       <button
         type="button"
         onClick={handleStarClick}
-        className="ml-4 p-2 flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+        className="ml-1 p-2 flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
         aria-label={
           isFavourite
             ? `Remove ${track.trackName} from favourites`

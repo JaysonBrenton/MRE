@@ -170,6 +170,22 @@ This fixture contains the global LiveRC track catalogue page used for track disc
     logger.info("track_catalogue_fetched", output_path=str(output_path))
 
 
+async def fetch_track_dashboard(track_slug: str, output_dir: Path) -> None:
+    """Fetch track dashboard page (About, Track Map, stats)."""
+    url = f"https://{track_slug}.liverc.com/"
+    output_path = output_dir / f"{track_slug}_dashboard.html"
+
+    metadata = create_metadata(
+        page_type="track_dashboard",
+        track_slug=track_slug,
+        source_url=url,
+    )
+
+    await fetch_and_save(url, output_path, metadata=metadata)
+
+    logger.info("track_dashboard_fetched", track_slug=track_slug, output_path=str(output_path))
+
+
 async def fetch_track_events(track_slug: str, output_dir: Path) -> None:
     """Fetch track events page."""
     url = f"https://{track_slug}.liverc.com/events"
@@ -289,6 +305,12 @@ async def main():
         help="Fetch track catalogue page",
     )
     parser.add_argument(
+        "--track-dashboard",
+        type=str,
+        metavar="TRACK_SLUG",
+        help="Fetch track dashboard page (e.g., canberraoffroad)",
+    )
+    parser.add_argument(
         "--track-events",
         type=str,
         metavar="TRACK_SLUG",
@@ -335,7 +357,10 @@ async def main():
     try:
         if args.track_catalogue:
             await fetch_track_catalogue(output_dir)
-        
+
+        if args.track_dashboard:
+            await fetch_track_dashboard(args.track_dashboard, output_dir)
+
         if args.track_events:
             await fetch_track_events(args.track_events, output_dir)
         
@@ -358,6 +383,7 @@ async def main():
         
         if not any([
             args.track_catalogue,
+            args.track_dashboard,
             args.track_events,
             args.event_detail,
             args.race_result,

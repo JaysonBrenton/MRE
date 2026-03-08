@@ -32,6 +32,8 @@ export interface ModalProps {
   isOpen: boolean
   onClose: () => void
   title: string
+  /** Renders directly below the title, above the header border */
+  subtitle?: ReactNode
   children: ReactNode
   maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl"
   footer?: ReactNode
@@ -77,6 +79,7 @@ export default function Modal({
   isOpen,
   onClose,
   title,
+  subtitle,
   children,
   maxWidth = "2xl",
   footer,
@@ -152,16 +155,22 @@ export default function Modal({
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4 py-4 border-b border-[var(--token-border-accent-soft)]"
+          className={`flex justify-between gap-4 px-4 py-4 border-b border-[var(--token-border-accent-soft)] ${subtitle ? "items-center" : "items-start"}`}
           style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
         >
-          <h2
-            id={ariaLabel || "modal-title"}
-            className="text-lg font-semibold text-[var(--token-text-primary)]"
-            style={{ minWidth: 0, flex: "1 1 auto" }}
-          >
-            {title}
-          </h2>
+          <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+            <h2
+              id={ariaLabel || "modal-title"}
+              className="text-lg font-semibold text-[var(--token-text-primary)]"
+            >
+              {title}
+            </h2>
+            {subtitle && (
+              <div className="mt-0.5 text-base font-semibold text-[var(--token-accent)] truncate">
+                {subtitle}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}

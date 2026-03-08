@@ -14,9 +14,24 @@
 
 import { useState } from "react"
 import Modal from "@/components/molecules/Modal"
+import Button from "@/components/atoms/Button"
 import TrackSelectionModal from "./TrackSelectionModal"
 import { type Track } from "./TrackRow"
 import { getContentBlockStyles } from "@/lib/modal-styles"
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="m6 9 6 6 6-6"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 export interface TrackAndFavouritesModalProps {
   isOpen: boolean
@@ -78,36 +93,47 @@ export default function TrackAndFavouritesModal({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title="Track"
+        title="Current Track"
+        subtitle={
+          selectedTrack ? (
+            <span title={selectedTrack.trackName} className="block truncate">
+              {selectedTrack.trackName}
+            </span>
+          ) : (
+            "No track selected"
+          )
+        }
         maxWidth="lg"
         ariaLabel="Select track"
       >
         <div className="p-4 space-y-3" style={getContentBlockStyles()}>
+          {!selectedTrack && favouriteTrackOptions.length === 0 && (
+            <p className="text-sm text-[var(--token-text-secondary)] mb-3">
+              Select a track to search for events.
+            </p>
+          )}
           <div>
             <label
-              htmlFor="track-selector-modal"
+              htmlFor="track-selector-change-btn"
               className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
             >
-              Current Track
+              {selectedTrack ? "Select a different track" : "Choose a track"}
             </label>
-            <div className="flex gap-2 items-center">
-              <div
-                id="track-selector-modal"
-                aria-describedby={trackErrorId}
-                className="w-max max-w-full min-w-0 h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] flex items-center text-sm text-[var(--token-text-primary)] overflow-hidden text-ellipsis whitespace-nowrap"
-              >
-                {selectedTrack ? selectedTrack.trackName : "No track selected"}
-              </div>
-              <button
+            <div id="track-selector-modal" className="flex gap-2 items-center">
+              <Button
                 type="button"
+                id="track-selector-change-btn"
+                variant={selectedTrack ? "default" : "primary"}
                 onClick={() => setIsTrackListOpen(true)}
-                className="flex-shrink-0 h-11 px-3 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm font-medium text-[var(--token-text-secondary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                aria-label={selectedTrack ? "Select a track" : "Select track"}
+                className="flex-shrink-0 h-11 px-3 gap-1.5"
+                aria-label={selectedTrack ? "Change track" : "Select track"}
+                aria-describedby={trackErrorId}
                 aria-haspopup="dialog"
                 aria-expanded={isTrackListOpen}
               >
-                {selectedTrack ? "Select a Track" : "Select track"}
-              </button>
+                {selectedTrack ? "Change track" : "Select track"}
+                <ChevronDownIcon className="h-4 w-4 shrink-0 text-[var(--token-text-secondary)]" />
+              </Button>
             </div>
             {trackError && (
               <p
@@ -120,16 +146,24 @@ export default function TrackAndFavouritesModal({
             )}
           </div>
 
-          {favouriteTrackOptions.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-[var(--token-text-secondary)] mb-2 mt-3">
-                Favourite tracks
+          <div className="pt-3 mt-3 border-t border-[var(--token-border-default)]">
+            <p className="block text-sm font-medium text-[var(--token-text-primary)] mb-2">
+              Favourite tracks
+            </p>
+            {favouriteTrackOptions.length === 0 ? (
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                No favourite tracks yet. Add tracks from the track list.
               </p>
+            ) : (
               <div className="flex flex-wrap gap-2" aria-label="Favourite tracks">
                 {visibleFavourites.map((track) => (
                   <div
                     key={track.id}
-                    className="group rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] flex items-center gap-1"
+                    className={`group rounded-full border flex items-center gap-1 transition-all ${
+                      track.id === selectedTrack?.id
+                        ? "border-[var(--token-accent)] bg-[var(--token-accent)]/10 hover:bg-[var(--token-accent)]/15"
+                        : "border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] hover:border-[var(--token-accent)]/40 hover:shadow-sm"
+                    }`}
                   >
                     <button
                       type="button"
@@ -163,17 +197,18 @@ export default function TrackAndFavouritesModal({
                   </div>
                 ))}
                 {!favouritesExpanded && remainingCount > 0 && (
-                  <button
+                  <Button
                     type="button"
+                    variant="default"
                     onClick={() => setFavouritesExpanded(true)}
-                    className="rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] px-3 py-1 text-xs font-medium text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="h-8 px-3 text-xs rounded-full"
                   >
                     +{remainingCount} more
-                  </button>
+                  </Button>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </Modal>
 

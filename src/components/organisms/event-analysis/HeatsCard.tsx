@@ -2,11 +2,11 @@
  * @fileoverview Heats schedule card for Event Analysis Overview
  *
  * @description Displays qualifying heats and their start times per class,
- * in the same compact label-value card style as EventStats, WeatherCard, and ClassStatsCard.
+ * in the same compact label-value card style as EventStats and WeatherCard.
  * Each class gets its own card with a heading.
  *
  * @relatedFiles
- * - src/components/organisms/event-analysis/ClassStatsCard.tsx (styling reference)
+ * - src/components/organisms/event-analysis/EventStats.tsx (styling reference)
  * - src/components/organisms/event-analysis/OverviewTab.tsx (uses this)
  * - docs/design/compact-label-value-card.md
  */
@@ -16,6 +16,7 @@
 import { useMemo } from "react"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { formatTimeUTC } from "@/lib/format-session-data"
+import { formatClassName } from "@/lib/format-class-name"
 
 const CARD_CLASS =
   "mb-6 w-fit rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2"
@@ -46,7 +47,10 @@ interface ClassHeats {
 }
 
 function computeHeatsByClass(races: EventAnalysisData["races"]): ClassHeats[] {
-  const byClass = new Map<string, Array<{ raceLabel: string; startTime: Date | null; raceOrder: number | null }>>()
+  const byClass = new Map<
+    string,
+    Array<{ raceLabel: string; startTime: Date | null; raceOrder: number | null }>
+  >()
 
   for (const r of races) {
     if (!isHeat(r.raceLabel)) continue
@@ -85,7 +89,7 @@ export default function HeatsCard({ races }: HeatsCardProps) {
     <>
       {heatsByClass.map(({ className, heats }) => (
         <div key={className} className={CARD_CLASS}>
-          <h3 className={HEADING_CLASS}>{className}</h3>
+          <h3 className={HEADING_CLASS}>{formatClassName(className)}</h3>
           <div className={GRID_CLASS}>
             {heats.flatMap((heat, idx) => [
               <span key={`${idx}-heat`} className={LABEL_CLASS}>

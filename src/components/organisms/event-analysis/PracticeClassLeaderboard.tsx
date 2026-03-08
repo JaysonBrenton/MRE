@@ -10,6 +10,7 @@
 import { useMemo } from "react"
 import { formatLapTime } from "@/lib/date-utils"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import { formatClassName } from "@/lib/format-class-name"
 
 export interface PracticeClassLeaderboardProps {
   data: EventAnalysisData
@@ -100,7 +101,7 @@ export default function PracticeClassLeaderboard({
                 key={row.className}
                 className="border-b border-[var(--token-border-default)] last:border-0"
               >
-                <td className="py-2 pr-4 font-medium">{row.className}</td>
+                <td className="py-2 pr-4 font-medium">{formatClassName(row.className)}</td>
                 <td className="py-2 pr-4">{row.driverName}</td>
                 <td className="py-2 pr-4">{formatLapTime(row.bestLap)}</td>
                 <td className="py-2">{row.raceLabel}</td>

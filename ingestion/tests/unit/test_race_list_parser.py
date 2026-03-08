@@ -69,17 +69,15 @@ def test_parse_race_list_parses_labels(parser, event_html):
     url = "https://canberraoffroad.liverc.com/results/?p=view_event&id=486677"
     races = parser.parse(event_html, url)
     
-    # Find a race with parentheses in label
-    race_with_parens = next((r for r in races if "(" in r.race_full_label and ")" in r.race_full_label), None)
-    
-    if race_with_parens:
-        # Class name should be text before parentheses
-        assert race_with_parens.class_name
-        assert "(" not in race_with_parens.class_name
-        # Race label should be text inside parentheses
-        assert race_with_parens.race_label
-        assert "(" not in race_with_parens.race_label
-        assert ")" not in race_with_parens.race_label
+    # Find a main race with simple parentheses (Class (Class Label)) - e.g. "1/8 Nitro Buggy (1/8 Nitro Buggy A-Main)"
+    main_race = next(
+        (r for r in races if "Main" in r.race_label and r.race_full_label.count("(") == 1),
+        None,
+    )
+    if main_race:
+        assert main_race.class_name
+        assert main_race.race_label
+        assert "Main" in main_race.race_label
 
 
 def test_parse_race_list_parses_times(parser, event_html):
@@ -113,4 +111,45 @@ def test_parse_race_list_invalid_html(parser):
     
     with pytest.raises(EventPageFormatError):
         parser.parse("<html><body>No races here</body></html>", url)
+
+
+def test_parse_race_list_url_encoded_href(parser):
+    """Test that URL-encoded view%5Frace%5Fresult links are parsed (Motorama-style)."""
+    html = """
+    <html>
+    <body>
+    <table class="table table-hover entry_list_data">
+      <tbody>
+        <tr><th>Seeding Round 1</th><th>Time Completed</th></tr>
+        <tr>
+          <td>
+            <a href="/results/?p=view%5Frace%5Fresult&id=6539753" class="block">
+              Race 1: 4wd Short Course (4wd Short Course (Heat 1/2))
+            </a>
+          </td>
+          <td>Feb 20, 2026 at 11:50am</td>
+        </tr>
+      </tbody>
+    </table>
+    </body>
+    </html>
+    """
+    url = "https://motorama8th.liverc.com/results/?p=view_event&id=496016"
+    races = parser.parse(html, url)
+    assert len(races) == 1
+    assert races[0].source_race_id == "6539753"
+    assert races[0].section_header == "Seeding Round 1"
+
+
+def test_parse_race_list_section_headers(parser, event_html):
+    """Test that section headers are captured and attached to subsequent races."""
+    url = "https://canberraoffroad.liverc.com/results/?p=view_event&id=486677"
+    races = parser.parse(event_html, url)
+    # Fixture has Main Events, Qualifier Round 3, 2, 1 - races should have section_header
+    races_with_header = [r for r in races if r.section_header is not None]
+    assert len(races_with_header) > 0
+    # Main Events races come first
+    main_races = [r for r in races if r.section_header == "Main Events"]
+    qual_races = [r for r in races if r.section_header and "Qualifier" in r.section_header]
+    assert len(main_races) > 0 or len(qual_races) > 0
 

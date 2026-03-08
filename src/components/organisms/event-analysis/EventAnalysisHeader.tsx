@@ -22,6 +22,8 @@ import { formatDateLong } from "@/lib/date-utils"
 export interface EventAnalysisHeaderProps {
   eventName: string
   eventDate: Date | string
+  /** End date for multi-day events; when set, displays date range (e.g. "Mar 5, 2026 to Mar 8, 2026") */
+  eventDateEnd?: Date | string | null
   trackName: string
   /** When true, show practice day format: "Practice – {date} @ {trackName}" */
   isPracticeDay?: boolean
@@ -29,33 +31,9 @@ export interface EventAnalysisHeaderProps {
   viewingDriverName?: string | null
 }
 
-function MapPinIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 function CalendarIcon({ className }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
         stroke="currentColor"
@@ -69,17 +47,29 @@ function CalendarIcon({ className }: { className?: string }) {
 
 const iconClass = "h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
 
+function formatDateRange(
+  start: Date | string | null | undefined,
+  end: Date | string | null | undefined
+): string {
+  if (!start) return "Date not available"
+  if (!end) return formatDateLong(start)
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return formatDateLong(start)
+  return `${formatDateLong(start)} to ${formatDateLong(end)}`
+}
+
 export default function EventAnalysisHeader({
   eventName,
   eventDate,
+  eventDateEnd,
   trackName,
   isPracticeDay = false,
   viewingDriverName = null,
 }: EventAnalysisHeaderProps) {
+  const dateDisplay = formatDateRange(eventDate, eventDateEnd)
   const hasMetadata = trackName || eventDate
-  const primaryTitle = isPracticeDay
-    ? `Practice – ${formatDateLong(eventDate)} @ ${trackName}`
-    : eventName
+  const primaryTitle = isPracticeDay ? `Practice – ${dateDisplay} @ ${trackName}` : eventName
   const viewingLabel =
     viewingDriverName !== undefined && viewingDriverName !== null && viewingDriverName !== ""
       ? viewingDriverName
@@ -95,25 +85,17 @@ export default function EventAnalysisHeader({
           {primaryTitle}
         </h1>
         {isPracticeDay && viewingLabel && (
-          <p className="text-sm text-[var(--token-text-secondary)]">
-            Viewing: {viewingLabel}
-          </p>
+          <p className="text-sm text-[var(--token-text-secondary)]">Viewing: {viewingLabel}</p>
         )}
       </div>
 
-      {/* Right: track and date (event) or just metadata (practice) */}
+      {/* Right: date (event) or just metadata (practice) */}
       {hasMetadata && !isPracticeDay && (
         <div className="flex shrink-0 flex-col items-end gap-1 text-sm text-[var(--token-text-muted)]">
-          {trackName && (
-            <span className="flex items-center gap-1.5">
-              <MapPinIcon className={iconClass} />
-              {trackName}
-            </span>
-          )}
           {eventDate && (
             <span className="flex items-center gap-1.5">
               <CalendarIcon className={iconClass} />
-              {formatDateLong(eventDate)}
+              {dateDisplay}
             </span>
           )}
         </div>

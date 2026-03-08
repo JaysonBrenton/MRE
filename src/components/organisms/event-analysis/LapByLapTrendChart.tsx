@@ -22,7 +22,7 @@ import { localPoint } from "@visx/event"
 import { ParentSize } from "@visx/responsive"
 import ChartContainer from "./ChartContainer"
 import ChartColorPicker from "./ChartColorPicker"
-import { formatTimeUTC } from "@/lib/format-session-data"
+import { formatDateTimeUTC, formatDuration } from "@/lib/format-session-data"
 import { useChartColor, useChartColors } from "@/hooks/useChartColors"
 import type { DriverLapTrendSeries, LapTrendPoint } from "@/core/events/get-lap-data"
 
@@ -106,6 +106,43 @@ function formatLapTime(seconds: number): string {
   return `${minutes}:${wholeSecs.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`
 }
 
+/** Linear regression: y = slope * x + intercept */
+function linearRegression(points: { x: number; y: number }[]): {
+  slope: number
+  intercept: number
+} {
+  const n = points.length
+  if (n < 2) return { slope: 0, intercept: points[0]?.y ?? 0 }
+  let sumX = 0,
+    sumY = 0,
+    sumXY = 0,
+    sumX2 = 0
+  for (const p of points) {
+    sumX += p.x
+    sumY += p.y
+    sumXY += p.x * p.y
+    sumX2 += p.x * p.x
+  }
+  const denom = n * sumX2 - sumX * sumX
+  const slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom
+  const intercept = (sumY - slope * sumX) / n
+  return { slope, intercept }
+}
+
+/** Format slope for display: "−0.05s per lap" or "+0.03s per lap" */
+function formatTrendSlope(slope: number): string {
+  const sign = slope >= 0 ? "+" : ""
+  return `${sign}${slope.toFixed(3)}s per lap`
+}
+
+/** Trend direction from slope: negative = improving, positive = degrading */
+function getTrendDirection(slope: number): "improving" | "degrading" | "flat" {
+  const threshold = 0.001
+  if (slope < -threshold) return "improving"
+  if (slope > threshold) return "degrading"
+  return "flat"
+}
+
 export interface LapByLapTrendChartProps {
   drivers: DriverLapTrendSeries[]
   height?: number
@@ -117,6 +154,8 @@ export interface LapByLapTrendChartProps {
   headerControls?: ReactNode
   /** Message when there is no data to display (e.g. loading, error, or no drivers selected). */
   emptyMessage?: string
+  /** Callback when user deselects a driver from the chart */
+  onDriverDeselect?: (driverId: string) => void
 }
 
 export default function LapByLapTrendChart({
@@ -132,6 +171,7 @@ export default function LapByLapTrendChart({
   const chartDescId = useId()
   const [hoveredDriverId, setHoveredDriverId] = useState<string | null>(null)
   const [showSessionOverlay, setShowSessionOverlay] = useState(true)
+  const [showTrendLine, setShowTrendLine] = useState(true)
   const [sessionBandPickerOpen, setSessionBandPickerOpen] = useState<
     "sessionBand1" | "sessionBand2" | null
   >(null)
@@ -183,8 +223,16 @@ export default function LapByLapTrendChart({
       lapInSession?: string
       /** Global lap index across event */
       overallLapIndex?: number
+      /** Driver position at this lap within the session */
+      positionOnLap?: number
       /** Session start time (ISO string) when available */
       raceStartTime?: string | null
+      /** Session duration in seconds when available */
+      sessionDurationSeconds?: number | null
+      /** Trend direction: improving (faster), degrading (slower), flat */
+      trendDirection?: "improving" | "degrading" | "flat"
+      /** Formatted slope string (e.g. "−0.05s per lap") */
+      trendSlope?: string
     }>()
 
   const allLapTimes = useMemo(() => {
@@ -207,11 +255,63 @@ export default function LapByLapTrendChart({
 
   const sessionBands = useMemo(() => computeSessionBands(drivers), [drivers])
 
+  /** Per-driver trend line data: slope, intercept, line points. Only for drivers with >= 2 laps. */
+  const driverTrendMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { slope: number; intercept: number; data: { x: number; y: number }[] }
+    >()
+    for (const driver of drivers) {
+      const laps = driver.laps as LapTrendPoint[]
+      if (laps.length < 2) continue
+      const points = laps.map((lap) => ({ x: lap.lapIndex, y: lap.lapTimeSeconds }))
+      const { slope, intercept } = linearRegression(points)
+      const minX = Math.min(...points.map((p) => p.x))
+      const maxX = Math.max(...points.map((p) => p.x))
+      const data = [
+        { x: minX, y: slope * minX + intercept },
+        { x: maxX, y: slope * maxX + intercept },
+      ]
+      map.set(driver.driverId, { slope, intercept, data })
+    }
+    return map
+  }, [drivers])
+
+  const overlayToggleButton = (
+    <button
+      type="button"
+      onClick={() => setShowSessionOverlay((v) => !v)}
+      aria-pressed={showSessionOverlay}
+      className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)] aria-pressed:bg-[var(--token-accent)]/20"
+      aria-label={showSessionOverlay ? "Hide session overlay" : "Show session overlay"}
+    >
+      {showSessionOverlay ? "Hide session overlay" : "Show session overlay"}
+    </button>
+  )
+
+  const trendLineToggleButton = (
+    <button
+      type="button"
+      onClick={() => setShowTrendLine((v) => !v)}
+      aria-pressed={showTrendLine}
+      className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)] aria-pressed:bg-[var(--token-accent)]/20"
+      aria-label={showTrendLine ? "Hide trend line" : "Show trend line"}
+    >
+      {showTrendLine ? "Hide trend line" : "Show trend line"}
+    </button>
+  )
+
   if (drivers.length === 0 || allLapTimes.length === 0) {
     return (
       <ChartContainer
         title={chartTitle}
-        headerControls={headerControls}
+        headerControls={
+          <>
+            {headerControls}
+            {overlayToggleButton}
+            {trendLineToggleButton}
+          </>
+        }
         height={height}
         className={className}
         aria-label="Lap-by-lap trend chart - no data"
@@ -229,19 +329,6 @@ export default function LapByLapTrendChart({
   const yDomain = [Math.max(0, minLap - padding), maxLap + padding] as [number, number]
   const xDomain = [1, Math.max(maxLapIndex, 2)] as [number, number]
 
-  const overlayToggleButton =
-    sessionBands.length > 0 ? (
-      <button
-        type="button"
-        onClick={() => setShowSessionOverlay((v) => !v)}
-        aria-pressed={showSessionOverlay}
-        className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)] aria-pressed:bg-[var(--token-accent)]/20"
-        aria-label={showSessionOverlay ? "Hide session overlay" : "Show session overlay"}
-      >
-        {showSessionOverlay ? "Hide session overlay" : "Show session overlay"}
-      </button>
-    ) : null
-
   return (
     <ChartContainer
       title={chartTitle}
@@ -249,6 +336,7 @@ export default function LapByLapTrendChart({
         <>
           {headerControls}
           {overlayToggleButton}
+          {trendLineToggleButton}
         </>
       }
       height={height}
@@ -367,12 +455,19 @@ export default function LapByLapTrendChart({
                                       : undefined
                                     const lapInSession =
                                       totalLapsInSession != null
-                                        ? `Lap ${nearest.lapNumber} of ${totalLapsInSession}`
+                                        ? `Session Lap: ${nearest.lapNumber} of ${totalLapsInSession}`
                                         : undefined
                                     const className = nearest.className ?? nearest.raceLabel
                                     const sessionName = nearest.raceLabel.startsWith(className)
                                       ? nearest.raceLabel.slice(className.length).trim()
                                       : nearest.raceLabel
+                                    const trend = driverTrendMap.get(driver.driverId)
+                                    const trendDirection = trend
+                                      ? getTrendDirection(trend.slope)
+                                      : undefined
+                                    const trendSlope = trend
+                                      ? formatTrendSlope(trend.slope)
+                                      : undefined
                                     showTooltip({
                                       tooltipLeft: coords.x,
                                       tooltipTop: coords.y,
@@ -385,11 +480,32 @@ export default function LapByLapTrendChart({
                                         sessionLapRange,
                                         lapInSession,
                                         overallLapIndex: nearest.lapIndex,
+                                        positionOnLap: nearest.positionOnLap,
                                         raceStartTime: nearest.raceStartTime ?? null,
+                                        sessionDurationSeconds: nearest.durationSeconds ?? null,
+                                        trendDirection,
+                                        trendSlope,
                                       },
                                     })
                                   }}
                                 />
+                                {showTrendLine &&
+                                  (() => {
+                                    const trend = driverTrendMap.get(driver.driverId)
+                                    if (!trend) return null
+                                    return (
+                                      <LinePath
+                                        data={trend.data}
+                                        x={(d) => xScale(d.x)}
+                                        y={(d) => yScale(d.y)}
+                                        stroke="#ffffff"
+                                        strokeWidth={1.5}
+                                        strokeDasharray="4,4"
+                                        opacity={lineOpacity * 0.6}
+                                        pointerEvents="none"
+                                      />
+                                    )
+                                  })()}
                                 <LinePath
                                   data={data}
                                   x={(d) => xScale(d.lapIndex)}
@@ -472,12 +588,19 @@ export default function LapByLapTrendChart({
                                         : undefined
                                       const lapInSession =
                                         totalLapsInSession != null
-                                          ? `Lap ${nearest.lapNumber} of ${totalLapsInSession}`
+                                          ? `Session Lap: ${nearest.lapNumber} of ${totalLapsInSession}`
                                           : undefined
                                       const className = nearest.className ?? nearest.raceLabel
                                       const sessionName = nearest.raceLabel.startsWith(className)
                                         ? nearest.raceLabel.slice(className.length).trim()
                                         : nearest.raceLabel
+                                      const trend = driverTrendMap.get(nearestDriver.driverId)
+                                      const trendDirection = trend
+                                        ? getTrendDirection(trend.slope)
+                                        : undefined
+                                      const trendSlope = trend
+                                        ? formatTrendSlope(trend.slope)
+                                        : undefined
                                       setHoveredDriverId(nearestDriver.driverId)
                                       showTooltip({
                                         tooltipLeft: coords.x,
@@ -491,7 +614,11 @@ export default function LapByLapTrendChart({
                                           sessionLapRange,
                                           lapInSession,
                                           overallLapIndex: nearest.lapIndex,
+                                          positionOnLap: nearest.positionOnLap,
                                           raceStartTime: nearest.raceStartTime ?? null,
+                                          sessionDurationSeconds: nearest.durationSeconds ?? null,
+                                          trendDirection,
+                                          trendSlope,
                                         },
                                       })
                                     }
@@ -596,28 +723,49 @@ export default function LapByLapTrendChart({
                 <div className="text-sm text-[var(--token-text-secondary)]">
                   Session: {tooltipData.sessionName}
                 </div>
-                {(tooltipData.lapInSession ||
-                  tooltipData.sessionLapRange ||
-                  tooltipData.overallLapIndex != null) && (
-                  <div className="text-sm text-[var(--token-text-tertiary)]">
-                    {[
-                      tooltipData.lapInSession,
-                      tooltipData.sessionLapRange && `Chart: ${tooltipData.sessionLapRange}`,
-                      tooltipData.overallLapIndex != null &&
-                        `Overall lap ${tooltipData.overallLapIndex}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
+                {tooltipData.lapInSession && (
+                  <div className="text-sm text-[var(--token-text-secondary)]">
+                    {tooltipData.lapInSession}
+                  </div>
+                )}
+                {tooltipData.overallLapIndex != null && (
+                  <div className="text-sm text-[var(--token-text-secondary)]">
+                    Overall Lap: {tooltipData.overallLapIndex}
+                  </div>
+                )}
+                {tooltipData.positionOnLap != null && (
+                  <div className="text-sm text-[var(--token-text-secondary)]">
+                    Position: P{tooltipData.positionOnLap}
                   </div>
                 )}
                 {tooltipData.raceStartTime && (
                   <div className="text-sm text-[var(--token-text-secondary)]">
-                    Start Time: {formatTimeUTC(new Date(tooltipData.raceStartTime))}
+                    Date: {formatDateTimeUTC(new Date(tooltipData.raceStartTime))}
+                  </div>
+                )}
+                {tooltipData.sessionDurationSeconds != null && (
+                  <div className="text-sm text-[var(--token-text-secondary)]">
+                    Session Duration: {formatDuration(tooltipData.sessionDurationSeconds)}
                   </div>
                 )}
                 <div className="text-sm text-[var(--token-text-secondary)]">
                   Lap Time: {formatLapTime(tooltipData.lapTimeSeconds)}
                 </div>
+                {tooltipData.trendDirection && tooltipData.trendDirection !== "flat" && (
+                  <div className="text-sm text-[var(--token-text-secondary)]">
+                    Trend:{" "}
+                    <span
+                      className={
+                        tooltipData.trendDirection === "improving"
+                          ? "text-green-400"
+                          : "text-amber-400"
+                      }
+                    >
+                      {tooltipData.trendDirection === "improving" ? "Improving" : "Degrading"}
+                    </span>
+                    {tooltipData.trendSlope && ` (${tooltipData.trendSlope})`}
+                  </div>
+                )}
               </div>
             </TooltipWithBounds>
           )}
@@ -705,6 +853,23 @@ export default function LapByLapTrendChart({
                           ({driver.laps.length} laps)
                         </span>
                       )}
+                      {showTrendLine &&
+                        (() => {
+                          const trend = driverTrendMap.get(driver.driverId)
+                          if (!trend) return null
+                          const dir = getTrendDirection(trend.slope)
+                          if (dir === "flat") return null
+                          return (
+                            <span
+                              className={`ml-1.5 text-xs ${
+                                dir === "improving" ? "text-green-400" : "text-amber-400"
+                              }`}
+                              title={formatTrendSlope(trend.slope)}
+                            >
+                              ({dir === "improving" ? "↘ Improving" : "↗ Degrading"})
+                            </span>
+                          )
+                        })()}
                     </span>
                   </button>
                   {onDriverDeselect && (

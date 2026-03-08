@@ -67,6 +67,7 @@ function parseSearchParams(searchParams: URLSearchParams): {
       "practiceday",
       "heat",
       "main",
+      "seeding",
     ]
     if (validTypes.includes(sessionType as SessionType)) {
       params.sessionType = sessionType as SessionType

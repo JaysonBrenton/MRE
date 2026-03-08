@@ -26,6 +26,10 @@ export interface SessionData {
   raceOrder: number | null
   startTime: Date | null
   durationSeconds: number | null
+  /** Session type: practice, seeding, qualifying, heat, main, race, practiceday */
+  sessionType: string | null
+  /** LiveRC round heading (e.g. "Qualifier Round 1", "Main Events", "Seeding Round 2") */
+  sectionHeader: string | null
   participantCount: number
   topFinishers: Array<{
     driverId: string
@@ -210,6 +214,8 @@ function calculateSessionMetrics(
     raceOrder: race.raceOrder,
     startTime: race.startTime,
     durationSeconds,
+    sessionType: race.sessionType ?? null,
+    sectionHeader: race.sectionHeader ?? null,
     participantCount,
     topFinishers,
     results: race.results.map((result, index) => {

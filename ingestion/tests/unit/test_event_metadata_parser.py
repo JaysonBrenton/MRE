@@ -68,6 +68,15 @@ def test_parse_event_metadata_extracts_stats(parser, event_html):
     assert metadata.event_drivers == 60
 
 
+def test_parse_event_metadata_extracts_total_race_laps(parser, event_html):
+    """Test that Total Race Laps is extracted from Event Stats when present."""
+    url = "https://canberraoffroad.liverc.com/results/?p=view_event&id=486677"
+    metadata = parser.parse(event_html, url)
+    
+    # From fixture: Total Race Laps: 4,129
+    assert metadata.total_race_laps == 4129
+
+
 def test_parse_event_metadata_missing_url_id(parser, event_html):
     """Test that missing event ID in URL raises error."""
     url = "https://canberraoffroad.liverc.com/results/?p=view_event"

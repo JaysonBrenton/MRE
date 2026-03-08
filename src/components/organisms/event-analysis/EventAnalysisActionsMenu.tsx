@@ -137,6 +137,13 @@ export default function EventAnalysisActionsMenu() {
     setIsClassListExpanded(false)
   }, [])
 
+  // Close menu when refresh starts (e.g. from keyboard shortcut)
+  useEffect(() => {
+    if (eventActions?.isRefreshing) {
+      queueMicrotask(() => close())
+    }
+  }, [eventActions?.isRefreshing, close])
+
   // Click outside to close (main menu and portaled class list count as "inside")
   useEffect(() => {
     if (!open) return
@@ -223,6 +230,7 @@ export default function EventAnalysisActionsMenu() {
   )
 
   const handleButtonKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (eventActions.isRefreshing) return
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault()
       setOpen((prev) => !prev)
@@ -232,22 +240,35 @@ export default function EventAnalysisActionsMenu() {
 
   if (!eventActions) return null
 
+  const isRefreshing = eventActions.isRefreshing
+
   return (
     <div className="relative flex shrink-0">
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => !isRefreshing && setOpen((prev) => !prev)}
         onKeyDown={handleButtonKeyDown}
-        className="flex items-center gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+        disabled={isRefreshing}
+        className="flex items-center gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-[var(--token-surface-elevated)]"
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label="Event actions menu"
+        aria-busy={isRefreshing}
+        aria-label={isRefreshing ? "Refreshing event data" : "Event actions menu"}
       >
-        <span>Actions</span>
-        <ChevronDownIcon
-          className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        {isRefreshing ? (
+          <>
+            <RefreshIcon className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]" spin />
+            <span>Refreshing...</span>
+          </>
+        ) : (
+          <>
+            <span>Actions</span>
+            <ChevronDownIcon
+              className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </>
+        )}
       </button>
 
       {open && (

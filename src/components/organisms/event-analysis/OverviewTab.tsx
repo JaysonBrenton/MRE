@@ -21,7 +21,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import EventStats from "./EventStats"
 import WeatherCard from "./WeatherCard"
-import ClassStatsCard from "./ClassStatsCard"
 import ClassTopFastestLapsCard from "./ClassTopFastestLapsCard"
 import ClassTopAverageLapsCard from "./ClassTopAverageLapsCard"
 import ClassMostImprovedCard from "./ClassMostImprovedCard"
@@ -45,6 +44,127 @@ import {
 } from "@/core/events/event-analysis-notices"
 import { clientLogger } from "@/lib/client-logger"
 import { getValidClasses } from "@/core/events/class-validator"
+import { Facebook, MapPin, Calendar, Phone, Globe, Mail } from "lucide-react"
+import { formatDateLong } from "@/lib/date-utils"
+import Tooltip from "@/components/molecules/Tooltip"
+
+/** Compute driver stats from a set of races (for chart display and sorting) */
+function computeDriverStatsFromRaces(
+  races: Array<{
+    raceLabel: string
+    results: Array<{
+      driverId: string
+      driverName: string
+      lapsCompleted: number
+      fastLapTime: number | null
+      avgLapTime: number | null
+      consistency: number | null
+      positionFinal: number
+    }>
+  }>
+): Array<{
+  driverId: string
+  driverName: string
+  bestLapTime: number | null
+  bestLapRaceLabel: string | null
+  avgLapTime: number | null
+  averagePosition: number | null
+  gapToFastest: number | null
+  podiumFinishes: number
+  averageConsistency: number | null
+}> {
+  const driverMap = new Map<
+    string,
+    {
+      driverId: string
+      driverName: string
+      bestLapTime: number | null
+      bestLapRaceLabel: string | null
+      avgLapTimes: number[]
+      positions: number[]
+      consistencies: number[]
+    }
+  >()
+
+  races.forEach((race) => {
+    race.results.forEach((result) => {
+      if (result.lapsCompleted === 0) return
+
+      const driverId = result.driverId
+      const driverName = result.driverName
+
+      if (!driverMap.has(driverId)) {
+        driverMap.set(driverId, {
+          driverId,
+          driverName,
+          bestLapTime: null,
+          bestLapRaceLabel: null,
+          avgLapTimes: [],
+          positions: [],
+          consistencies: [],
+        })
+      }
+
+      const driverData = driverMap.get(driverId)!
+
+      if (result.fastLapTime !== null) {
+        if (driverData.bestLapTime === null || result.fastLapTime < driverData.bestLapTime) {
+          driverData.bestLapTime = result.fastLapTime
+          driverData.bestLapRaceLabel = race.raceLabel
+        }
+      }
+
+      if (result.avgLapTime !== null) driverData.avgLapTimes.push(result.avgLapTime)
+      if (result.consistency !== null) driverData.consistencies.push(result.consistency)
+      driverData.positions.push(result.positionFinal)
+    })
+  })
+
+  let fastestLapInClass: number | null = null
+  for (const driver of driverMap.values()) {
+    if (driver.bestLapTime !== null) {
+      if (fastestLapInClass === null || driver.bestLapTime < fastestLapInClass) {
+        fastestLapInClass = driver.bestLapTime
+      }
+    }
+  }
+
+  return Array.from(driverMap.values()).map((driver) => {
+    const avgLapTime =
+      driver.avgLapTimes.length > 0
+        ? driver.avgLapTimes.reduce((a, b) => a + b, 0) / driver.avgLapTimes.length
+        : null
+
+    const averagePosition =
+      driver.positions.length > 0
+        ? driver.positions.reduce((a, b) => a + b, 0) / driver.positions.length
+        : null
+
+    const gapToFastest =
+      driver.bestLapTime !== null && fastestLapInClass !== null
+        ? driver.bestLapTime - fastestLapInClass
+        : null
+
+    const podiumFinishes = driver.positions.filter((pos) => pos >= 1 && pos <= 3).length
+
+    const averageConsistency =
+      driver.consistencies.length > 0
+        ? driver.consistencies.reduce((a, b) => a + b, 0) / driver.consistencies.length
+        : null
+
+    return {
+      driverId: driver.driverId,
+      driverName: driver.driverName,
+      bestLapTime: driver.bestLapTime,
+      bestLapRaceLabel: driver.bestLapRaceLabel,
+      avgLapTime,
+      averagePosition,
+      gapToFastest,
+      podiumFinishes,
+      averageConsistency,
+    }
+  })
+}
 
 export interface OverviewTabProps {
   data: EventAnalysisData
@@ -63,7 +183,10 @@ export default function OverviewTab({
 }: OverviewTabProps) {
   const lastLoggedMissingState = useRef<string | null>(null)
 
-  const [weather, setWeather] = useState<EventWeatherData | null>(null)
+  const [weatherByDay, setWeatherByDay] = useState<Array<{
+    date: string
+    weather: EventWeatherData
+  }> | null>(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [weatherError, setWeatherError] = useState<string | null>(null)
   const [isEventSummaryOpen, setIsEventSummaryOpen] = useState(false)
@@ -73,12 +196,14 @@ export default function OverviewTab({
   const [isResultsOpen, setIsResultsOpen] = useState(false)
   const [isDriverPerformanceOpen, setIsDriverPerformanceOpen] = useState(false)
   const [isLapTrendOpen, setIsLapTrendOpen] = useState(false)
+  const [isVenueInfoOpen, setIsVenueInfoOpen] = useState(false)
+  const [isEventWeatherDataOpen, setIsEventWeatherDataOpen] = useState(false)
 
   useEffect(() => {
     const eventId = data.event.id
     if (!eventId) {
       queueMicrotask(() => {
-        setWeather(null)
+        setWeatherByDay(null)
         setWeatherError(null)
       })
       return
@@ -87,9 +212,9 @@ export default function OverviewTab({
       setWeatherLoading(true)
       setWeatherError(null)
     })
-    const fetchWeather = (refresh = false) => {
-      const url = `/api/v1/events/${eventId}/weather${refresh ? "?refresh=true" : ""}`
-      return fetch(url, { cache: "no-store" }).then(async (response) => {
+    const url = `/api/v1/events/${eventId}/weather?perDay=true`
+    fetch(url, { cache: "no-store" })
+      .then(async (response) => {
         if (!response.ok) {
           if (response.status === 404) {
             setWeatherError("Event not found")
@@ -100,23 +225,16 @@ export default function OverviewTab({
           return null
         }
         const result = await response.json()
-        if (result.success && result.data) {
-          return result.data as EventWeatherData
+        if (result.success && result.data?.days && Array.isArray(result.data.days)) {
+          return result.data.days as Array<{ date: string; weather: EventWeatherData }>
         }
         setWeatherError("Invalid response from server")
         return null
       })
-    }
-    fetchWeather()
-      .then((data) => {
-        if (!data) return
-        setWeather(data)
-        setWeatherError(null)
-        // If cached response lacks daily temperature summary, refetch once to populate and upgrade cache
-        if (!data.dailyTemperatureSummary) {
-          return fetchWeather(true).then((fresh) => {
-            if (fresh) setWeather(fresh)
-          })
+      .then((days) => {
+        if (days) {
+          setWeatherByDay(days)
+          setWeatherError(null)
         }
       })
       .catch((error) => {
@@ -141,6 +259,8 @@ export default function OverviewTab({
   const [unifiedChartDriverIds, setUnifiedChartDriverIds] = useState<string[]>([])
   // Lap-trend chart: which drivers to show (subset of expandedSelectedDriverIds); cap at 8 when many selected
   const [lapTrendChartDriverIds, setLapTrendChartDriverIds] = useState<string[]>([])
+  // Lap-trend section: class filter for driver picker only (independent of global selectedClass)
+  const [lapTrendSelectedClass, setLapTrendSelectedClass] = useState<string | null>(null)
   // Lap-trend sort: order drivers in chart/legend by this metric
   const [lapTrendSortBy] = useState<
     "bestLap" | "averageLap" | "consistency" | "gapToFastest" | "averagePosition" | "podiumFinishes"
@@ -158,6 +278,14 @@ export default function OverviewTab({
     }
     return data.races.filter((race) => race.className === selectedClass)
   }, [data.races, selectedClass])
+
+  // Lap-trend: races filtered by lap-trend-specific class (independent of global selectedClass)
+  const lapTrendFilteredRaces = useMemo(() => {
+    if (lapTrendSelectedClass === null) {
+      return data.races
+    }
+    return data.races.filter((race) => race.className === lapTrendSelectedClass)
+  }, [data.races, lapTrendSelectedClass])
 
   // Calculate driver stats from ALL races (not filtered by class)
   // This ensures ChartControls always has the complete driver list for correct class counts
@@ -226,119 +354,16 @@ export default function OverviewTab({
   }, [data.races])
 
   // Calculate driver stats from filtered races only (for chart display)
-  // Exclude non-starting drivers (lapsCompleted === 0) as they have no performance data
-  const driverStatsByClass = useMemo(() => {
-    const driverMap = new Map<
-      string,
-      {
-        driverId: string
-        driverName: string
-        bestLapTime: number | null
-        bestLapRaceLabel: string | null
-        avgLapTimes: number[]
-        positions: number[]
-        consistencies: number[]
-      }
-    >()
+  const driverStatsByClass = useMemo(
+    () => computeDriverStatsFromRaces(filteredRaces),
+    [filteredRaces]
+  )
 
-    // Process each race in filtered races
-    filteredRaces.forEach((race) => {
-      race.results.forEach((result) => {
-        // Skip non-starting drivers (0 laps completed) - they have no performance data
-        if (result.lapsCompleted === 0) {
-          return
-        }
-
-        const driverId = result.driverId
-        const driverName = result.driverName
-
-        if (!driverMap.has(driverId)) {
-          driverMap.set(driverId, {
-            driverId,
-            driverName,
-            bestLapTime: null,
-            bestLapRaceLabel: null,
-            avgLapTimes: [],
-            positions: [],
-            consistencies: [],
-          })
-        }
-
-        const driverData = driverMap.get(driverId)!
-
-        // Update best lap time and track the race label
-        if (result.fastLapTime !== null) {
-          if (driverData.bestLapTime === null || result.fastLapTime < driverData.bestLapTime) {
-            driverData.bestLapTime = result.fastLapTime
-            driverData.bestLapRaceLabel = race.raceLabel
-          }
-        }
-
-        // Collect average lap times
-        if (result.avgLapTime !== null) {
-          driverData.avgLapTimes.push(result.avgLapTime)
-        }
-
-        // Collect consistency (per-race score 0–100; higher = more consistent)
-        if (result.consistency !== null) {
-          driverData.consistencies.push(result.consistency)
-        }
-
-        // Collect positions
-        driverData.positions.push(result.positionFinal)
-      })
-    })
-
-    // Find the fastest lap time in the class (for gap calculation)
-    let fastestLapInClass: number | null = null
-    for (const driver of driverMap.values()) {
-      if (driver.bestLapTime !== null) {
-        if (fastestLapInClass === null || driver.bestLapTime < fastestLapInClass) {
-          fastestLapInClass = driver.bestLapTime
-        }
-      }
-    }
-
-    // Calculate final averages and additional metrics
-    return Array.from(driverMap.values()).map((driver) => {
-      const avgLapTime =
-        driver.avgLapTimes.length > 0
-          ? driver.avgLapTimes.reduce((a, b) => a + b, 0) / driver.avgLapTimes.length
-          : null
-
-      const averagePosition =
-        driver.positions.length > 0
-          ? driver.positions.reduce((a, b) => a + b, 0) / driver.positions.length
-          : null
-
-      // Calculate gap to fastest
-      const gapToFastest =
-        driver.bestLapTime !== null && fastestLapInClass !== null
-          ? driver.bestLapTime - fastestLapInClass
-          : null
-
-      // Count podium finishes (positions 1, 2, or 3)
-      const podiumFinishes = driver.positions.filter((pos) => pos >= 1 && pos <= 3).length
-
-      // Average consistency for this class (mean of per-race consistency scores)
-      const averageConsistency =
-        driver.consistencies.length > 0
-          ? driver.consistencies.reduce((a, b) => a + b, 0) / driver.consistencies.length
-          : null
-
-      return {
-        driverId: driver.driverId,
-        driverName: driver.driverName,
-        bestLapTime: driver.bestLapTime,
-        bestLapRaceLabel: driver.bestLapRaceLabel,
-        avgLapTime,
-        averagePosition,
-        gapToFastest,
-        podiumFinishes,
-        averageConsistency,
-      }
-    })
-  }, [filteredRaces])
+  // Lap-trend: driver stats from lap-trend-filtered races (for ChartDriverPicker options and sorting)
+  const lapTrendDriverStats = useMemo(
+    () => computeDriverStatsFromRaces(lapTrendFilteredRaces),
+    [lapTrendFilteredRaces]
+  )
 
   // Prepare unified chart data
   const unifiedChartData = useMemo<DriverPerformanceData[]>(() => {
@@ -474,10 +499,18 @@ export default function OverviewTab({
     }
   }, [data.event.id, selectedClass, selectedDriverIds])
 
-  // When event changes, default lap trend chart to 0 drivers selected (user picks via chart "Select Drivers")
+  // When event changes, reset lap trend state
+  useEffect(() => {
+    queueMicrotask(() => {
+      setLapTrendChartDriverIds([])
+      setLapTrendSelectedClass(null)
+    })
+  }, [data.event.id])
+
+  // When lap-trend class filter changes, clear driver selection (user re-picks from filtered list)
   useEffect(() => {
     queueMicrotask(() => setLapTrendChartDriverIds([]))
-  }, [data.event.id])
+  }, [lapTrendSelectedClass])
 
   // Fetch lap-by-lap trend for drivers selected in the chart (lapTrendChartDriverIds)
   useEffect(() => {
@@ -492,7 +525,11 @@ export default function OverviewTab({
       setLapTrendLoading(true)
       setLapTrendError(null)
     })
-    const url = `/api/v1/events/${data.event.id}/lap-trend?driverIds=${encodeURIComponent(lapTrendChartDriverIds.join(","))}`
+    const params = new URLSearchParams({
+      driverIds: lapTrendChartDriverIds.join(","),
+    })
+    if (lapTrendSelectedClass) params.set("className", lapTrendSelectedClass)
+    const url = `/api/v1/events/${data.event.id}/lap-trend?${params.toString()}`
     fetch(url, { cache: "no-store", credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
@@ -512,21 +549,21 @@ export default function OverviewTab({
         setLapTrendData(null)
       })
       .finally(() => setLapTrendLoading(false))
-  }, [data.event.id, lapTrendChartDriverIds])
+  }, [data.event.id, lapTrendChartDriverIds, lapTrendSelectedClass])
 
-  // Lap-trend driver options: drivers that are in global selection (for chart-specific picker)
+  // Lap-trend driver options: drivers from lap-trend class filter, in global selection (for ChartDriverPicker)
   const lapTrendDriverOptions = useMemo(
     () =>
-      driverStatsByClass
+      lapTrendDriverStats
         .filter((d) => expandedSelectedDriverIds.includes(d.driverId))
         .map((d) => ({ driverId: d.driverId, driverName: d.driverName })),
-    [driverStatsByClass, expandedSelectedDriverIds]
+    [lapTrendDriverStats, expandedSelectedDriverIds]
   )
 
   // Sort lap-trend drivers by selected metric (order in chart/legend)
   const sortedLapTrendDrivers = useMemo(() => {
     if (!lapTrendData?.drivers?.length) return []
-    const statsMap = new Map(driverStatsByClass.map((d) => [d.driverId, d]))
+    const statsMap = new Map(lapTrendDriverStats.map((d) => [d.driverId, d]))
     const key =
       lapTrendSortBy === "bestLap"
         ? "bestLapTime"
@@ -561,7 +598,7 @@ export default function OverviewTab({
       if (ascending) return aNum - bNum
       return bNum - aNum
     })
-  }, [lapTrendData, driverStatsByClass, lapTrendSortBy])
+  }, [lapTrendData, lapTrendDriverStats, lapTrendSortBy])
 
   // Only consider selected drivers who are in the current class for "missing best lap" / "missing avg vs fastest"
   // so we don't incorrectly flag drivers from other classes when a class is selected
@@ -725,8 +762,6 @@ export default function OverviewTab({
 
   const handleClassChange = useCallback(
     (className: string | null) => {
-      console.log("[OverviewTab] handleClassChange called with:", className)
-
       setSelectAllClickedForCurrentClass(false)
       setPaginationState({
         page: 1,
@@ -806,25 +841,6 @@ export default function OverviewTab({
     expandedSelectedDriverIds.length,
   ])
 
-  // Debug: Log when selections change to help diagnose chart update issues
-  useEffect(() => {
-    console.log("[OverviewTab] Selection state changed:", {
-      selectedDriverIds: selectedDriverIds.length,
-      expandedSelectedDriverIds: expandedSelectedDriverIds.length,
-      selectedClass,
-      unifiedChartDataLength: unifiedChartData.length,
-      driverStatsByClassLength: driverStatsByClass.length,
-      filteredRacesLength: filteredRaces.length,
-    })
-  }, [
-    selectedDriverIds,
-    expandedSelectedDriverIds,
-    selectedClass,
-    unifiedChartData.length,
-    driverStatsByClass.length,
-    filteredRaces.length,
-  ])
-
   const eventSummaryContentId = "event-summary-content"
   const fastestLapsContentId = "fastest-laps-content"
   const bestAverageContentId = "best-average-lap-content"
@@ -843,7 +859,7 @@ export default function OverviewTab({
       {/* Always-visible event headline metrics */}
       <section className="space-y-3">
         <div
-          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-3 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80"
+          className="flex flex-col flex-wrap gap-4 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-4 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80 sm:flex-row sm:items-center sm:justify-between"
           style={{
             backgroundColor: "var(--glass-bg)",
             backdropFilter: "var(--glass-blur)",
@@ -856,20 +872,296 @@ export default function OverviewTab({
             <p className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]">
               Event overview
             </p>
-            <p className="truncate text-sm font-medium text-[var(--token-text-primary)]">
-              {data.event.trackName}
-            </p>
+            <div className="mt-1 flex items-center gap-3">
+              <div className="min-w-0">
+                {data.event.eventUrl ? (
+                  <Tooltip text="Click to view this event on LiveRC.com" position="top">
+                    <a
+                      href={data.event.eventUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-w-0 items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)] decoration-[var(--token-accent)]/50 underline-offset-4 transition-colors hover:text-[var(--token-accent)] hover:underline hover:decoration-[var(--token-accent)]"
+                      aria-label="View event on LiveRC (opens in new tab)"
+                    >
+                      <MapPin
+                        className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                        aria-hidden
+                      />
+                      <span className="truncate">{data.event.trackName}</span>
+                    </a>
+                  </Tooltip>
+                ) : (
+                  <h2 className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)]">
+                    <MapPin
+                      className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                      aria-hidden
+                    />
+                    <span className="truncate">{data.event.trackName}</span>
+                  </h2>
+                )}
+              </div>
+              {(() => {
+                const dr = data.summary.dateRange
+                const hasDateRange = dr && (dr.earliest || dr.latest)
+                if (!hasDateRange) return null
+                const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
+                const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
+                const dateRangeStr =
+                  earliestStr && latestStr && earliestStr === latestStr
+                    ? earliestStr
+                    : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
+                return (
+                  <>
+                    <div
+                      className="h-4 w-px shrink-0 bg-[var(--token-border-default)]"
+                      aria-hidden
+                    />
+                    <span className="text-sm text-[var(--token-text-secondary)]">
+                      {dateRangeStr}
+                    </span>
+                  </>
+                )
+              })()}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--token-text-secondary)]">
-            <span className="rounded-full bg-[var(--token-surface-elevated)]/80 px-2 py-1">
-              {data.summary.totalRaces} races
-            </span>
-            <span className="rounded-full bg-[var(--token-surface-elevated)]/80 px-2 py-1">
-              {data.summary.totalDrivers} drivers
-            </span>
-            <span className="rounded-full bg-[var(--token-surface-elevated)]/80 px-2 py-1">
-              {data.entryList.length} entries
-            </span>
+          <div className="grid grid-cols-4 gap-x-6 gap-y-2 text-right sm:text-left sm:pl-4 sm:border-l sm:border-[var(--token-border-subtle)]">
+            <div className="flex flex-col">
+              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                Races
+              </span>
+              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                {data.summary.totalRaces}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                Drivers
+              </span>
+              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                {data.summary.totalDrivers}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                Entries
+              </span>
+              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                {data.entryList.length}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                Total Laps
+              </span>
+              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                {data.summary.totalLaps.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Collapsible Venue info */}
+          {(() => {
+            const dr = data.summary.dateRange
+            const hasDateRange = dr && (dr.earliest || dr.latest)
+            const hasAddress = !!(
+              data.event.address &&
+              typeof data.event.address === "string" &&
+              data.event.address.trim()
+            )
+            const hasPhone = !!(
+              data.event.phone &&
+              typeof data.event.phone === "string" &&
+              data.event.phone.trim()
+            )
+            const hasWebsite = !!(
+              data.event.website &&
+              typeof data.event.website === "string" &&
+              data.event.website.trim()
+            )
+            const hasEmail = !!(
+              data.event.email &&
+              typeof data.event.email === "string" &&
+              data.event.email.trim()
+            )
+            const hasFacebook = !!(
+              data.event.facebookUrl &&
+              typeof data.event.facebookUrl === "string" &&
+              data.event.facebookUrl.trim()
+            )
+            const hasVenueInfo =
+              hasDateRange || hasAddress || hasPhone || hasWebsite || hasEmail || hasFacebook
+            if (!hasVenueInfo) return null
+
+            const dateRangeStr = (() => {
+              if (!hasDateRange) return null
+              const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
+              const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
+              if (earliestStr && latestStr && earliestStr === latestStr) return earliestStr
+              return `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
+            })()
+
+            const venueInfoContentId = "venue-info-content"
+            return (
+              <div className="w-full shrink-0 basis-full border-t border-[var(--token-border-default)] pt-4">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-2 text-left text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)]"
+                  aria-expanded={isVenueInfoOpen}
+                  aria-controls={venueInfoContentId}
+                  onClick={() => setIsVenueInfoOpen((prev) => !prev)}
+                >
+                  <span>Venue info</span>
+                  <span
+                    className={`shrink-0 transition-transform duration-150 ${
+                      isVenueInfoOpen ? "rotate-0" : "-rotate-90"
+                    }`}
+                    aria-hidden
+                  >
+                    ▾
+                  </span>
+                </button>
+                {isVenueInfoOpen && (
+                  <div
+                    id={venueInfoContentId}
+                    className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2"
+                  >
+                    {dateRangeStr && (
+                      <div className="flex items-start gap-2">
+                        <Calendar
+                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                          aria-hidden
+                        />
+                        <span className="text-[var(--token-text-primary)]">{dateRangeStr}</span>
+                      </div>
+                    )}
+                    {hasAddress && (
+                      <div className="flex items-start gap-2">
+                        <MapPin
+                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                          aria-hidden
+                        />
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[var(--token-text-primary)]">
+                            {data.event.address}
+                          </span>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.event.address!)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                          >
+                            Open in Maps
+                          </a>
+                        </span>
+                      </div>
+                    )}
+                    {hasPhone && (
+                      <div className="flex items-start gap-2">
+                        <Phone
+                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                          aria-hidden
+                        />
+                        <a
+                          href={`tel:${data.event.phone!.replace(/\s/g, "")}`}
+                          className="text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                        >
+                          {data.event.phone}
+                        </a>
+                      </div>
+                    )}
+                    {hasWebsite && (
+                      <div className="flex items-start gap-2">
+                        <Globe
+                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                          aria-hidden
+                        />
+                        <a
+                          href={
+                            data.event.website!.startsWith("http")
+                              ? data.event.website!
+                              : `https://${data.event.website}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                        >
+                          {data.event.website}
+                        </a>
+                      </div>
+                    )}
+                    {hasFacebook && (
+                      <div className="flex items-start gap-2">
+                        <Facebook
+                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                          aria-hidden
+                        />
+                        <a
+                          href={data.event.facebookUrl!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                        >
+                          View on Facebook
+                        </a>
+                      </div>
+                    )}
+                    {hasEmail && (
+                      <div className="flex items-start gap-2">
+                        <Mail
+                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                          aria-hidden
+                        />
+                        <a
+                          href={`mailto:${data.event.email}`}
+                          className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                        >
+                          {data.event.email}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Collapsible Event Weather Data */}
+          <div className="w-full shrink-0 basis-full border-t border-[var(--token-border-default)] pt-4">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 text-left text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)]"
+              aria-expanded={isEventWeatherDataOpen}
+              aria-controls="event-weather-data-content"
+              onClick={() => setIsEventWeatherDataOpen((prev) => !prev)}
+            >
+              <span>Event Weather Data</span>
+              <span
+                className={`shrink-0 transition-transform duration-150 ${
+                  isEventWeatherDataOpen ? "rotate-0" : "-rotate-90"
+                }`}
+                aria-hidden
+              >
+                ▾
+              </span>
+            </button>
+            {isEventWeatherDataOpen && (
+              <div id="event-weather-data-content" className="mt-3 flex flex-wrap gap-4">
+                {weatherLoading ? (
+                  <WeatherCard weather={null} weatherLoading={true} weatherError={null} />
+                ) : weatherError ? (
+                  <WeatherCard weather={null} weatherLoading={false} weatherError={weatherError} />
+                ) : weatherByDay && weatherByDay.length > 0 ? (
+                  weatherByDay.map(({ date, weather }) => (
+                    <div key={date} className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-[var(--token-text-secondary)]">
+                        {formatDateLong(date)}
+                      </span>
+                      <WeatherCard weather={weather} weatherLoading={false} weatherError={null} />
+                    </div>
+                  ))
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -926,14 +1218,9 @@ export default function OverviewTab({
                   dateRange={data.summary.dateRange}
                 />
                 <WeatherCard
-                  weather={weather}
+                  weather={weatherByDay?.[0]?.weather ?? null}
                   weatherLoading={weatherLoading}
                   weatherError={weatherError}
-                />
-                <ClassStatsCard
-                  raceClasses={data.raceClasses}
-                  races={data.races}
-                  entryList={data.entryList}
                 />
               </div>
             )}
@@ -1110,8 +1397,27 @@ export default function OverviewTab({
                 id={resultsContentId}
                 className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
               >
-                <MainPodiumCard races={data.races} />
-                <MultiMainOverallCard multiMainResults={data.multiMainResults ?? []} />
+                {(() => {
+                  const hasMainOrFinalRaces = data.races.some((r) =>
+                    /main|final/i.test(r.raceLabel)
+                  )
+                  const hasMultiMainResults = (data.multiMainResults?.length ?? 0) > 0
+                  if (!hasMainOrFinalRaces && !hasMultiMainResults) {
+                    return (
+                      <p className="text-sm text-[var(--token-text-secondary)]">
+                        No main or final results found for this event. Results are shown for races
+                        with &quot;Main&quot; or &quot;Final&quot; in the race name (e.g. A1-Main,
+                        B-Final).
+                      </p>
+                    )
+                  }
+                  return (
+                    <>
+                      <MainPodiumCard races={data.races} />
+                      <MultiMainOverallCard multiMainResults={data.multiMainResults ?? []} />
+                    </>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -1171,7 +1477,7 @@ export default function OverviewTab({
               onClick={() => setIsDriverPerformanceOpen((prev) => !prev)}
             >
               <span className="flex min-w-0 flex-col">
-                <span>Driver performance comparison</span>
+                <span>Driver Performance Comparison</span>
                 <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
                   Best lap, average lap, consistency, and position by driver.
                 </span>
@@ -1259,9 +1565,10 @@ export default function OverviewTab({
               onClick={() => setIsLapTrendOpen((prev) => !prev)}
             >
               <span className="flex min-w-0 flex-col">
-                <span>Lap-by-lap trend</span>
+                <span>Driver Analysis</span>
                 <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
-                  All lap times from first session to last. Use Actions to select class or drivers.
+                  Track each driver&apos;s pace across every session. Use Actions to filter by class
+                  and pick drivers.
                 </span>
               </span>
               <span
@@ -1296,11 +1603,11 @@ export default function OverviewTab({
                   </div>
                 ) : (
                   <>
-                    {expandedSelectedDriverIds.length > MAX_LAP_TREND_DRIVERS &&
+                    {lapTrendDriverOptions.length > MAX_LAP_TREND_DRIVERS &&
                       lapTrendChartDriverIds.length === MAX_LAP_TREND_DRIVERS && (
                         <p className="mb-2 text-sm text-[var(--token-text-secondary)]">
-                          Showing first {MAX_LAP_TREND_DRIVERS} of{" "}
-                          {expandedSelectedDriverIds.length} selected. Use Drivers to add or change.
+                          Showing first {MAX_LAP_TREND_DRIVERS} of {lapTrendDriverOptions.length}{" "}
+                          selected. Use Drivers to add or change.
                         </p>
                       )}
                     <LapByLapTrendChart
@@ -1312,7 +1619,9 @@ export default function OverviewTab({
                       height={450}
                       chartInstanceId={`overview-${data.event.id}-lap-trend`}
                       chartTitle={
-                        selectedClass === null ? "All Classes" : (selectedClass ?? "All Classes")
+                        lapTrendSelectedClass === null
+                          ? "All Classes"
+                          : (lapTrendSelectedClass ?? "All Classes")
                       }
                       headerControls={
                         <div className="flex flex-wrap items-center gap-4">
@@ -1322,8 +1631,8 @@ export default function OverviewTab({
                                 Choose a Class:
                               </span>
                               <select
-                                value={selectedClass ?? ""}
-                                onChange={(e) => onClassChange(e.target.value || null)}
+                                value={lapTrendSelectedClass ?? ""}
+                                onChange={(e) => setLapTrendSelectedClass(e.target.value || null)}
                                 className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
                                 aria-label="Choose a Class for lap trend"
                               >
@@ -1342,6 +1651,9 @@ export default function OverviewTab({
                               selectedDriverIds={lapTrendChartDriverIds}
                               onSelectionChange={setLapTrendChartDriverIds}
                               label="Select Drivers"
+                              singleSelect
+                              disabled={lapTrendSelectedClass === null}
+                              disabledTooltip="Select a class first to choose drivers"
                             />
                           )}
                         </div>
@@ -1351,7 +1663,7 @@ export default function OverviewTab({
                           ? "Loading lap data…"
                           : (lapTrendError ??
                             (lapTrendChartDriverIds.length === 0
-                              ? "No drivers selected for this chart. Use Drivers to add."
+                              ? "Select a class above, then choose a driver from that class to view lap-by-lap data."
                               : "No lap data for selected drivers."))
                       }
                     />

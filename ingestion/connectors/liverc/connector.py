@@ -25,12 +25,17 @@ from ingestion.connectors.liverc.models import (
     ConnectorLap,
     ConnectorEntryList,
     ConnectorMultiMainResult,
+    ConnectorQualPointsResult,
+    ConnectorRoundRankingResult,
 )
 from ingestion.connectors.liverc.parsers.track_list_parser import TrackListParser, TrackSummary
 from ingestion.connectors.liverc.parsers.event_list_parser import EventListParser, EventSummary
 from ingestion.connectors.liverc.parsers.event_metadata_parser import EventMetadataParser
 from ingestion.connectors.liverc.parsers.race_list_parser import RaceListParser
 from ingestion.connectors.liverc.parsers.multi_main_list_parser import MultiMainListParser
+from ingestion.connectors.liverc.parsers.rankings_list_parser import RankingsListParser
+from ingestion.connectors.liverc.parsers.qual_points_parser import QualPointsParser
+from ingestion.connectors.liverc.parsers.round_ranking_parser import RoundRankingParser
 from ingestion.connectors.liverc.parsers.multi_main_result_parser import MultiMainResultParser
 from ingestion.connectors.liverc.parsers.race_results_parser import (
     RaceResultsParser,
@@ -50,6 +55,8 @@ from ingestion.connectors.liverc.utils import (
     build_race_url,
     build_multi_main_url,
     build_entry_list_url,
+    build_points_url,
+    build_round_ranking_url,
     normalize_race_url,
     parse_track_slug_from_url,
     build_practice_month_url,
@@ -283,21 +290,27 @@ class LiveRCConnector:
                 return await playwright.fetch_page(url, wait_for_selector=wait_for_selector)
 
     def _parse_event_page(self, html: str, url: str, source_event_id: str) -> ConnectorEventSummary:
-        """Parse metadata, race list, and multi-main links from event HTML."""
+        """Parse metadata, race list, multi-main links, and rankings links from event HTML."""
         metadata_parser = EventMetadataParser()
         race_list_parser = RaceListParser()
         multi_main_parser = MultiMainListParser()
+        rankings_parser = RankingsListParser()
         metadata = metadata_parser.parse(html, url)
         races = race_list_parser.parse(html, url)
         multi_main_summaries = multi_main_parser.parse(html, url)
+        qual_points_summaries, round_ranking_summaries = rankings_parser.parse(html, url)
         return ConnectorEventSummary(
             source_event_id=source_event_id,
             event_name=metadata.event_name,
             event_date=metadata.event_date,
             event_entries=metadata.event_entries,
             event_drivers=metadata.event_drivers,
+            event_date_end=getattr(metadata, "event_date_end", None),
+            total_race_laps=getattr(metadata, "total_race_laps", None),
             races=races,
             multi_main_summaries=multi_main_summaries,
+            qual_points_summaries=qual_points_summaries,
+            round_ranking_summaries=round_ranking_summaries,
         )
     
     async def fetch_event_page(
@@ -540,6 +553,131 @@ class LiveRCConnector:
             )
             raise RacePageFormatError(
                 f"Failed to fetch multi-main result: {str(e)}",
+                url=url,
+            )
+
+    async def fetch_qual_points(
+        self,
+        track_slug: str,
+        source_points_id: str,
+        label: str,
+        rounds_completed: Optional[int] = None,
+        total_rounds: Optional[int] = None,
+        shared_client: Optional[HTTPXClient] = None,
+    ) -> ConnectorQualPointsResult:
+        """
+        Fetch and parse view_points (Qual Points) page.
+
+        Args:
+            track_slug: Track subdomain slug
+            source_points_id: Points ID from LiveRC
+            label: Label (e.g. "Qual Points (2 of 4)")
+            rounds_completed: From label if parsed
+            total_rounds: From label if parsed
+            shared_client: Optional HTTPXClient to reuse
+
+        Returns:
+            ConnectorQualPointsResult
+        """
+        self._ensure_enabled()
+        url = build_points_url(track_slug, source_points_id)
+        logger.info("fetch_qual_points_start", url=url, source_points_id=source_points_id)
+
+        try:
+            if shared_client is not None:
+                response = await shared_client.get(url)
+                html = response.text
+            else:
+                async with HTTPXClient(self._site_policy) as client:
+                    response = await client.get(url)
+                    html = response.text
+
+            parser = QualPointsParser()
+            result = parser.parse(
+                html, url,
+                source_points_id=source_points_id,
+                label=label,
+                rounds_completed=rounds_completed,
+                total_rounds=total_rounds,
+            )
+            logger.info(
+                "fetch_qual_points_success",
+                source_points_id=source_points_id,
+                entry_count=len(result.entries),
+            )
+            return result
+        except ConnectorHTTPError as err:
+            self._record_error("fetch_qual_points", err)
+            raise
+        except EventPageFormatError as err:
+            self._record_error("fetch_qual_points", err)
+            raise
+        except Exception as e:
+            self._record_error("fetch_qual_points", e)
+            logger.error("fetch_qual_points_error", url=url, error=str(e))
+            raise EventPageFormatError(
+                f"Failed to fetch Qual Points: {str(e)}",
+                url=url,
+            )
+
+    async def fetch_round_ranking(
+        self,
+        track_slug: str,
+        source_round_id: str,
+        label: str,
+        order_type: Optional[str] = None,
+        shared_client: Optional[HTTPXClient] = None,
+    ) -> ConnectorRoundRankingResult:
+        """
+        Fetch and parse view_round_ranking page.
+
+        Args:
+            track_slug: Track subdomain slug
+            source_round_id: Round ID from LiveRC
+            label: Label (e.g. "Qualifier Round 1 Rankings")
+            order_type: From URL (e.g. "laps_time")
+            shared_client: Optional HTTPXClient to reuse
+
+        Returns:
+            ConnectorRoundRankingResult
+        """
+        self._ensure_enabled()
+        url = build_round_ranking_url(track_slug, source_round_id, order_type)
+        logger.info("fetch_round_ranking_start", url=url, source_round_id=source_round_id)
+
+        try:
+            if shared_client is not None:
+                response = await shared_client.get(url)
+                html = response.text
+            else:
+                async with HTTPXClient(self._site_policy) as client:
+                    response = await client.get(url)
+                    html = response.text
+
+            parser = RoundRankingParser()
+            result = parser.parse(
+                html, url,
+                source_round_id=source_round_id,
+                label=label,
+                order_type=order_type,
+            )
+            logger.info(
+                "fetch_round_ranking_success",
+                source_round_id=source_round_id,
+                entry_count=len(result.entries),
+            )
+            return result
+        except ConnectorHTTPError as err:
+            self._record_error("fetch_round_ranking", err)
+            raise
+        except EventPageFormatError as err:
+            self._record_error("fetch_round_ranking", err)
+            raise
+        except Exception as e:
+            self._record_error("fetch_round_ranking", e)
+            logger.error("fetch_round_ranking_error", url=url, error=str(e))
+            raise EventPageFormatError(
+                f"Failed to fetch Round Ranking: {str(e)}",
                 url=url,
             )
 

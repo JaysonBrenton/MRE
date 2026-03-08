@@ -1,8 +1,10 @@
 /**
  * @fileoverview Maps ingestion service errors to HTTP responses for API routes.
+ * Never exposes technical error details (Python exceptions, tracebacks) to end users.
  */
 
 import type { IngestionServiceError } from "./ingestion-client"
+import { isTechnicalError } from "./sanitize-error-message"
 
 const ERROR_STATUS_MAP: Record<string, number> = {
   INGESTION_IN_PROGRESS: 409,
@@ -44,8 +46,15 @@ export interface IngestionErrorContext {
   trackId?: string
 }
 
-// Check if an error message is informative (not generic)
-function isInformativeError(message: string): boolean {
+// Check if an error message is safe to show to end users (informative, not generic, not technical)
+function isUserSafeError(message: string): boolean {
+  if (!message || message.length === 0 || message.length < 20) {
+    return false
+  }
+  // Never expose technical errors (Python exceptions, tracebacks, etc.)
+  if (isTechnicalError(message)) {
+    return false
+  }
   const genericMessages = [
     "Internal server error",
     "Ingestion service error",
@@ -53,12 +62,7 @@ function isInformativeError(message: string): boolean {
     "Error",
     "Failed",
   ]
-  return Boolean(
-    message &&
-    message.length > 0 &&
-    !genericMessages.some((generic) => message.toLowerCase().includes(generic.toLowerCase())) &&
-    message.length > 20 // Ensure it's not just a short generic message
-  )
+  return !genericMessages.some((generic) => message.toLowerCase().includes(generic.toLowerCase()))
 }
 
 export function toHttpErrorPayload(
@@ -74,15 +78,15 @@ export function toHttpErrorPayload(
   if (error.code === "VALIDATION_ERROR" && isEmptyEntryListError(error.message)) {
     message = error.message
   } else if (error.code === "INTERNAL_ERROR" || error.code === "INGESTION_ERROR") {
-    // For internal/ingestion errors, prefer the actual error message if it's informative
-    // This helps users see the real error from the Python service instead of generic message
-    if (isInformativeError(error.message)) {
+    // For internal/ingestion errors, only use the actual message if it's user-safe
+    // Never expose technical errors (AttributeError, KeyError, tracebacks, etc.)
+    if (isUserSafeError(error.message)) {
       message = error.message
     }
     // Otherwise, keep the custom message from CUSTOM_MESSAGE_MAP
   } else if (!message) {
-    // Only use error.message if it's not a generic/default message
-    if (isInformativeError(error.message)) {
+    // Only use error.message if it's user-safe (not generic, not technical)
+    if (isUserSafeError(error.message)) {
       message = error.message
     } else {
       message = "Ingestion service error"

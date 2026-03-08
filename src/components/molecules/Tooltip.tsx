@@ -97,7 +97,7 @@ export default function Tooltip({ text, children, position = "top" }: TooltipPro
     title?: string
   }
   const existingClassName = childProps.className ?? ""
-  const mergedClassName = existingClassName ? `${existingClassName} cursor-help` : "cursor-help"
+  const mergedClassName = existingClassName
   const childWithProps = React.cloneElement(children, {
     ref: refCallback,
     className: mergedClassName,

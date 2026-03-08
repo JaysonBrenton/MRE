@@ -16,6 +16,7 @@
  */
 
 import { toDateOnlyUTC } from "@/lib/date-utils"
+import { isPlaceholderClass } from "@/lib/format-class-name"
 import { prisma } from "@/lib/prisma"
 import {
   calculateClassThresholds,
@@ -23,6 +24,24 @@ import {
   type RaceResultForValidation,
 } from "./validate-lap-times"
 import { calculateMostImprovedDrivers } from "./calculate-driver-improvement"
+
+/** Format track address from address, city, state, postalCode, country */
+function formatTrackAddress(track: {
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  postalCode?: string | null
+  country?: string | null
+}): string | null {
+  const parts = [
+    track.address?.trim(),
+    track.city?.trim(),
+    track.state?.trim(),
+    track.postalCode?.trim(),
+    track.country?.trim(),
+  ].filter((p): p is string => !!p && p.length > 0)
+  return parts.length > 0 ? parts.join(", ") : null
+}
 
 function sanitizeLapTime(value: number | null | undefined): number | null {
   if (typeof value !== "number") {
@@ -206,9 +225,24 @@ export interface EventSummary {
 export interface EventAnalysisData {
   event: {
     id: string
+    trackId: string
     eventName: string
     eventDate: Date
+    /** End date for multi-day events (e.g. Mar 5–8) */
+    eventDateEnd?: Date | null
     trackName: string
+    /** LiveRC event page URL (external link) */
+    eventUrl?: string
+    /** Track website URL */
+    website?: string | null
+    /** Track Facebook page URL */
+    facebookUrl?: string | null
+    /** Track address (formatted from address, city, state, postalCode, country) */
+    address?: string | null
+    /** Track phone number */
+    phone?: string | null
+    /** Track email address */
+    email?: string | null
   }
   /** True when event.sourceEventId contains '-practice-' (practice day). */
   isPracticeDay?: boolean
@@ -220,6 +254,12 @@ export interface EventAnalysisData {
     raceOrder: number | null
     startTime: Date | null
     durationSeconds: number | null
+    /** Session type: practice, seeding, qualifying, heat, main, race, practiceday */
+    sessionType: string | null
+    /** LiveRC round heading (e.g. "Qualifier Round 1", "Main Events", "Seeding Round 2") */
+    sectionHeader: string | null
+    /** LiveRC race result page URL (e.g. https://rcra.liverc.com/results/?p=view_race_result&id=6580435) */
+    raceUrl: string
     results: Array<{
       raceResultId: string
       raceDriverId: string
@@ -920,6 +960,7 @@ export async function getEventSummary(
       id: event.id,
       eventName: event.eventName,
       eventDate: event.eventDate,
+      eventDateEnd: event.eventDateEnd ?? undefined,
       trackName: event.track.trackName,
     },
     isPracticeDay,
@@ -1016,10 +1057,13 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     return null
   }
 
+  // Exclude LiveRC scheduling placeholders (e.g. Track Maintenance) - not real races
+  const racesToProcess = event.races.filter((race) => !isPlaceholderClass(race.className))
+
   // Calculate class thresholds for validation
   // Collect all race results with fastLapTime for threshold calculation
   const allResultsForValidation: RaceResultForValidation[] = []
-  for (const race of event.races) {
+  for (const race of racesToProcess) {
     for (const result of race.results) {
       if (result.fastLapTime !== null) {
         allResultsForValidation.push({
@@ -1059,7 +1103,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
   const totalLaps = totalLapsResult
 
   // Process each race
-  const racesData = event.races.map((race) => {
+  const racesData = racesToProcess.map((race) => {
     if (race.startTime) {
       raceDates.push(race.startTime)
     }
@@ -1197,6 +1241,9 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       raceOrder: race.raceOrder,
       startTime: race.startTime,
       durationSeconds: race.durationSeconds,
+      sessionType: race.sessionType ?? null,
+      sectionHeader: race.sectionHeader ?? null,
+      raceUrl: race.raceUrl,
       results: resultsData,
     }
   })
@@ -1307,9 +1354,17 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
   return {
     event: {
       id: event.id,
+      trackId: event.trackId,
       eventName: event.eventName,
       eventDate: event.eventDate,
+      eventDateEnd: event.eventDateEnd ?? undefined,
       trackName: event.track.trackName,
+      eventUrl: event.eventUrl ?? undefined,
+      website: event.track.website ?? null,
+      facebookUrl: event.track.facebookUrl ?? null,
+      address: formatTrackAddress(event.track),
+      phone: event.track.phone ?? null,
+      email: event.track.email ?? null,
     },
     isPracticeDay,
     races: racesData,
@@ -1318,7 +1373,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     raceClasses: raceClassesMap,
     multiMainResults: multiMainResultsData,
     summary: {
-      totalRaces: event.races.length,
+      totalRaces: racesData.length,
       totalDrivers: driversData.length,
       totalLaps,
       dateRange: {

@@ -20,10 +20,7 @@
  */
 
 import { geocodeTrack } from "./geocode-track"
-import {
-  fetchWeather,
-  type DailyTemperatureSummary,
-} from "./fetch-weather"
+import { fetchWeather, type DailyTemperatureSummary } from "./fetch-weather"
 import { calculateTrackTemperature } from "./calculate-track-temp"
 import {
   getCachedWeather,
@@ -41,6 +38,8 @@ export interface WeatherForEvent {
   air: number // temperature in Celsius
   track: number // calculated track temperature
   precip: number // precipitation chance percentage
+  /** Precipitation amount in mm - actual rainfall; prefer for display when > 0 */
+  precipMm?: number
   forecast: Array<{ label: string; detail: string }>
   dailyTemperatureSummary?: DailyTemperatureSummary
   cachedAt?: string // ISO timestamp if showing cached data
@@ -123,8 +122,9 @@ export async function getWeatherForEvent(
       // Priority 3: Fall back to existing name-based geocoding strategy
       const candidates = resolveGeocodeCandidates(event)
 
-      // Prepend stored address to candidates if available
-      if (event.track.address) {
+      // Prepend stored address unless we have Canberra as primary (known Canberra event;
+      // address may say Brisbane but event was at Canberra)
+      if (event.track.address && candidates[0] !== "Canberra Airport, Australia") {
         candidates.unshift(event.track.address)
       }
 
@@ -217,6 +217,7 @@ export async function getWeatherForEvent(
       air: weatherResponse.current.airTemperature,
       track: trackTemperature,
       precip: weatherResponse.current.precipitation,
+      precipMm: weatherResponse.current.precipitationMm,
       forecast: weatherResponse.forecast,
       dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
       isCached: false,
@@ -257,9 +258,7 @@ function formatWeatherResponse(weatherData: {
     ? (weatherData.forecast as Array<{ label: string; detail: string }>)
     : []
 
-  const dailyTemperatureSummary = parseDailyTemperatureSummary(
-    weatherData.dailyTemperatureSummary
-  )
+  const dailyTemperatureSummary = parseDailyTemperatureSummary(weatherData.dailyTemperatureSummary)
 
   return {
     condition: weatherData.condition,
@@ -275,16 +274,10 @@ function formatWeatherResponse(weatherData: {
   }
 }
 
-function parseDailyTemperatureSummary(
-  value: unknown
-): DailyTemperatureSummary | undefined {
+function parseDailyTemperatureSummary(value: unknown): DailyTemperatureSummary | undefined {
   if (!value || typeof value !== "object") return undefined
   const o = value as Record<string, unknown>
-  if (
-    typeof o.minTemp !== "number" ||
-    typeof o.maxTemp !== "number" ||
-    !Array.isArray(o.hourly)
-  ) {
+  if (typeof o.minTemp !== "number" || typeof o.maxTemp !== "number" || !Array.isArray(o.hourly)) {
     return undefined
   }
   return {
@@ -308,4 +301,118 @@ function formatWindSpeed(speedKmh: number, direction: number | null): string {
     return `${speedRounded} km/h ${directions[index]}`
   }
   return `${speedRounded} km/h`
+}
+
+export interface WeatherForEventDay {
+  date: string // YYYY-MM-DD
+  weather: WeatherForEvent
+}
+
+/**
+ * Gets weather data for each day of a multi-day event
+ *
+ * @param eventId - The event ID to get weather for
+ * @returns Array of { date, weather } for each day from eventDate to eventDateEnd (inclusive)
+ * @throws Error if event not found, or if geocoding/API fails
+ */
+export async function getWeatherForEventDays(eventId: string): Promise<WeatherForEventDay[]> {
+  const event = await getEventWithTrack(eventId)
+
+  if (!event) {
+    throw new Error(`Event not found: ${eventId}`)
+  }
+
+  if (!event.track) {
+    throw new Error(`Event track not found for event: ${eventId}`)
+  }
+
+  // Build list of dates to fetch (eventDate through eventDateEnd, or single day)
+  const startDate = new Date(event.eventDate)
+  startDate.setUTCHours(12, 0, 0, 0)
+  const endDate = event.eventDateEnd ? new Date(event.eventDateEnd) : new Date(event.eventDate)
+  endDate.setUTCHours(12, 0, 0, 0)
+
+  const dates: Date[] = []
+  const curr = new Date(startDate)
+  while (curr <= endDate) {
+    dates.push(new Date(curr))
+    curr.setUTCDate(curr.getUTCDate() + 1)
+  }
+
+  // Geocode once
+  let geocodeResult: { latitude: number; longitude: number; displayName: string } | null = null
+
+  const hasStoredCoordinates =
+    event.track.latitude !== null &&
+    event.track.latitude !== undefined &&
+    event.track.longitude !== null &&
+    event.track.longitude !== undefined
+
+  if (hasStoredCoordinates) {
+    geocodeResult = {
+      latitude: event.track.latitude as number,
+      longitude: event.track.longitude as number,
+      displayName: event.track.trackName,
+    }
+  } else {
+    const candidates = resolveGeocodeCandidates(event)
+    if (event.track.address && candidates[0] !== "Canberra Airport, Australia") {
+      candidates.unshift(event.track.address)
+    }
+    for (const candidate of candidates) {
+      try {
+        geocodeResult = await geocodeTrack(candidate)
+        break
+      } catch (error) {
+        const lastError = error instanceof Error ? error : new Error(String(error))
+        if (!lastError.message.includes("No geocoding results found")) {
+          throw lastError
+        }
+      }
+    }
+    if (!geocodeResult) {
+      throw new Error(
+        `Failed to geocode location for event "${event.eventName}" (track: "${event.track.trackName}")`
+      )
+    }
+  }
+
+  const results: WeatherForEventDay[] = []
+
+  for (const date of dates) {
+    const weatherResponse = await fetchWeather(
+      geocodeResult.latitude,
+      geocodeResult.longitude,
+      date
+    )
+
+    const hourOfDay = date.getHours()
+    const trackTemperature = calculateTrackTemperature(
+      weatherResponse.current.airTemperature,
+      hourOfDay
+    )
+
+    const dateStr = date.toISOString().split("T")[0]
+
+    results.push({
+      date: dateStr,
+      weather: {
+        condition: weatherResponse.current.condition,
+        wind: formatWindSpeed(
+          weatherResponse.current.windSpeed,
+          weatherResponse.current.windDirection
+        ),
+        humidity: weatherResponse.current.humidity,
+        air: weatherResponse.current.airTemperature,
+        track: trackTemperature,
+        precip: weatherResponse.current.precipitation,
+        precipMm: weatherResponse.current.precipitationMm,
+        forecast: weatherResponse.forecast,
+        dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
+        isCached: false,
+      },
+    })
+  }
+
+  return results
 }

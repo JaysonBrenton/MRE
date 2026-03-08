@@ -15,6 +15,7 @@ export type SessionType =
   | "practiceday"
   | "heat"
   | "main"
+  | "seeding"
 
 export interface UnifiedSearchParams {
   query?: string

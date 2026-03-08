@@ -34,13 +34,13 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const baseClasses =
-    "flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+    "flex items-center justify-center gap-2 rounded-md text-sm font-medium cursor-pointer transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
 
   const variantClasses = {
     default:
-      "border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] active:opacity-90",
+      "border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] shadow-sm hover:bg-[var(--token-surface-raised)] hover:border-[var(--token-accent)]/40 active:scale-[0.98]",
     primary:
-      "border border-[var(--token-accent)] bg-[var(--token-accent)] text-white hover:bg-[var(--token-accent-hover)] active:opacity-90",
+      "border border-[var(--token-accent)] bg-[var(--token-accent)] text-white shadow-md hover:bg-[var(--token-accent-hover)] hover:shadow-lg active:scale-[0.98]",
     error:
       "border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] text-[var(--token-status-error-text)] hover:opacity-80 active:opacity-90",
   }

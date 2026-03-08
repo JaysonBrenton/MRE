@@ -162,6 +162,55 @@ def _prune_queue_order() -> None:
             _remove_from_queue_order(job_id)
 
 
+# Technical error patterns - if str(e) matches, use friendly fallback for end users
+_USER_UNSAFE_PATTERNS = (
+    "AttributeError",
+    "KeyError",
+    "TypeError",
+    "ValueError",
+    "IndexError",
+    "RuntimeError",
+    "NoneType",
+    "has no attribute",
+    "object has no attribute",
+    "traceback",
+    "File \"",
+    "line ",
+    "ECONNREFUSED",
+    "ENOTFOUND",
+    # Database / SQL / ORM errors
+    "psycopg2.",
+    "UniqueViolation",
+    "IntegrityError",
+    "OperationalError",
+    "duplicate key value violates",
+    "violates unique constraint",
+    "[SQL:",
+    "INSERT INTO",
+    "[parameters:",
+    "DETAIL:",
+    "sqlalche.me",
+    "Session.rollback",
+    "transaction has been rolled back",
+)
+
+_USER_FRIENDLY_FALLBACK = (
+    "Something went wrong while importing event data. Please try again. "
+    "If the problem persists, try again later or contact support."
+)
+
+
+def _user_friendly_error_message(exc: BaseException) -> str:
+    """Return a user-safe error message; never expose technical exceptions to end users."""
+    msg = str(exc)
+    if not msg:
+        return _USER_FRIENDLY_FALLBACK
+    lower = msg.lower()
+    if any(p.lower() in lower for p in _USER_UNSAFE_PATTERNS):
+        return _USER_FRIENDLY_FALLBACK
+    return msg
+
+
 def _cleanup_jobs() -> None:
     if _job_retention_seconds <= 0:
         to_delete = [job_id for job_id, job in _job_store.items() if job.status != JobStatus.QUEUED]
@@ -214,7 +263,7 @@ async def _run_job(job: Job) -> None:
         job.updated_at = datetime.utcnow()
         code = getattr(e, "code", "INGESTION_ERROR")
         job.error_code = code if isinstance(code, str) else "INGESTION_ERROR"
-        job.error_message = str(e)
+        job.error_message = _user_friendly_error_message(e)
         logger.error(
             "ingestion_job_failed",
             job_id=job.job_id,
