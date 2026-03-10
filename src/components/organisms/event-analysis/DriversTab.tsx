@@ -14,7 +14,6 @@
  */
 
 "use client"
-
 import CombinedDriversTable from "./CombinedDriversTable"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
@@ -24,18 +23,22 @@ export interface DriversTabProps {
   onClassChange?: (className: string | null) => void
 }
 
-export default function DriversTab({
-  data,
-  selectedClass,
-  onClassChange,
-}: DriversTabProps) {
+export default function DriversTab({ data, selectedClass, onClassChange }: DriversTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
-      <CombinedDriversTable
-        data={data}
-        selectedClass={selectedClass}
-        onClassChange={onClassChange}
-      />
+      <div>
+        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
+          Drivers and Classes
+        </h2>
+      </div>
+
+      <div id="drivers-table-region">
+        <CombinedDriversTable
+          data={data}
+          selectedClass={selectedClass}
+          onClassChange={onClassChange}
+        />
+      </div>
     </div>
   )
 }

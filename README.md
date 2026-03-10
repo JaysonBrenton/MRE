@@ -390,15 +390,13 @@ MRE runs in Docker using PostgreSQL.
 
 Prerequisites
 
-**Docker Runtime:** Choose one:
+**Docker Runtime:** On macOS, **Docker Desktop** is required (version 20.10 or
+later): https://www.docker.com/products/docker-desktop. Ensure Docker Desktop is
+running and the active context is `desktop-linux`
+(`docker context use desktop-linux`). Colima is supported as an optional
+alternative; see `docs/operations/docker-user-guide.md`.
 
-- **Docker Desktop** (version 20.10 or later) -
-  https://www.docker.com/products/docker-desktop
-- **Colima** (macOS recommended) - `brew install colima` - See
-  `docs/operations/docker-user-guide.md` for setup
-
-**Docker Compose** (version 2.0 or later) - Included with Docker Desktop or
-installed separately
+**Docker Compose** (version 2.0 or later) - Included with Docker Desktop
 
 **Docker network:** `my-race-engineer_mre-network` (external network - must be
 created separately)

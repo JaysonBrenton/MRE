@@ -20,6 +20,12 @@
 import { useState, useMemo, useEffect } from "react"
 import ListPagination from "./ListPagination"
 import ChartContainer from "./ChartContainer"
+import {
+  StandardTable,
+  StandardTableHeader,
+  StandardTableRow,
+  StandardTableCell,
+} from "@/components/molecules/StandardTable"
 
 export interface Entry {
   id: string
@@ -128,12 +134,11 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
     >
       <div className="space-y-4">
         {/* Table layout */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            {/* Table header */}
-            <thead>
-              <tr className="border-b border-[var(--token-border-default)]">
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+        <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+          <StandardTable>
+            <StandardTableHeader>
+              <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("driverName")}
@@ -146,8 +151,8 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
                       direction={sortDirection}
                     />
                   </button>
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("className")}
@@ -156,13 +161,9 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
                     Class
                     <SortIcon field="className" activeField={sortField} direction={sortDirection} />
                   </button>
-                </th>
-                {raceClasses && (
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
-                    Vehicle Type
-                  </th>
-                )}
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                {raceClasses && <StandardTableCell header>Vehicle Type</StandardTableCell>}
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("transponderNumber")}
@@ -175,8 +176,8 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
                       direction={sortDirection}
                     />
                   </button>
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("carNumber")}
@@ -185,42 +186,36 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
                     Car Number
                     <SortIcon field="carNumber" activeField={sortField} direction={sortDirection} />
                   </button>
-                </th>
+                </StandardTableCell>
               </tr>
-            </thead>
-            {/* Table body */}
+            </StandardTableHeader>
             <tbody>
               {paginatedEntries.map((entry) => {
                 const raceClassInfo = raceClasses?.get(entry.className)
                 const vehicleType = raceClassInfo?.vehicleType
 
                 return (
-                  <tr
-                    key={entry.id}
-                    className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] transition-colors"
-                  >
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-primary)]">
-                      {entry.driverName}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                  <StandardTableRow key={entry.id}>
+                    <StandardTableCell>{entry.driverName}</StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {entry.className}
-                    </td>
+                    </StandardTableCell>
                     {raceClasses && (
-                      <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                      <StandardTableCell className="text-[var(--token-text-secondary)]">
                         {vehicleType || "Not determined"}
-                      </td>
+                      </StandardTableCell>
                     )}
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {entry.transponderNumber || "N/A"}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {entry.carNumber || "N/A"}
-                    </td>
-                  </tr>
+                    </StandardTableCell>
+                  </StandardTableRow>
                 )
               })}
             </tbody>
-          </table>
+          </StandardTable>
         </div>
 
         {/* Pagination */}

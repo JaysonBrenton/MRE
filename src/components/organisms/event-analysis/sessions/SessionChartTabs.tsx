@@ -48,7 +48,7 @@ export interface SessionChartTabsProps {
 
 const defaultTabs: Array<{ id: ChartTabId; label: string }> = [
   { id: "overview", label: "Race Overview" },
-  { id: "my-laps", label: "Lap Analysis" },
+  { id: "my-laps", label: "Race Analysis" },
   { id: "driver-bump-ups", label: "Driver Bump-Ups" },
 ]
 
@@ -71,6 +71,7 @@ export default function SessionChartTabs({
   // Fetch user's driver name from session if not provided via props
   useEffect(() => {
     if (userDriverNameProp) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUserDriverName(userDriverNameProp)
       return
     }
@@ -92,6 +93,7 @@ export default function SessionChartTabs({
   // If active tab is no longer available (e.g. switched from nitro to electric), switch to first tab
   useEffect(() => {
     if (!availableTabs.some((t) => t.id === activeTab)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(availableTabs[0]?.id ?? "overview")
     }
   }, [availableTabs, activeTab])

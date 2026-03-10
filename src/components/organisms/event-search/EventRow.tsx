@@ -16,6 +16,7 @@
 
 "use client"
 
+import { AlertTriangle, CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import EventStatusBadge, { type EventStatus } from "@/components/molecules/EventStatusBadge"
 import { formatDateDisplay, isEventInFuture } from "@/lib/date-utils"
@@ -179,7 +180,7 @@ export default function EventRow({
               href={event.eventUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block min-w-0 truncate text-[var(--token-text-primary)] font-medium underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
+              className="inline-block min-w-0 text-[var(--token-text-primary)] font-medium underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
               aria-label={`View event on LiveRC (opens in new tab)`}
             >
               {event.eventName}
@@ -187,9 +188,7 @@ export default function EventRow({
           </div>
         ) : (
           <div className="min-w-0 max-w-full overflow-hidden">
-            <h3 className="truncate text-[var(--token-text-primary)] font-medium">
-              {event.eventName}
-            </h3>
+            <h3 className="text-[var(--token-text-primary)] font-medium">{event.eventName}</h3>
           </div>
         )}
         {containsDriver && (
@@ -198,23 +197,43 @@ export default function EventRow({
             title="You participated in this event"
             aria-label="You participated in this event"
           >
-            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
             You participated
           </span>
         )}
+        {/* Optional metadata subtitle (similar to practice days) */}
+        {(() => {
+          if (isLiveRCOnly) {
+            return (
+              <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
+                LiveRC event — upload to add it to MRE.
+              </span>
+            )
+          }
+          if (isImported) {
+            return (
+              <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
+                Laps imported — ready to analyse.
+              </span>
+            )
+          }
+          if (needsImport) {
+            return (
+              <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
+                Not yet imported — upload to analyse laps.
+              </span>
+            )
+          }
+          return null
+        })()}
         {errorMessage && (
           <span
             className="text-xs text-[var(--token-status-error-text)]"
             title={errorMessage}
             aria-label={`Error: ${errorMessage}`}
           >
-            ⚠️
+            <AlertTriangle className="inline h-3 w-3 align-middle mr-0.5" aria-hidden="true" />
+            Error
           </span>
         )}
       </div>
@@ -255,7 +274,7 @@ export default function EventRow({
               className="flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-5 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
               aria-label={`Retry import for ${event.eventName}`}
             >
-              Retry
+              Retry import
             </button>
           )}
 

@@ -191,6 +191,31 @@ Rules:
 - Maintain consistent breathing room around inputs and buttons
 - Ensure layouts function on mobile without horizontal scrolling
 
+### 5.1 Dashboard density and spacing tokens
+
+Dashboard layout and card sections should use CSS custom properties so spacing
+responds to density:
+
+- **`--dashboard-gap`** – Vertical and horizontal gap between dashboard sections
+  and card groups. Use for `gap`, `space-y-*`, and similar (e.g.
+  `gap-[var(--dashboard-gap)]`, `space-y-[var(--dashboard-gap)]`).
+- **`--dashboard-card-padding`** – Padding inside dashboard cards and panels
+  (e.g. `padding: var(--dashboard-card-padding)`).
+
+Density is set on the shell via **`data-density`** on the root layout container
+(see `DashboardLayout`). Supported values:
+
+- **`compact`** – `--dashboard-gap: 0.75rem`,
+  `--dashboard-card-padding: 0.75rem`
+- **`comfortable`** (default) – `--dashboard-gap: 1.5rem`,
+  `--dashboard-card-padding: 1.25rem`
+- **`spacious`** – `--dashboard-gap: 2rem`, `--dashboard-card-padding: 1.75rem`
+
+Components that use these tokens include: `DashboardClient`,
+`EventAnalysisSection`, and any card that uses `--dashboard-card-padding` (e.g.
+`DriverCardsAndWeatherGrid`). Prefer these tokens over fixed values like `gap-6`
+or `px-5 py-5` in dashboard scope.
+
 ---
 
 # 6. Forms and Interactive Elements

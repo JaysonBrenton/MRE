@@ -258,12 +258,25 @@ Form buttons must include disabled state handling:
 - "Next"
 - "OK"
 
-#### 4.3.6 Token Reference
+#### 4.3.6 Primary CTA Exception
 
-All button styling must use semantic tokens from the dark theme guidelines.
-Never hard-code colors or use primary button tokens
-(`--token-button-primary-bg`, `--token-button-primary-text`, etc.) as these are
-deprecated in favor of the standard outlined style.
+The standard is outlined/secondary style. **Exception:** A single accent-filled
+(primary) CTA is allowed when it is the sole or dominant action on the screen:
+
+- **Empty-state CTA** (e.g. "Search for Events" on dashboard when no event is
+  selected)
+- **Modal primary action** (e.g. "Select track" in Correct Venue modal)
+
+Use `Button variant="primary"` for these cases only. Retry buttons and other
+secondary actions use `StandardButton` (outlined). Do not add new primary-style
+buttons without documenting the exception here.
+
+#### 4.3.7 Token Reference
+
+All button styling must use semantic tokens from the dark theme guidelines. Use
+`StandardButton` or `Button variant="default"` for most actions. The
+`Button variant="primary"` and `variant="error"` are deprecated for new usage;
+see 4.3.6 for the primary CTA exception. Never hard-code colors.
 
 See `docs/design/mre-dark-theme-guidelines.md` for complete token reference.
 

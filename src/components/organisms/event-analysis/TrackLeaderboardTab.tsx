@@ -15,6 +15,12 @@
 
 import { useState, useEffect, useCallback } from "react"
 import ListPagination from "./ListPagination"
+import {
+  StandardTable,
+  StandardTableHeader,
+  StandardTableRow,
+  StandardTableCell,
+} from "@/components/molecules/StandardTable"
 import { formatClassName } from "@/lib/format-class-name"
 
 export type DateRangePreset = "all_time" | "this_year" | "last_12_months"
@@ -195,34 +201,33 @@ export default function TrackLeaderboardTab({
         )}
         {!isLoading && !error && selectedClass && drivers.length > 0 && (
           <div className="space-y-4">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--token-border-default)] text-left text-[var(--token-text-secondary)]">
-                    <th className="pb-2 pr-4">Rank</th>
-                    <th className="pb-2 pr-4">Driver</th>
-                    <th className="pb-2 pr-4">Class</th>
-                    <th className="pb-2 pr-4">Points</th>
-                    <th className="pb-2 pr-4">Wins</th>
-                    <th className="pb-2">Podiums</th>
+            <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+              <StandardTable>
+                <StandardTableHeader>
+                  <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                    <StandardTableCell header>Rank</StandardTableCell>
+                    <StandardTableCell header>Driver</StandardTableCell>
+                    <StandardTableCell header>Class</StandardTableCell>
+                    <StandardTableCell header>Points</StandardTableCell>
+                    <StandardTableCell header>Wins</StandardTableCell>
+                    <StandardTableCell header>Podiums</StandardTableCell>
                   </tr>
-                </thead>
+                </StandardTableHeader>
                 <tbody>
                   {paginatedDrivers.map((row, idx) => (
-                    <tr
-                      key={`${row.driverId}:${row.className}`}
-                      className="border-b border-[var(--token-border-default)] last:border-0"
-                    >
-                      <td className="py-2 pr-4 font-medium">{startIndex + idx + 1}</td>
-                      <td className="py-2 pr-4">{row.driverName}</td>
-                      <td className="py-2 pr-4">{formatClassName(row.className)}</td>
-                      <td className="py-2 pr-4">{row.points}</td>
-                      <td className="py-2 pr-4">{row.wins}</td>
-                      <td className="py-2">{row.podiums}</td>
-                    </tr>
+                    <StandardTableRow key={`${row.driverId}:${row.className}`}>
+                      <StandardTableCell className="font-medium">
+                        {startIndex + idx + 1}
+                      </StandardTableCell>
+                      <StandardTableCell>{row.driverName}</StandardTableCell>
+                      <StandardTableCell>{formatClassName(row.className)}</StandardTableCell>
+                      <StandardTableCell>{row.points}</StandardTableCell>
+                      <StandardTableCell>{row.wins}</StandardTableCell>
+                      <StandardTableCell>{row.podiums}</StandardTableCell>
+                    </StandardTableRow>
                   ))}
                 </tbody>
-              </table>
+              </StandardTable>
             </div>
             <ListPagination
               currentPage={currentPage}

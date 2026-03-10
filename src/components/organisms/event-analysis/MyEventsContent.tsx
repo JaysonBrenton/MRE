@@ -21,6 +21,14 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import ListPagination from "@/components/organisms/event-analysis/ListPagination"
 import ChartContainer from "@/components/organisms/event-analysis/ChartContainer"
+import StandardButton from "@/components/atoms/StandardButton"
+import Button from "@/components/atoms/Button"
+import {
+  StandardTable,
+  StandardTableHeader,
+  StandardTableRow,
+  StandardTableCell,
+} from "@/components/molecules/StandardTable"
 
 interface Event {
   id: string
@@ -396,11 +404,11 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
 
   if (!hasNoDriverPersona && events.length === 0 && error) {
     return (
-      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-between">
-        <p className="text-red-600 dark:text-red-400">Error: {error}</p>
-        <button
+      <div className="p-4 bg-[var(--token-status-error-bg)] border border-[var(--token-status-error-text)]/20 rounded-lg flex items-center justify-between">
+        <p className="text-[var(--token-status-error-text)]">Error: {error}</p>
+        <StandardButton
           onClick={() => setError(null)}
-          className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 ml-4 flex-shrink-0"
+          className="ml-4 flex-shrink-0 !px-2 !py-1"
           aria-label="Dismiss error"
         >
           <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
@@ -410,7 +418,7 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
               clipRule="evenodd"
             />
           </svg>
-        </button>
+        </StandardButton>
       </div>
     )
   }
@@ -493,11 +501,11 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
   return (
     <div className="space-y-4">
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-between">
-          <p className="text-red-600 dark:text-red-400">Error: {error}</p>
-          <button
+        <div className="p-4 bg-[var(--token-status-error-bg)] border border-[var(--token-status-error-text)]/20 rounded-lg flex items-center justify-between">
+          <p className="text-[var(--token-status-error-text)]">Error: {error}</p>
+          <StandardButton
             onClick={() => setError(null)}
-            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 ml-4 flex-shrink-0"
+            className="ml-4 flex-shrink-0 !px-2 !py-1"
             aria-label="Dismiss error"
           >
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
@@ -507,51 +515,53 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
                 clipRule="evenodd"
               />
             </svg>
-          </button>
+          </StandardButton>
         </div>
       )}
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <button
+          <StandardButton
             onClick={() => setFilter("all")}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 py-1.5 !text-sm ${
               filter === "all"
-                ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)]"
-                : "border border-[var(--token-border-default)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)]"
+                ? "!bg-[var(--token-accent)]/20 !border-[var(--token-accent)]/40 !text-[var(--token-accent)]"
+                : ""
             }`}
           >
             All Events
-          </button>
+          </StandardButton>
           {suggestedCount > 0 && (
-            <button
+            <StandardButton
               onClick={() => setFilter("suggested")}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 py-1.5 !text-sm ${
                 filter === "suggested"
-                  ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)]"
-                  : "border border-[var(--token-border-default)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)]"
+                  ? "!bg-[var(--token-accent)]/20 !border-[var(--token-accent)]/40 !text-[var(--token-accent)]"
+                  : ""
               }`}
             >
               Suggestions Only ({suggestedCount})
-            </button>
+            </StandardButton>
           )}
         </div>
         {filter === "suggested" && suggestedCount > 0 && (
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="error"
               onClick={handleBulkReject}
               disabled={updatingEvents.size > 0}
-              className="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="!px-4 !py-2"
             >
               {updatingEvents.size > 0 ? "Rejecting..." : `Reject All (${suggestedCount})`}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="default"
               onClick={handleBulkConfirm}
               disabled={updatingEvents.size > 0}
-              className="px-4 py-2 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="!px-4 !py-2 !bg-[var(--token-status-success-bg)] !border-[var(--token-status-success-text)] !text-[var(--token-status-success-text)] hover:!opacity-80"
             >
               {updatingEvents.size > 0 ? "Confirming..." : `Confirm All (${suggestedCount})`}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -568,74 +578,66 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
           aria-label="Events table with similarity scores and status"
         >
           <div className="space-y-4">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-[var(--token-border-default)]">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Event Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Track
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Similarity Score
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]">
-                      Status
-                    </th>
+            <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+              <StandardTable>
+                <StandardTableHeader>
+                  <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                    <StandardTableCell header>Event Name</StandardTableCell>
+                    <StandardTableCell header>Track</StandardTableCell>
+                    <StandardTableCell header>Date</StandardTableCell>
+                    <StandardTableCell header>Similarity Score</StandardTableCell>
+                    <StandardTableCell header>Status</StandardTableCell>
                   </tr>
-                </thead>
+                </StandardTableHeader>
                 <tbody>
                   {paginatedEvents.map((event) => {
                     const detail = participationMap.get(event.id)
                     return (
-                      <tr
+                      <StandardTableRow
                         key={event.id}
-                        className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] cursor-pointer"
                         onClick={() => handleEventClick(event.id)}
+                        className="cursor-pointer"
                       >
-                        <td className="px-4 py-3 text-[var(--token-text-primary)]">
-                          {event.eventName}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                        <StandardTableCell>{event.eventName}</StandardTableCell>
+                        <StandardTableCell className="text-[var(--token-text-secondary)]">
                           {event.track?.trackName || "Unknown Track"}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                        </StandardTableCell>
+                        <StandardTableCell className="text-[var(--token-text-secondary)]">
                           {formatEventDate(event.eventDate)}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                        </StandardTableCell>
+                        <StandardTableCell className="text-[var(--token-text-secondary)]">
                           {detail ? formatSimilarityScore(detail.similarityScore) : "N/A"}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--token-text-secondary)]">
+                        </StandardTableCell>
+                        <StandardTableCell className="text-[var(--token-text-secondary)]">
                           {detail?.userDriverLinkStatus === "suggested" ? (
-                            <div className="flex items-center gap-2">
-                              <button
+                            <div
+                              className="flex items-center gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Button
+                                variant="default"
                                 onClick={(e) => handleConfirm(event.id, e)}
                                 disabled={updatingEvents.has(event.id)}
-                                className="px-2 py-1 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="!px-2 !py-1 !text-xs !bg-[var(--token-status-success-bg)] !border-[var(--token-status-success-text)] !text-[var(--token-status-success-text)]"
                                 title="Confirm this match"
                               >
                                 {updatingEvents.has(event.id) ? "..." : "Confirm"}
-                              </button>
-                              <button
+                              </Button>
+                              <StandardButton
                                 onClick={(e) => handleReject(event.id, e)}
                                 disabled={updatingEvents.has(event.id)}
-                                className="px-2 py-1 text-xs font-medium rounded bg-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="!px-2 !py-1 !text-xs"
                                 title="Reject this match"
                               >
                                 {updatingEvents.has(event.id) ? "..." : "Reject"}
-                              </button>
+                              </StandardButton>
                             </div>
                           ) : (
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                                 detail?.userDriverLinkStatus === "confirmed"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                  : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                                  ? "bg-[var(--token-status-success-bg)] text-[var(--token-status-success-text)]"
+                                  : "bg-[var(--token-surface-raised)] text-[var(--token-text-secondary)]"
                               }`}
                             >
                               {detail?.userDriverLinkStatus === "confirmed"
@@ -645,12 +647,12 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
                                   : detail?.userDriverLinkStatus || "Unknown"}
                             </span>
                           )}
-                        </td>
-                      </tr>
+                        </StandardTableCell>
+                      </StandardTableRow>
                     )
                   })}
                 </tbody>
-              </table>
+              </StandardTable>
             </div>
 
             <ListPagination

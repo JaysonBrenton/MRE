@@ -279,7 +279,8 @@ function normalizeValue(
  * Get badge color for ranking
  */
 function getBadgeColor(rank: number): string {
-  if (rank === 1) return "bg-yellow-500/20 text-yellow-600 border-yellow-500/50"
+  if (rank === 1)
+    return "bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] border-[var(--token-status-warning-text)]/50"
   if (rank === 2) return "bg-gray-400/20 text-gray-600 border-gray-400/50"
   if (rank === 3) return "bg-orange-600/20 text-orange-700 border-orange-600/50"
   return "bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] border-[var(--token-border-default)]"

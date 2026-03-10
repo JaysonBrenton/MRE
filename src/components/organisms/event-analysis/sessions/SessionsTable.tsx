@@ -21,6 +21,13 @@ import ChartContainer from "../ChartContainer"
 import SessionsTableRow from "./SessionsTableRow"
 import ListPagination from "../ListPagination"
 import SessionLapDataModal from "./SessionLapDataModal"
+import {
+  StandardTable,
+  StandardTableHeader,
+  StandardTableRow,
+  StandardTableCell,
+} from "@/components/molecules/StandardTable"
+import StandardButton from "@/components/atoms/StandardButton"
 import type { SessionData } from "@/core/events/get-sessions-data"
 import { formatClassName } from "@/lib/format-class-name"
 
@@ -324,104 +331,50 @@ export default function SessionsTable({
           {/* Right: Clear Filters */}
           <div className="flex items-center shrink-0">
             {activeFilterCount > 0 && (
-              <button
+              <StandardButton
                 type="button"
                 onClick={handleClearFilters}
-                className="px-3 py-2 text-sm font-medium text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                className="!px-3 !py-2 !bg-transparent !border-0 text-[var(--token-accent)] hover:!bg-[var(--token-accent)]/10"
               >
                 Clear Filters ({activeFilterCount})
-              </button>
+              </StandardButton>
             )}
           </div>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
-          <table
-            className={`w-full ${showHybridColumns ? "min-w-[1200px]" : "min-w-[900px]"}`}
-            aria-label="Sessions table"
-          >
-            <thead className="bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)]">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Session Name
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Class
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Start Time
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Duration
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-center text-sm font-medium text-[var(--token-text-secondary)]"
-                >
+        <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+          <StandardTable className={showHybridColumns ? "min-w-[1200px]" : "min-w-[900px]"}>
+            <StandardTableHeader>
+              <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                <StandardTableCell header>Session Name</StandardTableCell>
+                <StandardTableCell header>Class</StandardTableCell>
+                <StandardTableCell header>Start Time</StandardTableCell>
+                <StandardTableCell header>Duration</StandardTableCell>
+                <StandardTableCell header className="text-center">
                   Participants
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Top 3 Finishers
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Actions
-                </th>
+                </StandardTableCell>
+                <StandardTableCell header>Top 3 Finishers</StandardTableCell>
+                <StandardTableCell header>Actions</StandardTableCell>
                 {showHybridColumns && (
                   <>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                    >
-                      Best Lap
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                    >
-                      Avg Lap
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-center text-sm font-medium text-[var(--token-text-secondary)]"
-                    >
+                    <StandardTableCell header>Best Lap</StandardTableCell>
+                    <StandardTableCell header>Avg Lap</StandardTableCell>
+                    <StandardTableCell header className="text-center">
                       Total Laps
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                    >
-                      Fastest Driver
-                    </th>
+                    </StandardTableCell>
+                    <StandardTableCell header>Fastest Driver</StandardTableCell>
                   </>
                 )}
               </tr>
-            </thead>
+            </StandardTableHeader>
             <tbody className="bg-[var(--token-surface)]">
               {isGrouped
                 ? groupedSessions.map((group) => (
                     <Fragment key={`group-${group.className}`}>
-                      <tr
-                        className="bg-[var(--token-surface-raised)] border-b border-[var(--token-border-default)] cursor-pointer hover:bg-[var(--token-surface-elevated)] transition-colors"
+                      <StandardTableRow
                         onClick={() => handleToggleGroup(group.className)}
+                        className="bg-[var(--token-surface-raised)] cursor-pointer hover:!bg-[var(--token-surface-elevated)]"
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
@@ -454,7 +407,7 @@ export default function SessionsTable({
                             </span>
                           </div>
                         </td>
-                      </tr>
+                      </StandardTableRow>
                       {group.isExpanded &&
                         group.sessions.map((session) => (
                           <SessionsTableRow
@@ -489,7 +442,7 @@ export default function SessionsTable({
                     />
                   ))}
             </tbody>
-          </table>
+          </StandardTable>
 
           {filteredSessions.length === 0 && (
             <div className="flex items-center justify-center py-12 text-[var(--token-text-secondary)]">

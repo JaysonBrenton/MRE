@@ -37,6 +37,7 @@ import type { EventLapTrendResponse } from "@/core/events/get-lap-data"
 import type { EventWeatherData } from "@/types/weather"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 import ChartDataNotice from "./ChartDataNotice"
+import EventWinnersTable from "./EventWinnersTable"
 import {
   getDriversMissingAvgVsFastest,
   getDriversMissingBestLap,
@@ -174,6 +175,16 @@ export interface OverviewTabProps {
   onClassChange: (className: string | null) => void
 }
 
+const eventAnalysisTabs = [
+  { id: "event-results", label: "Event Results" },
+  { id: "fastest-laps", label: "Fastest Laps" },
+  { id: "fastest-average-laps", label: "Fastest Average Laps" },
+  { id: "most-improved-drivers", label: "Most Improved Drivers" },
+  { id: "driver-analysis", label: "Driver Analysis" },
+] as const
+
+type EventAnalysisTabId = (typeof eventAnalysisTabs)[number]["id"]
+
 export default function OverviewTab({
   data,
   selectedDriverIds,
@@ -198,6 +209,9 @@ export default function OverviewTab({
   const [isLapTrendOpen, setIsLapTrendOpen] = useState(false)
   const [isVenueInfoOpen, setIsVenueInfoOpen] = useState(false)
   const [isEventWeatherDataOpen, setIsEventWeatherDataOpen] = useState(false)
+  const [eventAnalysisTab, setEventAnalysisTab] = useState<EventAnalysisTabId>("event-results")
+  const [eventClassFilter, setEventClassFilter] = useState<string | null>(null)
+  const classFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useEffect(() => {
     const eventId = data.event.id
@@ -268,6 +282,13 @@ export default function OverviewTab({
   const driversPerPage = 25
   const MAX_LAP_TREND_DRIVERS = 8
 
+  const eventClassFilterTabs: EventAnalysisTabId[] = [
+    "event-results",
+    "fastest-laps",
+    "fastest-average-laps",
+    "most-improved-drivers",
+  ]
+
   // Get race classes from entry list
   const validClasses = useMemo(() => getValidClasses(data), [data])
 
@@ -278,6 +299,11 @@ export default function OverviewTab({
     }
     return data.races.filter((race) => race.className === selectedClass)
   }, [data.races, selectedClass])
+
+  const eventLevelFilteredRaces = useMemo(() => {
+    if (!eventClassFilter) return data.races
+    return data.races.filter((race) => race.className === eventClassFilter)
+  }, [data.races, eventClassFilter])
 
   // Lap-trend: races filtered by lap-trend-specific class (independent of global selectedClass)
   const lapTrendFilteredRaces = useMemo(() => {
@@ -725,6 +751,32 @@ export default function OverviewTab({
     [unifiedChartSelectionKey]
   )
 
+  const handleEventClassFilterClick = useCallback((className: string) => {
+    setEventClassFilter((prev) => (prev === className ? null : className))
+  }, [])
+
+  const handleEventClassFilterKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+      if (validClasses.length === 0) return
+      let nextIndex = index
+      if (event.key === "ArrowRight") {
+        nextIndex = (index + 1) % validClasses.length
+      } else if (event.key === "ArrowLeft") {
+        nextIndex = (index - 1 + validClasses.length) % validClasses.length
+      } else {
+        return
+      }
+      event.preventDefault()
+      const nextButton = classFilterButtonRefs.current[nextIndex]
+      nextButton?.focus()
+    },
+    [validClasses.length]
+  )
+
+  useEffect(() => {
+    queueMicrotask(() => setEventClassFilter(null))
+  }, [data.event.id])
+
   // Auto-select all drivers when "All Classes" is the default on initial load
   // This ensures charts show all classes data when event is first loaded
   const hasAutoSelectedOnLoad = useRef<string | null>(null)
@@ -858,6 +910,17 @@ export default function OverviewTab({
     >
       {/* Always-visible event headline metrics */}
       <section className="space-y-3">
+        <h2
+          id="event-overview-heading"
+          className="text-lg font-semibold text-[var(--token-text-primary)]"
+        >
+          <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+            Event
+          </span>{" "}
+          <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+            Overview
+          </span>
+        </h2>
         <div
           className="flex flex-col flex-wrap gap-4 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-4 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80 sm:flex-row sm:items-center sm:justify-between"
           style={{
@@ -869,18 +932,15 @@ export default function OverviewTab({
           }}
         >
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]">
-              Event overview
-            </p>
             <div className="mt-1 flex items-center gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 max-w-full">
                 {data.event.eventUrl ? (
                   <Tooltip text="Click to view this event on LiveRC.com" position="top">
                     <a
                       href={data.event.eventUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-w-0 items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)] decoration-[var(--token-accent)]/50 underline-offset-4 transition-colors hover:text-[var(--token-accent)] hover:underline hover:decoration-[var(--token-accent)]"
+                      className="flex min-w-0 max-w-full items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)] decoration-[var(--token-accent)]/50 underline-offset-4 transition-colors hover:text-[var(--token-accent)] hover:underline hover:decoration-[var(--token-accent)]"
                       aria-label="View event on LiveRC (opens in new tab)"
                     >
                       <MapPin
@@ -924,7 +984,7 @@ export default function OverviewTab({
               })()}
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-x-6 gap-y-2 text-right sm:text-left sm:pl-4 sm:border-l sm:border-[var(--token-border-subtle)]">
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-x-6 gap-y-2 text-right sm:text-left sm:pl-4 sm:border-l sm:border-[var(--token-border-subtle)]">
             <div className="flex flex-col">
               <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
                 Races
@@ -955,6 +1015,14 @@ export default function OverviewTab({
               </span>
               <span className="text-xl font-semibold text-[var(--token-text-primary)]">
                 {data.summary.totalLaps.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                Total Classes
+              </span>
+              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                {data.raceClasses.size}
               </span>
             </div>
           </div>
@@ -1167,65 +1235,90 @@ export default function OverviewTab({
       </section>
 
       <section className="space-y-4">
-        <div className="space-y-6">
+        <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+          <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+            Event-Level
+          </span>{" "}
+          <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+            Analysis
+          </span>
+        </h2>
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 px-3 py-2 shadow-sm">
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            <div className="flex min-w-max">
+              {eventAnalysisTabs.map((tab) => {
+                const isActive = eventAnalysisTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                      isActive
+                        ? "border-[var(--token-accent)] text-[var(--token-accent)]"
+                        : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
+                    }`}
+                    onClick={() => setEventAnalysisTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+        {eventClassFilterTabs.includes(eventAnalysisTab) && validClasses.length > 0 && (
           <div
-            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+            className="mt-2 -mx-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+            role="toolbar"
+            aria-label="Filter event-level analysis by class"
             style={{
-              backgroundColor: "var(--glass-bg)",
-              backdropFilter: "var(--glass-blur)",
-              borderRadius: 16,
-              border: "1px solid var(--glass-border)",
-              boxShadow: "var(--glass-shadow)",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
             }}
           >
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
-                aria-expanded={isEventSummaryOpen}
-                aria-controls={eventSummaryContentId}
-                onClick={() => setIsEventSummaryOpen((prev) => !prev)}
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span>Event summary</span>
-                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
-                    {data.summary.totalRaces} races • {data.summary.totalDrivers} drivers •{" "}
-                    {data.entryList.length} entries
-                  </span>
-                </span>
-                <span
-                  className={`shrink-0 transition-transform duration-150 ${
-                    isEventSummaryOpen ? "rotate-0" : "-rotate-90"
-                  }`}
-                  aria-hidden="true"
-                >
-                  ▾
-                </span>
-              </button>
-            </h2>
-            {isEventSummaryOpen && (
-              <div
-                id={eventSummaryContentId}
-                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
-              >
-                <EventStats
-                  trackName={data.event.trackName}
-                  totalRaces={data.summary.totalRaces}
-                  totalDrivers={data.summary.totalDrivers}
-                  totalLaps={data.summary.totalLaps}
-                  classCount={data.raceClasses.size}
-                  entries={data.entryList.length}
-                  dateRange={data.summary.dateRange}
-                />
-                <WeatherCard
-                  weather={weatherByDay?.[0]?.weather ?? null}
-                  weatherLoading={weatherLoading}
-                  weatherError={weatherError}
-                />
-              </div>
-            )}
+            <div className="flex min-w-max gap-2 px-1 py-1 [scroll-snap-type:x_mandatory]">
+              {validClasses.map((className, index) => {
+                const isActive = eventClassFilter === className
+                return (
+                  <button
+                    key={className}
+                    type="button"
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] [scroll-snap-align:start] ${
+                      isActive
+                        ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                        : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60"
+                    }`}
+                    onClick={(event) => {
+                      handleEventClassFilterClick(className)
+                      event.currentTarget.scrollIntoView({
+                        behavior: "smooth",
+                        block: "nearest",
+                        inline: "center",
+                      })
+                    }}
+                    aria-pressed={isActive}
+                    onKeyDown={(event) => handleEventClassFilterKeyDown(event, index)}
+                    ref={(el) => {
+                      classFilterButtonRefs.current[index] = el
+                    }}
+                  >
+                    <span>{className}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
-
+        )}
+        {eventAnalysisTab === "event-results" && (
+          <EventWinnersTable
+            races={
+              eventClassFilter && eventClassFilterTabs.includes("event-results")
+                ? eventLevelFilteredRaces
+                : data.races
+            }
+          />
+        )}
+        <div className="space-y-6">
           <div
             className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
             style={{
@@ -1265,7 +1358,13 @@ export default function OverviewTab({
                 id={fastestLapsContentId}
                 className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
               >
-                <ClassTopFastestLapsCard races={data.races} />
+                <ClassTopFastestLapsCard
+                  races={
+                    eventClassFilter && eventAnalysisTab === "fastest-laps"
+                      ? eventLevelFilteredRaces
+                      : data.races
+                  }
+                />
               </div>
             )}
           </div>
@@ -1309,7 +1408,13 @@ export default function OverviewTab({
                 id={bestAverageContentId}
                 className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
               >
-                <ClassTopAverageLapsCard races={data.races} />
+                <ClassTopAverageLapsCard
+                  races={
+                    eventClassFilter && eventAnalysisTab === "fastest-average-laps"
+                      ? eventLevelFilteredRaces
+                      : data.races
+                  }
+                />
               </div>
             )}
           </div>
@@ -1353,7 +1458,14 @@ export default function OverviewTab({
                 id={mostImprovedContentId}
                 className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
               >
-                <ClassMostImprovedCard races={data.races} isPracticeDay={data.isPracticeDay} />
+                <ClassMostImprovedCard
+                  races={
+                    eventClassFilter && eventAnalysisTab === "most-improved-drivers"
+                      ? eventLevelFilteredRaces
+                      : data.races
+                  }
+                  isPracticeDay={data.isPracticeDay}
+                />
               </div>
             )}
           </div>
@@ -1398,9 +1510,10 @@ export default function OverviewTab({
                 className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
               >
                 {(() => {
-                  const hasMainOrFinalRaces = data.races.some((r) =>
-                    /main|final/i.test(r.raceLabel)
-                  )
+                  const hasMainOrFinalRaces = data.races.some((r) => {
+                    const label = (r.raceLabel ?? "").toLowerCase()
+                    return label.includes("main") || label.includes("final")
+                  })
                   const hasMultiMainResults = (data.multiMainResults?.length ?? 0) > 0
                   if (!hasMainOrFinalRaces && !hasMultiMainResults) {
                     return (
@@ -1413,7 +1526,9 @@ export default function OverviewTab({
                   }
                   return (
                     <>
-                      <MainPodiumCard races={data.races} />
+                      <MainPodiumCard
+                        races={eventClassFilter ? eventLevelFilteredRaces : data.races}
+                      />
                       <MultiMainOverallCard multiMainResults={data.multiMainResults ?? []} />
                     </>
                   )

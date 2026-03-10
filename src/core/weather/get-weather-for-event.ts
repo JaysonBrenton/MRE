@@ -29,6 +29,7 @@ import {
   type WeatherCacheData,
 } from "./repo"
 import { getEventWithTrack } from "@/core/events/repo"
+import { getApprovedCorrection } from "@/core/events/venue-correction"
 import { resolveGeocodeCandidates } from "./resolve-geocode-candidates"
 
 export interface WeatherForEvent {
@@ -96,36 +97,60 @@ export async function getWeatherForEvent(
       throw new Error(`Event track not found for event: ${eventId}`)
     }
 
-    // Priority 1: Use stored coordinates if available (from dashboard extraction)
+    // Priority 0: Use approved venue correction if available (user-corrected venue)
+    const correction = await getApprovedCorrection(eventId)
+    const venueTrack =
+      correction?.venueTrackId && correction?.venueTrack ? correction.venueTrack : null
+
     let geocodeResult = null
     let lastError: Error | null = null
     const attemptedCandidates: string[] = []
 
+    // Use venue track from correction when available and valid; otherwise event.track
+    const trackForCoords = venueTrack
+      ? {
+          latitude: venueTrack.latitude,
+          longitude: venueTrack.longitude,
+          trackName: correction?.venueTrackName ?? event.track.trackName,
+          address: venueTrack.address,
+        }
+      : {
+          latitude: event.track.latitude,
+          longitude: event.track.longitude,
+          trackName: event.track.trackName,
+          address: event.track.address,
+        }
+
     const hasStoredCoordinates =
-      event.track.latitude !== null &&
-      event.track.latitude !== undefined &&
-      event.track.longitude !== null &&
-      event.track.longitude !== undefined
+      trackForCoords.latitude !== null &&
+      trackForCoords.latitude !== undefined &&
+      trackForCoords.longitude !== null &&
+      trackForCoords.longitude !== undefined
 
     if (hasStoredCoordinates) {
-      // Use stored coordinates directly - skip geocoding
-      // TypeScript: We've already verified these are not null above
-      const storedLat = event.track.latitude as number
-      const storedLng = event.track.longitude as number
+      const storedLat = trackForCoords.latitude as number
+      const storedLng = trackForCoords.longitude as number
       geocodeResult = {
         latitude: storedLat,
         longitude: storedLng,
-        displayName: event.track.trackName,
+        displayName: trackForCoords.trackName,
       }
-    } else {
-      // Priority 2: Try stored address as geocoding candidate (if available)
+    } else if (venueTrack?.address) {
+      // Venue track has address but no coords - geocode from address
+      try {
+        geocodeResult = await geocodeTrack(venueTrack.address)
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e))
+      }
+    }
+
+    if (!geocodeResult) {
+      // Priority 2: Try stored address as geocoding candidate (from venue track or event track)
       // Priority 3: Fall back to existing name-based geocoding strategy
       const candidates = resolveGeocodeCandidates(event)
-
-      // Prepend stored address unless we have Canberra as primary (known Canberra event;
-      // address may say Brisbane but event was at Canberra)
-      if (event.track.address && candidates[0] !== "Canberra Airport, Australia") {
-        candidates.unshift(event.track.address)
+      const addressToUse = trackForCoords.address || event.track.address
+      if (addressToUse && candidates[0] !== "Canberra Airport, Australia") {
+        candidates.unshift(addressToUse)
       }
 
       for (const candidate of candidates) {
@@ -339,25 +364,51 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
     curr.setUTCDate(curr.getUTCDate() + 1)
   }
 
-  // Geocode once
+  // Geocode once - use approved venue correction if available
   let geocodeResult: { latitude: number; longitude: number; displayName: string } | null = null
 
+  const correction = await getApprovedCorrection(eventId)
+  const venueTrack =
+    correction?.venueTrackId && correction?.venueTrack ? correction.venueTrack : null
+  const trackForCoords = venueTrack
+    ? {
+        latitude: venueTrack.latitude,
+        longitude: venueTrack.longitude,
+        trackName: correction?.venueTrackName ?? event.track.trackName,
+        address: venueTrack.address,
+      }
+    : {
+        latitude: event.track.latitude,
+        longitude: event.track.longitude,
+        trackName: event.track.trackName,
+        address: event.track.address,
+      }
+
   const hasStoredCoordinates =
-    event.track.latitude !== null &&
-    event.track.latitude !== undefined &&
-    event.track.longitude !== null &&
-    event.track.longitude !== undefined
+    trackForCoords.latitude !== null &&
+    trackForCoords.latitude !== undefined &&
+    trackForCoords.longitude !== null &&
+    trackForCoords.longitude !== undefined
 
   if (hasStoredCoordinates) {
     geocodeResult = {
-      latitude: event.track.latitude as number,
-      longitude: event.track.longitude as number,
-      displayName: event.track.trackName,
+      latitude: trackForCoords.latitude as number,
+      longitude: trackForCoords.longitude as number,
+      displayName: trackForCoords.trackName,
     }
-  } else {
+  } else if (venueTrack?.address) {
+    try {
+      geocodeResult = await geocodeTrack(venueTrack.address)
+    } catch {
+      // Fall through to candidates
+    }
+  }
+
+  if (!geocodeResult) {
     const candidates = resolveGeocodeCandidates(event)
-    if (event.track.address && candidates[0] !== "Canberra Airport, Australia") {
-      candidates.unshift(event.track.address)
+    const addressToUse = trackForCoords.address || event.track.address
+    if (addressToUse && candidates[0] !== "Canberra Airport, Australia") {
+      candidates.unshift(addressToUse)
     }
     for (const candidate of candidates) {
       try {

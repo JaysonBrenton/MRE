@@ -15,6 +15,7 @@
 
 "use client"
 
+import { X } from "lucide-react"
 import { useEffect, useRef } from "react"
 import EventSearchContainer from "@/components/organisms/event-search/EventSearchContainer"
 import { getModalContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
@@ -123,14 +124,7 @@ export default function EventSearchModal({
             className="p-2 flex items-center justify-center text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md flex-shrink-0"
             aria-label="Close modal"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <X className="w-6 h-6" aria-hidden="true" />
           </button>
         </div>
 

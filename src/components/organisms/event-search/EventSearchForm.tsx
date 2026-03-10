@@ -26,6 +26,7 @@ import DateRangeModal from "./DateRangeModal"
 import MonthYearPicker from "../practice-days/MonthYearPicker"
 import Button from "@/components/atoms/Button"
 import LabeledSwitch from "@/components/molecules/LabeledSwitch"
+import Tooltip from "@/components/molecules/Tooltip"
 import { clientLogger } from "@/lib/client-logger"
 import { isPracticeDaysEnabled } from "@/lib/feature-flags"
 
@@ -101,7 +102,7 @@ export default function EventSearchForm({
   onPracticeMonthChange,
   includePracticeDays = false,
   onIncludePracticeDaysChange,
-  ingestedEventsOnly = false,
+  ingestedEventsOnly = true,
   onIngestedEventsOnlyChange,
 }: EventSearchFormProps) {
   const practiceDaysEnabled = isPracticeDaysEnabled()
@@ -159,12 +160,14 @@ export default function EventSearchForm({
           </span>
           <div className="flex flex-wrap gap-6 items-start">
             <div>
-              <label
-                htmlFor="track-selector-trigger"
-                className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
-              >
-                Track
-              </label>
+              <Tooltip text="Choose the race track or venue to search events for." position="top">
+                <label
+                  htmlFor="track-selector-trigger"
+                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                >
+                  Track
+                </label>
+              </Tooltip>
               <Button
                 type="button"
                 id="track-selector-trigger"
@@ -193,12 +196,17 @@ export default function EventSearchForm({
             </div>
             {searchMode === "events" && onDateRangePresetChange && (
               <div>
-                <label
-                  htmlFor="date-range-trigger"
-                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                <Tooltip
+                  text="Filter events by when they occurred (e.g. last 12 months)."
+                  position="top"
                 >
-                  Date range
-                </label>
+                  <label
+                    htmlFor="date-range-trigger"
+                    className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                  >
+                    Date range
+                  </label>
+                </Tooltip>
                 <Button
                   type="button"
                   id="date-range-trigger"
@@ -218,12 +226,14 @@ export default function EventSearchForm({
             )}
             {searchMode === "events" && practiceDaysEnabled && onIncludePracticeDaysChange && (
               <div>
-                <label
-                  htmlFor="include-practice-days-trigger"
-                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
-                >
-                  Include practice days
-                </label>
+                <Tooltip text="Include practice day sessions in the event list." position="top">
+                  <label
+                    htmlFor="include-practice-days-trigger"
+                    className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                  >
+                    Include practice days
+                  </label>
+                </Tooltip>
                 <div className="flex items-center min-h-11">
                   <LabeledSwitch
                     id="include-practice-days-trigger"
@@ -239,12 +249,17 @@ export default function EventSearchForm({
             )}
             {searchMode === "events" && onIngestedEventsOnlyChange && (
               <div>
-                <label
-                  htmlFor="ingested-events-only-trigger"
-                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                <Tooltip
+                  text="Only show events already in MRE; turn off to discover events from LiveRC."
+                  position="top"
                 >
-                  Ingested events only
-                </label>
+                  <label
+                    htmlFor="ingested-events-only-trigger"
+                    className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                  >
+                    Ingested events only
+                  </label>
+                </Tooltip>
                 <div className="flex items-center min-h-11">
                   <LabeledSwitch
                     id="ingested-events-only-trigger"
@@ -273,7 +288,7 @@ export default function EventSearchForm({
                   disabled={isLoading || !selectedTrack}
                   className="h-11 w-[9rem] min-w-[9rem] font-semibold"
                 >
-                  {isLoading ? "Searching..." : "Search"}
+                  {isLoading ? "Running..." : "Run"}
                 </Button>
               </div>
             </div>

@@ -90,6 +90,29 @@ function ClearEventIcon({ className }: { className?: string }) {
   )
 }
 
+function MapPinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="12"
+        cy="10"
+        r="3"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function ChevronDownIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -115,10 +138,17 @@ const CLASS_LIST_POPOVER_GAP = 8
 const CLASS_LIST_ESTIMATE_WIDTH = 200
 const CLASS_LIST_ESTIMATE_HEIGHT = 240
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- Reserved for future use
-export interface EventAnalysisActionsMenuProps {}
+export interface EventAnalysisActionsMenuProps {
+  /** When true, show "Correct venue" menu item */
+  venueCorrectionCanSubmit?: boolean
+  /** Called when user selects "Correct venue" */
+  onCorrectVenueClick?: () => void
+}
 
-export default function EventAnalysisActionsMenu() {
+export default function EventAnalysisActionsMenu({
+  venueCorrectionCanSubmit = false,
+  onCorrectVenueClick,
+}: EventAnalysisActionsMenuProps = {}) {
   const eventActions = useEventActionsOptional()
   const [open, setOpen] = useState(false)
   const [isClassListExpanded, setIsClassListExpanded] = useState(false)
@@ -243,7 +273,7 @@ export default function EventAnalysisActionsMenu() {
   const isRefreshing = eventActions.isRefreshing
 
   return (
-    <div className="relative flex shrink-0">
+    <div className="relative flex shrink-0 border-l border-[var(--token-border-default)] pl-3 ml-1">
       <button
         ref={buttonRef}
         type="button"
@@ -347,6 +377,20 @@ export default function EventAnalysisActionsMenu() {
                   Select Drivers
                   {selectedDriverCount > 0 && ` (${selectedDriverCount})`}
                 </span>
+              </button>
+            )}
+
+            {/* Correct venue - when event selected and user can submit */}
+            {hasEventSelected && venueCorrectionCanSubmit && onCorrectVenueClick && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleItemClick(onCorrectVenueClick)}
+                className={itemClass}
+                aria-label="Correct venue"
+              >
+                <MapPinIcon className={iconClass} />
+                <span>Correct venue</span>
               </button>
             )}
 

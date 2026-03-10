@@ -19,7 +19,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react"
+import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import { fetchEventAnalysisData, selectEvent } from "@/store/slices/dashboardSlice"
 import EventAnalysisToolbar from "@/components/organisms/event-analysis/EventAnalysisToolbar"
@@ -35,6 +35,9 @@ import PracticeMySessionsTab from "@/components/organisms/event-analysis/Practic
 import PracticeClassLeaderboard from "@/components/organisms/event-analysis/PracticeClassLeaderboard"
 import TrackLeaderboardTab from "@/components/organisms/event-analysis/TrackLeaderboardTab"
 import CountryLeaderboardCard from "@/components/organisms/event-analysis/CountryLeaderboardCard"
+import CorrectVenueModal from "@/components/organisms/event-analysis/CorrectVenueModal"
+import StandardButton from "@/components/atoms/StandardButton"
+import { typography } from "@/lib/typography"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
@@ -45,10 +48,10 @@ const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
   { id: "track-leader-board", label: "Track Leader Board" },
 ]
 const EVENT_TABS: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Event Overview" },
+  { id: "overview", label: "Event" },
   { id: "sessions", label: "Event Sessions" },
   { id: "my-events", label: "My Events" },
-  { id: "drivers", label: "Drivers" },
+  { id: "drivers", label: "Drivers & Classes" },
   { id: "track-leader-board", label: "Track Leader Board" },
 ]
 
@@ -61,12 +64,14 @@ type EventAnalysisDataApiResponse = {
     eventDate: string // ISO string
     eventDateEnd?: string | null // ISO string, for multi-day events
     trackName: string
+    trackDashboardUrl?: string | null
     eventUrl?: string
     website?: string | null
     facebookUrl?: string | null
     address?: string | null
     phone?: string | null
     email?: string | null
+    venueCorrected?: boolean
   }
   isPracticeDay?: boolean
   races: Array<{
@@ -148,12 +153,14 @@ function transformApiResponseToEventAnalysisData(
       eventDate: new Date(apiData.event.eventDate),
       eventDateEnd: apiData.event.eventDateEnd ? new Date(apiData.event.eventDateEnd) : undefined,
       trackName: apiData.event.trackName,
+      trackDashboardUrl: apiData.event.trackDashboardUrl ?? undefined,
       eventUrl: apiData.event.eventUrl,
       website: apiData.event.website ?? undefined,
       facebookUrl: apiData.event.facebookUrl ?? undefined,
       address: apiData.event.address ?? undefined,
       phone: apiData.event.phone ?? undefined,
       email: apiData.event.email ?? undefined,
+      venueCorrected: apiData.event.venueCorrected ?? false,
     },
     isPracticeDay: apiData.isPracticeDay,
     races: apiData.races.map((race) => ({
@@ -210,6 +217,42 @@ export default function EventAnalysisSection() {
   const lastFetchedEventId = useRef<string | null>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const [headerHeight, setHeaderHeight] = useState(0)
+  const [venueCorrectionStatus, setVenueCorrectionStatus] = useState<{
+    correction: { venueTrackName: string | null } | null
+    userRequest: { status: string; adminNotes?: string | null } | null
+    canSubmit: boolean
+  } | null>(null)
+  const [isCorrectVenueModalOpen, setIsCorrectVenueModalOpen] = useState(false)
+
+  const fetchVenueCorrection = useCallback(
+    (eventId: string) => {
+      fetch(`/api/v1/events/${eventId}/venue-correction`, { credentials: "include" })
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && json.data) {
+            setVenueCorrectionStatus({
+              correction: json.data.correction,
+              userRequest: json.data.userRequest,
+              canSubmit: json.data.canSubmit ?? false,
+            })
+            if (json.data.correction != null) {
+              dispatch(fetchEventAnalysisData(eventId))
+            }
+          } else {
+            setVenueCorrectionStatus(null)
+          }
+        })
+        .catch(() => setVenueCorrectionStatus(null))
+    },
+    [dispatch]
+  )
+
+  const handleVenueCorrectionSuccess = useCallback(() => {
+    if (selectedEventId) {
+      fetchVenueCorrection(selectedEventId)
+      dispatch(fetchEventAnalysisData(selectedEventId))
+    }
+  }, [selectedEventId, fetchVenueCorrection, dispatch])
 
   // Reset fetch state when event is deselected or changes
   useEffect(() => {
@@ -217,10 +260,16 @@ export default function EventAnalysisSection() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasInitiatedFetch(false)
       lastFetchedEventId.current = null
+      setVenueCorrectionStatus(null)
     } else if (lastFetchedEventId.current && lastFetchedEventId.current !== selectedEventId) {
       // Event changed - selections are reset by EventActionsProvider
     }
   }, [selectedEventId])
+
+  // Fetch venue correction status when event is selected
+  useEffect(() => {
+    if (selectedEventId) fetchVenueCorrection(selectedEventId)
+  }, [selectedEventId, fetchVenueCorrection])
 
   // Fetch analysis data when event is selected
   // Trigger fetch immediately when event changes
@@ -343,12 +392,14 @@ export default function EventAnalysisSection() {
 
   return (
     <section ref={sectionRef}>
-      <div className="space-y-6">
+      <div className="space-y-[var(--dashboard-gap)]">
         {/* Error state */}
         {selectedEventId && analysisError && (
           <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-            <p className="text-[var(--token-text-error)] mb-4">{analysisError}</p>
-            <button
+            <p className={`${typography.bodySecondary} text-[var(--token-status-error-text)] mb-4`}>
+              {analysisError}
+            </p>
+            <StandardButton
               type="button"
               onClick={() => {
                 if (selectedEventId) {
@@ -356,31 +407,37 @@ export default function EventAnalysisSection() {
                   dispatch(fetchEventAnalysisData(selectedEventId))
                 }
               }}
-              className="px-4 py-2 rounded-lg bg-[var(--token-accent)] text-[var(--token-text-on-accent)] hover:opacity-90 transition"
             >
-              Retry
-            </button>
+              Retry loading
+            </StandardButton>
           </div>
         )}
 
-        {/* No data state - only show if we've tried to fetch and got no data */}
-        {selectedEventId && !transformedData && !isAnalysisLoading && hasInitiatedFetch && (
-          <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-            <p className="text-[var(--token-text-secondary)]">No analysis data available</p>
-          </div>
-        )}
+        {/* No data state - only show if we've tried to fetch and got no data (and no error) */}
+        {selectedEventId &&
+          !analysisError &&
+          !transformedData &&
+          !isAnalysisLoading &&
+          hasInitiatedFetch && (
+            <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
+              <p className={typography.bodySecondary}>No analysis data available</p>
+            </div>
+          )}
 
         {/* Render analysis content - header+toolbar fixed with position:fixed */}
         {selectedEventId && transformedData && (
           <>
             {/* Spacer - reserves space so content doesn't jump (height matches fixed header) */}
-            <div style={{ height: headerHeight || 180 }} aria-hidden />
+            <div style={{ height: Math.max(0, (headerHeight || 180) - 32) }} aria-hidden />
             {/* Fixed header+toolbar - stays visible when scrolling */}
             <div
               ref={headerRef}
               className="fixed left-0 top-16 right-0 z-20 bg-[var(--token-surface)] px-1 shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:px-2 md:px-2 lg:left-[var(--nav-width)] lg:px-2 xl:px-4 2xl:px-6"
             >
-              <div className="content-wrapper mx-auto flex w-full min-w-0 max-w-full flex-col gap-6 pb-4 pt-4">
+              <div
+                className="content-wrapper mx-auto flex w-full min-w-0 max-w-full flex-col pb-4 pt-4"
+                style={{ gap: "var(--dashboard-gap)" }}
+              >
                 <EventAnalysisHeader
                   eventName={transformedData.event.eventName}
                   eventDate={transformedData.event.eventDate}
@@ -393,11 +450,13 @@ export default function EventAnalysisSection() {
                   tabs={availableTabs}
                   activeTab={activeTab}
                   onTabChange={handleTabChange}
+                  venueCorrectionCanSubmit={venueCorrectionStatus?.canSubmit ?? false}
+                  onCorrectVenueClick={() => setIsCorrectVenueModalOpen(true)}
                 />
               </div>
             </div>
             {/* Tab content - scrolls normally */}
-            <div className="space-y-6">
+            <div className="space-y-[var(--dashboard-gap)]">
               {activeTab === "overview" && (
                 <>
                   <OverviewTab
@@ -420,7 +479,7 @@ export default function EventAnalysisSection() {
 
               {activeTab === "my-events" && (
                 <div
-                  className="space-y-6"
+                  className="space-y-[var(--dashboard-gap)]"
                   role="tabpanel"
                   id="tabpanel-my-events"
                   aria-labelledby="tab-my-events"
@@ -444,7 +503,7 @@ export default function EventAnalysisSection() {
               )}
 
               {activeTab === "track-leader-board" && transformedData && selectedEventId && (
-                <div className="space-y-6">
+                <div className="space-y-[var(--dashboard-gap)]">
                   <TrackLeaderboardTab
                     eventId={selectedEventId}
                     trackName={transformedData.event.trackName}
@@ -473,7 +532,7 @@ export default function EventAnalysisSection() {
               )}
               {isPracticeDay && activeTab === "class-reference" && transformedData && (
                 <div
-                  className="space-y-6"
+                  className="space-y-[var(--dashboard-gap)]"
                   role="tabpanel"
                   id="tabpanel-class-reference"
                   aria-labelledby="tab-class-reference"
@@ -488,16 +547,14 @@ export default function EventAnalysisSection() {
               )}
               {isPracticeDay && activeTab === "all-sessions" && transformedData && (
                 <div
-                  className="space-y-6"
+                  className="space-y-[var(--dashboard-gap)]"
                   role="tabpanel"
                   id="tabpanel-all-sessions"
                   aria-labelledby="tab-all-sessions"
                 >
                   <div>
-                    <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
-                      All Sessions
-                    </h2>
-                    <p className="text-sm text-[var(--token-text-secondary)]">
+                    <h2 className={`${typography.h3} mb-2`}>All Sessions</h2>
+                    <p className={typography.bodySecondary}>
                       Full session list for the practice day. Sort by time, driver, or class.
                     </p>
                   </div>
@@ -510,6 +567,14 @@ export default function EventAnalysisSection() {
                 </div>
               )}
             </div>
+
+            <CorrectVenueModal
+              eventId={selectedEventId}
+              currentTrackName={transformedData.event.trackName}
+              isOpen={isCorrectVenueModalOpen}
+              onClose={() => setIsCorrectVenueModalOpen(false)}
+              onSuccess={handleVenueCorrectionSuccess}
+            />
           </>
         )}
       </div>

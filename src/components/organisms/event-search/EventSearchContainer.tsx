@@ -289,7 +289,7 @@ export default function EventSearchContainer({
   // Include practice days (events mode): combined list state
   const [includePracticeDays, setIncludePracticeDays] = useState(false)
   // Ingested events only: skip LiveRC discovery, show only DB events
-  const [ingestedEventsOnly, setIngestedEventsOnly] = useState(false)
+  const [ingestedEventsOnly, setIngestedEventsOnly] = useState(true)
   const [practiceDaysFromDb, setPracticeDaysFromDb] = useState<ApiIngestedPracticeDay[]>([])
   const [discoveredPracticeDays, setDiscoveredPracticeDays] = useState<
     DiscoveredPracticeDaySummary[]
@@ -1962,13 +1962,18 @@ export default function EventSearchContainer({
       }
 
       const updatedEvents = [...prevEvents]
-      // Replace the LiveRC event with the DB event
+      const existingEvent = updatedEvents[eventIndex]
+      // Replace the LiveRC event with the DB event, preserving eventUrl so the name stays a link
       updatedEvents[eventIndex] = {
         id: newDbEvent.id,
         eventName: newDbEvent.eventName,
         eventDate: newDbEvent.eventDate || newDbEvent.event_date || "",
         ingestDepth: (newDbEvent.ingestDepth || newDbEvent.ingest_depth || "").trim(),
         sourceEventId: newDbEvent.sourceEventId || newDbEvent.source_event_id,
+        eventUrl:
+          newDbEvent.eventUrl ||
+          newDbEvent.event_url ||
+          (existingEvent && "eventUrl" in existingEvent ? existingEvent.eventUrl : undefined),
       }
 
       return updatedEvents
@@ -2580,6 +2585,7 @@ export default function EventSearchContainer({
               eventDate: updatedEvent.eventDate || updatedEvent.event_date || "",
               ingestDepth: (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim(),
               sourceEventId: updatedEvent.sourceEventId || updatedEvent.source_event_id,
+              eventUrl: updatedEvent.eventUrl || updatedEvent.event_url,
             }
 
             // If the event ID changed (LiveRC -> DB), replace the event
@@ -2613,6 +2619,8 @@ export default function EventSearchContainer({
             ingestDepth: ingestionResponse.ingest_depth,
             source_event_id: event.sourceEventId,
             sourceEventId: event.sourceEventId,
+            eventUrl: event.eventUrl,
+            event_url: event.eventUrl,
           }
           replaceLiveRCEventWithDBEvent(event.id, syntheticEvent)
           setKnownImportedIds((prev) => {
@@ -2648,6 +2656,8 @@ export default function EventSearchContainer({
           ingestDepth: ingestionResponse.ingest_depth,
           source_event_id: event.sourceEventId,
           sourceEventId: event.sourceEventId,
+          eventUrl: event.eventUrl,
+          event_url: event.eventUrl,
         }
         replaceLiveRCEventWithDBEvent(event.id, syntheticEvent)
         setKnownImportedIds((prev) => {

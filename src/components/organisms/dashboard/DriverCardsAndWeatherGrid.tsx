@@ -6,6 +6,7 @@ import {
   formatPositionImprovement,
   formatLapTimeImprovement,
 } from "@/lib/date-utils"
+import { typography } from "@/lib/typography"
 import type { EventAnalysisSummary } from "@root-types/dashboard"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import ImprovementDriverCard from "./ImprovementDriverCard"
@@ -1003,7 +1004,7 @@ export default function DriverCardsAndWeatherGrid({
                     </svg>
                   </button>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-text-secondary)] font-medium">
+                    <p className={typography.uppercaseSecondary}>
                       {sections[currentSection]?.title}
                     </p>
                     {allClasses.length > 0 ? (
@@ -1204,9 +1205,7 @@ export default function DriverCardsAndWeatherGrid({
                   return (
                     <div className="max-w-full md:max-w-[880px] mx-auto">
                       <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/40 bg-gradient-to-br from-[var(--token-accent)]/10 to-[var(--token-accent)]/5 px-5 py-5 transition-all duration-200 hover:border-[var(--token-accent)]/60 hover:shadow-[0_4px_16px_rgba(58,142,255,0.2)] shadow-[0_2px_8px_rgba(58,142,255,0.15)]">
-                        <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-3 font-medium">
-                          {userMetric.label}
-                        </p>
+                        <p className={`${typography.uppercaseAccent} mb-3`}>{userMetric.label}</p>
                         <div className="flex items-baseline justify-between gap-4">
                           <div className="min-w-0">
                             <p className="text-3xl font-bold text-[var(--token-text-primary)] leading-tight">
@@ -1252,9 +1251,7 @@ export default function DriverCardsAndWeatherGrid({
                 return (
                   <div className="max-w-full md:max-w-[880px] mx-auto">
                     <div className="mb-6 rounded-2xl border border-[var(--token-accent)]/40 bg-gradient-to-br from-[var(--token-accent)]/10 to-[var(--token-accent)]/5 px-5 py-5 transition-all duration-200 hover:border-[var(--token-accent)]/60 hover:shadow-[0_4px_16px_rgba(58,142,255,0.2)] shadow-[0_2px_8px_rgba(58,142,255,0.15)]">
-                      <p className="text-[11px] uppercase tracking-[0.4em] text-[var(--token-accent)] mb-3 font-medium">
-                        {userMetric.label}
-                      </p>
+                      <p className={`${typography.uppercaseAccent} mb-3`}>{userMetric.label}</p>
                       <div className="flex items-baseline justify-between gap-4">
                         <div className="min-w-0">
                           <p className="text-3xl font-bold text-[var(--token-text-primary)] leading-tight">
@@ -1340,7 +1337,9 @@ function DriverCard({
       const gapToFastest = index > 0 && sameClass ? driver.fastestLapTime - fastestLapTime : 0
       if (gapToFastest > 0) {
         gapDisplay = (
-          <span className="text-[10px] font-medium text-[var(--token-text-muted)] bg-[var(--token-surface)] px-2 py-0.5 rounded-full">
+          <span
+            className={`${typography.captionSmall} font-medium bg-[var(--token-surface)] px-2 py-0.5 rounded-full`}
+          >
             +{formatLapTime(gapToFastest)}
           </span>
         )
@@ -1377,10 +1376,8 @@ function DriverCard({
         {valueDisplay}
       </p>
       <div className="space-y-1">
-        <p className="text-[10px] text-[var(--token-text-muted)] font-medium truncate">
-          {driver.raceLabel}
-        </p>
-        <p className="text-[10px] text-[var(--token-text-muted)] truncate">{driver.className}</p>
+        <p className={`${typography.captionSmall} font-medium truncate`}>{driver.raceLabel}</p>
+        <p className={`${typography.captionSmall} truncate`}>{driver.className}</p>
       </div>
     </div>
   )

@@ -28,6 +28,7 @@ import UnifiedPerformanceChart from "../UnifiedPerformanceChart"
 import ChartSection from "../ChartSection"
 import type { DriverPerformanceData } from "../UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import { typography } from "@/lib/typography"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 import ChartDataNotice from "../ChartDataNotice"
 import {
@@ -704,9 +705,7 @@ export default function OverviewTabTesting({
         <div className="col-span-12 lg:col-span-4">
           {weather ? (
             <div className="bg-[var(--token-surface-elevated)] rounded-md border border-[var(--token-border-default)] p-4">
-              <p className="text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)] mb-2">
-                Track state
-              </p>
+              <p className={`${typography.uppercase} mb-2`}>Track state</p>
               <h3 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
                 {weather.condition}
               </h3>
@@ -715,25 +714,19 @@ export default function OverviewTabTesting({
               </p>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--token-text-muted)]">
-                    Air
-                  </p>
+                  <p className={typography.uppercase}>Air</p>
                   <p className="text-sm font-semibold text-[var(--token-text-primary)]">
                     {Math.round(weather.air)}°C
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--token-text-muted)]">
-                    Track
-                  </p>
+                  <p className={typography.uppercase}>Track</p>
                   <p className="text-sm font-semibold text-[var(--token-text-primary)]">
                     {Math.round(weather.track)}°C
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--token-text-muted)]">
-                    Chance
-                  </p>
+                  <p className={typography.uppercase}>Chance</p>
                   <p className="text-sm font-semibold text-[var(--token-text-primary)]">
                     {weather.precip}%
                   </p>

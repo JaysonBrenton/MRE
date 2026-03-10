@@ -20,6 +20,7 @@
 
   /* Surface colors */
   --token-surface: #0a0a0b;
+  --token-surface-alt: #0f1012;
   --token-surface-elevated: #111214;
   --token-surface-raised: #18191c;
 
@@ -27,6 +28,7 @@
   --token-text-primary: #f2f2f3;
   --token-text-secondary: #b8bbc2;
   --token-text-muted: #6b7280;
+  --token-text-error: var(--token-status-error-text);
 
   /* Border colors */
   --token-border-default: #26272e;
@@ -70,6 +72,23 @@
   --token-status-warning-text: #f59e0b;
   --token-status-error-bg: rgba(239, 68, 68, 0.2);
   --token-status-error-text: #ef4444;
+
+  /* Chart series palette (for line/bar charts - LapByLapTrendChart, etc.) */
+  --token-chart-series-1: #3a8eff;
+  --token-chart-series-2: #4ecdc4;
+  --token-chart-series-3: #ff6b6b;
+  --token-chart-series-4: #ffe66d;
+  --token-chart-series-5: #a8e6cf;
+  --token-chart-series-6: #ff8b94;
+  --token-chart-series-7: #95e1d3;
+  --token-chart-series-8: #f38181;
+  --token-chart-series-9: #aa96da;
+  --token-chart-series-10: #fcbad3;
+  --token-chart-series-11: #a8d8ea;
+  --token-chart-series-12: #ff9a3c;
+  /* Session band colors for lap trend charts */
+  --token-chart-session-band-1: #6366f1;
+  --token-chart-session-band-2: #fbbf24;
 
   /* Racing tokens */
   --token-sector-s1: #38bdf8;
@@ -115,12 +134,14 @@
 .light {
   /* Surface colors */
   --token-surface: #ffffff;
+  --token-surface-alt: #fafafa;
   --token-surface-elevated: #f5f5f5;
 
   /* Text colors */
   --token-text-primary: #171717;
   --token-text-secondary: #525252;
   --token-text-muted: #737373;
+  --token-text-error: var(--token-status-error-text);
 
   /* Border colors */
   --token-border-default: #d4d4d4;

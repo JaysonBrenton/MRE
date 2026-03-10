@@ -17,9 +17,11 @@
 
 "use client"
 
+import { ChevronDown, List, X } from "lucide-react"
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { FixedSizeList } from "react-window"
 import Modal from "@/components/molecules/Modal"
+import StandardInput from "@/components/atoms/StandardInput"
 
 export interface Driver {
   driverId: string
@@ -477,8 +479,8 @@ export default function ChartControls({
         <div className="space-y-4 p-4">
           {/* Controls Row */}
           <div className="flex gap-2">
-            {/* Class Filter Dropdown */}
-            <div className="relative flex-initial max-w-[200px]" ref={dropdownRef}>
+            {/* Class Filter Dropdown - w-[9rem] per standard-form-field-width.md */}
+            <div className="relative flex-initial w-[9rem] min-w-[9rem]" ref={dropdownRef}>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
@@ -488,25 +490,16 @@ export default function ChartControls({
                   aria-expanded={isClassDropdownOpen}
                 >
                   <span className="truncate">{displayClass}</span>
-                  <svg
+                  <ChevronDown
                     className={`ml-2 w-4 h-4 transition-transform ${
                       isClassDropdownOpen ? "rotate-180" : ""
                     }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                    aria-hidden="true"
+                  />
                 </button>
                 {needsReview && (
                   <span
-                    className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
+                    className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
                     title="Vehicle type needs review"
                   >
                     ⚠
@@ -542,16 +535,16 @@ export default function ChartControls({
               )}
             </div>
 
-            {/* Search Input */}
-            <div className="flex-initial max-w-[250px] relative">
-              <input
+            {/* Search Input - w-[9rem] per standard-form-field-width.md */}
+            <div className="flex-initial w-[9rem] min-w-[9rem] relative">
+              <StandardInput
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search drivers..."
-                className="w-full px-3 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                 aria-label="Search drivers"
                 id="driver-search-input"
+                className="pr-8 text-sm py-2"
               />
               {searchQuery && (
                 <button
@@ -560,19 +553,7 @@ export default function ChartControls({
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
                   aria-label="Clear search"
                 >
-                  <svg
-                    className="w-4 h-4 text-[var(--token-text-secondary)]"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
+                  <X className="w-4 h-4 text-[var(--token-text-secondary)]" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -584,23 +565,7 @@ export default function ChartControls({
               className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
               aria-label={isCompact ? "Switch to expanded view" : "Switch to compact view"}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isCompact ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 10h16M4 14h16M4 18h16"
-                  />
-                )}
-              </svg>
+              <List className="w-5 h-5" aria-hidden="true" />
               <span className="ml-2">{isCompact ? "Expanded" : "Compact"}</span>
             </button>
           </div>

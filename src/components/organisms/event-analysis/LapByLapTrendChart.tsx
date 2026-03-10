@@ -26,26 +26,28 @@ import { formatDateTimeUTC, formatDuration } from "@/lib/format-session-data"
 import { useChartColor, useChartColors } from "@/hooks/useChartColors"
 import type { DriverLapTrendSeries, LapTrendPoint } from "@/core/events/get-lap-data"
 
-const DEFAULT_AXIS_COLOR = "#ffffff"
+const DEFAULT_AXIS_COLOR = "var(--token-text-primary)"
 const defaultMargin = { top: 20, right: 20, bottom: 60, left: 70 }
 const driverColors = [
-  "#3a8eff",
-  "#4ecdc4",
-  "#ff6b6b",
-  "#ffe66d",
-  "#a8e6cf",
-  "#ff8b94",
-  "#95e1d3",
-  "#f38181",
-  "#aa96da",
-  "#fcbad3",
-  "#a8d8ea",
-  "#ff9a3c",
-]
+  "var(--token-chart-series-1)",
+  "var(--token-chart-series-2)",
+  "var(--token-chart-series-3)",
+  "var(--token-chart-series-4)",
+  "var(--token-chart-series-5)",
+  "var(--token-chart-series-6)",
+  "var(--token-chart-series-7)",
+  "var(--token-chart-series-8)",
+  "var(--token-chart-series-9)",
+  "var(--token-chart-series-10)",
+  "var(--token-chart-series-11)",
+  "var(--token-chart-series-12)",
+] as const
+const SESSION_BAND_DEFAULTS = [
+  "var(--token-chart-session-band-1)",
+  "var(--token-chart-session-band-2)",
+] as const
 const borderColor = "var(--token-border-default)"
 const DIM_OPACITY = 0.2
-const _SESSION_BAND_OPACITY = 0.3
-const SESSION_BAND_DEFAULT_HEX = ["#6366f1", "#fbbf24"] as const
 const SESSION_BAND_OPACITIES = [0.52, 0.48] as const
 
 /** Session band: contiguous lap indices with same race (grouped by raceId) */
@@ -78,24 +80,6 @@ function computeSessionBands(drivers: DriverLapTrendSeries[]): SessionBand[] {
   }
 
   return bands
-}
-
-/** Convert hex (#rrggbb or #rgb) to rgba with opacity */
-function hexToRgba(hex: string, opacity: number): string {
-  const h = hex.replace("#", "")
-  let r: number, g: number, b: number
-  if (h.length === 6) {
-    r = parseInt(h.slice(0, 2), 16)
-    g = parseInt(h.slice(2, 4), 16)
-    b = parseInt(h.slice(4, 6), 16)
-  } else if (h.length === 3) {
-    r = parseInt(h[0] + h[0], 16)
-    g = parseInt(h[1] + h[1], 16)
-    b = parseInt(h[2] + h[2], 16)
-  } else {
-    return `rgba(99, 102, 241, ${opacity})`
-  }
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`
 }
 
 function formatLapTime(seconds: number): string {
@@ -184,12 +168,12 @@ export default function LapByLapTrendChart({
   const [sessionBand1Color, setSessionBand1Color] = useChartColor(
     instanceId,
     "sessionBand1",
-    SESSION_BAND_DEFAULT_HEX[0]
+    SESSION_BAND_DEFAULTS[0]
   )
   const [sessionBand2Color, setSessionBand2Color] = useChartColor(
     instanceId,
     "sessionBand2",
-    SESSION_BAND_DEFAULT_HEX[1]
+    SESSION_BAND_DEFAULTS[1]
   )
 
   const defaultDriverColors = useMemo(
@@ -498,7 +482,7 @@ export default function LapByLapTrendChart({
                                         data={trend.data}
                                         x={(d) => xScale(d.x)}
                                         y={(d) => yScale(d.y)}
-                                        stroke="#ffffff"
+                                        stroke="var(--token-text-primary)"
                                         strokeWidth={1.5}
                                         strokeDasharray="4,4"
                                         opacity={lineOpacity * 0.6}
@@ -524,14 +508,13 @@ export default function LapByLapTrendChart({
                           {showSessionOverlay &&
                             sessionBands.map((band, bandIndex) => {
                               const colorIndex = bandIndex % 2
-                              const hexColor =
+                              const bandColor =
                                 colorIndex === 0 ? sessionBand1Color : sessionBand2Color
                               const opacity = SESSION_BAND_OPACITIES[colorIndex]
                               const xLeft = xScale(band.startLapIndex - 0.5)
                               const xRight = xScale(band.endLapIndex + 0.5)
                               const x = Math.max(0, xLeft)
                               const w = Math.max(1, Math.min(innerWidth, xRight) - x)
-                              const fill = hexToRgba(hexColor, opacity)
                               return (
                                 <rect
                                   key={`${band.raceId}-${band.startLapIndex}`}
@@ -539,7 +522,8 @@ export default function LapByLapTrendChart({
                                   y={0}
                                   width={w}
                                   height={innerHeight}
-                                  fill={fill}
+                                  fill={bandColor}
+                                  fillOpacity={opacity}
                                   style={{ cursor: "pointer" }}
                                   pointerEvents="all"
                                   aria-label={`Session band ${bandIndex + 1} - Click to change color`}

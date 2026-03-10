@@ -1,9 +1,11 @@
 "use client"
 
+import { Search } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { closeCommandPalette } from "@/store/slices/uiSlice"
+import { typography } from "@/lib/typography"
 
 const COMMANDS = [
   { id: "dashboard", label: "Go to My Event Analysis", action: "/dashboard" },
@@ -81,15 +83,7 @@ function PaletteDialog({ onRequestClose }: { onRequestClose: () => void }) {
         }}
       >
         <div className="flex items-center gap-2 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2">
-          <svg className="h-4 w-4 text-[var(--token-text-muted)]" viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth={1.5} />
-            <path
-              d="m20 20-3.5-3.5"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-            />
-          </svg>
+          <Search className="h-4 w-4 text-[var(--token-text-muted)]" aria-hidden="true" />
           <input
             ref={inputRef}
             value={query}
@@ -97,9 +91,7 @@ function PaletteDialog({ onRequestClose }: { onRequestClose: () => void }) {
             placeholder="Jump to anything…"
             className="flex-1 border-none bg-transparent text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:outline-none"
           />
-          <span className="text-[11px] uppercase tracking-widest text-[var(--token-text-muted)]">
-            Esc
-          </span>
+          <span className={typography.uppercase}>Esc</span>
         </div>
 
         <div className="mt-4 space-y-2">

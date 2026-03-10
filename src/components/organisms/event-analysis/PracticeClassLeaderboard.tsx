@@ -11,6 +11,12 @@ import { useMemo } from "react"
 import { formatLapTime } from "@/lib/date-utils"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { formatClassName } from "@/lib/format-class-name"
+import {
+  StandardTable,
+  StandardTableHeader,
+  StandardTableRow,
+  StandardTableCell,
+} from "@/components/molecules/StandardTable"
 
 export interface PracticeClassLeaderboardProps {
   data: EventAnalysisData
@@ -85,30 +91,29 @@ export default function PracticeClassLeaderboard({
       <p className="text-sm text-[var(--token-text-secondary)] mb-3">
         Fastest lap per class across all sessions.
       </p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[var(--token-border-default)] text-left text-[var(--token-text-secondary)]">
-              <th className="pb-2 pr-4">Class</th>
-              <th className="pb-2 pr-4">Fastest driver</th>
-              <th className="pb-2 pr-4">Best lap</th>
-              <th className="pb-2">Session</th>
+      <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+        <StandardTable>
+          <StandardTableHeader>
+            <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+              <StandardTableCell header>Class</StandardTableCell>
+              <StandardTableCell header>Fastest driver</StandardTableCell>
+              <StandardTableCell header>Best lap</StandardTableCell>
+              <StandardTableCell header>Session</StandardTableCell>
             </tr>
-          </thead>
+          </StandardTableHeader>
           <tbody>
             {filtered.map((row) => (
-              <tr
-                key={row.className}
-                className="border-b border-[var(--token-border-default)] last:border-0"
-              >
-                <td className="py-2 pr-4 font-medium">{formatClassName(row.className)}</td>
-                <td className="py-2 pr-4">{row.driverName}</td>
-                <td className="py-2 pr-4">{formatLapTime(row.bestLap)}</td>
-                <td className="py-2">{row.raceLabel}</td>
-              </tr>
+              <StandardTableRow key={row.className}>
+                <StandardTableCell className="font-medium">
+                  {formatClassName(row.className)}
+                </StandardTableCell>
+                <StandardTableCell>{row.driverName}</StandardTableCell>
+                <StandardTableCell>{formatLapTime(row.bestLap)}</StandardTableCell>
+                <StandardTableCell>{row.raceLabel}</StandardTableCell>
+              </StandardTableRow>
             ))}
           </tbody>
-        </table>
+        </StandardTable>
       </div>
     </div>
   )

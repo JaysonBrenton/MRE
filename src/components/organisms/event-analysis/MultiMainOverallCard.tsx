@@ -10,8 +10,6 @@
  */
 
 "use client"
-
-import { useState } from "react"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 const CARD_CLASS =
@@ -24,65 +22,57 @@ const PODIUM_CLASS = "font-medium"
 
 export interface MultiMainOverallCardProps {
   multiMainResults: EventAnalysisData["multiMainResults"]
+  /**
+   * Optional filter by class label. When provided, only multi-main results
+   * whose `classLabel` matches are rendered; when null/undefined, all are shown.
+   */
+  activeClassLabel?: string | null
 }
 
-export default function MultiMainOverallCard({ multiMainResults }: MultiMainOverallCardProps) {
-  const [isOpen, setIsOpen] = useState(true)
-
+export default function MultiMainOverallCard({
+  multiMainResults,
+  activeClassLabel,
+}: MultiMainOverallCardProps) {
   if (!multiMainResults || multiMainResults.length === 0) {
     return null
   }
 
-  const contentId = "multi-main-overall-content"
+  const filteredResults =
+    activeClassLabel && activeClassLabel.trim().length > 0
+      ? multiMainResults.filter((mm) => mm.classLabel === activeClassLabel)
+      : multiMainResults
 
   return (
     <div className="w-full space-y-2">
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 text-left text-sm font-semibold text-[var(--token-text-primary)] mb-2"
-        aria-expanded={isOpen}
-        aria-controls={contentId}
-        onClick={() => setIsOpen((prev) => !prev)}
-      >
-        <span>Multi-Main Overall</span>
-        <span
-          className={`transition-transform duration-150 ${isOpen ? "rotate-0" : "-rotate-90"}`}
-          aria-hidden="true"
-        >
-          ▾
-        </span>
-      </button>
-      {isOpen && (
-        <div id={contentId} className="flex flex-wrap gap-4">
-          {multiMainResults.map((mm) => (
-            <div key={mm.id} className={CARD_CLASS}>
-              <h3 className={HEADING_CLASS}>{mm.classLabel} Overall</h3>
-              {mm.tieBreaker && (
-                <p className="text-xs text-[var(--token-text-secondary)] mb-1">
-                  Tie breaker: {mm.tieBreaker}
-                </p>
-              )}
-              <div className="space-y-0.5">
-                {mm.entries.slice(0, 10).map((entry, idx) => (
-                  <div key={entry.position} className={ROW_CLASS}>
-                    <span className={idx < 3 ? PODIUM_CLASS : LABEL_CLASS}>
-                      {entry.position === 1
-                        ? "🥇"
-                        : entry.position === 2
-                          ? "🥈"
-                          : entry.position === 3
-                            ? "🥉"
-                            : `${entry.position}.`}
-                    </span>
-                    <span>{entry.driverName}</span>
-                    <span className={LABEL_CLASS}>{entry.points} pts</span>
-                  </div>
-                ))}
-              </div>
+      <div id="multi-main-overall-content" className="flex flex-wrap gap-4">
+        {filteredResults.map((mm) => (
+          <div key={mm.id} className={CARD_CLASS}>
+            <h3 className={HEADING_CLASS}>{mm.classLabel} Overall</h3>
+            {mm.tieBreaker && (
+              <p className="text-xs text-[var(--token-text-secondary)] mb-1">
+                Tie breaker: {mm.tieBreaker}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {mm.entries.slice(0, 10).map((entry, idx) => (
+                <div key={entry.position} className={ROW_CLASS}>
+                  <span className={idx < 3 ? PODIUM_CLASS : LABEL_CLASS}>
+                    {entry.position === 1
+                      ? "🥇"
+                      : entry.position === 2
+                        ? "🥈"
+                        : entry.position === 3
+                          ? "🥉"
+                          : `${entry.position}.`}
+                  </span>
+                  <span>{entry.driverName}</span>
+                  <span className={LABEL_CLASS}>{entry.points} pts</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

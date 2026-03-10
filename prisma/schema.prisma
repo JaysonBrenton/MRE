@@ -42,6 +42,10 @@ model User {
   carProfiles       CarProfile[]
   driverProfiles    DriverProfile[]
   trackMaps         TrackMap[]
+  eventVenueCorrectionsSubmitted EventVenueCorrection[] @relation("EventVenueCorrectionsSubmitted")
+  eventVenueCorrectionsApproved  EventVenueCorrection[] @relation("EventVenueCorrectionsApproved")
+  eventVenueCorrectionRequestsSubmitted EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestSubmitted")
+  eventVenueCorrectionRequestsReviewed  EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestReviewed")
 
   @@index([normalizedName])
   @@index([transponderNumber])
@@ -111,6 +115,8 @@ model Track {
   updatedAt              DateTime  @updatedAt @map("updated_at")
   events                 Event[]
   trackMaps              TrackMap[]
+  eventVenueCorrectionsAsVenue EventVenueCorrection[] @relation("EventVenueCorrectionVenueTrack")
+  eventVenueCorrectionRequestsAsVenue EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestVenueTrack")
 
   @@unique([source, sourceTrackSlug])
   @@index([source, sourceTrackSlug])
@@ -145,6 +151,8 @@ model Event {
   multiMainResults     MultiMainResult[]
   qualPoints           EventQualPoints[]
   roundRankings        EventRoundRanking[]
+  eventVenueCorrection EventVenueCorrection?
+  eventVenueCorrectionRequest EventVenueCorrectionRequest?
 
   @@unique([source, sourceEventId])
   @@index([source, sourceEventId])
@@ -524,6 +532,53 @@ model EventDriverLink {
   @@index([userDriverLinkId])
   @@index([status])
   @@map("event_driver_links")
+}
+
+model EventVenueCorrection {
+  id               String   @id @default(uuid())
+  eventId          String   @unique @map("event_id")
+  venueTrackId     String?  @map("venue_track_id")
+  submittedByUserId String  @map("submitted_by_user_id")
+  approvedAt       DateTime @map("approved_at")
+  approvedByUserId String   @map("approved_by_user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  event      Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venueTrack Track? @relation("EventVenueCorrectionVenueTrack", fields: [venueTrackId], references: [id], onDelete: SetNull)
+  submittedBy User @relation("EventVenueCorrectionsSubmitted", fields: [submittedByUserId], references: [id], onDelete: Cascade)
+  approvedBy  User @relation("EventVenueCorrectionsApproved", fields: [approvedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_venue_corrections")
+}
+
+model EventVenueCorrectionRequest {
+  id               String   @id @default(uuid())
+  eventId          String   @unique @map("event_id")
+  venueTrackId     String?  @map("venue_track_id")
+  submittedByUserId String  @map("submitted_by_user_id")
+  status           EventVenueCorrectionRequestStatus @default(pending)
+  reviewedAt       DateTime? @map("reviewed_at")
+  reviewedByUserId String?  @map("reviewed_by_user_id")
+  adminNotes       String?  @map("admin_notes") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  event      Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venueTrack Track? @relation("EventVenueCorrectionRequestVenueTrack", fields: [venueTrackId], references: [id], onDelete: SetNull)
+  submittedBy User @relation("EventVenueCorrectionRequestSubmitted", fields: [submittedByUserId], references: [id], onDelete: Cascade)
+  reviewedBy  User? @relation("EventVenueCorrectionRequestReviewed", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([eventId])
+  @@map("event_venue_correction_requests")
+}
+
+enum EventVenueCorrectionRequestStatus {
+  pending
+  approved
+  rejected
 }
 
 enum PersonaType {

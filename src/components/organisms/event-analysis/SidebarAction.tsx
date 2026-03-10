@@ -9,6 +9,7 @@
 
 import React from "react"
 import Tooltip from "@/components/molecules/Tooltip"
+import { typography } from "@/lib/typography"
 
 export interface SidebarActionProps {
   icon: React.ReactNode
@@ -60,7 +61,7 @@ export default function SidebarAction({
   const badgeEl =
     badge != null && badge > 0 ? (
       <span
-        className="absolute -top-1 -right-1 flex h-4 min-w-[20px] items-center justify-center rounded-full bg-[var(--token-accent)] px-1 text-[10px] font-medium text-[var(--token-text-primary)]"
+        className={`absolute -top-1 -right-1 flex h-4 min-w-[20px] items-center justify-center rounded-full bg-[var(--token-accent)] px-1 font-medium text-[var(--token-text-primary)] ${typography.captionSmall}`}
         aria-hidden="true"
       >
         {badge}

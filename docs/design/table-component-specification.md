@@ -454,6 +454,51 @@ const users = await getUsers(filters, sort, pagination)
 
 ---
 
+## Nested Tables and Expandable Rows
+
+### LapDataTable Extended Pattern
+
+**LapDataTable**
+(`src/components/organisms/event-analysis/sessions/LapDataTable.tsx`) uses a
+hierarchical structure that does not fit the flat StandardTable model:
+
+- **Driver View:** Driver row → expand to Race rows → expand to Lap rows (nested
+  table)
+- **Race View:** Race row → expand to Driver rows → expand to Lap rows (nested
+  table)
+
+**Implementation approach:**
+
+- The main table uses StandardTable styling tokens (`--token-surface-alt` for
+  headers, `--token-border-default`, `--token-surface-raised` for hover).
+- Expandable parent rows use the same visual pattern as StandardTableRow
+  (border, hover).
+- **Nested tables** inside `colspan` cells use a minimal table with
+  `--token-surface-alt` for the nested header. These nested tables are not
+  wrapped in StandardTable components because they live inside a single `<td>`
+  and have different structure (lap-level columns).
+
+**Documented exception:** LapDataTable is a documented extended pattern. Future
+nested-table components should either:
+
+1. Reuse this pattern (parent table with StandardTable styling, nested table in
+   colspan cell), or
+2. Propose a `StandardNestedTable` variant if the pattern becomes common.
+
+### Expandable Rows (SessionsTable, SessionsTableRow)
+
+SessionsTable and SessionsTableRow use StandardTable, StandardTableHeader,
+StandardTableRow, and StandardTableCell. Expandable session rows render:
+
+1. A `StandardTableRow` for the main session row (click to expand)
+2. An optional second `<tr>` with a single `<td colSpan={n}>` containing the
+   expanded content (e.g. SessionsTableResults)
+
+The expanded content row does not use StandardTableRow because it is a layout
+row with a single cell spanning all columns.
+
+---
+
 ## Related Documentation
 
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -

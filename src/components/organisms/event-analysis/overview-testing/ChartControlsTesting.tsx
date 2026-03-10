@@ -478,7 +478,7 @@ export default function ChartControlsTesting({
             </button>
             {needsReview && (
               <span
-                className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
+                className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
                 title="Vehicle type needs review"
               >
                 ⚠
@@ -631,7 +631,7 @@ export default function ChartControlsTesting({
                   </button>
                   {needsReview && (
                     <span
-                      className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
+                      className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
                       title="Vehicle type needs review"
                     >
                       ⚠

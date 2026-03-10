@@ -45,10 +45,10 @@ export interface TabNavigationProps {
 }
 
 const defaultTabs: Tab[] = [
-  { id: "overview", label: "Event Overview" },
+  { id: "overview", label: "Event" },
   { id: "sessions", label: "Event Sessions" },
   { id: "my-events", label: "My Events" },
-  { id: "drivers", label: "Drivers" },
+  { id: "drivers", label: "Drivers & Classes" },
 ]
 
 export default function TabNavigation({

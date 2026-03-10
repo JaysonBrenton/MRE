@@ -42,7 +42,17 @@ export const typography = {
 
   // Special text styles
   caption: "text-xs text-[var(--token-text-muted)]",
+  /** Small uppercase labels (10px) - for section labels, badges */
   uppercase: "text-[10px] uppercase tracking-[0.4em] text-[var(--token-text-muted)]",
+  /** 11px uppercase with secondary color */
+  uppercaseSecondary:
+    "text-[11px] uppercase tracking-[0.4em] font-medium text-[var(--token-text-secondary)]",
+  /** 11px uppercase with accent color */
+  uppercaseAccent: "text-[11px] uppercase tracking-[0.4em] font-medium text-[var(--token-accent)]",
+  /** Small non-uppercase text (10px) - for badges, compact labels */
+  captionSmall: "text-[10px] text-[var(--token-text-muted)]",
+  /** Large KPI/display numbers (e.g. lap times, positions) */
+  kpi: "text-3xl font-semibold text-[var(--token-text-primary)]",
 } as const
 
 /**

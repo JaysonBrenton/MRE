@@ -26,6 +26,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { clearEvent } from "@/store/slices/dashboardSlice"
 import { useDashboardEventSearch } from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 import Modal from "@/components/molecules/Modal"
+import StandardInput from "@/components/atoms/StandardInput"
 import PracticeDriverSelector from "@/components/organisms/event-analysis/PracticeDriverSelector"
 import { EventActionsContext, type EventActionsContextValue } from "./EventActionsContext"
 import { sanitizeErrorMessage } from "@/lib/sanitize-error-message"
@@ -804,8 +805,8 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
 
             {/* Controls Row */}
             <div className="flex gap-2">
-              {/* Class Filter Dropdown */}
-              <div className="relative flex-initial w-[220px] min-w-[220px]" ref={dropdownRef}>
+              {/* Class Filter Dropdown - w-[9rem] per standard-form-field-width.md */}
+              <div className="relative flex-initial w-[9rem] min-w-[9rem]" ref={dropdownRef}>
                 <label className="block text-xs font-medium text-[var(--token-text-secondary)] mb-1">
                   Class
                 </label>
@@ -864,22 +865,27 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                 )}
               </div>
 
-              {/* Search Input */}
-              <div className="flex-initial w-[220px] min-w-[220px] relative">
+              {/* Search Input - w-[9rem] per standard-form-field-width.md */}
+              <div
+                className="flex-initial w-[9rem] min-w-[9rem] relative"
+                role="group"
+                aria-labelledby="driver-search-label"
+              >
                 <label
+                  id="driver-search-label"
                   htmlFor="driver-search-input"
                   className="block text-xs font-medium text-[var(--token-text-secondary)] mb-1"
                 >
                   Search drivers
                 </label>
-                <input
+                <StandardInput
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search drivers..."
-                  className="w-full px-3 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                   aria-label="Search drivers"
                   id="driver-search-input"
+                  className="py-2 pr-8 text-sm"
                 />
                 {searchQuery && (
                   <button
@@ -935,7 +941,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
         </Modal>
       )}
 
-      {/* Error Modal */}
       {/* Error Modal */}
       <Modal
         isOpen={isErrorModalOpen}

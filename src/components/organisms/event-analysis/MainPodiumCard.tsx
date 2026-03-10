@@ -26,11 +26,32 @@ const GRID_CLASS =
 const LABEL_CLASS = "text-[var(--token-text-secondary)]"
 
 /**
- * True if race is a main/final (e.g. A1-Main, B-Main, A-Final, B-Final).
- * Supports both "Main" (LiveRC US) and "Final" (common elsewhere) naming.
+ * True if race is a competitive main/final (e.g. A1-Main, B-Main, A-Final, B-Final),
+ * excluding practice sessions even when the label contains "Main" (e.g. "Truggy A Main Practice").
+ * Prefers sessionType when present and falls back to raceLabel for legacy data.
  */
-function isMainOrFinal(raceLabel: string): boolean {
+function isMainOrFinal(raceLabel: string, sessionType?: string | null): boolean {
+  const type = sessionType?.toLowerCase().trim()
+  if (type) {
+    if (type === "main" || type === "race") {
+      return true
+    }
+    if (type === "practice" || type === "practiceday") {
+      return false
+    }
+  }
+
   const lower = raceLabel.toLowerCase()
+  const isClearlyPractice =
+    lower.includes("practice") ||
+    lower.includes("seeding") ||
+    lower.includes("qualifying") ||
+    lower.includes("warmup") ||
+    lower.includes("shakedown")
+  if (isClearlyPractice) {
+    return false
+  }
+
   return lower.includes("main") || lower.includes("final")
 }
 
@@ -95,7 +116,10 @@ interface ClassPodiums {
 
 function computePodiumsByClass(races: EventAnalysisData["races"]): ClassPodiums[] {
   const mains = races
-    .filter((r) => isMainOrFinal(r.raceLabel))
+    .filter((r) => isMainOrFinal(r.raceLabel, r.sessionType))
+    // Exclude LiveRC scheduling placeholders (e.g. track maintenance / breaks)
+    // which have no competitive results or only non-starting entries.
+    .filter((r) => r.results.some((result) => result.lapsCompleted > 0))
     .sort((a, b) => {
       const classCmp = a.className.localeCompare(b.className)
       if (classCmp !== 0) return classCmp
@@ -155,9 +179,14 @@ function computePodiumsByClass(races: EventAnalysisData["races"]): ClassPodiums[
 
 export interface MainPodiumCardProps {
   races: EventAnalysisData["races"]
+  /**
+   * Optional filter by **display** class name (after `formatClassName`).
+   * When provided, only that class section is rendered; when null/undefined, all classes are shown.
+   */
+  activeDisplayClass?: string | null
 }
 
-export default function MainPodiumCard({ races }: MainPodiumCardProps) {
+export default function MainPodiumCard({ races, activeDisplayClass }: MainPodiumCardProps) {
   const podiumsByClass = useMemo(() => computePodiumsByClass(races), [races])
   const [openClasses, setOpenClasses] = useState<Record<string, boolean>>({})
 
@@ -177,30 +206,39 @@ export default function MainPodiumCard({ races }: MainPodiumCardProps) {
     return null
   }
 
+  const filteredPodiumsByClass =
+    activeDisplayClass && activeDisplayClass.trim().length > 0
+      ? podiumsByClass.filter(({ className }) => formatClassName(className) === activeDisplayClass)
+      : podiumsByClass
+
+  const isFilteredView = !!activeDisplayClass && activeDisplayClass.trim().length > 0
+
   return (
     <div className="w-full space-y-4">
-      {podiumsByClass.map(({ className, podiums }) => {
-        const open = isClassOpen(className)
+      {filteredPodiumsByClass.map(({ className, podiums }) => {
+        const open = isFilteredView ? true : isClassOpen(className)
         const displayName = formatClassName(className)
         const contentId = `main-podium-class-${displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
 
         return (
-          <div key={displayName} className="space-y-2">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-left text-sm font-semibold text-[var(--token-text-primary)] mb-2"
-              aria-expanded={open}
-              aria-controls={contentId}
-              onClick={() => toggleClass(className)}
-            >
-              <span>{displayName}</span>
-              <span
-                className={`transition-transform duration-150 ${open ? "rotate-0" : "-rotate-90"}`}
-                aria-hidden="true"
+          <div key={displayName} className={isFilteredView ? "" : "space-y-2"}>
+            {!isFilteredView && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-left text-sm font-semibold text-[var(--token-text-primary)] mb-2"
+                aria-expanded={open}
+                aria-controls={contentId}
+                onClick={() => toggleClass(className)}
               >
-                ▾
-              </span>
-            </button>
+                <span>{displayName}</span>
+                <span
+                  className={`transition-transform duration-150 ${open ? "rotate-0" : "-rotate-90"}`}
+                  aria-hidden="true"
+                >
+                  ▾
+                </span>
+              </button>
+            )}
             {open && (
               <div id={contentId} className="flex flex-wrap gap-4">
                 {podiums.map((podium) => (

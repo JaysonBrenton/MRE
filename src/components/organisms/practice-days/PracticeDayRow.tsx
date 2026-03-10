@@ -61,15 +61,37 @@ export default function PracticeDayRow({
   return (
     <div className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr] items-center gap-4 px-4 py-4 border-b transition-colors duration-200 border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]">
       {/* Column 1 - Event Name */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <h3 className="text-[var(--token-text-primary)] font-medium">
-          Practice – {formattedDate}
-          {trackName ? (
-            <span className="ml-2 text-sm font-normal text-[var(--token-text-secondary)]">
-              {trackName}
-            </span>
-          ) : null}
-        </h3>
+      <div className="flex min-w-0 items-center gap-2 flex-wrap">
+        <div className="min-w-0 max-w-full overflow-hidden">
+          {canView ? (
+            <button
+              type="button"
+              onClick={onView}
+              className="inline-block min-w-0 truncate text-left text-[var(--token-text-primary)] font-medium underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
+              aria-label={
+                trackName
+                  ? `Analyse practice ${formattedDate} at ${trackName}`
+                  : `Analyse practice ${formattedDate}`
+              }
+            >
+              Practice – {formattedDate}
+              {trackName ? (
+                <span className="ml-2 text-sm font-normal text-[var(--token-text-secondary)]">
+                  {trackName}
+                </span>
+              ) : null}
+            </button>
+          ) : (
+            <h3 className="truncate text-[var(--token-text-primary)] font-medium">
+              Practice – {formattedDate}
+              {trackName ? (
+                <span className="ml-2 text-sm font-normal text-[var(--token-text-secondary)]">
+                  {trackName}
+                </span>
+              ) : null}
+            </h3>
+          )}
+        </div>
         {subtitle && (
           <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
             {subtitle}

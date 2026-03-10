@@ -27,6 +27,7 @@ import { useDashboardEventSearch } from "@/components/organisms/dashboard/Dashbo
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { clearEvent } from "@/store/slices/dashboardSlice"
 import { sanitizeErrorMessage } from "@/lib/sanitize-error-message"
+import { typography } from "@/lib/typography"
 import type { Driver, Race } from "./ChartControls"
 
 const STORAGE_KEY_SIDEBAR_COLLAPSED = "mre-event-analysis-sidebar-collapsed"
@@ -652,7 +653,7 @@ export default function EventAnalysisSidebar({
           </button>
           {isCollapsed && (
             <span
-              className="text-[10px] font-medium uppercase tracking-wider text-[var(--token-text-muted)] -rotate-90 origin-center whitespace-nowrap"
+              className={`${typography.uppercase} font-medium -rotate-90 origin-center whitespace-nowrap`}
               aria-hidden="true"
             >
               Actions
@@ -851,7 +852,7 @@ export default function EventAnalysisSidebar({
                   </button>
                   {needsReview && (
                     <span
-                      className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
+                      className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
                       title="Vehicle type needs review"
                     >
                       ⚠

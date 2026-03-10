@@ -1,5 +1,6 @@
 "use client"
 
+import { User } from "lucide-react"
 import { useState } from "react"
 import UserProfileModal from "@/components/organisms/dashboard/shell/UserProfileModal"
 import Tooltip from "@/components/molecules/Tooltip"
@@ -40,20 +41,7 @@ export default function TopStatusBar({ user, userId }: TopStatusBarProps) {
                     </span>
                   )}
                   <span className="flex shrink-0">
-                    <svg
-                      className="h-5 w-5 text-[var(--token-text-muted)]"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <circle cx="12" cy="7" r="4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <User className="h-5 w-5 text-[var(--token-text-muted)]" aria-hidden="true" />
                   </span>
                 </button>
               </Tooltip>

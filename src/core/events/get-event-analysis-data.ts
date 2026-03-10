@@ -24,8 +24,76 @@ import {
   type RaceResultForValidation,
 } from "./validate-lap-times"
 import { calculateMostImprovedDrivers } from "./calculate-driver-improvement"
+import { getApprovedCorrection } from "./venue-correction"
 
-/** Format track address from address, city, state, postalCode, country */
+/** Placeholder values that should not appear in address display */
+const ADDRESS_PLACEHOLDERS = new Set(
+  ["none", "n/a", "null", "na", "undefined", "—", "–", "-"].map((s) => s.toLowerCase())
+)
+
+/** Postal codes that are placeholders (invalid for address display) */
+const PLACEHOLDER_POSTAL_CODES = new Set(["00000", "0000", "000000", "0"])
+
+/** Regex to detect email addresses (exclude from address) */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** Check if a string looks like an email address */
+function looksLikeEmail(s: string): boolean {
+  return EMAIL_REGEX.test(s.trim())
+}
+
+/** Check if a part should be excluded from address display */
+function isValidAddressPart(part: string): boolean {
+  const t = part.trim()
+  if (!t || t.length === 0) return false
+  const lower = t.toLowerCase()
+  if (ADDRESS_PLACEHOLDERS.has(lower)) return false
+  if (looksLikeEmail(t)) return false
+  if (PLACEHOLDER_POSTAL_CODES.has(t)) return false
+  return true
+}
+
+/** Clean a valid address part (e.g. strip trailing placeholder postal like "Brisbane 00000" -> "Brisbane") */
+function cleanAddressPart(part: string): string {
+  let t = part.trim()
+  for (const code of PLACEHOLDER_POSTAL_CODES) {
+    const suffix = ` ${code}`
+    if (t.endsWith(suffix)) {
+      t = t.slice(0, -suffix.length).trim()
+      break
+    }
+  }
+  return t
+}
+
+/**
+ * Normalize address string for display: remove non-address data (emails, placeholders),
+ * deduplicate parts, and filter invalid values.
+ */
+function normalizeAddressForDisplay(raw: string | null | undefined): string | null {
+  if (!raw || typeof raw !== "string") return null
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+
+  const parts = trimmed
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+  const seen = new Set<string>()
+  const filtered: string[] = []
+  for (const part of parts) {
+    if (!isValidAddressPart(part)) continue
+    const cleaned = cleanAddressPart(part)
+    if (!cleaned) continue
+    const key = cleaned.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    filtered.push(cleaned)
+  }
+  return filtered.length > 0 ? filtered.join(", ") : null
+}
+
+/** Format track address from address, city, state, postalCode, country; normalized for display */
 function formatTrackAddress(track: {
   address?: string | null
   city?: string | null
@@ -40,7 +108,8 @@ function formatTrackAddress(track: {
     track.postalCode?.trim(),
     track.country?.trim(),
   ].filter((p): p is string => !!p && p.length > 0)
-  return parts.length > 0 ? parts.join(", ") : null
+  const raw = parts.length > 0 ? parts.join(", ") : null
+  return normalizeAddressForDisplay(raw)
 }
 
 function sanitizeLapTime(value: number | null | undefined): number | null {
@@ -231,6 +300,8 @@ export interface EventAnalysisData {
     /** End date for multi-day events (e.g. Mar 5–8) */
     eventDateEnd?: Date | null
     trackName: string
+    /** LiveRC track dashboard URL (e.g. https://bayrc.liverc.com/) when source is liverc */
+    trackDashboardUrl?: string | null
     /** LiveRC event page URL (external link) */
     eventUrl?: string
     /** Track website URL */
@@ -243,6 +314,8 @@ export interface EventAnalysisData {
     phone?: string | null
     /** Track email address */
     email?: string | null
+    /** True when venue was corrected by user (approved correction) */
+    venueCorrected?: boolean
   }
   /** True when event.sourceEventId contains '-practice-' (practice day). */
   isPracticeDay?: boolean
@@ -1351,6 +1424,72 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     })),
   }))
 
+  // Venue correction may fail if Prisma client was built before EventVenueCorrection models (e.g. stale container)
+  type VenueTrackSelect = {
+    trackName: string
+    trackUrl: string
+    address: string | null
+    city: string | null
+    state: string | null
+    postalCode: string | null
+    country: string | null
+    phone: string | null
+    website: string | null
+    email: string | null
+    facebookUrl: string | null
+  }
+  let venueTrackRecord: VenueTrackSelect | null = null
+  try {
+    const correction = await getApprovedCorrection(event.id)
+    const hasValidVenueCorrection = correction?.venueTrackId && correction?.venueTrack
+    if (hasValidVenueCorrection && correction?.venueTrackId) {
+      venueTrackRecord = await prisma.track.findUnique({
+        where: { id: correction.venueTrackId },
+        select: {
+          trackName: true,
+          trackUrl: true,
+          address: true,
+          city: true,
+          state: true,
+          postalCode: true,
+          country: true,
+          phone: true,
+          website: true,
+          email: true,
+          facebookUrl: true,
+        },
+      })
+    }
+  } catch {
+    // Fall back to event track if venue correction lookup fails (e.g. prisma.eventVenueCorrection undefined)
+  }
+
+  const effectiveTrack =
+    venueTrackRecord != null
+      ? {
+          trackName: venueTrackRecord.trackName,
+          trackUrl: venueTrackRecord.trackUrl,
+          address: formatTrackAddress(venueTrackRecord),
+          phone: venueTrackRecord.phone,
+          website: venueTrackRecord.website,
+          email: venueTrackRecord.email,
+          facebookUrl: venueTrackRecord.facebookUrl,
+          venueCorrected: true,
+        }
+      : {
+          trackName: event.track.trackName,
+          trackUrl: event.track.trackUrl,
+          address: formatTrackAddress(event.track),
+          phone: event.track.phone,
+          website: event.track.website,
+          email: event.track.email,
+          facebookUrl: event.track.facebookUrl,
+          venueCorrected: false,
+        }
+
+  // Use Track.trackUrl - canonical LiveRC track dashboard (e.g. https://bayrc.liverc.com/)
+  const trackDashboardUrl = effectiveTrack.trackUrl?.trim() ? effectiveTrack.trackUrl.trim() : null
+
   return {
     event: {
       id: event.id,
@@ -1358,13 +1497,15 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       eventName: event.eventName,
       eventDate: event.eventDate,
       eventDateEnd: event.eventDateEnd ?? undefined,
-      trackName: event.track.trackName,
+      trackName: effectiveTrack.trackName,
+      trackDashboardUrl: trackDashboardUrl ?? undefined,
       eventUrl: event.eventUrl ?? undefined,
-      website: event.track.website ?? null,
-      facebookUrl: event.track.facebookUrl ?? null,
-      address: formatTrackAddress(event.track),
-      phone: event.track.phone ?? null,
-      email: event.track.email ?? null,
+      website: effectiveTrack.website ?? null,
+      facebookUrl: effectiveTrack.facebookUrl ?? null,
+      address: effectiveTrack.address ?? null,
+      phone: effectiveTrack.phone ?? null,
+      email: effectiveTrack.email ?? null,
+      venueCorrected: effectiveTrack.venueCorrected,
     },
     isPracticeDay,
     races: racesData,

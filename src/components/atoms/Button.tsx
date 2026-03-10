@@ -20,6 +20,12 @@ import { ButtonHTMLAttributes, ReactNode } from "react"
 export type ButtonVariant = "default" | "primary" | "error"
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /**
+   * Button visual variant.
+   * - default: Outlined/secondary style (preferred for most actions).
+   * - primary: Accent fill. @deprecated Prefer StandardButton; only for documented primary CTA exceptions (e.g. empty-state "Search for Events", modal "Select track").
+   * - error: Destructive/danger style (e.g. Reject).
+   */
   variant?: ButtonVariant
   fullWidth?: boolean
   children: ReactNode
