@@ -751,15 +751,27 @@ class IngestionPipeline:
                     entry_id = matched_event_entry.get("id")
                     matched_event_entry = event_entry_by_id.get(entry_id) if entry_id else None
 
+                driver_id = None  # set from matched_event_entry or from fallback driver_obj
+
                 # Track cache usage
                 metrics.record_event_entry_cache_lookup(str(event_id))
                 if event_entries_plain:
                     metrics.record_event_entry_cache_hit(str(event_id))
 
-                # SKIP unmatched drivers - they don't belong in this class
-                # This ensures data integrity: drivers only appear in classes they're entered in.
-                # Multi-class drivers will still be processed when we encounter them in their actual classes.
+                # Previously, unmatched drivers (no EventEntry for this class) were skipped
+                # entirely. This caused real finishers to disappear from results when the
+                # LiveRC entry list was incomplete or misclassified for a class (e.g. a
+                # driver racing Truggy without being listed in the Truggy entry list).
+                #
+                # To preserve complete race standings, we now *fallback* by creating an
+                # EventEntry on the fly for such drivers instead of dropping their
+                # RaceResult. This ensures:
+                #   - Every visible result row on LiveRC is represented in race_results
+                #   - Downstream analytics (winners tables, charts) can show correct P1/P2/P3
+                #
+                # We still log the situation for diagnostics.
                 if not matched_event_entry:
+                    # Track for summary metrics/logging
                     skipped_drivers.append({
                         "driver_id": normalized_result["source_driver_id"],
                         "driver_name": normalized_result["display_name"],
@@ -768,7 +780,7 @@ class IngestionPipeline:
                         "race_label": normalized_race["race_label"],
                     })
                     logger.warning(
-                        "race_result_driver_not_in_class",
+                        "race_result_driver_not_in_class_fallback_entry",
                         event_id=str(event_id),
                         race_id=normalized_race["source_race_id"],
                         race_label=normalized_race["race_label"],
@@ -776,16 +788,59 @@ class IngestionPipeline:
                         driver_id=normalized_result["source_driver_id"],
                         driver_name=normalized_result["display_name"],
                         message=(
-                            f"Skipping race result - driver '{normalized_result['display_name']}' "
-                            f"not found in entry list for class '{class_name}'. "
-                            f"This driver will still be processed if they appear in races for classes they ARE entered in."
-                        )
+                            "Driver not found in entry list for this class; "
+                            "creating fallback EventEntry so race result is preserved."
+                        ),
                     )
-                    continue  # Skip this result - don't process unmatched drivers
+
+                    # Ensure a normalized Driver exists
+                    from ingestion.ingestion.normalizer import Normalizer
+                    from ingestion.db.models import Driver as DriverModel
+
+                    normalized_name = Normalizer.normalize_driver_name(
+                        normalized_result["display_name"]
+                    )
+
+                    driver_stmt = select(DriverModel).where(
+                        and_(
+                            DriverModel.source == "liverc",
+                            DriverModel.source_driver_id == normalized_result["source_driver_id"],
+                        )
+                    ).limit(1)
+                    driver_obj = repo.session.scalar(driver_stmt)
+                    if not driver_obj:
+                        driver_obj = repo.upsert_driver(
+                            source="liverc",
+                            source_driver_id=normalized_result["source_driver_id"],
+                            display_name=normalized_result["display_name"],
+                            normalized_name=normalized_name,
+                        )
+
+                    # Create or update an EventEntry linking this driver to the class so
+                    # that analytics and UI can treat them as a valid entrant.
+                    from uuid import UUID as _UUID
+                    repo.upsert_event_entry(
+                        event_id=_UUID(str(event_id)),
+                        driver_id=_UUID(str(driver_obj.id)),
+                        class_name=class_name,
+                    )
+
+                    # Reload plain cache for this class so subsequent lookups see the new entry.
+                    # Cache is in-memory only (no refetch from DB), so new entry may not appear yet.
+                    event_entries_plain_cache.pop(class_name, None)
+                    event_entries_plain = _get_event_entries_for_race_class(
+                        event_entries_plain_cache, class_name
+                    )
+                    matched_event_entry = next(
+                        (e for e in event_entries_plain if e.get("driver_id") == str(driver_obj.id)),
+                        None,
+                    )
+                    if not matched_event_entry:
+                        # Use the driver we just created so race_drivers gets a valid driver_id
+                        driver_id = str(driver_obj.id)
                 
-                # Handle driver updates
-                driver_id = None
-                if matched_event_entry:
+                # Handle driver updates (driver_id may already be set by fallback above)
+                if driver_id is None and matched_event_entry:
                     driver = matched_event_entry.driver
                     if driver.source_driver_id.startswith("entry_"):
                         # Check if a driver with the real source_driver_id already exists

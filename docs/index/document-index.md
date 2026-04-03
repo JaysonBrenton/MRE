@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-01-27
+lastModified: 2026-03-29
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -357,6 +357,16 @@ polling, and configuration (INGESTION_USE_QUEUE, UVICORN_WORKERS).
 
 ---
 
+## Everlaps (preliminary)
+
+### [00 - Preliminary scoping and design](../architecture/everlaps-ingestion/00-preliminary-scoping-and-design.md)
+
+Exploratory scope and design for Everlaps as a timing/event source without a
+LiveRC-style track catalog: derived venues, event-driven indexing, phased
+results, risks, and open questions.
+
+---
+
 ## API Documentation
 
 API reference documentation and versioning strategy.
@@ -372,6 +382,17 @@ requirements, error codes, and usage examples.
 API versioning strategy and deprecation policy. Defines versioning approach,
 when to create new versions, deprecation timeline, breaking change policy, and
 migration guide.
+
+### [Generated documentation inventory](../reference/generated/README.md)
+
+Machine-generated manifests (`api-routes.manifest.json`,
+`component-files.manifest.json`) used to keep API and UI inventories aligned
+with the build. Regenerate via `npm run docs:inventory` in the app container.
+
+### [Component catalog](../frontend/component-catalog.md)
+
+One row per production component file under `src/components/` (tier and feature
+area). Regenerate via `npm run docs:component-catalog` in the app container.
 
 ---
 
@@ -810,6 +831,12 @@ Defines search patterns, filtering, and data analysis workflows.
 
 Implementation plans for major architectural changes and improvements.
 
+### [Application Performance Remediation (March 2026)](../implimentation_plans/application-performance-remediation-2026-03.md)
+
+Detailed implementation plan for P0–P7 backlog from the March 2026 application
+performance review: dependencies, acceptance criteria, Docker verification, PR
+sequencing, and documentation updates.
+
 ### [Codex Deep Review Remediation Plan](../implimentation_plans/codex-deep-review-remediation-plan.md)
 
 Comprehensive remediation plan based on codex deep review findings. Defines
@@ -848,6 +875,13 @@ operations. References Telemetry Implementation Design; v1/v2 scoped in design.
 ## Reviews
 
 Code and architecture review documentation.
+
+### [Application Performance Review (March 2026)](../reviews/application-performance-review-2026-03.md)
+
+Evidence-based performance review: locked user journeys, criteria from
+performance-requirements.md, baseline samples (health, tracks), build/bundle
+status, static findings for event analysis core, API routes, dashboard Redux/UI,
+and Python ingestion, plus ranked remediation backlog.
 
 ### [Dashboard Performance Review](../reviews/dashboard-performance-review.md)
 

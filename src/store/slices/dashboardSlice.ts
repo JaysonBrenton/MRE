@@ -1,53 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit"
 import type { EventAnalysisSummary, ImportedEventSummary } from "@root-types/dashboard"
-import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-
-// API response type with ISO string dates (as returned from API)
-type EventAnalysisDataApiResponse = Omit<
-  EventAnalysisData,
-  "event" | "races" | "summary" | "raceClasses"
-> & {
-  isPracticeDay?: boolean
-  event: {
-    id: string
-    trackId: string
-    eventName: string
-    eventDate: string // ISO string
-    trackName: string
-  }
-  races: Array<{
-    id: string
-    raceId: string
-    className: string
-    raceLabel: string
-    raceOrder: number | null
-    startTime: string | null // ISO string
-    durationSeconds: number | null
-    results: Array<{
-      raceResultId: string
-      raceDriverId: string
-      driverId: string
-      driverName: string
-      positionFinal: number
-      lapsCompleted: number
-      totalTimeSeconds: number | null
-      fastLapTime: number | null
-      avgLapTime: number | null
-      consistency: number | null
-      // laps array removed - not used by any components
-    }>
-  }>
-  raceClasses: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
-  summary: {
-    totalRaces: number
-    totalDrivers: number
-    totalLaps: number
-    dateRange: {
-      earliest: string | null // ISO string
-      latest: string | null // ISO string
-    }
-  }
-}
+import type { EventAnalysisDataApiResponse } from "@/types/event-analysis-api"
 
 interface DashboardState {
   selectedEventId: string | null

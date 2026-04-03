@@ -108,10 +108,10 @@ Version 0.1.1 includes expanded UI features:
 
 **Navigation Features:**
 
-- Breadcrumb navigation (primary pattern)
-- Simplified hamburger menus (basic toggle functionality)
-- Multi-level dropdown menus (secondary pattern)
-- Tab-based navigation (secondary pattern)
+- Breadcrumb navigation (primary pattern on many screens)
+- Left navigation rail + top status bar after login; command palette for quick
+  jumps (see `docs/user-guides/navigation.md`)
+- Tab-based navigation within event analysis and similar pages
 
 **Table Components:**
 
@@ -130,8 +130,8 @@ Version 0.1.1 includes expanded UI features:
   under-development page)_
 - Track dashboard (track-specific statistics) _(future; redirects to
   under-development page)_
-- Customizable widgets (drag-and-drop, resize, rearrange) _(planned - current
-  dashboard renders Event Analysis components once an event is selected)_
+- Customizable widgets (drag-and-drop, resize, rearrange) _(not implemented;
+  dashboard focuses on event selection and Event Analysis integration)_
 
 **Telemetry Visualizations:**
 

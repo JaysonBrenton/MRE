@@ -1,7 +1,7 @@
 // @fileoverview Prisma seed script (CommonJS) to avoid TS/ESM tooling issues
 // Creates base personas and an admin user.
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const { PrismaClient } = require("@prisma/client")
 const argon2 = require("argon2")
@@ -104,7 +104,6 @@ main()
   .catch((e) => {
     // eslint-disable-next-line no-console
     console.error("Error seeding database:", e)
-    // eslint-disable-next-line n/no-process-exit
     process.exit(1)
   })
   .finally(async () => {

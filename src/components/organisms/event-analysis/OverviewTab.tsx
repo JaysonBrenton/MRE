@@ -3,7 +3,7 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-27
+ * @lastModified 2026-04-03
  *
  * @description Overview tab content for event analysis
  *
@@ -21,11 +21,12 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import EventStats from "./EventStats"
 import WeatherCard from "./WeatherCard"
-import ClassTopFastestLapsCard from "./ClassTopFastestLapsCard"
-import ClassTopAverageLapsCard from "./ClassTopAverageLapsCard"
-import ClassMostImprovedCard from "./ClassMostImprovedCard"
-import MainPodiumCard from "./MainPodiumCard"
-import MultiMainOverallCard from "./MultiMainOverallCard"
+import EventTopFastestLapsPerClassTable from "./EventTopFastestLapsPerClassTable"
+import EventTopAverageLapsPerClassTable from "./EventTopAverageLapsPerClassTable"
+import EventFastestLapsTable from "./EventFastestLapsTable"
+import EventFastestAverageLapsTable from "./EventFastestAverageLapsTable"
+import EventTopMostImprovedPerClassTable from "./EventTopMostImprovedPerClassTable"
+import EventMostImprovedTable from "./EventMostImprovedTable"
 import ChartControls from "./ChartControls"
 import UnifiedPerformanceChart, { type ChartViewType } from "./UnifiedPerformanceChart"
 import ChartSection from "./ChartSection"
@@ -176,7 +177,7 @@ export interface OverviewTabProps {
 }
 
 const eventAnalysisTabs = [
-  { id: "event-results", label: "Event Results" },
+  { id: "event-results", label: "Session Results" },
   { id: "fastest-laps", label: "Fastest Laps" },
   { id: "fastest-average-laps", label: "Fastest Average Laps" },
   { id: "most-improved-drivers", label: "Most Improved Drivers" },
@@ -193,6 +194,7 @@ export default function OverviewTab({
   onClassChange,
 }: OverviewTabProps) {
   const lastLoggedMissingState = useRef<string | null>(null)
+  const lastLoggedUnselectedInClassState = useRef<string | null>(null)
 
   const [weatherByDay, setWeatherByDay] = useState<Array<{
     date: string
@@ -200,18 +202,21 @@ export default function OverviewTab({
   }> | null>(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [weatherError, setWeatherError] = useState<string | null>(null)
-  const [isEventSummaryOpen, setIsEventSummaryOpen] = useState(false)
-  const [isFastestLapsOpen, setIsFastestLapsOpen] = useState(false)
-  const [isBestAverageOpen, setIsBestAverageOpen] = useState(false)
-  const [isMostImprovedOpen, setIsMostImprovedOpen] = useState(false)
-  const [isResultsOpen, setIsResultsOpen] = useState(false)
+  const [isEventOverviewOpen, setIsEventOverviewOpen] = useState(true)
+  const [isSessionAnalysisSectionOpen, setIsSessionAnalysisSectionOpen] = useState(true)
+  const [isEventAnalysisSectionOpen, setIsEventAnalysisSectionOpen] = useState(true)
   const [isDriverPerformanceOpen, setIsDriverPerformanceOpen] = useState(false)
   const [isLapTrendOpen, setIsLapTrendOpen] = useState(false)
   const [isVenueInfoOpen, setIsVenueInfoOpen] = useState(false)
   const [isEventWeatherDataOpen, setIsEventWeatherDataOpen] = useState(false)
-  const [eventAnalysisTab, setEventAnalysisTab] = useState<EventAnalysisTabId>("event-results")
+  const [eventAnalysisTab, setEventAnalysisTab] = useState<EventAnalysisTabId>("fastest-laps")
   const [eventClassFilter, setEventClassFilter] = useState<string | null>(null)
   const classFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const eventSectionClassFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
+
+  useEffect(() => {
+    queueMicrotask(() => setEventAnalysisTab("fastest-laps"))
+  }, [data.event.id])
 
   useEffect(() => {
     const eventId = data.event.id
@@ -756,61 +761,31 @@ export default function OverviewTab({
   }, [])
 
   const handleEventClassFilterKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    (
+      event: React.KeyboardEvent<HTMLButtonElement>,
+      index: number,
+      refs: React.MutableRefObject<Array<HTMLButtonElement | null>>
+    ) => {
       if (validClasses.length === 0) return
+      const totalButtons = validClasses.length + 1
       let nextIndex = index
       if (event.key === "ArrowRight") {
-        nextIndex = (index + 1) % validClasses.length
+        nextIndex = (index + 1) % totalButtons
       } else if (event.key === "ArrowLeft") {
-        nextIndex = (index - 1 + validClasses.length) % validClasses.length
+        nextIndex = (index - 1 + totalButtons) % totalButtons
       } else {
         return
       }
       event.preventDefault()
-      const nextButton = classFilterButtonRefs.current[nextIndex]
+      const nextButton = refs.current[nextIndex]
       nextButton?.focus()
     },
     [validClasses.length]
   )
 
-  useEffect(() => {
-    queueMicrotask(() => setEventClassFilter(null))
-  }, [data.event.id])
-
-  // Auto-select all drivers when "All Classes" is the default on initial load
-  // This ensures charts show all classes data when event is first loaded
-  const hasAutoSelectedOnLoad = useRef<string | null>(null)
-  useEffect(() => {
-    const eventId = data.event.id
-    if (
-      driverOptions.length > 0 &&
-      selectedClass === null &&
-      hasAutoSelectedOnLoad.current !== eventId &&
-      (selectedDriverIds.length === 0 || selectedDriverIds.length !== driverOptions.length)
-    ) {
-      const allDriverIds = driverOptions.map((driver) => driver.driverId)
-      const allSelected = allDriverIds.every((id) => selectedDriverIds.includes(id))
-      if (!allSelected) {
-        hasAutoSelectedOnLoad.current = eventId
-        queueMicrotask(() => handleSelectionChange(allDriverIds))
-      }
-    }
-  }, [driverOptions, selectedClass, selectedDriverIds, handleSelectionChange, data.event.id])
-
-  // Reset auto-select flag when event changes or when switching to "All Classes"
-  const prevSelectedClass = useRef<string | null>(null)
-  const prevEventId = useRef<string | null>(null)
-  useEffect(() => {
-    const eventId = data.event.id
-    if (prevEventId.current !== eventId) {
-      hasAutoSelectedOnLoad.current = null
-      prevEventId.current = eventId
-    }
-    if (prevSelectedClass.current !== selectedClass && selectedClass === null) {
-      hasAutoSelectedOnLoad.current = null
-    }
-    prevSelectedClass.current = selectedClass
-  }, [selectedClass, data.event.id])
+  const handleEventClassFilterAllClassesClick = useCallback(() => {
+    setEventClassFilter(null)
+  }, [])
 
   const handleClassChange = useCallback(
     (className: string | null) => {
@@ -855,6 +830,75 @@ export default function OverviewTab({
     [data.races, driverOptions, handleSelectionChange, onClassChange]
   )
 
+  const handleSessionClassChipClick = useCallback(
+    (className: string) => {
+      if (selectedClass === className) {
+        handleClassChange(null)
+      } else {
+        handleClassChange(className)
+      }
+    },
+    [selectedClass, handleClassChange]
+  )
+
+  const handleSessionClassFilterAllClassesClick = useCallback(() => {
+    handleClassChange(null)
+  }, [handleClassChange])
+
+  /** Default Event Analysis class filter to first entry list class when event (or class list) loads. */
+  const eventClassFilterInitRef = useRef<{ eventId: string; applied: boolean }>({
+    eventId: "",
+    applied: false,
+  })
+  useEffect(() => {
+    const eventId = data.event.id
+    if (eventClassFilterInitRef.current.eventId !== eventId) {
+      eventClassFilterInitRef.current = { eventId, applied: false }
+    }
+    if (validClasses.length === 0) return
+    if (!eventClassFilterInitRef.current.applied) {
+      eventClassFilterInitRef.current.applied = true
+      queueMicrotask(() => {
+        setEventClassFilter(validClasses[0] ?? null)
+      })
+    }
+  }, [data.event.id, validClasses])
+
+  // Auto-select all drivers when "All Classes" is the default on initial load
+  // This ensures charts show all classes data when event is first loaded
+  const hasAutoSelectedOnLoad = useRef<string | null>(null)
+  useEffect(() => {
+    const eventId = data.event.id
+    if (
+      driverOptions.length > 0 &&
+      selectedClass === null &&
+      hasAutoSelectedOnLoad.current !== eventId &&
+      (selectedDriverIds.length === 0 || selectedDriverIds.length !== driverOptions.length)
+    ) {
+      const allDriverIds = driverOptions.map((driver) => driver.driverId)
+      const allSelected = allDriverIds.every((id) => selectedDriverIds.includes(id))
+      if (!allSelected) {
+        hasAutoSelectedOnLoad.current = eventId
+        queueMicrotask(() => handleSelectionChange(allDriverIds))
+      }
+    }
+  }, [driverOptions, selectedClass, selectedDriverIds, handleSelectionChange, data.event.id])
+
+  // Reset auto-select flag when event changes or when switching to "All Classes"
+  const prevSelectedClass = useRef<string | null>(null)
+  const prevEventId = useRef<string | null>(null)
+  useEffect(() => {
+    const eventId = data.event.id
+    if (prevEventId.current !== eventId) {
+      hasAutoSelectedOnLoad.current = null
+      prevEventId.current = eventId
+    }
+    if (prevSelectedClass.current !== selectedClass && selectedClass === null) {
+      hasAutoSelectedOnLoad.current = null
+    }
+    prevSelectedClass.current = selectedClass
+  }, [selectedClass, data.event.id])
+
   useEffect(() => {
     if (!shouldShowSelectionNotices) {
       lastLoggedMissingState.current = null
@@ -893,11 +937,45 @@ export default function OverviewTab({
     expandedSelectedDriverIds.length,
   ])
 
-  const eventSummaryContentId = "event-summary-content"
-  const fastestLapsContentId = "fastest-laps-content"
-  const bestAverageContentId = "best-average-lap-content"
-  const mostImprovedContentId = "most-improved-content"
-  const resultsContentId = "results-content"
+  useEffect(() => {
+    if (
+      !selectedClass ||
+      selectedDriverIds.length === 0 ||
+      unselectedDriversInClassIds.length === 0
+    ) {
+      lastLoggedUnselectedInClassState.current = null
+      return
+    }
+
+    const payload = JSON.stringify({
+      eventId: data.event.id,
+      selectedClass,
+      unselectedDriverIds: [...unselectedDriversInClassIds].sort(),
+    })
+
+    if (lastLoggedUnselectedInClassState.current === payload) {
+      return
+    }
+
+    lastLoggedUnselectedInClassState.current = payload
+
+    clientLogger.info("event_analysis_unselected_drivers_in_class", {
+      eventId: data.event.id,
+      selectedClass,
+      unselectedDriverIds: unselectedDriversInClassIds,
+      unselectedDriverNames: unselectedDriversInClassNames,
+    })
+  }, [
+    selectedClass,
+    selectedDriverIds.length,
+    unselectedDriversInClassIds,
+    unselectedDriversInClassNames,
+    data.event.id,
+  ])
+
+  const eventOverviewSectionContentId = "event-overview-section-content"
+  const sessionAnalysisSectionContentId = "session-analysis-section-content"
+  const eventAnalysisSectionContentId = "event-analysis-section-content"
   const driverPerformanceContentId = "driver-performance-content"
   const lapTrendContentId = "lap-trend-content"
 
@@ -908,886 +986,925 @@ export default function OverviewTab({
       id="tabpanel-overview"
       aria-labelledby="tab-overview"
     >
-      {/* Always-visible event headline metrics */}
+      {/* Event headline metrics (collapsible) */}
       <section className="space-y-3">
         <h2
           id="event-overview-heading"
           className="text-lg font-semibold text-[var(--token-text-primary)]"
         >
-          <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
-            Event
-          </span>{" "}
-          <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
-            Overview
-          </span>
+          <button
+            type="button"
+            className="flex w-full items-center justify-start gap-2 px-0 py-0 text-left transition-colors hover:text-[var(--token-accent)] hover:opacity-90"
+            aria-expanded={isEventOverviewOpen}
+            aria-controls={eventOverviewSectionContentId}
+            onClick={() => setIsEventOverviewOpen((prev) => !prev)}
+          >
+            <span>
+              <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+                Event
+              </span>{" "}
+              <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+                Overview
+              </span>
+            </span>
+            <span
+              className={`shrink-0 transition-transform duration-150 ${
+                isEventOverviewOpen ? "rotate-0" : "-rotate-90"
+              }`}
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
         </h2>
-        <div
-          className="flex flex-col flex-wrap gap-4 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-4 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80 sm:flex-row sm:items-center sm:justify-between"
-          style={{
-            backgroundColor: "var(--glass-bg)",
-            backdropFilter: "var(--glass-blur)",
-            borderRadius: 16,
-            border: "1px solid var(--glass-border)",
-            boxShadow: "var(--glass-shadow)",
-          }}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="mt-1 flex items-center gap-3">
-              <div className="min-w-0 max-w-full">
-                {data.event.eventUrl ? (
-                  <Tooltip text="Click to view this event on LiveRC.com" position="top">
-                    <a
-                      href={data.event.eventUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex min-w-0 max-w-full items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)] decoration-[var(--token-accent)]/50 underline-offset-4 transition-colors hover:text-[var(--token-accent)] hover:underline hover:decoration-[var(--token-accent)]"
-                      aria-label="View event on LiveRC (opens in new tab)"
-                    >
-                      <MapPin
-                        className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                        aria-hidden
-                      />
-                      <span className="truncate">{data.event.trackName}</span>
-                    </a>
-                  </Tooltip>
-                ) : (
-                  <h2 className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)]">
-                    <MapPin
-                      className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                      aria-hidden
-                    />
-                    <span className="truncate">{data.event.trackName}</span>
-                  </h2>
-                )}
+        {isEventOverviewOpen && (
+          <div id={eventOverviewSectionContentId} className="space-y-3">
+            <div
+              className="flex flex-col flex-wrap gap-4 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-4 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80 sm:flex-row sm:items-center sm:justify-between"
+              style={{
+                backgroundColor: "var(--glass-bg)",
+                backdropFilter: "var(--glass-blur)",
+                borderRadius: 16,
+                border: "1px solid var(--glass-border)",
+                boxShadow: "var(--glass-shadow)",
+              }}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="mt-1 flex items-center gap-3">
+                  <div className="min-w-0 max-w-full">
+                    {data.event.eventUrl ? (
+                      <Tooltip text="Click to view this event on LiveRC.com" position="top">
+                        <a
+                          href={data.event.eventUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex min-w-0 max-w-full items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)] decoration-[var(--token-accent)]/50 underline-offset-4 transition-colors hover:text-[var(--token-accent)] hover:underline hover:decoration-[var(--token-accent)]"
+                          aria-label="View event on LiveRC (opens in new tab)"
+                        >
+                          <MapPin
+                            className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                            aria-hidden
+                          />
+                          <span className="truncate">{data.event.trackName}</span>
+                        </a>
+                      </Tooltip>
+                    ) : (
+                      <h2 className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)]">
+                        <MapPin
+                          className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                          aria-hidden
+                        />
+                        <span className="truncate">{data.event.trackName}</span>
+                      </h2>
+                    )}
+                  </div>
+                  {(() => {
+                    const dr = data.summary.dateRange
+                    const hasDateRange = dr && (dr.earliest || dr.latest)
+                    if (!hasDateRange) return null
+                    const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
+                    const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
+                    const dateRangeStr =
+                      earliestStr && latestStr && earliestStr === latestStr
+                        ? earliestStr
+                        : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
+                    return (
+                      <>
+                        <div
+                          className="h-4 w-px shrink-0 bg-[var(--token-border-default)]"
+                          aria-hidden
+                        />
+                        <span className="text-sm text-[var(--token-text-secondary)]">
+                          {dateRangeStr}
+                        </span>
+                      </>
+                    )
+                  })()}
+                </div>
               </div>
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-x-6 gap-y-2 text-right sm:text-left sm:pl-4 sm:border-l sm:border-[var(--token-border-subtle)]">
+                <div className="flex flex-col">
+                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                    Races
+                  </span>
+                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                    {data.summary.totalRaces}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                    Drivers
+                  </span>
+                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                    {data.summary.totalDrivers}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                    Entries
+                  </span>
+                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                    {data.entryList.length}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                    Total Laps
+                  </span>
+                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                    {data.summary.totalLaps.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                    Total Classes
+                  </span>
+                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                    {data.raceClasses.size}
+                  </span>
+                </div>
+              </div>
+
+              {/* Collapsible Venue info */}
               {(() => {
                 const dr = data.summary.dateRange
                 const hasDateRange = dr && (dr.earliest || dr.latest)
-                if (!hasDateRange) return null
-                const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
-                const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
-                const dateRangeStr =
-                  earliestStr && latestStr && earliestStr === latestStr
-                    ? earliestStr
-                    : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
+                const hasAddress = !!(
+                  data.event.address &&
+                  typeof data.event.address === "string" &&
+                  data.event.address.trim()
+                )
+                const hasPhone = !!(
+                  data.event.phone &&
+                  typeof data.event.phone === "string" &&
+                  data.event.phone.trim()
+                )
+                const hasWebsite = !!(
+                  data.event.website &&
+                  typeof data.event.website === "string" &&
+                  data.event.website.trim()
+                )
+                const hasEmail = !!(
+                  data.event.email &&
+                  typeof data.event.email === "string" &&
+                  data.event.email.trim()
+                )
+                const hasFacebook = !!(
+                  data.event.facebookUrl &&
+                  typeof data.event.facebookUrl === "string" &&
+                  data.event.facebookUrl.trim()
+                )
+                const hasVenueInfo =
+                  hasDateRange || hasAddress || hasPhone || hasWebsite || hasEmail || hasFacebook
+                if (!hasVenueInfo) return null
+
+                const dateRangeStr = (() => {
+                  if (!hasDateRange) return null
+                  const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
+                  const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
+                  if (earliestStr && latestStr && earliestStr === latestStr) return earliestStr
+                  return `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
+                })()
+
+                const venueInfoContentId = "venue-info-content"
                 return (
-                  <>
-                    <div
-                      className="h-4 w-px shrink-0 bg-[var(--token-border-default)]"
-                      aria-hidden
-                    />
-                    <span className="text-sm text-[var(--token-text-secondary)]">
-                      {dateRangeStr}
-                    </span>
-                  </>
+                  <div className="w-full shrink-0 basis-full border-t border-[var(--token-border-default)] pt-4">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 text-left text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)]"
+                      aria-expanded={isVenueInfoOpen}
+                      aria-controls={venueInfoContentId}
+                      onClick={() => setIsVenueInfoOpen((prev) => !prev)}
+                    >
+                      <span>Venue info</span>
+                      <span
+                        className={`shrink-0 transition-transform duration-150 ${
+                          isVenueInfoOpen ? "rotate-0" : "-rotate-90"
+                        }`}
+                        aria-hidden
+                      >
+                        ▾
+                      </span>
+                    </button>
+                    {isVenueInfoOpen && (
+                      <div
+                        id={venueInfoContentId}
+                        className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2"
+                      >
+                        {dateRangeStr && (
+                          <div className="flex items-start gap-2">
+                            <Calendar
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                              aria-hidden
+                            />
+                            <span className="text-[var(--token-text-primary)]">{dateRangeStr}</span>
+                          </div>
+                        )}
+                        {hasAddress && (
+                          <div className="flex items-start gap-2">
+                            <MapPin
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                              aria-hidden
+                            />
+                            <span className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[var(--token-text-primary)]">
+                                {data.event.address}
+                              </span>
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.event.address!)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                              >
+                                Open in Maps
+                              </a>
+                            </span>
+                          </div>
+                        )}
+                        {hasPhone && (
+                          <div className="flex items-start gap-2">
+                            <Phone
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                              aria-hidden
+                            />
+                            <a
+                              href={`tel:${data.event.phone!.replace(/\s/g, "")}`}
+                              className="text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                            >
+                              {data.event.phone}
+                            </a>
+                          </div>
+                        )}
+                        {hasWebsite && (
+                          <div className="flex items-start gap-2">
+                            <Globe
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                              aria-hidden
+                            />
+                            <a
+                              href={
+                                data.event.website!.startsWith("http")
+                                  ? data.event.website!
+                                  : `https://${data.event.website}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                            >
+                              {data.event.website}
+                            </a>
+                          </div>
+                        )}
+                        {hasFacebook && (
+                          <div className="flex items-start gap-2">
+                            <Facebook
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                              aria-hidden
+                            />
+                            <a
+                              href={data.event.facebookUrl!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                            >
+                              View on Facebook
+                            </a>
+                          </div>
+                        )}
+                        {hasEmail && (
+                          <div className="flex items-start gap-2">
+                            <Mail
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                              aria-hidden
+                            />
+                            <a
+                              href={`mailto:${data.event.email}`}
+                              className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                            >
+                              {data.event.email}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )
               })()}
-            </div>
-          </div>
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-x-6 gap-y-2 text-right sm:text-left sm:pl-4 sm:border-l sm:border-[var(--token-border-subtle)]">
-            <div className="flex flex-col">
-              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                Races
-              </span>
-              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                {data.summary.totalRaces}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                Drivers
-              </span>
-              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                {data.summary.totalDrivers}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                Entries
-              </span>
-              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                {data.entryList.length}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                Total Laps
-              </span>
-              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                {data.summary.totalLaps.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                Total Classes
-              </span>
-              <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                {data.raceClasses.size}
-              </span>
-            </div>
-          </div>
 
-          {/* Collapsible Venue info */}
-          {(() => {
-            const dr = data.summary.dateRange
-            const hasDateRange = dr && (dr.earliest || dr.latest)
-            const hasAddress = !!(
-              data.event.address &&
-              typeof data.event.address === "string" &&
-              data.event.address.trim()
-            )
-            const hasPhone = !!(
-              data.event.phone &&
-              typeof data.event.phone === "string" &&
-              data.event.phone.trim()
-            )
-            const hasWebsite = !!(
-              data.event.website &&
-              typeof data.event.website === "string" &&
-              data.event.website.trim()
-            )
-            const hasEmail = !!(
-              data.event.email &&
-              typeof data.event.email === "string" &&
-              data.event.email.trim()
-            )
-            const hasFacebook = !!(
-              data.event.facebookUrl &&
-              typeof data.event.facebookUrl === "string" &&
-              data.event.facebookUrl.trim()
-            )
-            const hasVenueInfo =
-              hasDateRange || hasAddress || hasPhone || hasWebsite || hasEmail || hasFacebook
-            if (!hasVenueInfo) return null
-
-            const dateRangeStr = (() => {
-              if (!hasDateRange) return null
-              const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
-              const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
-              if (earliestStr && latestStr && earliestStr === latestStr) return earliestStr
-              return `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
-            })()
-
-            const venueInfoContentId = "venue-info-content"
-            return (
+              {/* Collapsible Event Weather Data */}
               <div className="w-full shrink-0 basis-full border-t border-[var(--token-border-default)] pt-4">
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-2 text-left text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)]"
-                  aria-expanded={isVenueInfoOpen}
-                  aria-controls={venueInfoContentId}
-                  onClick={() => setIsVenueInfoOpen((prev) => !prev)}
+                  className="flex w-full items-center gap-2 text-left text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)]"
+                  aria-expanded={isEventWeatherDataOpen}
+                  aria-controls="event-weather-data-content"
+                  onClick={() => setIsEventWeatherDataOpen((prev) => !prev)}
                 >
-                  <span>Venue info</span>
+                  <span>Event Weather Data</span>
                   <span
                     className={`shrink-0 transition-transform duration-150 ${
-                      isVenueInfoOpen ? "rotate-0" : "-rotate-90"
+                      isEventWeatherDataOpen ? "rotate-0" : "-rotate-90"
                     }`}
                     aria-hidden
                   >
                     ▾
                   </span>
                 </button>
-                {isVenueInfoOpen && (
-                  <div
-                    id={venueInfoContentId}
-                    className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2"
-                  >
-                    {dateRangeStr && (
-                      <div className="flex items-start gap-2">
-                        <Calendar
-                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                          aria-hidden
-                        />
-                        <span className="text-[var(--token-text-primary)]">{dateRangeStr}</span>
-                      </div>
-                    )}
-                    {hasAddress && (
-                      <div className="flex items-start gap-2">
-                        <MapPin
-                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                          aria-hidden
-                        />
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[var(--token-text-primary)]">
-                            {data.event.address}
+                {isEventWeatherDataOpen && (
+                  <div id="event-weather-data-content" className="mt-3 flex flex-wrap gap-4">
+                    {weatherLoading ? (
+                      <WeatherCard weather={null} weatherLoading={true} weatherError={null} />
+                    ) : weatherError ? (
+                      <WeatherCard
+                        weather={null}
+                        weatherLoading={false}
+                        weatherError={weatherError}
+                      />
+                    ) : weatherByDay && weatherByDay.length > 0 ? (
+                      weatherByDay.map(({ date, weather }) => (
+                        <div key={date} className="flex flex-col gap-1">
+                          <span className="text-sm font-medium text-[var(--token-text-secondary)]">
+                            {formatDateLong(date)}
                           </span>
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.event.address!)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[var(--token-accent)] underline-offset-2 hover:underline"
-                          >
-                            Open in Maps
-                          </a>
-                        </span>
-                      </div>
-                    )}
-                    {hasPhone && (
-                      <div className="flex items-start gap-2">
-                        <Phone
-                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                          aria-hidden
-                        />
-                        <a
-                          href={`tel:${data.event.phone!.replace(/\s/g, "")}`}
-                          className="text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                        >
-                          {data.event.phone}
-                        </a>
-                      </div>
-                    )}
-                    {hasWebsite && (
-                      <div className="flex items-start gap-2">
-                        <Globe
-                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                          aria-hidden
-                        />
-                        <a
-                          href={
-                            data.event.website!.startsWith("http")
-                              ? data.event.website!
-                              : `https://${data.event.website}`
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                        >
-                          {data.event.website}
-                        </a>
-                      </div>
-                    )}
-                    {hasFacebook && (
-                      <div className="flex items-start gap-2">
-                        <Facebook
-                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                          aria-hidden
-                        />
-                        <a
-                          href={data.event.facebookUrl!}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                        >
-                          View on Facebook
-                        </a>
-                      </div>
-                    )}
-                    {hasEmail && (
-                      <div className="flex items-start gap-2">
-                        <Mail
-                          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                          aria-hidden
-                        />
-                        <a
-                          href={`mailto:${data.event.email}`}
-                          className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                        >
-                          {data.event.email}
-                        </a>
-                      </div>
-                    )}
+                          <WeatherCard
+                            weather={weather}
+                            weatherLoading={false}
+                            weatherError={null}
+                          />
+                        </div>
+                      ))
+                    ) : null}
                   </div>
                 )}
               </div>
-            )
-          })()}
-
-          {/* Collapsible Event Weather Data */}
-          <div className="w-full shrink-0 basis-full border-t border-[var(--token-border-default)] pt-4">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between gap-2 text-left text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)]"
-              aria-expanded={isEventWeatherDataOpen}
-              aria-controls="event-weather-data-content"
-              onClick={() => setIsEventWeatherDataOpen((prev) => !prev)}
-            >
-              <span>Event Weather Data</span>
-              <span
-                className={`shrink-0 transition-transform duration-150 ${
-                  isEventWeatherDataOpen ? "rotate-0" : "-rotate-90"
-                }`}
-                aria-hidden
-              >
-                ▾
-              </span>
-            </button>
-            {isEventWeatherDataOpen && (
-              <div id="event-weather-data-content" className="mt-3 flex flex-wrap gap-4">
-                {weatherLoading ? (
-                  <WeatherCard weather={null} weatherLoading={true} weatherError={null} />
-                ) : weatherError ? (
-                  <WeatherCard weather={null} weatherLoading={false} weatherError={weatherError} />
-                ) : weatherByDay && weatherByDay.length > 0 ? (
-                  weatherByDay.map(({ date, weather }) => (
-                    <div key={date} className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-[var(--token-text-secondary)]">
-                        {formatDateLong(date)}
-                      </span>
-                      <WeatherCard weather={weather} weatherLoading={false} weatherError={null} />
-                    </div>
-                  ))
-                ) : null}
-              </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-          <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
-            Event-Level
-          </span>{" "}
-          <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
-            Analysis
-          </span>
-        </h2>
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 px-3 py-2 shadow-sm">
-          <div className="min-w-0 flex-1 overflow-x-auto">
-            <div className="flex min-w-max">
-              {eventAnalysisTabs.map((tab) => {
-                const isActive = eventAnalysisTab === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                      isActive
-                        ? "border-[var(--token-accent)] text-[var(--token-accent)]"
-                        : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
-                    }`}
-                    onClick={() => setEventAnalysisTab(tab.id)}
-                  >
-                    {tab.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-        {eventClassFilterTabs.includes(eventAnalysisTab) && validClasses.length > 0 && (
-          <div
-            className="mt-2 -mx-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
-            role="toolbar"
-            aria-label="Filter event-level analysis by class"
-            style={{
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-            }}
+        <h2
+          id="session-analysis-heading"
+          className="text-lg font-semibold text-[var(--token-text-primary)]"
+        >
+          <button
+            type="button"
+            className="flex w-full items-center justify-start gap-2 px-0 py-0 text-left transition-colors hover:text-[var(--token-accent)] hover:opacity-90"
+            aria-expanded={isSessionAnalysisSectionOpen}
+            aria-controls={sessionAnalysisSectionContentId}
+            onClick={() => setIsSessionAnalysisSectionOpen((prev) => !prev)}
           >
-            <div className="flex min-w-max gap-2 px-1 py-1 [scroll-snap-type:x_mandatory]">
-              {validClasses.map((className, index) => {
-                const isActive = eventClassFilter === className
-                return (
+            <span>
+              <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+                Session
+              </span>{" "}
+              <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+                Analysis
+              </span>
+            </span>
+            <span
+              className={`shrink-0 transition-transform duration-150 ${
+                isSessionAnalysisSectionOpen ? "rotate-0" : "-rotate-90"
+              }`}
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
+        </h2>
+        {isSessionAnalysisSectionOpen && (
+          <div id={sessionAnalysisSectionContentId} className="space-y-4">
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 px-3 py-2 shadow-sm">
+              <div className="min-w-0 flex-1 overflow-x-auto">
+                <div className="flex min-w-max">
+                  {eventAnalysisTabs.map((tab) => {
+                    const isActive = eventAnalysisTab === tab.id
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                          isActive
+                            ? "border-[var(--token-accent)] text-[var(--token-accent)]"
+                            : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
+                        }`}
+                        onClick={() => setEventAnalysisTab(tab.id)}
+                      >
+                        {tab.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            {eventClassFilterTabs.includes(eventAnalysisTab) && validClasses.length > 0 && (
+              <div
+                className="mt-2 -mx-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+                role="toolbar"
+                aria-label="Filter session analysis by class (charts and driver selection). All Classes shows every class; it is the last control."
+                style={{
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                }}
+              >
+                <div className="flex min-w-max gap-2 px-1 py-1 [scroll-snap-type:x_mandatory]">
+                  {validClasses.map((className, index) => {
+                    const isActive = selectedClass === className
+                    return (
+                      <button
+                        key={className}
+                        type="button"
+                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] [scroll-snap-align:start] ${
+                          isActive
+                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60"
+                        }`}
+                        onClick={(event) => {
+                          handleSessionClassChipClick(className)
+                          event.currentTarget.scrollIntoView({
+                            behavior: "smooth",
+                            block: "nearest",
+                            inline: "center",
+                          })
+                        }}
+                        aria-pressed={isActive}
+                        onKeyDown={(event) =>
+                          handleEventClassFilterKeyDown(event, index, classFilterButtonRefs)
+                        }
+                        ref={(el) => {
+                          classFilterButtonRefs.current[index] = el
+                        }}
+                      >
+                        <span>{className}</span>
+                      </button>
+                    )
+                  })}
                   <button
-                    key={className}
+                    key="__all-classes__"
                     type="button"
                     className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] [scroll-snap-align:start] ${
-                      isActive
+                      selectedClass === null
                         ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
                         : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60"
                     }`}
                     onClick={(event) => {
-                      handleEventClassFilterClick(className)
+                      handleSessionClassFilterAllClassesClick()
                       event.currentTarget.scrollIntoView({
                         behavior: "smooth",
                         block: "nearest",
                         inline: "center",
                       })
                     }}
-                    aria-pressed={isActive}
-                    onKeyDown={(event) => handleEventClassFilterKeyDown(event, index)}
+                    aria-pressed={selectedClass === null}
+                    onKeyDown={(event) =>
+                      handleEventClassFilterKeyDown(
+                        event,
+                        validClasses.length,
+                        classFilterButtonRefs
+                      )
+                    }
                     ref={(el) => {
-                      classFilterButtonRefs.current[index] = el
+                      classFilterButtonRefs.current[validClasses.length] = el
                     }}
                   >
-                    <span>{className}</span>
+                    <span>All Classes</span>
                   </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-        {eventAnalysisTab === "event-results" && (
-          <EventWinnersTable
-            races={
-              eventClassFilter && eventClassFilterTabs.includes("event-results")
-                ? eventLevelFilteredRaces
-                : data.races
-            }
-          />
-        )}
-        <div className="space-y-6">
-          <div
-            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-            style={{
-              backgroundColor: "var(--glass-bg)",
-              backdropFilter: "var(--glass-blur)",
-              borderRadius: 16,
-              border: "1px solid var(--glass-border)",
-              boxShadow: "var(--glass-shadow)",
-            }}
-          >
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
-                aria-expanded={isFastestLapsOpen}
-                aria-controls={fastestLapsContentId}
-                onClick={() => setIsFastestLapsOpen((prev) => !prev)}
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span>Fastest Laps for Event</span>
-                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
-                    {data.raceClasses.size} classes with fastest lap data
-                  </span>
-                </span>
-                <span
-                  className={`shrink-0 transition-transform duration-150 ${
-                    isFastestLapsOpen ? "rotate-0" : "-rotate-90"
-                  }`}
-                  aria-hidden="true"
-                >
-                  ▾
-                </span>
-              </button>
-            </h2>
-            {isFastestLapsOpen && (
-              <div
-                id={fastestLapsContentId}
-                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
-              >
-                <ClassTopFastestLapsCard
-                  races={
-                    eventClassFilter && eventAnalysisTab === "fastest-laps"
-                      ? eventLevelFilteredRaces
-                      : data.races
-                  }
-                />
+                </div>
               </div>
             )}
-          </div>
-
-          <div
-            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-            style={{
-              backgroundColor: "var(--glass-bg)",
-              backdropFilter: "var(--glass-blur)",
-              borderRadius: 16,
-              border: "1px solid var(--glass-border)",
-              boxShadow: "var(--glass-shadow)",
-            }}
-          >
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
-                aria-expanded={isBestAverageOpen}
-                aria-controls={bestAverageContentId}
-                onClick={() => setIsBestAverageOpen((prev) => !prev)}
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span>Fastest Average Laps for Event</span>
-                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
-                    Average pace across {driverStatsByClass.length} drivers in current view
-                  </span>
-                </span>
-                <span
-                  className={`shrink-0 transition-transform duration-150 ${
-                    isBestAverageOpen ? "rotate-0" : "-rotate-90"
-                  }`}
-                  aria-hidden="true"
-                >
-                  ▾
-                </span>
-              </button>
-            </h2>
-            {isBestAverageOpen && (
-              <div
-                id={bestAverageContentId}
-                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
-              >
-                <ClassTopAverageLapsCard
-                  races={
-                    eventClassFilter && eventAnalysisTab === "fastest-average-laps"
-                      ? eventLevelFilteredRaces
-                      : data.races
-                  }
-                />
-              </div>
+            {eventAnalysisTab === "event-results" && (
+              <EventWinnersTable
+                races={
+                  selectedClass && eventClassFilterTabs.includes("event-results")
+                    ? filteredRaces
+                    : data.races
+                }
+              />
+            )}
+            {eventAnalysisTab === "fastest-laps" && (
+              <EventFastestLapsTable
+                races={
+                  selectedClass && eventClassFilterTabs.includes("fastest-laps")
+                    ? filteredRaces
+                    : data.races
+                }
+              />
+            )}
+            {eventAnalysisTab === "fastest-average-laps" && (
+              <EventFastestAverageLapsTable
+                races={
+                  selectedClass && eventClassFilterTabs.includes("fastest-average-laps")
+                    ? filteredRaces
+                    : data.races
+                }
+              />
+            )}
+            {eventAnalysisTab === "most-improved-drivers" && (
+              <EventMostImprovedTable
+                races={
+                  selectedClass && eventClassFilterTabs.includes("most-improved-drivers")
+                    ? filteredRaces
+                    : data.races
+                }
+                isPracticeDay={data.isPracticeDay}
+              />
             )}
           </div>
+        )}
+      </section>
 
-          <div
-            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-            style={{
-              backgroundColor: "var(--glass-bg)",
-              backdropFilter: "var(--glass-blur)",
-              borderRadius: 16,
-              border: "1px solid var(--glass-border)",
-              boxShadow: "var(--glass-shadow)",
-            }}
+      <section className="space-y-4">
+        <h2
+          id="event-analysis-heading"
+          className="text-lg font-semibold text-[var(--token-text-primary)]"
+        >
+          <button
+            type="button"
+            className="flex w-full items-center justify-start gap-2 px-0 py-0 text-left transition-colors hover:text-[var(--token-accent)] hover:opacity-90"
+            aria-expanded={isEventAnalysisSectionOpen}
+            aria-controls={eventAnalysisSectionContentId}
+            onClick={() => setIsEventAnalysisSectionOpen((prev) => !prev)}
           >
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
-                aria-expanded={isMostImprovedOpen}
-                aria-controls={mostImprovedContentId}
-                onClick={() => setIsMostImprovedOpen((prev) => !prev)}
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span>Most Improved Drivers for Event</span>
-                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
-                    Improvement across {data.races.length} races
-                  </span>
-                </span>
-                <span
-                  className={`shrink-0 transition-transform duration-150 ${
-                    isMostImprovedOpen ? "rotate-0" : "-rotate-90"
-                  }`}
-                  aria-hidden="true"
+            <span>
+              <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+                Event
+              </span>{" "}
+              <span className="underline decoration-2 underline-offset-2 decoration-[var(--token-accent)]">
+                Analysis
+              </span>
+            </span>
+            <span
+              className={`shrink-0 transition-transform duration-150 ${
+                isEventAnalysisSectionOpen ? "rotate-0" : "-rotate-90"
+              }`}
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
+        </h2>
+        {isEventAnalysisSectionOpen && (
+          <>
+            <div id={eventAnalysisSectionContentId} className="space-y-6">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 px-3 py-2 shadow-sm">
+                <div className="min-w-0 flex-1 overflow-x-auto">
+                  <div className="flex min-w-max">
+                    {eventAnalysisTabs
+                      .filter((tab) => tab.id !== "event-results")
+                      .map((tab) => {
+                        const isActive = eventAnalysisTab === tab.id
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                              isActive
+                                ? "border-[var(--token-accent)] text-[var(--token-accent)]"
+                                : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
+                            }`}
+                            onClick={() => setEventAnalysisTab(tab.id)}
+                          >
+                            {tab.label}
+                          </button>
+                        )
+                      })}
+                  </div>
+                </div>
+              </div>
+              {eventClassFilterTabs.includes(eventAnalysisTab) && validClasses.length > 0 && (
+                <div
+                  className="mt-2 -mx-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+                  role="toolbar"
+                  aria-label="Filter event analysis by class (event section). All Classes shows every class; it is the last control."
+                  style={{
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                  }}
                 >
-                  ▾
-                </span>
-              </button>
-            </h2>
-            {isMostImprovedOpen && (
-              <div
-                id={mostImprovedContentId}
-                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
-              >
-                <ClassMostImprovedCard
-                  races={
-                    eventClassFilter && eventAnalysisTab === "most-improved-drivers"
-                      ? eventLevelFilteredRaces
-                      : data.races
-                  }
+                  <div className="flex min-w-max gap-2 px-1 py-1 [scroll-snap-type:x_mandatory]">
+                    {validClasses.map((className, index) => {
+                      const isActive = eventClassFilter === className
+                      return (
+                        <button
+                          key={className}
+                          type="button"
+                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] [scroll-snap-align:start] ${
+                            isActive
+                              ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                              : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60"
+                          }`}
+                          onClick={(event) => {
+                            handleEventClassFilterClick(className)
+                            event.currentTarget.scrollIntoView({
+                              behavior: "smooth",
+                              block: "nearest",
+                              inline: "center",
+                            })
+                          }}
+                          aria-pressed={isActive}
+                          onKeyDown={(event) =>
+                            handleEventClassFilterKeyDown(
+                              event,
+                              index,
+                              eventSectionClassFilterButtonRefs
+                            )
+                          }
+                          ref={(el) => {
+                            eventSectionClassFilterButtonRefs.current[index] = el
+                          }}
+                        >
+                          <span>{className}</span>
+                        </button>
+                      )
+                    })}
+                    <button
+                      key="__event-section-all-classes__"
+                      type="button"
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] [scroll-snap-align:start] ${
+                        eventClassFilter === null
+                          ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                          : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60"
+                      }`}
+                      onClick={(event) => {
+                        handleEventClassFilterAllClassesClick()
+                        event.currentTarget.scrollIntoView({
+                          behavior: "smooth",
+                          block: "nearest",
+                          inline: "center",
+                        })
+                      }}
+                      aria-pressed={eventClassFilter === null}
+                      onKeyDown={(event) =>
+                        handleEventClassFilterKeyDown(
+                          event,
+                          validClasses.length,
+                          eventSectionClassFilterButtonRefs
+                        )
+                      }
+                      ref={(el) => {
+                        eventSectionClassFilterButtonRefs.current[validClasses.length] = el
+                      }}
+                    >
+                      <span>All Classes</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+              {eventAnalysisTab === "fastest-laps" && (
+                <EventTopFastestLapsPerClassTable
+                  races={eventClassFilter ? eventLevelFilteredRaces : data.races}
+                />
+              )}
+              {eventAnalysisTab === "fastest-average-laps" && (
+                <EventTopAverageLapsPerClassTable
+                  races={eventClassFilter ? eventLevelFilteredRaces : data.races}
+                />
+              )}
+              {eventAnalysisTab === "most-improved-drivers" && (
+                <EventTopMostImprovedPerClassTable
+                  races={eventClassFilter ? eventLevelFilteredRaces : data.races}
                   isPracticeDay={data.isPracticeDay}
                 />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <div
-            className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-            style={{
-              backgroundColor: "var(--glass-bg)",
-              backdropFilter: "var(--glass-blur)",
-              borderRadius: 16,
-              border: "1px solid var(--glass-border)",
-              boxShadow: "var(--glass-shadow)",
-            }}
-          >
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
-                aria-expanded={isResultsOpen}
-                aria-controls={resultsContentId}
-                onClick={() => setIsResultsOpen((prev) => !prev)}
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span>Event Results</span>
-                  <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
-                    Final results from {data.races.length} races
-                  </span>
-                </span>
-                <span
-                  className={`shrink-0 transition-transform duration-150 ${
-                    isResultsOpen ? "rotate-0" : "-rotate-90"
-                  }`}
-                  aria-hidden="true"
-                >
-                  ▾
-                </span>
-              </button>
-            </h2>
-            {isResultsOpen && (
+            <section className="space-y-4">
+              <ChartControls
+                drivers={driverOptions}
+                races={data.races}
+                selectedDriverIds={selectedDriverIds}
+                onDriverSelectionChange={handleSelectionChange}
+                onClassChange={handleClassChange}
+                selectedClass={selectedClass}
+                eventId={data.event.id}
+                raceClasses={data.raceClasses}
+                onSelectAllClick={handleSelectAllClick}
+              />
+            </section>
+
+            <section className="space-y-4">
               <div
-                id={resultsContentId}
-                className="flex flex-wrap gap-4 border-t border-[var(--token-border-default)] px-4 py-4"
+                className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+                style={{
+                  backgroundColor: "var(--glass-bg)",
+                  backdropFilter: "var(--glass-blur)",
+                  borderRadius: 16,
+                  border: "1px solid var(--glass-border)",
+                  boxShadow: "var(--glass-shadow)",
+                }}
               >
-                {(() => {
-                  const hasMainOrFinalRaces = data.races.some((r) => {
-                    const label = (r.raceLabel ?? "").toLowerCase()
-                    return label.includes("main") || label.includes("final")
-                  })
-                  const hasMultiMainResults = (data.multiMainResults?.length ?? 0) > 0
-                  if (!hasMainOrFinalRaces && !hasMultiMainResults) {
-                    return (
-                      <p className="text-sm text-[var(--token-text-secondary)]">
-                        No main or final results found for this event. Results are shown for races
-                        with &quot;Main&quot; or &quot;Final&quot; in the race name (e.g. A1-Main,
-                        B-Final).
-                      </p>
-                    )
-                  }
-                  return (
-                    <>
-                      <MainPodiumCard
-                        races={eventClassFilter ? eventLevelFilteredRaces : data.races}
-                      />
-                      <MultiMainOverallCard multiMainResults={data.multiMainResults ?? []} />
-                    </>
-                  )
-                })()}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <ChartControls
-          drivers={driverOptions}
-          races={data.races}
-          selectedDriverIds={selectedDriverIds}
-          onDriverSelectionChange={handleSelectionChange}
-          onClassChange={handleClassChange}
-          selectedClass={selectedClass}
-          eventId={data.event.id}
-          raceClasses={data.raceClasses}
-          onSelectAllClick={handleSelectAllClick}
-        />
-
-        {selectedClass &&
-          selectedDriverIds.length > 0 &&
-          unselectedDriversInClassNames.length > 0 && (
-            <ChartDataNotice
-              title="Some drivers in this class are not selected"
-              description={
-                <>
-                  These drivers are in the selected class but were not included in your selection.
-                  They may have been manually deselected or were not included when the class was
-                  selected. You can select them in the driver selection panel above to include them
-                  in the chart.
-                </>
-              }
-              driverNames={unselectedDriversInClassNames}
-              eventId={data.event.id}
-              noticeType="unselected-drivers"
-            />
-          )}
-      </section>
-
-      <section className="space-y-4">
-        <div
-          className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-          style={{
-            backgroundColor: "var(--glass-bg)",
-            backdropFilter: "var(--glass-blur)",
-            borderRadius: 16,
-            border: "1px solid var(--glass-border)",
-            boxShadow: "var(--glass-shadow)",
-          }}
-        >
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
-              aria-expanded={isDriverPerformanceOpen}
-              aria-controls={driverPerformanceContentId}
-              onClick={() => setIsDriverPerformanceOpen((prev) => !prev)}
-            >
-              <span className="flex min-w-0 flex-col">
-                <span>Driver Performance Comparison</span>
-                <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
-                  Best lap, average lap, consistency, and position by driver.
-                </span>
-              </span>
-              <span
-                className={`shrink-0 transition-transform duration-150 ${
-                  isDriverPerformanceOpen ? "rotate-0" : "-rotate-90"
-                }`}
-                aria-hidden="true"
-              >
-                ▾
-              </span>
-            </button>
-          </h2>
-          {isDriverPerformanceOpen && (
-            <div
-              id={driverPerformanceContentId}
-              className="space-y-4 border-t border-[var(--token-border-default)] px-4 py-4"
-            >
-              {missingBestLapDriverNames.length > 0 && (
-                <ChartDataNotice
-                  title="Some selected drivers have no recorded best lap"
-                  description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
-                  driverNames={missingBestLapDriverNames}
-                  eventId={data.event.id}
-                  noticeType="best-lap"
-                />
-              )}
-              {missingAvgVsFastestDriverNames.length > 0 && (
-                <ChartDataNotice
-                  title="Missing average lap telemetry"
-                  description="These drivers were selected, but the data feed does not include both best and average lap times for them."
-                  driverNames={missingAvgVsFastestDriverNames}
-                  eventId={data.event.id}
-                  noticeType="avg-vs-fastest"
-                />
-              )}
-              <ChartSection>
-                <UnifiedPerformanceChart
-                  data={unifiedChartData}
-                  selectedDriverIds={expandedUnifiedChartDriverIds}
-                  currentPage={currentPage}
-                  driversPerPage={driversPerPage}
-                  onPageChange={handlePageChange}
-                  onDriverToggle={handleUnifiedChartDriverToggle}
-                  chartInstanceId={`overview-${data.event.id}-unified`}
-                  selectedClass={selectedClass}
-                  allDriversInClassSelected={
-                    allDriversInClassSelected && selectAllClickedForCurrentClass
-                  }
-                  chartView={chartViewState}
-                  onChartViewChange={setChartViewState}
-                  chartDriverOptions={driverStatsByClass.map((d) => ({
-                    driverId: d.driverId,
-                    driverName: d.driverName,
-                  }))}
-                  chartSelectedDriverIds={unifiedChartDriverIds}
-                  onChartDriverSelectionChange={setUnifiedChartDriverIds}
-                  availableClasses={validClasses}
-                  onClassChange={onClassChange}
-                />
-              </ChartSection>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div
-          className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-          style={{
-            backgroundColor: "var(--glass-bg)",
-            backdropFilter: "var(--glass-blur)",
-            borderRadius: 16,
-            border: "1px solid var(--glass-border)",
-            boxShadow: "var(--glass-shadow)",
-          }}
-        >
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
-              aria-expanded={isLapTrendOpen}
-              aria-controls={lapTrendContentId}
-              onClick={() => setIsLapTrendOpen((prev) => !prev)}
-            >
-              <span className="flex min-w-0 flex-col">
-                <span>Driver Analysis</span>
-                <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
-                  Track each driver&apos;s pace across every session. Use Actions to filter by class
-                  and pick drivers.
-                </span>
-              </span>
-              <span
-                className={`shrink-0 transition-transform duration-150 ${
-                  isLapTrendOpen ? "rotate-0" : "-rotate-90"
-                }`}
-                aria-hidden="true"
-              >
-                ▾
-              </span>
-            </button>
-          </h2>
-          {isLapTrendOpen && (
-            <div
-              id={lapTrendContentId}
-              className="space-y-4 border-t border-[var(--token-border-default)] px-4 py-4"
-            >
-              <ChartSection>
-                {expandedSelectedDriverIds.length === 0 ? (
-                  <div
-                    className="flex items-center justify-center text-[var(--token-text-secondary)] rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] min-h-[400px]"
-                    style={{
-                      minWidth: 0,
-                      backgroundColor: "var(--glass-bg)",
-                      backdropFilter: "var(--glass-blur)",
-                      borderRadius: 16,
-                      border: "1px solid var(--glass-border)",
-                      boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
-                    }}
+                <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+                    aria-expanded={isDriverPerformanceOpen}
+                    aria-controls={driverPerformanceContentId}
+                    onClick={() => setIsDriverPerformanceOpen((prev) => !prev)}
                   >
-                    Select drivers via Actions (class or Select Drivers) to view lap-by-lap trend.
+                    <span className="flex min-w-0 flex-col">
+                      <span>Driver Performance Comparison</span>
+                      <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                        Best lap, average lap, consistency, and position by driver.
+                      </span>
+                    </span>
+                    <span
+                      className={`shrink-0 transition-transform duration-150 ${
+                        isDriverPerformanceOpen ? "rotate-0" : "-rotate-90"
+                      }`}
+                      aria-hidden="true"
+                    >
+                      ▾
+                    </span>
+                  </button>
+                </h2>
+                {isDriverPerformanceOpen && (
+                  <div
+                    id={driverPerformanceContentId}
+                    className="space-y-4 border-t border-[var(--token-border-default)] px-4 py-4"
+                  >
+                    {missingBestLapDriverNames.length > 0 && (
+                      <ChartDataNotice
+                        title="Some selected drivers have no recorded best lap"
+                        description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
+                        driverNames={missingBestLapDriverNames}
+                        eventId={data.event.id}
+                        noticeType="best-lap"
+                      />
+                    )}
+                    {missingAvgVsFastestDriverNames.length > 0 && (
+                      <ChartDataNotice
+                        title="Missing average lap telemetry"
+                        description="These drivers were selected, but the data feed does not include both best and average lap times for them."
+                        driverNames={missingAvgVsFastestDriverNames}
+                        eventId={data.event.id}
+                        noticeType="avg-vs-fastest"
+                      />
+                    )}
+                    <ChartSection>
+                      <UnifiedPerformanceChart
+                        data={unifiedChartData}
+                        selectedDriverIds={expandedUnifiedChartDriverIds}
+                        currentPage={currentPage}
+                        driversPerPage={driversPerPage}
+                        onPageChange={handlePageChange}
+                        onDriverToggle={handleUnifiedChartDriverToggle}
+                        chartInstanceId={`overview-${data.event.id}-unified`}
+                        selectedClass={selectedClass}
+                        allDriversInClassSelected={
+                          allDriversInClassSelected && selectAllClickedForCurrentClass
+                        }
+                        chartView={chartViewState}
+                        onChartViewChange={setChartViewState}
+                        chartDriverOptions={driverStatsByClass.map((d) => ({
+                          driverId: d.driverId,
+                          driverName: d.driverName,
+                        }))}
+                        chartSelectedDriverIds={unifiedChartDriverIds}
+                        onChartDriverSelectionChange={setUnifiedChartDriverIds}
+                        availableClasses={validClasses}
+                        onClassChange={onClassChange}
+                      />
+                    </ChartSection>
                   </div>
-                ) : (
-                  <>
-                    {lapTrendDriverOptions.length > MAX_LAP_TREND_DRIVERS &&
-                      lapTrendChartDriverIds.length === MAX_LAP_TREND_DRIVERS && (
-                        <p className="mb-2 text-sm text-[var(--token-text-secondary)]">
-                          Showing first {MAX_LAP_TREND_DRIVERS} of {lapTrendDriverOptions.length}{" "}
-                          selected. Use Drivers to add or change.
-                        </p>
-                      )}
-                    <LapByLapTrendChart
-                      drivers={
-                        lapTrendData?.drivers?.some((d) => d.laps.length > 0)
-                          ? sortedLapTrendDrivers
-                          : []
-                      }
-                      height={450}
-                      chartInstanceId={`overview-${data.event.id}-lap-trend`}
-                      chartTitle={
-                        lapTrendSelectedClass === null
-                          ? "All Classes"
-                          : (lapTrendSelectedClass ?? "All Classes")
-                      }
-                      headerControls={
-                        <div className="flex flex-wrap items-center gap-4">
-                          {validClasses.length > 0 && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-[var(--token-text-secondary)]">
-                                Choose a Class:
-                              </span>
-                              <select
-                                value={lapTrendSelectedClass ?? ""}
-                                onChange={(e) => setLapTrendSelectedClass(e.target.value || null)}
-                                className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
-                                aria-label="Choose a Class for lap trend"
-                              >
-                                <option value="">All Classes</option>
-                                {validClasses.map((cls) => (
-                                  <option key={cls} value={cls}>
-                                    {cls}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                          {lapTrendDriverOptions.length > 0 && (
-                            <ChartDriverPicker
-                              drivers={lapTrendDriverOptions}
-                              selectedDriverIds={lapTrendChartDriverIds}
-                              onSelectionChange={setLapTrendChartDriverIds}
-                              label="Select Drivers"
-                              singleSelect
-                              disabled={lapTrendSelectedClass === null}
-                              disabledTooltip="Select a class first to choose drivers"
-                            />
-                          )}
-                        </div>
-                      }
-                      emptyMessage={
-                        lapTrendLoading
-                          ? "Loading lap data…"
-                          : (lapTrendError ??
-                            (lapTrendChartDriverIds.length === 0
-                              ? "Select a class above, then choose a driver from that class to view lap-by-lap data."
-                              : "No lap data for selected drivers."))
-                      }
-                    />
-                  </>
                 )}
-              </ChartSection>
-            </div>
-          )}
-        </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div
+                className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+                style={{
+                  backgroundColor: "var(--glass-bg)",
+                  backdropFilter: "var(--glass-blur)",
+                  borderRadius: 16,
+                  border: "1px solid var(--glass-border)",
+                  boxShadow: "var(--glass-shadow)",
+                }}
+              >
+                <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-[var(--token-surface-elevated)]/80"
+                    aria-expanded={isLapTrendOpen}
+                    aria-controls={lapTrendContentId}
+                    onClick={() => setIsLapTrendOpen((prev) => !prev)}
+                  >
+                    <span className="flex min-w-0 flex-col">
+                      <span>Driver Analysis</span>
+                      <span className="mt-0.5 truncate text-xs font-normal text-[var(--token-text-secondary)]">
+                        Track each driver&apos;s pace across every session. Use Actions to filter by
+                        class and pick drivers.
+                      </span>
+                    </span>
+                    <span
+                      className={`shrink-0 transition-transform duration-150 ${
+                        isLapTrendOpen ? "rotate-0" : "-rotate-90"
+                      }`}
+                      aria-hidden="true"
+                    >
+                      ▾
+                    </span>
+                  </button>
+                </h2>
+                {isLapTrendOpen && (
+                  <div
+                    id={lapTrendContentId}
+                    className="space-y-4 border-t border-[var(--token-border-default)] px-4 py-4"
+                  >
+                    <ChartSection>
+                      {expandedSelectedDriverIds.length === 0 ? (
+                        <div
+                          className="flex items-center justify-center text-[var(--token-text-secondary)] rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] min-h-[400px]"
+                          style={{
+                            minWidth: 0,
+                            backgroundColor: "var(--glass-bg)",
+                            backdropFilter: "var(--glass-blur)",
+                            borderRadius: 16,
+                            border: "1px solid var(--glass-border)",
+                            boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
+                          }}
+                        >
+                          Select drivers via Actions (class or Select Drivers) to view lap-by-lap
+                          trend.
+                        </div>
+                      ) : (
+                        <>
+                          {lapTrendDriverOptions.length > MAX_LAP_TREND_DRIVERS &&
+                            lapTrendChartDriverIds.length === MAX_LAP_TREND_DRIVERS && (
+                              <p className="mb-2 text-sm text-[var(--token-text-secondary)]">
+                                Showing first {MAX_LAP_TREND_DRIVERS} of{" "}
+                                {lapTrendDriverOptions.length} selected. Use Drivers to add or
+                                change.
+                              </p>
+                            )}
+                          <LapByLapTrendChart
+                            drivers={
+                              lapTrendData?.drivers?.some((d) => d.laps.length > 0)
+                                ? sortedLapTrendDrivers
+                                : []
+                            }
+                            height={450}
+                            chartInstanceId={`overview-${data.event.id}-lap-trend`}
+                            chartTitle={
+                              lapTrendSelectedClass === null
+                                ? "All Classes"
+                                : (lapTrendSelectedClass ?? "All Classes")
+                            }
+                            headerControls={
+                              <div className="flex flex-wrap items-center gap-4">
+                                {validClasses.length > 0 && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-[var(--token-text-secondary)]">
+                                      Choose a Class:
+                                    </span>
+                                    <select
+                                      value={lapTrendSelectedClass ?? ""}
+                                      onChange={(e) =>
+                                        setLapTrendSelectedClass(e.target.value || null)
+                                      }
+                                      className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+                                      aria-label="Choose a Class for lap trend"
+                                    >
+                                      <option value="">All Classes</option>
+                                      {validClasses.map((cls) => (
+                                        <option key={cls} value={cls}>
+                                          {cls}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+                                {lapTrendDriverOptions.length > 0 && (
+                                  <ChartDriverPicker
+                                    drivers={lapTrendDriverOptions}
+                                    selectedDriverIds={lapTrendChartDriverIds}
+                                    onSelectionChange={setLapTrendChartDriverIds}
+                                    label="Select Drivers"
+                                    singleSelect
+                                    disabled={lapTrendSelectedClass === null}
+                                    disabledTooltip="Select a class first to choose drivers"
+                                  />
+                                )}
+                              </div>
+                            }
+                            emptyMessage={
+                              lapTrendLoading
+                                ? "Loading lap data…"
+                                : (lapTrendError ??
+                                  (lapTrendChartDriverIds.length === 0
+                                    ? "Select a class above, then choose a driver from that class to view lap-by-lap data."
+                                    : "No lap data for selected drivers."))
+                            }
+                          />
+                        </>
+                      )}
+                    </ChartSection>
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
       </section>
     </div>
   )

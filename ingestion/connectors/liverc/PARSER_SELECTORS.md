@@ -1,8 +1,16 @@
 # LiveRC Parser CSS Selector Reference
 
-This document documents all CSS selectors and HTML structure dependencies for
-LiveRC parsers. This reference is critical for maintaining parsers when LiveRC
-HTML structure changes.
+This document documents CSS selectors and HTML structure dependencies for the
+primary LiveRC parsers. **Build truth:** selector strings and edge cases also
+live in the parser modules under `ingestion/connectors/liverc/parsers/`. Parser
+modules present in the tree (in addition to those with dedicated sections below)
+include:
+
+`entry_list_parser.py`, `qual_points_parser.py`, `rankings_list_parser.py`,
+`round_ranking_parser.py`, `multi_main_list_parser.py`,
+`multi_main_result_parser.py`, `track_dashboard_parser.py`,
+`practice_day_parser.py` — update this doc when selectors are shared across
+multiple call sites; otherwise the Python file is authoritative.
 
 ## Table of Contents
 
@@ -257,8 +265,13 @@ detail page)
 
 ### Data Extraction
 
+- **Driver name**: Taken from `span.driver_name`. On some LiveRC pages the
+  Driver cell includes the **qualification position** (e.g.
+  `"1 AUSTIN MCMAHON"`). A leading "digits + space" is stripped so we store and
+  match only the actual name (e.g. `"AUSTIN MCMAHON"`). Qual is still read from
+  the Qual column (`td:nth-child(3)`).
 - **Driver ID**: Primary from `data-driver-id` attribute, fallback: match driver
-  name to `racerLaps` keys
+  name (after qual strip) to `racerLaps` keys
 - **Laps completed**: Extracted from "47/30:31.382" format (number before "/")
 - **Total time raw**: Full string "47/30:31.382" stored as-is
 - **Fastest lap**: Extracted using regex before `<sup>` tag
@@ -315,13 +328,19 @@ detail page)
 
 ### Edge Cases
 
+- **Driver cell with qual number**: Some pages render the Driver column as
+  "qual_number DRIVER_NAME" (e.g. `"1 AUSTIN MCMAHON"`). The parser strips the
+  leading number so display name and racerLaps lookup use the real name only.
 - **Non-starting drivers**:
   - `laps_completed = 0`
   - `total_time_raw = None`
   - All time fields = None
   - No `data-driver-id` attribute
   - Driver ID matched by name to `racerLaps` keys
-- **Missing driver IDs**: Logged as warning, result skipped
+- **Missing driver IDs**: If neither `data-driver-id` nor name match to
+  `racerLaps` is found, a deterministic synthetic ID is generated so the result
+  row is still persisted (complete standings). Laps will not attach for that
+  driver unless they later match.
 - **Empty time fields**: Set to None
 - **Invalid lap/time format**: Logged and skipped
 

@@ -43,23 +43,21 @@ welcome page, and get started with MRE.
 
 ---
 
-### Event Search
+### Global Search
 
-**[Event Search Guide](event-search.md)**
+**[Global Search guide](event-search.md)**
 
-Complete guide to searching for race events, selecting tracks, importing events
-from LiveRC, and understanding event status indicators.
+Unified **Global Search** on `/search` (legacy `/event-search` redirects).
+Covers querying events and sessions; LiveRC import flows run from the dashboard
+event discovery experience.
 
 **Topics Covered:**
 
-- Accessing Event Search
-- Selecting tracks (including favorites)
-- Setting date ranges
-- Understanding search results
-- Importing events
-- Event status indicators
+- Using `/search` and filters
+- How this differs from the older Event Search page
+- Where to import LiveRC events today
 
-**Best For:** Users who want to find and import race events
+**Best For:** Users finding events and sessions in the catalogue
 
 ---
 
@@ -190,14 +188,14 @@ Start with these guides in order:
 
 1. **[Getting Started](getting-started.md)** - Essential first steps
 2. **[Navigation](navigation.md)** - Learn how to get around
-3. **[Event Search](event-search.md)** - Find your first events
+3. **[Global Search](event-search.md)** - Find events and sessions
 4. **[Event Analysis](event-analysis.md)** - Analyze your performance
 
 ### For Core Features
 
 Learn about MRE's main features:
 
-- **[Event Search](event-search.md)** - Finding and importing events
+- **[Global Search](event-search.md)** - Finding events and sessions
 - **[Event Analysis](event-analysis.md)** - Analyzing race data
 - **[Dashboard](dashboard.md)** - Your personal command center
 
@@ -222,7 +220,7 @@ Manage your account:
 **Create an account:** → [Getting Started Guide](getting-started.md) or
 [Account Management Guide](account-management.md)
 
-**Find race events:** → [Event Search Guide](event-search.md)
+**Find race events:** → [Global Search guide](event-search.md)
 
 **Analyze my performance:** → [Event Analysis Guide](event-analysis.md)
 

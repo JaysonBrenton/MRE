@@ -5,16 +5,17 @@
  * @creator Jayson Brenton
  * @lastModified 2026-01-31
  *
- * @description Drivers tab content for event analysis
- *
- * @purpose Displays combined entry list with driver stats (one table, no selection).
+ * @description Drivers tab content for event analysis. Shows LiveRC entry list
+ *              when event has sourceEventId and trackSlug; otherwise a short message.
  *
  * @relatedFiles
- * - src/components/event-analysis/CombinedDriversTable.tsx (combined table)
+ * - src/components/organisms/event-analysis/LiveRCEntryListTable.tsx
+ * - src/app/api/v1/events/[eventId]/entry-list/route.ts
  */
 
 "use client"
-import CombinedDriversTable from "./CombinedDriversTable"
+
+import LiveRCEntryListTable from "./LiveRCEntryListTable"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface DriversTabProps {
@@ -23,7 +24,7 @@ export interface DriversTabProps {
   onClassChange?: (className: string | null) => void
 }
 
-export default function DriversTab({ data, selectedClass, onClassChange }: DriversTabProps) {
+export default function DriversTab({ data }: DriversTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
       <div>
@@ -33,11 +34,7 @@ export default function DriversTab({ data, selectedClass, onClassChange }: Drive
       </div>
 
       <div id="drivers-table-region">
-        <CombinedDriversTable
-          data={data}
-          selectedClass={selectedClass}
-          onClassChange={onClassChange}
-        />
+        <LiveRCEntryListTable eventId={data.event.id} />
       </div>
     </div>
   )

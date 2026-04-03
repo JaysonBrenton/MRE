@@ -77,6 +77,8 @@ export async function GET(
         phone: analysisData.event.phone ?? undefined,
         email: analysisData.event.email ?? undefined,
         venueCorrected: analysisData.event.venueCorrected ?? false,
+        sourceEventId: analysisData.event.sourceEventId ?? undefined,
+        trackSlug: analysisData.event.trackSlug ?? undefined,
       },
       isPracticeDay: analysisData.isPracticeDay ?? false,
       races: analysisData.races.map((race) => ({

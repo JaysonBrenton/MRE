@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-29
+lastModified: 2026-03-22
 description: Complete API reference documentation for all MRE API endpoints
 purpose:
   Provides a comprehensive catalog of all API endpoints, including
@@ -19,23 +19,12 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2026-01-13 (Added practice days endpoints: GET
-/api/v1/practice-days/search, POST /api/v1/practice-days/discover, POST
-/api/v1/practice-days/ingest; previous updates: Added missing endpoints: GET
-/api/v1/search, car profiles endpoints (5 endpoints), driver profiles endpoints
-(5 endpoints), GET/PUT
-/api/v1/events/[eventId]/race-classes/[className]/vehicle-type, GET
-/api/v1/admin/track-sync/jobs/[jobId], PATCH
-/api/v1/users/[userId]/driver-links/events/[eventId]; added missing admin
-endpoints; fixed response formats for GET /api/v1/tracks, GET
-/api/v1/events/[eventId], GET /api/v1/events/search; added GET
-/api/v1/admin/tracks; expanded GET /api/v1/events query parameters; added GET
-/api/v1/users/[userId]/profile endpoint; fixed GET /api/v1/races/[raceId] to
-include transponder_number and transponder_source; fixed response wrapper format
-for GET /api/v1/races/[raceId]/laps and GET
-/api/v1/race-results/[raceResultId]/laps; added GET
-/api/v1/tracks/[trackId]/performance-trends endpoint for track performance trend
-analysis)  
+**Last Updated:** 2026-03-22 — Aligned with `src/app/api/**/route.ts` and
+[`docs/reference/generated/api-routes.manifest.json`](../reference/generated/api-routes.manifest.json):
+documented event entry list, laps, lap trend, track leaderboard, venue
+correction, leaderboards, practice day discover-range, ingestion job status,
+track maps, and admin venue-correction-requests. Removed obsolete
+`/api/v1/tracks/[trackId]/performance-trends` (no route implementation).  
 **API Version:** v1  
 **Base URL:** `/api/v1/` (relative to application root)
 
@@ -60,10 +49,13 @@ guidelines and use standardized request/response formats.
 11. [Driver Profiles Endpoints](#driver-profiles-endpoints)
 12. [User Endpoints](#user-endpoints)
 13. [Admin Endpoints](#admin-endpoints)
-14. [Health Check](#health-check)
-15. [Error Handling](#error-handling)
-16. [Authentication Requirements](#authentication-requirements)
-17. [Rate Limiting](#rate-limiting)
+14. [Leaderboard Endpoints](#leaderboard-endpoints)
+15. [Track Maps Endpoints](#track-maps-endpoints)
+16. [Ingestion Job Status](#ingestion-job-status)
+17. [Health Check](#health-check)
+18. [Error Handling](#error-handling)
+19. [Authentication Requirements](#authentication-requirements)
+20. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -284,81 +276,6 @@ curl "http://localhost:3001/api/v1/tracks?followed=true&active=true"
 
 ---
 
-### GET /api/v1/tracks/[trackId]/performance-trends
-
-Gets performance trends for the logged-in user across all events at a specific
-track. Returns lap times, positions, and performance metrics for each event
-where the user participated.
-
-**Authentication:** Required
-
-**Path Parameters:**
-
-- `trackId` (string, required) - Track UUID
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "eventId": "uuid",
-      "eventName": "Event Name",
-      "eventDate": "2025-01-27T00:00:00.000Z",
-      "trackId": "uuid",
-      "trackName": "Track Name",
-      "bestLapTime": 45.123,
-      "avgLapTime": 46.456,
-      "consistency": 0.95,
-      "position": 5,
-      "racesParticipated": 3,
-      "classes": ["1/8 Nitro Buggy"]
-    }
-  ]
-}
-```
-
-**Response Fields:**
-
-- `eventId` (string) - Event UUID
-- `eventName` (string) - Event name
-- `eventDate` (string) - Event date in ISO 8601 format
-- `trackId` (string) - Track UUID
-- `trackName` (string) - Track name
-- `bestLapTime` (number | null) - Best lap time in seconds for this event
-- `avgLapTime` (number | null) - Average lap time in seconds across all races in
-  this event
-- `consistency` (number | null) - Best consistency score from any race in this
-  event
-- `position` (number | null) - Best position achieved in this event (1 = first
-  place)
-- `racesParticipated` (number) - Number of races the user participated in for
-  this event
-- `classes` (string[]) - Array of class names the user raced in this event
-
-**Error Codes:**
-
-- `UNAUTHORIZED` (401) - Authentication required
-- `NOT_FOUND` (404) - Track not found
-- `INTERNAL_ERROR` (500) - Server error
-
-**Notes:**
-
-- Only returns data for events where the user has a confirmed driver link
-  (UserDriverLink status = "confirmed")
-- Events are sorted by event date (earliest to most recent)
-- If user has no confirmed driver link, returns empty array
-- Lap times are validated against class thresholds to filter invalid data
-
-**Example:**
-
-```bash
-curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/tracks/uuid/performance-trends"
-```
-
----
-
 ### GET /api/v1/events/search
 
 Searches for events by track and optional date range.
@@ -368,8 +285,11 @@ Searches for events by track and optional date range.
 **Query Parameters:**
 
 - `track_id` (string, required) - Track UUID
-- `start_date` (string, optional) - Start date in ISO 8601 format (YYYY-MM-DD). When provided with `end_date`, both must be valid, start ≤ end, no future dates, and the range must not exceed 12 months (366 days).
-- `end_date` (string, optional) - End date in ISO 8601 format (YYYY-MM-DD). See `start_date` for validation rules when both are provided.
+- `start_date` (string, optional) - Start date in ISO 8601 format (YYYY-MM-DD).
+  When provided with `end_date`, both must be valid, start ≤ end, no future
+  dates, and the range must not exceed 12 months (366 days).
+- `end_date` (string, optional) - End date in ISO 8601 format (YYYY-MM-DD). See
+  `start_date` for validation rules when both are provided.
 
 **Response (200 OK):**
 
@@ -403,7 +323,9 @@ Searches for events by track and optional date range.
 
 **Error Codes:**
 
-- `VALIDATION_ERROR` (400) - Missing or invalid query parameters (e.g. invalid `track_id`, missing `end_date` when `start_date` is set, date range &gt; 12 months, or future dates).
+- `VALIDATION_ERROR` (400) - Missing or invalid query parameters (e.g. invalid
+  `track_id`, missing `end_date` when `start_date` is set, date range &gt; 12
+  months, or future dates).
 - `NOT_FOUND` (404) - Track not found
 - `INTERNAL_ERROR` (500) - Server error
 
@@ -1008,6 +930,141 @@ Gets analysis data for a specific event including summary statistics.
 ```bash
 curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events/uuid/analysis"
 ```
+
+---
+
+### GET /api/v1/events/[eventId]/entry-list
+
+Returns the LiveRC entry list for an event by calling the ingestion service.
+Requires the event to be resolvable to a LiveRC track slug and source event id
+(from the database or parsed from `eventUrl`).
+
+**Authentication:** Required
+
+**Path Parameters:**
+
+- `eventId` (string, required) - Event UUID
+
+**Response (200 OK):** Success envelope whose `data` shape matches the ingestion
+service entry-list payload (see implementation in
+`src/app/api/v1/events/[eventId]/entry-list/route.ts`).
+
+**Error Codes:**
+
+- `UNAUTHORIZED` (401) - Authentication required
+- `NOT_FOUND` (404) - Event not found or not a LiveRC event
+- `INGESTION_ERROR` / upstream errors when the ingestion service fails
+
+**Example:**
+
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events/uuid/entry-list"
+```
+
+---
+
+### GET /api/v1/events/[eventId]/laps
+
+Returns lap data for an event, optionally filtered by class. Used for session /
+lap tables.
+
+**Authentication:** Not required (public event timing data; same policy as lap
+trend route).
+
+**Path Parameters:**
+
+- `eventId` (string, required) - Event UUID
+
+**Query Parameters:**
+
+- `className` (string, optional) - Filter by race class name
+
+**Response (200 OK):** `{ "success": true, "data": ... }` with lap groupings per
+`src/core/events/get-lap-data.ts`.
+
+**Error Codes:**
+
+- `EVENT_NOT_FOUND` (404) - Event not found
+
+**Example:**
+
+```bash
+curl "http://localhost:3001/api/v1/events/uuid/laps?className=1.8%20Nitro%20Buggy"
+```
+
+---
+
+### GET /api/v1/events/[eventId]/lap-trend
+
+Returns lap-by-lap times for selected drivers (for trend charts). Query:
+`driverIds` (comma-separated driver UUIDs), optional `className`.
+
+**Authentication:** Not required
+
+**Path Parameters:**
+
+- `eventId` (string, required) - Event UUID
+
+**Query Parameters:**
+
+- `driverIds` (string, optional) - Comma-separated list of driver UUIDs
+- `className` (string, optional) - Filter by class
+
+**Example:**
+
+```bash
+curl "http://localhost:3001/api/v1/events/uuid/lap-trend?driverIds=id1,id2"
+```
+
+---
+
+### GET /api/v1/events/[eventId]/track-leaderboard
+
+Returns aggregate main-race points leaderboard for the **track** of the given
+event (the event id selects the track). Supports date-range presets and class
+filters via query parameters (see
+`src/app/api/v1/events/[eventId]/track-leaderboard/route.ts`).
+
+**Authentication:** Required
+
+**Example:**
+
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events/uuid/track-leaderboard"
+```
+
+---
+
+### GET /api/v1/events/[eventId]/venue-correction
+
+Gets approved venue correction (if any) and the current user’s pending request
+for this event, plus whether the user may submit.
+
+**Authentication:** Required
+
+---
+
+### POST /api/v1/events/[eventId]/venue-correction
+
+Submits a venue correction request for admin review.
+
+**Authentication:** Required
+
+**Request Body:**
+
+```json
+{
+  "venueTrackId": "uuid-or-null"
+}
+```
+
+---
+
+### DELETE /api/v1/events/[eventId]/venue-correction
+
+Deletes the current user’s **pending** venue correction request for this event.
+
+**Authentication:** Required
 
 ---
 
@@ -1923,6 +1980,38 @@ curl -X POST -H "Cookie: next-auth.session-token=..." \
 
 ---
 
+### POST /api/v1/practice-days/discover-range
+
+Discovers practice days for a **date range** in one request (server fans out per
+month with bounded concurrency). Optional `stream: true` returns NDJSON for
+progressive UI updates.
+
+**Authentication:** Required
+
+**Request Body (required fields):**
+
+- `track_id` (string) - Track UUID
+- `start_date` (string) - ISO date `YYYY-MM-DD`
+- `end_date` (string) - ISO date `YYYY-MM-DD`
+- `track_slug` (string, optional) - Passed through when known
+- `stream` (boolean, optional) - If true, response is a streaming NDJSON body
+
+**Error Codes:**
+
+- `VALIDATION_ERROR` (400) - Missing dates, invalid range, or range too large
+- `UNAUTHORIZED` (401) - Authentication required
+
+**Example:**
+
+```bash
+curl -X POST -H "Cookie: next-auth.session-token=..." \
+  -H "Content-Type: application/json" \
+  -d '{"track_id":"uuid","start_date":"2025-01-01","end_date":"2025-03-31"}' \
+  "http://localhost:3001/api/v1/practice-days/discover-range"
+```
+
+---
+
 ### POST /api/v1/practice-days/ingest
 
 Ingests practice day data for a specific track and date.
@@ -1965,9 +2054,11 @@ Ingests practice day data for a specific track and date.
 - `eventId` (string) - UUID of the created event
 - `sessionsIngested` (number) - Number of sessions successfully ingested
 - `sessionsFailed` (number) - Number of sessions that failed to ingest
-- `sessionsWithLaps` (number, optional) - Sessions for which at least one lap was written (full ingestion)
+- `sessionsWithLaps` (number, optional) - Sessions for which at least one lap
+  was written (full ingestion)
 - `lapsIngested` (number, optional) - Total laps ingested (full ingestion)
-- `sessionsDetailFailed` (number, optional) - Sessions whose detail fetch failed (full ingestion)
+- `sessionsDetailFailed` (number, optional) - Sessions whose detail fetch failed
+  (full ingestion)
 - `status` (string) - Ingestion status (e.g., "completed", "partial", "failed")
 
 **Error Codes:**
@@ -1982,9 +2073,14 @@ Ingests practice day data for a specific track and date.
 
 **Notes:**
 
-- Creates an Event with session type `practiceday`. Full ingestion fetches the session list, creates Driver/RaceDriver/RaceResult per session, then fetches each session's detail page (with bounded concurrency) and persists race_metadata, result stats, and laps.
+- Creates an Event with session type `practiceday`. Full ingestion fetches the
+  session list, creates Driver/RaceDriver/RaceResult per session, then fetches
+  each session's detail page (with bounded concurrency) and persists
+  race_metadata, result stats, and laps.
 - Ingests all practice sessions for the specified date
-- Results include counts of successful and failed session ingestions. Optional fields `sessionsWithLaps`, `lapsIngested`, and `sessionsDetailFailed` are returned when full ingestion is enabled (additive, non-breaking).
+- Results include counts of successful and failed session ingestions. Optional
+  fields `sessionsWithLaps`, `lapsIngested`, and `sessionsDetailFailed` are
+  returned when full ingestion is enabled (additive, non-breaking).
 
 **Example:**
 
@@ -3862,6 +3958,144 @@ Gets all tracks with pagination and filtering (admin-only endpoint).
 
 ```bash
 curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admin/tracks?page=1&pageSize=50&isActive=true"
+```
+
+---
+
+### GET /api/v1/admin/venue-correction-requests
+
+Lists venue correction requests (admin only).
+
+**Authentication:** Required (Admin only)
+
+**Query Parameters:**
+
+- `status` (string, optional) - `pending` | `approved` | `rejected`
+
+---
+
+### PATCH /api/v1/admin/venue-correction-requests/[id]
+
+Approves or rejects a venue correction request (admin only).
+
+**Authentication:** Required (Admin only)
+
+**Request Body:**
+
+```json
+{
+  "action": "approve",
+  "adminNotes": "optional"
+}
+```
+
+`action` must be `approve` or `reject`.
+
+---
+
+## Leaderboard Endpoints
+
+### GET /api/v1/leaderboards/countries
+
+Returns distinct track countries that have at least one event (for country
+filter UI).
+
+**Authentication:** Required
+
+**Response (200 OK):** `{ "success": true, "data": { "countries": ["..."] } }`
+
+---
+
+### GET /api/v1/leaderboards/country
+
+Returns aggregate main-race points leaderboard for a country and year.
+
+**Authentication:** Required
+
+**Query Parameters:**
+
+- `country` (string, required)
+- `year` (number, optional) - Defaults to current calendar year
+- `class_name` (string, optional)
+- `limit`, `offset` (optional)
+- `sort_by` (optional) - `name` | `points`
+
+---
+
+## Track Maps Endpoints
+
+User-drawn track maps: list/create under `/api/v1/track-maps`, single map CRUD
+under `/api/v1/track-maps/[mapId]`, share link generation under
+`/api/v1/track-maps/[mapId]/share`, and public read by token under
+`/api/v1/track-maps/shared/[shareToken]`.
+
+### GET /api/v1/track-maps
+
+Lists the authenticated user’s maps, or public maps when `public=true`.
+
+**Authentication:** Required
+
+**Query Parameters:** `trackId` (optional), `public` (boolean string `true` for
+public catalogue)
+
+### POST /api/v1/track-maps
+
+Creates a track map for the authenticated user.
+
+**Authentication:** Required
+
+### GET /api/v1/track-maps/[mapId]
+
+Gets a single map for the authenticated user (ownership enforced in the repo
+layer).
+
+**Authentication:** Required
+
+### PUT /api/v1/track-maps/[mapId]
+
+Updates a map.
+
+**Authentication:** Required (owner)
+
+### DELETE /api/v1/track-maps/[mapId]
+
+Deletes a map.
+
+**Authentication:** Required (owner)
+
+### POST /api/v1/track-maps/[mapId]/share
+
+Creates or returns a share token for the map.
+
+**Authentication:** Required
+
+### GET /api/v1/track-maps/shared/[shareToken]
+
+Loads a map by opaque share token (unauthenticated access for shared links).
+
+**Authentication:** Not required
+
+---
+
+## Ingestion Job Status
+
+### GET /api/v1/ingestion/jobs/[jobId]
+
+Returns ingestion job status from the Python ingestion service (used after
+`202 Accepted` from ingest endpoints when queue mode is enabled). Proxies to the
+ingestion HTTP API.
+
+**Authentication:** Required
+
+**Error Codes:**
+
+- `NOT_FOUND` (404) - Unknown job id
+- `INGESTION_ERROR` / `502` - Ingestion service error
+
+**Example:**
+
+```bash
+curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/ingestion/jobs/job-uuid"
 ```
 
 ---

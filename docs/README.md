@@ -658,6 +658,12 @@ ingestion-specific security.
 
 Frontend-specific workflows and user experience documentation.
 
+### [Component catalog](frontend/component-catalog.md)
+
+Build-aligned inventory of every production file under `src/components/`.
+Generate with `npm run docs:component-catalog` (see also
+[`docs/reference/generated/README.md`](reference/generated/README.md)).
+
 ### [LiveRC User Workflow](frontend/liverc/user-workflow.md)
 
 **Status:** Complete  

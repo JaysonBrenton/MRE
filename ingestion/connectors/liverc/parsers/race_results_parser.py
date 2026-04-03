@@ -9,6 +9,8 @@
 # @purpose Extracts driver results from race result page
 
 import re
+import hashlib
+from urllib.parse import urlparse
 from typing import List, Dict, Optional, Any
 from selectolax.parser import HTMLParser
 
@@ -164,7 +166,13 @@ class RaceResultsParser:
                     if not display_name:
                         logger.warning("result_row_empty_driver_name", position=position_final, url=url)
                         continue
-                    
+                    # LiveRC sometimes includes qual number in the Driver cell (e.g. "1 AUSTIN MCMAHON").
+                    # Strip leading "digits + space" so we store and match on the actual driver name only.
+                    display_name = re.sub(r"^\d+\s+", "", display_name).strip() or display_name
+                    if not display_name:
+                        logger.warning("result_row_empty_driver_name_after_strip", position=position_final, url=url)
+                        continue
+
                     # Extract driver ID (primary: data-driver-id, fallback: match by name)
                     source_driver_id = None
                     
@@ -173,17 +181,41 @@ class RaceResultsParser:
                     if driver_laps_elem:
                         source_driver_id = driver_laps_elem.attributes.get("data-driver-id")
                     
-                    # Fallback: match by driver name to racerLaps keys
+                    # Fallback: match by driver name to racerLaps keys (display_name already has qual stripped)
                     if not source_driver_id:
-                        driver_name_upper = display_name.upper()
+                        driver_name_upper = display_name.strip().upper()
                         source_driver_id = driver_name_to_id.get(driver_name_upper)
                         if source_driver_id:
                             logger.debug("driver_id_matched_by_name", driver_name=display_name, driver_id=source_driver_id, url=url)
                     
                     if not source_driver_id:
-                        logger.warning("result_row_no_driver_id", driver_name=display_name, position=position_final, url=url)
-                        # Continue anyway - we'll use a placeholder or skip
-                        continue
+                        # As a last resort, generate a deterministic synthetic driver ID instead of
+                        # dropping the row completely. LiveRC occasionally omits data-driver-id
+                        # attributes or exposes driver names in racerLaps with formatting that
+                        # does not exactly match the table's display_name. Previously this caused
+                        # us to skip the entire result row (and therefore lose that driver's
+                        # position from race_results), which surfaced as missing positions in
+                        # downstream event analysis (e.g. no recorded P2 despite LiveRC showing it).
+                        #
+                        # To guarantee that *every* visible row on the results page produces a
+                        # RaceResult record, we synthesize a stable ID based on the track host
+                        # and the driver's display name. This preserves complete standings for
+                        # each race even if cross-event identity for that driver is imperfect.
+                        parsed_url = urlparse(url)
+                        host = parsed_url.netloc or "unknown-host"
+                        key = f"{host}|{display_name.strip().upper()}"
+                        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+                        synthetic_id = f"synthetic-{digest}"
+
+                        logger.warning(
+                            "result_row_no_driver_id_synthetic",
+                            driver_name=display_name,
+                            position=position_final,
+                            url=url,
+                            synthetic_driver_id=synthetic_id,
+                        )
+
+                        source_driver_id = synthetic_id
                     
                     # Extract Qual (qualifying position) - td:nth-child(3)
                     qualifying_position = None

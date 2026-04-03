@@ -1,0 +1,347 @@
+{
+  "generatedAt": "2026-03-22T10:14:33.201Z",
+  "source": "src/app/api",
+  "count": 68,
+  "routes": [
+    {
+      "file": "src/app/api/auth/[...nextauth]/route.ts",
+      "urlPath": "/api/auth/[...nextauth]",
+      "methods": []
+    },
+    {
+      "file": "src/app/api/v1/admin/audit/route.ts",
+      "urlPath": "/api/v1/admin/audit",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/events/[eventId]/reingest/route.ts",
+      "urlPath": "/api/v1/admin/events/[eventId]/reingest",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/admin/events/[eventId]/route.ts",
+      "urlPath": "/api/v1/admin/events/[eventId]",
+      "methods": ["DELETE"]
+    },
+    {
+      "file": "src/app/api/v1/admin/events/route.ts",
+      "urlPath": "/api/v1/admin/events",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/health/route.ts",
+      "urlPath": "/api/v1/admin/health",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/ingestion/route.ts",
+      "urlPath": "/api/v1/admin/ingestion",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/admin/logs/route.ts",
+      "urlPath": "/api/v1/admin/logs",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/logs/sources/route.ts",
+      "urlPath": "/api/v1/admin/logs/sources",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/stats/route.ts",
+      "urlPath": "/api/v1/admin/stats",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/track-sync/jobs/[jobId]/route.ts",
+      "urlPath": "/api/v1/admin/track-sync/jobs/[jobId]",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/tracks/[trackId]/route.ts",
+      "urlPath": "/api/v1/admin/tracks/[trackId]",
+      "methods": ["PATCH"]
+    },
+    {
+      "file": "src/app/api/v1/admin/tracks/route.ts",
+      "urlPath": "/api/v1/admin/tracks",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/users/[userId]/route.ts",
+      "urlPath": "/api/v1/admin/users/[userId]",
+      "methods": ["DELETE", "PATCH"]
+    },
+    {
+      "file": "src/app/api/v1/admin/users/route.ts",
+      "urlPath": "/api/v1/admin/users",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/admin/venue-correction-requests/[id]/route.ts",
+      "urlPath": "/api/v1/admin/venue-correction-requests/[id]",
+      "methods": ["PATCH"]
+    },
+    {
+      "file": "src/app/api/v1/admin/venue-correction-requests/route.ts",
+      "urlPath": "/api/v1/admin/venue-correction-requests",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/auth/login/route.ts",
+      "urlPath": "/api/v1/auth/login",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/auth/register/route.ts",
+      "urlPath": "/api/v1/auth/register",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/car-profiles/[id]/route.ts",
+      "urlPath": "/api/v1/car-profiles/[id]",
+      "methods": ["DELETE", "GET", "PUT"]
+    },
+    {
+      "file": "src/app/api/v1/car-profiles/route.ts",
+      "urlPath": "/api/v1/car-profiles",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/driver-profiles/[id]/route.ts",
+      "urlPath": "/api/v1/driver-profiles/[id]",
+      "methods": ["DELETE", "GET", "PUT"]
+    },
+    {
+      "file": "src/app/api/v1/driver-profiles/route.ts",
+      "urlPath": "/api/v1/driver-profiles",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/drivers/[driverId]/route.ts",
+      "urlPath": "/api/v1/drivers/[driverId]",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/analysis/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/analysis",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/entry-list/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/entry-list",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/ingest/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/ingest",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/lap-trend/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/lap-trend",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/laps/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/laps",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/race-classes/[className]/vehicle-type/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/race-classes/[className]/vehicle-type",
+      "methods": ["GET", "PUT"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/route.ts",
+      "urlPath": "/api/v1/events/[eventId]",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/summary/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/summary",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/track-leaderboard/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/track-leaderboard",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/venue-correction/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/venue-correction",
+      "methods": ["DELETE", "GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/events/[eventId]/weather/route.ts",
+      "urlPath": "/api/v1/events/[eventId]/weather",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/check-entry-lists/route.ts",
+      "urlPath": "/api/v1/events/check-entry-lists",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/events/discover/route.ts",
+      "urlPath": "/api/v1/events/discover",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/events/ingest/route.ts",
+      "urlPath": "/api/v1/events/ingest",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/events/route.ts",
+      "urlPath": "/api/v1/events",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/search/route.ts",
+      "urlPath": "/api/v1/events/search",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/health/route.ts",
+      "urlPath": "/api/v1/health",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/ingestion/jobs/[jobId]/route.ts",
+      "urlPath": "/api/v1/ingestion/jobs/[jobId]",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/leaderboards/countries/route.ts",
+      "urlPath": "/api/v1/leaderboards/countries",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/leaderboards/country/route.ts",
+      "urlPath": "/api/v1/leaderboards/country",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/personas/driver/events/route.ts",
+      "urlPath": "/api/v1/personas/driver/events",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/personas/route.ts",
+      "urlPath": "/api/v1/personas",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/personas/team-manager/team/route.ts",
+      "urlPath": "/api/v1/personas/team-manager/team",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/practice-days/discover-range/route.ts",
+      "urlPath": "/api/v1/practice-days/discover-range",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/practice-days/discover/route.ts",
+      "urlPath": "/api/v1/practice-days/discover",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/practice-days/ingest/route.ts",
+      "urlPath": "/api/v1/practice-days/ingest",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/practice-days/search/route.ts",
+      "urlPath": "/api/v1/practice-days/search",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/race-results/[raceResultId]/laps/route.ts",
+      "urlPath": "/api/v1/race-results/[raceResultId]/laps",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/races/[raceId]/laps/route.ts",
+      "urlPath": "/api/v1/races/[raceId]/laps",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/races/[raceId]/route.ts",
+      "urlPath": "/api/v1/races/[raceId]",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/search/route.ts",
+      "urlPath": "/api/v1/search",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/track-maps/[mapId]/route.ts",
+      "urlPath": "/api/v1/track-maps/[mapId]",
+      "methods": ["DELETE", "GET", "PUT"]
+    },
+    {
+      "file": "src/app/api/v1/track-maps/[mapId]/share/route.ts",
+      "urlPath": "/api/v1/track-maps/[mapId]/share",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/track-maps/route.ts",
+      "urlPath": "/api/v1/track-maps",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/track-maps/shared/[shareToken]/route.ts",
+      "urlPath": "/api/v1/track-maps/shared/[shareToken]",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/tracks/route.ts",
+      "urlPath": "/api/v1/tracks",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/transponder-overrides/[overrideId]/route.ts",
+      "urlPath": "/api/v1/transponder-overrides/[overrideId]",
+      "methods": ["DELETE", "GET", "PATCH"]
+    },
+    {
+      "file": "src/app/api/v1/transponder-overrides/route.ts",
+      "urlPath": "/api/v1/transponder-overrides",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/users/[userId]/driver-links/events/[eventId]/route.ts",
+      "urlPath": "/api/v1/users/[userId]/driver-links/events/[eventId]",
+      "methods": ["PATCH"]
+    },
+    {
+      "file": "src/app/api/v1/users/[userId]/driver-links/route.ts",
+      "urlPath": "/api/v1/users/[userId]/driver-links",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/users/[userId]/profile/route.ts",
+      "urlPath": "/api/v1/users/[userId]/profile",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/users/me/driver-links/events/[eventId]/route.ts",
+      "urlPath": "/api/v1/users/me/driver-links/events/[eventId]",
+      "methods": ["PATCH"]
+    },
+    {
+      "file": "src/app/api/v1/users/me/persona/route.ts",
+      "urlPath": "/api/v1/users/me/persona",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/users/me/route.ts",
+      "urlPath": "/api/v1/users/me",
+      "methods": ["GET"]
+    }
+  ]
+}

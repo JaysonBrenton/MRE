@@ -46,6 +46,7 @@ class Normalizer:
         1. Lowercase
         2. Trim whitespace
         3. Collapse multiple whitespace to single space
+        2b. Strip leading qual number (e.g. "1 AUSTIN MCMAHON" -> "AUSTIN MCMAHON")
         4. Strip punctuation (except spaces)
         5. Replace & with and
         6. Remove common suffix noise tokens: rc, raceway, club, inc, team
@@ -65,7 +66,10 @@ class Normalizer:
         
         # Step 2 & 3: Trim and collapse whitespace
         normalized = " ".join(normalized.split())
-        
+        # Step 2b: Strip leading qual number (LiveRC may put "1 AUSTIN MCMAHON" in Driver cell)
+        normalized = re.sub(r"^\d+\s+", "", normalized).strip()
+        if not normalized:
+            return ""
         # Step 4: Replace & with and (before stripping punctuation)
         normalized = normalized.replace('&', 'and')
         

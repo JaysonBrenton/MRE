@@ -48,7 +48,7 @@ const defaultTabs: Tab[] = [
   { id: "overview", label: "Event" },
   { id: "sessions", label: "Event Sessions" },
   { id: "my-events", label: "My Events" },
-  { id: "drivers", label: "Drivers & Classes" },
+  { id: "drivers", label: "Entry List" },
 ]
 
 export default function TabNavigation({

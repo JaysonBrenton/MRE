@@ -161,6 +161,10 @@ class ConnectorEntryList(BaseModel):
         default_factory=dict,
         description="Dictionary keyed by class_name -> list of ConnectorEntryDriver"
     )
+    class_order: Optional[List[str]] = Field(
+        default=None,
+        description="Class names in the order shown on the LiveRC page (nav pills). When set, UI should use this order for class filter.",
+    )
 
 
 # Practice Day Models

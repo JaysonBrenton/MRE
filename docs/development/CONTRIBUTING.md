@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-03-22
 description: Contributing guidelines for MRE project
 purpose:
   Provides comprehensive contributing guidelines including code of conduct,
@@ -309,6 +309,11 @@ guidelines.
 - **File Headers** - All files must have headers
 - **README Updates** - If user-facing changes
 - **API Documentation** - If API changes
+- **Generated inventories** - After adding/changing `src/app/api/**/route.ts` or
+  `src/components/**`, run `npm run docs:component-catalog` in the `mre-app`
+  container and commit updated files under `docs/reference/generated/` and
+  `docs/frontend/component-catalog.md`. CI maintainers can run
+  `npm run docs:verify` to ensure those artifacts match the tree.
 
 ### Documentation Standards
 

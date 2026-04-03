@@ -1312,11 +1312,23 @@ export default function EventSearchContainer({
               }
             })
             .catch((err) => {
-              clientLogger.error("Practice discover failed", {
-                error: err instanceof Error ? err.message : String(err),
-              })
-              if (discoverRunIdRef.current === thisRunId) {
-                setDiscoveredPracticeDays([])
+              const message = err instanceof Error ? err.message : String(err)
+
+              // Treat user-initiated aborts as expected, not an error
+              if (
+                (err instanceof DOMException && err.name === "AbortError") ||
+                message.includes("aborted") ||
+                message.includes("BodyStreamBuffer was aborted")
+              ) {
+                clientLogger.debug("Practice discover aborted by user", { error: message })
+                // Keep any already-streamed practice days; just stop further updates
+              } else {
+                clientLogger.error("Practice discover failed", {
+                  error: message,
+                })
+                if (discoverRunIdRef.current === thisRunId) {
+                  setDiscoveredPracticeDays([])
+                }
               }
             })
             .finally(() => {
@@ -1472,11 +1484,23 @@ export default function EventSearchContainer({
               }
             })
             .catch((err) => {
-              clientLogger.error("Practice discover failed", {
-                error: err instanceof Error ? err.message : String(err),
-              })
-              if (discoverRunIdRef.current === thisRunId) {
-                setDiscoveredPracticeDays([])
+              const message = err instanceof Error ? err.message : String(err)
+
+              // Treat user-initiated aborts as expected, not an error
+              if (
+                (err instanceof DOMException && err.name === "AbortError") ||
+                message.includes("aborted") ||
+                message.includes("BodyStreamBuffer was aborted")
+              ) {
+                clientLogger.debug("Practice discover aborted by user", { error: message })
+                // Keep any already-streamed practice days; just stop further updates
+              } else {
+                clientLogger.error("Practice discover failed", {
+                  error: message,
+                })
+                if (discoverRunIdRef.current === thisRunId) {
+                  setDiscoveredPracticeDays([])
+                }
               }
             })
             .finally(() => {
@@ -1516,6 +1540,25 @@ export default function EventSearchContainer({
       setIsLoadingEvents(false)
       setIsStartingSearch(false) // Clear flag on error so UI is not stuck
     }
+  }
+
+  const handleStopSearch = () => {
+    // Cancel any outstanding LiveRC discovery request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+
+    // Cancel any in-flight practice days discover-range request
+    if (discoverAbortControllerRef.current) {
+      discoverAbortControllerRef.current.abort()
+      discoverAbortControllerRef.current = null
+    }
+
+    // Clear loading/checking flags so the UI stops indicating background work
+    setIsCheckingLiveRC(false)
+    setIsCheckingPracticeDays(false)
+    setIsStartingSearch(false)
   }
 
   const checkLiveRC = async (
@@ -3204,12 +3247,14 @@ export default function EventSearchContainer({
           tracks={tracks}
           errors={errors}
           isLoading={isLoadingEvents}
+          isSearchingInFlight={isStartingSearch || isCheckingLiveRC || isCheckingPracticeDays}
           onTrackSelect={handleTrackSelect}
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
           onDateRangePresetChange={handleDateRangePresetChange}
           onToggleFavourite={handleToggleFavourite}
           onSearch={handleSearch}
+          onStop={handleStopSearch}
           practiceYear={practiceYear}
           practiceMonth={practiceMonth}
           onPracticeYearChange={setPracticeYear}

@@ -39,6 +39,7 @@ import CorrectVenueModal from "@/components/organisms/event-analysis/CorrectVenu
 import StandardButton from "@/components/atoms/StandardButton"
 import { typography } from "@/lib/typography"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import type { EventAnalysisDataApiResponse } from "@/types/event-analysis-api"
 
 const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
   { id: "my-day", label: "My Day" },
@@ -51,82 +52,9 @@ const EVENT_TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Event" },
   { id: "sessions", label: "Event Sessions" },
   { id: "my-events", label: "My Events" },
-  { id: "drivers", label: "Drivers & Classes" },
+  { id: "drivers", label: "Entry List" },
   { id: "track-leader-board", label: "Track Leader Board" },
 ]
-
-// Type for API response with ISO string dates (matches what's stored in Redux)
-type EventAnalysisDataApiResponse = {
-  event: {
-    id: string
-    trackId: string
-    eventName: string
-    eventDate: string // ISO string
-    eventDateEnd?: string | null // ISO string, for multi-day events
-    trackName: string
-    trackDashboardUrl?: string | null
-    eventUrl?: string
-    website?: string | null
-    facebookUrl?: string | null
-    address?: string | null
-    phone?: string | null
-    email?: string | null
-    venueCorrected?: boolean
-  }
-  isPracticeDay?: boolean
-  races: Array<{
-    id: string
-    raceId: string
-    className: string
-    raceLabel: string
-    raceOrder: number | null
-    startTime: string | null // ISO string
-    durationSeconds: number | null
-    sessionType?: string | null
-    sectionHeader?: string | null
-    results: Array<{
-      raceResultId: string
-      raceDriverId: string
-      driverId: string
-      driverName: string
-      positionFinal: number
-      lapsCompleted: number
-      totalTimeSeconds: number | null
-      fastLapTime: number | null
-      fastLapLapNumber?: number | null
-      avgLapTime: number | null
-      consistency: number | null
-      // laps array removed - not used by any components
-    }>
-  }>
-  drivers: Array<{
-    driverId: string
-    driverName: string
-    racesParticipated: number
-    bestLapTime: number | null
-    avgLapTime: number | null
-    consistency: number | null
-  }>
-  entryList: Array<{
-    id: string
-    driverId: string
-    driverName: string
-    className: string
-    transponderNumber: string | null
-    carNumber: string | null
-  }>
-  raceClasses: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
-  multiMainResults?: EventAnalysisData["multiMainResults"]
-  summary: {
-    totalRaces: number
-    totalDrivers: number
-    totalLaps: number
-    dateRange: {
-      earliest: string | null // ISO string
-      latest: string | null // ISO string
-    }
-  }
-}
 
 /**
  * Transform API response (with ISO string dates) to EventAnalysisData (with Date objects)
@@ -224,28 +152,22 @@ export default function EventAnalysisSection() {
   } | null>(null)
   const [isCorrectVenueModalOpen, setIsCorrectVenueModalOpen] = useState(false)
 
-  const fetchVenueCorrection = useCallback(
-    (eventId: string) => {
-      fetch(`/api/v1/events/${eventId}/venue-correction`, { credentials: "include" })
-        .then((res) => res.json())
-        .then((json) => {
-          if (json.success && json.data) {
-            setVenueCorrectionStatus({
-              correction: json.data.correction,
-              userRequest: json.data.userRequest,
-              canSubmit: json.data.canSubmit ?? false,
-            })
-            if (json.data.correction != null) {
-              dispatch(fetchEventAnalysisData(eventId))
-            }
-          } else {
-            setVenueCorrectionStatus(null)
-          }
-        })
-        .catch(() => setVenueCorrectionStatus(null))
-    },
-    [dispatch]
-  )
+  const fetchVenueCorrection = useCallback((eventId: string) => {
+    fetch(`/api/v1/events/${eventId}/venue-correction`, { credentials: "include" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          setVenueCorrectionStatus({
+            correction: json.data.correction,
+            userRequest: json.data.userRequest,
+            canSubmit: json.data.canSubmit ?? false,
+          })
+        } else {
+          setVenueCorrectionStatus(null)
+        }
+      })
+      .catch(() => setVenueCorrectionStatus(null))
+  }, [])
 
   const handleVenueCorrectionSuccess = useCallback(() => {
     if (selectedEventId) {
@@ -297,23 +219,16 @@ export default function EventAnalysisSection() {
     }
 
     // Trigger fetch immediately when event is selected
-    // Use a small delay to ensure component state is stable
-    const timeoutId = setTimeout(() => {
-      // Double-check we still need to fetch (state might have changed during timeout)
-      if (
-        selectedEventId &&
-        lastFetchedEventId.current === selectedEventId &&
-        !hasInitiatedFetch &&
-        !isAnalysisLoading &&
-        (!analysisData || analysisData.event.id !== selectedEventId)
-      ) {
-        setHasInitiatedFetch(true)
-        dispatch(fetchEventAnalysisData(selectedEventId))
-      }
-    }, 50)
-
-    return () => {
-      clearTimeout(timeoutId)
+    // Double-check we still need to fetch (guards may change during render/effects)
+    if (
+      selectedEventId &&
+      lastFetchedEventId.current === selectedEventId &&
+      !hasInitiatedFetch &&
+      !isAnalysisLoading &&
+      (!analysisData || analysisData.event.id !== selectedEventId)
+    ) {
+      setHasInitiatedFetch(true)
+      dispatch(fetchEventAnalysisData(selectedEventId))
     }
   }, [selectedEventId, analysisData, isAnalysisLoading, hasInitiatedFetch, dispatch])
 

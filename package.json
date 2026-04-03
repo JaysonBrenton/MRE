@@ -24,6 +24,9 @@
     "changelog:with-dates": "node scripts/generate-changelog-with-dates.js",
     "changelog:auto": "auto-changelog --template keepachangelog --output docs/development/CHANGELOG.md",
     "changelog:retro": "bash scripts/generate-retrospective-changelog.sh",
+    "docs:inventory": "node scripts/generate-documentation-inventory.mjs",
+    "docs:component-catalog": "node scripts/generate-documentation-inventory.mjs && node scripts/generate-component-catalog-markdown.mjs",
+    "docs:verify": "node scripts/generate-documentation-inventory.mjs && node scripts/generate-component-catalog-markdown.mjs && git diff --exit-code -- docs/reference/generated docs/frontend/component-catalog.md",
     "prepare": "husky"
   },
   "prisma": {

@@ -1,0 +1,783 @@
+{
+  "generatedAt": "2026-03-22T10:14:33.213Z",
+  "source": "src/components",
+  "exclusions": "Excludes: *.test.ts, *.test.tsx, __tests__/**, organisms/**/overview-testing/**",
+  "count": 155,
+  "components": [
+    {
+      "file": "src/components/AdminNav.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/AuthenticatedNav.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/AuthenticatedNavLinks.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/ConditionalNav.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/ErrorBoundary.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/Footer.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/GlobalErrorHandler.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/Hero.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/LogoutButton.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/NavBar.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/Providers.tsx",
+      "tier": "root",
+      "featureArea": "root"
+    },
+    {
+      "file": "src/components/atoms/Breadcrumbs.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/atoms/Button.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/atoms/ChartIcon.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/atoms/ListRow.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/atoms/LoadingState.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/atoms/StandardButton.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/atoms/StandardInput.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/atoms/StatusBadge.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/atoms/Switch.tsx",
+      "tier": "atom",
+      "featureArea": "atoms"
+    },
+    {
+      "file": "src/components/molecules/ContentWrapper.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/ErrorDisplay.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/EventStatusBadge.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/LabeledSwitch.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/Modal.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/PageContainer.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/StandardTable.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/Stepper.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/Tooltip.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/organisms/admin/AdminDashboardStats.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/AuditLogTable.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/DeleteConfirmationDialog.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/EditUserModal.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/EventsTable.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/HealthStatus.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/IngestionControls.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/LogViewer.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/TracksTable.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/UsersTable.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/VenueCorrectionRequestsTable.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/dashboard/DashboardClient.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/DashboardEventSearchProvider.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/DashboardEventSelector.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/DriverCardsAndWeatherGrid.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/EventActionsContext.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/EventActionsProvider.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/EventAnalysisHeaderWrapper.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/EventAnalysisSection.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/ImprovementDriverCard.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/AdaptiveNavigationRail.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/CommandPalette.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/ContextRibbon.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/DashboardActionsPopover.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/EventSearchModal.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/TopStatusBar.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/UserProfileModal.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/AvgVsFastestChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/BestLapBarChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartColorPicker.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartContainer.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartControls.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartDataNotice.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartDriverPicker.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartPagination.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartSection.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartTypeSelector.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ClassMostImprovedCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ClassTopAverageLapsCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ClassTopFastestLapsCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/CollapsibleDriverPanel.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/CombinedDriversTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ComparisonTest.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ComparisonsTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/CorrectVenueModal.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/CountryLeaderboardCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/DriverCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/DriverList.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/DriverSelectionHeader.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/DriversTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EntryList.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EntryListTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventAnalysisActionsMenu.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventAnalysisHeader.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventAnalysisSidebar.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventAnalysisToolbar.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventFastestAverageLapsTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventFastestLapsTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventMostImprovedTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventStats.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventWinnersTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/HeatsCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/LapByLapTrendChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/LapTimeLineChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/LapTimeTrendCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/LinkYourDriverPrompt.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ListPagination.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/LiveRCEntryListTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/MainPodiumCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/MainsCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/MultiMainOverallCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/MyEventsContent.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/MyLapsContent.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/OverviewTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/PracticeClassLeaderboard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/PracticeDriverSelector.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/PracticeMyDayTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/PracticeMySessionsTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/RaceSelector.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/SessionsTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/SidebarAction.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/TabNavigation.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/TemperatureSparkline.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/TrackLeaderboardTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/UnifiedPerformanceChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/WeatherCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/DriverNameFilter.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/DriverPerformanceChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/HeatProgressionChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/LapDataTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/OverviewChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/SessionChartTabs.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/SessionControls.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/SessionLapDataModal.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/SessionsTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/SessionsTableResults.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/SessionsTableRow.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/ViewModeToggle.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-search/CheckLiveRCButton.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/DateRangeModal.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/DateRangePicker.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/DateRangePresetPicker.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventRow.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventSearchContainer.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventSearchForm.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventSearchTableHeader.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventTable.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/ImportPrompt.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/TrackAndFavouritesModal.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/TrackRow.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/TrackSelectionModal.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/events/EventsPageClient.tsx",
+      "tier": "organism:events",
+      "featureArea": "events"
+    },
+    {
+      "file": "src/components/organisms/practice-days/MonthYearPicker.tsx",
+      "tier": "organism:practice-days",
+      "featureArea": "practice-days"
+    },
+    {
+      "file": "src/components/organisms/practice-days/PracticeDayRow.tsx",
+      "tier": "organism:practice-days",
+      "featureArea": "practice-days"
+    },
+    {
+      "file": "src/components/organisms/practice-days/PracticeDaySearchContainer.tsx",
+      "tier": "organism:practice-days",
+      "featureArea": "practice-days"
+    },
+    {
+      "file": "src/components/organisms/search/SearchForm.tsx",
+      "tier": "organism:search",
+      "featureArea": "search"
+    },
+    {
+      "file": "src/components/organisms/search/SearchResultsTable.tsx",
+      "tier": "organism:search",
+      "featureArea": "search"
+    },
+    {
+      "file": "src/components/organisms/track-maps/ShapePropertiesPanel.tsx",
+      "tier": "organism:track-maps",
+      "featureArea": "track-maps"
+    },
+    {
+      "file": "src/components/organisms/track-maps/ShapeToolbar.tsx",
+      "tier": "organism:track-maps",
+      "featureArea": "track-maps"
+    },
+    {
+      "file": "src/components/organisms/track-maps/ShareMapDialog.tsx",
+      "tier": "organism:track-maps",
+      "featureArea": "track-maps"
+    },
+    {
+      "file": "src/components/organisms/track-maps/TrackMapCanvas.tsx",
+      "tier": "organism:track-maps",
+      "featureArea": "track-maps"
+    },
+    {
+      "file": "src/components/organisms/track-maps/TrackMapEditor.tsx",
+      "tier": "organism:track-maps",
+      "featureArea": "track-maps"
+    },
+    {
+      "file": "src/components/organisms/users/DriverLinkCard.tsx",
+      "tier": "organism:users",
+      "featureArea": "users"
+    },
+    {
+      "file": "src/components/organisms/users/DriverLinksView.tsx",
+      "tier": "organism:users",
+      "featureArea": "users"
+    },
+    {
+      "file": "src/components/store/ReduxProvider.tsx",
+      "tier": "store",
+      "featureArea": "store"
+    },
+    {
+      "file": "src/components/templates/DashboardLayout.tsx",
+      "tier": "template",
+      "featureArea": "templates"
+    }
+  ]
+}

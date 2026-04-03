@@ -64,10 +64,13 @@ export default function TrackAndFavouritesModal({
   const favouriteTrackOptions = favourites
     .map((trackId) => tracks.find((track) => track.id === trackId))
     .filter((track): track is Track => Boolean(track))
+  const hasOverflowingFavourites = favouriteTrackOptions.length > FAVOURITES_VISIBLE_CAP
   const visibleFavourites = favouritesExpanded
     ? favouriteTrackOptions
     : favouriteTrackOptions.slice(0, FAVOURITES_VISIBLE_CAP)
-  const remainingCount = favouriteTrackOptions.length - FAVOURITES_VISIBLE_CAP
+  const remainingCount = hasOverflowingFavourites
+    ? favouriteTrackOptions.length - FAVOURITES_VISIBLE_CAP
+    : 0
   const trackErrorId = trackError ? "track-selector-error-modal" : undefined
 
   const handleSelectTrack = (track: Track) => {
@@ -93,16 +96,8 @@ export default function TrackAndFavouritesModal({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title="Current Track"
-        subtitle={
-          selectedTrack ? (
-            <span title={selectedTrack.trackName} className="block truncate">
-              {selectedTrack.trackName}
-            </span>
-          ) : (
-            "No track selected"
-          )
-        }
+        title="Track selection"
+        subtitle="Choose a track and manage favourites"
         maxWidth="lg"
         ariaLabel="Select track"
       >
@@ -110,6 +105,17 @@ export default function TrackAndFavouritesModal({
           {!selectedTrack && favouriteTrackOptions.length === 0 && (
             <p className="text-sm text-[var(--token-text-secondary)] mb-3">
               Select a track to search for events.
+            </p>
+          )}
+          {selectedTrack && (
+            <p className="text-xs text-[var(--token-text-secondary)] mb-3">
+              Current Track:{" "}
+              <span
+                className="font-medium text-[var(--token-text-primary)]"
+                title={selectedTrack.trackName}
+              >
+                {selectedTrack.trackName}
+              </span>
             </p>
           )}
           <div>
@@ -125,14 +131,13 @@ export default function TrackAndFavouritesModal({
                 id="track-selector-change-btn"
                 variant={selectedTrack ? "default" : "primary"}
                 onClick={() => setIsTrackListOpen(true)}
-                className="flex-shrink-0 h-11 px-3 gap-1.5"
+                className="flex-shrink-0 h-11 px-4"
                 aria-label={selectedTrack ? "Change track" : "Select track"}
                 aria-describedby={trackErrorId}
                 aria-haspopup="dialog"
                 aria-expanded={isTrackListOpen}
               >
                 {selectedTrack ? "Change track" : "Select track"}
-                <ChevronDownIcon className="h-4 w-4 shrink-0 text-[var(--token-text-secondary)]" />
               </Button>
             </div>
             {trackError && (
@@ -146,7 +151,7 @@ export default function TrackAndFavouritesModal({
             )}
           </div>
 
-          <div className="pt-3 mt-3 border-t border-[var(--token-border-default)]">
+          <div className="pt-4 mt-4 border-t border-[var(--token-border-default)]">
             <p className="block text-sm font-medium text-[var(--token-text-primary)] mb-2">
               Favourite tracks
             </p>
@@ -162,7 +167,7 @@ export default function TrackAndFavouritesModal({
                     className={`group rounded-full border flex items-center gap-1 transition-all ${
                       track.id === selectedTrack?.id
                         ? "border-[var(--token-accent)] bg-[var(--token-accent)]/10 hover:bg-[var(--token-accent)]/15"
-                        : "border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] hover:border-[var(--token-accent)]/40 hover:shadow-sm"
+                        : "border-transparent bg-[var(--token-surface-alt)] hover:bg-[var(--token-surface-raised)] hover:border-[var(--token-accent)]/40 hover:shadow-sm"
                     }`}
                   >
                     <button
@@ -196,14 +201,14 @@ export default function TrackAndFavouritesModal({
                     </button>
                   </div>
                 ))}
-                {!favouritesExpanded && remainingCount > 0 && (
+                {hasOverflowingFavourites && (
                   <Button
                     type="button"
                     variant="default"
-                    onClick={() => setFavouritesExpanded(true)}
+                    onClick={() => setFavouritesExpanded((prev) => !prev)}
                     className="h-8 px-3 text-xs rounded-full"
                   >
-                    +{remainingCount} more
+                    {favouritesExpanded ? "Show fewer" : `+${remainingCount} more`}
                   </Button>
                 )}
               </div>
@@ -220,6 +225,7 @@ export default function TrackAndFavouritesModal({
         onSelect={handleSelectTrack}
         onToggleFavourite={onToggleFavourite}
         overlayZIndex={110}
+        backdropVariant="none"
       />
     </>
   )

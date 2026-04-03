@@ -316,6 +316,10 @@ export interface EventAnalysisData {
     email?: string | null
     /** True when venue was corrected by user (approved correction) */
     venueCorrected?: boolean
+    /** LiveRC source event id for entry list fetch; only set for LiveRC events */
+    sourceEventId?: string
+    /** LiveRC track slug for entry list URL; only set when track has source */
+    trackSlug?: string
   }
   /** True when event.sourceEventId contains '-practice-' (practice day). */
   isPracticeDay?: boolean
@@ -434,67 +438,111 @@ export async function getEventSummary(
 
   const isPracticeDay = event.sourceEventId?.includes("-practice-") ?? false
 
-  // Get race count and date range using aggregations
-  const raceStats = await prisma.race.aggregate({
-    where: { eventId },
-    _count: {
-      id: true,
-    },
-    _min: {
-      startTime: true,
-    },
-    _max: {
-      startTime: true,
-    },
-  })
-
-  // Get distinct driver count (using raceDriver.driverId)
-  const distinctDrivers = await prisma.raceDriver.groupBy({
-    by: ["driverId"],
-    where: {
-      race: {
-        eventId,
+  // Get race count, distinct drivers, and total lap count using aggregations in parallel
+  const [raceStats, distinctDrivers, lapStats] = await Promise.all([
+    prisma.race.aggregate({
+      where: { eventId },
+      _count: {
+        id: true,
       },
-    },
-  })
-
-  // Get total lap count using aggregation
-  const lapStats = await prisma.lap.aggregate({
-    where: {
-      raceResult: {
+      _min: {
+        startTime: true,
+      },
+      _max: {
+        startTime: true,
+      },
+    }),
+    prisma.raceDriver.groupBy({
+      by: ["driverId"],
+      where: {
         race: {
           eventId,
         },
       },
-    },
-    _count: {
-      id: true,
-    },
-  })
+    }),
+    prisma.lap.aggregate({
+      where: {
+        raceResult: {
+          race: {
+            eventId,
+          },
+        },
+      },
+      _count: {
+        id: true,
+      },
+    }),
+  ])
 
-  // Get top 3 fastest drivers
-  const allResults = await prisma.raceResult.findMany({
-    where: {
-      race: { eventId },
-      fastLapTime: { not: null },
-    },
-    select: {
-      fastLapTime: true,
-      race: {
-        select: {
-          raceLabel: true,
-          className: true,
-          id: true,
+  // Get top 3 fastest drivers, most consistent drivers, and best average lap drivers in parallel
+  const [allResults, allResultsWithConsistency, allResultsWithAvgLap] = await Promise.all([
+    prisma.raceResult.findMany({
+      where: {
+        race: { eventId },
+        fastLapTime: { not: null },
+      },
+      select: {
+        fastLapTime: true,
+        race: {
+          select: {
+            raceLabel: true,
+            className: true,
+            id: true,
+          },
+        },
+        raceDriver: {
+          select: {
+            driverId: true,
+            displayName: true,
+          },
         },
       },
-      raceDriver: {
-        select: {
-          driverId: true,
-          displayName: true,
+    }),
+    prisma.raceResult.findMany({
+      where: {
+        race: { eventId },
+        consistency: { not: null },
+      },
+      select: {
+        consistency: true,
+        race: {
+          select: {
+            raceLabel: true,
+            className: true,
+            id: true,
+          },
+        },
+        raceDriver: {
+          select: {
+            driverId: true,
+            displayName: true,
+          },
         },
       },
-    },
-  })
+    }),
+    prisma.raceResult.findMany({
+      where: {
+        race: { eventId },
+        avgLapTime: { not: null },
+      },
+      select: {
+        avgLapTime: true,
+        race: {
+          select: {
+            raceLabel: true,
+            className: true,
+            id: true,
+          },
+        },
+        raceDriver: {
+          select: {
+            driverId: true,
+            displayName: true,
+          },
+        },
+      },
+    }),
+  ])
 
   // Calculate class thresholds for validation
   const resultsForValidation: RaceResultForValidation[] = allResults.map((result) => ({
@@ -593,30 +641,6 @@ export async function getEventSummary(
   // Sort all drivers by fastest lap time to maintain overall ranking
   topDrivers.sort((a, b) => a.fastestLapTime - b.fastestLapTime)
 
-  // Get top 3 most consistent drivers (highest consistency score)
-  const allResultsWithConsistency = await prisma.raceResult.findMany({
-    where: {
-      race: { eventId },
-      consistency: { not: null },
-    },
-    select: {
-      consistency: true,
-      race: {
-        select: {
-          raceLabel: true,
-          className: true,
-          id: true,
-        },
-      },
-      raceDriver: {
-        select: {
-          driverId: true,
-          displayName: true,
-        },
-      },
-    },
-  })
-
   const driverBestConsistency = new Map<
     string,
     {
@@ -651,30 +675,6 @@ export async function getEventSummary(
   const mostConsistentDrivers = Array.from(driverBestConsistency.values())
     .sort((a, b) => b.consistency - a.consistency)
     .slice(0, 3)
-
-  // Get top 3 drivers by best average lap time (lowest average from any single race)
-  const allResultsWithAvgLap = await prisma.raceResult.findMany({
-    where: {
-      race: { eventId },
-      avgLapTime: { not: null },
-    },
-    select: {
-      avgLapTime: true,
-      race: {
-        select: {
-          raceLabel: true,
-          className: true,
-          id: true,
-        },
-      },
-      raceDriver: {
-        select: {
-          driverId: true,
-          displayName: true,
-        },
-      },
-    },
-  })
 
   const driverBestAvgLap = new Map<
     string,
@@ -1506,6 +1506,10 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       phone: effectiveTrack.phone ?? null,
       email: effectiveTrack.email ?? null,
       venueCorrected: effectiveTrack.venueCorrected,
+      /** LiveRC source event id (e.g. "491882") for entry list fetch; only set for LiveRC events */
+      sourceEventId: event.sourceEventId ?? undefined,
+      /** LiveRC track slug (e.g. "rcra") for entry list URL; only set when track has source */
+      trackSlug: event.track.sourceTrackSlug ?? undefined,
     },
     isPracticeDay,
     races: racesData,

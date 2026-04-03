@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-12-28
+lastModified: 2026-03-22
 description:
   Authoritative architecture guidelines for API-first application structure
 purpose:
@@ -46,10 +46,10 @@ mobile UI support. The application is desktop-only for UI, but the architecture
 patterns remain valuable for maintainability and future flexibility.
 
 **Mobile strategy:** Version 0.1.1 does not support mobile. Telemetry
-visualizations, dashboards, and all user-facing features are desktop-only (1280px+
-viewport). A separate native mobile app is planned for a future release. Do not
-implement mobile-specific layouts, touch optimizations, or responsive breakpoints
-for telemetry or dashboard features in the web app.
+visualizations, dashboards, and all user-facing features are desktop-only
+(1280px+ viewport). A separate native mobile app is planned for a future
+release. Do not implement mobile-specific layouts, touch optimizations, or
+responsive breakpoints for telemetry or dashboard features in the web app.
 
 ---
 
@@ -97,8 +97,15 @@ For example:
 ```
 src/core/auth/register.ts
 src/core/auth/login.ts
-src/core/users/get-user.ts
+src/core/users/repo.ts
 ```
+
+**Domain folders (illustrative, not exhaustive):** `admin/`, `auth/`,
+`car-profiles/`, `driver-profiles/`, `drivers/`, `events/`, `leaderboards/`,
+`personas/`, `practice-days/`, `race-results/`, `races/`, `search/`,
+`track-maps/`, `tracks/`, `transponder-overrides/`, `users/`, `weather/`. Many
+domains expose a `repo.ts` for Prisma access; see `src/core/` for the current
+tree.
 
 **Why this matters:**
 

@@ -32,6 +32,8 @@ export interface TrackSelectionModalProps {
   onToggleFavourite: (trackId: string) => void
   /** When opening from another modal (e.g. TrackAndFavouritesModal), pass 110 to stack above */
   overlayZIndex?: number
+  /** When nesting inside another modal, disable the second dimmed overlay */
+  backdropVariant?: "dim" | "none"
 }
 
 const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
@@ -46,10 +48,12 @@ export default function TrackSelectionModal({
   onSelect,
   onToggleFavourite,
   overlayZIndex = 50,
+  backdropVariant = "dim",
 }: TrackSelectionModalProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCountry, setSelectedCountry] = useState<string>(ALL_COUNTRIES)
   const [favourites, setFavourites] = useState<string[]>(initialFavourites)
+  const [isVisible, setIsVisible] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -70,6 +74,16 @@ export default function TrackSelectionModal({
     if (isOpen && searchInputRef.current) {
       searchInputRef.current.focus()
     }
+  }, [isOpen])
+
+  // Animate in after mount (avoids "pop in" feel)
+  useEffect(() => {
+    if (!isOpen) {
+      queueMicrotask(() => setIsVisible(false))
+      return
+    }
+    const id = requestAnimationFrame(() => setIsVisible(true))
+    return () => cancelAnimationFrame(id)
   }, [isOpen])
 
   // Handle Escape key to close modal
@@ -157,7 +171,12 @@ export default function TrackSelectionModal({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-[2px] p-4"
+      className={[
+        "fixed inset-0 flex items-center justify-center p-4",
+        backdropVariant === "dim" ? "bg-black/50 backdrop-blur-[2px]" : "bg-transparent",
+        "transition-opacity duration-150 ease-out",
+        isVisible ? "opacity-100" : "opacity-0",
+      ].join(" ")}
       style={{ minWidth: 0, zIndex: overlayZIndex }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -170,7 +189,11 @@ export default function TrackSelectionModal({
     >
       <div
         ref={modalRef}
-        className="max-h-[600px] bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]"
+        className={[
+          "max-h-[calc(100vh-2rem)] bg-[var(--token-surface-raised)] rounded-xl shadow-xl flex flex-col border border-[var(--token-border-default)]",
+          "transition-transform duration-150 ease-out will-change-transform",
+          isVisible ? "translate-y-0 scale-100" : "translate-y-1 scale-[0.98]",
+        ].join(" ")}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
@@ -181,94 +204,98 @@ export default function TrackSelectionModal({
           flexGrow: 0,
         }}
       >
-        {/* Header */}
+        {/* Sticky header + filters */}
         <div
-          className="flex items-center justify-between px-4 py-4 border-b border-[var(--token-border-accent-soft)]"
+          className="sticky top-0 z-10 bg-[var(--token-surface-raised)] border-b border-[var(--token-border-default)]"
           style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
         >
-          <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-            <h2
-              id="track-modal-title"
-              className="text-lg font-semibold text-[var(--token-text-primary)]"
-            >
-              Select Track
-            </h2>
-            <p className="mt-0.5 text-sm text-[var(--token-text-secondary)]">
-              Click a track to select it
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 flex items-center justify-center text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md flex-shrink-0"
-            aria-label="Close modal"
+          <div
+            className="flex items-start justify-between gap-4 px-4 pt-4"
+            style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-
-        {/* Search and Country Filter */}
-        <div
-          className="px-4 py-4 border-b border-[var(--token-border-accent-soft)] space-y-3"
-          style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
-        >
-          <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--token-text-secondary)] pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z"
-              />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Type to filter, then click a track"
-              className="w-full h-11 pl-10 pr-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
-              aria-label="Search tracks"
-              style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
-            />
-          </div>
-          {countries.length > 0 && (
-            <div>
-              <label
-                htmlFor="track-country-filter"
-                className="block text-sm font-medium text-[var(--token-text-secondary)] mb-1.5"
+            <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+              <h2
+                id="track-modal-title"
+                className="text-lg font-semibold text-[var(--token-text-primary)]"
               >
-                Country
-              </label>
-              <select
-                id="track-country-filter"
-                value={selectedCountry}
-                onChange={(e) => setSelectedCountry(e.target.value)}
-                className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
-                aria-label="Filter tracks by country"
-              >
-                <option value={ALL_COUNTRIES}>All countries</option>
-                {countries.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+                Select Track
+              </h2>
+              <p className="mt-0.5 text-sm text-[var(--token-text-secondary)]">
+                Click a track to select it
+              </p>
             </div>
-          )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 flex items-center justify-center text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md flex-shrink-0"
+              aria-label="Close modal"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div
+            className="px-4 pb-4 pt-3 space-y-3"
+            style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
+          >
+            <div className="relative">
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--token-text-secondary)] pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z"
+                />
+              </svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Type to filter, then click a track"
+                className="w-full h-11 pl-10 pr-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
+                aria-label="Search tracks"
+                style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
+              />
+            </div>
+            {countries.length > 0 && (
+              <div>
+                <label
+                  htmlFor="track-country-filter"
+                  className="block text-sm font-medium text-[var(--token-text-secondary)] mb-1.5"
+                >
+                  Country
+                </label>
+                <select
+                  id="track-country-filter"
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                  className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
+                  aria-label="Filter tracks by country"
+                >
+                  <option value={ALL_COUNTRIES}>All countries</option>
+                  {countries.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Track List */}
@@ -343,16 +370,6 @@ export default function TrackSelectionModal({
               </p>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div
-          className="px-4 py-4 border-t border-[var(--token-border-accent-soft)]"
-          style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
-        >
-          <Button type="button" variant="default" onClick={onClose} className="h-11">
-            Cancel
-          </Button>
         </div>
       </div>
     </div>

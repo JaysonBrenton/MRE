@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-03-22
 description:
   Comprehensive Docker user guide for MRE application architecture and usage
 purpose:

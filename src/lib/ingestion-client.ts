@@ -138,6 +138,8 @@ export interface EntryListResponse {
   data: {
     source_event_id: string
     entries_by_class: Record<string, EntryListDriver[]>
+    /** Class names in LiveRC page order (nav pills); use for filter dropdown order */
+    class_order?: string[]
   }
 }
 

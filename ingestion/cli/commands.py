@@ -38,6 +38,7 @@ from ingestion.common.country_lookup import is_known_country, normalize_country
 from ingestion.services.track_sync_service import TrackSyncService
 
 logger = get_logger(__name__)
+SITE_POLICY = SitePolicy.shared()
 
 
 def _ensure_scraping_enabled(command: str) -> None:
@@ -794,13 +795,21 @@ def drivers_deduplicate(execute: bool, source: str):
 
 @liverc.command("verify-integrity")
 def verify_integrity():
-    """Verify data integrity across tables."""
+    """Verify data integrity across tables.
+
+    This includes:
+    - Orphaned races/results
+    - Missing / incomplete lap series
+    - Events with mismatched driver counts
+    - Events marked fully ingested but missing races
+    - Races with non-contiguous finishing positions (e.g. missing P2)
+    """
     logger.info("verify_integrity_start", command="verify-integrity")
     
     issues_found = False
     
     with db_session() as session:
-        from sqlalchemy import select, func, and_, or_
+        from sqlalchemy import select, func, and_, or_, distinct
         from ingestion.db.models import Race, RaceResult, RaceDriver, Lap, IngestDepth
         
         # 1. Check for orphaned races
@@ -908,6 +917,43 @@ def verify_integrity():
                 click.echo(f"  Event {event.id} ({event.source_event_id})")
             if len(partial_ingestion) > 10:
                 click.echo(f"  ... and {len(partial_ingestion) - 10} more")
+
+        # 6. Check for races with non-contiguous finishing positions.
+        #    Example symptom: LiveRC shows P1, P2, P3 but our race_results only contain
+        #    P1 and P3 because a row was dropped during ingestion (e.g. missing driver ID).
+        race_pos_rows = (
+            session.query(
+                Race.id.label("race_id"),
+                func.min(RaceResult.position_final).label("min_pos"),
+                func.max(RaceResult.position_final).label("max_pos"),
+                func.count(distinct(RaceResult.position_final)).label("distinct_positions"),
+            )
+            .join(RaceResult, Race.id == RaceResult.race_id)
+            .group_by(Race.id)
+            .all()
+        )
+
+        position_gaps = []
+        for race_id, min_pos, max_pos, distinct_positions in race_pos_rows:
+            if min_pos is None or max_pos is None:
+                continue
+            # Only consider "normal" races where positions start at 1
+            if min_pos != 1:
+                continue
+            expected = max_pos
+            if distinct_positions < expected:
+                position_gaps.append((race_id, min_pos, max_pos, distinct_positions))
+
+        if position_gaps:
+            issues_found = True
+            click.echo(f"\nFound {len(position_gaps)} races with non-contiguous finishing positions:")
+            for race_id, min_pos, max_pos, distinct_positions in position_gaps[:10]:
+                click.echo(
+                    f"  Race {race_id}: positions {min_pos}–{max_pos}, "
+                    f"{distinct_positions} distinct positions recorded (expected {max_pos})"
+                )
+            if len(position_gaps) > 10:
+                click.echo(f"  ... and {len(position_gaps) - 10} more")
     
     if issues_found:
         logger.warning("verify_integrity_issues_found", command="verify-integrity")
@@ -921,4 +967,3 @@ def verify_integrity():
 
 if __name__ == "__main__":
     cli()
-SITE_POLICY = SitePolicy.shared()

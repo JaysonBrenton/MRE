@@ -67,6 +67,10 @@ export interface EventSearchFormProps {
   onSearch: (track?: Track) => void
   searchMode?: "events" | "practice-days"
   onSearchModeChange?: (mode: "events" | "practice-days") => void
+  /** When true, a search or background discovery is currently in flight */
+  isSearchingInFlight?: boolean
+  /** Called when the user requests to stop the current search */
+  onStop?: () => void
   practiceYear?: number
   practiceMonth?: number
   onPracticeYearChange?: (year: number) => void
@@ -96,6 +100,8 @@ export default function EventSearchForm({
   onSearch,
   searchMode = "events",
   onSearchModeChange: _onSearchModeChange,
+  isSearchingInFlight = false,
+  onStop,
   practiceYear,
   practiceMonth,
   onPracticeYearChange,
@@ -119,9 +125,21 @@ export default function EventSearchForm({
     e.preventDefault()
     clientLogger.debug("EventSearchForm: handleSearch called", {
       hasOnSearch: !!onSearch,
+      hasOnStop: !!onStop,
       selectedTrack,
       isLoading,
+      isSearchingInFlight,
     })
+
+    if (isSearchingInFlight) {
+      if (onStop) {
+        onStop()
+      } else {
+        clientLogger.error("EventSearchForm: onStop prop is missing while search is in flight")
+      }
+      return
+    }
+
     if (onSearch) {
       onSearch()
     } else {
@@ -165,7 +183,7 @@ export default function EventSearchForm({
                   htmlFor="track-selector-trigger"
                   className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
                 >
-                  Track
+                  Track Selection
                 </label>
               </Tooltip>
               <Button
@@ -174,7 +192,7 @@ export default function EventSearchForm({
                 aria-describedby={trackErrorId}
                 onClick={() => setIsTrackModalOpen(true)}
                 variant="default"
-                className="h-11 w-[9rem] min-w-[9rem] justify-between px-3"
+                className="h-11 w-[9rem] min-w-[9rem] justify-center px-3"
                 aria-haspopup="dialog"
                 aria-expanded={isTrackModalOpen}
                 aria-label="Select a track"
@@ -182,7 +200,6 @@ export default function EventSearchForm({
                 <span className="truncate">
                   {selectedTrack ? selectedTrack.trackName : "Select a Track"}
                 </span>
-                <ChevronDownIcon className="h-4 w-4 shrink-0 text-[var(--token-text-secondary)]" />
               </Button>
               {errors?.track && (
                 <p
@@ -204,7 +221,7 @@ export default function EventSearchForm({
                     htmlFor="date-range-trigger"
                     className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
                   >
-                    Date range
+                    Event Date Range
                   </label>
                 </Tooltip>
                 <Button
@@ -212,7 +229,7 @@ export default function EventSearchForm({
                   id="date-range-trigger"
                   variant="default"
                   onClick={() => setIsDateRangeModalOpen(true)}
-                  className="h-11 w-[9rem] min-w-[9rem] justify-between px-3"
+                  className="h-11 w-[9rem] min-w-[9rem] justify-center px-3"
                   aria-haspopup="dialog"
                   aria-expanded={isDateRangeModalOpen}
                 >
@@ -220,7 +237,6 @@ export default function EventSearchForm({
                     {DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ??
                       "Date range"}
                   </span>
-                  <ChevronDownIcon className="h-4 w-4 shrink-0 text-[var(--token-text-secondary)]" />
                 </Button>
               </div>
             )}
@@ -284,11 +300,16 @@ export default function EventSearchForm({
                 <Button
                   type="submit"
                   id="event-search-execute"
-                  variant="primary"
-                  disabled={isLoading || !selectedTrack}
-                  className="h-11 w-[9rem] min-w-[9rem] font-semibold"
+                  variant={isSearchingInFlight ? "default" : "primary"}
+                  disabled={!selectedTrack}
+                  className={`h-11 w-[9rem] min-w-[9rem] font-semibold ${
+                    isSearchingInFlight
+                      ? "text-[var(--token-error-text)] border-[var(--token-error-text)]/60 bg-[var(--token-error-text)]/10 hover:bg-[var(--token-error-text)]/20"
+                      : ""
+                  }`}
+                  aria-label={isSearchingInFlight ? "Stop current search" : "Run event search"}
                 >
-                  {isLoading ? "Running..." : "Run"}
+                  {isSearchingInFlight ? "Stop" : isLoading ? "Running..." : "Run"}
                 </Button>
               </div>
             </div>

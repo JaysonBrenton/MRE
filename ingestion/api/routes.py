@@ -787,6 +787,7 @@ async def get_event_entry_list(
             "data": {
                 "source_event_id": entry_list.source_event_id,
                 "entries_by_class": entries_by_class,
+                "class_order": entry_list.class_order,
             },
         }
     

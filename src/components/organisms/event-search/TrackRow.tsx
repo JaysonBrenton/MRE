@@ -47,7 +47,7 @@ export default function TrackRow({
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[var(--token-surface-raised)] hover:border-l-2 hover:border-l-[var(--token-accent)]/50 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] border-l-2 border-l-transparent"
+      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[var(--token-surface-alt)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
       onClick={handleRowClick}
       role="button"
       tabIndex={0}

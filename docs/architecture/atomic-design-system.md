@@ -1,7 +1,7 @@
 ---
 created: 2026-01-31
 creator: Implementation
-lastModified: 2026-01-31
+lastModified: 2026-03-22
 description: Atomic design system for MRE UI components
 purpose:
   Defines the component tier structure, import rules, and folder map for the MRE
@@ -11,6 +11,7 @@ relatedFiles:
   - docs/standards/typescript-react-style-guide.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/compact-label-value-card.md
+  - docs/frontend/component-catalog.md (full file list)
 ---
 
 # MRE Atomic Design System
@@ -42,17 +43,22 @@ may import from a higher tier (e.g. no atom may import an organism).
 
 ## Folder Map
 
+Machine-generated inventory with one line per file:
+[`docs/frontend/component-catalog.md`](../frontend/component-catalog.md)
+(regenerate: `npm run docs:component-catalog` inside the app container).
+
 ```
 src/components/
-  atoms/           Button, ListRow, LoadingState, StandardButton, StandardInput,
-                   StatusBadge, ChartIcon, Breadcrumbs, Switch
-  molecules/       Modal, Tooltip, StandardTable, EventStatusBadge, ErrorDisplay,
-                   ContentWrapper, PageContainer, LabeledSwitch
-  organisms/       event-analysis/, event-search/, admin/, dashboard/, practice-days/,
-                   search/, track-maps/, events/, users/
+  atoms/           Breadcrumbs, Button, ChartIcon, ListRow, LoadingState,
+                   StandardButton, StandardInput, StatusBadge, Switch
+  molecules/       ContentWrapper, ErrorDisplay, EventStatusBadge, LabeledSwitch,
+                   Modal, PageContainer, StandardTable, Stepper, Tooltip
+  organisms/       admin/, dashboard/, event-analysis/, event-search/, events/,
+                   practice-days/, search/, track-maps/, users/
   templates/       DashboardLayout
-  (root)           AdminNav, ConditionalNav, ErrorBoundary, Footer, LogoutButton,
-                   Providers, store/ReduxProvider
+  (root)           AdminNav, AuthenticatedNav, AuthenticatedNavLinks,
+                   ConditionalNav, ErrorBoundary, Footer, GlobalErrorHandler,
+                   Hero, LogoutButton, NavBar, Providers, store/ReduxProvider
 ```
 
 ---

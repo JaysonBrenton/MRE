@@ -79,8 +79,14 @@ ENVIRONMENT.**
   `docs/specs/mre-v0.1-feature-scope.md#6-llm-guardrails`. Reject any change
   outside registration, login, welcome/admin pages, LiveRC ingestion, navigation
   features, table components, dashboard systems, and telemetry visualizations.
-- **Docs Are Canon** – Architecture, ops, security, and UX documents under
-  `docs/` outrank code comments. Quote them when defending design decisions.
+- **Documentation and truth** – **Normative** standards (ADRs, folder contracts,
+  security policies, intended architecture) live under `docs/` and guide how
+  work should be done. **Descriptive** docs (API reference, user guides, ops
+  runbooks, component catalog, database schema prose) must match the **actual
+  build**; when they disagree, update the docs or mark content as
+  planned/not-implemented. Architecture and ops documents still outrank ad-hoc
+  code comments for **design intent**, but shipped behavior is proven by code,
+  tests, and manifests.
 - **All Documentation in `docs/`** – **ALL documentation files must live under
   `docs/`**. This includes reports, reviews, ADRs, architecture docs, operations
   guides, and any other documentation. The only exception is `README.md` at the
