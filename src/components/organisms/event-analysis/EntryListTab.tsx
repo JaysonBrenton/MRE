@@ -33,11 +33,7 @@ export default function EntryListTab({ data }: EntryListTabProps) {
       aria-labelledby="tab-entry-list"
     >
       {data.entryList.length === 0 ? (
-        <ChartContainer
-          title="Entry List"
-          description="Complete list of drivers entered in this event"
-          aria-label="Entry list - no data available"
-        >
+        <ChartContainer aria-label="Entry list - no data available">
           <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
             No entry list data available for this event.
           </div>

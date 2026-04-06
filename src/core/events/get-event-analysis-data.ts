@@ -17,7 +17,11 @@
 
 import { Prisma } from "@prisma/client"
 import { toDateOnlyUTC } from "@/lib/date-utils"
-import { isPlaceholderClass } from "@/lib/format-class-name"
+import {
+  formatClassName,
+  isPlaceholderClass,
+  normalizeClassNameForEntryMergeKey,
+} from "@/lib/format-class-name"
 import { prisma } from "@/lib/prisma"
 import {
   calculateClassThresholds,
@@ -1086,6 +1090,98 @@ export async function getEventSummary(
 }
 
 /**
+ * Ingestion can create multiple `Driver` rows with the same display name, each with its own
+ * `EventEntry` (unique on event + driver + class). Race fallbacks vs entry-list matching then
+ * produce duplicate rows for one person. Merge on (class identity, displayName): same
+ * `eventRaceClassId` when set, else normalized class string (so "1:8th …" and "1/8 …" merge).
+ * Display `className` is resolved to the official `EventRaceClass` label when possible.
+ */
+function driverDisplayNameMergeKey(displayName: string): string {
+  return displayName.trim().toLowerCase().replace(/\s+/g, " ")
+}
+
+function eventEntryMergeGroupKey<
+  T extends {
+    className: string
+    eventRaceClassId: string | null
+    driver: { displayName: string }
+  },
+>(e: T): string {
+  const name = driverDisplayNameMergeKey(e.driver.displayName)
+  if (e.eventRaceClassId) {
+    return `erc\0${e.eventRaceClassId}\0${name}`
+  }
+  return `cls\0${normalizeClassNameForEntryMergeKey(e.className)}\0${name}`
+}
+
+function pickCanonicalClassNameForMergedGroup<
+  T extends {
+    className: string
+  },
+>(group: T[], officialClassNames: string[]): string {
+  const norm = normalizeClassNameForEntryMergeKey
+  for (const official of officialClassNames) {
+    const want = norm(official)
+    for (const e of group) {
+      if (norm(e.className) === want) return official
+    }
+  }
+  const formatted = group.map((g) => formatClassName(g.className)).filter((s) => s.length > 0)
+  if (formatted.length === 0) return group[0].className
+  return formatted.sort((a, b) => b.length - a.length)[0]!
+}
+
+function mergeEventEntriesForDisplayList<
+  T extends {
+    id: string
+    driverId: string
+    className: string
+    transponderNumber: string | null
+    carNumber: string | null
+    eventRaceClassId: string | null
+    driver: { id: string; displayName: string }
+  },
+>(entries: T[], officialClassNames: string[]): T[] {
+  const groups = new Map<string, T[]>()
+  for (const e of entries) {
+    const key = eventEntryMergeGroupKey(e)
+    const g = groups.get(key)
+    if (g) g.push(e)
+    else groups.set(key, [e])
+  }
+  const out: T[] = []
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      const sole = group[0]
+      const canonical = pickCanonicalClassNameForMergedGroup(group, officialClassNames)
+      if (canonical !== sole.className) {
+        out.push({ ...sole, className: canonical })
+      } else {
+        out.push(sole)
+      }
+      continue
+    }
+    const mergedTp =
+      group.map((g) => g.transponderNumber?.trim()).find((t) => t && t.length > 0) ?? null
+    const mergedCar = group.map((g) => g.carNumber?.trim()).find((t) => t && t.length > 0) ?? null
+    const primary = group.reduce((best, cur) => {
+      const score = (r: T) => (r.transponderNumber?.trim() ? 2 : 0) + (r.carNumber?.trim() ? 1 : 0)
+      return score(cur) > score(best) ? cur : best
+    })
+    const mergedErc =
+      group.find((g) => g.eventRaceClassId)?.eventRaceClassId ?? primary.eventRaceClassId
+    out.push({
+      ...primary,
+      transponderNumber: mergedTp,
+      carNumber: mergedCar,
+      className: pickCanonicalClassNameForMergedGroup(group, officialClassNames),
+      eventRaceClassId: mergedErc,
+    })
+  }
+  return out
+}
+
+/**
  * Get comprehensive event analysis data
  *
  * @param eventId - Event's unique identifier
@@ -1427,7 +1523,17 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     return a.driver.displayName.localeCompare(b.driver.displayName)
   })
 
-  const entryListData = sortedEntries.map((entry) => ({
+  const officialClassNames = eventRaceClasses.map((rc) => rc.className)
+  const mergedEntries = mergeEventEntriesForDisplayList(sortedEntries, officialClassNames)
+  const entriesForList = [...mergedEntries].sort((a, b) => {
+    const classNameCompare = a.className.localeCompare(b.className)
+    if (classNameCompare !== 0) return classNameCompare
+    return a.driver.displayName.localeCompare(b.driver.displayName)
+  })
+
+  const entriesWithTransponder = entriesForList.filter((e) => Boolean(e.transponderNumber?.trim()))
+
+  const entryListData = entriesWithTransponder.map((entry) => ({
     id: entry.id,
     driverId: entry.driverId,
     driverName: entry.driver.displayName,

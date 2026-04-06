@@ -44,3 +44,19 @@ export function formatClassName(className: string | null | undefined): string {
   }
   return formatted
 }
+
+/**
+ * Normalize class labels for comparing entry-list vs race rows when LiveRC uses inconsistent
+ * spellings (e.g. "1:8th …" vs "1/8 …", colon vs slash for scale).
+ */
+export function normalizeClassNameForEntryMergeKey(className: string): string {
+  let s = className.trim().toLowerCase()
+  s = s.replace(/\s+/g, " ")
+  // "1:8th …" → "1/8 …"
+  s = s.replace(/\b(\d{1,2}):(\d{1,2})th\b/g, "$1/$2")
+  // "1:8 …" → "1/8 …"
+  s = s.replace(/\b(\d{1,2}):(\d{1,2})\b/g, "$1/$2")
+  // "1/8th …" → "1/8 …"
+  s = s.replace(/\b(\d{1,2}\/\d{1,2})th\b/g, "$1")
+  return s
+}

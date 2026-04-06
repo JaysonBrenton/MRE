@@ -18,7 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
-import type { Track } from "@prisma/client"
+import { Prisma, type Track } from "@prisma/client"
 
 export interface GetTracksFilters {
   followed?: boolean
@@ -79,4 +79,30 @@ export async function getTrackById(id: string): Promise<Track | null> {
   return prisma.track.findUnique({
     where: { id },
   })
+}
+
+/** Singleton PK written by ingestion; matches Prisma model `TrackCatalogueSyncState`. */
+export const TRACK_CATALOGUE_SYNC_STATE_ID = "singleton" as const
+
+/**
+ * Last successful full track catalogue sync completion time (if any run has completed).
+ *
+ * Uses `$queryRaw` instead of the Prisma delegate so this works when the dev server holds a
+ * stale Prisma singleton (missing `trackCatalogueSyncState` after `prisma generate` without restart).
+ */
+export async function getTrackCatalogueSyncState(): Promise<{ completedAt: Date | null }> {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ completed_at: Date }>>(
+      Prisma.sql`
+        SELECT completed_at FROM track_catalogue_sync_state
+        WHERE id = ${TRACK_CATALOGUE_SYNC_STATE_ID}
+        LIMIT 1
+      `
+    )
+    const row = rows[0]
+    return { completedAt: row?.completed_at ?? null }
+  } catch {
+    // Table missing, migration not applied, or DB error — do not break GET /tracks.
+    return { completedAt: null }
+  }
 }

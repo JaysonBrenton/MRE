@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-04-04
+lastModified: 2026-04-05
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -13,7 +13,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-04-04  
+**Last Updated:** 2026-04-05  
 **Purpose:** Complete listing of all documentation files in the MRE repository
 
 This document provides a comprehensive index of every document in the MRE
@@ -36,6 +36,7 @@ Use this document to discover and navigate all available documentation.
 - [Ingestion Service Documentation](#ingestion-service-documentation)
 - [Security](#security)
 - [Specifications](#specifications)
+- [Future Ideas](#future-ideas)
 - [Architecture Decision Records (ADRs)](#architecture-decision-records-adrs)
 - [User Stories](#user-stories)
 - [Role Documentation](#role-documentation)
@@ -684,6 +685,22 @@ features.
 Complete specification for the `/under-development` placeholder page. Defines
 route, required message, layout requirements, accessibility, and integration
 with navigation.
+
+---
+
+## Future Ideas
+
+Exploratory concepts not committed to the roadmap. See also
+[Future Features](../user-stories/future-features.md) for formal Beta+ epics.
+
+### [Future Ideas Index](../future-ideas/README.md)
+
+Index of lightweight idea notes and links to individual write-ups.
+
+### [Graph-based race replay](../future-ideas/graph-based-race-replay.md)
+
+Chart-driven playback (lap times, order, gaps) as an alternative to video or
+track-map replay, building on existing lap-trend data.
 
 ---
 

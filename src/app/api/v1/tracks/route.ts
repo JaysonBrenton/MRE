@@ -43,7 +43,6 @@ export async function GET(request: NextRequest) {
       active,
     })
 
-    // Call core business logic function
     const tracks = await getTracks({
       followed,
       active,

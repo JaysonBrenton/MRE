@@ -1,16 +1,21 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
 import {
   StandardTable,
   StandardTableHeader,
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import Modal from "@/components/molecules/Modal"
 import ListPagination from "./ListPagination"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-import { computeTopFastestLapsPerClass } from "@/core/events/event-top-fastest-laps-per-class"
+import {
+  computeAllBestLapsForClass,
+  computeTopFastestLapsPerClass,
+} from "@/core/events/event-top-fastest-laps-per-class"
 import { formatLapTime } from "@/lib/format-session-data"
+import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 
 export interface EventTopFastestLapsPerClassTableProps {
   races: EventAnalysisData["races"]
@@ -105,6 +110,41 @@ export default function EventTopFastestLapsPerClassTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [detailClassName, setDetailClassName] = useState<string | null>(null)
+  const [modalPage, setModalPage] = useState(1)
+  const [modalItemsPerPage, setModalItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
+
+  const fullClassLaps = useMemo(() => {
+    if (!detailClassName) return []
+    return computeAllBestLapsForClass(races, detailClassName)
+  }, [detailClassName, races])
+
+  const modalRowCount = fullClassLaps.length
+  const modalTotalPages = Math.max(1, Math.ceil(modalRowCount / modalItemsPerPage) || 1)
+  const modalStartIndex = (modalPage - 1) * modalItemsPerPage
+  const paginatedModalLaps = useMemo(
+    () => fullClassLaps.slice(modalStartIndex, modalStartIndex + modalItemsPerPage),
+    [fullClassLaps, modalStartIndex, modalItemsPerPage]
+  )
+
+  useEffect(() => {
+    if (!detailClassName) return
+    queueMicrotask(() => setModalPage(1))
+  }, [detailClassName])
+
+  useEffect(() => {
+    if (!detailClassName) return
+    if (modalPage > modalTotalPages) {
+      queueMicrotask(() => setModalPage(modalTotalPages))
+    }
+  }, [detailClassName, modalPage, modalTotalPages])
+
+  const handleModalRowsPerPageChange = useCallback((next: number) => {
+    setModalItemsPerPage(next)
+    setModalPage(1)
+  }, [])
+
+  const closeDetailModal = useCallback(() => setDetailClassName(null), [])
 
   // Parent may pass races pre-filtered by class (e.g. overview pills). Clear a stale
   // table-only class filter so it cannot reference a class no longer in `races`.
@@ -247,6 +287,10 @@ export default function EventTopFastestLapsPerClassTable({
             <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
               {`Fastest Laps Per Class: ${headerClassLabel}`}
             </h2>
+            <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+              The table lists the top three distinct lap times per class (ties included). Click a
+              row to see every driver&apos;s best lap in that class.
+            </p>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
             <div className="flex items-center gap-2">
@@ -387,6 +431,15 @@ export default function EventTopFastestLapsPerClassTable({
                   {paginatedRows.map((row, idx) => (
                     <StandardTableRow
                       key={`${row.className}-${row.driverId}-${row.rank}-${row.lapTimeSeconds}-${startIndex + idx}`}
+                      tabIndex={0}
+                      aria-label={`View all fastest laps for class ${row.className}`}
+                      onClick={() => setDetailClassName(row.className)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          setDetailClassName(row.className)
+                        }
+                      }}
                     >
                       <StandardTableCell className="tabular-nums">
                         {formatRankLabel(row.rank)}
@@ -425,6 +478,112 @@ export default function EventTopFastestLapsPerClassTable({
           </>
         )}
       </div>
+
+      {detailClassName && (
+        <Modal
+          isOpen
+          onClose={closeDetailModal}
+          title="All fastest laps"
+          subtitle={<span className="block truncate">{detailClassName}</span>}
+          maxWidth="3xl"
+        >
+          <div className="p-4 space-y-3">
+            <p className="text-sm text-[var(--token-text-secondary)]">
+              Each driver appears once with their best lap of the event in this class (same ranking
+              rules as the summary table, without the top-three time cutoff).
+            </p>
+            {fullClassLaps.length === 0 ? (
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                No lap data for this class.
+              </p>
+            ) : (
+              <>
+                <StandardTable>
+                  <StandardTableHeader>
+                    <StandardTableRow className="border-b border-[var(--token-border-default)]">
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Rank
+                      </StandardTableCell>
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Driver
+                      </StandardTableCell>
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Fastest lap
+                      </StandardTableCell>
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Lap #
+                      </StandardTableCell>
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Session
+                      </StandardTableCell>
+                    </StandardTableRow>
+                  </StandardTableHeader>
+                  <tbody>
+                    {paginatedModalLaps.map((entry) => (
+                      <StandardTableRow key={entry.driverId}>
+                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
+                          {formatRankLabel(entry.rank)}
+                        </StandardTableCell>
+                        <StandardTableCell className="px-3 py-2 text-sm font-medium text-[var(--token-text-primary)]">
+                          {entry.driverName}
+                        </StandardTableCell>
+                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
+                          {formatLapTime(entry.lapTimeSeconds)}
+                        </StandardTableCell>
+                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-secondary)]">
+                          {entry.lapNumber ?? "—"}
+                        </StandardTableCell>
+                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                          {entry.raceUrl ? (
+                            <a
+                              href={entry.raceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="break-words text-[var(--token-accent)] underline-offset-2 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {entry.raceLabel}
+                            </a>
+                          ) : (
+                            <span className="break-words">{entry.raceLabel}</span>
+                          )}
+                        </StandardTableCell>
+                      </StandardTableRow>
+                    ))}
+                  </tbody>
+                </StandardTable>
+                <div className="min-w-0 w-full max-w-full pt-2">
+                  <ListPagination
+                    currentPage={modalPage}
+                    totalPages={modalTotalPages}
+                    onPageChange={setModalPage}
+                    itemsPerPage={modalItemsPerPage}
+                    totalItems={modalRowCount}
+                    itemLabel="drivers"
+                    onRowsPerPageChange={handleModalRowsPerPageChange}
+                    embedded
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

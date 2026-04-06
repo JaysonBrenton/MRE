@@ -3,19 +3,20 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2026-01-31
+ * @lastModified 2026-04-06
  *
- * @description Drivers tab content for event analysis. Shows LiveRC entry list
- *              when event has sourceEventId and trackSlug; otherwise a short message.
+ * @description Entry List tab content: shows `EventEntry` rows from MRE (same payload as
+ *              getEventAnalysisData.entryList), not a live LiveRC scrape.
  *
  * @relatedFiles
- * - src/components/organisms/event-analysis/LiveRCEntryListTable.tsx
- * - src/app/api/v1/events/[eventId]/entry-list/route.ts
+ * - src/core/events/get-event-analysis-data.ts (entryList from prisma.eventEntry)
+ * - src/components/organisms/event-analysis/EntryList.tsx
  */
 
 "use client"
 
-import LiveRCEntryListTable from "./LiveRCEntryListTable"
+import EntryList from "./EntryList"
+import ChartContainer from "./ChartContainer"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface DriversTabProps {
@@ -27,12 +28,20 @@ export interface DriversTabProps {
 export default function DriversTab({ data }: DriversTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
-      <div>
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">Entry list</h2>
-      </div>
-
       <div id="drivers-table-region">
-        <LiveRCEntryListTable eventId={data.event.id} />
+        {data.entryList.length === 0 ? (
+          <ChartContainer aria-label="Entry list - no data available">
+            <div className="flex h-64 items-center justify-center text-[var(--token-text-secondary)]">
+              No entry list data available for this event.
+            </div>
+          </ChartContainer>
+        ) : (
+          <EntryList
+            entries={data.entryList}
+            raceClasses={data.raceClasses}
+            eventId={data.event.id}
+          />
+        )}
       </div>
     </div>
   )

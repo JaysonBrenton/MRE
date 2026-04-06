@@ -201,6 +201,31 @@ function mergeLegsForBracket(sortedRaces: RaceSummary[]): DriverAccum[] {
   return Array.from(byDriver.values())
 }
 
+export interface BracketStandingRow {
+  rank: number
+  driverName: string
+  driverId: string
+}
+
+/**
+ * Full IFMAR-style overall order for a letter bracket (same logic as the event podium).
+ */
+export function computeBracketFullStandings(races: RaceSummary[]): BracketStandingRow[] {
+  if (races.length === 0) return []
+
+  const sortedRaces = sortBracketRaces(races)
+  const drivers = mergeLegsForBracket(sortedRaces)
+  if (drivers.length === 0) return []
+
+  drivers.sort(compareOverall)
+
+  return drivers.map((d, i) => ({
+    rank: i + 1,
+    driverName: d.driverName,
+    driverId: d.driverId,
+  }))
+}
+
 /**
  * Compute overall 1–3 for a bracket from its main races (same class, same letter).
  */
@@ -209,22 +234,11 @@ export function computeBracketPodium(races: RaceSummary[]): {
   second: { name: string } | null
   third: { name: string } | null
 } {
-  if (races.length === 0) {
-    return { first: null, second: null, third: null }
-  }
-
-  const sortedRaces = sortBracketRaces(races)
-  const drivers = mergeLegsForBracket(sortedRaces)
-  if (drivers.length === 0) {
-    return { first: null, second: null, third: null }
-  }
-
-  drivers.sort(compareOverall)
-
+  const standings = computeBracketFullStandings(races)
   return {
-    first: drivers[0] ? { name: drivers[0].driverName } : null,
-    second: drivers[1] ? { name: drivers[1].driverName } : null,
-    third: drivers[2] ? { name: drivers[2].driverName } : null,
+    first: standings[0] ? { name: standings[0].driverName } : null,
+    second: standings[1] ? { name: standings[1].driverName } : null,
+    third: standings[2] ? { name: standings[2].driverName } : null,
   }
 }
 
@@ -381,6 +395,35 @@ export function buildEventMainResultRows(mainsRaces: RaceSummary[]): BracketOver
     return a.bracket.localeCompare(b.bracket)
   })
   return merged
+}
+
+/**
+ * Race sessions that back a row from {@link buildEventMainResultRows} (for full-results UI).
+ */
+export function resolveMainsForBracketOverallRow(
+  row: BracketOverallRow,
+  mainsRaces: RaceSummary[]
+): RaceSummary[] {
+  if (row.sessionKind === "single-main") {
+    const nonLettered = mainsRaces.filter(
+      (r) => r.className === row.className && !parseMainBracketLeg(r.raceLabel)
+    )
+    const primary = pickPrimaryMainRace(nonLettered)
+    return primary ? [primary] : []
+  }
+
+  return mainsRaces.filter((r) => {
+    if (r.className !== row.className) return false
+    const p = parseMainBracketLeg(r.raceLabel)
+    return p?.bracket === row.bracket
+  })
+}
+
+/** Per-session finishing order for one main race (all positions with a valid finish). */
+export function getSortedRaceResults(race: RaceSummary): RaceSummary["results"] {
+  return [...race.results]
+    .filter((r) => r.positionFinal > 0)
+    .sort((a, b) => a.positionFinal - b.positionFinal)
 }
 
 /** Race IDs that participate in an A/B/C bracket group (exclude from per-leg rows). */

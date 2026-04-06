@@ -6,8 +6,8 @@
  * @lastModified 2026-04-06
  *
  * @description Overview tab content for event analysis. Primary sections (Event Overview,
- *            Session Analysis, Event Analysis, Bump-Up, Driver Progression) use a top toolbar
- *            tablist instead of accordions.
+ *            Session Analysis, Event Analysis) use a top toolbar tablist; Bump-Up and Driver
+ *            Progression are sub-views under Event Analysis.
  *
  * @purpose Displays event summary statistics and primary highlights chart.
  *          Supports chart type switching and driver selection.
@@ -21,6 +21,7 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import WeatherCard from "./WeatherCard"
+import EventHighlightsSection from "./EventHighlightsSection"
 import EventTopFastestLapsPerClassTable from "./EventTopFastestLapsPerClassTable"
 import EventTopAverageLapsPerClassTable from "./EventTopAverageLapsPerClassTable"
 import EventFastestLapsTable from "./EventFastestLapsTable"
@@ -33,7 +34,7 @@ import LapByLapTrendChart from "./LapByLapTrendChart"
 import type { DriverPerformanceData } from "./UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import type { EventLapTrendResponse } from "@/core/events/get-lap-data"
-import type { EventWeatherData } from "@/types/weather"
+import { useEventWeather } from "@/hooks/useEventWeather"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 import ChartDataNotice from "./ChartDataNotice"
 import MultiMainOverallCard from "./MultiMainOverallCard"
@@ -64,6 +65,11 @@ import { formatDateLong, formatTimeDisplay } from "@/lib/date-utils"
 import { formatLapTime } from "@/lib/format-session-data"
 import Tooltip from "@/components/molecules/Tooltip"
 import { computeDriverStatsFromRaces } from "@/core/events/compute-driver-stats-from-races"
+import {
+  type EventAnalysisSubTabId,
+  getSubTabLabel,
+  getSubTabOptions,
+} from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
 
 /** Sort races by start time (then race order), matching getEventLapTrend session ordering. */
 function sortRacesChronologically<T extends { startTime: Date | null; raceOrder: number | null }>(
@@ -170,30 +176,13 @@ export interface OverviewTabProps {
   selectedClass: string | null
   onClassChange: (className: string | null) => void
   /** Top-level dashboard tab: only that section’s content (no inner overview subsection strip). */
-  variant?:
-    | "default"
-    | "event-overview-only"
-    | "event-analysis-only"
-    | "session-analysis-only"
-    | "bump-ups-only"
-    | "driver-progression-only"
+  variant?: "default" | "event-overview-only" | "event-analysis-only" | "session-analysis-only"
+  /** Controlled sub-view when parent owns toolbar dropdown (`event-analysis-only` / `session-analysis-only`). */
+  analysisSubTab?: EventAnalysisSubTabId
+  onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
 }
 
-const eventAnalysisTabs = [
-  { id: "event-results", label: "Event Results" },
-  { id: "fastest-laps", label: "Fastest Laps" },
-  { id: "fastest-average-laps", label: "Fastest Average Laps" },
-  { id: "driver-analysis", label: "Driver Analysis" },
-] as const
-
-type EventAnalysisTabId = (typeof eventAnalysisTabs)[number]["id"]
-
-type OverviewPrimarySection =
-  | "event-overview"
-  | "session-analysis"
-  | "event-analysis"
-  | "bump-ups"
-  | "driver-progression"
+type OverviewPrimarySection = "event-overview" | "session-analysis" | "event-analysis"
 
 const overviewPrimarySectionTabs: readonly {
   id: OverviewPrimarySection
@@ -203,12 +192,6 @@ const overviewPrimarySectionTabs: readonly {
   { id: "event-overview", label: "Event Overview", headingId: "event-overview-heading" },
   { id: "session-analysis", label: "Session Analysis", headingId: "session-analysis-heading" },
   { id: "event-analysis", label: "Event Analysis", headingId: "event-analysis-heading" },
-  { id: "bump-ups", label: "Bump-Up", headingId: "bump-ups-heading" },
-  {
-    id: "driver-progression",
-    label: "Driver Progression",
-    headingId: "driver-progression-heading",
-  },
 ]
 
 export default function OverviewTab({
@@ -218,16 +201,13 @@ export default function OverviewTab({
   selectedClass,
   onClassChange,
   variant = "default",
+  analysisSubTab: analysisSubTabProp,
+  onAnalysisSubTabChange,
 }: OverviewTabProps) {
   const lastLoggedMissingState = useRef<string | null>(null)
   const lastLoggedUnselectedInClassState = useRef<string | null>(null)
 
-  const [weatherByDay, setWeatherByDay] = useState<Array<{
-    date: string
-    weather: EventWeatherData
-  }> | null>(null)
-  const [weatherLoading, setWeatherLoading] = useState(false)
-  const [weatherError, setWeatherError] = useState<string | null>(null)
+  const { weatherByDay, weatherLoading, weatherError } = useEventWeather(data.event.id)
   const [overviewPrimarySection, setOverviewPrimarySection] = useState<OverviewPrimarySection>(
     () => {
       switch (variant) {
@@ -237,10 +217,6 @@ export default function OverviewTab({
           return "event-analysis"
         case "session-analysis-only":
           return "session-analysis"
-        case "bump-ups-only":
-          return "bump-ups"
-        case "driver-progression-only":
-          return "driver-progression"
         default:
           return "event-overview"
       }
@@ -251,61 +227,22 @@ export default function OverviewTab({
     variant === "session-analysis-only" || overviewPrimarySection === "session-analysis"
   const [isVenueInfoOpen, setIsVenueInfoOpen] = useState(true)
   const [isEventWeatherDataOpen, setIsEventWeatherDataOpen] = useState(true)
-  const [eventAnalysisTab, setEventAnalysisTab] = useState<EventAnalysisTabId>("event-results")
+  const isControlledAnalysisSubTab =
+    analysisSubTabProp !== undefined && onAnalysisSubTabChange !== undefined
+  const [internalAnalysisSubTab, setInternalAnalysisSubTab] =
+    useState<EventAnalysisSubTabId>("event-results")
+  const eventAnalysisTab = isControlledAnalysisSubTab ? analysisSubTabProp! : internalAnalysisSubTab
+  const setEventAnalysisTab = isControlledAnalysisSubTab
+    ? onAnalysisSubTabChange!
+    : setInternalAnalysisSubTab
   const [eventClassFilter, setEventClassFilter] = useState<string | null>(null)
   const classFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
   const eventSectionClassFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useEffect(() => {
-    queueMicrotask(() => setEventAnalysisTab("event-results"))
-  }, [data.event.id])
-
-  useEffect(() => {
-    const eventId = data.event.id
-    if (!eventId) {
-      queueMicrotask(() => {
-        setWeatherByDay(null)
-        setWeatherError(null)
-      })
-      return
-    }
-    queueMicrotask(() => {
-      setWeatherLoading(true)
-      setWeatherError(null)
-    })
-    const url = `/api/v1/events/${eventId}/weather?perDay=true`
-    fetch(url, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) {
-          if (response.status === 404) {
-            setWeatherError("Event not found")
-            return null
-          }
-          const errorData = await response.json().catch(() => ({}))
-          setWeatherError(errorData.error?.message ?? "Failed to load weather data")
-          return null
-        }
-        const result = await response.json()
-        if (result.success && result.data?.days && Array.isArray(result.data.days)) {
-          return result.data.days as Array<{ date: string; weather: EventWeatherData }>
-        }
-        setWeatherError("Invalid response from server")
-        return null
-      })
-      .then((days) => {
-        if (days) {
-          setWeatherByDay(days)
-          setWeatherError(null)
-        }
-      })
-      .catch((error) => {
-        clientLogger.error("Error fetching weather data", { error })
-        setWeatherError("Failed to fetch weather data")
-      })
-      .finally(() => {
-        setWeatherLoading(false)
-      })
-  }, [data.event.id])
+    if (isControlledAnalysisSubTab) return
+    queueMicrotask(() => setInternalAnalysisSubTab("event-results"))
+  }, [data.event.id, isControlledAnalysisSubTab])
 
   const [paginationState, setPaginationState] = useState({
     page: 1,
@@ -339,7 +276,7 @@ export default function OverviewTab({
   const [sessionLapTrendRaceId, setSessionLapTrendRaceId] = useState<string | null>(null)
   const [sessionLapTrendChartDriverIds, setSessionLapTrendChartDriverIds] = useState<string[]>([])
 
-  const eventClassFilterTabs: EventAnalysisTabId[] = [
+  const eventClassFilterTabs: EventAnalysisSubTabId[] = [
     "event-results",
     "fastest-laps",
     "fastest-average-laps",
@@ -459,24 +396,17 @@ export default function OverviewTab({
     driverProgressionClassNames.includes(selectedClass)
 
   useEffect(() => {
-    const inBumpUpsUi = overviewPrimarySection === "bump-ups" || variant === "bump-ups-only"
+    const inBumpUpsUi = variant === "event-analysis-only" && eventAnalysisTab === "bump-ups"
     if (!inBumpUpsUi) return
     if (bumpUpClassNames.length === 0) return
     if (selectedClass !== null && !bumpUpClassNames.includes(selectedClass)) {
       onClassChange(null)
     }
-  }, [
-    overviewPrimarySection,
-    variant,
-    bumpUpClassNames,
-    selectedClass,
-    onClassChange,
-    data.event.id,
-  ])
+  }, [variant, eventAnalysisTab, bumpUpClassNames, selectedClass, onClassChange, data.event.id])
 
   useEffect(() => {
     const inDriverProgressionUi =
-      overviewPrimarySection === "driver-progression" || variant === "driver-progression-only"
+      variant === "event-analysis-only" && eventAnalysisTab === "driver-progression"
     if (!inDriverProgressionUi) return
     if (driverProgressionClassNames.length === 0) {
       if (selectedClass !== null) {
@@ -488,8 +418,8 @@ export default function OverviewTab({
       onClassChange(null)
     }
   }, [
-    overviewPrimarySection,
     variant,
+    eventAnalysisTab,
     driverProgressionClassNames,
     selectedClass,
     onClassChange,
@@ -1644,9 +1574,7 @@ export default function OverviewTab({
   const showOtherSections =
     variant !== "event-overview-only" &&
     variant !== "event-analysis-only" &&
-    variant !== "session-analysis-only" &&
-    variant !== "bump-ups-only" &&
-    variant !== "driver-progression-only"
+    variant !== "session-analysis-only"
   /** Event overview hero/stats: only on the Event Overview top tab, or in default mode when that subsection is active. */
   const showEventOverviewSection =
     variant === "event-overview-only" ||
@@ -1660,20 +1588,15 @@ export default function OverviewTab({
     variant === "session-analysis-only" ||
     (showOtherSections && overviewPrimarySection === "session-analysis")
 
-  const showBumpUpsSectionBlock =
-    variant === "bump-ups-only" || (showOtherSections && overviewPrimarySection === "bump-ups")
-
-  const showDriverProgressionSectionBlock =
-    variant === "driver-progression-only" ||
-    (showOtherSections && overviewPrimarySection === "driver-progression")
+  const ladderInEventAnalysis =
+    variant === "event-analysis-only" &&
+    (eventAnalysisTab === "bump-ups" || eventAnalysisTab === "driver-progression")
 
   const overviewPrimarySectionTabsVisible = useMemo(() => {
     if (
       variant === "event-overview-only" ||
       variant === "event-analysis-only" ||
-      variant === "session-analysis-only" ||
-      variant === "bump-ups-only" ||
-      variant === "driver-progression-only"
+      variant === "session-analysis-only"
     ) {
       return []
     }
@@ -1687,11 +1610,7 @@ export default function OverviewTab({
         ? "tabpanel-event-analysis"
         : variant === "session-analysis-only"
           ? "tabpanel-session-analysis"
-          : variant === "bump-ups-only"
-            ? "tabpanel-bump-ups"
-            : variant === "driver-progression-only"
-              ? "tabpanel-driver-progression"
-              : "tabpanel-overview"
+          : "tabpanel-overview"
   const tabAriaLabelledBy =
     variant === "event-overview-only"
       ? "tab-event-overview"
@@ -1699,11 +1618,7 @@ export default function OverviewTab({
         ? "tab-event-analysis"
         : variant === "session-analysis-only"
           ? "tab-session-analysis"
-          : variant === "bump-ups-only"
-            ? "tab-bump-ups"
-            : variant === "driver-progression-only"
-              ? "tab-driver-progression"
-              : "tab-overview"
+          : "tab-overview"
 
   return (
     <div className="space-y-6" role="tabpanel" id={tabPanelId} aria-labelledby={tabAriaLabelledBy}>
@@ -1758,7 +1673,7 @@ export default function OverviewTab({
             className="space-y-3"
           >
             <div
-              className="flex flex-col flex-wrap gap-4 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-4 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80 sm:flex-row sm:items-center sm:justify-between"
+              className="flex min-w-0 flex-col gap-4 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-4 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80"
               style={{
                 backgroundColor: "var(--glass-bg)",
                 backdropFilter: "var(--glass-blur)",
@@ -1767,99 +1682,101 @@ export default function OverviewTab({
                 boxShadow: "var(--glass-shadow)",
               }}
             >
-              <div className="min-w-0 flex-1">
-                <div className="mt-1 flex items-center gap-3">
-                  <div className="min-w-0 max-w-full">
-                    {data.event.eventUrl ? (
-                      <Tooltip text="Click to view this event on LiveRC.com" position="top">
-                        <a
-                          href={data.event.eventUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex min-w-0 max-w-full items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)] decoration-[var(--token-accent)]/50 underline-offset-4 transition-colors hover:text-[var(--token-accent)] hover:underline hover:decoration-[var(--token-accent)]"
-                          aria-label="View event on LiveRC (opens in new tab)"
-                        >
+              <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="mt-1 flex items-center gap-3">
+                    <div className="min-w-0 max-w-full">
+                      {data.event.eventUrl ? (
+                        <Tooltip text="Click to view this event on LiveRC.com" position="top">
+                          <a
+                            href={data.event.eventUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex min-w-0 max-w-full items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)] decoration-[var(--token-accent)]/50 underline-offset-4 transition-colors hover:text-[var(--token-accent)] hover:underline hover:decoration-[var(--token-accent)]"
+                            aria-label="View event on LiveRC (opens in new tab)"
+                          >
+                            <MapPin
+                              className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                              aria-hidden
+                            />
+                            <span className="truncate">{data.event.trackName}</span>
+                          </a>
+                        </Tooltip>
+                      ) : (
+                        <h2 className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)]">
                           <MapPin
                             className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
                             aria-hidden
                           />
                           <span className="truncate">{data.event.trackName}</span>
-                        </a>
-                      </Tooltip>
-                    ) : (
-                      <h2 className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)]">
-                        <MapPin
-                          className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                          aria-hidden
-                        />
-                        <span className="truncate">{data.event.trackName}</span>
-                      </h2>
-                    )}
+                        </h2>
+                      )}
+                    </div>
+                    {(() => {
+                      const dr = data.summary.dateRange
+                      const hasDateRange = dr && (dr.earliest || dr.latest)
+                      if (!hasDateRange) return null
+                      const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
+                      const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
+                      const dateRangeStr =
+                        earliestStr && latestStr && earliestStr === latestStr
+                          ? earliestStr
+                          : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
+                      return (
+                        <>
+                          <div
+                            className="h-4 w-px shrink-0 bg-[var(--token-border-default)]"
+                            aria-hidden
+                          />
+                          <span className="text-sm text-[var(--token-text-secondary)]">
+                            {dateRangeStr}
+                          </span>
+                        </>
+                      )
+                    })()}
                   </div>
-                  {(() => {
-                    const dr = data.summary.dateRange
-                    const hasDateRange = dr && (dr.earliest || dr.latest)
-                    if (!hasDateRange) return null
-                    const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
-                    const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
-                    const dateRangeStr =
-                      earliestStr && latestStr && earliestStr === latestStr
-                        ? earliestStr
-                        : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
-                    return (
-                      <>
-                        <div
-                          className="h-4 w-px shrink-0 bg-[var(--token-border-default)]"
-                          aria-hidden
-                        />
-                        <span className="text-sm text-[var(--token-text-secondary)]">
-                          {dateRangeStr}
-                        </span>
-                      </>
-                    )
-                  })()}
                 </div>
-              </div>
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-x-6 gap-y-2 text-right sm:text-left sm:pl-4 sm:border-l sm:border-[var(--token-border-subtle)]">
-                <div className="flex flex-col">
-                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                    Races
-                  </span>
-                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                    {data.summary.totalRaces}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                    Drivers
-                  </span>
-                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                    {data.summary.totalDrivers}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                    Entries
-                  </span>
-                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                    {data.entryList.length}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                    Total Laps
-                  </span>
-                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                    {data.summary.totalLaps.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                    Total Classes
-                  </span>
-                  <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                    {data.raceClasses.size}
-                  </span>
+                <div className="grid grid-cols-4 sm:grid-cols-5 gap-x-6 gap-y-2 text-right sm:text-left sm:pl-4 sm:border-l sm:border-[var(--token-border-subtle)]">
+                  <div className="flex flex-col">
+                    <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                      Races
+                    </span>
+                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                      {data.summary.totalRaces}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                      Drivers
+                    </span>
+                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                      {data.summary.totalDrivers}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                      Entries
+                    </span>
+                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                      {data.entryList.length}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                      Total Laps
+                    </span>
+                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                      {data.summary.totalLaps.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                      Total Classes
+                    </span>
+                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
+                      {data.raceClasses.size}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -2075,6 +1992,8 @@ export default function OverviewTab({
                   </div>
                 )}
               </div>
+
+              <EventHighlightsSection data={data} />
             </div>
           </div>
         </section>
@@ -2095,372 +2014,583 @@ export default function OverviewTab({
             }
             className="space-y-5"
           >
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-2 shadow-sm">
-              <div className="min-w-0 flex-1 overflow-x-hidden">
-                <div className="flex min-w-0 flex-wrap">
-                  {eventAnalysisTabs.map((tab) => {
-                    const isActive = eventAnalysisTab === tab.id
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          isActive
-                            ? "border-[var(--token-accent)] text-[var(--token-accent)]"
-                            : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
-                        }`}
-                        onClick={() => setEventAnalysisTab(tab.id)}
-                      >
-                        {tab.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-            {eventAnalysisTab === "driver-analysis" && validClasses.length > 0 && (
-              <div
-                className="mt-2 -mx-1 overflow-x-hidden"
-                role="toolbar"
-                aria-label="Filter event driver analysis by class. All Classes shows every class; it is the last control."
-              >
-                <div className="flex flex-wrap gap-2 px-1 py-1">
-                  {validClasses.map((className, index) => {
-                    const isActive = selectedClass === className
-                    return (
-                      <button
-                        key={className}
-                        type="button"
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          isActive
-                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                        }`}
-                        onClick={() => {
-                          handleSessionClassChipClick(className)
-                        }}
-                        aria-pressed={isActive}
-                        onKeyDown={(event) =>
-                          handleEventClassFilterKeyDown(event, index, classFilterButtonRefs)
-                        }
-                        ref={(el) => {
-                          classFilterButtonRefs.current[index] = el
-                        }}
-                      >
-                        <span>{className}</span>
-                      </button>
-                    )
-                  })}
-                  <button
-                    key="__event-driver-analysis-all-classes__"
-                    type="button"
-                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                      selectedClass === null
-                        ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                        : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                    }`}
-                    onClick={() => {
-                      handleSessionClassFilterAllClassesClick()
-                    }}
-                    aria-pressed={selectedClass === null}
-                    onKeyDown={(event) =>
-                      handleEventClassFilterKeyDown(
-                        event,
-                        validClasses.length,
-                        classFilterButtonRefs
+            <h2
+              id="event-analysis-subview-heading"
+              className="text-xl font-semibold tracking-tight text-[var(--token-text-primary)]"
+            >
+              {`Event Analysis - ${getSubTabLabel(eventAnalysisTab, "event")}`}
+            </h2>
+            {!isControlledAnalysisSubTab && !ladderInEventAnalysis && (
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-2 shadow-sm">
+                <div className="min-w-0 flex-1 overflow-x-hidden">
+                  <div className="flex min-w-0 flex-wrap">
+                    {getSubTabOptions("event").map((tab) => {
+                      const isActive = eventAnalysisTab === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                            isActive
+                              ? "border-[var(--token-accent)] text-[var(--token-accent)]"
+                              : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
+                          }`}
+                          onClick={() => setEventAnalysisTab(tab.id)}
+                        >
+                          {tab.label}
+                        </button>
                       )
-                    }
-                    ref={(el) => {
-                      classFilterButtonRefs.current[validClasses.length] = el
-                    }}
-                  >
-                    <span>All Classes</span>
-                  </button>
+                    })}
+                  </div>
                 </div>
               </div>
             )}
-            {eventAnalysisTab === "driver-analysis" && (
+            {ladderInEventAnalysis ? (
               <>
-                <section className="space-y-4">
-                  <ChartControls
-                    drivers={driverOptions}
-                    races={data.races}
-                    selectedDriverIds={selectedDriverIds}
-                    onDriverSelectionChange={handleSelectionChange}
-                    onClassChange={handleClassChange}
-                    selectedClass={selectedClass}
-                    eventId={data.event.id}
-                    raceClasses={data.raceClasses}
-                    onSelectAllClick={handleSelectAllClick}
-                  />
-                </section>
-                <div className="space-y-1.5">
-                  <h3
-                    id="compare-driver-performance-heading"
-                    className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]"
-                  >
-                    Compare driver performance
-                  </h3>
-                  <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
-                    Best lap, average lap, gap, and related metrics for the class from the chips
-                    above and drivers in Actions. Switch column or line view and sort from the chart
-                    header.
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  {missingBestLapDriverNames.length > 0 && (
-                    <ChartDataNotice
-                      title="Some selected drivers have no recorded best lap"
-                      description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
-                      driverNames={missingBestLapDriverNames}
-                      eventId={data.event.id}
-                      noticeType="best-lap"
-                    />
-                  )}
-                  {missingAvgVsFastestDriverNames.length > 0 && (
-                    <ChartDataNotice
-                      title="Missing average lap telemetry"
-                      description="These drivers were selected, but the data feed does not include both best and average lap times for them."
-                      driverNames={missingAvgVsFastestDriverNames}
-                      eventId={data.event.id}
-                      noticeType="avg-vs-fastest"
-                    />
-                  )}
+                {eventAnalysisTab === "bump-ups" && (
                   <div
-                    className="w-full min-w-0 rounded-lg border border-[var(--token-border-muted)]/90 bg-[var(--token-surface)]/25 px-3 py-2 shadow-sm"
-                    style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
-                    aria-label="Summary for chart scope"
+                    id={bumpUpsSectionContentId}
+                    role="tabpanel"
+                    aria-labelledby="event-analysis-subview-heading"
+                    className="space-y-4"
                   >
-                    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                          Best lap
-                        </span>
-                        <span className="font-mono text-sm tabular-nums text-[var(--token-text-secondary)]">
-                          {formatLapTime(compareChartSummaryStrip.bestLapSeconds)}
-                        </span>
+                    <p className="w-full min-w-0 max-w-full text-sm leading-relaxed text-[var(--token-text-secondary)]">{`Bump-ups are promotions between finals rounds (toward the A-main), not exits from qualifying.`}</p>
+                    {bumpUpClassNames.length > 0 && (
+                      <div
+                        className="mt-2 -mx-1 overflow-x-hidden"
+                        role="toolbar"
+                        aria-label="Filter bump-ups by racing class (from race data)"
+                      >
+                        <div className="flex flex-wrap gap-2 px-1 py-1">
+                          {bumpUpClassNames.map((className, index) => {
+                            const isActive = selectedClass === className
+                            return (
+                              <button
+                                key={className}
+                                type="button"
+                                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                                  isActive
+                                    ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                    : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                                }`}
+                                onClick={() => {
+                                  handleSessionClassChipClick(className)
+                                }}
+                                aria-pressed={isActive}
+                                onKeyDown={(event) =>
+                                  handleSessionToolbarClassKeyDown(
+                                    event,
+                                    index,
+                                    classFilterButtonRefs,
+                                    bumpUpClassNames.length
+                                  )
+                                }
+                                ref={(el) => {
+                                  classFilterButtonRefs.current[index] = el
+                                }}
+                              >
+                                <span>{className}</span>
+                              </button>
+                            )
+                          })}
+                          <button
+                            key="__all-classes-bump-ups__"
+                            type="button"
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                              selectedClass === null
+                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                            }`}
+                            onClick={() => {
+                              handleSessionClassFilterAllClassesClick()
+                            }}
+                            aria-pressed={selectedClass === null}
+                            onKeyDown={(event) =>
+                              handleSessionToolbarClassKeyDown(
+                                event,
+                                bumpUpClassNames.length,
+                                classFilterButtonRefs,
+                                bumpUpClassNames.length
+                              )
+                            }
+                            ref={(el) => {
+                              classFilterButtonRefs.current[bumpUpClassNames.length] = el
+                            }}
+                          >
+                            <span>All Classes</span>
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                          Avg lap
-                        </span>
-                        <span className="font-mono text-sm tabular-nums text-[var(--token-text-secondary)]">
-                          {formatLapTime(compareChartSummaryStrip.avgLapSeconds)}
-                        </span>
-                      </div>
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                          Laps
-                        </span>
-                        <span className="text-sm tabular-nums text-[var(--token-text-secondary)]">
-                          {compareChartSummaryStrip.lapCount.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                          Drivers
-                        </span>
-                        <span className="text-sm tabular-nums text-[var(--token-text-secondary)]">
-                          {compareChartSummaryStrip.driverCount.toLocaleString()}
-                        </span>
-                      </div>
+                    )}
+                    <div
+                      className="w-full max-w-full rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 p-4 shadow-sm"
+                      aria-live="polite"
+                    >
+                      {bumpUpClassCandidates.length === 0 ? (
+                        <p className="text-sm text-[var(--token-text-primary)]">
+                          No racing classes found in session results for this event.
+                        </p>
+                      ) : bumpUpClassNames.length === 0 ? (
+                        <p className="text-sm text-[var(--token-text-primary)]">
+                          No bump-up advancements could be inferred from published results for
+                          ladder-eligible classes in this event.
+                        </p>
+                      ) : !hasBumpUpsClassSelected ? (
+                        <DriverBumpUpsTable
+                          rows={[]}
+                          hasSelectedClass={false}
+                          aggregatedRows={bumpUpRowsAggregated}
+                        />
+                      ) : (
+                        <DriverBumpUpsTable rows={bumpUpRows} hasSelectedClass />
+                      )}
                     </div>
                   </div>
-                  <ChartSection>
-                    <UnifiedPerformanceChart
-                      data={unifiedChartData}
-                      selectedDriverIds={expandedUnifiedChartDriverIds}
-                      currentPage={currentPage}
-                      driversPerPage={driversPerPage}
-                      onPageChange={handlePageChange}
-                      onDriverToggle={handleUnifiedChartDriverToggle}
-                      chartInstanceId={`overview-${data.event.id}-unified`}
-                      selectedClass={selectedClass}
-                      allDriversInClassSelected={
-                        allDriversInClassSelected && selectAllClickedForCurrentClass
-                      }
-                      chartView={chartViewState}
-                      onChartViewChange={setChartViewState}
-                      chartDriverOptions={driverStatsByClass.map((d) => ({
-                        driverId: d.driverId,
-                        driverName: d.driverName,
-                      }))}
-                      chartSelectedDriverIds={unifiedChartDriverIds}
-                      onChartDriverSelectionChange={setUnifiedChartDriverIds}
-                    />
-                  </ChartSection>
-                </div>
-                <div className="space-y-1.5">
-                  <h3
-                    id="driver-analysis-overview-heading"
-                    className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]"
+                )}
+                {eventAnalysisTab === "driver-progression" && (
+                  <div
+                    id={driverProgressionSectionContentId}
+                    role="tabpanel"
+                    aria-labelledby="event-analysis-subview-heading"
+                    className="space-y-4"
                   >
-                    Lap-by-lap trend
-                  </h3>
-                  <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
-                    Every lap time for the class and driver you pick below. Use{" "}
-                    <span className="whitespace-nowrap">Display</span> on the chart for session
-                    shading and the regression line.
-                  </p>
-                </div>
-                <div id="lap-trend-overview-content" className="space-y-4">
-                  <ChartSection>
-                    {expandedSelectedDriverIds.length === 0 ? (
+                    <p className="w-full min-w-0 max-w-full text-sm leading-relaxed text-[var(--token-text-secondary)]">{`Driver progression shows each driver's finish in every main round, in ladder order from lower mains and LCQs toward the A-main. The class chips match Bump-Up scope (nitro mains only; electric and EP classes are omitted). A class is listed only when there are at least two mains ladder sessions in the results so a path across rounds is visible.`}</p>
+                    {driverProgressionClassNames.length > 0 && (
                       <div
-                        className="flex items-center justify-center text-[var(--token-text-secondary)] rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] min-h-[400px]"
-                        style={{
-                          minWidth: 0,
-                          backgroundColor: "var(--glass-bg)",
-                          backdropFilter: "var(--glass-blur)",
-                          borderRadius: 16,
-                          border: "1px solid var(--glass-border)",
-                          boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
-                        }}
+                        className="mt-2 -mx-1 overflow-x-hidden"
+                        role="toolbar"
+                        aria-label="Filter driver progression by racing class (from race data)"
                       >
-                        Choose drivers in Actions (class or Select Drivers), then pick a class and
-                        driver below to load lap times.
+                        <div className="flex flex-wrap gap-2 px-1 py-1">
+                          {driverProgressionClassNames.map((className, index) => {
+                            const isActive = selectedClass === className
+                            return (
+                              <button
+                                key={className}
+                                type="button"
+                                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                                  isActive
+                                    ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                    : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                                }`}
+                                onClick={() => {
+                                  handleSessionClassChipClick(className)
+                                }}
+                                aria-pressed={isActive}
+                                onKeyDown={(event) =>
+                                  handleSessionToolbarClassKeyDown(
+                                    event,
+                                    index,
+                                    classFilterButtonRefs,
+                                    driverProgressionClassNames.length
+                                  )
+                                }
+                                ref={(el) => {
+                                  classFilterButtonRefs.current[index] = el
+                                }}
+                              >
+                                <span>{className}</span>
+                              </button>
+                            )
+                          })}
+                          <button
+                            key="__all-classes-driver-progression__"
+                            type="button"
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                              selectedClass === null
+                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                            }`}
+                            onClick={() => {
+                              handleSessionClassFilterAllClassesClick()
+                            }}
+                            aria-pressed={selectedClass === null}
+                            onKeyDown={(event) =>
+                              handleSessionToolbarClassKeyDown(
+                                event,
+                                driverProgressionClassNames.length,
+                                classFilterButtonRefs,
+                                driverProgressionClassNames.length
+                              )
+                            }
+                            ref={(el) => {
+                              classFilterButtonRefs.current[driverProgressionClassNames.length] = el
+                            }}
+                          >
+                            <span>All Classes</span>
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      <>
-                        {lapTrendDriverOptions.length > MAX_LAP_TREND_DRIVERS &&
-                          lapTrendChartDriverIds.length === MAX_LAP_TREND_DRIVERS && (
-                            <p className="mb-2 text-sm text-[var(--token-text-secondary)]">
-                              Showing first {MAX_LAP_TREND_DRIVERS} of{" "}
-                              {lapTrendDriverOptions.length} selected. Use Drivers to add or change.
-                            </p>
-                          )}
-                        <LapByLapTrendChart
-                          drivers={
-                            lapTrendData?.drivers?.some((d) => d.laps.length > 0)
-                              ? sortedLapTrendDrivers
-                              : []
-                          }
-                          height={450}
-                          chartInstanceId={`overview-${data.event.id}-lap-trend`}
-                          chartTitle={
-                            selectedClass === null
-                              ? "All Classes"
-                              : (selectedClass ?? "All Classes")
-                          }
-                          headerControls={
-                            <div className="flex flex-wrap items-center gap-4">
-                              {lapTrendDriverOptions.length > 0 && (
-                                <ChartDriverPicker
-                                  drivers={lapTrendDriverOptions}
-                                  selectedDriverIds={lapTrendChartDriverIds}
-                                  onSelectionChange={setLapTrendChartDriverIds}
-                                  label="Select Drivers"
-                                  singleSelect
-                                  disabled={selectedClass === null}
-                                  disabledTooltip="Select a class with the chips above to choose drivers"
-                                />
-                              )}
-                            </div>
-                          }
-                          emptyMessage={
-                            lapTrendLoading
-                              ? "Loading lap data…"
-                              : (lapTrendError ??
-                                (lapTrendChartDriverIds.length === 0
-                                  ? "Select a class with the chips above, then choose a driver from that class to view lap-by-lap data."
-                                  : "No lap data for selected drivers."))
-                          }
-                        />
-                      </>
                     )}
-                  </ChartSection>
-                </div>
+                    <div
+                      className="w-full max-w-full rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 p-4 shadow-sm"
+                      aria-live="polite"
+                    >
+                      {driverProgressionClassNames.length === 0 ? (
+                        <p className="text-sm text-[var(--token-text-primary)]">
+                          No classes with multiple mains-ladder rounds (at least two of semi, LCQ,
+                          mains) for driver progression in this event.
+                        </p>
+                      ) : !hasDriverProgressionClassSelected ? (
+                        <p className="text-sm text-[var(--token-text-secondary)]">
+                          Select a class above to see each driver&apos;s path through mains-ladder
+                          rounds for that class.
+                        </p>
+                      ) : (
+                        <DriverProgressionTable matrix={driverProgressionMatrix} />
+                      )}
+                    </div>
+                  </div>
+                )}
               </>
-            )}
-            {eventClassFilterTabs.includes(eventAnalysisTab) && validClasses.length > 0 && (
-              <div
-                className="mt-2 -mx-1 overflow-x-hidden"
-                role="toolbar"
-                aria-label="Filter event analysis by class (event section). All Classes shows every class; it is the last control."
-              >
-                <div className="flex flex-wrap gap-2 px-1 py-1">
-                  {validClasses.map((className, index) => {
-                    const isActive = eventClassFilter === className
-                    return (
+            ) : (
+              <>
+                {eventAnalysisTab === "driver-analysis" && validClasses.length > 0 && (
+                  <div
+                    className="mt-2 -mx-1 overflow-x-hidden"
+                    role="toolbar"
+                    aria-label="Filter event driver analysis by class. All Classes shows every class; it is the last control."
+                  >
+                    <div className="flex flex-wrap gap-2 px-1 py-1">
+                      {validClasses.map((className, index) => {
+                        const isActive = selectedClass === className
+                        return (
+                          <button
+                            key={className}
+                            type="button"
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                              isActive
+                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                            }`}
+                            onClick={() => {
+                              handleSessionClassChipClick(className)
+                            }}
+                            aria-pressed={isActive}
+                            onKeyDown={(event) =>
+                              handleEventClassFilterKeyDown(event, index, classFilterButtonRefs)
+                            }
+                            ref={(el) => {
+                              classFilterButtonRefs.current[index] = el
+                            }}
+                          >
+                            <span>{className}</span>
+                          </button>
+                        )
+                      })}
                       <button
-                        key={className}
+                        key="__event-driver-analysis-all-classes__"
                         type="button"
                         className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          isActive
+                          selectedClass === null
                             ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
                             : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
                         }`}
                         onClick={() => {
-                          handleEventClassFilterClick(className)
+                          handleSessionClassFilterAllClassesClick()
                         }}
-                        aria-pressed={isActive}
+                        aria-pressed={selectedClass === null}
                         onKeyDown={(event) =>
                           handleEventClassFilterKeyDown(
                             event,
-                            index,
+                            validClasses.length,
+                            classFilterButtonRefs
+                          )
+                        }
+                        ref={(el) => {
+                          classFilterButtonRefs.current[validClasses.length] = el
+                        }}
+                      >
+                        <span>All Classes</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {eventAnalysisTab === "driver-analysis" && (
+                  <>
+                    <section className="space-y-4">
+                      <ChartControls
+                        drivers={driverOptions}
+                        races={data.races}
+                        selectedDriverIds={selectedDriverIds}
+                        onDriverSelectionChange={handleSelectionChange}
+                        onClassChange={handleClassChange}
+                        selectedClass={selectedClass}
+                        eventId={data.event.id}
+                        raceClasses={data.raceClasses}
+                        onSelectAllClick={handleSelectAllClick}
+                      />
+                    </section>
+                    <div className="space-y-1.5">
+                      <h3
+                        id="compare-driver-performance-heading"
+                        className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]"
+                      >
+                        Compare driver performance
+                      </h3>
+                      <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
+                        Best lap, average lap, gap, and related metrics for the class from the chips
+                        above and drivers in Actions. Switch column or line view and sort from the
+                        chart header.
+                      </p>
+                    </div>
+                    <div className="space-y-4">
+                      {missingBestLapDriverNames.length > 0 && (
+                        <ChartDataNotice
+                          title="Some selected drivers have no recorded best lap"
+                          description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
+                          driverNames={missingBestLapDriverNames}
+                          eventId={data.event.id}
+                          noticeType="best-lap"
+                        />
+                      )}
+                      {missingAvgVsFastestDriverNames.length > 0 && (
+                        <ChartDataNotice
+                          title="Missing average lap telemetry"
+                          description="These drivers were selected, but the data feed does not include both best and average lap times for them."
+                          driverNames={missingAvgVsFastestDriverNames}
+                          eventId={data.event.id}
+                          noticeType="avg-vs-fastest"
+                        />
+                      )}
+                      <div
+                        className="w-full min-w-0 rounded-lg border border-[var(--token-border-muted)]/90 bg-[var(--token-surface)]/25 px-3 py-2 shadow-sm"
+                        style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
+                        aria-label="Summary for chart scope"
+                      >
+                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
+                              Best lap
+                            </span>
+                            <span className="font-mono text-sm tabular-nums text-[var(--token-text-secondary)]">
+                              {formatLapTime(compareChartSummaryStrip.bestLapSeconds)}
+                            </span>
+                          </div>
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
+                              Avg lap
+                            </span>
+                            <span className="font-mono text-sm tabular-nums text-[var(--token-text-secondary)]">
+                              {formatLapTime(compareChartSummaryStrip.avgLapSeconds)}
+                            </span>
+                          </div>
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
+                              Laps
+                            </span>
+                            <span className="text-sm tabular-nums text-[var(--token-text-secondary)]">
+                              {compareChartSummaryStrip.lapCount.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
+                              Drivers
+                            </span>
+                            <span className="text-sm tabular-nums text-[var(--token-text-secondary)]">
+                              {compareChartSummaryStrip.driverCount.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <ChartSection>
+                        <UnifiedPerformanceChart
+                          data={unifiedChartData}
+                          selectedDriverIds={expandedUnifiedChartDriverIds}
+                          currentPage={currentPage}
+                          driversPerPage={driversPerPage}
+                          onPageChange={handlePageChange}
+                          onDriverToggle={handleUnifiedChartDriverToggle}
+                          chartInstanceId={`overview-${data.event.id}-unified`}
+                          selectedClass={selectedClass}
+                          allDriversInClassSelected={
+                            allDriversInClassSelected && selectAllClickedForCurrentClass
+                          }
+                          chartView={chartViewState}
+                          onChartViewChange={setChartViewState}
+                          chartDriverOptions={driverStatsByClass.map((d) => ({
+                            driverId: d.driverId,
+                            driverName: d.driverName,
+                          }))}
+                          chartSelectedDriverIds={unifiedChartDriverIds}
+                          onChartDriverSelectionChange={setUnifiedChartDriverIds}
+                        />
+                      </ChartSection>
+                    </div>
+                    <div className="space-y-1.5">
+                      <h3
+                        id="driver-analysis-overview-heading"
+                        className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]"
+                      >
+                        Lap-by-lap trend
+                      </h3>
+                      <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
+                        Every lap time for the class and driver you pick below. Use{" "}
+                        <span className="whitespace-nowrap">Display</span> on the chart for session
+                        shading and the regression line.
+                      </p>
+                    </div>
+                    <div id="lap-trend-overview-content" className="space-y-4">
+                      <ChartSection>
+                        {expandedSelectedDriverIds.length === 0 ? (
+                          <div
+                            className="flex items-center justify-center text-[var(--token-text-secondary)] rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] min-h-[400px]"
+                            style={{
+                              minWidth: 0,
+                              backgroundColor: "var(--glass-bg)",
+                              backdropFilter: "var(--glass-blur)",
+                              borderRadius: 16,
+                              border: "1px solid var(--glass-border)",
+                              boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
+                            }}
+                          >
+                            Choose drivers in Actions (class or Select Drivers), then pick a class
+                            and driver below to load lap times.
+                          </div>
+                        ) : (
+                          <>
+                            {lapTrendDriverOptions.length > MAX_LAP_TREND_DRIVERS &&
+                              lapTrendChartDriverIds.length === MAX_LAP_TREND_DRIVERS && (
+                                <p className="mb-2 text-sm text-[var(--token-text-secondary)]">
+                                  Showing first {MAX_LAP_TREND_DRIVERS} of{" "}
+                                  {lapTrendDriverOptions.length} selected. Use Drivers to add or
+                                  change.
+                                </p>
+                              )}
+                            <LapByLapTrendChart
+                              drivers={
+                                lapTrendData?.drivers?.some((d) => d.laps.length > 0)
+                                  ? sortedLapTrendDrivers
+                                  : []
+                              }
+                              height={450}
+                              chartInstanceId={`overview-${data.event.id}-lap-trend`}
+                              chartTitle={
+                                selectedClass === null
+                                  ? "All Classes"
+                                  : (selectedClass ?? "All Classes")
+                              }
+                              headerControls={
+                                <div className="flex flex-wrap items-center gap-4">
+                                  {lapTrendDriverOptions.length > 0 && (
+                                    <ChartDriverPicker
+                                      drivers={lapTrendDriverOptions}
+                                      selectedDriverIds={lapTrendChartDriverIds}
+                                      onSelectionChange={setLapTrendChartDriverIds}
+                                      label="Select Drivers"
+                                      singleSelect
+                                      disabled={selectedClass === null}
+                                      disabledTooltip="Select a class with the chips above to choose drivers"
+                                    />
+                                  )}
+                                </div>
+                              }
+                              emptyMessage={
+                                lapTrendLoading
+                                  ? "Loading lap data…"
+                                  : (lapTrendError ??
+                                    (lapTrendChartDriverIds.length === 0
+                                      ? "Select a class with the chips above, then choose a driver from that class to view lap-by-lap data."
+                                      : "No lap data for selected drivers."))
+                              }
+                            />
+                          </>
+                        )}
+                      </ChartSection>
+                    </div>
+                  </>
+                )}
+                {eventClassFilterTabs.includes(eventAnalysisTab) && validClasses.length > 0 && (
+                  <div
+                    className="mt-2 -mx-1 overflow-x-hidden"
+                    role="toolbar"
+                    aria-label="Filter event analysis by class (event section). All Classes shows every class; it is the last control."
+                  >
+                    <div className="flex flex-wrap gap-2 px-1 py-1">
+                      {validClasses.map((className, index) => {
+                        const isActive = eventClassFilter === className
+                        return (
+                          <button
+                            key={className}
+                            type="button"
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                              isActive
+                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                            }`}
+                            onClick={() => {
+                              handleEventClassFilterClick(className)
+                            }}
+                            aria-pressed={isActive}
+                            onKeyDown={(event) =>
+                              handleEventClassFilterKeyDown(
+                                event,
+                                index,
+                                eventSectionClassFilterButtonRefs
+                              )
+                            }
+                            ref={(el) => {
+                              eventSectionClassFilterButtonRefs.current[index] = el
+                            }}
+                          >
+                            <span>{className}</span>
+                          </button>
+                        )
+                      })}
+                      <button
+                        key="__event-section-all-classes__"
+                        type="button"
+                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                          eventClassFilter === null
+                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                        }`}
+                        onClick={() => {
+                          handleEventClassFilterAllClassesClick()
+                        }}
+                        aria-pressed={eventClassFilter === null}
+                        onKeyDown={(event) =>
+                          handleEventClassFilterKeyDown(
+                            event,
+                            validClasses.length,
                             eventSectionClassFilterButtonRefs
                           )
                         }
                         ref={(el) => {
-                          eventSectionClassFilterButtonRefs.current[index] = el
+                          eventSectionClassFilterButtonRefs.current[validClasses.length] = el
                         }}
                       >
-                        <span>{className}</span>
+                        <span>All Classes</span>
                       </button>
-                    )
-                  })}
-                  <button
-                    key="__event-section-all-classes__"
-                    type="button"
-                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                      eventClassFilter === null
-                        ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                        : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                    }`}
-                    onClick={() => {
-                      handleEventClassFilterAllClassesClick()
-                    }}
-                    aria-pressed={eventClassFilter === null}
-                    onKeyDown={(event) =>
-                      handleEventClassFilterKeyDown(
-                        event,
-                        validClasses.length,
-                        eventSectionClassFilterButtonRefs
-                      )
-                    }
-                    ref={(el) => {
-                      eventSectionClassFilterButtonRefs.current[validClasses.length] = el
-                    }}
-                  >
-                    <span>All Classes</span>
-                  </button>
-                </div>
-              </div>
-            )}
-            {eventAnalysisTab === "event-results" && (
-              <div className="space-y-6">
-                <MainBracketResultsTable
-                  races={eventClassFilter ? eventLevelFilteredRaces : data.races}
-                />
-                <MultiMainOverallCard
-                  multiMainResults={data.multiMainResults}
-                  activeClassLabel={eventClassFilter}
-                />
-              </div>
-            )}
-            {eventAnalysisTab === "fastest-laps" && (
-              <EventTopFastestLapsPerClassTable
-                races={eventClassFilter ? eventLevelFilteredRaces : data.races}
-              />
-            )}
-            {eventAnalysisTab === "fastest-average-laps" && (
-              <EventTopAverageLapsPerClassTable
-                races={eventClassFilter ? eventLevelFilteredRaces : data.races}
-              />
+                    </div>
+                  </div>
+                )}
+                {eventAnalysisTab === "event-results" && (
+                  <div className="space-y-6">
+                    <MainBracketResultsTable
+                      races={eventClassFilter ? eventLevelFilteredRaces : data.races}
+                    />
+                    <MultiMainOverallCard
+                      multiMainResults={data.multiMainResults}
+                      activeClassLabel={eventClassFilter}
+                    />
+                  </div>
+                )}
+                {eventAnalysisTab === "fastest-laps" && (
+                  <EventTopFastestLapsPerClassTable
+                    races={eventClassFilter ? eventLevelFilteredRaces : data.races}
+                  />
+                )}
+                {eventAnalysisTab === "fastest-average-laps" && (
+                  <EventTopAverageLapsPerClassTable
+                    races={eventClassFilter ? eventLevelFilteredRaces : data.races}
+                  />
+                )}
+              </>
             )}
           </div>
 
-          {eventAnalysisTab !== "driver-analysis" && (
+          {!ladderInEventAnalysis && eventAnalysisTab !== "driver-analysis" && (
             <section className="space-y-4">
               <ChartControls
                 drivers={driverOptions}
@@ -2489,37 +2619,40 @@ export default function OverviewTab({
           <div
             id={sessionAnalysisSectionContentId}
             role="tabpanel"
-            aria-labelledby={
-              variant === "session-analysis-only"
-                ? "tab-session-analysis"
-                : "session-analysis-heading"
-            }
+            aria-labelledby="session-analysis-subview-heading"
             className="space-y-3"
           >
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-2 shadow-sm">
-              <div className="min-w-0 flex-1 overflow-x-hidden">
-                <div className="flex min-w-0 flex-wrap">
-                  {eventAnalysisTabs.map((tab) => {
-                    const isActive = eventAnalysisTab === tab.id
-                    const tabLabel = tab.id === "event-results" ? "Session Results" : tab.label
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          isActive
-                            ? "border-[var(--token-accent)] text-[var(--token-accent)]"
-                            : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
-                        }`}
-                        onClick={() => setEventAnalysisTab(tab.id)}
-                      >
-                        {tabLabel}
-                      </button>
-                    )
-                  })}
+            <h2
+              id="session-analysis-subview-heading"
+              className="text-xl font-semibold tracking-tight text-[var(--token-text-primary)]"
+            >
+              {`Session Analysis - ${getSubTabLabel(eventAnalysisTab, "session")}`}
+            </h2>
+            {!isControlledAnalysisSubTab && (
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-2 shadow-sm">
+                <div className="min-w-0 flex-1 overflow-x-hidden">
+                  <div className="flex min-w-0 flex-wrap">
+                    {getSubTabOptions("session").map((tab) => {
+                      const isActive = eventAnalysisTab === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                            isActive
+                              ? "border-[var(--token-accent)] text-[var(--token-accent)]"
+                              : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
+                          }`}
+                          onClick={() => setEventAnalysisTab(tab.id)}
+                        >
+                          {tab.label}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             {(eventClassFilterTabs.includes(eventAnalysisTab) ||
               eventAnalysisTab === "driver-analysis") &&
               validClasses.length > 0 && (
@@ -2829,231 +2962,6 @@ export default function OverviewTab({
                 }
               />
             )}
-          </div>
-        </section>
-      )}
-
-      {showBumpUpsSectionBlock && (
-        <section
-          className="space-y-3"
-          aria-labelledby={variant === "bump-ups-only" ? "tab-bump-ups" : "bump-ups-heading"}
-        >
-          <div
-            id={bumpUpsSectionContentId}
-            role="tabpanel"
-            aria-labelledby={variant === "bump-ups-only" ? "tab-bump-ups" : "bump-ups-heading"}
-            className="space-y-4"
-          >
-            <div className="space-y-1.5">
-              <h2 className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]">
-                Driver bump-ups
-              </h2>
-              <p className="w-full min-w-0 max-w-full text-sm leading-relaxed text-[var(--token-text-secondary)]">{`Bump-ups are promotions between finals rounds (toward the A-main), not exits from qualifying.`}</p>
-            </div>
-            {bumpUpClassNames.length > 0 && (
-              <div
-                className="mt-2 -mx-1 overflow-x-hidden"
-                role="toolbar"
-                aria-label="Filter bump-ups by racing class (from race data)"
-              >
-                <div className="flex flex-wrap gap-2 px-1 py-1">
-                  {bumpUpClassNames.map((className, index) => {
-                    const isActive = selectedClass === className
-                    return (
-                      <button
-                        key={className}
-                        type="button"
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          isActive
-                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                        }`}
-                        onClick={() => {
-                          handleSessionClassChipClick(className)
-                        }}
-                        aria-pressed={isActive}
-                        onKeyDown={(event) =>
-                          handleSessionToolbarClassKeyDown(
-                            event,
-                            index,
-                            classFilterButtonRefs,
-                            bumpUpClassNames.length
-                          )
-                        }
-                        ref={(el) => {
-                          classFilterButtonRefs.current[index] = el
-                        }}
-                      >
-                        <span>{className}</span>
-                      </button>
-                    )
-                  })}
-                  <button
-                    key="__all-classes-bump-ups__"
-                    type="button"
-                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                      selectedClass === null
-                        ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                        : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                    }`}
-                    onClick={() => {
-                      handleSessionClassFilterAllClassesClick()
-                    }}
-                    aria-pressed={selectedClass === null}
-                    onKeyDown={(event) =>
-                      handleSessionToolbarClassKeyDown(
-                        event,
-                        bumpUpClassNames.length,
-                        classFilterButtonRefs,
-                        bumpUpClassNames.length
-                      )
-                    }
-                    ref={(el) => {
-                      classFilterButtonRefs.current[bumpUpClassNames.length] = el
-                    }}
-                  >
-                    <span>All Classes</span>
-                  </button>
-                </div>
-              </div>
-            )}
-            <div
-              className="w-full max-w-full rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 p-4 shadow-sm"
-              aria-live="polite"
-            >
-              {bumpUpClassCandidates.length === 0 ? (
-                <p className="text-sm text-[var(--token-text-primary)]">
-                  No racing classes found in session results for this event.
-                </p>
-              ) : bumpUpClassNames.length === 0 ? (
-                <p className="text-sm text-[var(--token-text-primary)]">
-                  No bump-up advancements could be inferred from published results for
-                  ladder-eligible classes in this event.
-                </p>
-              ) : !hasBumpUpsClassSelected ? (
-                <DriverBumpUpsTable
-                  rows={[]}
-                  hasSelectedClass={false}
-                  aggregatedRows={bumpUpRowsAggregated}
-                />
-              ) : (
-                <DriverBumpUpsTable rows={bumpUpRows} hasSelectedClass />
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {showDriverProgressionSectionBlock && (
-        <section
-          className="space-y-3"
-          aria-labelledby={
-            variant === "driver-progression-only"
-              ? "tab-driver-progression"
-              : "driver-progression-heading"
-          }
-        >
-          <div
-            id={driverProgressionSectionContentId}
-            role="tabpanel"
-            aria-labelledby={
-              variant === "driver-progression-only"
-                ? "tab-driver-progression"
-                : "driver-progression-heading"
-            }
-            className="space-y-4"
-          >
-            <div className="space-y-1.5">
-              <h2 className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]">
-                Driver progression
-              </h2>
-              <p className="w-full min-w-0 max-w-full text-sm leading-relaxed text-[var(--token-text-secondary)]">{`Driver progression shows each driver's finish in every main round, in ladder order from lower mains and LCQs toward the A-main. The class chips match Bump-Up scope (nitro mains only; electric and EP classes are omitted). A class is listed only when there are at least two mains ladder sessions in the results so a path across rounds is visible.`}</p>
-            </div>
-            {driverProgressionClassNames.length > 0 && (
-              <div
-                className="mt-2 -mx-1 overflow-x-hidden"
-                role="toolbar"
-                aria-label="Filter driver progression by racing class (from race data)"
-              >
-                <div className="flex flex-wrap gap-2 px-1 py-1">
-                  {driverProgressionClassNames.map((className, index) => {
-                    const isActive = selectedClass === className
-                    return (
-                      <button
-                        key={className}
-                        type="button"
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          isActive
-                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                        }`}
-                        onClick={() => {
-                          handleSessionClassChipClick(className)
-                        }}
-                        aria-pressed={isActive}
-                        onKeyDown={(event) =>
-                          handleSessionToolbarClassKeyDown(
-                            event,
-                            index,
-                            classFilterButtonRefs,
-                            driverProgressionClassNames.length
-                          )
-                        }
-                        ref={(el) => {
-                          classFilterButtonRefs.current[index] = el
-                        }}
-                      >
-                        <span>{className}</span>
-                      </button>
-                    )
-                  })}
-                  <button
-                    key="__all-classes-driver-progression__"
-                    type="button"
-                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                      selectedClass === null
-                        ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                        : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                    }`}
-                    onClick={() => {
-                      handleSessionClassFilterAllClassesClick()
-                    }}
-                    aria-pressed={selectedClass === null}
-                    onKeyDown={(event) =>
-                      handleSessionToolbarClassKeyDown(
-                        event,
-                        driverProgressionClassNames.length,
-                        classFilterButtonRefs,
-                        driverProgressionClassNames.length
-                      )
-                    }
-                    ref={(el) => {
-                      classFilterButtonRefs.current[driverProgressionClassNames.length] = el
-                    }}
-                  >
-                    <span>All Classes</span>
-                  </button>
-                </div>
-              </div>
-            )}
-            <div
-              className="w-full max-w-full rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 p-4 shadow-sm"
-              aria-live="polite"
-            >
-              {driverProgressionClassNames.length === 0 ? (
-                <p className="text-sm text-[var(--token-text-primary)]">
-                  No classes with multiple mains-ladder rounds (at least two of semi, LCQ, mains)
-                  for driver progression in this event.
-                </p>
-              ) : !hasDriverProgressionClassSelected ? (
-                <p className="text-sm text-[var(--token-text-secondary)]">
-                  Select a class above to see each driver&apos;s path through mains-ladder rounds
-                  for that class.
-                </p>
-              ) : (
-                <DriverProgressionTable matrix={driverProgressionMatrix} />
-              )}
-            </div>
           </div>
         </section>
       )}

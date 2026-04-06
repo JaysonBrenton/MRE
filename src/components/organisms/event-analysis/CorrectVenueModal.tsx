@@ -13,6 +13,7 @@ import Button from "@/components/atoms/Button"
 import TrackSelectionModal from "@/components/organisms/event-search/TrackSelectionModal"
 import type { Track } from "@/components/organisms/event-search/TrackRow"
 import { clientLogger } from "@/lib/client-logger"
+import { NESTED_MODAL_OVERLAY_Z_INDEX } from "@/lib/modal-styles"
 
 export interface CorrectVenueModalProps {
   eventId: string
@@ -199,7 +200,7 @@ export default function CorrectVenueModal({
         onClose={() => setShowTrackPicker(false)}
         onSelect={handleSelectTrack}
         onToggleFavourite={handleToggleFavourite}
-        overlayZIndex={110}
+        overlayZIndex={NESTED_MODAL_OVERLAY_Z_INDEX}
       />
     </>
   )

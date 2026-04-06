@@ -125,6 +125,16 @@ model Track {
   @@map("tracks")
 }
 
+/// Single-row table: last successful full track catalogue sync completion time (written by ingestion).
+model TrackCatalogueSyncState {
+  id          String   @id
+  completedAt DateTime @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("track_catalogue_sync_state")
+}
+
 model Event {
   id                   String                @id @default(uuid())
   source               String

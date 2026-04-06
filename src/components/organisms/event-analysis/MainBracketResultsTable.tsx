@@ -3,7 +3,7 @@
  *
  * @description Computes overall 1st–3rd from lettered mains (A1-Main, …) via
  * `buildEventMainResultRows`, and falls back to the top 3 from each class main when labels
- * are not lettered. Does not list individual legs.
+ * are not lettered. Rows open a modal with the full overall order or full session results.
  *
  * @relatedFiles
  * - src/core/events/main-bracket-overall.ts
@@ -19,10 +19,18 @@ import {
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import Modal from "@/components/molecules/Modal"
 import ListPagination from "@/components/organisms/event-analysis/ListPagination"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-import { buildEventMainResultRows, isEventMainSession } from "@/core/events/main-bracket-overall"
-import { formatTimeUTC } from "@/lib/format-session-data"
+import {
+  buildEventMainResultRows,
+  computeBracketFullStandings,
+  getSortedRaceResults,
+  isEventMainSession,
+  resolveMainsForBracketOverallRow,
+  type BracketOverallRow,
+} from "@/core/events/main-bracket-overall"
+import { formatLapTime, formatTimeUTC, formatTotalTime } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 
 const SURFACE_CLASS =
@@ -42,6 +50,9 @@ export interface MainBracketResultsTableProps {
 export default function MainBracketResultsTable({ races }: MainBracketResultsTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
+  const [detailRow, setDetailRow] = useState<BracketOverallRow | null>(null)
+  const [modalPage, setModalPage] = useState(1)
+  const [modalItemsPerPage, setModalItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
 
   const mainsOnly = useMemo(() => races.filter(isEventMainSession), [races])
 
@@ -74,6 +85,67 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
     }
   }, [currentPage, totalPages])
 
+  const detailMains = useMemo(() => {
+    if (!detailRow) return []
+    return resolveMainsForBracketOverallRow(detailRow, mainsOnly)
+  }, [detailRow, mainsOnly])
+
+  const aggregateStandings = useMemo(() => {
+    if (!detailRow || detailRow.sessionKind !== "aggregate") return []
+    return computeBracketFullStandings(detailMains)
+  }, [detailRow, detailMains])
+
+  const singleSessionResults = useMemo(() => {
+    if (!detailRow || detailRow.sessionKind !== "single-main") return []
+    const r = detailMains[0]
+    if (!r) return []
+    return getSortedRaceResults(r)
+  }, [detailRow, detailMains])
+
+  const modalRowCount = useMemo(() => {
+    if (!detailRow) return 0
+    if (detailRow.sessionKind === "aggregate") return aggregateStandings.length
+    return singleSessionResults.length
+  }, [detailRow, aggregateStandings.length, singleSessionResults.length])
+
+  const modalTotalPages = Math.max(1, Math.ceil(modalRowCount / modalItemsPerPage) || 1)
+  const modalStartIndex = (modalPage - 1) * modalItemsPerPage
+
+  const paginatedAggregateStandings = useMemo(
+    () => aggregateStandings.slice(modalStartIndex, modalStartIndex + modalItemsPerPage),
+    [aggregateStandings, modalStartIndex, modalItemsPerPage]
+  )
+
+  const paginatedSingleSessionResults = useMemo(
+    () => singleSessionResults.slice(modalStartIndex, modalStartIndex + modalItemsPerPage),
+    [singleSessionResults, modalStartIndex, modalItemsPerPage]
+  )
+
+  const detailModalKey = useMemo(
+    () =>
+      detailRow
+        ? `${detailRow.className}\0${detailRow.bracket}\0${detailRow.sessionKind ?? ""}`
+        : "",
+    [detailRow]
+  )
+
+  useEffect(() => {
+    if (!detailModalKey) return
+    queueMicrotask(() => setModalPage(1))
+  }, [detailModalKey])
+
+  useEffect(() => {
+    if (!detailRow) return
+    if (modalPage > modalTotalPages) {
+      queueMicrotask(() => setModalPage(modalTotalPages))
+    }
+  }, [detailRow, modalPage, modalTotalPages])
+
+  const handleModalRowsPerPageChange = useCallback((next: number) => {
+    setModalItemsPerPage(next)
+    setModalPage(1)
+  }, [])
+
   const headerClassLabel = useMemo(() => {
     const classes = Array.from(
       new Set(
@@ -90,6 +162,8 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
   const showClassColumn = useMemo(() => {
     return new Set(resultRows.map((r) => r.className)).size > 1
   }, [resultRows])
+
+  const closeDetail = useCallback(() => setDetailRow(null), [])
 
   if (resultRows.length === 0) {
     return (
@@ -112,6 +186,9 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
         <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
           {`Event Results: ${headerClassLabel}`}
         </h2>
+        <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+          Click a row for full results (overall bracket order or complete main finishing order).
+        </p>
       </div>
       <div className="px-2 py-2 sm:px-4">
         <StandardTable>
@@ -165,7 +242,18 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
           </StandardTableHeader>
           <tbody>
             {paginatedRows.map((row) => (
-              <StandardTableRow key={`${row.className}-${row.bracket}`}>
+              <StandardTableRow
+                key={`${row.className}-${row.bracket}`}
+                tabIndex={0}
+                aria-label={`View full results for ${row.className} ${row.bracketLabel}`}
+                onClick={() => setDetailRow(row)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    setDetailRow(row)
+                  }
+                }}
+              >
                 {showClassColumn && (
                   <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
                     {row.className}
@@ -178,6 +266,7 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {row.bracketLabel}
                     </a>
@@ -217,6 +306,175 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
           />
         </div>
       </div>
+
+      {detailRow && (
+        <Modal
+          isOpen
+          onClose={closeDetail}
+          title="Full results"
+          subtitle={
+            <span className="block truncate">
+              {detailRow.className} · {detailRow.bracketLabel}
+            </span>
+          }
+          maxWidth="3xl"
+          footer={
+            detailRow.raceUrl ? (
+              <a
+                href={detailRow.raceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-[var(--token-accent)] underline-offset-2 hover:underline"
+              >
+                Open primary session on LiveRC
+              </a>
+            ) : undefined
+          }
+        >
+          <div className="p-4 space-y-3">
+            {detailRow.sessionKind === "aggregate" && (
+              <>
+                <p className="text-sm text-[var(--token-text-secondary)]">
+                  Overall finishing order uses the same multi-leg rules as the event podium (best
+                  legs, tie-breaks).
+                </p>
+                {aggregateStandings.length === 0 ? (
+                  <p className="text-sm text-[var(--token-text-secondary)]">
+                    No standings could be computed for this bracket.
+                  </p>
+                ) : (
+                  <>
+                    <StandardTable>
+                      <StandardTableHeader>
+                        <StandardTableRow className="border-b border-[var(--token-border-default)]">
+                          <StandardTableCell
+                            header
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                          >
+                            Pos
+                          </StandardTableCell>
+                          <StandardTableCell
+                            header
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                          >
+                            Driver
+                          </StandardTableCell>
+                        </StandardTableRow>
+                      </StandardTableHeader>
+                      <tbody>
+                        {paginatedAggregateStandings.map((s) => (
+                          <StandardTableRow key={s.driverId}>
+                            <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
+                              {s.rank}
+                            </StandardTableCell>
+                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                              {s.driverName}
+                            </StandardTableCell>
+                          </StandardTableRow>
+                        ))}
+                      </tbody>
+                    </StandardTable>
+                    <div className="min-w-0 w-full max-w-full pt-2">
+                      <ListPagination
+                        currentPage={modalPage}
+                        totalPages={modalTotalPages}
+                        onPageChange={setModalPage}
+                        itemsPerPage={modalItemsPerPage}
+                        totalItems={modalRowCount}
+                        itemLabel="drivers"
+                        onRowsPerPageChange={handleModalRowsPerPageChange}
+                        embedded
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {detailRow.sessionKind === "single-main" && (
+              <>
+                {singleSessionResults.length === 0 ? (
+                  <p className="text-sm text-[var(--token-text-secondary)]">
+                    No finishing positions in this main session.
+                  </p>
+                ) : (
+                  <>
+                    <StandardTable>
+                      <StandardTableHeader>
+                        <StandardTableRow className="border-b border-[var(--token-border-default)]">
+                          <StandardTableCell
+                            header
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                          >
+                            Pos
+                          </StandardTableCell>
+                          <StandardTableCell
+                            header
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                          >
+                            Driver
+                          </StandardTableCell>
+                          <StandardTableCell
+                            header
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                          >
+                            Laps
+                          </StandardTableCell>
+                          <StandardTableCell
+                            header
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                          >
+                            Total
+                          </StandardTableCell>
+                          <StandardTableCell
+                            header
+                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                          >
+                            Fast
+                          </StandardTableCell>
+                        </StandardTableRow>
+                      </StandardTableHeader>
+                      <tbody>
+                        {paginatedSingleSessionResults.map((r) => (
+                          <StandardTableRow key={r.raceResultId}>
+                            <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
+                              {r.positionFinal}
+                            </StandardTableCell>
+                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                              {r.driverName}
+                            </StandardTableCell>
+                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                              {r.lapsCompleted}
+                            </StandardTableCell>
+                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                              {formatTotalTime(r.totalTimeSeconds)}
+                            </StandardTableCell>
+                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                              {formatLapTime(r.fastLapTime)}
+                            </StandardTableCell>
+                          </StandardTableRow>
+                        ))}
+                      </tbody>
+                    </StandardTable>
+                    <div className="min-w-0 w-full max-w-full pt-2">
+                      <ListPagination
+                        currentPage={modalPage}
+                        totalPages={modalTotalPages}
+                        onPageChange={setModalPage}
+                        itemsPerPage={modalItemsPerPage}
+                        totalItems={modalRowCount}
+                        itemLabel="results"
+                        onRowsPerPageChange={handleModalRowsPerPageChange}
+                        embedded
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

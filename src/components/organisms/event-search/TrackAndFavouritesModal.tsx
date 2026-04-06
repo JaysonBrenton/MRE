@@ -17,7 +17,7 @@ import Modal from "@/components/molecules/Modal"
 import Button from "@/components/atoms/Button"
 import TrackSelectionModal from "./TrackSelectionModal"
 import { type Track } from "./TrackRow"
-import { getContentBlockStyles } from "@/lib/modal-styles"
+import { getContentBlockStyles, NESTED_MODAL_OVERLAY_Z_INDEX } from "@/lib/modal-styles"
 
 function ChevronDownIcon({ className }: { className?: string }) {
   return (
@@ -224,7 +224,7 @@ export default function TrackAndFavouritesModal({
         onClose={() => setIsTrackListOpen(false)}
         onSelect={handleSelectTrack}
         onToggleFavourite={onToggleFavourite}
-        overlayZIndex={110}
+        overlayZIndex={NESTED_MODAL_OVERLAY_Z_INDEX}
         backdropVariant="none"
       />
     </>

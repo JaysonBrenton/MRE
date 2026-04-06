@@ -15,6 +15,8 @@ export interface EventTopFastestLapEntry {
   raceLabel: string
   lapNumber: number | null
   rank: number
+  /** LiveRC session results URL for the race where this best lap was set. */
+  raceUrl?: string
 }
 
 export interface ClassTopFastestLapsGroup {
@@ -35,6 +37,7 @@ export function computeTopFastestLapsPerClass(
         lapTimeSeconds: number
         raceLabel: string
         lapNumber: number | null
+        raceUrl: string
       }
     >
   >()
@@ -59,6 +62,7 @@ export function computeTopFastestLapsPerClass(
           lapTimeSeconds: result.fastLapTime,
           raceLabel: race.raceLabel,
           lapNumber: result.fastLapLapNumber ?? null,
+          raceUrl: race.raceUrl,
         })
       }
     }
@@ -101,6 +105,7 @@ export function computeTopFastestLapsPerClass(
         raceLabel: e.raceLabel,
         lapNumber: e.lapNumber,
         rank,
+        raceUrl: e.raceUrl,
       })
     }
 
@@ -112,4 +117,73 @@ export function computeTopFastestLapsPerClass(
   result.sort((a, b) => a.className.localeCompare(b.className))
 
   return result
+}
+
+type DriverBestLap = {
+  driverId: string
+  driverName: string
+  lapTimeSeconds: number
+  raceLabel: string
+  lapNumber: number | null
+  raceUrl: string
+}
+
+/**
+ * Every driver’s best lap in a class (event-wide), sorted fastest-first with rank
+ * (ties share a rank). Unlike {@link computeTopFastestLapsPerClass}, this is not limited
+ * to the top three distinct lap times.
+ */
+export function computeAllBestLapsForClass(
+  races: EventAnalysisData["races"],
+  className: string
+): EventTopFastestLapEntry[] {
+  const driverMap = new Map<string, DriverBestLap>()
+
+  for (const race of races) {
+    if (race.className !== className) continue
+
+    for (const result of race.results) {
+      if (result.fastLapTime == null || result.fastLapTime <= 0) continue
+
+      const existing = driverMap.get(result.driverId)
+      const isBetter = !existing || result.fastLapTime < existing.lapTimeSeconds
+
+      if (isBetter) {
+        driverMap.set(result.driverId, {
+          driverId: result.driverId,
+          driverName: result.driverName,
+          lapTimeSeconds: result.fastLapTime,
+          raceLabel: race.raceLabel,
+          lapNumber: result.fastLapLapNumber ?? null,
+          raceUrl: race.raceUrl,
+        })
+      }
+    }
+  }
+
+  const sorted = Array.from(driverMap.values()).sort((a, b) => a.lapTimeSeconds - b.lapTimeSeconds)
+
+  let rank = 1
+  let prevTime: number | null = null
+  const out: EventTopFastestLapEntry[] = []
+
+  for (const e of sorted) {
+    const isNewRank = prevTime === null || Math.abs(e.lapTimeSeconds - prevTime) > 0.001
+    if (isNewRank && prevTime !== null) {
+      rank++
+    }
+    prevTime = e.lapTimeSeconds
+
+    out.push({
+      driverId: e.driverId,
+      driverName: e.driverName,
+      lapTimeSeconds: e.lapTimeSeconds,
+      raceLabel: e.raceLabel,
+      lapNumber: e.lapNumber,
+      rank,
+      raceUrl: e.raceUrl,
+    })
+  }
+
+  return out
 }

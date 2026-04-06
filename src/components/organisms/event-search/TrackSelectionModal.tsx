@@ -5,11 +5,12 @@
  * @creator Jayson Brenton
  * @lastModified 2025-01-28
  *
- * @description Searchable modal for selecting tracks with favourites support
+ * @description Searchable modal for selecting tracks with favourites (star-first ordering, single list)
  *
  * @purpose Provides a modal interface for track selection with typeahead search
- *          and favourites functionality. Full-screen on mobile, centered on desktop.
- *          Includes keyboard accessibility and focus trap.
+ *          and favourites (star toggles; favourites sort first in one list). Full-screen on mobile, centered on desktop.
+ *          Includes keyboard accessibility and focus trap. Renders via createPortal(document.body)
+ *          so fixed positioning is not clipped by ancestor transform/overflow (nested modals).
  *
  * @relatedFiles
  * - src/components/event-search/TrackRow.tsx (track row component)
@@ -18,10 +19,11 @@
 
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
-import Button from "@/components/atoms/Button"
+import { useState, useEffect, useRef, useMemo, type CSSProperties } from "react"
+import { createPortal } from "react-dom"
 import TrackRow, { type Track } from "./TrackRow"
-import { clientLogger } from "@/lib/client-logger"
+import { getModalResizableContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
+import { useModalPanelDrag } from "@/hooks/useModalPanelDrag"
 
 export interface TrackSelectionModalProps {
   tracks: Track[]
@@ -30,7 +32,7 @@ export interface TrackSelectionModalProps {
   onClose: () => void
   onSelect: (track: Track) => void
   onToggleFavourite: (trackId: string) => void
-  /** When opening from another modal (e.g. TrackAndFavouritesModal), pass 110 to stack above */
+  /** When nesting inside the shared Modal (portal z-index 200), pass `NESTED_MODAL_OVERLAY_Z_INDEX` from `@/lib/modal-styles` or higher */
   overlayZIndex?: number
   /** When nesting inside another modal, disable the second dimmed overlay */
   backdropVariant?: "dim" | "none"
@@ -39,6 +41,20 @@ export interface TrackSelectionModalProps {
 const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
 
 const ALL_COUNTRIES = ""
+
+/** Next 00:00:00.000 UTC — matches daily track catalogue cron (`ingestion/crontab`: `0 0 * * *`). */
+function getNextUtcMidnightMs(fromMs: number): number {
+  const d = new Date(fromMs)
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 0, 0, 0, 0)
+}
+
+function formatRemainingHms(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
+}
 
 export default function TrackSelectionModal({
   tracks,
@@ -56,6 +72,25 @@ export default function TrackSelectionModal({
   const [isVisible, setIsVisible] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  const { offset: dragOffset, isDragging, headerPointerDown } = useModalPanelDrag(isOpen, modalRef)
+
+  useEffect(() => {
+    queueMicrotask(() => setPortalTarget(document.body))
+  }, [])
+
+  useEffect(() => {
+    if (!isOpen) return
+    queueMicrotask(() => setNowMs(Date.now()))
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [isOpen])
+
+  const nextSyncCountdownHms = useMemo(
+    () => formatRemainingHms(getNextUtcMidnightMs(nowMs) - nowMs),
+    [nowMs]
+  )
 
   // Distinct countries from tracks (sorted). Exclude values that are clearly not countries (e.g. emails).
   const countries = useMemo(() => {
@@ -139,9 +174,11 @@ export default function TrackSelectionModal({
     return matchesSearch && matchesCountry
   })
 
-  // Separate favourite and non-favourite tracks
-  const favouriteTracks = filteredTracks.filter((track) => favourites.includes(track.id))
-  const otherTracks = filteredTracks.filter((track) => !favourites.includes(track.id))
+  // Favourites first, then others — single list (no section headers)
+  const orderedTracks = [
+    ...filteredTracks.filter((track) => favourites.includes(track.id)),
+    ...filteredTracks.filter((track) => !favourites.includes(track.id)),
+  ]
 
   const handleToggleFavourite = (trackId: string) => {
     const newFavourites = favourites.includes(trackId)
@@ -167,9 +204,18 @@ export default function TrackSelectionModal({
     onClose()
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !portalTarget) return null
 
-  return (
+  const panelStyles: CSSProperties = {
+    ...getModalResizableContainerStyles(MODAL_MAX_WIDTHS["2xl"]),
+    resize: "both",
+    overflow: "hidden",
+    minHeight: "12rem",
+    maxHeight: "calc(100vh - 2rem)",
+    transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+  }
+
+  return createPortal(
     <div
       className={[
         "fixed inset-0 flex items-center justify-center p-4",
@@ -178,7 +224,7 @@ export default function TrackSelectionModal({
         isVisible ? "opacity-100" : "opacity-0",
       ].join(" ")}
       style={{ minWidth: 0, zIndex: overlayZIndex }}
-      onClick={(e) => {
+      onPointerDown={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
         }
@@ -190,28 +236,21 @@ export default function TrackSelectionModal({
       <div
         ref={modalRef}
         className={[
-          "max-h-[calc(100vh-2rem)] bg-[var(--token-surface-raised)] rounded-xl shadow-xl flex flex-col border border-[var(--token-border-default)]",
-          "transition-transform duration-150 ease-out will-change-transform",
-          isVisible ? "translate-y-0 scale-100" : "translate-y-1 scale-[0.98]",
+          "bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)] min-h-0",
+          "transition-opacity duration-150 ease-out",
+          isVisible ? "opacity-100" : "opacity-0",
         ].join(" ")}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: "42rem",
-          minWidth: "20rem",
-          boxSizing: "border-box",
-          flexShrink: 0,
-          flexGrow: 0,
-        }}
+        style={panelStyles}
       >
         {/* Sticky header + filters */}
         <div
-          className="sticky top-0 z-10 bg-[var(--token-surface-raised)] border-b border-[var(--token-border-default)]"
+          className="sticky top-0 z-10 shrink-0 bg-[var(--token-surface-raised)] border-b border-[var(--token-border-accent-soft)]"
           style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
         >
           <div
-            className="flex items-start justify-between gap-4 px-4 pt-4"
-            style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
+            className={`flex items-start justify-between gap-4 px-4 pt-4 ${isDragging ? "cursor-grabbing" : "cursor-grab"} select-none`}
+            style={{ minWidth: 0, width: "100%", boxSizing: "border-box", touchAction: "none" }}
+            onPointerDown={headerPointerDown}
           >
             <div style={{ minWidth: 0, flex: "1 1 auto" }}>
               <h2
@@ -220,9 +259,6 @@ export default function TrackSelectionModal({
               >
                 Select Track
               </h2>
-              <p className="mt-0.5 text-sm text-[var(--token-text-secondary)]">
-                Click a track to select it
-              </p>
             </div>
             <button
               type="button"
@@ -241,123 +277,102 @@ export default function TrackSelectionModal({
             </button>
           </div>
 
+          {/* Filter row — glass strip matches event-analysis card texture (see EventTopAverageLapsPerClassTable) */}
           <div
-            className="px-4 pb-4 pt-3 space-y-3"
+            className="px-4 pb-4 pt-2"
             style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
           >
-            <div className="relative">
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--token-text-secondary)] pointer-events-none"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z"
-                />
-              </svg>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Type to filter, then click a track"
-                className="w-full h-11 pl-10 pr-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
-                aria-label="Search tracks"
-                style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
-              />
-            </div>
-            {countries.length > 0 && (
-              <div>
+            <div
+              className="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2.5"
+              style={{
+                minWidth: 0,
+                boxSizing: "border-box",
+                backgroundColor: "var(--glass-bg)",
+                backdropFilter: "var(--glass-blur)",
+                border: "1px solid var(--glass-border)",
+                boxShadow: "var(--glass-shadow)",
+              }}
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <label
-                  htmlFor="track-country-filter"
-                  className="block text-sm font-medium text-[var(--token-text-secondary)] mb-1.5"
+                  htmlFor="track-search-filter"
+                  className="shrink-0 text-xs font-medium text-[var(--token-text-secondary)]"
                 >
-                  Country
+                  Search
                 </label>
-                <select
-                  id="track-country-filter"
-                  value={selectedCountry}
-                  onChange={(e) => setSelectedCountry(e.target.value)}
-                  className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors"
-                  aria-label="Filter tracks by country"
-                >
-                  <option value={ALL_COUNTRIES}>All countries</option>
-                  {countries.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  ref={searchInputRef}
+                  id="track-search-filter"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Track name"
+                  className="min-w-0 flex-1 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  aria-label="Search tracks"
+                  style={{ boxSizing: "border-box" }}
+                />
               </div>
-            )}
+              {countries.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="track-country-filter"
+                    className="text-xs font-medium text-[var(--token-text-secondary)]"
+                  >
+                    Country
+                  </label>
+                  <select
+                    id="track-country-filter"
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    className="max-w-[min(100vw-4rem,18rem)] min-w-[8rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    aria-label="Filter tracks by country"
+                  >
+                    <option value={ALL_COUNTRIES}>All countries</option>
+                    {countries.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-[var(--token-text-secondary)]" style={{ minWidth: 0 }}>
+              Total tracks:{" "}
+              <span className="font-medium tabular-nums text-[var(--token-text-primary)]">
+                {tracks.length}
+              </span>{" "}
+              <span className="text-[var(--token-text-tertiary)]">·</span> Next sync in{" "}
+              <span
+                className="font-medium tabular-nums text-[var(--token-text-primary)]"
+                title="Time until 00:00 UTC (daily scheduled catalogue sync)"
+              >
+                {nextSyncCountdownHms}
+              </span>
+            </p>
           </div>
         </div>
 
-        {/* Track List */}
+        {/* Track List — inset from panel edges so native resize (bottom/right) is not over the scroller;
+            overflow-anchor off avoids scrollTop jumps when the flex scroller height changes during resize */}
         <div
-          className="flex-1 overflow-y-auto overflow-x-hidden"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden mx-3 mb-3"
           style={{
             minWidth: 0,
-            width: "100%",
             boxSizing: "border-box",
+            overflowAnchor: "none",
+            overscrollBehavior: "contain",
           }}
         >
-          {/* Favourite Tracks Section */}
-          {favouriteTracks.length > 0 && (
-            <div style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}>
-              <div className="px-4 py-2 bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)] flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 text-amber-400 fill-amber-400 shrink-0"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-                <h3 className="text-sm font-medium text-[var(--token-text-secondary)]">
-                  Your favourites
-                </h3>
-              </div>
-              {favouriteTracks.map((track) => (
-                <TrackRow
-                  key={track.id}
-                  track={track}
-                  isFavourite={true}
-                  onSelect={handleSelect}
-                  onToggleFavourite={handleToggleFavourite}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Other Tracks */}
-          {otherTracks.length > 0 && (
-            <div style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}>
-              {favouriteTracks.length > 0 && (
-                <div className="px-4 py-2 bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)] border-t border-[var(--token-border-default)]">
-                  <h3 className="text-sm font-medium text-[var(--token-text-secondary)]">
-                    All tracks
-                  </h3>
-                </div>
-              )}
-              {otherTracks.map((track) => (
-                <TrackRow
-                  key={track.id}
-                  track={track}
-                  isFavourite={false}
-                  onSelect={handleSelect}
-                  onToggleFavourite={handleToggleFavourite}
-                />
-              ))}
-            </div>
-          )}
+          {orderedTracks.map((track) => (
+            <TrackRow
+              key={track.id}
+              track={track}
+              isFavourite={favourites.includes(track.id)}
+              onSelect={handleSelect}
+              onToggleFavourite={handleToggleFavourite}
+            />
+          ))}
 
           {/* Empty State */}
           {filteredTracks.length === 0 && (
@@ -372,6 +387,7 @@ export default function TrackSelectionModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    portalTarget
   )
 }

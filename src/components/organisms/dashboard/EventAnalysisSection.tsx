@@ -27,6 +27,7 @@ import {
   setActiveEventAnalysisTab,
 } from "@/store/slices/dashboardSlice"
 import EventAnalysisToolbar from "@/components/organisms/event-analysis/EventAnalysisToolbar"
+import type { EventAnalysisSubTabId } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
 import { type TabId } from "@/components/organisms/event-analysis/TabNavigation"
 import OverviewTab from "@/components/organisms/event-analysis/OverviewTab"
 import DriversTab from "@/components/organisms/event-analysis/DriversTab"
@@ -57,8 +58,6 @@ const EVENT_TABS: { id: TabId; label: string }[] = [
   { id: "event-overview", label: "Event Overview" },
   { id: "event-analysis", label: "Event Analysis" },
   { id: "session-analysis", label: "Session Analysis" },
-  { id: "bump-ups", label: "Bump-Up" },
-  { id: "driver-progression", label: "Driver Progression" },
   { id: "drivers", label: "Entry List" },
 ]
 
@@ -157,6 +156,18 @@ export default function EventAnalysisSection() {
     canSubmit: boolean
   } | null>(null)
   const [isCorrectVenueModalOpen, setIsCorrectVenueModalOpen] = useState(false)
+  const [analysisSubTab, setAnalysisSubTab] = useState<EventAnalysisSubTabId>("event-results")
+
+  /** Ladder sub-views apply to Event Analysis only; Session Analysis ignores them. */
+  const resolvedAnalysisSubTab = useMemo((): EventAnalysisSubTabId => {
+    if (
+      activeTab === "session-analysis" &&
+      (analysisSubTab === "bump-ups" || analysisSubTab === "driver-progression")
+    ) {
+      return "event-results"
+    }
+    return analysisSubTab
+  }, [activeTab, analysisSubTab])
 
   const fetchVenueCorrection = useCallback((eventId: string) => {
     void (async () => {
@@ -214,6 +225,11 @@ export default function EventAnalysisSection() {
     }
   }, [selectedEventId])
 
+  useEffect(() => {
+    if (!selectedEventId) return
+    queueMicrotask(() => setAnalysisSubTab("event-results"))
+  }, [selectedEventId])
+
   // Fetch venue correction status when event is selected
   useEffect(() => {
     if (selectedEventId) fetchVenueCorrection(selectedEventId)
@@ -260,6 +276,12 @@ export default function EventAnalysisSection() {
 
   // Also fetch when user clicks on a tab (in case section was already visible)
   const handleTabChange = (tabId: TabId) => {
+    if (
+      tabId === "session-analysis" &&
+      (analysisSubTab === "bump-ups" || analysisSubTab === "driver-progression")
+    ) {
+      setAnalysisSubTab("event-results")
+    }
     dispatch(setActiveEventAnalysisTab(tabId))
 
     // If we haven't fetched yet and event is selected, fetch now
@@ -297,8 +319,6 @@ export default function EventAnalysisSection() {
       "event-overview",
       "event-analysis",
       "session-analysis",
-      "bump-ups",
-      "driver-progression",
       "my-events",
       "drivers",
     ]
@@ -401,6 +421,8 @@ export default function EventAnalysisSection() {
                     tabs={availableTabs}
                     activeTab={activeTab}
                     onTabChange={handleTabChange}
+                    analysisSubTab={resolvedAnalysisSubTab}
+                    onAnalysisSubTabChange={setAnalysisSubTab}
                     venueCorrectionCanSubmit={venueCorrectionStatus?.canSubmit ?? false}
                     onCorrectVenueClick={() => setIsCorrectVenueModalOpen(true)}
                     belowLgRailFallback={
@@ -440,6 +462,8 @@ export default function EventAnalysisSection() {
                   selectedClass={selectedClass}
                   onClassChange={eventActions.onClassChange}
                   variant="event-analysis-only"
+                  analysisSubTab={resolvedAnalysisSubTab}
+                  onAnalysisSubTabChange={setAnalysisSubTab}
                 />
               )}
 
@@ -451,28 +475,8 @@ export default function EventAnalysisSection() {
                   selectedClass={selectedClass}
                   onClassChange={eventActions.onClassChange}
                   variant="session-analysis-only"
-                />
-              )}
-
-              {activeTab === "bump-ups" && (
-                <OverviewTab
-                  data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                  variant="bump-ups-only"
-                />
-              )}
-
-              {activeTab === "driver-progression" && (
-                <OverviewTab
-                  data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                  variant="driver-progression-only"
+                  analysisSubTab={resolvedAnalysisSubTab}
+                  onAnalysisSubTabChange={setAnalysisSubTab}
                 />
               )}
 

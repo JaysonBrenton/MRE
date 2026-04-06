@@ -3,7 +3,7 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2025-01-29
+ * @lastModified 2026-04-06
  *
  * @description Entry list component showing the actual event entry list with pagination
  *
@@ -63,9 +63,39 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [classFilter, setClassFilter] = useState("")
+  const [driverSearch, setDriverSearch] = useState("")
+
+  const classOptions = useMemo(() => {
+    const set = new Set<string>()
+    entries.forEach((e) => {
+      const c = e.className?.trim()
+      if (c) set.add(c)
+    })
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [entries])
+
+  useEffect(() => {
+    if (classFilter && !classOptions.includes(classFilter)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync filter to new dataset
+      setClassFilter("")
+    }
+  }, [classOptions, classFilter])
+
+  const filteredEntries = useMemo(() => {
+    let r = entries
+    if (classFilter) {
+      r = r.filter((e) => e.className.trim() === classFilter)
+    }
+    const search = driverSearch.trim().toLowerCase()
+    if (search) {
+      r = r.filter((e) => e.driverName.toLowerCase().includes(search))
+    }
+    return r
+  }, [entries, classFilter, driverSearch])
 
   const sortedEntries = useMemo(() => {
-    const sorted = [...entries].sort((a, b) => {
+    const sorted = [...filteredEntries].sort((a, b) => {
       let aValue: number | string | null
       let bValue: number | string | null
 
@@ -96,7 +126,7 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
     })
 
     return sorted
-  }, [entries, sortField, sortDirection])
+  }, [filteredEntries, sortField, sortDirection])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -118,116 +148,172 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
   const endIndex = startIndex + itemsPerPage
   const paginatedEntries = sortedEntries.slice(startIndex, endIndex)
 
-  // Reset to page 1 when sort, filter, or itemsPerPage changes
   useEffect(() => {
-    // Use setTimeout to avoid synchronous setState in effect
     setTimeout(() => {
       setCurrentPage(1)
     }, 0)
-  }, [sortField, sortDirection, itemsPerPage])
+  }, [sortField, sortDirection, itemsPerPage, classFilter, driverSearch])
+
+  const headerControls = useMemo(
+    () => (
+      <div className="mt-3 flex w-full flex-wrap items-center gap-3 sm:mt-0">
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="entry-list-class-filter"
+            className="text-xs font-medium text-[var(--token-text-secondary)]"
+          >
+            Class
+          </label>
+          <select
+            id="entry-list-class-filter"
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          >
+            <option value="">All classes</option>
+            {classOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="entry-list-driver-filter"
+            className="text-xs font-medium text-[var(--token-text-secondary)]"
+          >
+            Driver
+          </label>
+          <input
+            id="entry-list-driver-filter"
+            type="text"
+            value={driverSearch}
+            onChange={(e) => setDriverSearch(e.target.value)}
+            placeholder="Search driver name"
+            className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          />
+        </div>
+      </div>
+    ),
+    [classFilter, classOptions, driverSearch]
+  )
 
   return (
     <ChartContainer
-      title="Entry List"
-      description="Complete list of drivers entered in this event"
+      headerControls={headerControls}
       aria-label="Entry list with driver names, classes, transponders, and car numbers"
     >
       <div className="space-y-4">
-        {/* Table layout */}
-        <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
-          <StandardTable>
-            <StandardTableHeader>
-              <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
-                <StandardTableCell header>
-                  <button
-                    type="button"
-                    onClick={() => handleSort("driverName")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                  >
-                    Driver Name
-                    <SortIcon
-                      field="driverName"
-                      activeField={sortField}
-                      direction={sortDirection}
-                    />
-                  </button>
-                </StandardTableCell>
-                <StandardTableCell header>
-                  <button
-                    type="button"
-                    onClick={() => handleSort("className")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                  >
-                    Class
-                    <SortIcon field="className" activeField={sortField} direction={sortDirection} />
-                  </button>
-                </StandardTableCell>
-                {raceClasses && <StandardTableCell header>Vehicle Type</StandardTableCell>}
-                <StandardTableCell header>
-                  <button
-                    type="button"
-                    onClick={() => handleSort("transponderNumber")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                  >
-                    Transponder
-                    <SortIcon
-                      field="transponderNumber"
-                      activeField={sortField}
-                      direction={sortDirection}
-                    />
-                  </button>
-                </StandardTableCell>
-                <StandardTableCell header>
-                  <button
-                    type="button"
-                    onClick={() => handleSort("carNumber")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                  >
-                    Car Number
-                    <SortIcon field="carNumber" activeField={sortField} direction={sortDirection} />
-                  </button>
-                </StandardTableCell>
-              </tr>
-            </StandardTableHeader>
-            <tbody>
-              {paginatedEntries.map((entry) => {
-                const raceClassInfo = raceClasses?.get(entry.className)
-                const vehicleType = raceClassInfo?.vehicleType
+        {sortedEntries.length === 0 ? (
+          <div className="flex h-32 items-center justify-center text-sm text-[var(--token-text-secondary)]">
+            No rows match the selected filters.
+          </div>
+        ) : (
+          <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+            <StandardTable>
+              <StandardTableHeader>
+                <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("driverName")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Driver Name
+                      <SortIcon
+                        field="driverName"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("className")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Class
+                      <SortIcon
+                        field="className"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  {raceClasses && <StandardTableCell header>Vehicle Type</StandardTableCell>}
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("transponderNumber")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Transponder
+                      <SortIcon
+                        field="transponderNumber"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("carNumber")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Car Number
+                      <SortIcon
+                        field="carNumber"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                </tr>
+              </StandardTableHeader>
+              <tbody>
+                {paginatedEntries.map((entry) => {
+                  const raceClassInfo = raceClasses?.get(entry.className)
+                  const vehicleType = raceClassInfo?.vehicleType
 
-                return (
-                  <StandardTableRow key={entry.id}>
-                    <StandardTableCell>{entry.driverName}</StandardTableCell>
-                    <StandardTableCell className="text-[var(--token-text-secondary)]">
-                      {entry.className}
-                    </StandardTableCell>
-                    {raceClasses && (
+                  return (
+                    <StandardTableRow key={entry.id}>
+                      <StandardTableCell>{entry.driverName}</StandardTableCell>
                       <StandardTableCell className="text-[var(--token-text-secondary)]">
-                        {vehicleType || "Not determined"}
+                        {entry.className}
                       </StandardTableCell>
-                    )}
-                    <StandardTableCell className="text-[var(--token-text-secondary)]">
-                      {entry.transponderNumber || "N/A"}
-                    </StandardTableCell>
-                    <StandardTableCell className="text-[var(--token-text-secondary)]">
-                      {entry.carNumber || "N/A"}
-                    </StandardTableCell>
-                  </StandardTableRow>
-                )
-              })}
-            </tbody>
-          </StandardTable>
-        </div>
+                      {raceClasses && (
+                        <StandardTableCell className="text-[var(--token-text-secondary)]">
+                          {vehicleType || "Not determined"}
+                        </StandardTableCell>
+                      )}
+                      <StandardTableCell className="text-[var(--token-text-secondary)]">
+                        {entry.transponderNumber?.trim() || "—"}
+                      </StandardTableCell>
+                      <StandardTableCell className="text-[var(--token-text-secondary)]">
+                        {entry.carNumber?.trim() || "—"}
+                      </StandardTableCell>
+                    </StandardTableRow>
+                  )
+                })}
+              </tbody>
+            </StandardTable>
+          </div>
+        )}
 
-        {/* Pagination */}
-        <ListPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          totalItems={sortedEntries.length}
-          itemLabel="entries"
-          onRowsPerPageChange={handleRowsPerPageChange}
-        />
+        {sortedEntries.length > 0 && (
+          <ListPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            totalItems={sortedEntries.length}
+            itemLabel="entries"
+            onRowsPerPageChange={handleRowsPerPageChange}
+          />
+        )}
       </div>
     </ChartContainer>
   )

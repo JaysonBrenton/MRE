@@ -11,8 +11,11 @@
  * @purpose Provides a consistent modal pattern that prevents flexbox shrink issues.
  *          All modals should use this component instead of custom implementations.
  *
- * @critical If you must create a custom modal (NOT RECOMMENDED), you MUST apply
- *           the same inline styles used in this component to prevent horizontal
+ * @critical Backdrop dismiss uses onPointerDown (not click) so resize drags that end over the
+ *           dimmed area do not close the dialog. Renders via createPortal(document.body) so fixed
+ *           positioning is not clipped by ancestor overflow/transform. If you must create a custom
+ *           modal (NOT RECOMMENDED),
+ *           you MUST apply the same inline styles used in this component to prevent horizontal
  *           compression. See getModalContainerStyles() in @/lib/modal-styles.ts
  *           for the required styles pattern.
  *
@@ -25,8 +28,16 @@
 
 "use client"
 
-import { ReactNode, useEffect, useRef } from "react"
-import { getModalContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
+import type { CSSProperties } from "react"
+import { ReactNode, useEffect, useRef, useSyncExternalStore } from "react"
+import { createPortal } from "react-dom"
+import {
+  getModalContainerStyles,
+  getModalResizableContainerStyles,
+  MODAL_MAX_WIDTHS,
+  MODAL_PORTAL_Z_INDEX,
+} from "@/lib/modal-styles"
+import { useModalPanelDrag } from "@/hooks/useModalPanelDrag"
 
 export interface ModalProps {
   isOpen: boolean
@@ -38,21 +49,20 @@ export interface ModalProps {
   maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl"
   footer?: ReactNode
   ariaLabel?: string
-}
-
-const maxWidthClasses = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg",
-  xl: "max-w-xl",
-  "2xl": "max-w-2xl",
-  "3xl": "max-w-3xl",
-  "4xl": "max-w-4xl",
+  /**
+   * When true (default), the dialog can be resized horizontally and vertically by dragging the
+   * bottom-right corner (native browser handle; best supported on desktop).
+   */
+  resizable?: boolean
 }
 
 // Use shared modal styles utility to ensure consistency
 // This prevents horizontal compression issues in flex containers
 const maxWidthInRem = MODAL_MAX_WIDTHS
+
+function getDocumentBody(): HTMLElement | null {
+  return typeof document !== "undefined" ? document.body : null
+}
 
 /**
  * Modal component with enforced flexbox constraints
@@ -84,8 +94,25 @@ export default function Modal({
   maxWidth = "2xl",
   footer,
   ariaLabel,
+  resizable = true,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+  const portalTarget = useSyncExternalStore(
+    () => () => {},
+    getDocumentBody,
+    () => null
+  )
+  const { offset: dragOffset, isDragging, headerPointerDown } = useModalPanelDrag(isOpen, modalRef)
+
+  // Prevent background scroll; modal is portaled to body so layout scroll does not clip it
+  useEffect(() => {
+    if (!isOpen) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = prevOverflow
+    }
+  }, [isOpen])
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -132,12 +159,27 @@ export default function Modal({
     }
   }, [isOpen])
 
-  if (!isOpen) return null
+  if (!isOpen || !portalTarget) return null
 
-  return (
+  const panelStyles: CSSProperties = {
+    ...(resizable
+      ? {
+          ...getModalResizableContainerStyles(maxWidthInRem[maxWidth]),
+          resize: "both",
+          overflow: "hidden",
+          minHeight: "12rem",
+          maxHeight: "calc(100vh - 2rem)",
+        }
+      : getModalContainerStyles(maxWidthInRem[maxWidth])),
+    transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+  }
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 backdrop-blur-[2px] p-4"
-      onClick={(e) => {
+      className="fixed inset-0 flex items-start justify-center bg-black/70 backdrop-blur-[2px] p-4"
+      onPointerDown={(e) => {
+        // Use pointerdown (not click) so closing the overlay does not fire when a resize drag
+        // ends with the pointer over the dimmed area (click would target the backdrop).
         if (e.target === e.currentTarget) {
           onClose()
         }
@@ -145,18 +187,22 @@ export default function Modal({
       role="dialog"
       aria-modal="true"
       aria-labelledby={ariaLabel || "modal-title"}
-      style={{ minWidth: 0, overflowY: "auto" }}
+      style={{ minWidth: 0, overflowY: "auto", zIndex: MODAL_PORTAL_Z_INDEX }}
     >
       <div
         ref={modalRef}
-        className={`max-h-[calc(100vh-2rem)] my-4 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]`}
-        onClick={(e) => e.stopPropagation()}
-        style={getModalContainerStyles(maxWidthInRem[maxWidth])}
+        className={`my-4 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)] ${
+          resizable ? "min-h-0" : "max-h-[calc(100vh-2rem)]"
+        }`}
+        style={panelStyles}
       >
-        {/* Header */}
+        {/* Header — drag handle (excludes close button via hook) */}
         <div
-          className={`flex justify-between gap-4 px-4 py-4 border-b border-[var(--token-border-accent-soft)] ${subtitle ? "items-center" : "items-start"}`}
-          style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
+          className={`flex shrink-0 select-none justify-between gap-4 px-4 py-4 border-b border-[var(--token-border-accent-soft)] ${subtitle ? "items-center" : "items-start"} ${
+            isDragging ? "cursor-grabbing" : "cursor-grab"
+          }`}
+          style={{ minWidth: 0, width: "100%", boxSizing: "border-box", touchAction: "none" }}
+          onPointerDown={headerPointerDown}
         >
           <div style={{ minWidth: 0, flex: "1 1 auto" }}>
             <h2
@@ -190,7 +236,7 @@ export default function Modal({
 
         {/* Body */}
         <div
-          className="flex-1 overflow-y-auto overflow-x-hidden"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
           style={{
             minWidth: 0,
             width: "100%",
@@ -203,13 +249,14 @@ export default function Modal({
         {/* Footer */}
         {footer && (
           <div
-            className="px-4 py-4 border-t border-[var(--token-border-accent-soft)]"
+            className="shrink-0 px-4 py-4 border-t border-[var(--token-border-accent-soft)]"
             style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
           >
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    portalTarget
   )
 }

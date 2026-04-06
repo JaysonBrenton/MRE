@@ -6,6 +6,9 @@ import { describe, it, expect } from "vitest"
 import {
   parseMainBracketLeg,
   computeBracketPodium,
+  computeBracketFullStandings,
+  getSortedRaceResults,
+  resolveMainsForBracketOverallRow,
   buildSimpleMainOverallRows,
   buildEventMainResultRows,
   pickPrimaryMainRace,
@@ -132,6 +135,52 @@ describe("computeBracketPodium", () => {
     const p = computeBracketPodium(races)
     expect(p.first?.name).toBe("Driver A")
     expect(p.second?.name).toBe("Driver B")
+  })
+})
+
+describe("computeBracketFullStandings", () => {
+  it("lists every driver in podium order", () => {
+    const races: Race[] = [
+      race("a1", "A1-Main", [
+        { id: "d1", name: "Driver A", pos: 1 },
+        { id: "d2", name: "Driver B", pos: 2 },
+      ]),
+      race("a2", "A2-Main", [
+        { id: "d1", name: "Driver A", pos: 3 },
+        { id: "d2", name: "Driver B", pos: 2 },
+      ]),
+      race("a3", "A3-Main", [
+        { id: "d1", name: "Driver A", pos: 8 },
+        { id: "d2", name: "Driver B", pos: 10 },
+      ]),
+    ]
+    const standings = computeBracketFullStandings(races)
+    expect(standings.map((s) => s.driverName)).toEqual(["Driver A", "Driver B"])
+    expect(standings[0].rank).toBe(1)
+    expect(standings[1].rank).toBe(2)
+  })
+})
+
+describe("getSortedRaceResults & resolveMainsForBracketOverallRow", () => {
+  it("returns session order for single-main row", () => {
+    const mains: Race[] = [
+      race(
+        "m1",
+        "Stock Buggy Main Event",
+        [
+          { id: "a", name: "Alice", pos: 1 },
+          { id: "b", name: "Bob", pos: 2 },
+          { id: "c", name: "Carol", pos: 3 },
+        ],
+        "Stock Buggy"
+      ),
+    ]
+    const rows = buildSimpleMainOverallRows(mains)
+    expect(rows).toHaveLength(1)
+    const resolved = resolveMainsForBracketOverallRow(rows[0], mains)
+    expect(resolved).toHaveLength(1)
+    const sorted = getSortedRaceResults(resolved[0])
+    expect(sorted.map((r) => r.driverName)).toEqual(["Alice", "Bob", "Carol"])
   })
 })
 

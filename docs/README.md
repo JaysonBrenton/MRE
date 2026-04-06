@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-04-04
+lastModified: 2026-04-05
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -31,6 +31,7 @@ navigating project documentation.
 - [Operations](#operations)
 - [Security](#security)
 - [Specifications](#specifications)
+- [Future Ideas](#future-ideas)
 - [Architecture Decision Records (ADRs)](#architecture-decision-records-adrs)
 - [Role Documentation](#role-documentation)
 - [Standards](#standards)
@@ -420,6 +421,27 @@ with navigation.
 
 **Key Topics:** Route definition, required message, layout rules, component
 usage, testing requirements.
+
+---
+
+## Future Ideas
+
+Exploratory product and UX concepts that are **not** roadmap commitments. Use
+this area to capture possibilities before they graduate to plans, ADRs, or the
+formal future-features epic.
+
+### [Future Ideas Index](future-ideas/README.md)
+
+**Status:** Active  
+**Last Updated:** 2026-04-05
+
+Lightweight index of future possibilities (e.g. graph-based race replay). Not
+normative; see
+[MRE Version 0.1.1 Feature Scope](specs/mre-v0.1-feature-scope.md) for in-scope
+work.
+
+**Related:** [Future Features Epic](user-stories/future-features.md) for
+Beta+-style placeholder stories.
 
 ---
 

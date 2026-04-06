@@ -164,6 +164,17 @@ class Track(Base):
     )
 
 
+class TrackCatalogueSyncState(Base):
+    """Singleton row: last successful track catalogue sync completion."""
+
+    __tablename__ = "track_catalogue_sync_state"
+
+    id = Column(String, primary_key=True)
+    completed_at = Column("completed_at", DateTime(timezone=True), nullable=False)
+    created_at = Column("created_at", DateTime(timezone=True), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), nullable=False)
+
+
 class Event(Base):
     """Event model representing high-level race meetings."""
     __tablename__ = "events"
