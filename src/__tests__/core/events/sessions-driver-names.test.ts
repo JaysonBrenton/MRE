@@ -44,6 +44,7 @@ describe("Sessions Data Driver Names", () => {
               fastLapTime: 30.0,
               avgLapTime: 30.0,
               consistency: 95.0,
+              liveRcStats: null,
             },
             {
               raceResultId: "result-2",
@@ -56,6 +57,7 @@ describe("Sessions Data Driver Names", () => {
               fastLapTime: 30.5,
               avgLapTime: 30.5,
               consistency: 94.0,
+              liveRcStats: null,
             },
             {
               raceResultId: "result-3",
@@ -68,6 +70,7 @@ describe("Sessions Data Driver Names", () => {
               fastLapTime: 31.0,
               avgLapTime: 31.0,
               consistency: 93.0,
+              liveRcStats: null,
             },
           ],
         },

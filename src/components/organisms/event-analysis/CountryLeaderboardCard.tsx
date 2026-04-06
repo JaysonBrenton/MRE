@@ -175,7 +175,7 @@ export default function CountryLeaderboardCard({
   return (
     <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
       <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
-        Country Leader Board{selectedCountry ? `: ${selectedCountry}` : ""}
+        Country Leaderboard{selectedCountry ? `: ${selectedCountry}` : ""}
       </h2>
       <p className="text-sm text-[var(--token-text-secondary)] mb-4">
         Drivers ranked by points from main races at tracks in{" "}
@@ -272,7 +272,7 @@ export default function CountryLeaderboardCard({
 
       {!isLoading && !error && selectedCountry && rows.length > 0 && (
         <div className="space-y-4">
-          <div className="overflow-x-auto">
+          <div className="scrollbar-none overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--token-border-default)] text-left text-[var(--token-text-secondary)]">
@@ -310,7 +310,6 @@ export default function CountryLeaderboardCard({
             itemsPerPage={itemsPerPage}
             totalItems={rows.length}
             itemLabel="drivers"
-            rowsPerPageOptions={[5, 10, 25, 50, 100]}
             onRowsPerPageChange={handleRowsPerPageChange}
           />
         </div>

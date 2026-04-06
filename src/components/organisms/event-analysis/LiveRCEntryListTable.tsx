@@ -38,8 +38,6 @@ interface EntryListApiResponse {
   class_order: string[]
 }
 
-const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100]
-
 export default function LiveRCEntryListTable({ eventId }: LiveRCEntryListTableProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -48,7 +46,7 @@ export default function LiveRCEntryListTable({ eventId }: LiveRCEntryListTablePr
   const [driverFilter, setDriverFilter] = useState("")
   const [classFilter, setClassFilter] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   useEffect(() => {
     let cancelled = false
@@ -246,7 +244,6 @@ export default function LiveRCEntryListTable({ eventId }: LiveRCEntryListTablePr
           itemsPerPage={itemsPerPage}
           totalItems={filteredEntries.length}
           itemLabel="entries"
-          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
           onRowsPerPageChange={setItemsPerPage}
         />
       </div>

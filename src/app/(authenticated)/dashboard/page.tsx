@@ -40,7 +40,7 @@ export default async function Dashboard({ searchParams }: DashboardProps) {
   const eventId = params.eventId
 
   return (
-    <section className="content-wrapper w-full min-w-0">
+    <section className="content-wrapper w-full max-w-full shrink-0">
       <Suspense fallback={null}>
         <DashboardEventSelectorWrapper eventId={eventId ?? null} />
       </Suspense>

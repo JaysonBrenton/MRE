@@ -464,6 +464,7 @@ class LiveRCConnector:
 
             results = results_parser.parse(html, url)
             all_laps = lap_parser.parse_all_drivers(html, url)
+            racer_laps_extra = lap_parser.extract_racer_laps_extra_stats(html, url)
 
             # Parse race duration from page (e.g. "Length: 30:00 Timed") and enrich race_summary
             duration_seconds = parse_race_duration_seconds(html)
@@ -475,6 +476,7 @@ class LiveRCConnector:
                 results=results,
                 laps_by_driver=all_laps,
                 fetch_method=fetch_method,
+                racer_laps_extra_by_driver=racer_laps_extra,
             )
         
         except (RacePageFormatError, LapTableMissingError) as err:

@@ -1,10 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
-import { useMemo, useState, useEffect, type ReactElement } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useMemo, useState, useEffect, useCallback, type ReactElement } from "react"
 import Tooltip from "@/components/molecules/Tooltip"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { setActiveEventAnalysisTab } from "@/store/slices/dashboardSlice"
 import { toggleNavCollapsed } from "@/store/slices/uiSlice"
 
 interface NavItem {
@@ -406,11 +407,51 @@ interface AdaptiveNavigationRailProps {
   } | null
 }
 
+function myEventsNavIcon(active: boolean) {
+  return (
+    <svg
+      className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M9 14h6M9 18h4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const dispatch = useAppDispatch()
   const isNavCollapsed = useAppSelector((state) => state.ui.isNavCollapsed)
+  const selectedEventId = useAppSelector((state) => state.dashboard.selectedEventId)
+  const analysisData = useAppSelector((state) => state.dashboard.analysisData)
+  const eventData = useAppSelector((state) => state.dashboard.eventData)
+  const activeEventAnalysisTab = useAppSelector((state) => state.dashboard.activeEventAnalysisTab)
+  const isPracticeDay = analysisData?.isPracticeDay ?? eventData?.isPracticeDay ?? false
+  const showMyEventsRail = pathname === "/dashboard" && Boolean(selectedEventId) && !isPracticeDay
+  const myEventsActive =
+    pathname === "/dashboard" && activeEventAnalysisTab === "my-events" && showMyEventsRail
+
+  const handleMyEventsInRailClick = useCallback(() => {
+    dispatch(setActiveEventAnalysisTab("my-events"))
+    if (pathname !== "/dashboard") {
+      router.push("/dashboard")
+    }
+  }, [dispatch, pathname, router])
+
+  /** Same URL as /dashboard does not re-navigate; reset tab so My Events → main analysis works. */
+  const handleDashboardNavClick = useCallback(() => {
+    dispatch(setActiveEventAnalysisTab("event-overview"))
+  }, [dispatch])
   const [isGuidesExpanded, setIsGuidesExpanded] = useState(() => {
     if (typeof window === "undefined") {
       return false
@@ -426,6 +467,29 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     const stored = window.localStorage.getItem(STORAGE_KEY_MY_CLUB_EXPANDED)
     return stored === "true"
   })
+
+  const expandMyClubMenu = useCallback(() => {
+    setIsMyClubExpanded(true)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY_MY_CLUB_EXPANDED, "true")
+    }
+  }, [])
+
+  const handleTrackLeaderboardInRailClick = useCallback(() => {
+    expandMyClubMenu()
+    dispatch(setActiveEventAnalysisTab("track-leader-board"))
+    if (pathname !== "/dashboard") {
+      router.push("/dashboard")
+    }
+  }, [dispatch, expandMyClubMenu, pathname, router])
+
+  const handleClubHighlightsInRailClick = useCallback(() => {
+    expandMyClubMenu()
+    dispatch(setActiveEventAnalysisTab("club-highlights"))
+    if (pathname !== "/dashboard") {
+      router.push("/dashboard")
+    }
+  }, [dispatch, expandMyClubMenu, pathname, router])
 
   const navWidth = isNavCollapsed ? "w-[80px]" : "w-64"
 
@@ -502,10 +566,17 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
             const fromParam = searchParams.get("from")
             const myClubActive =
               (pathname === "/under-development" && fromParam === "/dashboard/my-club") ||
-              pathname.startsWith("/dashboard/my-club")
+              pathname.startsWith("/dashboard/my-club") ||
+              (pathname === "/dashboard" &&
+                (activeEventAnalysisTab === "track-leader-board" ||
+                  activeEventAnalysisTab === "club-highlights"))
             const trackMapsActive =
               pathname === "/dashboard/my-club/track-maps" ||
               pathname.startsWith("/dashboard/my-club/track-maps")
+            const trackLeaderboardRailActive =
+              pathname === "/dashboard" && activeEventAnalysisTab === "track-leader-board"
+            const clubHighlightsRailActive =
+              pathname === "/dashboard" && activeEventAnalysisTab === "club-highlights"
 
             if (isNavCollapsed) {
               // Collapsed: Show My Club icon only
@@ -603,6 +674,65 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
                       </svg>
                       <span>Track Maps</span>
                     </Link>
+                    <button
+                      type="button"
+                      onClick={handleTrackLeaderboardInRailClick}
+                      className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                        trackLeaderboardRailActive
+                          ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
+                          : "text-[var(--token-text-secondary)]"
+                      }`}
+                      aria-current={trackLeaderboardRailActive ? "page" : undefined}
+                      aria-label="Track Leaderboard"
+                    >
+                      <svg
+                        className="h-4 w-4 text-[var(--token-text-muted)]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M4 6h16M4 12h10M4 18h16"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M18 9v6l2-2"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span>Track Leaderboard</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClubHighlightsInRailClick}
+                      className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                        clubHighlightsRailActive
+                          ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
+                          : "text-[var(--token-text-secondary)]"
+                      }`}
+                      aria-current={clubHighlightsRailActive ? "page" : undefined}
+                      aria-label="Club Highlights"
+                    >
+                      <svg
+                        className="h-4 w-4 text-[var(--token-text-muted)]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M12 2l3 6 6 .5-4.5 4 1.5 6L12 16l-6 3 1.5-6L3 8.5 9 8l3-6z"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span>Club Highlights</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -617,6 +747,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
           const linkElement = (
             <Link
               href={item.href}
+              onClick={item.href === "/dashboard" ? handleDashboardNavClick : undefined}
               className={`group flex flex-col ${isNavCollapsed ? "items-center" : "items-stretch"} rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
               aria-current={active ? "page" : undefined}
               aria-label={item.label}
@@ -639,9 +770,53 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
             </Link>
           )
 
+          const showMyEventsBelowDashboard = item.href === "/dashboard" && showMyEventsRail
+
+          const myEventsRailButton = showMyEventsBelowDashboard ? (
+            isNavCollapsed ? (
+              <Tooltip text="My Events" position="right">
+                <button
+                  type="button"
+                  id="rail-nav-my-events"
+                  onClick={handleMyEventsInRailClick}
+                  className={`group flex w-full items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                    myEventsActive ? "bg-[var(--token-surface-raised)]/50" : ""
+                  }`}
+                  aria-label="My Events"
+                  aria-pressed={myEventsActive}
+                >
+                  {myEventsNavIcon(myEventsActive)}
+                </button>
+              </Tooltip>
+            ) : (
+              <button
+                type="button"
+                id="rail-nav-my-events"
+                onClick={handleMyEventsInRailClick}
+                className={`group flex flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                  myEventsActive ? "bg-[var(--token-surface-raised)]/50" : ""
+                }`}
+                aria-label="My Events"
+                aria-pressed={myEventsActive}
+              >
+                <div className="flex items-center gap-3">
+                  {myEventsNavIcon(myEventsActive)}
+                  <span
+                    className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${myEventsActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
+                  >
+                    My Events
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+                  Your entries and standings
+                </p>
+              </button>
+            )
+          ) : null
+
           // Only show tooltip when nav is collapsed (icon-only mode)
           return (
-            <div key={item.label}>
+            <div key={item.label} className={showMyEventsBelowDashboard ? "space-y-1" : undefined}>
               {isNavCollapsed ? (
                 <Tooltip text={item.label} position="right">
                   {linkElement}
@@ -649,6 +824,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
               ) : (
                 linkElement
               )}
+              {myEventsRailButton}
             </div>
           )
         })}

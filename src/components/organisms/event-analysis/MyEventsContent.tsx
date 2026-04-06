@@ -96,7 +96,7 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [filter, setFilter] = useState<"all" | "suggested">("all")
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [hasNoDriverPersona, setHasNoDriverPersona] = useState<boolean>(false)
@@ -662,7 +662,6 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
               itemsPerPage={itemsPerPage}
               totalItems={totalItems}
               itemLabel="events"
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
               onRowsPerPageChange={handleRowsPerPageChange}
             />
           </div>

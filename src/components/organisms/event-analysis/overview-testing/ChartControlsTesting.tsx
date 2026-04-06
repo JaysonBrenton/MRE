@@ -486,7 +486,7 @@ export default function ChartControlsTesting({
             )}
           </div>
           {isClassDropdownOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
+            <div className="scrollbar-none absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg">
               <button
                 type="button"
                 onClick={() => {
@@ -639,7 +639,7 @@ export default function ChartControlsTesting({
                   )}
                 </div>
                 {isClassDropdownOpen && (
-                  <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
+                  <div className="scrollbar-none absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg">
                     <button
                       type="button"
                       onClick={() => {

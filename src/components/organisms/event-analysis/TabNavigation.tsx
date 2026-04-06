@@ -8,7 +8,7 @@
  * @description Tab navigation component for event analysis tabs
  *
  * @purpose Provides horizontal tab navigation with keyboard support.
- *          Mobile-friendly with scrollable tabs on small screens.
+ *          Tabs wrap on narrow viewports instead of horizontal scrolling.
  *
  * @relatedFiles
  * - src/components/event-analysis/OverviewTab.tsx (tab content)
@@ -17,14 +17,20 @@
 
 "use client"
 
-import { KeyboardEvent } from "react"
+import { Fragment, KeyboardEvent } from "react"
+
+import Tooltip from "@/components/molecules/Tooltip"
 
 export type TabId =
-  | "overview"
-  | "sessions"
+  | "event-overview"
+  | "event-analysis"
+  | "session-analysis"
+  | "bump-ups"
+  | "driver-progression"
   | "my-events"
   | "drivers"
   | "track-leader-board"
+  | "club-highlights"
   // Practice day tabs
   | "my-day"
   | "my-sessions"
@@ -36,6 +42,14 @@ export interface Tab {
   label: string
 }
 
+/** Short hints for primary dashboard tabs (see OverviewTab section variants). */
+const TAB_TOOLTIPS: Partial<Record<TabId, string>> = {
+  "event-analysis": "Event-wide charts, mains results, and lap rankings.",
+  "session-analysis": "Per-session lap trends, results, and rankings.",
+  "bump-ups": "Promotions between finals rounds toward the A-main.",
+  "driver-progression": "Each driver’s finishes across main rounds toward the A-main.",
+}
+
 export interface TabNavigationProps {
   tabs: Tab[]
   activeTab: TabId
@@ -45,9 +59,11 @@ export interface TabNavigationProps {
 }
 
 const defaultTabs: Tab[] = [
-  { id: "overview", label: "Event" },
-  { id: "sessions", label: "Event Sessions" },
-  { id: "my-events", label: "My Events" },
+  { id: "event-overview", label: "Event Overview" },
+  { id: "event-analysis", label: "Event Analysis" },
+  { id: "session-analysis", label: "Session Analysis" },
+  { id: "bump-ups", label: "Bump-Up" },
+  { id: "driver-progression", label: "Driver Progression" },
   { id: "drivers", label: "Entry List" },
 ]
 
@@ -76,16 +92,16 @@ export default function TabNavigation({
 
   return (
     <div
-      className={`overflow-x-auto ${embedded ? "" : "border-b border-[var(--token-border-default)]"}`}
+      className={`overflow-x-hidden ${embedded ? "" : "border-b border-[var(--token-border-default)]"}`}
       role="tablist"
       aria-label="Event analysis tabs"
     >
-      <div className="flex min-w-max">
+      <div className="flex min-w-0 flex-wrap">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id
-          return (
+          const tooltip = TAB_TOOLTIPS[tab.id]
+          const tabButton = (
             <button
-              key={tab.id}
               type="button"
               role="tab"
               aria-selected={isActive}
@@ -101,6 +117,17 @@ export default function TabNavigation({
             >
               {tab.label}
             </button>
+          )
+          return (
+            <Fragment key={tab.id}>
+              {tooltip ? (
+                <Tooltip text={tooltip} position="top">
+                  {tabButton}
+                </Tooltip>
+              ) : (
+                tabButton
+              )}
+            </Fragment>
           )
         })}
       </div>

@@ -46,8 +46,8 @@ export type ApiErrorResponse = {
 export const CACHE_CONTROL = {
   /** Static reference data (tracks, personas) - 1 hour */
   STATIC: "public, max-age=3600",
-  /** Event summaries, event lists - 5 minutes */
-  EVENT_SUMMARY: "public, max-age=300",
+  /** Event summaries (may include user-specific fields) - 5 minutes, private */
+  EVENT_SUMMARY: "private, max-age=300, stale-while-revalidate=60",
   /** User-specific data - 1 minute, private */
   USER_DATA: "private, max-age=60",
   /** No caching - admin, ingestion, auth endpoints */

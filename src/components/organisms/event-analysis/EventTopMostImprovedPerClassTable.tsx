@@ -321,7 +321,7 @@ export default function EventTopMostImprovedPerClassTable({
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
+            <div className="scrollbar-none overflow-x-auto overflow-y-hidden rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
               <StandardTable>
                 <StandardTableHeader>
                   <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -462,7 +462,6 @@ export default function EventTopMostImprovedPerClassTable({
                 itemsPerPage={itemsPerPage}
                 totalItems={sortedRows.length}
                 itemLabel="results"
-                rowsPerPageOptions={[10, 25, 50, 100]}
                 onRowsPerPageChange={handleRowsPerPageChange}
               />
             </div>

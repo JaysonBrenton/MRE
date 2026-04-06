@@ -137,3 +137,19 @@ def test_parse_lap_data_invalid_html(parser):
     with pytest.raises(LapTableMissingError):
         parser.parse("<html><body>No racerLaps here</body></html>", url, driver_id)
 
+
+def test_extract_racer_laps_extra_stats_top2_consecutive(parser):
+    """Top 2 consecutive from racerLaps JS is merged into raw_fields_json at ingest."""
+    html = """
+    <html><body>
+    racerLaps[999001] = {
+        'driverName': 'TEST DRIVER',
+        'top2Consec': '70.123',
+        'laps': []
+    };
+    </body></html>
+    """
+    out = parser.extract_racer_laps_extra_stats(html, "https://track.liverc.com/results/?p=view_race_result&id=1")
+    assert "999001" in out
+    assert out["999001"]["top_2_consecutive"] == pytest.approx(70.123)
+

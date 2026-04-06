@@ -28,6 +28,8 @@ export interface EventAnalysisHeaderProps {
   isPracticeDay?: boolean
   /** When set, show "Viewing: [Driver Name]" (practice day). */
   viewingDriverName?: string | null
+  /** My Events rail tab: heading is "Current Event: {event}". Main analysis uses event name only. */
+  isMyEventsSection?: boolean
 }
 
 function formatDateRange(
@@ -49,6 +51,7 @@ export default function EventAnalysisHeader({
   trackName,
   isPracticeDay = false,
   viewingDriverName = null,
+  isMyEventsSection = false,
 }: EventAnalysisHeaderProps) {
   const dateDisplay = formatDateRange(eventDate, eventDateEnd)
   const primaryTitle = isPracticeDay ? `Practice – ${dateDisplay} @ ${trackName}` : eventName
@@ -60,11 +63,11 @@ export default function EventAnalysisHeader({
         : null
 
   return (
-    <div className="mb-4 flex min-w-0 flex-1 flex-col gap-1">
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
       <h1
-        className={`w-fit min-w-0 break-words border-b-2 border-[var(--token-accent)] pb-2 leading-tight tracking-tight sm:text-3xl ${typography.h2}`}
+        className={`w-fit min-w-0 break-words border-b-2 border-[var(--token-accent)] pb-1.5 leading-tight tracking-tight sm:text-3xl ${typography.h2}`}
       >
-        {primaryTitle}
+        {isMyEventsSection ? `Current Event: ${primaryTitle}` : primaryTitle}
       </h1>
       {isPracticeDay && viewingLabel && (
         <p className={typography.bodySecondary}>Viewing: {viewingLabel}</p>

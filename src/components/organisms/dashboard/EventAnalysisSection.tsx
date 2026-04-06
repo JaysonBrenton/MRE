@@ -21,7 +21,11 @@
 
 import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
-import { fetchEventAnalysisData, selectEvent } from "@/store/slices/dashboardSlice"
+import {
+  fetchEventAnalysisData,
+  selectEvent,
+  setActiveEventAnalysisTab,
+} from "@/store/slices/dashboardSlice"
 import EventAnalysisToolbar from "@/components/organisms/event-analysis/EventAnalysisToolbar"
 import { type TabId } from "@/components/organisms/event-analysis/TabNavigation"
 import OverviewTab from "@/components/organisms/event-analysis/OverviewTab"
@@ -34,10 +38,12 @@ import PracticeMyDayTab from "@/components/organisms/event-analysis/PracticeMyDa
 import PracticeMySessionsTab from "@/components/organisms/event-analysis/PracticeMySessionsTab"
 import PracticeClassLeaderboard from "@/components/organisms/event-analysis/PracticeClassLeaderboard"
 import TrackLeaderboardTab from "@/components/organisms/event-analysis/TrackLeaderboardTab"
+import ClubHighlightsTab from "@/components/organisms/event-analysis/ClubHighlightsTab"
 import CountryLeaderboardCard from "@/components/organisms/event-analysis/CountryLeaderboardCard"
 import CorrectVenueModal from "@/components/organisms/event-analysis/CorrectVenueModal"
 import StandardButton from "@/components/atoms/StandardButton"
 import { typography } from "@/lib/typography"
+import { parseApiResponse } from "@/lib/api-response-helper"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import type { EventAnalysisDataApiResponse } from "@/types/event-analysis-api"
 
@@ -46,14 +52,14 @@ const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
   { id: "my-sessions", label: "My Sessions" },
   { id: "class-reference", label: "Class Reference" },
   { id: "all-sessions", label: "All Sessions" },
-  { id: "track-leader-board", label: "Track Leader Board" },
 ]
 const EVENT_TABS: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Event" },
-  { id: "sessions", label: "Event Sessions" },
-  { id: "my-events", label: "My Events" },
+  { id: "event-overview", label: "Event Overview" },
+  { id: "event-analysis", label: "Event Analysis" },
+  { id: "session-analysis", label: "Session Analysis" },
+  { id: "bump-ups", label: "Bump-Up" },
+  { id: "driver-progression", label: "Driver Progression" },
   { id: "drivers", label: "Entry List" },
-  { id: "track-leader-board", label: "Track Leader Board" },
 ]
 
 /**
@@ -136,7 +142,7 @@ export default function EventAnalysisSection() {
     return dashboardState._persist?.rehydrated ?? true
   })
 
-  const [activeTab, setActiveTab] = useState<TabId>("overview")
+  const activeTab = useAppSelector((state) => state.dashboard.activeEventAnalysisTab)
   const [hasInitiatedFetch, setHasInitiatedFetch] = useState(false)
   const eventActions = useEventActions()
   const selectedDriverIds = eventActions.selectedDriverIds
@@ -153,20 +159,40 @@ export default function EventAnalysisSection() {
   const [isCorrectVenueModalOpen, setIsCorrectVenueModalOpen] = useState(false)
 
   const fetchVenueCorrection = useCallback((eventId: string) => {
-    fetch(`/api/v1/events/${eventId}/venue-correction`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.data) {
+    void (async () => {
+      try {
+        const res = await fetch(`/api/v1/events/${eventId}/venue-correction`, {
+          credentials: "include",
+        })
+        const result = await parseApiResponse<{
+          correction: {
+            id: string
+            eventId: string
+            venueTrackId: string | null
+            venueTrackName: string | null
+          } | null
+          userRequest: {
+            id: string
+            status: string
+            venueTrackId: string | null
+            venueTrackName: string | null
+            adminNotes?: string | null
+          } | null
+          canSubmit?: boolean
+        }>(res)
+        if (result.success && result.data) {
           setVenueCorrectionStatus({
-            correction: json.data.correction,
-            userRequest: json.data.userRequest,
-            canSubmit: json.data.canSubmit ?? false,
+            correction: result.data.correction,
+            userRequest: result.data.userRequest,
+            canSubmit: result.data.canSubmit ?? false,
           })
         } else {
           setVenueCorrectionStatus(null)
         }
-      })
-      .catch(() => setVenueCorrectionStatus(null))
+      } catch {
+        setVenueCorrectionStatus(null)
+      }
+    })()
   }, [])
 
   const handleVenueCorrectionSuccess = useCallback(() => {
@@ -234,7 +260,7 @@ export default function EventAnalysisSection() {
 
   // Also fetch when user clicks on a tab (in case section was already visible)
   const handleTabChange = (tabId: TabId) => {
-    setActiveTab(tabId)
+    dispatch(setActiveEventAnalysisTab(tabId))
 
     // If we haven't fetched yet and event is selected, fetch now
     if (
@@ -267,16 +293,24 @@ export default function EventAnalysisSection() {
   // When data switches between practice day and event, sync active tab
   useEffect(() => {
     const practiceTabIds: TabId[] = ["my-day", "my-sessions", "class-reference", "all-sessions"]
-    const eventTabIds: TabId[] = ["overview", "sessions", "my-events", "drivers"]
+    const eventTabIds: TabId[] = [
+      "event-overview",
+      "event-analysis",
+      "session-analysis",
+      "bump-ups",
+      "driver-progression",
+      "my-events",
+      "drivers",
+    ]
     const sync = () => {
       if (isPracticeDay && eventTabIds.includes(activeTab)) {
-        setActiveTab("my-day")
+        dispatch(setActiveEventAnalysisTab("my-day"))
       } else if (!isPracticeDay && practiceTabIds.includes(activeTab)) {
-        setActiveTab("overview")
+        dispatch(setActiveEventAnalysisTab("event-overview"))
       }
     }
     queueMicrotask(sync)
-  }, [isPracticeDay, activeTab])
+  }, [isPracticeDay, activeTab, dispatch])
 
   // Measure fixed header height for spacer (must run after transformedData/isPracticeDay are defined)
   useLayoutEffect(() => {
@@ -347,11 +381,11 @@ export default function EventAnalysisSection() {
             {/* Fixed header+toolbar - stays visible when scrolling */}
             <div
               ref={headerRef}
-              className="fixed left-0 top-16 right-0 z-20 bg-[var(--token-surface)] px-1 shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:px-2 md:px-2 lg:left-[var(--nav-width)] lg:px-2 xl:px-4 2xl:px-6"
+              className="fixed left-0 top-16 right-0 z-20 bg-[var(--token-surface)] px-1 shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:px-2 md:px-2 lg:left-[calc(var(--nav-width)_+_var(--nav-content-gutter))] lg:pl-0 lg:pr-2 xl:pl-0 xl:pr-4 2xl:pl-0 2xl:pr-6"
             >
               <div
-                className="content-wrapper mx-auto flex w-full min-w-0 max-w-full flex-col pb-4 pt-4"
-                style={{ gap: "var(--dashboard-gap)" }}
+                className="content-wrapper mx-auto flex w-full min-w-0 max-w-full flex-col pb-2 pt-2 sm:pb-3 sm:pt-3"
+                style={{ gap: "var(--token-spacing-md)" }}
               >
                 <EventAnalysisHeader
                   eventName={transformedData.event.eventName}
@@ -360,28 +394,86 @@ export default function EventAnalysisSection() {
                   trackName={transformedData.event.trackName}
                   isPracticeDay={isPracticeDay}
                   viewingDriverName={viewingDriverName}
+                  isMyEventsSection={activeTab === "my-events"}
                 />
-                <EventAnalysisToolbar
-                  tabs={availableTabs}
-                  activeTab={activeTab}
-                  onTabChange={handleTabChange}
-                  venueCorrectionCanSubmit={venueCorrectionStatus?.canSubmit ?? false}
-                  onCorrectVenueClick={() => setIsCorrectVenueModalOpen(true)}
-                />
+                {activeTab !== "my-events" && (
+                  <EventAnalysisToolbar
+                    tabs={availableTabs}
+                    activeTab={activeTab}
+                    onTabChange={handleTabChange}
+                    venueCorrectionCanSubmit={venueCorrectionStatus?.canSubmit ?? false}
+                    onCorrectVenueClick={() => setIsCorrectVenueModalOpen(true)}
+                    belowLgRailFallback={
+                      !isPracticeDay ? (
+                        <button
+                          type="button"
+                          id="toolbar-fallback-my-events"
+                          onClick={() => dispatch(setActiveEventAnalysisTab("my-events"))}
+                          className="whitespace-nowrap border-b-2 border-transparent px-2 py-2 text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] sm:px-3"
+                        >
+                          My Events
+                        </button>
+                      ) : null
+                    }
+                  />
+                )}
               </div>
             </div>
             {/* Tab content - scrolls normally */}
             <div className="space-y-[var(--dashboard-gap)]">
-              {activeTab === "overview" && (
-                <>
-                  <OverviewTab
-                    data={transformedData}
-                    selectedDriverIds={selectedDriverIds}
-                    onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                    selectedClass={selectedClass}
-                    onClassChange={eventActions.onClassChange}
-                  />
-                </>
+              {activeTab === "event-overview" && (
+                <OverviewTab
+                  data={transformedData}
+                  selectedDriverIds={selectedDriverIds}
+                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                  selectedClass={selectedClass}
+                  onClassChange={eventActions.onClassChange}
+                  variant="event-overview-only"
+                />
+              )}
+
+              {activeTab === "event-analysis" && (
+                <OverviewTab
+                  data={transformedData}
+                  selectedDriverIds={selectedDriverIds}
+                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                  selectedClass={selectedClass}
+                  onClassChange={eventActions.onClassChange}
+                  variant="event-analysis-only"
+                />
+              )}
+
+              {activeTab === "session-analysis" && (
+                <OverviewTab
+                  data={transformedData}
+                  selectedDriverIds={selectedDriverIds}
+                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                  selectedClass={selectedClass}
+                  onClassChange={eventActions.onClassChange}
+                  variant="session-analysis-only"
+                />
+              )}
+
+              {activeTab === "bump-ups" && (
+                <OverviewTab
+                  data={transformedData}
+                  selectedDriverIds={selectedDriverIds}
+                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                  selectedClass={selectedClass}
+                  onClassChange={eventActions.onClassChange}
+                  variant="bump-ups-only"
+                />
+              )}
+
+              {activeTab === "driver-progression" && (
+                <OverviewTab
+                  data={transformedData}
+                  selectedDriverIds={selectedDriverIds}
+                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                  selectedClass={selectedClass}
+                  onClassChange={eventActions.onClassChange}
+                  variant="driver-progression-only"
+                />
               )}
 
               {activeTab === "drivers" && (
@@ -395,26 +487,16 @@ export default function EventAnalysisSection() {
               {activeTab === "my-events" && (
                 <div
                   className="space-y-[var(--dashboard-gap)]"
-                  role="tabpanel"
-                  id="tabpanel-my-events"
-                  aria-labelledby="tab-my-events"
+                  role="region"
+                  aria-label="My events"
                 >
                   <MyEventsContent
                     onEventSelect={(eventId) => {
                       dispatch(selectEvent(eventId))
-                      setActiveTab("overview")
+                      dispatch(setActiveEventAnalysisTab("event-overview"))
                     }}
                   />
                 </div>
-              )}
-
-              {activeTab === "sessions" && (
-                <SessionsTab
-                  data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                />
               )}
 
               {activeTab === "track-leader-board" && transformedData && selectedEventId && (
@@ -427,6 +509,10 @@ export default function EventAnalysisSection() {
                   />
                   <CountryLeaderboardCard defaultCountry="Australia" />
                 </div>
+              )}
+
+              {activeTab === "club-highlights" && transformedData && (
+                <ClubHighlightsTab trackName={transformedData.event.trackName} />
               )}
 
               {/* Practice day tabs - no driver cards or weather panel */}

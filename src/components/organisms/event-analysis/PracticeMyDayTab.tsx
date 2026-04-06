@@ -55,7 +55,8 @@ function getClassLeaderboard(
   data: EventAnalysisData,
   className: string
 ): Array<{ driverId: string; driverName: string; bestLap: number; raceLabel: string }> {
-  const list: Array<{ driverId: string; driverName: string; bestLap: number; raceLabel: string }> = []
+  const list: Array<{ driverId: string; driverName: string; bestLap: number; raceLabel: string }> =
+    []
   data.races.forEach((race) => {
     if (race.className !== className) return
     race.results.forEach((r) => {
@@ -98,7 +99,9 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
 
   const fastestInClass = classLeaderboard[0]?.bestLap ?? null
   const driverBestLap = useMemo(() => {
-    const laps = driverSessions.map((s) => s.bestLapTime).filter((t): t is number => t != null && t > 0)
+    const laps = driverSessions
+      .map((s) => s.bestLapTime)
+      .filter((t): t is number => t != null && t > 0)
     return laps.length > 0 ? Math.min(...laps) : null
   }, [driverSessions])
 
@@ -108,14 +111,17 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
   }, [fastestInClass, driverBestLap])
 
   const firstSessionBest = driverSessions.length > 0 ? driverSessions[0].bestLapTime : null
-  const lastSessionBest = driverSessions.length > 0 ? driverSessions[driverSessions.length - 1].bestLapTime : null
+  const lastSessionBest =
+    driverSessions.length > 0 ? driverSessions[driverSessions.length - 1].bestLapTime : null
   const lapTimeImprovement =
     firstSessionBest != null && lastSessionBest != null && firstSessionBest > 0
       ? firstSessionBest - lastSessionBest
       : null
 
   const avgConsistency = useMemo(() => {
-    const vals = driverSessions.map((s) => s.consistency).filter((c): c is number => c != null && Number.isFinite(c))
+    const vals = driverSessions
+      .map((s) => s.consistency)
+      .filter((c): c is number => c != null && Number.isFinite(c))
     if (vals.length === 0) return null
     return vals.reduce((a, b) => a + b, 0) / vals.length
   }, [driverSessions])
@@ -126,7 +132,8 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
         <LinkYourDriverPrompt />
         <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
           <p className="text-sm text-[var(--token-text-secondary)]">
-            Select a driver above to see their lap time progression, class comparison, and consistency.
+            Select a driver above to see their lap time progression, class comparison, and
+            consistency.
           </p>
         </div>
       </div>
@@ -144,7 +151,7 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
           <p className="text-sm text-[var(--token-text-muted)]">No session data for this driver.</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="scrollbar-none overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--token-border-default)] text-left text-[var(--token-text-secondary)]">
@@ -156,26 +163,34 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
                 </thead>
                 <tbody>
                   {driverSessions.map((s, i) => (
-                    <tr key={s.raceId} className="border-b border-[var(--token-border-default)] last:border-0">
+                    <tr
+                      key={s.raceId}
+                      className="border-b border-[var(--token-border-default)] last:border-0"
+                    >
                       <td className="py-2 pr-4">{s.raceLabel || `Session ${i + 1}`}</td>
                       <td className="py-2 pr-4">{formatLapTime(s.bestLapTime)}</td>
                       <td className="py-2 pr-4">{formatLapTime(s.avgLapTime)}</td>
-                      <td className="py-2">{s.consistency != null ? `${s.consistency.toFixed(1)}%` : "—"}</td>
+                      <td className="py-2">
+                        {s.consistency != null ? `${s.consistency.toFixed(1)}%` : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {driverSessions.length >= 2 && (firstSessionBest != null || lastSessionBest != null) && (
-              <p className="mt-4 text-sm text-[var(--token-text-secondary)]">
-                First session best: {formatLapTime(firstSessionBest)} → Last session best: {formatLapTime(lastSessionBest)}
-                {lapTimeImprovement != null && lapTimeImprovement !== 0 && (
-                  <span className="ml-2">
-                    ({lapTimeImprovement > 0 ? "improved" : "slower"} {formatLapTimeImprovement(lapTimeImprovement)})
-                  </span>
-                )}
-              </p>
-            )}
+            {driverSessions.length >= 2 &&
+              (firstSessionBest != null || lastSessionBest != null) && (
+                <p className="mt-4 text-sm text-[var(--token-text-secondary)]">
+                  First session best: {formatLapTime(firstSessionBest)} → Last session best:{" "}
+                  {formatLapTime(lastSessionBest)}
+                  {lapTimeImprovement != null && lapTimeImprovement !== 0 && (
+                    <span className="ml-2">
+                      ({lapTimeImprovement > 0 ? "improved" : "slower"}{" "}
+                      {formatLapTimeImprovement(lapTimeImprovement)})
+                    </span>
+                  )}
+                </p>
+              )}
           </>
         )}
       </section>
@@ -194,13 +209,16 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
             <p className="text-sm text-[var(--token-text-secondary)] mb-3">
               Fastest in class: {formatLapTime(fastestInClass)}
               {driverPositionInClass != null && (
-                <> · Your position: {driverPositionInClass} of {classLeaderboard.length}</>
+                <>
+                  {" "}
+                  · Your position: {driverPositionInClass} of {classLeaderboard.length}
+                </>
               )}
               {gapToFastest != null && gapToFastest > 0 && (
                 <> · Gap to fastest: {formatLapTime(gapToFastest)}</>
               )}
             </p>
-            <div className="overflow-x-auto max-h-48 overflow-y-auto">
+            <div className="scrollbar-none max-h-48 overflow-x-auto overflow-y-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--token-border-default)] text-left text-[var(--token-text-secondary)]">
@@ -233,16 +251,16 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
 
       {/* Consistency */}
       <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-        <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
-          Consistency
-        </h2>
+        <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">Consistency</h2>
         {avgConsistency != null ? (
           <p className="text-sm text-[var(--token-text-secondary)]">
-            Average consistency across {driverSessions.length} session{driverSessions.length !== 1 ? "s" : ""}:{" "}
-            <strong>{avgConsistency.toFixed(1)}%</strong>
+            Average consistency across {driverSessions.length} session
+            {driverSessions.length !== 1 ? "s" : ""}: <strong>{avgConsistency.toFixed(1)}%</strong>
           </p>
         ) : (
-          <p className="text-sm text-[var(--token-text-muted)]">No consistency data for this driver.</p>
+          <p className="text-sm text-[var(--token-text-muted)]">
+            No consistency data for this driver.
+          </p>
         )}
       </section>
     </div>

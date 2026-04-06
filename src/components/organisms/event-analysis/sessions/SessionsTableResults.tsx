@@ -261,7 +261,7 @@ export default function SessionsTableResults({
 
   return (
     <div className="px-4 py-4 bg-[var(--token-surface-alt)]">
-      <div className="overflow-x-auto">
+      <div className="scrollbar-none overflow-x-auto">
         <table
           className="w-full min-w-[800px]"
           aria-label={`Full results for ${session.raceLabel}`}

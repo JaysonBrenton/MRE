@@ -86,13 +86,17 @@ export default function SessionsTab({
       aria-labelledby="tab-sessions"
     >
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
-          Sessions and Heats
+      <div className="space-y-1.5">
+        <h2 className="text-xl font-semibold text-[var(--token-text-primary)]">
+          Event sessions and heats
           {selectedClass && typeof selectedClass === "string" && selectedClass.trim() !== ""
-            ? ` - ${selectedClass}`
+            ? ` — ${selectedClass}`
             : ""}
         </h2>
+        <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
+          Race grid and lap analysis for the selected class and drivers. Driver bump-ups are on
+          Event Details → Bump-Ups.
+        </p>
       </div>
 
       {/* Content - show all sessions when "All Classes" or when a specific class is selected */}

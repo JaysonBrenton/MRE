@@ -111,7 +111,6 @@ source file for behavior and props.
 | `src/components/organisms/event-analysis/EventFastestLapsTable.tsx`           | organism (event-analysis) | Event Fastest Laps Table         |
 | `src/components/organisms/event-analysis/EventMostImprovedTable.tsx`          | organism (event-analysis) | Event Most Improved Table        |
 | `src/components/organisms/event-analysis/EventStats.tsx`                      | organism (event-analysis) | Event Stats                      |
-| `src/components/organisms/event-analysis/EventWinnersTable.tsx`               | organism (event-analysis) | Event Winners Table              |
 | `src/components/organisms/event-analysis/HeatsCard.tsx`                       | organism (event-analysis) | Heats Card                       |
 | `src/components/organisms/event-analysis/LapByLapTrendChart.tsx`              | organism (event-analysis) | Lap By Lap Trend Chart           |
 | `src/components/organisms/event-analysis/LapTimeLineChart.tsx`                | organism (event-analysis) | Lap Time Line Chart              |
@@ -121,6 +120,8 @@ source file for behavior and props.
 | `src/components/organisms/event-analysis/LiveRCEntryListTable.tsx`            | organism (event-analysis) | Live RC Entry List Table         |
 | `src/components/organisms/event-analysis/MainPodiumCard.tsx`                  | organism (event-analysis) | Main Podium Card                 |
 | `src/components/organisms/event-analysis/MainsCard.tsx`                       | organism (event-analysis) | Mains Card                       |
+| `src/components/organisms/event-analysis/MainBracketResultsTable.tsx`         | organism (event-analysis) | Main Bracket Results Table       |
+| `src/components/organisms/event-analysis/SessionRaceResultsTable.tsx`         | organism (event-analysis) | Session Race Results Table       |
 | `src/components/organisms/event-analysis/MultiMainOverallCard.tsx`            | organism (event-analysis) | Multi Main Overall Card          |
 | `src/components/organisms/event-analysis/MyEventsContent.tsx`                 | organism (event-analysis) | My Events Content                |
 | `src/components/organisms/event-analysis/MyLapsContent.tsx`                   | organism (event-analysis) | My Laps Content                  |

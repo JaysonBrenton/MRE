@@ -30,6 +30,8 @@ import StandardInput from "@/components/atoms/StandardInput"
 import PracticeDriverSelector from "@/components/organisms/event-analysis/PracticeDriverSelector"
 import { EventActionsContext, type EventActionsContextValue } from "./EventActionsContext"
 import { sanitizeErrorMessage } from "@/lib/sanitize-error-message"
+import { getValidClasses } from "@/core/events/class-validator"
+import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 // Types for driver selection modal
 interface Driver {
@@ -266,10 +268,11 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     lastIngestedAt?: string
   } | null>(null)
 
-  // Driver selection state
-  // Default to "All Classes" (null) when event is first loaded
+  // Driver selection state; class is set to first entry-list class when analysis loads (see effect below)
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
+  /** After analysis loads for an event, we apply first class once (matches OverviewTab chip order). */
+  const lastDefaultClassEventId = useRef<string | null>(null)
   const isCompact = false // Always expanded view
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
@@ -277,11 +280,11 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Reset selections when event changes
-  // Ensures "All Classes" (null) is the default when an event is first loaded
+  // Reset selections when event changes; allow first-class default to run again for the new event
   useEffect(() => {
     setSelectedDriverIds([])
-    setSelectedClass(null) // Default to "All Classes" when event changes
+    setSelectedClass(null)
+    lastDefaultClassEventId.current = null
   }, [selectedEventId])
 
   // Debounce search query
@@ -395,6 +398,22 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     },
     [races, allDrivers]
   )
+
+  // Default class + drivers to first entry-list class (same order as getValidClasses / Overview chips)
+  useEffect(() => {
+    if (!selectedEventId || !analysisData || analysisData.event.id !== selectedEventId) {
+      return
+    }
+    if (lastDefaultClassEventId.current === selectedEventId) {
+      return
+    }
+    const classes = getValidClasses(analysisData as EventAnalysisData)
+    lastDefaultClassEventId.current = selectedEventId
+    if (classes.length === 0) {
+      return
+    }
+    handleClassChangeFromDropdown(classes[0])
+  }, [selectedEventId, analysisData, handleClassChangeFromDropdown])
 
   const handleDriverToggle = useCallback(
     (driverId: string) => {

@@ -36,7 +36,7 @@ export default function AuditLogTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [actionFilter, setActionFilter] = useState("")
   const [resourceTypeFilter, setResourceTypeFilter] = useState("")
@@ -319,7 +319,6 @@ export default function AuditLogTable() {
           itemsPerPage={itemsPerPage}
           totalItems={total}
           itemLabel="logs"
-          rowsPerPageOptions={[5, 25, 50, 100, 200]}
           onRowsPerPageChange={(newRowsPerPage) => {
             setItemsPerPage(newRowsPerPage)
             setPage(1)

@@ -62,7 +62,7 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
   const [sortField, setSortField] = useState<SortField>("driverName")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   const sortedEntries = useMemo(() => {
     const sorted = [...entries].sort((a, b) => {
@@ -226,7 +226,6 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
           itemsPerPage={itemsPerPage}
           totalItems={sortedEntries.length}
           itemLabel="entries"
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
           onRowsPerPageChange={handleRowsPerPageChange}
         />
       </div>

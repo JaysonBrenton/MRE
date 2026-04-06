@@ -23,6 +23,8 @@
 
 "use client"
 
+import { TABLE_ROWS_PER_PAGE_OPTIONS } from "@/lib/table-pagination"
+
 export interface ListPaginationProps {
   currentPage: number
   totalPages: number
@@ -32,6 +34,11 @@ export interface ListPaginationProps {
   itemLabel?: string
   rowsPerPageOptions?: number[]
   onRowsPerPageChange?: (rowsPerPage: number) => void
+  /**
+   * When true, omits the default `mb-16` footer clearance — use inside a padded card or panel where
+   * outer padding already frames the content.
+   */
+  embedded?: boolean
 }
 
 export default function ListPagination({
@@ -41,8 +48,9 @@ export default function ListPagination({
   itemsPerPage,
   totalItems,
   itemLabel = "items",
-  rowsPerPageOptions = [5, 10, 25, 50, 100],
+  rowsPerPageOptions = [...TABLE_ROWS_PER_PAGE_OPTIONS],
   onRowsPerPageChange,
+  embedded = false,
 }: ListPaginationProps) {
   const startItem = (currentPage - 1) * itemsPerPage + 1
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)
@@ -84,7 +92,9 @@ export default function ListPagination({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between mb-16">
+    <div
+      className={`flex flex-col sm:flex-row gap-4 items-center justify-between ${embedded ? "mb-0" : "mb-16"}`}
+    >
       {/* Left side: Rows per page selector and showing text */}
       <div className="flex items-center gap-2">
         {onRowsPerPageChange && (

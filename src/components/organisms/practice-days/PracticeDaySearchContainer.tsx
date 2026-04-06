@@ -11,12 +11,13 @@
 "use client"
 
 import { Loader2 } from "lucide-react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { type Track } from "../event-search/TrackRow"
 import EventSearchTableHeader from "../event-search/EventSearchTableHeader"
 import PracticeDayRow from "./PracticeDayRow"
 import { parseApiResponse } from "@/lib/api-response-helper"
 import { clientLogger } from "@/lib/client-logger"
+import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 import ListPagination from "../event-analysis/ListPagination"
 import ErrorDisplay from "@/components/molecules/ErrorDisplay"
 
@@ -77,7 +78,12 @@ export default function PracticeDaySearchContainer({
   const [ingestingDate, setIngestingDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(20)
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
+
+  const handleRowsPerPageChange = useCallback((rows: number) => {
+    setItemsPerPage(rows)
+    setCurrentPage(1)
+  }, [])
 
   // Track previous searchTrigger to only search when it changes
   const prevSearchTriggerRef = useRef<number>(0)
@@ -477,13 +483,14 @@ export default function PracticeDaySearchContainer({
             </div>
           </div>
 
-          {totalPages > 1 && (
+          {practiceDays.length > 0 && (
             <ListPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
               itemsPerPage={itemsPerPage}
               totalItems={practiceDays.length}
+              onRowsPerPageChange={handleRowsPerPageChange}
             />
           )}
         </>

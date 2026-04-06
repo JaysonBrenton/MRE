@@ -1,4 +1,5 @@
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import type { LiveRcRaceResultStats } from "@/core/events/live-rc-race-result-stats"
 
 /**
  * API response type for event analysis data with ISO string dates and
@@ -57,6 +58,7 @@ export type EventAnalysisDataApiResponse = Omit<
       fastLapLapNumber?: number | null
       avgLapTime: number | null
       consistency: number | null
+      liveRcStats: LiveRcRaceResultStats | null
     }>
   }>
   raceClasses: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>

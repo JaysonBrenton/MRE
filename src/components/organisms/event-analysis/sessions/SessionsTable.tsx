@@ -72,7 +72,7 @@ export default function SessionsTable({
   const [isGrouped, setIsGrouped] = useState(false)
   const [groupExpanded, setGroupExpanded] = useState<Record<string, boolean>>({})
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(5)
+  const [pageSize, setPageSize] = useState(10)
   const [lapModalSession, setLapModalSession] = useState<SessionData | null>(null)
 
   // Round headings from LiveRC (e.g. "Qualifier Round 1", "Seeding Round 2", "Main Events") - for filter dropdown
@@ -460,7 +460,6 @@ export default function SessionsTable({
             itemsPerPage={pageSize}
             totalItems={sortedSessions.length}
             itemLabel="sessions"
-            rowsPerPageOptions={[5, 10, 25, 50, 100]}
             onRowsPerPageChange={(newRowsPerPage) => {
               setPageSize(newRowsPerPage)
               setCurrentPage(1)

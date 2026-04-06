@@ -34,11 +34,13 @@ export async function GET(
             .filter(Boolean)
         : []
     const className = searchParams.get("className") || null
+    const raceId = searchParams.get("raceId") || null
 
-    const data = await getEventLapTrend(eventId, driverIds, className)
+    const data = await getEventLapTrend(eventId, driverIds, className, raceId)
 
     requestLogger.info("Lap trend fetched", {
       eventId,
+      raceId: raceId ?? undefined,
       driverCount: data.drivers.length,
       totalLaps: data.drivers.reduce((sum, d) => sum + d.laps.length, 0),
     })

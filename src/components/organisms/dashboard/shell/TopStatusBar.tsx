@@ -19,7 +19,7 @@ export default function TopStatusBar({ user, userId }: TopStatusBarProps) {
 
   return (
     <>
-      <header className="fixed left-0 right-0 top-0 z-40 h-16 border-b border-[var(--token-border-muted)] bg-[var(--token-surface)]/95 backdrop-blur-xl lg:left-[var(--nav-width)]">
+      <header className="fixed left-0 right-0 top-0 z-40 h-16 border-b border-[var(--token-border-muted)] bg-[var(--token-surface)]/95 backdrop-blur-xl lg:left-[calc(var(--nav-width)_+_var(--nav-content-gutter))]">
         <div className="flex h-full items-center justify-end px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-4">
             <div className="relative flex min-w-0 items-center">

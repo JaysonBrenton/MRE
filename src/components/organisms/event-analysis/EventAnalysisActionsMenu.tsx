@@ -1,7 +1,7 @@
 /**
  * @fileoverview Event analysis actions dropdown menu
  *
- * @description Actions menu visible when viewing Event Overview, Event Sessions, or Drivers.
+ * @description Actions menu visible when viewing Overview or Entry List.
  *              Replaces the former sidebar event-actions block. Items: Find and Import Events,
  *              Refresh Event Data, Select a Class, Select Drivers, Clear Event.
  *              "View as driver" (practice day) is in the Select Drivers modal.
@@ -177,7 +177,7 @@ export default function EventAnalysisActionsMenu({
   const isRefreshing = eventActions.isRefreshing
 
   return (
-    <div className="relative flex shrink-0 border-l border-[var(--token-border-default)] pl-3 ml-1">
+    <div className="relative flex shrink-0">
       <button
         ref={buttonRef}
         type="button"

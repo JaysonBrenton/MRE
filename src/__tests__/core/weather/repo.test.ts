@@ -14,18 +14,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
   getCachedWeather,
+  getCachedWeatherForEvent,
   getLastWeatherData,
   cacheWeatherData,
   cleanupExpiredWeatherData,
 } from "@/core/weather/repo"
+import { utcCalendarDayStart } from "@/core/weather/utc-calendar-day"
 import { prisma } from "@/lib/prisma"
 
 // Mock the Prisma client
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    event: {
+      findUnique: vi.fn(),
+    },
     weatherData: {
       findFirst: vi.fn(),
-      create: vi.fn(),
+      upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
   },
@@ -36,6 +41,7 @@ describe("weather repository", () => {
   const mockWeatherData = {
     id: "weather-1",
     eventId,
+    weatherDate: new Date(Date.UTC(2025, 5, 15)),
     latitude: -35.2809,
     longitude: 149.13,
     timestamp: new Date(),
@@ -59,15 +65,41 @@ describe("weather repository", () => {
   })
 
   describe("getCachedWeather", () => {
-    it("should return cached weather data when found", async () => {
+    const calendarDay = new Date("2025-06-15T12:00:00Z")
+
+    it("should return cached weather data when found for that UTC day", async () => {
       vi.mocked(prisma.weatherData.findFirst).mockResolvedValue(mockWeatherData as never)
 
-      const result = await getCachedWeather(eventId)
+      const result = await getCachedWeather(eventId, calendarDay)
 
       expect(result).toEqual(mockWeatherData)
       expect(prisma.weatherData.findFirst).toHaveBeenCalledWith({
         where: {
           eventId,
+          weatherDate: utcCalendarDayStart(calendarDay),
+          expiresAt: {
+            gt: expect.any(Date),
+          },
+        },
+        orderBy: {
+          cachedAt: "desc",
+        },
+      })
+    })
+
+    it("should fall back to legacy rows when no day-specific row exists", async () => {
+      vi.mocked(prisma.weatherData.findFirst)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockWeatherData as never)
+
+      const result = await getCachedWeather(eventId, calendarDay)
+
+      expect(result).toEqual(mockWeatherData)
+      expect(prisma.weatherData.findFirst).toHaveBeenCalledTimes(2)
+      expect(prisma.weatherData.findFirst).toHaveBeenNthCalledWith(2, {
+        where: {
+          eventId,
+          weatherDate: null,
           expiresAt: {
             gt: expect.any(Date),
           },
@@ -81,18 +113,17 @@ describe("weather repository", () => {
     it("should return null when no cached data found", async () => {
       vi.mocked(prisma.weatherData.findFirst).mockResolvedValue(null)
 
-      const result = await getCachedWeather(eventId)
+      const result = await getCachedWeather(eventId, calendarDay)
 
       expect(result).toBeNull()
     })
 
     it("should provide helpful error message when Prisma client weatherData is undefined", async () => {
-      // Simulate undefined weatherData property
       const originalWeatherData = prisma.weatherData
       ;(prisma as Record<string, unknown>).weatherData = undefined
 
       try {
-        await getCachedWeather(eventId)
+        await getCachedWeather(eventId, calendarDay)
         expect.fail("Should have thrown an error")
       } catch (error) {
         expect(error).toBeInstanceOf(Error)
@@ -101,9 +132,41 @@ describe("weather repository", () => {
         )
         expect((error as Error).message).toContain("npx prisma generate")
       } finally {
-        // Restore the original value
         ;(prisma as Record<string, unknown>).weatherData = originalWeatherData
       }
+    })
+  })
+
+  describe("getCachedWeatherForEvent", () => {
+    it("returns null when event does not exist", async () => {
+      vi.mocked(prisma.event.findUnique).mockResolvedValue(null)
+
+      const result = await getCachedWeatherForEvent(eventId)
+
+      expect(result).toBeNull()
+      expect(prisma.weatherData.findFirst).not.toHaveBeenCalled()
+    })
+
+    it("delegates to getCachedWeather using event start date", async () => {
+      const eventDate = new Date("2025-06-15T10:00:00Z")
+      vi.mocked(prisma.event.findUnique).mockResolvedValue({ eventDate } as never)
+      vi.mocked(prisma.weatherData.findFirst).mockResolvedValue(mockWeatherData as never)
+
+      const result = await getCachedWeatherForEvent(eventId)
+
+      expect(result).toEqual(mockWeatherData)
+      expect(prisma.weatherData.findFirst).toHaveBeenCalledWith({
+        where: {
+          eventId,
+          weatherDate: utcCalendarDayStart(eventDate),
+          expiresAt: {
+            gt: expect.any(Date),
+          },
+        },
+        orderBy: {
+          cachedAt: "desc",
+        },
+      })
     })
   })
 
@@ -131,10 +194,29 @@ describe("weather repository", () => {
 
       expect(result).toBeNull()
     })
+
+    it("should prefer day-specific row when calendarDay is passed", async () => {
+      vi.mocked(prisma.weatherData.findFirst).mockResolvedValue(mockWeatherData as never)
+      const day = new Date("2025-06-15T12:00:00Z")
+
+      const result = await getLastWeatherData(eventId, day)
+
+      expect(result).toEqual(mockWeatherData)
+      expect(prisma.weatherData.findFirst).toHaveBeenCalledWith({
+        where: {
+          eventId,
+          weatherDate: utcCalendarDayStart(day),
+        },
+        orderBy: {
+          cachedAt: "desc",
+        },
+      })
+    })
   })
 
   describe("cacheWeatherData", () => {
     const cacheData = {
+      weatherDate: new Date("2025-06-15T12:00:00Z"),
       latitude: -35.2809,
       longitude: 149.13,
       timestamp: new Date(),
@@ -151,14 +233,37 @@ describe("weather repository", () => {
     }
 
     it("should cache weather data successfully", async () => {
-      vi.mocked(prisma.weatherData.create).mockResolvedValue(mockWeatherData as never)
+      vi.mocked(prisma.weatherData.upsert).mockResolvedValue(mockWeatherData as never)
 
       const result = await cacheWeatherData(eventId, cacheData)
 
       expect(result).toEqual(mockWeatherData)
-      expect(prisma.weatherData.create).toHaveBeenCalledWith({
-        data: {
+      const day = utcCalendarDayStart(cacheData.weatherDate)
+      expect(prisma.weatherData.upsert).toHaveBeenCalledWith({
+        where: {
+          eventId_weatherDate: {
+            eventId,
+            weatherDate: day,
+          },
+        },
+        create: {
           eventId,
+          weatherDate: day,
+          latitude: cacheData.latitude,
+          longitude: cacheData.longitude,
+          timestamp: cacheData.timestamp,
+          airTemperature: cacheData.airTemperature,
+          humidity: cacheData.humidity,
+          windSpeed: cacheData.windSpeed,
+          windDirection: cacheData.windDirection,
+          precipitation: cacheData.precipitation,
+          condition: cacheData.condition,
+          trackTemperature: cacheData.trackTemperature,
+          forecast: cacheData.forecast,
+          isHistorical: cacheData.isHistorical,
+          expiresAt: cacheData.expiresAt,
+        },
+        update: {
           latitude: cacheData.latitude,
           longitude: cacheData.longitude,
           timestamp: cacheData.timestamp,

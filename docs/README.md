@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-29
+lastModified: 2026-04-04
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -224,6 +224,19 @@ storage, future normalization considerations.
 `Race.className` field. See
 [LiveRC Ingestion Data Model](architecture/liverc-ingestion/04-data-model.md)
 for data model specification.
+
+### [Bump-ups inference](domain/bump-ups-inference.md)
+
+**Status:** Active  
+**Last Updated:** 2026-04-04
+
+Defines bump-ups as observed advancement from ingested results (not
+sanctioning-body rules), the LiveRC Main Events schedule model, LCQ and
+multi-strategy tier notes. Links to product spec, technical solution plan, and
+ADRs **ADR-20260404**, **ADR-20260405**.
+
+**Related:**
+[Bump-ups LiveRC Main Events solution](plans/bump-ups-liverc-main-events-solution.md).
 
 ---
 

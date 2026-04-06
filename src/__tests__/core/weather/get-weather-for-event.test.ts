@@ -68,7 +68,9 @@ describe("getWeatherForEvent", () => {
         updatedAt: new Date(),
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(mockCachedWeather as never)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(
+        mockCachedWeather as never
+      )
 
       const result = await getWeatherForEvent(eventId)
 
@@ -109,7 +111,7 @@ describe("getWeatherForEvent", () => {
         ],
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue(mockGeocodeResult)
@@ -135,7 +137,7 @@ describe("getWeatherForEvent", () => {
         eventDate: new Date(Date.now() + 86400000), // Tomorrow
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(futureEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue({
@@ -174,7 +176,7 @@ describe("getWeatherForEvent", () => {
         eventDate: new Date(Date.now() - 86400000), // Yesterday
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(pastEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockResolvedValue({
@@ -231,7 +233,7 @@ describe("getWeatherForEvent", () => {
         updatedAt: new Date(),
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockRejectedValue(new Error("Geocoding failed"))
@@ -245,7 +247,7 @@ describe("getWeatherForEvent", () => {
     })
 
     it("should throw error if event not found", async () => {
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(null)
       vi.mocked(weatherRepoModule.getLastWeatherData).mockResolvedValue(null)
 
@@ -253,7 +255,7 @@ describe("getWeatherForEvent", () => {
     })
 
     it("should throw error if API fails and no cache available", async () => {
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue(["Test Track"])
       vi.mocked(geocodeTrackModule.geocodeTrack).mockRejectedValue(new Error("Geocoding failed"))
@@ -291,7 +293,7 @@ describe("getWeatherForEvent", () => {
         forecast: [],
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(seriesEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
         "Jakarta Indonesia",
@@ -322,7 +324,7 @@ describe("getWeatherForEvent", () => {
     })
 
     it("should fail fast on HTTP errors (429/5xx)", async () => {
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
         "Test Track",
@@ -340,7 +342,7 @@ describe("getWeatherForEvent", () => {
     })
 
     it("should throw comprehensive error when all candidates fail", async () => {
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
         "Test Track",

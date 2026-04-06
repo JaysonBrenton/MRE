@@ -31,6 +31,7 @@ import PracticeDaySearchContainer from "../practice-days/PracticeDaySearchContai
 import PracticeDayRow from "../practice-days/PracticeDayRow"
 import { parseApiResponse } from "@/lib/api-response-helper"
 import { clientLogger } from "@/lib/client-logger"
+import { normalizeTableRowsPerPage } from "@/lib/table-pagination"
 import { isPracticeDaysEnabled } from "@/lib/feature-flags"
 import { isEventInFuture, formatDateLong, toLocalDateString } from "@/lib/date-utils"
 
@@ -271,7 +272,7 @@ export default function EventSearchContainer({
   const [driverInEvents, setDriverInEvents] = useState<Record<string, boolean>>({}) // Map of sourceEventId to boolean
   const [isCheckingEntryLists, setIsCheckingEntryLists] = useState(false) // Track if we're checking entry lists
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [errors, setErrors] = useState<{
     track?: string
     startDate?: string
@@ -761,7 +762,7 @@ export default function EventSearchContainer({
           setCurrentPage(storedPage)
         }
         if (typeof storedItemsPerPage === "number" && storedItemsPerPage > 0) {
-          setItemsPerPage(storedItemsPerPage)
+          setItemsPerPage(normalizeTableRowsPerPage(storedItemsPerPage))
         }
       }
     } catch (error) {
@@ -3518,7 +3519,6 @@ export default function EventSearchContainer({
                         itemsPerPage={itemsPerPage}
                         totalItems={totalItems}
                         itemLabel="items"
-                        rowsPerPageOptions={[5, 10, 25, 50, 100]}
                         onRowsPerPageChange={handleRowsPerPageChange}
                       />
                     )}
@@ -3556,7 +3556,6 @@ export default function EventSearchContainer({
                         itemsPerPage={itemsPerPage}
                         totalItems={totalItems}
                         itemLabel="events"
-                        rowsPerPageOptions={[5, 10, 25, 50, 100]}
                         onRowsPerPageChange={handleRowsPerPageChange}
                       />
                     )}

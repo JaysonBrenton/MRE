@@ -450,11 +450,6 @@
       "featureArea": "event-analysis"
     },
     {
-      "file": "src/components/organisms/event-analysis/EventWinnersTable.tsx",
-      "tier": "organism:event-analysis",
-      "featureArea": "event-analysis"
-    },
-    {
       "file": "src/components/organisms/event-analysis/HeatsCard.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -496,6 +491,16 @@
     },
     {
       "file": "src/components/organisms/event-analysis/MainsCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/MainBracketResultsTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/SessionRaceResultsTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },

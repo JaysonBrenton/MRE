@@ -1,32 +1,161 @@
 /**
- * @fileoverview Multi-main overall standings card for Event Analysis Overview
+ * @fileoverview Multi-main overall standings for Event Results (authoritative LiveRC data)
  *
- * @description Displays overall winners from triple/double main results
- * (e.g. 1/8 Electric Buggy Triple A-Main) - the official LiveRC overall standings.
+ * @description Renders overall triple/double main standings from ingested `MultiMainResult`
+ * rows — the same source as LiveRC “view_multi_main_result” pages (IFMAR/ROAR tie-break
+ * already applied server-side). Class filtering uses case-insensitive equality via
+ * `multiMainResultMatchesClassFilter`.
  *
  * @relatedFiles
- * - src/components/organisms/event-analysis/MainsCard.tsx (schedule of mains)
- * - src/components/organisms/event-analysis/OverviewTab.tsx (uses this)
+ * - src/core/events/get-event-analysis-data.ts (loads multiMainResults)
+ * - src/core/events/multi-main-class-match.ts
+ * - src/components/organisms/event-analysis/OverviewTab.tsx
  */
 
 "use client"
-import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
-const CARD_CLASS =
-  "w-fit rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2"
-const HEADING_CLASS = "text-sm font-semibold text-[var(--token-text-primary)] mb-2"
-const ROW_CLASS =
-  "grid grid-cols-[auto_1fr_1fr] gap-x-2 text-sm text-[var(--token-text-primary)] py-0.5"
-const LABEL_CLASS = "text-[var(--token-text-secondary)]"
-const PODIUM_CLASS = "font-medium"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import {
+  StandardTable,
+  StandardTableHeader,
+  StandardTableRow,
+  StandardTableCell,
+} from "@/components/molecules/StandardTable"
+import ListPagination from "@/components/organisms/event-analysis/ListPagination"
+import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import { multiMainResultMatchesClassFilter } from "@/core/events/multi-main-class-match"
+import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
+
+const SURFACE_CLASS =
+  "rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+const SURFACE_STYLE = {
+  backgroundColor: "var(--glass-bg)",
+  backdropFilter: "var(--glass-blur)",
+  borderRadius: 16,
+  border: "1px solid var(--glass-border)",
+  boxShadow: "var(--glass-shadow)",
+} as const
 
 export interface MultiMainOverallCardProps {
   multiMainResults: EventAnalysisData["multiMainResults"]
   /**
-   * Optional filter by class label. When provided, only multi-main results
-   * whose `classLabel` matches are rendered; when null/undefined, all are shown.
+   * Class chip selection: only multi-main blocks whose `classLabel` matches are shown.
+   * Null/undefined/empty = show every class that has multi-main data.
    */
   activeClassLabel?: string | null
+}
+
+type MultiMainBlock = EventAnalysisData["multiMainResults"][number]
+
+function MultiMainClassBlock({ mm }: { mm: MultiMainBlock }) {
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
+
+  const entriesSignature = useMemo(
+    () => mm.entries.map((e) => `${e.driverId}:${e.position}:${e.points}`).join("|"),
+    [mm.entries]
+  )
+
+  useEffect(() => {
+    queueMicrotask(() => setCurrentPage(1))
+  }, [entriesSignature])
+
+  const handleRowsPerPageChange = useCallback((next: number) => {
+    setItemsPerPage(next)
+    setCurrentPage(1)
+  }, [])
+
+  const totalPages = Math.max(1, Math.ceil(mm.entries.length / itemsPerPage))
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedEntries = useMemo(
+    () => mm.entries.slice(startIndex, startIndex + itemsPerPage),
+    [mm.entries, startIndex, itemsPerPage]
+  )
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      queueMicrotask(() => setCurrentPage(totalPages))
+    }
+  }, [currentPage, totalPages])
+
+  return (
+    <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
+      <div className="border-b border-[var(--token-border-default)] px-4 py-3">
+        <h4 className="text-base font-semibold text-[var(--token-text-primary)]">
+          {mm.classLabel}
+        </h4>
+        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--token-text-secondary)]">
+          <span>
+            Mains: {mm.completedMains} of {mm.totalMains} completed
+          </span>
+          {mm.tieBreaker && <span>Tie breaker: {mm.tieBreaker}</span>}
+        </div>
+      </div>
+      <div className="px-2 py-2 sm:px-4">
+        <StandardTable>
+          <StandardTableHeader>
+            <StandardTableRow className="border-b border-[var(--token-border-default)]">
+              <StandardTableCell
+                header
+                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+              >
+                Overall
+              </StandardTableCell>
+              <StandardTableCell
+                header
+                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+              >
+                Driver
+              </StandardTableCell>
+              <StandardTableCell
+                header
+                className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+              >
+                Pts
+              </StandardTableCell>
+            </StandardTableRow>
+          </StandardTableHeader>
+          <tbody>
+            {paginatedEntries.map((entry) => {
+              const isPodium = entry.position >= 1 && entry.position <= 3
+              return (
+                <StandardTableRow
+                  key={`${mm.id}-${entry.driverId}`}
+                  className={isPodium ? "bg-[var(--token-accent-soft-bg)]/30" : ""}
+                >
+                  <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                    {entry.position}
+                  </StandardTableCell>
+                  <StandardTableCell
+                    className={`px-3 py-2 text-sm ${isPodium ? "font-semibold text-[var(--token-text-primary)]" : "text-[var(--token-text-primary)]"}`}
+                  >
+                    {entry.driverName}
+                  </StandardTableCell>
+                  <StandardTableCell className="px-3 py-2 text-right text-sm text-[var(--token-text-secondary)]">
+                    {entry.points}
+                  </StandardTableCell>
+                </StandardTableRow>
+              )
+            })}
+          </tbody>
+        </StandardTable>
+        {mm.entries.length > 0 && (
+          <div className="min-w-0 w-full max-w-full">
+            <ListPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={mm.entries.length}
+              itemLabel="drivers"
+              onRowsPerPageChange={handleRowsPerPageChange}
+              embedded
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function MultiMainOverallCard({
@@ -37,40 +166,28 @@ export default function MultiMainOverallCard({
     return null
   }
 
-  const filteredResults =
-    activeClassLabel && activeClassLabel.trim().length > 0
-      ? multiMainResults.filter((mm) => mm.classLabel === activeClassLabel)
-      : multiMainResults
+  const filteredResults = multiMainResults.filter((mm) =>
+    multiMainResultMatchesClassFilter(mm.classLabel, activeClassLabel)
+  )
+
+  if (filteredResults.length === 0) {
+    return null
+  }
 
   return (
-    <div className="w-full space-y-2">
-      <div id="multi-main-overall-content" className="flex flex-wrap gap-4">
+    <div className="w-full space-y-4" id="multi-main-overall-content">
+      <div className="space-y-1">
+        <h3 className="text-lg font-semibold text-[var(--token-text-primary)]">
+          Overall multi-main standings
+        </h3>
+        <p className="text-sm text-[var(--token-text-secondary)]">
+          Official overall results from LiveRC multi-main pages (best legs / tie-breaks as
+          published).
+        </p>
+      </div>
+      <div className="flex flex-col gap-4">
         {filteredResults.map((mm) => (
-          <div key={mm.id} className={CARD_CLASS}>
-            <h3 className={HEADING_CLASS}>{mm.classLabel} Overall</h3>
-            {mm.tieBreaker && (
-              <p className="text-xs text-[var(--token-text-secondary)] mb-1">
-                Tie breaker: {mm.tieBreaker}
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {mm.entries.slice(0, 10).map((entry, idx) => (
-                <div key={entry.position} className={ROW_CLASS}>
-                  <span className={idx < 3 ? PODIUM_CLASS : LABEL_CLASS}>
-                    {entry.position === 1
-                      ? "🥇"
-                      : entry.position === 2
-                        ? "🥈"
-                        : entry.position === 3
-                          ? "🥉"
-                          : `${entry.position}.`}
-                  </span>
-                  <span>{entry.driverName}</span>
-                  <span className={LABEL_CLASS}>{entry.points} pts</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <MultiMainClassBlock key={mm.id} mm={mm} />
         ))}
       </div>
     </div>

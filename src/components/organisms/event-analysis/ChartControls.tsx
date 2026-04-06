@@ -477,97 +477,102 @@ export default function ChartControls({
         }
       >
         <div className="space-y-4 p-4">
-          {/* Controls Row */}
-          <div className="flex gap-2">
-            {/* Class Filter Dropdown - w-[9rem] per standard-form-field-width.md */}
-            <div className="relative flex-initial w-[9rem] min-w-[9rem]" ref={dropdownRef}>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-                  className="flex items-center justify-between px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                  aria-label="Filter by class"
-                  aria-expanded={isClassDropdownOpen}
-                >
-                  <span className="truncate">{displayClass}</span>
-                  <ChevronDown
-                    className={`ml-2 w-4 h-4 transition-transform ${
-                      isClassDropdownOpen ? "rotate-180" : ""
-                    }`}
-                    aria-hidden="true"
-                  />
-                </button>
-                {needsReview && (
-                  <span
-                    className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
-                    title="Vehicle type needs review"
-                  >
-                    ⚠
-                  </span>
-                )}
-              </div>
-              {isClassDropdownOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
+          {/* Controls: scope (class) vs list display (search, density) */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1.5">
+              {/* Class Filter Dropdown - w-[9rem] per standard-form-field-width.md */}
+              <div className="relative flex-initial w-[9rem] min-w-[9rem]" ref={dropdownRef}>
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsClassDropdownOpen(false)
-                      onClassChange?.(null)
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
+                    onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
+                    className="flex items-center justify-between px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    aria-label="Filter drivers by class"
+                    aria-expanded={isClassDropdownOpen}
                   >
-                    All Classes
+                    <span className="truncate">{displayClass}</span>
+                    <ChevronDown
+                      className={`ml-2 w-4 h-4 transition-transform ${
+                        isClassDropdownOpen ? "rotate-180" : ""
+                      }`}
+                      aria-hidden="true"
+                    />
                   </button>
-                  {classesSorted.map((classInfo) => (
+                  {needsReview && (
+                    <span
+                      className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
+                      title="Vehicle type needs review"
+                    >
+                      ⚠
+                    </span>
+                  )}
+                </div>
+                {isClassDropdownOpen && (
+                  <div className="scrollbar-none absolute z-10 max-h-60 w-full overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg mt-1">
                     <button
-                      key={classInfo.className}
                       type="button"
                       onClick={() => {
                         setIsClassDropdownOpen(false)
-                        onClassChange?.(classInfo.className)
+                        onClassChange?.(null)
                       }}
                       className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
                     >
-                      {classInfo.className} ({classInfo.driverCount})
+                      All Classes
                     </button>
-                  ))}
-                </div>
-              )}
+                    {classesSorted.map((classInfo) => (
+                      <button
+                        key={classInfo.className}
+                        type="button"
+                        onClick={() => {
+                          setIsClassDropdownOpen(false)
+                          onClassChange?.(classInfo.className)
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
+                      >
+                        {classInfo.className} ({classInfo.driverCount})
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Search Input - w-[9rem] per standard-form-field-width.md */}
-            <div className="flex-initial w-[9rem] min-w-[9rem] relative">
-              <StandardInput
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search drivers..."
-                aria-label="Search drivers"
-                id="driver-search-input"
-                className="pr-8 text-sm py-2"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                  aria-label="Clear search"
-                >
-                  <X className="w-4 h-4 text-[var(--token-text-secondary)]" aria-hidden="true" />
-                </button>
-              )}
-            </div>
+            <div className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1.5">
+              {/* Search Input - w-[9rem] per standard-form-field-width.md */}
+              <div className="flex-initial w-[9rem] min-w-[9rem] relative">
+                <StandardInput
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search drivers..."
+                  aria-label="Search drivers"
+                  id="driver-search-input"
+                  className="pr-8 text-sm py-2"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4 text-[var(--token-text-secondary)]" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
 
-            {/* Compact Toggle */}
-            <button
-              type="button"
-              onClick={() => setIsCompact(!isCompact)}
-              className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              aria-label={isCompact ? "Switch to expanded view" : "Switch to compact view"}
-            >
-              <List className="w-5 h-5" aria-hidden="true" />
-              <span className="ml-2">{isCompact ? "Expanded" : "Compact"}</span>
-            </button>
+              {/* List density: label shows current state; aria-pressed matches compact mode */}
+              <button
+                type="button"
+                onClick={() => setIsCompact(!isCompact)}
+                className="flex items-center justify-center px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                aria-pressed={isCompact}
+                aria-label="Driver list density"
+              >
+                <List className="w-5 h-5" aria-hidden="true" />
+                <span className="ml-2">{isCompact ? "Compact" : "Standard"}</span>
+              </button>
+            </div>
           </div>
 
           {/* Virtualized Driver List */}

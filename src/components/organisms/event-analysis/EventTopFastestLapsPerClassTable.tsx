@@ -419,7 +419,6 @@ export default function EventTopFastestLapsPerClassTable({
                 itemsPerPage={itemsPerPage}
                 totalItems={sortedRows.length}
                 itemLabel="results"
-                rowsPerPageOptions={[10, 25, 50, 100]}
                 onRowsPerPageChange={handleRowsPerPageChange}
               />
             </div>

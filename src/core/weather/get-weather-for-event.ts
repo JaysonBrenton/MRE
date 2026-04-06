@@ -24,10 +24,12 @@ import { fetchWeather, type DailyTemperatureSummary } from "./fetch-weather"
 import { calculateTrackTemperature } from "./calculate-track-temp"
 import {
   getCachedWeather,
+  getCachedWeatherForEvent,
   getLastWeatherData,
   cacheWeatherData,
   type WeatherCacheData,
 } from "./repo"
+import { utcCalendarDayStart } from "./utc-calendar-day"
 import { getEventWithTrack } from "@/core/events/repo"
 import { getApprovedCorrection } from "@/core/events/venue-correction"
 import { resolveGeocodeCandidates } from "./resolve-geocode-candidates"
@@ -76,9 +78,9 @@ export async function getWeatherForEvent(
   eventId: string,
   options?: { skipCache?: boolean }
 ): Promise<WeatherForEvent> {
-  // Check for valid cached data unless skipCache requested
+  // Check for valid cached data unless skipCache requested (keyed by event start UTC day)
   if (!options?.skipCache) {
-    const cached = await getCachedWeather(eventId)
+    const cached = await getCachedWeatherForEvent(eventId)
     if (cached) {
       return formatWeatherResponse(cached)
     }
@@ -213,6 +215,7 @@ export async function getWeatherForEvent(
 
     // Cache the data
     const cacheData: WeatherCacheData = {
+      weatherDate: utcCalendarDayStart(event.eventDate),
       latitude: geocodeResult.latitude,
       longitude: geocodeResult.longitude,
       timestamp: weatherResponse.current.timestamp,
@@ -251,7 +254,11 @@ export async function getWeatherForEvent(
     return result
   } catch (error) {
     // If API calls fail, try to return last cached data (even if expired)
-    const lastCached = await getLastWeatherData(eventId)
+    const ev = await getEventWithTrack(eventId)
+    const lastCached = ev
+      ? ((await getLastWeatherData(eventId, utcCalendarDayStart(ev.eventDate))) ??
+        (await getLastWeatherData(eventId)))
+      : null
     if (lastCached) {
       return formatWeatherResponse(lastCached)
     }
@@ -364,7 +371,26 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
     curr.setUTCDate(curr.getUTCDate() + 1)
   }
 
-  // Geocode once - use approved venue correction if available
+  const byDateStr = new Map<string, WeatherForEventDay>()
+
+  for (const date of dates) {
+    const dateStr = date.toISOString().split("T")[0]
+    const cached = await getCachedWeather(eventId, date)
+    if (cached) {
+      byDateStr.set(dateStr, {
+        date: dateStr,
+        weather: formatWeatherResponse(cached),
+      })
+    }
+  }
+
+  const missingDates = dates.filter((d) => !byDateStr.has(d.toISOString().split("T")[0]))
+
+  if (missingDates.length === 0) {
+    return dates.map((d) => byDateStr.get(d.toISOString().split("T")[0])!)
+  }
+
+  // Geocode once when any day needs a fresh fetch — use approved venue correction if available
   let geocodeResult: { latitude: number; longitude: number; displayName: string } | null = null
 
   const correction = await getApprovedCorrection(eventId)
@@ -428,42 +454,77 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
     }
   }
 
-  const results: WeatherForEventDay[] = []
+  const now = new Date()
 
-  for (const date of dates) {
-    const weatherResponse = await fetchWeather(
-      geocodeResult.latitude,
-      geocodeResult.longitude,
-      date
-    )
-
-    const hourOfDay = date.getHours()
-    const trackTemperature = calculateTrackTemperature(
-      weatherResponse.current.airTemperature,
-      hourOfDay
-    )
-
+  for (const date of missingDates) {
     const dateStr = date.toISOString().split("T")[0]
+    try {
+      const weatherResponse = await fetchWeather(
+        geocodeResult.latitude,
+        geocodeResult.longitude,
+        date
+      )
 
-    results.push({
-      date: dateStr,
-      weather: {
-        condition: weatherResponse.current.condition,
-        wind: formatWindSpeed(
-          weatherResponse.current.windSpeed,
-          weatherResponse.current.windDirection
-        ),
+      const hourOfDay = date.getHours()
+      const trackTemperature = calculateTrackTemperature(
+        weatherResponse.current.airTemperature,
+        hourOfDay
+      )
+
+      const isHistorical = date < now
+      const ttlHours = isHistorical ? HISTORICAL_WEATHER_TTL_HOURS : CURRENT_WEATHER_TTL_HOURS
+      const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000)
+
+      await cacheWeatherData(eventId, {
+        weatherDate: utcCalendarDayStart(date),
+        latitude: geocodeResult.latitude,
+        longitude: geocodeResult.longitude,
+        timestamp: weatherResponse.current.timestamp,
+        airTemperature: weatherResponse.current.airTemperature,
         humidity: weatherResponse.current.humidity,
-        air: weatherResponse.current.airTemperature,
-        track: trackTemperature,
-        precip: weatherResponse.current.precipitation,
-        precipMm: weatherResponse.current.precipitationMm,
+        windSpeed: weatherResponse.current.windSpeed,
+        windDirection: weatherResponse.current.windDirection,
+        precipitation: weatherResponse.current.precipitation,
+        condition: weatherResponse.current.condition,
+        trackTemperature,
         forecast: weatherResponse.forecast,
         dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
-        isCached: false,
-      },
-    })
+        isHistorical,
+        expiresAt,
+      })
+
+      byDateStr.set(dateStr, {
+        date: dateStr,
+        weather: {
+          condition: weatherResponse.current.condition,
+          wind: formatWindSpeed(
+            weatherResponse.current.windSpeed,
+            weatherResponse.current.windDirection
+          ),
+          humidity: weatherResponse.current.humidity,
+          air: weatherResponse.current.airTemperature,
+          track: trackTemperature,
+          precip: weatherResponse.current.precipitation,
+          precipMm: weatherResponse.current.precipitationMm,
+          forecast: weatherResponse.forecast,
+          dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
+          isCached: false,
+        },
+      })
+    } catch (err) {
+      const last = await getLastWeatherData(eventId, utcCalendarDayStart(date))
+      if (last) {
+        byDateStr.set(dateStr, {
+          date: dateStr,
+          weather: formatWeatherResponse(last),
+        })
+      } else if (err instanceof Error) {
+        throw err
+      } else {
+        throw new Error(String(err))
+      }
+    }
   }
 
-  return results
+  return dates.map((d) => byDateStr.get(d.toISOString().split("T")[0])!)
 }

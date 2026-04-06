@@ -808,22 +808,17 @@ export default function OverviewTabTesting({
           />
         </ChartSection>
 
-        {/* Data Notes - Grouped */}
-        {allNotices.length > 0 && (
-          <div className="mt-6 space-y-3">
-            <h3 className="text-sm font-semibold text-[var(--token-text-primary)]">Data notes</h3>
-            {allNotices.map((notice) => (
-              <ChartDataNotice
-                key={notice.noticeType}
-                title={notice.title}
-                description={notice.description}
-                driverNames={notice.driverNames}
-                eventId={data.event.id}
-                noticeType={notice.noticeType}
-              />
-            ))}
-          </div>
-        )}
+        {/* Chart data gaps: logged by ChartDataNotice (no in-UI banner) */}
+        {allNotices.map((notice) => (
+          <ChartDataNotice
+            key={notice.noticeType}
+            title={notice.title}
+            description={notice.description}
+            driverNames={notice.driverNames}
+            eventId={data.event.id}
+            noticeType={notice.noticeType}
+          />
+        ))}
       </section>
 
       {/* Bridging Copy */}

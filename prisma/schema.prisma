@@ -624,30 +624,33 @@ enum SessionType {
 }
 
 model WeatherData {
-  id                      String   @id @default(uuid())
-  eventId                 String   @map("event_id")
+  id                      String    @id @default(uuid())
+  eventId                 String    @map("event_id")
+  /// UTC calendar day this snapshot applies to (midnight UTC). Used for per-day cache and single-day lookups.
+  weatherDate             DateTime? @map("weather_date")
   latitude                Float
   longitude               Float
   timestamp               DateTime
-  airTemperature          Float    @map("air_temperature")
+  airTemperature          Float     @map("air_temperature")
   humidity                Int
-  windSpeed               Float    @map("wind_speed")
-  windDirection           Int?     @map("wind_direction")
+  windSpeed               Float     @map("wind_speed")
+  windDirection           Int?      @map("wind_direction")
   precipitation           Int
   condition               String
-  trackTemperature        Float    @map("track_temperature")
+  trackTemperature        Float     @map("track_temperature")
   forecast                Json
-  dailyTemperatureSummary Json?    @map("daily_temperature_summary")
-  isHistorical            Boolean  @default(false) @map("is_historical")
-  cachedAt                DateTime @default(now()) @map("cached_at")
-  expiresAt               DateTime @map("expires_at")
-  createdAt               DateTime @default(now()) @map("created_at")
-  updatedAt               DateTime @updatedAt @map("updated_at")
-  event                   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  dailyTemperatureSummary Json?     @map("daily_temperature_summary")
+  isHistorical            Boolean   @default(false) @map("is_historical")
+  cachedAt                DateTime  @default(now()) @map("cached_at")
+  expiresAt               DateTime  @map("expires_at")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+  event                   Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([expiresAt])
   @@index([eventId, expiresAt])
+  @@unique([eventId, weatherDate])
   @@map("weather_data")
 }
 

@@ -3,7 +3,7 @@
  *
  * @created 2025-01-28
  * @creator Auto-generated
- * @lastModified 2025-01-28
+ * @lastModified 2026-04-05
  *
  * @description Unified chart component that combines best lap and average lap
  *              metrics with clickable legend toggles and bar/line chart type selection.
@@ -21,7 +21,7 @@
 
 "use client"
 
-import { useMemo, useId, useState, useRef, useCallback, useEffect } from "react"
+import { useMemo, useId, useState, useRef, useCallback, useEffect, type ReactNode } from "react"
 import { Group } from "@visx/group"
 import { Bar, LinePath } from "@visx/shape"
 import { curveMonotoneX } from "@visx/curve"
@@ -47,6 +47,13 @@ export type MetricType =
   | "averagePosition"
   | "gapToFastest"
   | "podiumFinishes"
+  /** LiveRC session stats (ingested only; session-scoped chart) */
+  | "avgTop5"
+  | "avgTop10"
+  | "avgTop15"
+  | "top2Consecutive"
+  | "top3Consecutive"
+  | "stdDeviation"
 
 export interface DriverPerformanceData {
   driverId: string
@@ -58,6 +65,13 @@ export interface DriverPerformanceData {
   averagePosition?: number | null
   gapToFastest?: number | null // Time difference in seconds from fastest lap in class
   podiumFinishes?: number | null // Count of finishes in positions 1, 2, or 3
+  /** LiveRC `raw_fields_json` — only populated for single-session scope */
+  avgTop5?: number | null
+  avgTop10?: number | null
+  avgTop15?: number | null
+  top2Consecutive?: number | null
+  top3Consecutive?: number | null
+  stdDeviation?: number | null
 }
 
 export interface ChartDriverOption {
@@ -88,16 +102,20 @@ export interface UnifiedPerformanceChartProps {
   availableClasses?: string[]
   /** Handler for changing the global class filter from the chart header. */
   onClassChange?: (className: string | null) => void
+  /** Rendered in the chart header scope row after the class control when it is shown (e.g. session picker). */
+  headerAfterClassSelect?: ReactNode
+  /**
+   * When set, replaces the default header title (class name / "All Classes"). Use `""` to hide the
+   * title when scope is already obvious (e.g. Session Analysis class chips).
+   */
+  chartTitleOverride?: string | null
+  /** Disable per-chart driver picker (e.g. until session scope is chosen in Session Analysis). */
+  chartDriverPickerDisabled?: boolean
+  chartDriverPickerDisabledTooltip?: string
 }
 
 /** Metrics that can be used to sort drivers (best to worst). */
-export type SortByMetricType =
-  | "bestLap"
-  | "averageLap"
-  | "consistency"
-  | "gapToFastest"
-  | "averagePosition"
-  | "podiumFinishes"
+export type SortByMetricType = MetricType
 
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
 
@@ -182,8 +200,13 @@ const defaultColors = {
   averagePosition: "#ff6b6b", // Red color for position metric
   gapToFastest: "#ffa500", // Orange color for gap metric
   podiumFinishes: "#9b59b6", // Purple color for podium metric
+  avgTop5: "#00c896",
+  avgTop10: "#00a8d8",
+  avgTop15: "#7b68ee",
+  top2Consecutive: "#e67e22",
+  top3Consecutive: "#e74c3c",
+  stdDeviation: "#95a5a6",
 }
-const textColor = "var(--token-text-primary)"
 const _textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
 const DEFAULT_AXIS_COLOR = "#ffffff"
@@ -355,6 +378,113 @@ const metricConfig: Record<
     tooltipDescription:
       "Count of races in this class where this driver finished 1st, 2nd, or 3rd. Summed across all races in the class. Higher is better.",
   },
+  avgTop5: {
+    label: "Avg Top 5",
+    key: "avgTop5",
+    isTimeBased: true,
+    tooltipDescription:
+      "LiveRC average of the five fastest laps in this session (seconds). Lower is better.",
+  },
+  avgTop10: {
+    label: "Avg Top 10",
+    key: "avgTop10",
+    isTimeBased: true,
+    tooltipDescription:
+      "LiveRC average of the ten fastest laps in this session (seconds). Lower is better.",
+  },
+  avgTop15: {
+    label: "Avg Top 15",
+    key: "avgTop15",
+    isTimeBased: true,
+    tooltipDescription:
+      "LiveRC average of the fifteen fastest laps in this session (seconds). Lower is better.",
+  },
+  top2Consecutive: {
+    label: "Top 2 Consecutive",
+    key: "top2Consecutive",
+    isTimeBased: true,
+    tooltipDescription:
+      "LiveRC best consecutive two-lap total time in this session (seconds). Lower is better.",
+  },
+  top3Consecutive: {
+    label: "Top 3 Consecutive",
+    key: "top3Consecutive",
+    isTimeBased: true,
+    tooltipDescription:
+      "LiveRC best consecutive three-lap total time in this session (seconds). Lower is better.",
+  },
+  stdDeviation: {
+    label: "Std. Deviation",
+    key: "stdDeviation",
+    isTimeBased: false,
+    tooltipDescription:
+      "LiveRC lap time standard deviation for this session (seconds). Lower usually means more consistent laps.",
+  },
+}
+
+/** Chart title tooltip — matches ChartContainer `description` pattern used by LapByLapTrendChart. */
+const UNIFIED_CHART_TITLE_DESCRIPTION =
+  "Compare drivers on best lap, average lap, gap to fastest, consistency, finishing position, podium counts, and LiveRC session stats (Avg Top 5/10/15, consecutive laps, std. dev.) when available. Toggle metrics in the legend; use Chart type and Sort by in the header. Click a series to change its color."
+
+/** Stable order for hover tooltip rows (not Set iteration order). */
+const TOOLTIP_METRIC_ORDER: MetricType[] = [
+  "bestLap",
+  "averageLap",
+  "consistency",
+  "averagePosition",
+  "gapToFastest",
+  "podiumFinishes",
+  "avgTop5",
+  "avgTop10",
+  "avgTop15",
+  "top2Consecutive",
+  "top3Consecutive",
+  "stdDeviation",
+]
+
+function formatUnifiedTooltipMetricValue(metric: MetricType, value: number): string {
+  if (metric === "gapToFastest") {
+    return formatGapToFastest(value)
+  }
+  if (metric === "podiumFinishes") {
+    return Math.round(value).toString()
+  }
+  if (metric === "averagePosition") {
+    return formatPosition(value)
+  }
+  if (metric === "consistency") {
+    return `${value.toFixed(1)}%`
+  }
+  if (metric === "stdDeviation") {
+    return value.toFixed(2)
+  }
+  if (metricConfig[metric].isTimeBased) {
+    return formatLapTime(value)
+  }
+  return value.toFixed(2)
+}
+
+function unifiedTooltipMetricCaption(metric: MetricType, d: DriverPerformanceData): string | null {
+  if (metric === "bestLap" && d.bestLapRaceLabel) {
+    return d.bestLapRaceLabel
+  }
+  if (metric === "gapToFastest") {
+    return "vs fastest lap in class"
+  }
+  if (metric === "averageLap") {
+    return "average of per-race averages"
+  }
+  if (
+    metric === "avgTop5" ||
+    metric === "avgTop10" ||
+    metric === "avgTop15" ||
+    metric === "top2Consecutive" ||
+    metric === "top3Consecutive" ||
+    metric === "stdDeviation"
+  ) {
+    return "LiveRC (this session)"
+  }
+  return null
 }
 
 /** Order and direction for sort-by options (display order; lower-is-better = ascending). */
@@ -368,6 +498,12 @@ const SORT_BY_OPTIONS: ReadonlyArray<{
   { metric: "gapToFastest", ascending: true },
   { metric: "averagePosition", ascending: true },
   { metric: "podiumFinishes", ascending: false },
+  { metric: "avgTop5", ascending: true },
+  { metric: "avgTop10", ascending: true },
+  { metric: "avgTop15", ascending: true },
+  { metric: "top2Consecutive", ascending: true },
+  { metric: "top3Consecutive", ascending: true },
+  { metric: "stdDeviation", ascending: true },
 ]
 
 export default function UnifiedPerformanceChart({
@@ -389,6 +525,10 @@ export default function UnifiedPerformanceChart({
   onChartDriverSelectionChange,
   availableClasses,
   onClassChange,
+  headerAfterClassSelect,
+  chartTitleOverride,
+  chartDriverPickerDisabled = false,
+  chartDriverPickerDisabledTooltip,
 }: UnifiedPerformanceChartProps) {
   const chartDescId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -453,6 +593,31 @@ export default function UnifiedPerformanceChart({
         driver.podiumFinishes >= 0
       )
         available.add("podiumFinishes")
+      if (driver.avgTop5 !== null && driver.avgTop5 !== undefined && driver.avgTop5 > 0)
+        available.add("avgTop5")
+      if (driver.avgTop10 !== null && driver.avgTop10 !== undefined && driver.avgTop10 > 0)
+        available.add("avgTop10")
+      if (driver.avgTop15 !== null && driver.avgTop15 !== undefined && driver.avgTop15 > 0)
+        available.add("avgTop15")
+      if (
+        driver.top2Consecutive !== null &&
+        driver.top2Consecutive !== undefined &&
+        driver.top2Consecutive > 0
+      )
+        available.add("top2Consecutive")
+      if (
+        driver.top3Consecutive !== null &&
+        driver.top3Consecutive !== undefined &&
+        driver.top3Consecutive > 0
+      )
+        available.add("top3Consecutive")
+      if (
+        driver.stdDeviation !== null &&
+        driver.stdDeviation !== undefined &&
+        isFinite(driver.stdDeviation) &&
+        driver.stdDeviation >= 0
+      )
+        available.add("stdDeviation")
     })
     return available
   }, [data])
@@ -493,6 +658,9 @@ export default function UnifiedPerformanceChart({
         }
         // For gapToFastest and podiumFinishes, 0 is a valid value
         if (metric === "gapToFastest" || metric === "podiumFinishes") {
+          return (value as number) >= 0
+        }
+        if (metric === "stdDeviation") {
           return (value as number) >= 0
         }
         // For other metrics, require > 0
@@ -553,22 +721,6 @@ export default function UnifiedPerformanceChart({
   const { tooltipData, tooltipLeft, tooltipTop, tooltipOpen, showTooltip, hideTooltip } =
     useTooltip<DriverPerformanceData>()
 
-  // DEBUG: trace tooltip state when hovering first few drivers
-  useEffect(() => {
-    if (tooltipOpen && tooltipData && paginatedData.length > 0) {
-      const idx = paginatedData.findIndex((d) => d.driverId === tooltipData.driverId)
-      if (idx >= 0 && idx < 3) {
-        console.debug("[UnifiedPerformanceChart] tooltip", {
-          driverIndex: idx,
-          driverName: tooltipData.driverName,
-          tooltipLeft,
-          tooltipTop,
-          tooltipOpen,
-        })
-      }
-    }
-  }, [tooltipOpen, tooltipData, tooltipLeft, tooltipTop, paginatedData])
-
   // Handle bar click to open color picker for the metric
   const handleBarClickForColorPicker = useCallback(
     (metric: MetricType, event: React.MouseEvent<SVGElement> | React.KeyboardEvent<SVGElement>) => {
@@ -602,9 +754,17 @@ export default function UnifiedPerformanceChart({
   const yAxisFormatType = useMemo(() => {
     const hasGapToFastest = Array.from(visibleMetrics).includes("gapToFastest")
     const hasOtherTimeMetrics = Array.from(visibleMetrics).some(
-      (m) => m === "bestLap" || m === "averageLap"
+      (m) =>
+        m === "bestLap" ||
+        m === "averageLap" ||
+        m === "avgTop5" ||
+        m === "avgTop10" ||
+        m === "avgTop15" ||
+        m === "top2Consecutive" ||
+        m === "top3Consecutive"
     )
     const hasConsistency = Array.from(visibleMetrics).includes("consistency")
+    const hasStdDeviation = Array.from(visibleMetrics).includes("stdDeviation")
     const visiblePositionMetrics = Array.from(visibleMetrics).filter(
       (metric) => metric === "averagePosition"
     )
@@ -617,6 +777,13 @@ export default function UnifiedPerformanceChart({
     if (hasGapToFastest && !hasOtherTimeMetrics) return "gap"
     if (hasGapToFastest && hasOtherTimeMetrics) return "gap" // Mixed scale, but format as gap
     if (hasOtherTimeMetrics) return "time"
+    if (
+      hasStdDeviation &&
+      !hasConsistency &&
+      visiblePositionMetrics.length === 0 &&
+      visibleCountMetrics.length === 0
+    )
+      return "decimal"
     if (hasConsistency) return "percentage"
     if (visiblePositionMetrics.length > 0) return "position"
     if (visibleCountMetrics.length > 0) return "count"
@@ -644,6 +811,10 @@ export default function UnifiedPerformanceChart({
           if ((value as number) >= 0) {
             allValues.push(value as number)
           }
+        } else if (metric === "stdDeviation") {
+          if ((value as number) >= 0) {
+            allValues.push(value as number)
+          }
         } else {
           // For other metrics, require > 0
           if ((value as number) > 0) {
@@ -666,10 +837,8 @@ export default function UnifiedPerformanceChart({
   }, [paginatedData, visibleMetrics])
 
   // Early return for empty data in column view (after all hooks)
-  // Show "All Classes" when:
-  // 1. selectedClass is null (user selected "All Classes" from dropdown)
-  // 2. A class is selected AND all drivers in that class are selected AND user clicked "Select All"
-  const chartTitle =
+  // Default header title / tooltip scope: "All Classes" when unscoped or select-all; else class name.
+  const dataScopeLabel =
     selectedClass === null
       ? "All Classes"
       : selectedClass
@@ -678,43 +847,66 @@ export default function UnifiedPerformanceChart({
           : selectedClass
         : undefined
 
+  const chartTitle =
+    chartTitleOverride !== undefined ? (chartTitleOverride ?? "") : (dataScopeLabel ?? "")
+
+  const hasScopeCluster =
+    (availableClasses && availableClasses.length > 0 && onClassChange) ||
+    (chartDriverOptions && onChartDriverSelectionChange) ||
+    Boolean(headerAfterClassSelect)
+
   const headerControlsContent = (
-    <>
-      {availableClasses && availableClasses.length > 0 && onClassChange && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-[var(--token-text-secondary)]">Choose a Class:</span>
-          <select
-            value={selectedClass ?? ""}
-            onChange={(e) => onClassChange(e.target.value || null)}
-            className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
-            aria-label="Choose a Class"
-          >
-            <option value="">All Classes</option>
-            {availableClasses.map((cls) => (
-              <option key={cls} value={cls}>
-                {cls}
-              </option>
-            ))}
-          </select>
+    <div className="flex flex-wrap items-center gap-3">
+      {hasScopeCluster && (
+        <div
+          className="inline-flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/35 px-2 py-1.5 sm:gap-3"
+          aria-label="Chart data scope"
+        >
+          {availableClasses && availableClasses.length > 0 && onClassChange && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-[var(--token-text-secondary)]">Choose a Class:</span>
+              <select
+                value={selectedClass ?? ""}
+                onChange={(e) => onClassChange(e.target.value || null)}
+                className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+                aria-label="Choose a Class"
+              >
+                <option value="">All Classes</option>
+                {availableClasses.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {headerAfterClassSelect}
+          {chartDriverOptions && onChartDriverSelectionChange && (
+            <ChartDriverPicker
+              drivers={chartDriverOptions}
+              selectedDriverIds={chartSelectedDriverIds}
+              onSelectionChange={onChartDriverSelectionChange}
+              label="Select Drivers"
+              disabled={chartDriverPickerDisabled}
+              disabledTooltip={chartDriverPickerDisabledTooltip}
+            />
+          )}
         </div>
       )}
-      {chartDriverOptions && onChartDriverSelectionChange && (
-        <ChartDriverPicker
-          drivers={chartDriverOptions}
-          selectedDriverIds={chartSelectedDriverIds}
-          onSelectionChange={onChartDriverSelectionChange}
-          label="Select Drivers"
+      <div
+        className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/35 px-2 py-1.5 sm:gap-3"
+        aria-label="Chart view options"
+      >
+        {onChartViewChange && (
+          <ChartViewToggle chartView={chartView} onChartViewChange={onChartViewChange} />
+        )}
+        <SortByDropdown
+          sortBy={availableSortMetrics.has(sortBy) ? sortBy : effectiveSortBy}
+          onSortByChange={setSortBy}
+          availableSortMetrics={availableSortMetrics}
         />
-      )}
-      {onChartViewChange && (
-        <ChartViewToggle chartView={chartView} onChartViewChange={onChartViewChange} />
-      )}
-      <SortByDropdown
-        sortBy={availableSortMetrics.has(sortBy) ? sortBy : effectiveSortBy}
-        onSortByChange={setSortBy}
-        availableSortMetrics={availableSortMetrics}
-      />
-    </>
+      </div>
+    </div>
   )
 
   if (displayData.length === 0) {
@@ -722,10 +914,11 @@ export default function UnifiedPerformanceChart({
       <div ref={containerRef} className="relative">
         <ChartContainer
           title={chartTitle}
+          description={UNIFIED_CHART_TITLE_DESCRIPTION}
           headerControls={headerControlsContent}
           height={height}
           className={className}
-          aria-label="Performance metrics chart - no data available"
+          aria-label="Driver performance chart - no data for the current scope"
         >
           <div className="flex items-center justify-center h-full text-[var(--token-text-secondary)]">
             {validData.length === 0 ? "No data available" : "Select drivers to compare"}
@@ -739,10 +932,11 @@ export default function UnifiedPerformanceChart({
     <div ref={containerRef} className="relative">
       <ChartContainer
         title={chartTitle}
+        description={UNIFIED_CHART_TITLE_DESCRIPTION}
         headerControls={headerControlsContent}
         height={height}
         className={className}
-        aria-label="Unified performance metrics chart"
+        aria-label="Driver performance chart - best lap, average lap, gap, LiveRC session stats when available, and related metrics by driver"
         chartInstanceId={chartInstanceId}
         axisColorPicker
         defaultAxisColors={{ x: DEFAULT_AXIS_COLOR, y: DEFAULT_AXIS_COLOR }}
@@ -760,10 +954,16 @@ export default function UnifiedPerformanceChart({
                   const innerWidth = width - margin.left - margin.right
                   const innerHeight = height - margin.top - margin.bottom
 
-                  // X scale (driver names)
+                  // Band domain must be unique per column; duplicate display names share one band
+                  // with d3.scaleBand (indexOf), causing vertical segments at the same x.
+                  const driverLabelById = new Map(
+                    paginatedData.map((d) => [d.driverId, d.driverName] as const)
+                  )
+
+                  // X scale (one band per driver id; axis labels still show driverName)
                   const xScale = scaleBand({
                     range: [0, innerWidth],
-                    domain: paginatedData.map((d) => d.driverName),
+                    domain: paginatedData.map((d) => d.driverId),
                     padding: 0.3,
                   })
 
@@ -802,10 +1002,14 @@ export default function UnifiedPerformanceChart({
                         const value = d[key]
                         if (value === null || value === undefined || !isFinite(value as number))
                           return
-                        if (metric === "gapToFastest" || metric === "podiumFinishes") {
+                        if (
+                          metric === "gapToFastest" ||
+                          metric === "podiumFinishes" ||
+                          metric === "stdDeviation"
+                        ) {
                           if ((value as number) < 0) return
                         } else if ((value as number) <= 0) return
-                        const bandX = xScale(d.driverName) ?? 0
+                        const bandX = xScale(d.driverId) ?? 0
                         const centerX = bandX + xScale.bandwidth() / 2
                         points.push({
                           x: centerX,
@@ -814,7 +1018,14 @@ export default function UnifiedPerformanceChart({
                           value: value as number,
                         })
                       })
-                      if (points.length > 0) lineSeriesByMetric.push({ metric, points })
+                      if (points.length > 0) {
+                        points.sort((a, b) =>
+                          a.x !== b.x
+                            ? a.x - b.x
+                            : a.driver.driverId.localeCompare(b.driver.driverId)
+                        )
+                        lineSeriesByMetric.push({ metric, points })
+                      }
                     })
                   }
 
@@ -913,6 +1124,8 @@ export default function UnifiedPerformanceChart({
                                     y={(p) => p.y}
                                     stroke={color}
                                     strokeWidth={2}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
                                     curve={curveMonotoneX}
                                     pointerEvents="none"
                                   />
@@ -923,7 +1136,7 @@ export default function UnifiedPerformanceChart({
                           {/* Chart elements - Bar chart */}
                           {chartView === "column" &&
                             paginatedData.map((d) => {
-                              const x = xScale(d.driverName) || 0
+                              const x = xScale(d.driverId) || 0
                               const isSelected =
                                 selectedDriverIds === undefined ||
                                 selectedDriverIds.length === 0 ||
@@ -940,17 +1153,6 @@ export default function UnifiedPerformanceChart({
                                 if (!svgElement) return
                                 const coords = localPoint(svgElement, event)
                                 if (coords) {
-                                  const driverIdx = paginatedData.findIndex(
-                                    (p) => p.driverId === d.driverId
-                                  )
-                                  if (driverIdx < 3) {
-                                    console.debug("[UnifiedPerformanceChart] showTooltip", {
-                                      driverIndex: driverIdx,
-                                      driverName: d.driverName,
-                                      coordsX: coords.x,
-                                      coordsY: coords.y,
-                                    })
-                                  }
                                   showTooltip({
                                     tooltipLeft: coords.x,
                                     tooltipTop: coords.y,
@@ -973,13 +1175,16 @@ export default function UnifiedPerformanceChart({
                                       return null
                                     }
 
-                                    // For gapToFastest and podiumFinishes, 0 is a valid value
-                                    if (metric === "gapToFastest" || metric === "podiumFinishes") {
+                                    // gap, podium, std dev: 0 valid; other metrics: need > 0
+                                    if (
+                                      metric === "gapToFastest" ||
+                                      metric === "podiumFinishes" ||
+                                      metric === "stdDeviation"
+                                    ) {
                                       if ((value as number) < 0) {
                                         return null
                                       }
                                     } else {
-                                      // For other metrics, require > 0
                                       if ((value as number) <= 0) {
                                         return null
                                       }
@@ -1100,6 +1305,9 @@ export default function UnifiedPerformanceChart({
                                 if (yAxisFormatType === "percentage") {
                                   return `${Number(value).toFixed(1)}%`
                                 }
+                                if (yAxisFormatType === "decimal") {
+                                  return Number(value).toFixed(2)
+                                }
                                 return formatLapTime(Number(value))
                               }}
                               stroke={yAxisColor}
@@ -1111,10 +1319,11 @@ export default function UnifiedPerformanceChart({
                                 dx: -8,
                               })}
                             />
+                            {/* Hit target only in the left margin — a rect at x=0 with fixed width sat on top of the first driver column and stole bar hover/tooltips. */}
                             <rect
-                              x={0}
+                              x={-margin.left}
                               y={0}
-                              width={80}
+                              width={margin.left}
                               height={innerHeight}
                               fill="transparent"
                               pointerEvents="all"
@@ -1130,7 +1339,8 @@ export default function UnifiedPerformanceChart({
                             <AxisBottom
                               top={innerHeight}
                               scale={xScale}
-                              tickValues={paginatedData.map((d) => d.driverName)}
+                              tickValues={paginatedData.map((d) => d.driverId)}
+                              tickFormat={(id) => driverLabelById.get(String(id)) ?? String(id)}
                               stroke={xAxisColor}
                               tickStroke={xAxisColor}
                               tickLabelProps={() => ({
@@ -1159,31 +1369,7 @@ export default function UnifiedPerformanceChart({
               </ParentSize>
             </div>
 
-            {/* DEBUG: visible badge when tooltip open for first 2 drivers - remove after fix */}
-            {tooltipOpen &&
-              tooltipData &&
-              paginatedData.findIndex((p) => p.driverId === tooltipData.driverId) < 2 && (
-                <div
-                  style={{
-                    position: "fixed",
-                    top: 8,
-                    right: 8,
-                    zIndex: 9999,
-                    background: "#22c55e",
-                    color: "#000",
-                    padding: "4px 8px",
-                    borderRadius: 4,
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                  aria-hidden
-                >
-                  Tooltip: {tooltipData.driverName} @ ({Math.round(tooltipLeft)},{" "}
-                  {Math.round(tooltipTop)})
-                </div>
-              )}
-
-            {/* Tooltip - structure matches LapByLapTrendChart for consistent bounds/clipping */}
+            {/* Tooltip — layout aligned with LapByLapTrendChart (sectioned, token styling) */}
             {tooltipOpen && tooltipData && (
               <TooltipWithBounds
                 top={tooltipTop}
@@ -1192,44 +1378,76 @@ export default function UnifiedPerformanceChart({
                   ...defaultStyles,
                   backgroundColor: "var(--token-surface-elevated)",
                   border: `1px solid ${borderColor}`,
-                  color: textColor,
-                  padding: "8px 12px",
-                  borderRadius: "4px",
+                  color: "var(--token-text-primary)",
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  maxWidth: "min(22rem, calc(100vw - 1rem))",
                 }}
               >
-                <div className="space-y-1">
-                  <div className="font-semibold text-[var(--token-text-primary)]">
-                    {tooltipData.driverName}
+                <div className="space-y-2">
+                  <div>
+                    <div className="font-semibold leading-tight text-[var(--token-text-primary)]">
+                      {tooltipData.driverName}
+                    </div>
+                    <div className="mt-0.5 text-xs text-[var(--token-text-secondary)]">
+                      {dataScopeLabel ?? "All Classes"}
+                      <span className="text-[var(--token-text-muted)]"> · </span>
+                      {chartView === "line" ? "Line chart" : "Column chart"}
+                      <span className="text-[var(--token-text-muted)]"> · </span>
+                      Sort: {metricConfig[effectiveSortBy].label}
+                    </div>
                   </div>
-                  {Array.from(visibleMetrics).map((metric) => {
-                    const key = metricConfig[metric].key
-                    const value = tooltipData[key]
-                    if (value === null || value === undefined) return null
-                    let formattedValue: string
-                    if (metric === "gapToFastest") {
-                      formattedValue = formatGapToFastest(value as number)
-                    } else if (metric === "podiumFinishes") {
-                      formattedValue = Math.round(value as number).toString()
-                    } else if (metric === "averagePosition") {
-                      formattedValue = formatPosition(value as number)
-                    } else if (metric === "consistency") {
-                      formattedValue = `${(value as number).toFixed(1)}%`
-                    } else if (metricConfig[metric].isTimeBased) {
-                      formattedValue = formatLapTime(value as number)
-                    } else {
-                      formattedValue = (value as number).toFixed(2)
-                    }
-                    return (
-                      <div key={metric} className="text-sm text-[var(--token-text-secondary)]">
-                        {metricConfig[metric].label}: {formattedValue}
-                        {metric === "bestLap" && tooltipData.bestLapRaceLabel && (
-                          <span className="text-xs text-[var(--token-text-muted)] ml-2">
-                            ({tooltipData.bestLapRaceLabel})
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })}
+
+                  <div className="rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2.5 py-2">
+                    <div className="space-y-4">
+                      {TOOLTIP_METRIC_ORDER.filter((metric) => visibleMetrics.has(metric)).map(
+                        (metric) => {
+                          const key = metricConfig[metric].key
+                          const value = tooltipData[key]
+                          if (value === null || value === undefined || !isFinite(value as number)) {
+                            return null
+                          }
+                          if (
+                            metric !== "gapToFastest" &&
+                            metric !== "podiumFinishes" &&
+                            metric !== "stdDeviation"
+                          ) {
+                            if ((value as number) <= 0) return null
+                          } else if ((value as number) < 0) {
+                            return null
+                          }
+                          const formattedValue = formatUnifiedTooltipMetricValue(
+                            metric,
+                            value as number
+                          )
+                          const caption = unifiedTooltipMetricCaption(metric, tooltipData)
+                          const isMonoPrimary =
+                            metricConfig[metric].isTimeBased || metric === "gapToFastest"
+                          return (
+                            <div key={metric}>
+                              <div className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
+                                {metricConfig[metric].label}
+                              </div>
+                              <div
+                                className={`tabular-nums leading-tight text-[var(--token-text-primary)] ${
+                                  isMonoPrimary
+                                    ? "font-mono text-lg font-semibold"
+                                    : "text-base font-semibold"
+                                }`}
+                              >
+                                {formattedValue}
+                              </div>
+                              {caption && (
+                                <div className="mt-0.5 text-xs text-[var(--token-text-muted)]">
+                                  {caption}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        }
+                      )}
+                    </div>
+                  </div>
                 </div>
               </TooltipWithBounds>
             )}

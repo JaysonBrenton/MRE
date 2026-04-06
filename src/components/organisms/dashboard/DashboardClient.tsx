@@ -45,7 +45,7 @@ export default function DashboardClient() {
   // Show loading state during rehydration (prevents empty state flash on hard reload)
   if (!isRehydrated) {
     return (
-      <div className="flex flex-col mt-6" style={{ gap: "var(--dashboard-gap)" }}>
+      <div className="mt-6 flex flex-col" style={{ gap: "var(--dashboard-gap)" }}>
         <div className="rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.15),0_0_1px_rgba(255,255,255,0.05)]">
           <p className={typography.bodySecondary}>Loading dashboard...</p>
         </div>
@@ -56,7 +56,7 @@ export default function DashboardClient() {
   // Show loading state when event is selected but data is still loading
   if (selectedEventId && !selectedEvent && isEventLoading) {
     return (
-      <div className="flex flex-col mt-6" style={{ gap: "var(--dashboard-gap)" }}>
+      <div className="mt-6 flex flex-col" style={{ gap: "var(--dashboard-gap)" }}>
         <div className="rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.15),0_0_1px_rgba(255,255,255,0.05)]">
           <p className={typography.bodySecondary}>Loading event data...</p>
         </div>
@@ -81,24 +81,45 @@ function DashboardEmptyState({
   error?: string | null
 }) {
   return (
-    <div className="flex flex-col mt-6" style={{ gap: "var(--dashboard-gap)" }}>
-      <div className="rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.15),0_0_1px_rgba(255,255,255,0.05)]">
-        <h2 className={`${typography.h2} mb-2`}>Select an Event</h2>
-        <p className={`${typography.bodySecondary} mb-6`}>
-          Search for an event to view analysis and insights
+    <div
+      className="mt-6 mx-auto flex w-full max-w-3xl shrink-0 flex-col"
+      style={{ gap: "var(--token-spacing-md)" }}
+    >
+      <div className="rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-4 text-left shadow-sm sm:px-5 sm:py-5">
+        <h2 className={`${typography.h2} mb-3`}>Select an event</h2>
+        <p className={`${typography.bodySecondary} mb-4`}>
+          Search for a race or pick one from your recent list. After it loads, the analysis
+          workspace opens here with tabs for each area.
         </p>
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-[var(--token-status-error-bg)] border border-[var(--token-status-error-text)]/20">
-            <p className={`${typography.bodySecondary} text-[var(--token-status-error-text)]`}>
-              {error}
-            </p>
-          </div>
-        )}
-        <div className="flex justify-center">
-          <Button type="button" variant="primary" onClick={onOpenEventSearch} className="px-6 py-3">
-            Search for Events
-          </Button>
+        <ul
+          className="w-full list-disc space-y-2 pl-5 text-sm leading-snug text-[var(--token-text-secondary)] marker:text-[var(--token-text-muted)]"
+          aria-label="What becomes available after you select an event"
+        >
+          <li>
+            <span className="font-medium text-[var(--token-text-primary)]">Overview</span> — summary
+            stats, charts, and lap trends
+          </li>
+          <li>
+            <span className="font-medium text-[var(--token-text-primary)]">Event sessions</span> —
+            race grid, lap analysis, and bump-ups when they apply
+          </li>
+          <li>
+            <span className="font-medium text-[var(--token-text-primary)]">Entry list</span> and
+            optional leaderboards or highlights
+          </li>
+        </ul>
+      </div>
+      {error && (
+        <div className="rounded-lg border border-[var(--token-status-error-text)]/20 bg-[var(--token-status-error-bg)] p-3 text-left">
+          <p className={`${typography.bodySecondary} text-[var(--token-status-error-text)]`}>
+            {error}
+          </p>
         </div>
+      )}
+      <div className="flex justify-center">
+        <Button type="button" variant="default" onClick={onOpenEventSearch} className="px-6 py-3">
+          Search for events
+        </Button>
       </div>
     </div>
   )

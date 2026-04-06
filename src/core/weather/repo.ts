@@ -19,6 +19,7 @@
 
 import { prisma } from "@/lib/prisma"
 import type { WeatherData, Prisma } from "@prisma/client"
+import { utcCalendarDayStart } from "./utc-calendar-day"
 
 export interface DailyTemperatureSummaryCache {
   hourly: Array<{ time: string; temperature: number }>
@@ -29,6 +30,8 @@ export interface DailyTemperatureSummaryCache {
 }
 
 export interface WeatherCacheData {
+  /** UTC calendar day this snapshot applies to (use utcCalendarDayStart) */
+  weatherDate: Date
   latitude: number
   longitude: number
   timestamp: Date
@@ -46,28 +49,50 @@ export interface WeatherCacheData {
 }
 
 /**
- * Gets cached weather data for an event if it exists and is not expired
+ * Gets cached weather data for an event day if it exists and is not expired
  *
  * @param eventId - The event ID to get weather data for
+ * @param calendarDay - The UTC calendar day (any instant on that day is fine)
  * @returns Cached weather data if valid, null if cache miss or expired
  */
-export async function getCachedWeather(eventId: string): Promise<WeatherData | null> {
+export async function getCachedWeather(
+  eventId: string,
+  calendarDay: Date
+): Promise<WeatherData | null> {
   try {
     const now = new Date()
+    const dayStart = utcCalendarDayStart(calendarDay)
 
-    const cached = await prisma.weatherData.findFirst({
+    const forDay = await prisma.weatherData.findFirst({
       where: {
         eventId,
+        weatherDate: dayStart,
         expiresAt: {
-          gt: now, // Only return if not expired
+          gt: now,
         },
       },
       orderBy: {
-        cachedAt: "desc", // Get most recent cache entry
+        cachedAt: "desc",
       },
     })
 
-    return cached
+    if (forDay) {
+      return forDay
+    }
+
+    // Legacy rows (pre–weather_date) or unmigrated nulls
+    return await prisma.weatherData.findFirst({
+      where: {
+        eventId,
+        weatherDate: null,
+        expiresAt: {
+          gt: now,
+        },
+      },
+      orderBy: {
+        cachedAt: "desc",
+      },
+    })
   } catch (error) {
     // Provide helpful error message if prisma.weatherData is undefined
     if (
@@ -84,16 +109,62 @@ export async function getCachedWeather(eventId: string): Promise<WeatherData | n
 }
 
 /**
- * Gets the most recent weather data for an event, even if expired
+ * Loads the event start date and returns cached weather for that UTC calendar day (if valid).
+ */
+export async function getCachedWeatherForEvent(eventId: string): Promise<WeatherData | null> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { eventDate: true },
+  })
+  if (!event) {
+    return null
+  }
+  return getCachedWeather(eventId, utcCalendarDayStart(event.eventDate))
+}
+
+/**
+ * Gets the most recent weather data for an event (optionally for a UTC calendar day), even if expired
  *
  * Used for fallback when API is unavailable
  *
  * @param eventId - The event ID to get weather data for
+ * @param calendarDay - If set, prefer a row for that day, then legacy null weatherDate rows
  * @returns Most recent weather data, or null if none exists
  */
-export async function getLastWeatherData(eventId: string): Promise<WeatherData | null> {
+export async function getLastWeatherData(
+  eventId: string,
+  calendarDay?: Date
+): Promise<WeatherData | null> {
   try {
-    const cached = await prisma.weatherData.findFirst({
+    if (calendarDay) {
+      const dayStart = utcCalendarDayStart(calendarDay)
+      const forDay = await prisma.weatherData.findFirst({
+        where: {
+          eventId,
+          weatherDate: dayStart,
+        },
+        orderBy: {
+          cachedAt: "desc",
+        },
+      })
+      if (forDay) {
+        return forDay
+      }
+      const legacy = await prisma.weatherData.findFirst({
+        where: {
+          eventId,
+          weatherDate: null,
+        },
+        orderBy: {
+          cachedAt: "desc",
+        },
+      })
+      if (legacy) {
+        return legacy
+      }
+    }
+
+    return await prisma.weatherData.findFirst({
       where: {
         eventId,
       },
@@ -101,8 +172,6 @@ export async function getLastWeatherData(eventId: string): Promise<WeatherData |
         cachedAt: "desc",
       },
     })
-
-    return cached
   } catch (error) {
     // Provide helpful error message if prisma.weatherData is undefined
     if (
@@ -129,26 +198,45 @@ export async function cacheWeatherData(
   eventId: string,
   data: WeatherCacheData
 ): Promise<WeatherData> {
+  const weatherDate = utcCalendarDayStart(data.weatherDate)
+  const sharedFields = {
+    latitude: data.latitude,
+    longitude: data.longitude,
+    timestamp: data.timestamp,
+    airTemperature: data.airTemperature,
+    humidity: data.humidity,
+    windSpeed: data.windSpeed,
+    windDirection: data.windDirection,
+    precipitation: data.precipitation,
+    condition: data.condition,
+    trackTemperature: data.trackTemperature,
+    forecast: data.forecast as Prisma.InputJsonValue,
+    isHistorical: data.isHistorical,
+    expiresAt: data.expiresAt,
+  }
+  const dailySummaryFields =
+    data.dailyTemperatureSummary !== undefined
+      ? {
+          dailyTemperatureSummary: data.dailyTemperatureSummary as unknown as Prisma.InputJsonValue,
+        }
+      : {}
   try {
-    return await prisma.weatherData.create({
-      data: {
+    return await prisma.weatherData.upsert({
+      where: {
+        eventId_weatherDate: {
+          eventId,
+          weatherDate,
+        },
+      },
+      create: {
         eventId,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        timestamp: data.timestamp,
-        airTemperature: data.airTemperature,
-        humidity: data.humidity,
-        windSpeed: data.windSpeed,
-        windDirection: data.windDirection,
-        precipitation: data.precipitation,
-        condition: data.condition,
-        trackTemperature: data.trackTemperature,
-        forecast: data.forecast as Prisma.InputJsonValue,
-        dailyTemperatureSummary: data.dailyTemperatureSummary
-          ? (data.dailyTemperatureSummary as unknown as Prisma.InputJsonValue)
-          : undefined,
-        isHistorical: data.isHistorical,
-        expiresAt: data.expiresAt,
+        weatherDate,
+        ...sharedFields,
+        ...dailySummaryFields,
+      },
+      update: {
+        ...sharedFields,
+        ...dailySummaryFields,
       },
     })
   } catch (error) {

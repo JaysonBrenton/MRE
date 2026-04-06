@@ -35,7 +35,7 @@ export default function TracksTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [searchQuery, setSearchQuery] = useState("")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
   const [isFollowedFilter, setIsFollowedFilter] = useState<string>("all")
@@ -308,7 +308,6 @@ export default function TracksTable() {
           itemsPerPage={itemsPerPage}
           totalItems={total}
           itemLabel="tracks"
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
           onRowsPerPageChange={(newRowsPerPage) => {
             setItemsPerPage(newRowsPerPage)
             setPage(1)

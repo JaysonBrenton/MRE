@@ -68,7 +68,6 @@ export default function SearchPage() {
           itemsPerPage={itemsPerPage}
           totalItems={totalItems}
           itemLabel="results"
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
           onRowsPerPageChange={handleRowsPerPageChange}
         />
       )}

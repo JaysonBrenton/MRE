@@ -17,6 +17,7 @@
 
 import { X } from "lucide-react"
 import { useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import EventSearchContainer from "@/components/organisms/event-search/EventSearchContainer"
 import { getModalContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
 
@@ -34,6 +35,18 @@ export default function EventSearchModal({
   selectedEventId,
 }: EventSearchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+
+  // Reset overlay scroll so the panel is not partially scrolled out of view (fixes clipped top on open)
+  useEffect(() => {
+    if (!isOpen) return
+    const el = backdropRef.current
+    if (!el) return
+    el.scrollTop = 0
+    requestAnimationFrame(() => {
+      el.scrollTop = 0
+    })
+  }, [isOpen])
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -87,9 +100,14 @@ export default function EventSearchModal({
 
   if (!isOpen) return null
 
-  return (
+  // Portal to document.body so fixed + z-index stack above shell chrome (TopStatusBar z-40, nav z-10)
+  // without being trapped under a parent stacking context.
+  if (typeof document === "undefined") return null
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/75 p-4"
+      ref={backdropRef}
+      className="fixed inset-0 z-[200] flex min-h-full items-start justify-center overflow-y-auto overscroll-contain bg-black/75 px-4 pb-10 pt-10 sm:px-6 sm:pb-12 sm:pt-12"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
@@ -98,11 +116,11 @@ export default function EventSearchModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="event-search-modal-title"
-      style={{ minWidth: 0, overflowY: "auto" }}
+      style={{ minWidth: 0 }}
     >
       <div
         ref={modalRef}
-        className="max-h-[calc(100vh-2rem)] my-4 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]"
+        className="max-h-[min(92dvh,calc(100dvh-7rem))] w-full shrink-0 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]"
         onClick={(e) => e.stopPropagation()}
         style={getModalContainerStyles(MODAL_MAX_WIDTHS["4xl"])}
       >
@@ -145,6 +163,7 @@ export default function EventSearchModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

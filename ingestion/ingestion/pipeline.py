@@ -566,6 +566,18 @@ class IngestionPipeline:
             
             # Normalize result (CPU-bound)
             normalized_result = Normalizer.normalize_result(result)
+
+            # Merge racerLaps-only stats (e.g. top_2_consecutive) without overwriting table-parsed keys
+            extra_by_driver = getattr(race_package, "racer_laps_extra_by_driver", None) or {}
+            sid = str(normalized_result["source_driver_id"])
+            extra = extra_by_driver.get(sid)
+            if extra:
+                merged = dict(normalized_result.get("raw_fields_json") or {})
+                for k, v in extra.items():
+                    if v is not None and k not in merged:
+                        merged[k] = v
+                if merged:
+                    normalized_result["raw_fields_json"] = merged
             
             # Match race result driver to event entry (CPU-bound, plain dicts only - thread-safe)
             class_name = normalized_race["class_name"]

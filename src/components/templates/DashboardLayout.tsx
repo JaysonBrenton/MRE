@@ -34,29 +34,30 @@ function DashboardShell({
 }) {
   const density = useAppSelector((state) => state.ui.density)
   const isNavCollapsed = useAppSelector((state) => state.ui.isNavCollapsed)
+  const navWidth = isNavCollapsed ? "80px" : "256px"
 
-  // Adjust margin based on sidebar collapse state
-  const sidebarMargin = isNavCollapsed ? "lg:ml-[80px]" : "lg:ml-64"
-
+  // Main scroll region is position:fixed with left+right+top+bottom so its width is the viewport
+  // minus explicit edges — not dependent on nested flex min-width resolution (which was collapsing
+  // to tens of px). Nav offset uses padding-left: nav width + gutter on lg+ (see --nav-content-gutter).
   return (
     <div
-      className="flex min-h-screen bg-[var(--token-surface)] text-[var(--token-text-primary)]"
+      className="relative min-h-screen w-full bg-[var(--token-surface)] text-[var(--token-text-primary)]"
       data-density={density}
+      style={
+        {
+          "--nav-width": navWidth,
+          "--nav-content-gutter": "var(--token-spacing-md)",
+        } as React.CSSProperties
+      }
     >
       <AdaptiveNavigationRail user={user ?? null} />
+      <div className="h-16 shrink-0" aria-hidden />
+      <TopStatusBar user={user ?? null} userId={userId} />
       <div
-        className={`flex min-h-screen flex-1 flex-col transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarMargin}`}
-        style={{ "--nav-width": isNavCollapsed ? "80px" : "256px" } as React.CSSProperties}
+        data-scroll-container
+        className="scrollbar-none fixed left-0 right-0 top-16 bottom-0 z-0 flex min-h-0 flex-col overflow-y-auto overflow-x-hidden px-1 py-6 transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] sm:px-2 md:px-2 lg:px-2 lg:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] xl:pr-4 xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] 2xl:pr-6 2xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))]"
       >
-        {/* Spacer for fixed TopStatusBar (h-16) */}
-        <div className="h-16 shrink-0" aria-hidden />
-        <TopStatusBar user={user ?? null} userId={userId} />
-        <div
-          data-scroll-container
-          className="flex-1 overflow-y-auto px-1 py-6 pb-12 sm:px-2 md:px-2 lg:px-2 xl:px-4 2xl:px-6"
-        >
-          {children}
-        </div>
+        {children}
       </div>
       <CommandPalette />
     </div>

@@ -28,9 +28,7 @@ export default function DriversTab({ data }: DriversTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
       <div>
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
-          Drivers and Classes
-        </h2>
+        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">Entry list</h2>
       </div>
 
       <div id="drivers-table-region">

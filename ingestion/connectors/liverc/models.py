@@ -143,6 +143,13 @@ class ConnectorRacePackage(BaseModel):
         description="Dictionary keyed by source_driver_id -> list of ConnectorLap"
     )
     fetch_method: str = "httpx"
+    racer_laps_extra_by_driver: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description=(
+            "Optional stats from racerLaps JS (e.g. top_2_consecutive) merged into raw_fields_json; "
+            "does not replace table-parsed keys"
+        ),
+    )
 
 
 class ConnectorEntryDriver(BaseModel):

@@ -83,7 +83,7 @@ export default function CombinedDriversTable({
   const [sortField, setSortField] = useState<SortField>("driverName")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [driverLookup, setDriverLookup] = useState("")
 
   const selectedClass = selectedClassProp ?? null
@@ -462,7 +462,6 @@ export default function CombinedDriversTable({
           itemsPerPage={itemsPerPage}
           totalItems={sortedRows.length}
           itemLabel="entries"
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
           onRowsPerPageChange={handleRowsPerPageChange}
         />
       </div>

@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-03-29
+lastModified: 2026-04-04
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -13,7 +13,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-01-27  
+**Last Updated:** 2026-04-04  
 **Purpose:** Complete listing of all documentation files in the MRE repository
 
 This document provides a comprehensive index of every document in the MRE
@@ -418,6 +418,20 @@ Authoritative domain model for racing classes in the MRE application. Defines
 the complete taxonomy of car classes (vehicle types), modification rules
 (Modified/Stock), and skill groupings (Junior/Pro/Expert).
 
+### [Triple A-Main Overall Scoring (IFMAR & ROAR)](../domain/triple-a-main-scoring.md)
+
+Reference for triple A-main point systems, best-two-of-three overall scoring,
+IFMAR reduced-finals handling, and ROAR tie-breakers including early winner (sit
+out A3). Use when computing or displaying overall standings for electric
+off-road triple-main formats.
+
+### [Bump-ups inference (domain)](../domain/bump-ups-inference.md)
+
+Defines what “bump-up” means in MRE (observed advancement from results, not
+rulebooks), LiveRC Main Events schedule model, same-class vs LCQ class names,
+tier strategies, and multi-main aggregate usage. Entry point for bump-up product
+and engineering semantics.
+
 ---
 
 ## Design
@@ -682,6 +696,16 @@ Documentation of significant architectural decisions.
 Index and guidelines for Architecture Decision Records (ADRs). Defines when to
 create ADRs, ADR format, lifecycle, storage structure, and usage in development.
 
+### [ADR-20260405: Bump-ups — LiveRC heat sheet ladder strategy](../adr/ADR-20260405-bump-ups-liveRC-heat-sheet-ladder-strategy.md)
+
+Multi-strategy ladder tiers for heterogeneous LiveRC labels, LCQ association
+without new schema fields, and exposing `driverId` on multi-main analysis
+entries. Complements ADR-20260404.
+
+### [ADR-20260404: Bump-ups inferred from LiveRC results](../adr/ADR-20260404-bump-ups-inferred-from-results.md)
+
+Bump-ups as graph inference on sessions and results; no rulebook runtime in v1.
+
 ### [ADR-20250127: Adopt Mobile-Safe Architecture](../adr/ADR-20250127-adopt-mobile-safe-architecture.md)
 
 Documents the architectural decision to adopt the Mobile-Safe Architecture
@@ -830,6 +854,13 @@ Defines search patterns, filtering, and data analysis workflows.
 ## Implementation Plans
 
 Implementation plans for major architectural changes and improvements.
+
+### [Bump-ups — LiveRC Main Events solution](../plans/bump-ups-liverc-main-events-solution.md)
+
+Technical specification for robust bump-up inference aligned with LiveRC heat
+sheet order, multi-strategy ladder parsing (lettered mains, bracket finals, LCQ
+merge), `EventAnalysisData` changes (multi-main `driverId`), phased
+implementation, testing, and references to ADRs and ingestion.
 
 ### [Application Performance Remediation (March 2026)](../implimentation_plans/application-performance-remediation-2026-03.md)
 

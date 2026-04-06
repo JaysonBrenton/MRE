@@ -131,7 +131,7 @@ export default function TrackLeaderboardTab({
     >
       <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
         <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
-          Track Leader Board: {trackName}
+          Track Leaderboard: {trackName}
         </h2>
         <p className="text-sm text-[var(--token-text-secondary)] mb-4">
           Drivers ranked by points from main races at {trackName}. Points: 1st=25, 2nd=18, 3rd=15,
@@ -236,7 +236,6 @@ export default function TrackLeaderboardTab({
               itemsPerPage={itemsPerPage}
               totalItems={drivers.length}
               itemLabel="drivers"
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
               onRowsPerPageChange={handleRowsPerPageChange}
             />
           </div>

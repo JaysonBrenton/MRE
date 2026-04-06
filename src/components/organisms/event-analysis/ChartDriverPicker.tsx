@@ -204,7 +204,7 @@ export default function ChartDriverPicker({
           Clear
         </button>
       </div>
-      <div className="overflow-y-auto flex-1 min-h-0 p-1">
+      <div className="scrollbar-none flex-1 min-h-0 overflow-y-auto p-1">
         {filteredDrivers.length === 0 ? (
           <p className="px-2 py-3 text-sm text-[var(--token-text-muted)]">No drivers match</p>
         ) : (

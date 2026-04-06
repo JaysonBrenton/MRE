@@ -26,7 +26,7 @@ import type {
 } from "@/core/events/get-sessions-data"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
-export type ChartTabId = "overview" | "my-laps" | "driver-bump-ups"
+export type ChartTabId = "overview" | "my-laps"
 
 export interface SessionChartTabsProps {
   sessions: SessionData[]
@@ -47,16 +47,15 @@ export interface SessionChartTabsProps {
 }
 
 const defaultTabs: Array<{ id: ChartTabId; label: string }> = [
-  { id: "overview", label: "Race Overview" },
-  { id: "my-laps", label: "Race Analysis" },
-  { id: "driver-bump-ups", label: "Driver Bump-Ups" },
+  { id: "overview", label: "Race grid" },
+  { id: "my-laps", label: "Lap analysis" },
 ]
 
 export default function SessionChartTabs({
   sessions,
   allClassesWithCounts,
   driverLapTrends,
-  heatProgression,
+  heatProgression: _heatProgression,
   eventId,
   selectedClass,
   onClassChange,
@@ -83,48 +82,37 @@ export default function SessionChartTabs({
     })
   }, [userDriverNameProp])
 
-  // Driver Bump-Ups only for nitro classes (not electric)
-  const isNitroClass = selectedClass != null && /\bnitro\b/i.test(selectedClass)
-  const availableTabs = defaultTabs.filter((tab) => {
-    if (tab.id === "driver-bump-ups") return isNitroClass
-    return true
-  })
-
-  // If active tab is no longer available (e.g. switched from nitro to electric), switch to first tab
-  useEffect(() => {
-    if (!availableTabs.some((t) => t.id === activeTab)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveTab(availableTabs[0]?.id ?? "overview")
-    }
-  }, [availableTabs, activeTab])
-
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, tabId: ChartTabId) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault()
       setActiveTab(tabId)
     } else if (event.key === "ArrowLeft") {
       event.preventDefault()
-      const currentIndex = availableTabs.findIndex((t) => t.id === activeTab)
-      const prevIndex = currentIndex > 0 ? currentIndex - 1 : availableTabs.length - 1
-      setActiveTab(availableTabs[prevIndex].id)
+      const currentIndex = defaultTabs.findIndex((t) => t.id === activeTab)
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : defaultTabs.length - 1
+      setActiveTab(defaultTabs[prevIndex].id)
     } else if (event.key === "ArrowRight") {
       event.preventDefault()
-      const currentIndex = availableTabs.findIndex((t) => t.id === activeTab)
-      const nextIndex = currentIndex < availableTabs.length - 1 ? currentIndex + 1 : 0
-      setActiveTab(availableTabs[nextIndex].id)
+      const currentIndex = defaultTabs.findIndex((t) => t.id === activeTab)
+      const nextIndex = currentIndex < defaultTabs.length - 1 ? currentIndex + 1 : 0
+      setActiveTab(defaultTabs[nextIndex].id)
     }
   }
 
   return (
     <div className={`space-y-4 ${className}`}>
+      <p className="max-w-[42rem] text-sm text-[var(--token-text-secondary)]">
+        Switch between the race grid and lap analysis. Driver bump-ups are under Event Details →
+        Bump-Ups.
+      </p>
       {/* Tab Navigation */}
       <div
-        className="border-b border-[var(--token-border-default)] overflow-x-auto"
+        className="overflow-x-hidden border-b border-[var(--token-border-default)]"
         role="tablist"
-        aria-label="Session chart tabs"
+        aria-label="Session views: race grid, lap analysis"
       >
-        <div className="flex min-w-max">
-          {availableTabs.map((tab) => {
+        <div className="flex min-w-0 flex-wrap">
+          {defaultTabs.map((tab) => {
             const isActive = activeTab === tab.id
             return (
               <button
@@ -172,12 +160,6 @@ export default function SessionChartTabs({
             data={data}
             userDriverName={userDriverName}
           />
-        )}
-
-        {activeTab === "driver-bump-ups" && (
-          <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
-            Under Development
-          </div>
         )}
       </div>
     </div>

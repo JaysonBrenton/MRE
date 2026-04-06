@@ -168,7 +168,7 @@ export default function PracticeDriverSelector({
           ref={listRef}
           id="practice-driver-list"
           role="listbox"
-          className="absolute left-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] py-1 shadow-lg"
+          className="scrollbar-none absolute left-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] py-1 shadow-lg"
           style={{ minWidth: `${inputWidthCh}ch` }}
         >
           {filteredOptions.length === 0 ? (

@@ -438,7 +438,7 @@ export default function LapDataTable({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
+        <div className="scrollbar-none overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
           <table className="w-full min-w-[1200px]" aria-label="Lap data table">
             <thead className="bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)]">
               <tr>
@@ -581,7 +581,7 @@ export default function LapDataTable({
                                 {isRaceExpanded && (
                                   <tr key={`${driver.driverId}-${race.raceId}-laps`}>
                                     <td colSpan={4} className="px-4 py-2 pl-20">
-                                      <div className="overflow-x-auto">
+                                      <div className="scrollbar-none overflow-x-auto">
                                         <table className="w-full min-w-[800px]">
                                           <thead className="bg-[var(--token-surface-alt)]">
                                             <tr>
@@ -796,7 +796,7 @@ export default function LapDataTable({
                                 {isDriverExpanded && (
                                   <tr key={`${race.raceId}-${driver.driverId}-laps`}>
                                     <td colSpan={4} className="px-4 py-2 pl-20">
-                                      <div className="overflow-x-auto">
+                                      <div className="scrollbar-none overflow-x-auto">
                                         <table className="w-full min-w-[800px]">
                                           <thead className="bg-[var(--token-surface-alt)]">
                                             <tr>
@@ -916,7 +916,7 @@ export default function LapDataTable({
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {filteredAndSortedDrivers.length > 0 && (
           <ListPagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -924,7 +924,6 @@ export default function LapDataTable({
             itemsPerPage={pageSize}
             totalItems={filteredAndSortedDrivers.length}
             itemLabel={viewMode === "driver" ? "drivers" : "races"}
-            rowsPerPageOptions={[5, 10, 25, 50, 100]}
             onRowsPerPageChange={(newRowsPerPage) => {
               setPageSize(newRowsPerPage)
               setCurrentPage(1)

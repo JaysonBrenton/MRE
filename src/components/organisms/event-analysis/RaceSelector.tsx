@@ -27,9 +27,7 @@ import {
 } from "@/components/molecules/StandardTable"
 import ListPagination from "@/components/organisms/event-analysis/ListPagination"
 import { formatDateUTC, formatTimeUTC } from "@/lib/format-session-data"
-
-const DEFAULT_PAGE_SIZE = 5
-const PAGE_SIZE_OPTIONS = [5, 10, 25, 50]
+import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 
 type SortKey = "race" | "class" | "date" | "startTime"
 type SortDir = "asc" | "desc"
@@ -81,7 +79,7 @@ export default function RaceSelector({
   hideHeading = false,
 }: RaceSelectorProps) {
   const [currentPage, setCurrentPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_PAGE_SIZE)
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
   const [sortKey, setSortKey] = useState<SortKey>("date")
   const [sortDir, setSortDir] = useState<SortDir>("asc")
 
@@ -233,7 +231,6 @@ export default function RaceSelector({
         itemsPerPage={rowsPerPage}
         totalItems={sortedRaces.length}
         itemLabel="races"
-        rowsPerPageOptions={PAGE_SIZE_OPTIONS}
         onRowsPerPageChange={handleRowsPerPageChange}
       />
     </div>

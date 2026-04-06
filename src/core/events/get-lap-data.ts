@@ -294,15 +294,18 @@ export interface EventLapTrendResponse {
 /**
  * Get lap-by-lap trend data for selected drivers in an event.
  * Returns every single lap in race order with a global 1-based lap index for charting.
+ * When `raceId` is set, only that session is included and lapIndex is 1..N within that session.
  *
  * @param eventId - Event ID
  * @param driverIds - Driver IDs to include (empty = no drivers)
- * @param className - Optional class name to filter races (e.g. "Buggy Expert")
+ * @param className - Optional class name to filter races (e.g. "Buggy Expert"); ignored when `raceId` is set
+ * @param raceId - Optional race/session id to restrict to a single session
  */
 export async function getEventLapTrend(
   eventId: string,
   driverIds: string[],
-  className: string | null = null
+  className: string | null = null,
+  raceId: string | null = null
 ): Promise<EventLapTrendResponse> {
   if (driverIds.length === 0) {
     return { drivers: [] }
@@ -310,8 +313,10 @@ export async function getEventLapTrend(
 
   const driverIdSet = new Set(driverIds)
 
-  const raceWhere: { eventId: string; className?: string } = { eventId }
-  if (className) {
+  const raceWhere: { eventId: string; className?: string; id?: string } = { eventId }
+  if (raceId) {
+    raceWhere.id = raceId
+  } else if (className) {
     raceWhere.className = className
   }
 

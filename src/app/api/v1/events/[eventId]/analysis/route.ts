@@ -18,7 +18,7 @@
 import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import { getEventAnalysisData } from "@/core/events/get-event-analysis-data"
-import { successResponse, errorResponse } from "@/lib/api-utils"
+import { successResponse, errorResponse, CACHE_CONTROL } from "@/lib/api-utils"
 import { createRequestLogger, generateRequestId } from "@/lib/request-context"
 import { handleApiError } from "@/lib/server-error-handler"
 
@@ -61,46 +61,51 @@ export async function GET(
       raceClassesObject[key] = value
     })
 
-    return successResponse({
-      event: {
-        id: analysisData.event.id,
-        trackId: analysisData.event.trackId,
-        eventName: analysisData.event.eventName,
-        eventDate: analysisData.event.eventDate.toISOString(),
-        eventDateEnd: analysisData.event.eventDateEnd?.toISOString() ?? undefined,
-        trackName: analysisData.event.trackName,
-        trackDashboardUrl: analysisData.event.trackDashboardUrl ?? undefined,
-        eventUrl: analysisData.event.eventUrl ?? undefined,
-        website: analysisData.event.website ?? undefined,
-        facebookUrl: analysisData.event.facebookUrl ?? undefined,
-        address: analysisData.event.address ?? undefined,
-        phone: analysisData.event.phone ?? undefined,
-        email: analysisData.event.email ?? undefined,
-        venueCorrected: analysisData.event.venueCorrected ?? false,
-        sourceEventId: analysisData.event.sourceEventId ?? undefined,
-        trackSlug: analysisData.event.trackSlug ?? undefined,
-      },
-      isPracticeDay: analysisData.isPracticeDay ?? false,
-      races: analysisData.races.map((race) => ({
-        ...race,
-        startTime: race.startTime?.toISOString() || null,
-        sessionType: race.sessionType ?? null,
-        sectionHeader: race.sectionHeader ?? null,
-      })),
-      drivers: analysisData.drivers,
-      entryList: analysisData.entryList,
-      raceClasses: raceClassesObject,
-      summary: {
-        totalRaces: analysisData.summary.totalRaces,
-        totalDrivers: analysisData.summary.totalDrivers,
-        totalLaps: analysisData.summary.totalLaps,
-        dateRange: {
-          earliest: analysisData.summary.dateRange.earliest?.toISOString() || null,
-          latest: analysisData.summary.dateRange.latest?.toISOString() || null,
+    return successResponse(
+      {
+        event: {
+          id: analysisData.event.id,
+          trackId: analysisData.event.trackId,
+          eventName: analysisData.event.eventName,
+          eventDate: analysisData.event.eventDate.toISOString(),
+          eventDateEnd: analysisData.event.eventDateEnd?.toISOString() ?? undefined,
+          trackName: analysisData.event.trackName,
+          trackDashboardUrl: analysisData.event.trackDashboardUrl ?? undefined,
+          eventUrl: analysisData.event.eventUrl ?? undefined,
+          website: analysisData.event.website ?? undefined,
+          facebookUrl: analysisData.event.facebookUrl ?? undefined,
+          address: analysisData.event.address ?? undefined,
+          phone: analysisData.event.phone ?? undefined,
+          email: analysisData.event.email ?? undefined,
+          venueCorrected: analysisData.event.venueCorrected ?? false,
+          sourceEventId: analysisData.event.sourceEventId ?? undefined,
+          trackSlug: analysisData.event.trackSlug ?? undefined,
         },
+        isPracticeDay: analysisData.isPracticeDay ?? false,
+        races: analysisData.races.map((race) => ({
+          ...race,
+          startTime: race.startTime?.toISOString() || null,
+          sessionType: race.sessionType ?? null,
+          sectionHeader: race.sectionHeader ?? null,
+        })),
+        drivers: analysisData.drivers,
+        entryList: analysisData.entryList,
+        raceClasses: raceClassesObject,
+        summary: {
+          totalRaces: analysisData.summary.totalRaces,
+          totalDrivers: analysisData.summary.totalDrivers,
+          totalLaps: analysisData.summary.totalLaps,
+          dateRange: {
+            earliest: analysisData.summary.dateRange.earliest?.toISOString() || null,
+            latest: analysisData.summary.dateRange.latest?.toISOString() || null,
+          },
+        },
+        multiMainResults: analysisData.multiMainResults ?? [],
       },
-      multiMainResults: analysisData.multiMainResults ?? [],
-    })
+      200,
+      undefined,
+      CACHE_CONTROL.USER_DATA
+    )
   } catch (error) {
     // Log the error with more context for debugging
     requestLogger.error("Error in event analysis API", {

@@ -67,7 +67,7 @@ describe("Weather Data Display Integration", () => {
       }
 
       // Mock cache miss
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
         "Sydney Motorsport Park",
@@ -142,7 +142,7 @@ describe("Weather Data Display Integration", () => {
         forecast: [],
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
         "Sydney Motorsport Park",
@@ -175,7 +175,7 @@ describe("Weather Data Display Integration", () => {
         forecast: [],
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(null)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
       vi.mocked(resolveCandidatesModule.resolveGeocodeCandidates).mockReturnValue([
         "Sydney Motorsport Park",
@@ -217,7 +217,9 @@ describe("Weather Data Display Integration", () => {
         updatedAt: cachedDate,
       }
 
-      vi.mocked(weatherRepoModule.getCachedWeather).mockResolvedValue(mockCachedWeather as never)
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(
+        mockCachedWeather as never
+      )
 
       const result = await getWeatherForEvent(eventId)
 
@@ -230,7 +232,7 @@ describe("Weather Data Display Integration", () => {
   describe("error handling in display flow", () => {
     it("should handle Prisma client errors gracefully", async () => {
       // Simulate Prisma client error by making getCachedWeather throw
-      vi.mocked(weatherRepoModule.getCachedWeather).mockRejectedValue(
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockRejectedValue(
         new TypeError("Cannot read properties of undefined (reading 'findFirst')")
       )
 

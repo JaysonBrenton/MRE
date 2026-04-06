@@ -501,7 +501,6 @@ export default function EventFastestLapsTable({ races }: EventFastestLapsTablePr
                 itemsPerPage={itemsPerPage}
                 totalItems={sortedRows.length}
                 itemLabel="races"
-                rowsPerPageOptions={[10, 25, 50, 100]}
                 onRowsPerPageChange={handleRowsPerPageChange}
               />
             </div>

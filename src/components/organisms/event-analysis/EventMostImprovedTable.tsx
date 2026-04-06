@@ -577,7 +577,6 @@ export default function EventMostImprovedTable({
                 itemsPerPage={itemsPerPage}
                 totalItems={sortedRows.length}
                 itemLabel="races"
-                rowsPerPageOptions={[10, 25, 50, 100]}
                 onRowsPerPageChange={handleRowsPerPageChange}
               />
             </div>
