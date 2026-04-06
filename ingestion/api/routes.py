@@ -55,7 +55,19 @@ router = APIRouter()
 class IngestRequest(BaseModel):
     """Request body for ingestion endpoint."""
     depth: str = "laps_full"
-    
+    imported_by_user_id: Optional[str] = None
+
+    @field_validator("imported_by_user_id")
+    @classmethod
+    def validate_imported_by_user_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        try:
+            UUID(v)
+        except ValueError:
+            raise ValueError("imported_by_user_id must be a valid UUID")
+        return v
+
     def __init__(self, **data):
         super().__init__(**data)
         # Validate depth - reject summary_only (V1 only supports none and laps_full)
@@ -75,7 +87,19 @@ class IngestBySourceIdRequest(BaseModel):
     source_event_id: str
     track_id: str
     depth: str = "laps_full"
-    
+    imported_by_user_id: Optional[str] = None
+
+    @field_validator("imported_by_user_id")
+    @classmethod
+    def validate_imported_by_user_id_by_source(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        try:
+            UUID(v)
+        except ValueError:
+            raise ValueError("imported_by_user_id must be a valid UUID")
+        return v
+
     def __init__(self, **data):
         super().__init__(**data)
         # Validate depth - reject summary_only (V1 only supports none and laps_full)
@@ -223,6 +247,10 @@ async def sync_events(
         
         # Fetch events from LiveRC
         events = await connector.list_events_for_track(track.source_track_slug)
+        await connector.enrich_event_summaries_with_canonical_names(
+            track.source_track_slug,
+            events,
+        )
         
         # Track sync statistics
         events_added = 0
@@ -403,6 +431,13 @@ async def discover_events(
                 
                 if include:
                     filtered_events.append(event)
+
+        # Use event detail page titles (h1/h3) so names match LiveRC's primary header,
+        # not only the events-table link text.
+        await connector.enrich_event_summaries_with_canonical_names(
+            request.track_slug,
+            filtered_events,
+        )
         
         # Convert EventSummary objects to dicts for JSON serialization
         events_data = []
@@ -513,7 +548,11 @@ async def ingest_event(
         logger.info("ingest_event_api_start", event_id=event_id, depth=request.depth)
 
         if is_queue_enabled():
-            job_id = enqueue_by_event_id(event_id=event_id, depth=request.depth)
+            job_id = enqueue_by_event_id(
+                event_id=event_id,
+                depth=request.depth,
+                imported_by_user_id=request.imported_by_user_id,
+            )
             return JSONResponse(
                 status_code=202,
                 content={
@@ -528,6 +567,7 @@ async def ingest_event(
         result = await pipeline.ingest_event(
             event_id=UUID(event_id),
             depth=request.depth,
+            imported_by_user_id=request.imported_by_user_id,
         )
 
         return {
@@ -645,6 +685,7 @@ async def ingest_event_by_source_id(
                 source_event_id=request.source_event_id,
                 track_id=track_id_str,
                 depth=request.depth,
+                imported_by_user_id=request.imported_by_user_id,
             )
             return JSONResponse(
                 status_code=202,
@@ -662,6 +703,7 @@ async def ingest_event_by_source_id(
             source_event_id=request.source_event_id,
             track_id=track_uuid,
             depth=request.depth,
+            imported_by_user_id=request.imported_by_user_id,
         )
 
         return {
@@ -868,6 +910,7 @@ async def get_ingestion_status(
         "event_id": str(event.id),
         "ingest_depth": event.ingest_depth.value,
         "last_ingested_at": event.last_ingested_at.isoformat() if event.last_ingested_at else None,
+        "imported_by_user_id": event.imported_by_user_id,
     }
 
 

@@ -37,10 +37,11 @@ export async function POST(
 
   // Check authentication
   const session = await auth()
-  if (!session) {
+  if (!session?.user?.id) {
     requestLogger.warn("Unauthorized event ingestion request")
     return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
+  const importedByUserId = session.user.id
 
   try {
     // Check rate limit for ingestion endpoints
@@ -82,7 +83,7 @@ export async function POST(
     }
 
     try {
-      const result = await ingestionClient.ingestEvent(eventId, depth)
+      const result = await ingestionClient.ingestEvent(eventId, depth, importedByUserId)
 
       if (result && "job_id" in result && result.status === "queued") {
         requestLogger.info("Event ingestion queued", { eventId, jobId: result.job_id })

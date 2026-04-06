@@ -381,6 +381,99 @@ class LiveRCConnector:
                 f"Failed to fetch event page with Playwright: {str(e)}",
                 url=url,
             )
+
+    async def fetch_event_metadata_only(
+        self,
+        track_slug: str,
+        source_event_id: str,
+    ):
+        """
+        Fetch the event detail page and parse metadata only (no race lists).
+
+        Used when the events list link text matches the secondary LiveRC title (h3)
+        but the primary title (h1) should be shown—same HTML as a full event fetch.
+        """
+        self._ensure_enabled()
+        url = self._build_event_url(track_slug, source_event_id)
+        logger.info(
+            "fetch_event_metadata_only_start",
+            url=url,
+            track_slug=track_slug,
+            event_id=source_event_id,
+        )
+        metadata_parser = EventMetadataParser()
+        requires_playwright = self._page_type_cache.get(url, False)
+
+        if not requires_playwright:
+            try:
+                async with HTTPXClient(self._site_policy) as client:
+                    response = await client.get(url)
+                    html = response.text
+                    return metadata_parser.parse(html, url)
+            except ConnectorHTTPError as err:
+                self._record_error("fetch_event_metadata_only", err)
+                requires_playwright = True
+                self._page_type_cache[url] = True
+                self._trim_page_type_cache()
+            except EventPageFormatError as err:
+                requires_playwright = True
+                self._page_type_cache[url] = True
+                self._trim_page_type_cache()
+                self._record_error("fetch_event_metadata_only", err)
+            except Exception as e:
+                self._record_error("fetch_event_metadata_only", e)
+                logger.error("fetch_event_metadata_only_error", url=url, error=str(e))
+                raise EventPageFormatError(
+                    f"Unexpected error fetching event metadata: {str(e)}",
+                    url=url,
+                )
+
+        try:
+            html = await self._fetch_with_playwright(
+                url,
+                wait_for_selector="table.entry_list_data",
+            )
+            return metadata_parser.parse(html, url)
+        except EventPageFormatError as err:
+            self._record_error("fetch_event_metadata_only", err)
+            raise
+        except Exception as e:
+            self._record_error("fetch_event_metadata_only", e)
+            logger.error("fetch_event_metadata_only_playwright_error", url=url, error=str(e))
+            raise EventPageFormatError(
+                f"Failed to fetch event metadata with Playwright: {str(e)}",
+                url=url,
+            )
+
+    async def enrich_event_summaries_with_canonical_names(
+        self,
+        track_slug: str,
+        events: List[EventSummary],
+    ) -> None:
+        """
+        Replace list-sourced event names with canonical titles from each event page.
+
+        Bounded concurrency to avoid hammering LiveRC when a track has many events.
+        """
+        if not events:
+            return
+
+        sem = asyncio.Semaphore(5)
+
+        async def enrich_one(ev: EventSummary) -> None:
+            async with sem:
+                try:
+                    meta = await self.fetch_event_metadata_only(track_slug, ev.source_event_id)
+                    ev.event_name = meta.event_name
+                except Exception as e:
+                    logger.warning(
+                        "event_name_enrich_failed",
+                        track_slug=track_slug,
+                        event_id=ev.source_event_id,
+                        error=str(e),
+                    )
+
+        await asyncio.gather(*[enrich_one(e) for e in events])
     
     async def fetch_race_page(
         self,

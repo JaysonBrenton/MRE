@@ -30,10 +30,11 @@ export async function POST(request: NextRequest) {
 
   // Check authentication
   const session = await auth()
-  if (!session) {
+  if (!session?.user?.id) {
     requestLogger.warn("Unauthorized event ingestion request")
     return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
   }
+  const importedByUserId = session.user.id
 
   // Rate limit ingestion (same as eventId ingest: 10 requests per minute)
   const rateLimitResult = checkRateLimit(request, RATE_LIMITS.ingestion)
@@ -79,15 +80,12 @@ export async function POST(request: NextRequest) {
     const result = await ingestionClient.ingestEventBySourceId(
       source_event_id,
       track_id,
-      depth || "laps_full"
+      depth || "laps_full",
+      importedByUserId
     )
 
     // Queued: return 202 so client can poll job status
-    if (
-      result &&
-      "job_id" in result &&
-      result.status === "queued"
-    ) {
+    if (result && "job_id" in result && result.status === "queued") {
       requestLogger.info("Event ingestion queued", {
         sourceEventId: source_event_id,
         trackId: track_id,

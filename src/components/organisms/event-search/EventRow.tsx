@@ -16,7 +16,7 @@
 
 "use client"
 
-import { AlertTriangle, CheckCircle2 } from "lucide-react"
+import { CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import EventStatusBadge, { type EventStatus } from "@/components/molecules/EventStatusBadge"
 import { formatDateDisplay, isEventInFuture } from "@/lib/date-utils"
@@ -226,21 +226,16 @@ export default function EventRow({
           }
           return null
         })()}
-        {errorMessage && (
-          <span
-            className="text-xs text-[var(--token-status-error-text)]"
-            title={errorMessage}
-            aria-label={`Error: ${errorMessage}`}
-          >
-            <AlertTriangle className="inline h-3 w-3 align-middle mr-0.5" aria-hidden="true" />
-            Error
-          </span>
-        )}
       </div>
 
       {/* Column 2 - Event Status */}
       <div className="flex flex-col items-center gap-1">
-        <EventStatusBadge status={status} progress={progress} stage={importProgress?.stage} />
+        <EventStatusBadge
+          status={status}
+          progress={progress}
+          stage={importProgress?.stage}
+          importErrorHint={hasFailed ? errorMessage : undefined}
+        />
       </div>
 
       {/* Column 3 - Event Date */}

@@ -181,6 +181,12 @@ class Event(Base):
     event_url = Column("event_url", String, nullable=False)
     ingest_depth = Column("ingest_depth", IngestDepthType(), default=IngestDepth.NONE, nullable=False)
     last_ingested_at = Column("last_ingested_at", DateTime(timezone=True), nullable=True)
+    imported_by_user_id = Column(
+        "imported_by_user_id",
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     event_metadata = Column("metadata", JSONB, nullable=True)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -200,6 +206,7 @@ class Event(Base):
         Index("events_track_id_idx", "track_id"),
         Index("events_event_date_idx", "event_date"),
         Index("events_ingest_depth_idx", "ingest_depth"),
+        Index("events_imported_by_user_id_idx", "imported_by_user_id"),
     )
 
 

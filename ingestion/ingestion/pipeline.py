@@ -1610,6 +1610,7 @@ class IngestionPipeline:
         event_id: UUID,
         depth: str = "laps_full",
         force: bool = False,
+        imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Ingest event data from LiveRC while limiting lock scope."""
         logger.info("ingestion_start", event_id=str(event_id), depth=depth, force=force)
@@ -1660,6 +1661,7 @@ class IngestionPipeline:
             event_data=event_data,
             entry_list=entry_list,
             force=force,
+            imported_by_user_id=imported_by_user_id,
         )
 
     async def _persist_with_lock(
@@ -1670,6 +1672,7 @@ class IngestionPipeline:
         event_data: ConnectorEventSummary,
         entry_list: ConnectorEntryList,
         force: bool = False,
+        imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Acquire the advisory lock and persist the ingestion payload."""
         # Timeout is handled by _run_with_inactivity_timeout which uses
@@ -1698,6 +1701,7 @@ class IngestionPipeline:
                         depth=depth,
                         ingestion_timer=ingestion_timer,
                         force=force,
+                        imported_by_user_id=imported_by_user_id,
                     ),
                     event_context.event_id,
                     ingestion_timer,
@@ -1719,7 +1723,10 @@ class IngestionPipeline:
                         await asyncio.sleep(1.0)
                         try:
                             result = await self.ingest_event(
-                                event_context.event_id, depth=depth, force=force
+                                event_context.event_id,
+                                depth=depth,
+                                force=force,
+                                imported_by_user_id=imported_by_user_id,
                             )
                             return result
                         finally:
@@ -1747,6 +1754,7 @@ class IngestionPipeline:
         depth: str,
         ingestion_timer: metrics.IngestionDurationTracker,
         force: bool = False,
+        imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         event_id = event_context.event_id
         try:
@@ -1900,6 +1908,8 @@ class IngestionPipeline:
 
             event.ingest_depth = IngestDepth(depth)
             event.last_ingested_at = datetime.utcnow()
+            if imported_by_user_id is not None:
+                event.imported_by_user_id = imported_by_user_id
             repo.session.commit()
 
             result_payload = {
@@ -1911,6 +1921,8 @@ class IngestionPipeline:
                 "laps_ingested": laps_ingested,
                 "status": "updated",
             }
+            if imported_by_user_id is not None:
+                result_payload["imported_by_user_id"] = imported_by_user_id
             ingestion_timer.finish("success")
             return result_payload
         except Exception:
@@ -1922,6 +1934,7 @@ class IngestionPipeline:
         source_event_id: str,
         track_id: UUID,
         depth: str = "laps_full",
+        imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Ingest an event by discovering it from LiveRC and persisting it."""
         logger.info(
@@ -2006,6 +2019,7 @@ class IngestionPipeline:
             normalized_event=normalized_event,
             event_data=event_data,
             entry_list=entry_list,
+            imported_by_user_id=imported_by_user_id,
         )
     
     async def _fetch_practice_session_details_with_concurrency(

@@ -46,6 +46,7 @@ model User {
   eventVenueCorrectionsApproved  EventVenueCorrection[] @relation("EventVenueCorrectionsApproved")
   eventVenueCorrectionRequestsSubmitted EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestSubmitted")
   eventVenueCorrectionRequestsReviewed  EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestReviewed")
+  eventsImported                      Event[]                       @relation("EventImportedBy")
 
   @@index([normalizedName])
   @@index([transponderNumber])
@@ -138,11 +139,13 @@ model Event {
   eventUrl             String                @map("event_url")
   ingestDepth          IngestDepth           @default(none) @map("ingest_depth")
   lastIngestedAt       DateTime?             @map("last_ingested_at")
+  importedByUserId     String?               @map("imported_by_user_id")
   metadata             Json?                 @map("metadata")
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
   driverLinks          EventDriverLink[]
   entries              EventEntry[]
+  importedBy           User?                 @relation("EventImportedBy", fields: [importedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   track                Track                 @relation(fields: [trackId], references: [id], onDelete: Cascade)
   races                Race[]
   transponderOverrides TransponderOverride[]
@@ -160,6 +163,7 @@ model Event {
   @@index([eventDate])
   @@index([trackId, eventDate])
   @@index([ingestDepth])
+  @@index([importedByUserId])
   @@map("events")
 }
 

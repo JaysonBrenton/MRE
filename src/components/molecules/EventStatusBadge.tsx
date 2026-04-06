@@ -27,6 +27,7 @@
  */
 
 import React from "react"
+import Tooltip from "@/components/molecules/Tooltip"
 
 export type EventStatus = "stored" | "imported" | "new" | "importing" | "failed" | "scheduled"
 
@@ -34,6 +35,19 @@ export interface EventStatusBadgeProps {
   status: EventStatus
   progress?: number // Optional progress percentage (0-100) for importing status
   stage?: string // Optional import stage text to display beneath the badge
+  /** Shown as tooltip on failed imports only; kept short for end users */
+  importErrorHint?: string
+}
+
+/** First sentence or trimmed text so tooltips stay readable */
+function userFacingImportErrorHint(raw: string): string {
+  const s = raw.trim()
+  if (!s) return ""
+  const m = s.match(/^.{12,}?[.!?](?=\s|$)/)
+  const sentence = m?.[0]?.trim()
+  const pick = sentence && sentence.length >= 12 ? sentence : s
+  const max = 220
+  return pick.length > max ? `${pick.slice(0, max - 1).trimEnd()}…` : pick
 }
 
 const statusConfig: Record<
@@ -139,7 +153,12 @@ function interpolateColor(
   return `rgb(${r}, ${g}, ${b})`
 }
 
-export default function EventStatusBadge({ status, progress, stage }: EventStatusBadgeProps) {
+export default function EventStatusBadge({
+  status,
+  progress,
+  stage,
+  importErrorHint,
+}: EventStatusBadgeProps) {
   const config = statusConfig[status]
   const [dynamicColors, setDynamicColors] = React.useState<{
     bg: string
@@ -254,20 +273,44 @@ export default function EventStatusBadge({ status, progress, stage }: EventStatu
 
   const progressText = progress !== undefined ? ` (${Math.round(progress)}% complete)` : ""
 
+  const hint =
+    status === "failed" && importErrorHint ? userFacingImportErrorHint(importErrorHint) : ""
+  const failedHintTooltip = hint.length > 0 ? `${hint} · Retry import to try again.` : ""
+  const failedAriaSuffix =
+    hint.length > 0 ? `${hint} Retry import to try again.` : config.description
+
+  const badgeTitle =
+    status === "failed" && failedHintTooltip ? undefined : `${config.description}${progressText}`
+  const badgeAriaLabel = `Event status: ${displayLabel}. ${
+    status === "failed" && hint.length > 0
+      ? failedAriaSuffix
+      : `${config.description}${progressText}`
+  }`
+
+  const badgeEl = (
+    <span
+      ref={badgeRef}
+      className={className}
+      style={containerStyle}
+      aria-label={badgeAriaLabel}
+      title={badgeTitle}
+    >
+      {/* Progress bar fill element */}
+      <span style={progressBarStyle} aria-hidden="true" />
+      {/* Label text */}
+      <span className="relative z-10">{displayLabel}</span>
+    </span>
+  )
+
   return (
     <div className="flex flex-col items-center gap-1">
-      <span
-        ref={badgeRef}
-        className={className}
-        style={containerStyle}
-        aria-label={`Event status: ${displayLabel}. ${config.description}${progressText}`}
-        title={`${config.description}${progressText}`}
-      >
-        {/* Progress bar fill element */}
-        <span style={progressBarStyle} aria-hidden="true" />
-        {/* Label text */}
-        <span className="relative z-10">{displayLabel}</span>
-      </span>
+      {status === "failed" && failedHintTooltip ? (
+        <Tooltip text={failedHintTooltip} position="top">
+          {badgeEl}
+        </Tooltip>
+      ) : (
+        badgeEl
+      )}
       {/* Stage text displayed beneath the badge when importing */}
       {status === "importing" && stage && (
         <span

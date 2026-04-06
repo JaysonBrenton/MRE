@@ -20,6 +20,65 @@ from ingestion.ingestion.errors import EventPageFormatError
 logger = get_logger(__name__)
 
 
+def _normalize_header_text_from_element(elem) -> str:
+    """Strip leading icon span text from a LiveRC page-header element."""
+    text = elem.text().strip()
+    for span in elem.css("span"):
+        span_text = span.text()
+        if span_text:
+            text = text.replace(span_text, "", 1)
+    return text.strip()
+
+
+def _token_set(s: str) -> set[str]:
+    """Alphanumeric tokens of length >= 2 for overlap heuristics."""
+    return {t.lower() for t in re.findall(r"[A-Za-z0-9]+", s) if len(t) >= 2}
+
+
+def _year_tokens(s: str) -> set[str]:
+    return set(re.findall(r"\b(?:19|20)\d{2}\b", s))
+
+
+def pick_canonical_event_name(h1_text: str, h3_text: str) -> str:
+    """
+    Choose the display name from LiveRC breadcrumb headers.
+
+    LiveRC uses two layouts:
+    - Club/track page: h1 is the venue/club; h3 is the specific meet name (use h3).
+    - Series page: h1 is the primary series title; h3 may be a dated round label
+      that disagrees with h1 on year (use h1).
+
+    When h1 and h3 share most tokens but list different years, prefer h1.
+    When they describe different events (low token overlap), prefer h3.
+    """
+    h1n = (h1_text or "").strip()
+    h3n = (h3_text or "").strip()
+    if not h3n:
+        return h1n
+    if not h1n:
+        return h3n
+    if h1n.lower() == h3n.lower():
+        return h1n
+
+    t1 = _token_set(h1n)
+    t3 = _token_set(h3n)
+    if not t1 or not t3:
+        return h3n
+
+    overlap = len(t1 & t3)
+    smaller = min(len(t1), len(t3))
+    ratio = overlap / smaller if smaller else 0.0
+    if ratio < 0.5:
+        return h3n
+
+    years_h1 = _year_tokens(h1n)
+    years_h3 = _year_tokens(h3n)
+    year_mismatch = bool(years_h1 and years_h3 and years_h1 != years_h3)
+    if year_mismatch:
+        return h1n
+    return h3n
+
+
 class EventMetadata:
     """Event metadata from detail page."""
     def __init__(
@@ -49,7 +108,7 @@ class EventMetadataParser:
         Parse event metadata from HTML.
         
         CSS Selectors:
-        - Event name: h3.page-header (text after icon span)
+        - Event name: h1.page-header and h3.page-header (see pick_canonical_event_name)
         - Event date: h5.page-header (text after icon, format: "Nov 16, 2025")
         - Event ID: Extract from URL ?p=view_event&id={id}
         - Entries: table.table-sm tbody tr containing "Entries: {number}"
@@ -100,30 +159,15 @@ class EventMetadataParser:
                     url=url,
                 )
             
-            # Extract event name from h3.page-header
-            event_name_elem = tree.css_first("h3.page-header")
-            if not event_name_elem:
-                raise EventPageFormatError(
-                    "Event name header (h3.page-header) not found",
-                    url=url,
-                )
-            
-            # Get text after icon span
-            event_name = event_name_elem.text().strip()
-            # Remove icon text if present (usually starts with icon character)
-            # The actual name comes after the icon span
-            spans = event_name_elem.css("span")
-            if spans:
-                # Remove icon span text
-                for span in spans:
-                    span_text = span.text()
-                    if span_text:
-                        event_name = event_name.replace(span_text, "", 1)
-            
-            event_name = event_name.strip()
+            # Event title: LiveRC puts either the club (h1) + meet (h3) or series (h1) + round (h3).
+            h1_elem = tree.css_first("h1.page-header")
+            h3_elem = tree.css_first("h3.page-header")
+            h1_text = _normalize_header_text_from_element(h1_elem) if h1_elem else ""
+            h3_text = _normalize_header_text_from_element(h3_elem) if h3_elem else ""
+            event_name = pick_canonical_event_name(h1_text, h3_text)
             if not event_name:
                 raise EventPageFormatError(
-                    "Event name is empty after parsing",
+                    "Event name header (h1.page-header / h3.page-header) not found or empty",
                     url=url,
                 )
             
