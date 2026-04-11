@@ -99,7 +99,8 @@ class ConnectorRaceSummary(BaseModel):
     race_label: str
     race_order: Optional[int] = None
     race_url: str
-    start_time: Optional[datetime] = None
+    #: LiveRC event list column "Time Completed" (not session start).
+    time_completed: Optional[datetime] = None
     duration_seconds: Optional[int] = None
     section_header: Optional[str] = Field(
         default=None,

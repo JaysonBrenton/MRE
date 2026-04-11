@@ -13,7 +13,7 @@
  *
  * @relatedFiles
  * - src/components/event-analysis/ChartControls.tsx (button logic extracted from here)
- * - src/components/dashboard/EventAnalysisSection.tsx (uses this)
+ * - src/components/eventAnalysis/EventAnalysisSection.tsx (uses this)
  */
 
 "use client"
@@ -820,7 +820,7 @@ export default function EventAnalysisSidebar({
             </div>
           }
         >
-          <div className="space-y-4 p-4">
+          <div className="space-y-4">
             {/* Controls Row */}
             <div className="flex gap-2">
               {/* Class Filter Dropdown */}
@@ -1006,11 +1006,9 @@ export default function EventAnalysisSidebar({
           </div>
         }
       >
-        <div className="p-4">
-          <p className="text-[var(--token-text-primary)]">
-            {errorMessage || "An unknown error occurred while refreshing event data."}
-          </p>
-        </div>
+        <p className="text-[var(--token-text-primary)]">
+          {errorMessage || "An unknown error occurred while refreshing event data."}
+        </p>
       </Modal>
 
       {/* Success Modal */}
@@ -1039,7 +1037,7 @@ export default function EventAnalysisSidebar({
             </div>
           }
         >
-          <div className="p-4 space-y-4">
+          <div className="space-y-4">
             <p className="text-[var(--token-text-primary)]">
               {formatStatsMessage(successStats).message}
             </p>

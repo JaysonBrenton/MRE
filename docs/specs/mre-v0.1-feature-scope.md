@@ -363,7 +363,7 @@ types are fully in-scope and required.
 **Current implementation:** Lap time and event analysis charts from LiveRC lap
 data are implemented. GPS track visualization, sensor data visualization, sector
 analysis, and the My Telemetry flow (import/analysis) are not yet implemented;
-`/dashboard/my-telemetry` redirects to `/under-development`.
+`/eventAnalysis/my-telemetry` redirects to `/under-development`.
 
 **Visualization Types (All Required):**
 
@@ -438,7 +438,7 @@ when part of the public landing page.
 ### ❌ UI / Navigation
 
 - Multi-page flows beyond
-  login/registration/welcome/admin/dashboard/events/event-search/event-analysis/drivers
+  login/registration/welcome/admin/eventAnalysis/events/event-search/event-analysis/drivers
 
 **Note:** The following pages ARE in scope for version 0.1.1:
 

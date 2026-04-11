@@ -485,7 +485,7 @@ export default function EventTopAverageLapsPerClassTable({
           subtitle={<span className="block truncate">{detailClassName}</span>}
           maxWidth="3xl"
         >
-          <div className="p-4 space-y-3">
+          <div className="space-y-3">
             <p className="text-sm text-[var(--token-text-secondary)]">
               Each value is the driver&apos;s event-wide average (sum of race times ÷ sum of laps)
               in this class. Same ranking as the summary table, without the top-three cutoff.

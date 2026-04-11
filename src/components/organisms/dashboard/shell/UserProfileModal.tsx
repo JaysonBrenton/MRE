@@ -158,7 +158,7 @@ export default function UserProfileModal({ isOpen, onClose, userId, user }: User
         </div>
       }
     >
-      <div className="px-4 py-4 space-y-6">
+      <div className="space-y-6">
         {isLoading && (
           <div className="flex items-center justify-center py-12">
             <div className="text-sm text-[var(--token-text-muted)]">Loading profile...</div>

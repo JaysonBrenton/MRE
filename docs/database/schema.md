@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-03-22
+lastModified: 2026-04-07
 description: Human-readable database schema documentation for MRE application
 purpose:
   Provides comprehensive documentation of the database schema, including all
@@ -10,6 +10,8 @@ purpose:
   data model without reading the Prisma schema directly.
 relatedFiles:
   - prisma/schema.prisma (source of truth for schema)
+  - docs/architecture/car-taxonomy-user-mapping.md (CarTaxonomyNode,
+    UserCarTaxonomyRule)
   - docs/architecture/liverc-ingestion/04-data-model.md (ingestion-specific
     models)
   - src/lib/prisma.ts (Prisma client instance)
@@ -18,9 +20,9 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-03-22 — Schema overview and model list aligned with
-`prisma/schema.prisma` (29 models); added documentation for qual points, round
-rankings, multi-main results, venue corrections, and track maps.  
+**Last Updated:** 2026-04-07 — Schema overview and model list aligned with
+`prisma/schema.prisma` (31 models); includes `CarTaxonomyNode` and
+`UserCarTaxonomyRule` for per-user car-type mapping.  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -48,10 +50,11 @@ the database structure.
 
 ## Schema Overview
 
-The MRE database schema consists of **29 Prisma models** (see
+The MRE database schema consists of **31 Prisma models** (see
 `prisma/schema.prisma`):
 
 - **Identity & profiles:** `User`, `Persona`, `CarProfile`, `DriverProfile`
+- **Car taxonomy (user mapping):** `CarTaxonomyNode`, `UserCarTaxonomyRule`
 - **Catalogue & events:** `Track`, `Event`, `EventEntry`, `EventRaceClass`
 - **LiveRC / results ingestion:** `Race`, `Driver`, `RaceDriver`, `RaceResult`,
   `Lap`, `LapAnnotation`, `MultiMainResult`, `MultiMainResultEntry`
@@ -64,7 +67,7 @@ The MRE database schema consists of **29 Prisma models** (see
 
 **Enums:** `PersonaType`, `IngestDepth`, `UserDriverLinkStatus`,
 `EventDriverLinkMatchType`, `EventDriverLinkStatus`, `SessionType`,
-`EventVenueCorrectionRequestStatus`
+`EventVenueCorrectionRequestStatus`, `CarTaxonomyMatchType`
 
 Most models use UUID primary keys and include `createdAt` and `updatedAt`
 timestamps where applicable.
@@ -1084,6 +1087,33 @@ public share links, `isPublic` flag. Belongs to `User` and `Track`.
 
 ---
 
+### CarTaxonomyNode
+
+**Table:** `car_taxonomy_nodes`
+
+Admin-seeded **canonical RC vehicle-type** hierarchy: `slug` (unique), `label`,
+`parentId` (self-relation for discipline → group → leaf). **Leaf** nodes (no
+children) are the only valid targets for user rules. Seeded via migrations (e.g.
+`20260410120000_car_taxonomy_canonical_v1`).
+
+**Related:**
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
+
+---
+
+### UserCarTaxonomyRule
+
+**Table:** `user_car_taxonomy_rules`
+
+**Per-user, global** mapping rules: `matchType` (`CarTaxonomyMatchType`),
+`pattern_normalized`, `taxonomyNodeId` (FK to a leaf `CarTaxonomyNode`). Unique
+on `(user_id, match_type, pattern_normalized)`. Cascade delete with `User`.
+
+**Related:**
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
+
+---
+
 ## Transponder Number Storage Strategy
 
 Transponder numbers are stored at multiple levels in the MRE database to support
@@ -1275,6 +1305,15 @@ Lifecycle state for an event-level driver link (separate from match type).
 Admin workflow for venue correction requests.
 
 **Values:** `pending`, `approved`, `rejected`
+
+---
+
+### CarTaxonomyMatchType
+
+Which LiveRC-derived field a user rule matches (`CLASS_AND_LABEL`, `CLASS_NAME`,
+`RACE_LABEL`, `SECTION_HEADER`, `SESSION_TYPE`). Used by `UserCarTaxonomyRule`.
+Resolution order is documented in
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
 
 ---
 

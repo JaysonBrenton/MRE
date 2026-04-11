@@ -73,7 +73,7 @@ Home > Guides > Getting Started
 
 After login, MRE uses a **left navigation rail** plus **top status bar**
 (`src/components/organisms/dashboard/shell/`). Items include **My Event
-Analysis** (`/dashboard`), **Global Search** (`/search`), car profiles,
+Analysis** (`/eventAnalysis`), **Global Search** (`/search`), car profiles,
 practice-day tooling, and other entries; several items still route to
 `/under-development` until those areas ship.
 

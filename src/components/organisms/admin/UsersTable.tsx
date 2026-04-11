@@ -371,7 +371,7 @@ export default function UsersTable() {
             </div>
           }
         >
-          <div className="px-4 py-4">
+          <div>
             <p className="text-sm text-[var(--token-text-primary)]">
               {toggleAdminUser?.isAdmin
                 ? `Are you sure you want to remove administrator privileges from ${toggleAdminUser.email}?`

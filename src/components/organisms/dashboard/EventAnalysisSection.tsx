@@ -12,14 +12,14 @@
  *          fetches data client-side when an event is selected.
  *
  * @relatedFiles
- * - src/app/(authenticated)/dashboard/page.tsx (uses this)
+ * - src/app/(authenticated)/eventAnalysis/page.tsx (uses this)
  * - src/store/slices/dashboardSlice.ts (Redux state)
  * - src/components/event-analysis/ (tab components)
  */
 
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react"
+import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import {
   fetchEventAnalysisData,
@@ -41,10 +41,8 @@ import PracticeClassLeaderboard from "@/components/organisms/event-analysis/Prac
 import TrackLeaderboardTab from "@/components/organisms/event-analysis/TrackLeaderboardTab"
 import ClubHighlightsTab from "@/components/organisms/event-analysis/ClubHighlightsTab"
 import CountryLeaderboardCard from "@/components/organisms/event-analysis/CountryLeaderboardCard"
-import CorrectVenueModal from "@/components/organisms/event-analysis/CorrectVenueModal"
 import StandardButton from "@/components/atoms/StandardButton"
 import { typography } from "@/lib/typography"
-import { parseApiResponse } from "@/lib/api-response-helper"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import type { EventAnalysisDataApiResponse } from "@/types/event-analysis-api"
 
@@ -94,13 +92,21 @@ function transformApiResponseToEventAnalysisData(
       phone: apiData.event.phone ?? undefined,
       email: apiData.event.email ?? undefined,
       venueCorrected: apiData.event.venueCorrected ?? false,
+      sourceEventId: apiData.event.sourceEventId,
+      trackSlug: apiData.event.trackSlug,
     },
     isPracticeDay: apiData.isPracticeDay,
     races: apiData.races.map((race) => ({
       ...race,
+      completedAt: race.completedAt ? new Date(race.completedAt) : null,
       startTime: race.startTime ? new Date(race.startTime) : null,
-      sessionType: (race as { sessionType?: string | null }).sessionType ?? null,
-      sectionHeader: (race as { sectionHeader?: string | null }).sectionHeader ?? null,
+      sessionType: race.sessionType ?? null,
+      sectionHeader: race.sectionHeader ?? null,
+      vehicleType: race.vehicleType ?? null,
+      userCarTaxonomy: race.userCarTaxonomy,
+      skillTier: race.skillTier ?? null,
+      vehicleClassNormalizationNeedsReview: race.vehicleClassNormalizationNeedsReview ?? false,
+      eventRaceClassId: race.eventRaceClassId ?? null,
     })),
     drivers: apiData.drivers,
     entryList: apiData.entryList,
@@ -150,12 +156,6 @@ export default function EventAnalysisSection() {
   const lastFetchedEventId = useRef<string | null>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const [headerHeight, setHeaderHeight] = useState(0)
-  const [venueCorrectionStatus, setVenueCorrectionStatus] = useState<{
-    correction: { venueTrackName: string | null } | null
-    userRequest: { status: string; adminNotes?: string | null } | null
-    canSubmit: boolean
-  } | null>(null)
-  const [isCorrectVenueModalOpen, setIsCorrectVenueModalOpen] = useState(false)
   const [analysisSubTab, setAnalysisSubTab] = useState<EventAnalysisSubTabId>("event-results")
 
   /** Ladder sub-views apply to Event Analysis only; Session Analysis ignores them. */
@@ -169,57 +169,12 @@ export default function EventAnalysisSection() {
     return analysisSubTab
   }, [activeTab, analysisSubTab])
 
-  const fetchVenueCorrection = useCallback((eventId: string) => {
-    void (async () => {
-      try {
-        const res = await fetch(`/api/v1/events/${eventId}/venue-correction`, {
-          credentials: "include",
-        })
-        const result = await parseApiResponse<{
-          correction: {
-            id: string
-            eventId: string
-            venueTrackId: string | null
-            venueTrackName: string | null
-          } | null
-          userRequest: {
-            id: string
-            status: string
-            venueTrackId: string | null
-            venueTrackName: string | null
-            adminNotes?: string | null
-          } | null
-          canSubmit?: boolean
-        }>(res)
-        if (result.success && result.data) {
-          setVenueCorrectionStatus({
-            correction: result.data.correction,
-            userRequest: result.data.userRequest,
-            canSubmit: result.data.canSubmit ?? false,
-          })
-        } else {
-          setVenueCorrectionStatus(null)
-        }
-      } catch {
-        setVenueCorrectionStatus(null)
-      }
-    })()
-  }, [])
-
-  const handleVenueCorrectionSuccess = useCallback(() => {
-    if (selectedEventId) {
-      fetchVenueCorrection(selectedEventId)
-      dispatch(fetchEventAnalysisData(selectedEventId))
-    }
-  }, [selectedEventId, fetchVenueCorrection, dispatch])
-
   // Reset fetch state when event is deselected or changes
   useEffect(() => {
     if (!selectedEventId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasInitiatedFetch(false)
       lastFetchedEventId.current = null
-      setVenueCorrectionStatus(null)
     } else if (lastFetchedEventId.current && lastFetchedEventId.current !== selectedEventId) {
       // Event changed - selections are reset by EventActionsProvider
     }
@@ -229,11 +184,6 @@ export default function EventAnalysisSection() {
     if (!selectedEventId) return
     queueMicrotask(() => setAnalysisSubTab("event-results"))
   }, [selectedEventId])
-
-  // Fetch venue correction status when event is selected
-  useEffect(() => {
-    if (selectedEventId) fetchVenueCorrection(selectedEventId)
-  }, [selectedEventId, fetchVenueCorrection])
 
   // Fetch analysis data when event is selected
   // Trigger fetch immediately when event changes
@@ -423,20 +373,6 @@ export default function EventAnalysisSection() {
                     onTabChange={handleTabChange}
                     analysisSubTab={resolvedAnalysisSubTab}
                     onAnalysisSubTabChange={setAnalysisSubTab}
-                    venueCorrectionCanSubmit={venueCorrectionStatus?.canSubmit ?? false}
-                    onCorrectVenueClick={() => setIsCorrectVenueModalOpen(true)}
-                    belowLgRailFallback={
-                      !isPracticeDay ? (
-                        <button
-                          type="button"
-                          id="toolbar-fallback-my-events"
-                          onClick={() => dispatch(setActiveEventAnalysisTab("my-events"))}
-                          className="whitespace-nowrap border-b-2 border-transparent px-2 py-2 text-sm font-medium text-[var(--token-text-secondary)] transition-colors hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] sm:px-3"
-                        >
-                          My Events
-                        </button>
-                      ) : null
-                    }
                   />
                 )}
               </div>
@@ -572,14 +508,6 @@ export default function EventAnalysisSection() {
                 </div>
               )}
             </div>
-
-            <CorrectVenueModal
-              eventId={selectedEventId}
-              currentTrackName={transformedData.event.trackName}
-              isOpen={isCorrectVenueModalOpen}
-              onClose={() => setIsCorrectVenueModalOpen(false)}
-              onSuccess={handleVenueCorrectionSuccess}
-            />
           </>
         )}
       </div>

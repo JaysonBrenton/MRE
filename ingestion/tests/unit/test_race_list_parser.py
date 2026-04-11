@@ -85,12 +85,12 @@ def test_parse_race_list_parses_times(parser, event_html):
     url = "https://canberraoffroad.liverc.com/results/?p=view_event&id=486677"
     races = parser.parse(event_html, url)
     
-    # Some races should have start_time
-    races_with_time = [r for r in races if r.start_time is not None]
+    # Some races should have time_completed (LiveRC "Time Completed")
+    races_with_time = [r for r in races if r.time_completed is not None]
     assert len(races_with_time) > 0
     
     for race in races_with_time:
-        assert isinstance(race.start_time, datetime)
+        assert isinstance(race.time_completed, datetime)
 
 
 def test_parse_race_list_builds_urls(parser, event_html):

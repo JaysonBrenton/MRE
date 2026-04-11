@@ -8,11 +8,11 @@ import { closeCommandPalette } from "@/store/slices/uiSlice"
 import { typography } from "@/lib/typography"
 
 const COMMANDS = [
-  { id: "dashboard", label: "Go to My Event Analysis", action: "/dashboard" },
-  { id: "event", label: "View My Event", action: "/dashboard/my-event" },
+  { id: "eventAnalysis", label: "Go to My Event Analysis", action: "/eventAnalysis" },
+  { id: "event", label: "View My Event", action: "/eventAnalysis/my-event" },
   { id: "search", label: "Open Search", action: "/search" },
-  { id: "telemetry", label: "Telemetry Workspace", action: "/dashboard/my-telemetry" },
-  { id: "engineer", label: "My Engineer", action: "/dashboard/my-engineer" },
+  { id: "telemetry", label: "Telemetry Workspace", action: "/eventAnalysis/my-telemetry" },
+  { id: "engineer", label: "My Engineer", action: "/eventAnalysis/my-engineer" },
   { id: "team", label: "My Team", action: "/under-development" },
   { id: "club", label: "My Club", action: "/under-development" },
 ]

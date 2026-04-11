@@ -399,7 +399,7 @@ export default function PracticeDaySearchContainer({
     if (onSelectForDashboard) {
       onSelectForDashboard(eventId)
     } else {
-      window.location.href = `/dashboard?eventId=${eventId}`
+      window.location.href = `/eventAnalysis?eventId=${eventId}`
     }
   }
 

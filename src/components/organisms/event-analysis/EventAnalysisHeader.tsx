@@ -10,7 +10,7 @@
  * @purpose Displays event name with accent underline. Minimal, compact header.
  *
  * @relatedFiles
- * - src/components/dashboard/EventAnalysisSection.tsx (uses this)
+ * - src/components/eventAnalysis/EventAnalysisSection.tsx (uses this)
  */
 
 "use client"

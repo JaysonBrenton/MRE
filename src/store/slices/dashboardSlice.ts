@@ -140,6 +140,7 @@ export const fetchEventAnalysisData = createAsyncThunk<
     const response = await fetch(`/api/v1/events/${eventId}/analysis`, {
       credentials: "include",
       signal,
+      cache: "no-store",
     })
 
     if (!response.ok) {

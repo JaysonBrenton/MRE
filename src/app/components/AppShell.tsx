@@ -36,7 +36,7 @@ export default function AppShell({ children, session }: AppShellProps) {
       <header className="border-b border-[var(--token-border-muted)] bg-[var(--token-surface)]">
         <div className="mx-auto flex w-full min-w-0 max-w-7xl items-center justify-between gap-3 px-4 py-4">
           <Link
-            href="/dashboard"
+            href="/eventAnalysis"
             className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
           >
             My Race Engineer

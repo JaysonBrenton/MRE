@@ -20,9 +20,9 @@ async function main() {
 
   console.log("=== MRE Database Cleanup: Remove All LiveRC Data ===\n")
   console.log(
-    "This will delete all events, races, drivers, and related ingestion/fuzzy matching data."
+    "This will delete all events, races, drivers, related ingestion/fuzzy matching data, and per-user car taxonomy mappings."
   )
-  console.log("Users and tracks will be preserved.\n")
+  console.log("Users, tracks, and canonical car taxonomy nodes will be preserved.\n")
 
   // Count what will be deleted - core tables
   const eventCount = await prisma.event.count()
@@ -38,6 +38,7 @@ async function main() {
   const eventDriverLinkCount = await prisma.eventDriverLink.count()
   const userDriverLinkCount = await prisma.userDriverLink.count()
   const transponderOverrideCount = await prisma.transponderOverride.count()
+  const userCarTaxonomyRuleCount = await prisma.userCarTaxonomyRule.count()
 
   // Count audit logs that reference LiveRC data (events, ingestion operations)
   // Handle case where audit_logs table doesn't exist yet
@@ -85,6 +86,7 @@ async function main() {
   console.log(`    Event Driver Links: ${eventDriverLinkCount}`)
   console.log(`    User Driver Links: ${userDriverLinkCount}`)
   console.log(`    Transponder Overrides: ${transponderOverrideCount}`)
+  console.log(`    User Car Taxonomy Rules (mappings): ${userCarTaxonomyRuleCount}`)
   console.log(`    Audit Logs (event/ingestion): ${auditLogCount}`)
   console.log(`\n  Will be KEPT:`)
   console.log(`    Tracks: ${trackCount}`)
@@ -105,10 +107,11 @@ async function main() {
     eventDriverLinkCount +
     userDriverLinkCount +
     transponderOverrideCount +
+    userCarTaxonomyRuleCount +
     auditLogCount
 
   if (totalToDelete === 0) {
-    console.log("\n✅ No LiveRC event/driver data to delete.")
+    console.log("\n✅ No LiveRC event/driver data or taxonomy mappings to delete.")
     if (forceFlag) {
       const resetCount = await resetTrackLiveRcDashboardFields(prisma)
       console.log(
@@ -153,6 +156,10 @@ async function main() {
   console.log(
     `   (Cascade deleted: EventEntry, UserDriverLink, EventDriverLink, TransponderOverride)`
   )
+
+  console.log("\nStep 2b: Deleting all user car taxonomy rules (string → leaf mappings)...")
+  const taxonomyRulesDeleteResult = await prisma.userCarTaxonomyRule.deleteMany({})
+  console.log(`   ✅ Deleted ${taxonomyRulesDeleteResult.count} user car taxonomy rule(s)`)
 
   // Step 3: Verify cascade deletes worked and clean up any orphaned records
   // UserDriverLinks should be cascade deleted when drivers are deleted
@@ -248,6 +255,7 @@ async function main() {
   const finalEventDriverLinks = await prisma.eventDriverLink.count()
   const finalUserDriverLinks = await prisma.userDriverLink.count()
   const finalTransponderOverrides = await prisma.transponderOverride.count()
+  const finalUserCarTaxonomyRules = await prisma.userCarTaxonomyRule.count()
   // Check final audit log count (handle missing table)
   let finalAuditLogs = 0
   try {
@@ -300,6 +308,7 @@ async function main() {
     finalEventDriverLinks === 0 &&
     finalUserDriverLinks === 0 &&
     finalTransponderOverrides === 0 &&
+    finalUserCarTaxonomyRules === 0 &&
     finalAuditLogs === 0 &&
     tracksWithStaleDashboard === 0
 
@@ -327,6 +336,9 @@ async function main() {
   )
   console.log(
     `    Transponder Overrides: ${finalTransponderOverrides} ${finalTransponderOverrides === 0 ? "✅" : "❌"}`
+  )
+  console.log(
+    `    User Car Taxonomy Rules: ${finalUserCarTaxonomyRules} ${finalUserCarTaxonomyRules === 0 ? "✅" : "❌"}`
   )
   console.log(
     `    Audit Logs (event/ingestion): ${finalAuditLogs} ${finalAuditLogs === 0 ? "✅" : "❌"}`

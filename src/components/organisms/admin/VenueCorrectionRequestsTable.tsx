@@ -268,7 +268,7 @@ export default function VenueCorrectionRequestsTable() {
             </div>
           }
         >
-          <div className="space-y-3 px-4 py-4">
+          <div className="space-y-3">
             <label
               htmlFor="admin-notes"
               className="block text-sm text-[var(--token-text-secondary)]"

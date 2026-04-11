@@ -135,6 +135,12 @@ def test_parse_race_duration_seconds_no_match():
     assert parse_race_duration_seconds("<html><body>No length</body></html>") is None
 
 
+def test_parse_race_duration_seconds_one_hour():
+    """Length: H:MM:SS Timed (e.g. 1:00:00 mains)."""
+    html = '<span class="class_sub_header">Length: 1:00:00 Timed</span>'
+    assert parse_race_duration_seconds(html) == 3600
+
+
 def test_parse_race_results_extracts_qual_behind_and_total_time_seconds(parser, race_html):
     """Test that Qual, Behind, and total_time_seconds are extracted."""
     url = "https://canberraoffroad.liverc.com/results/?p=view_race_result&id=6304829"

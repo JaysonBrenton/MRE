@@ -15,7 +15,7 @@
  *          - Event click navigation
  *
  * @relatedFiles
- * - src/app/(authenticated)/dashboard/my-event/page.tsx (My Event page)
+ * - src/app/(authenticated)/eventAnalysis/my-event/page.tsx (My Event page)
  * - src/app/api/v1/personas/driver/events/route.ts (API endpoint)
  * - src/core/personas/driver-events.ts (driver event discovery logic)
  * - docs/development/testing-strategy.md (testing guidelines)
@@ -42,22 +42,22 @@ test.describe("My Event Page", () => {
     await page.getByRole("button", { name: /sign in/i }).click()
 
     // Wait for login to complete (redirect to dashboard or welcome page)
-    await page.waitForURL(/\/dashboard|\/welcome/, { timeout: 10000 })
+    await page.waitForURL(/\/eventAnalysis|\/welcome/, { timeout: 10000 })
   })
 
   test("should navigate to my-event page", async ({ page }) => {
     // Navigate to my-event page
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Verify we're on the correct page
-    await expect(page).toHaveURL(/\/dashboard\/my-event/)
+    await expect(page).toHaveURL(/\/eventAnalysis\/my-event/)
 
     // Verify page title/heading is visible
     await expect(page.getByRole("heading", { name: /my event/i })).toBeVisible()
   })
 
   test("should display page header and description", async ({ page }) => {
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Check page header
     await expect(page.getByRole("heading", { name: /my event/i })).toBeVisible()
@@ -67,7 +67,7 @@ test.describe("My Event Page", () => {
   })
 
   test("should handle loading state", async ({ page }) => {
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // The page should show loading state initially (if events are being fetched)
     // Wait for page to stabilize - either shows loading, content, or error
@@ -85,7 +85,7 @@ test.describe("My Event Page", () => {
   })
 
   test("should display events table when events exist", async ({ page }) => {
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Wait for page to load (either shows events or empty state)
     await page.waitForLoadState("networkidle")
@@ -119,7 +119,7 @@ test.describe("My Event Page", () => {
   })
 
   test("should display empty state when no events found", async ({ page }) => {
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Wait for page to load
     await page.waitForLoadState("networkidle")
@@ -162,14 +162,14 @@ test.describe("My Event Page", () => {
       })
     })
 
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Wait for error to appear
     await expect(page.getByText(/error:/i)).toBeVisible({ timeout: 5000 })
   })
 
   test("should navigate to event analysis page when event is clicked", async ({ page }) => {
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Wait for page to load
     await page.waitForLoadState("networkidle")
@@ -194,7 +194,7 @@ test.describe("My Event Page", () => {
   })
 
   test("should display event details correctly", async ({ page }) => {
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Wait for page to load
     await page.waitForLoadState("networkidle")
@@ -239,7 +239,7 @@ test.describe("My Event Page", () => {
 
   test("should filter events by match type when query parameter is provided", async ({ page }) => {
     // Navigate with exact match type filter (since we know the user has an exact match)
-    await page.goto("/dashboard/my-event?matchType=exact")
+    await page.goto("/eventAnalysis/my-event?matchType=exact")
 
     // Wait for page to load
     await page.waitForLoadState("networkidle")
@@ -260,7 +260,7 @@ test.describe("My Event Page", () => {
   })
 
   test("should show event count when events are displayed", async ({ page }) => {
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Wait for page to load
     await page.waitForLoadState("networkidle")
@@ -286,7 +286,7 @@ test.describe("My Event Page", () => {
 
   test("should display events for Jayson Brenton driver", async ({ page }) => {
     // Navigate to my-event page
-    await page.goto("/dashboard/my-event")
+    await page.goto("/eventAnalysis/my-event")
 
     // Wait for page to load and check for errors
     await page.waitForLoadState("networkidle")

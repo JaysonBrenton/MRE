@@ -172,9 +172,9 @@ class RaceListParser:
                         class_name = label_without_prefix
                         race_label = label_without_prefix
                     
-                    # Extract race time
+                    # LiveRC column "Time Completed" (session end / results stamp), not session start.
                     time_elem = row.css_first("td:nth-child(2)")
-                    start_time = None
+                    time_completed = None
                     if time_elem:
                         time_text = time_elem.text().strip()
                         if time_text:
@@ -189,12 +189,12 @@ class RaceListParser:
                                 
                                 for fmt in time_formats:
                                     try:
-                                        start_time = datetime.strptime(time_text, fmt)
+                                        time_completed = datetime.strptime(time_text, fmt)
                                         break
                                     except ValueError:
                                         continue
                                 
-                                if not start_time:
+                                if not time_completed:
                                     logger.warning("race_time_parse_error", time_text=time_text, race_id=race_id, url=url)
                             except Exception as e:
                                 logger.warning("race_time_parse_exception", error=str(e), race_id=race_id, url=url)
@@ -209,8 +209,8 @@ class RaceListParser:
                         race_label=race_label,
                         race_order=race_order,
                         race_url=race_url,
-                        start_time=start_time,
-                        duration_seconds=None,  # Not available in race list
+                        time_completed=time_completed,
+                        duration_seconds=None,  # From race result page: "Length: … Timed"
                         section_header=current_section_header,
                     )
                     races.append(race)

@@ -189,7 +189,7 @@ export const config = {
         if (auth?.user?.isAdmin) {
           return NextResponse.redirect(new URL("/admin", nextUrl))
         }
-        return NextResponse.redirect(new URL("/dashboard", nextUrl))
+        return NextResponse.redirect(new URL("/eventAnalysis", nextUrl))
       }
 
       if (isPublicPage || isApiAuthRoute || isPublicApiRoute) {
@@ -198,13 +198,13 @@ export const config = {
           if (auth?.user?.isAdmin) {
             return NextResponse.redirect(new URL("/admin", nextUrl))
           }
-          return NextResponse.redirect(new URL("/dashboard", nextUrl))
+          return NextResponse.redirect(new URL("/eventAnalysis", nextUrl))
         }
         return true
       }
 
       if (isAdminRoute && !auth?.user?.isAdmin) {
-        return NextResponse.redirect(new URL("/dashboard", nextUrl))
+        return NextResponse.redirect(new URL("/eventAnalysis", nextUrl))
       }
 
       // Protect admin API routes

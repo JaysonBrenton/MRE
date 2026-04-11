@@ -12,8 +12,8 @@
  *          on all pages, not just event analysis pages.
  *
  * @relatedFiles
- * - src/components/dashboard/EventActionsContext.tsx (context definition)
- * - src/components/dashboard/shell/AdaptiveNavigationRail.tsx (uses this context)
+ * - src/components/eventAnalysis/EventActionsContext.tsx (context definition)
+ * - src/components/eventAnalysis/shell/AdaptiveNavigationRail.tsx (uses this context)
  * - src/components/event-analysis/EventAnalysisSidebar.tsx (old implementation - to be removed)
  */
 
@@ -790,7 +790,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
             </div>
           }
         >
-          <div className="space-y-4 p-4">
+          <div className="space-y-4">
             {/* View as driver - practice day only; integrated so it lives with driver selection */}
             {isPracticeDay && drivers.length > 0 && (
               <div
@@ -985,11 +985,9 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
           </div>
         }
       >
-        <div className="p-4">
-          <p className="text-[var(--token-text-primary)]">
-            {errorMessage || "An unknown error occurred while refreshing event data."}
-          </p>
-        </div>
+        <p className="text-[var(--token-text-primary)]">
+          {errorMessage || "An unknown error occurred while refreshing event data."}
+        </p>
       </Modal>
 
       {/* Success Modal */}
@@ -1018,7 +1016,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
             </div>
           }
         >
-          <div className="p-4 space-y-4">
+          <div className="space-y-4">
             <p className="text-[var(--token-text-primary)]">
               {formatStatsMessage(successStats).message}
             </p>

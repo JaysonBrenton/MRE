@@ -33,6 +33,56 @@ import {
 import { formatLapTime, formatTimeUTC, formatTotalTime } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 
+type SortField =
+  | "className"
+  | "bracketLabel"
+  | "sessionKind"
+  | "startTime"
+  | "firstName"
+  | "secondName"
+  | "thirdName"
+
+type SortDirection = "asc" | "desc"
+
+interface SortIconProps {
+  field: SortField
+  activeField: SortField
+  direction: SortDirection
+}
+
+function SortIcon({ field, activeField, direction }: SortIconProps) {
+  if (activeField !== field) {
+    return null
+  }
+  return <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
+}
+
+function sessionColumnLabel(row: BracketOverallRow): string {
+  return row.sessionKind === "single-main" ? "Main final" : "Main (overall)"
+}
+
+/** Stable order when primary sort keys match (matches `buildEventMainResultRows`). */
+function compareBracketRowsTieBreak(a: BracketOverallRow, b: BracketOverallRow): number {
+  const c = a.className.localeCompare(b.className)
+  if (c !== 0) return c
+  return a.bracket.localeCompare(b.bracket)
+}
+
+/**
+ * Default sort is by class, then bracket. When only one class is shown the Class column is
+ * hidden but state may still be `className`; treat that as sorting by Main (`bracketLabel`)
+ * so the active column and toggle behavior match what the user sees.
+ */
+function resolveSortFieldForDisplay(sortField: SortField, showClassColumn: boolean): SortField {
+  if (!showClassColumn && sortField === "className") {
+    return "bracketLabel"
+  }
+  return sortField
+}
+
+const HEADER_BUTTON_CLASS =
+  "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+
 const SURFACE_CLASS =
   "rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
 const SURFACE_STYLE = {
@@ -48,6 +98,8 @@ export interface MainBracketResultsTableProps {
 }
 
 export default function MainBracketResultsTable({ races }: MainBracketResultsTableProps) {
+  const [sortField, setSortField] = useState<SortField>("className")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
   const [detailRow, setDetailRow] = useState<BracketOverallRow | null>(null)
@@ -58,6 +110,60 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
 
   const resultRows = useMemo(() => buildEventMainResultRows(mainsOnly), [mainsOnly])
 
+  const showClassColumn = useMemo(
+    () => new Set(resultRows.map((r) => r.className)).size > 1,
+    [resultRows]
+  )
+
+  const resolvedSortField = useMemo(
+    () => resolveSortFieldForDisplay(sortField, showClassColumn),
+    [sortField, showClassColumn]
+  )
+
+  const sortedRows = useMemo(() => {
+    const rows = [...resultRows]
+    rows.sort((a, b) => {
+      let cmp = 0
+      switch (resolvedSortField) {
+        case "className":
+          cmp = a.className.localeCompare(b.className)
+          break
+        case "bracketLabel":
+          cmp = a.bracketLabel.localeCompare(b.bracketLabel)
+          break
+        case "sessionKind":
+          cmp = sessionColumnLabel(a).localeCompare(sessionColumnLabel(b))
+          break
+        case "startTime": {
+          const aT = a.startTime?.getTime() ?? Number.POSITIVE_INFINITY
+          const bT = b.startTime?.getTime() ?? Number.POSITIVE_INFINITY
+          cmp = aT - bT
+          break
+        }
+        case "firstName":
+          cmp = a.firstName.localeCompare(b.firstName, undefined, { sensitivity: "base" })
+          break
+        case "secondName":
+          cmp = (a.secondName ?? "").localeCompare(b.secondName ?? "", undefined, {
+            sensitivity: "base",
+          })
+          break
+        case "thirdName":
+          cmp = (a.thirdName ?? "").localeCompare(b.thirdName ?? "", undefined, {
+            sensitivity: "base",
+          })
+          break
+        default:
+          cmp = 0
+      }
+      if (cmp !== 0) {
+        return sortDirection === "asc" ? cmp : -cmp
+      }
+      return compareBracketRowsTieBreak(a, b)
+    })
+    return rows
+  }, [resultRows, resolvedSortField, sortDirection])
+
   const resultRowSignature = useMemo(
     () => resultRows.map((r) => `${r.className}\0${r.bracket}`).join("|"),
     [resultRows]
@@ -65,18 +171,31 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
 
   useEffect(() => {
     queueMicrotask(() => setCurrentPage(1))
-  }, [resultRowSignature])
+  }, [resultRowSignature, sortField, sortDirection])
+
+  const handleSort = useCallback(
+    (field: SortField) => {
+      const active = resolveSortFieldForDisplay(sortField, showClassColumn)
+      if (active === field) {
+        setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+      } else {
+        setSortField(field)
+        setSortDirection("asc")
+      }
+    },
+    [sortField, showClassColumn]
+  )
 
   const handleRowsPerPageChange = useCallback((next: number) => {
     setItemsPerPage(next)
     setCurrentPage(1)
   }, [])
 
-  const totalPages = Math.max(1, Math.ceil(resultRows.length / itemsPerPage))
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / itemsPerPage))
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedRows = useMemo(
-    () => resultRows.slice(startIndex, startIndex + itemsPerPage),
-    [resultRows, startIndex, itemsPerPage]
+    () => sortedRows.slice(startIndex, startIndex + itemsPerPage),
+    [sortedRows, startIndex, itemsPerPage]
   )
 
   useEffect(() => {
@@ -159,10 +278,6 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
     return "Multiple Classes"
   }, [mainsOnly])
 
-  const showClassColumn = useMemo(() => {
-    return new Set(resultRows.map((r) => r.className)).size > 1
-  }, [resultRows])
-
   const closeDetail = useCallback(() => setDetailRow(null), [])
 
   if (resultRows.length === 0) {
@@ -199,44 +314,121 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                   header
                   className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
                 >
-                  Class
+                  <button
+                    type="button"
+                    onClick={() => handleSort("className")}
+                    className={HEADER_BUTTON_CLASS}
+                  >
+                    Class
+                    <SortIcon
+                      field="className"
+                      activeField={resolvedSortField}
+                      direction={sortDirection}
+                    />
+                  </button>
                 </StandardTableCell>
               )}
               <StandardTableCell
                 header
                 className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
               >
-                Main
+                <button
+                  type="button"
+                  onClick={() => handleSort("bracketLabel")}
+                  className={HEADER_BUTTON_CLASS}
+                >
+                  Main
+                  <SortIcon
+                    field="bracketLabel"
+                    activeField={resolvedSortField}
+                    direction={sortDirection}
+                  />
+                </button>
               </StandardTableCell>
               <StandardTableCell
                 header
                 className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
               >
-                Session
+                <button
+                  type="button"
+                  onClick={() => handleSort("sessionKind")}
+                  className={HEADER_BUTTON_CLASS}
+                >
+                  Session
+                  <SortIcon
+                    field="sessionKind"
+                    activeField={resolvedSortField}
+                    direction={sortDirection}
+                  />
+                </button>
               </StandardTableCell>
               <StandardTableCell
                 header
                 className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
               >
-                Start time
+                <button
+                  type="button"
+                  onClick={() => handleSort("startTime")}
+                  className={HEADER_BUTTON_CLASS}
+                >
+                  Start time
+                  <SortIcon
+                    field="startTime"
+                    activeField={resolvedSortField}
+                    direction={sortDirection}
+                  />
+                </button>
               </StandardTableCell>
               <StandardTableCell
                 header
                 className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
               >
-                1st
+                <button
+                  type="button"
+                  onClick={() => handleSort("firstName")}
+                  className={HEADER_BUTTON_CLASS}
+                >
+                  1st
+                  <SortIcon
+                    field="firstName"
+                    activeField={resolvedSortField}
+                    direction={sortDirection}
+                  />
+                </button>
               </StandardTableCell>
               <StandardTableCell
                 header
                 className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
               >
-                2nd
+                <button
+                  type="button"
+                  onClick={() => handleSort("secondName")}
+                  className={HEADER_BUTTON_CLASS}
+                >
+                  2nd
+                  <SortIcon
+                    field="secondName"
+                    activeField={resolvedSortField}
+                    direction={sortDirection}
+                  />
+                </button>
               </StandardTableCell>
               <StandardTableCell
                 header
                 className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
               >
-                3rd
+                <button
+                  type="button"
+                  onClick={() => handleSort("thirdName")}
+                  className={HEADER_BUTTON_CLASS}
+                >
+                  3rd
+                  <SortIcon
+                    field="thirdName"
+                    activeField={resolvedSortField}
+                    direction={sortDirection}
+                  />
+                </button>
               </StandardTableCell>
             </StandardTableRow>
           </StandardTableHeader>
@@ -275,7 +467,7 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                   )}
                 </StandardTableCell>
                 <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                  {row.sessionKind === "single-main" ? "Main final" : "Main (overall)"}
+                  {sessionColumnLabel(row)}
                 </StandardTableCell>
                 <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
                   {formatTimeUTC(row.startTime)}
@@ -299,7 +491,7 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
             totalPages={totalPages}
             onPageChange={setCurrentPage}
             itemsPerPage={itemsPerPage}
-            totalItems={resultRows.length}
+            totalItems={sortedRows.length}
             itemLabel="mains"
             onRowsPerPageChange={handleRowsPerPageChange}
             embedded
@@ -331,7 +523,7 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
             ) : undefined
           }
         >
-          <div className="p-4 space-y-3">
+          <div className="space-y-3">
             {detailRow.sessionKind === "aggregate" && (
               <>
                 <p className="text-sm text-[var(--token-text-secondary)]">

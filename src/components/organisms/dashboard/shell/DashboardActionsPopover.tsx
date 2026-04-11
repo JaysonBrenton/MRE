@@ -13,9 +13,9 @@
  *          of the Dashboard icon.
  *
  * @relatedFiles
- * - src/components/dashboard/shell/AdaptiveNavigationRail.tsx (uses this component)
+ * - src/components/eventAnalysis/shell/AdaptiveNavigationRail.tsx (uses this component)
  * - src/components/ui/Tooltip.tsx (similar portal-based positioning pattern)
- * - src/components/dashboard/EventActionsContext.tsx (provides event actions)
+ * - src/components/eventAnalysis/EventActionsContext.tsx (provides event actions)
  */
 
 "use client"

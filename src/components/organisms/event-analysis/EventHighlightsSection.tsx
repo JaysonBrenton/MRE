@@ -8,19 +8,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Trophy,
   Activity,
-  Users,
   TrendingUp,
   ArrowUpCircle,
-  CalendarClock,
   Timer,
   ListOrdered,
   CircleDot,
   Zap,
+  BarChart3,
 } from "lucide-react"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { buildEventHighlights, formatClosestFinishGap } from "@/core/events/build-event-highlights"
 import { EventHighlightsMixFilteredChart } from "./EventHighlightsMixCharts"
-import { formatDateLong, formatTimeDisplay } from "@/lib/date-utils"
 import { formatLapTime } from "@/lib/format-session-data"
 
 export interface EventHighlightsSectionProps {
@@ -174,14 +172,7 @@ function ClassHighlightsScrollRow({ items }: { items: ClassWinnerCard[] }) {
 export default function EventHighlightsSection({ data }: EventHighlightsSectionProps) {
   const [isOpen, setIsOpen] = useState(true)
 
-  const model = useMemo(
-    () =>
-      buildEventHighlights(data, {
-        formatTimeDisplay: (d) => formatTimeDisplay(d),
-        formatDateLong: (d) => formatDateLong(d),
-      }),
-    [data]
-  )
+  const model = useMemo(() => buildEventHighlights(data), [data])
 
   if (!model.hasHighlights) {
     return null
@@ -206,65 +197,16 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
       </button>
       {isOpen && (
         <div id={eventHighlightsContentId} className="mt-3 min-w-0 w-full max-w-full space-y-4">
-          <EventHighlightsMixFilteredChart
-            sessionMix={model.sessionMix}
-            classMixByDrivers={model.classMixByDrivers}
-            classMixByLaps={model.classMixByLaps}
-          />
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {model.deepestClass && (
-              <div className={accentCardClass()}>
-                <div className="mb-1 flex items-center gap-2 text-[0.65rem] font-semibold uppercase tracking-wide text-[var(--token-chart-series-2)]">
-                  <Users className="h-3.5 w-3.5" aria-hidden />
-                  Deepest class
-                </div>
-                <p className="text-sm font-semibold text-[var(--token-text-primary)]">
-                  {model.deepestClass.displayName}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--token-text-secondary)]">
-                  {model.deepestClass.entryCount} entries
-                </p>
-              </div>
-            )}
-
-            {model.mostConsistentDriver && (
-              <div className={accentCardClass()}>
-                <div className="mb-1 flex items-center gap-2 text-[0.65rem] font-semibold uppercase tracking-wide text-[var(--token-chart-series-3)]">
-                  <Activity className="h-3.5 w-3.5" aria-hidden />
-                  Most consistent
-                </div>
-                <p className="font-mono text-lg font-bold tabular-nums text-[var(--token-text-primary)]">
-                  {model.mostConsistentDriver.consistency.toFixed(1)}%
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--token-text-secondary)]">
-                  {model.mostConsistentDriver.driverName}
-                </p>
-                <p className="text-[0.65rem] text-[var(--token-text-muted)]">
-                  Event-wide average across {model.mostConsistentDriver.racesParticipated} session
-                  {model.mostConsistentDriver.racesParticipated === 1 ? "" : "s"}
-                </p>
-              </div>
-            )}
-
-            {model.fastestAvgLapDriver && (
-              <div className={accentCardClass()}>
-                <div className="mb-1 flex items-center gap-2 text-[0.65rem] font-semibold uppercase tracking-wide text-[var(--token-chart-series-8)]">
-                  <Timer className="h-3.5 w-3.5" aria-hidden />
-                  Fastest average lap
-                </div>
-                <p className="font-mono text-lg font-bold tabular-nums text-[var(--token-text-primary)]">
-                  {formatLapTime(model.fastestAvgLapDriver.avgLapTime)}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--token-text-secondary)]">
-                  {model.fastestAvgLapDriver.driverName}
-                </p>
-                <p className="text-[0.65rem] text-[var(--token-text-muted)]">
-                  Event-wide average across {model.fastestAvgLapDriver.racesParticipated} session
-                  {model.fastestAvgLapDriver.racesParticipated === 1 ? "" : "s"}
-                </p>
-              </div>
-            )}
+          <div className="min-w-0 w-full max-w-full">
+            <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+              <BarChart3 className="h-3.5 w-3.5 text-[var(--token-chart-series-1)]" aria-hidden />
+              Event mix
+            </h4>
+            <EventHighlightsMixFilteredChart
+              sessionMix={model.sessionMix}
+              classMixByDrivers={model.classMixByDrivers}
+              classMixByLaps={model.classMixByLaps}
+            />
           </div>
 
           {model.topLapsCompleted.length > 0 && (
@@ -312,6 +254,92 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
             </div>
           )}
 
+          {model.topConsistentDrivers.length > 0 && (
+            <div className="min-w-0 w-full max-w-full">
+              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+                <Activity className="h-3.5 w-3.5 text-[var(--token-chart-series-3)]" aria-hidden />
+                Consistency
+              </h4>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {model.topConsistentDrivers.map((row, index) => {
+                  const rankLabel = index === 0 ? "1st" : index === 1 ? "2nd" : "3rd"
+                  const rankColorClass =
+                    index === 0
+                      ? "text-[var(--token-chart-series-6)]"
+                      : index === 1
+                        ? "text-[var(--token-chart-series-5)]"
+                        : "text-[var(--token-chart-series-4)]"
+                  return (
+                    <div
+                      key={`${row.driverName}-${row.consistency}-${index}`}
+                      className={accentCardClass()}
+                    >
+                      <div
+                        className={`mb-1 flex items-center gap-2 text-[0.65rem] font-semibold uppercase tracking-wide ${rankColorClass}`}
+                      >
+                        <CircleDot className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        {rankLabel}
+                      </div>
+                      <p className="font-mono text-lg font-bold tabular-nums text-[var(--token-text-primary)]">
+                        {row.consistency.toFixed(1)}%
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold text-[var(--token-text-primary)]">
+                        {row.driverName}
+                      </p>
+                      <p className="mt-1 text-[0.65rem] text-[var(--token-text-muted)]">
+                        Event-wide average across {row.racesParticipated} session
+                        {row.racesParticipated === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {model.topFastestAvgLapDrivers.length > 0 && (
+            <div className="min-w-0 w-full max-w-full">
+              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+                <Timer className="h-3.5 w-3.5 text-[var(--token-chart-series-8)]" aria-hidden />
+                Fastest averages
+              </h4>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {model.topFastestAvgLapDrivers.map((row, index) => {
+                  const rankLabel = index === 0 ? "1st" : index === 1 ? "2nd" : "3rd"
+                  const rankColorClass =
+                    index === 0
+                      ? "text-[var(--token-chart-series-6)]"
+                      : index === 1
+                        ? "text-[var(--token-chart-series-5)]"
+                        : "text-[var(--token-chart-series-4)]"
+                  return (
+                    <div
+                      key={`${row.driverName}-${row.avgLapTime}-${index}`}
+                      className={accentCardClass()}
+                    >
+                      <div
+                        className={`mb-1 flex items-center gap-2 text-[0.65rem] font-semibold uppercase tracking-wide ${rankColorClass}`}
+                      >
+                        <CircleDot className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        {rankLabel}
+                      </div>
+                      <p className="font-mono text-lg font-bold tabular-nums text-[var(--token-text-primary)]">
+                        {formatLapTime(row.avgLapTime)}
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold text-[var(--token-text-primary)]">
+                        {row.driverName}
+                      </p>
+                      <p className="mt-1 text-[0.65rem] text-[var(--token-text-muted)]">
+                        Event-wide average across {row.racesParticipated} session
+                        {row.racesParticipated === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {model.topFastLaps.length > 0 && (
             <div className="min-w-0 w-full max-w-full">
               <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
@@ -348,16 +376,6 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
                   )
                 })}
               </div>
-            </div>
-          )}
-
-          {model.classWinners.length > 0 && (
-            <div className="min-w-0 w-full max-w-full">
-              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
-                <Trophy className="h-3.5 w-3.5 text-[var(--token-chart-series-4)]" aria-hidden />
-                Session highlight
-              </h4>
-              <ClassHighlightsScrollRow items={model.classWinners} />
             </div>
           )}
 
@@ -406,6 +424,16 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
             </div>
           )}
 
+          {model.classWinners.length > 0 && (
+            <div className="min-w-0 w-full max-w-full">
+              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+                <Trophy className="h-3.5 w-3.5 text-[var(--token-chart-series-4)]" aria-hidden />
+                Session highlight
+              </h4>
+              <ClassHighlightsScrollRow items={model.classWinners} />
+            </div>
+          )}
+
           {model.closestFinishes.length > 0 && (
             <div>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
@@ -432,34 +460,6 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
                         {formatClosestFinishGap(h)} gap
                       </span>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {model.dayTimeline.length > 0 && (
-            <div>
-              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
-                <CalendarClock
-                  className="h-3.5 w-3.5 text-[var(--token-chart-series-7)]"
-                  aria-hidden
-                />
-                Multi-day timeline
-              </h4>
-              <ul className="space-y-3 border-l-2 border-[var(--token-border-default)] pl-4">
-                {model.dayTimeline.map((row) => (
-                  <li key={row.dateLabel} className="relative -ml-px">
-                    <span
-                      className="absolute -left-[calc(0.25rem+5px)] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--token-surface)] bg-[var(--token-chart-series-7)]"
-                      aria-hidden
-                    />
-                    <p className="text-sm font-medium text-[var(--token-text-primary)]">
-                      {row.dateLabel}
-                    </p>
-                    <p className="text-xs text-[var(--token-text-secondary)]">
-                      {row.raceCount} session{row.raceCount === 1 ? "" : "s"} · {row.timeRange}
-                    </p>
                   </li>
                 ))}
               </ul>

@@ -106,7 +106,7 @@ total):
 - `src/components/event-search/TrackSelectionModal.tsx`
 - `src/components/event-analysis/ChartControls.tsx` (8 instances)
 - `src/components/event-analysis/ChartDataNotice.tsx`
-- `src/components/dashboard/EventEmptyState.tsx`
+- `src/components/eventAnalysis/EventEmptyState.tsx`
 - `src/app/drivers/[driverId]/TransponderOverrideForm.tsx`
 - `src/components/event-analysis/DriverSelectionHeader.tsx` (2 instances)
 - `src/components/event-analysis/CollapsibleDriverPanel.tsx`

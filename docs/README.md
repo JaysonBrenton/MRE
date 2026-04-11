@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-04-05
+lastModified: 2026-04-07
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -135,6 +135,19 @@ for performance rules. See
 [Ingestion Performance and Scaling](architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md)
 for ingestion performance.
 
+### [Car taxonomy and user car-type mapping](architecture/car-taxonomy-user-mapping.md)
+
+**Status:** Complete  
+**Last Updated:** 2026-04-07
+
+Per-user global rules that map LiveRC class names, race titles, and related
+strings to **canonical vehicle classes** for Session Analysis. Covers data
+model, migrations, APIs, resolution order, UI entry point (**Map car types**),
+and Docker operational notes.
+
+**Related:** [Database schema – CarTaxonomyNode](database/schema.md),
+[API Reference – car-taxonomy endpoints](api/api-reference.md).
+
 ---
 
 ## API Documentation
@@ -185,20 +198,23 @@ Database schema and data model documentation.
 ### [Database Schema Documentation](database/schema.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-29
+**Last Updated:** 2026-04-07
 
 Human-readable database schema documentation. Provides comprehensive overview of
 all models, relationships, indexes, constraints, and business rules. Essential
 reference for developers understanding the data model.
 
 **Key Topics:** Entity relationship diagram, models (User, Track, Event, Race,
-RaceDriver, RaceResult, Lap), enums, indexes, relationships, data lifecycle,
-common query patterns, performance considerations.
+RaceDriver, RaceResult, Lap, `CarTaxonomyNode`, `UserCarTaxonomyRule`), enums,
+indexes, relationships, data lifecycle, common query patterns, performance
+considerations.
 
 **Related:** See [Prisma Schema](../prisma/schema.prisma) for source of truth.
 See
 [LiveRC Ingestion Data Model](architecture/liverc-ingestion/04-data-model.md)
-for ingestion-specific models.
+for ingestion-specific models. See
+[Car taxonomy and user car-type mapping](architecture/car-taxonomy-user-mapping.md)
+for per-user vehicle-class mapping.
 
 ---
 

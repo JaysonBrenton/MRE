@@ -20,9 +20,14 @@ from ingestion.ingestion.errors import RacePageFormatError
 
 logger = get_logger(__name__)
 
-# Regex for "Length: 30:00 Timed" or "Length: 20:00 Timed" on race result page
-RACE_DURATION_PATTERN = re.compile(
-    r"Length:\s*(\d+):(\d+)\s*(?:Timed)?",
+# "Length: 1:00:00 Timed" (hours) — match before two-segment pattern
+RACE_DURATION_HMS_PATTERN = re.compile(
+    r"Length:\s*(\d+):(\d{2}):(\d{2})\s*(?:Timed)?",
+    re.IGNORECASE,
+)
+# "Length: 30:00 Timed" or "Length: 10:00 Timed" (minutes:seconds)
+RACE_DURATION_MS_PATTERN = re.compile(
+    r"Length:\s*(\d+):(\d{2})\s*(?:Timed)?",
     re.IGNORECASE,
 )
 
@@ -30,9 +35,16 @@ RACE_DURATION_PATTERN = re.compile(
 def parse_race_duration_seconds(html: str) -> Optional[int]:
     """
     Parse race duration in seconds from race result page HTML.
-    Looks for "Length: MM:SS Timed" (e.g. "Length: 30:00 Timed" -> 1800).
+    Supports "Length: H:MM:SS Timed" and "Length: MM:SS Timed" (LiveRC source of truth).
     """
-    match = RACE_DURATION_PATTERN.search(html)
+    hms = RACE_DURATION_HMS_PATTERN.search(html)
+    if hms:
+        try:
+            h, m, s = int(hms.group(1)), int(hms.group(2)), int(hms.group(3))
+            return h * 3600 + m * 60 + s
+        except (ValueError, IndexError):
+            return None
+    match = RACE_DURATION_MS_PATTERN.search(html)
     if not match:
         return None
     try:

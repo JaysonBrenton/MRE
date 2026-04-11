@@ -8,7 +8,7 @@
  * Used in the My Events tab (SessionChartTabs) and the standalone My Events page.
  *
  * @relatedFiles
- * - src/app/(authenticated)/dashboard/my-event/page.tsx
+ * - src/app/(authenticated)/eventAnalysis/my-event/page.tsx
  * - src/components/organisms/event-analysis/sessions/SessionChartTabs.tsx
  * - src/app/api/v1/personas/driver/events/route.ts
  * - src/app/api/v1/users/me/driver-links/events/[eventId]/route.ts
@@ -214,7 +214,7 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
     if (onEventSelect) {
       onEventSelect(eventId)
     } else {
-      router.push(`/dashboard?eventId=${eventId}`)
+      router.push(`/eventAnalysis?eventId=${eventId}`)
     }
   }
 
@@ -462,7 +462,7 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
                 Search for events
               </Link>
               <Link
-                href="/dashboard"
+                href="/eventAnalysis"
                 className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
               >
                 Go to My Event Analysis
@@ -486,7 +486,7 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
                 Search for events
               </Link>
               <Link
-                href="/dashboard"
+                href="/eventAnalysis"
                 className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
               >
                 Go to My Event Analysis

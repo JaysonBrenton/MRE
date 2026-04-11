@@ -243,7 +243,7 @@ export default function EventsPageClient() {
   }, [trackId, tracks])
 
   const handleEventClick = (eventId: string) => {
-    router.push(`/dashboard?eventId=${eventId}`)
+    router.push(`/eventAnalysis?eventId=${eventId}`)
   }
 
   const handleViewModeChange = (mode: ViewMode) => {

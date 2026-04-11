@@ -3,7 +3,7 @@
  *
  * @description Actions menu visible when viewing Overview or Entry List.
  *              Replaces the former sidebar event-actions block. Items: Find and Import Events,
- *              Refresh Event Data, Select a Class, Select Drivers, Clear Event.
+ *              Refresh Event Data, Map car types, Clear Event.
  *              "View as driver" (practice day) is in the Select Drivers modal.
  *
  * @purpose Single "Actions" control in the tab row; click opens dropdown with event actions.
@@ -12,8 +12,9 @@
 "use client"
 
 import { useRef, useEffect, useCallback, useState, type KeyboardEvent } from "react"
-import { createPortal } from "react-dom"
 import { useEventActionsOptional } from "@/components/organisms/dashboard/EventActionsContext"
+import { useAppSelector } from "@/store/hooks"
+import CarTaxonomyModal from "@/components/organisms/event-analysis/CarTaxonomyModal"
 
 function SearchIcon({ className }: { className?: string }) {
   return (
@@ -62,20 +63,17 @@ function ClearEventIcon({ className }: { className?: string }) {
   )
 }
 
-function MapPinIcon({ className }: { className?: string }) {
+function CarTaxonomyIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
+        d="M4 7h16M4 12h10M4 17h16"
         stroke="currentColor"
         strokeWidth={1.5}
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
-      <circle
-        cx="12"
-        cy="10"
-        r="3"
+      <path
+        d="M17 10v4l2-2-2-2z"
         stroke="currentColor"
         strokeWidth={1.5}
         strokeLinecap="round"
@@ -103,19 +101,12 @@ const iconClass = "h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
 const itemClass =
   "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)]/70 hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-accent)] disabled:opacity-50 disabled:cursor-not-allowed"
 
-export interface EventAnalysisActionsMenuProps {
-  /** When true, show "Correct venue" menu item */
-  venueCorrectionCanSubmit?: boolean
-  /** Called when user selects "Correct venue" */
-  onCorrectVenueClick?: () => void
-}
-
-export default function EventAnalysisActionsMenu({
-  venueCorrectionCanSubmit = false,
-  onCorrectVenueClick,
-}: EventAnalysisActionsMenuProps = {}) {
+export default function EventAnalysisActionsMenu() {
   const eventActions = useEventActionsOptional()
+  const analysisData = useAppSelector((s) => s.dashboard.analysisData)
+  const selectedEventId = useAppSelector((s) => s.dashboard.selectedEventId)
   const [open, setOpen] = useState(false)
+  const [carTaxonomyOpen, setCarTaxonomyOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -164,7 +155,7 @@ export default function EventAnalysisActionsMenu({
   )
 
   const handleButtonKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (eventActions.isRefreshing) return
+    if (!eventActions || eventActions.isRefreshing) return
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault()
       setOpen((prev) => !prev)
@@ -246,17 +237,17 @@ export default function EventAnalysisActionsMenu({
 
             {/* Select a Class and Select Drivers buttons removed per design */}
 
-            {/* Correct venue - when event selected and user can submit */}
-            {hasEventSelected && venueCorrectionCanSubmit && onCorrectVenueClick && (
+            {/* Map car types — global per-user rules; opens modal */}
+            {hasEventSelected && (
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => handleItemClick(onCorrectVenueClick)}
+                onClick={() => handleItemClick(() => setCarTaxonomyOpen(true))}
                 className={itemClass}
-                aria-label="Correct venue"
+                aria-label="Map car types for session analysis"
               >
-                <MapPinIcon className={iconClass} />
-                <span>Correct venue</span>
+                <CarTaxonomyIcon className={iconClass} />
+                <span>Map car types</span>
               </button>
             )}
 
@@ -276,6 +267,13 @@ export default function EventAnalysisActionsMenu({
           </div>
         </div>
       )}
+
+      <CarTaxonomyModal
+        isOpen={carTaxonomyOpen}
+        onClose={() => setCarTaxonomyOpen(false)}
+        eventId={selectedEventId}
+        analysisData={analysisData}
+      />
 
       {/* Class list popover removed with "Select a Class" */}
     </div>

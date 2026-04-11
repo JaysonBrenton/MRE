@@ -13,7 +13,7 @@
  *          automatically redirected to the dashboard.
  *
  * @relatedFiles
- * - src/app/(authenticated)/dashboard/page.tsx (user dashboard)
+ * - src/app/(authenticated)/eventAnalysis/page.tsx (user dashboard)
  * - src/app/(authenticated)/layout.tsx (shared layout wrapper)
  * - src/lib/auth.ts (session check)
  */
@@ -33,13 +33,13 @@ export default async function AdminPage() {
 
   // Redirect non-admins to dashboard
   if (!session.user.isAdmin) {
-    redirect("/dashboard")
+    redirect("/eventAnalysis")
   }
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6">
       <Breadcrumbs
-        items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Admin Console" }]}
+        items={[{ label: "My Event Analysis", href: "/eventAnalysis" }, { label: "Admin Console" }]}
       />
       <div>
         <h1 className="text-4xl font-semibold text-[var(--token-text-primary)]">

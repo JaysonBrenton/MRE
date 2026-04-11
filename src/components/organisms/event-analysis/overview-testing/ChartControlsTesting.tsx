@@ -599,7 +599,7 @@ export default function ChartControlsTesting({
             </div>
           }
         >
-          <div className="space-y-4 p-4">
+          <div className="space-y-4">
             {/* Controls Row */}
             <div className="flex gap-2">
               {/* Class Filter Dropdown */}

@@ -114,6 +114,72 @@ describe("buildEventHighlights", () => {
     expect(m.closestFinishes[0]!.gapSeconds).toBeCloseTo(0.5, 5)
     expect(m.mostConsistentDriver?.driverName).toBe("Alice")
     expect(m.mostConsistentDriver?.consistency).toBeCloseTo(0.9, 5)
+    expect(m.topConsistentDrivers).toHaveLength(2)
+    expect(m.topConsistentDrivers[0]).toEqual({
+      driverName: "Alice",
+      consistency: 0.9,
+      racesParticipated: 1,
+    })
+    expect(m.fastestAvgLapDriver?.driverName).toBe("Alice")
+    expect(m.fastestAvgLapDriver?.avgLapTime).toBeCloseTo(30, 5)
+    expect(m.topFastestAvgLapDrivers).toHaveLength(2)
+    expect(m.topFastestAvgLapDrivers[0]).toEqual({
+      driverName: "Alice",
+      avgLapTime: 30,
+      racesParticipated: 1,
+    })
+  })
+
+  it("ranks top three drivers by event-wide average consistency", () => {
+    const driver = (id: string, name: string, consistency: number, racesParticipated: number) => ({
+      driverId: id,
+      driverName: name,
+      racesParticipated,
+      bestLapTime: 28.5,
+      avgLapTime: 30,
+      consistency,
+    })
+    const data = baseData({
+      drivers: [
+        driver("d1", "Low", 0.5, 2),
+        driver("d2", "Mid", 0.75, 2),
+        driver("d3", "High", 0.95, 2),
+        driver("d4", "Fourth", 0.6, 1),
+      ],
+    })
+    const m = buildEventHighlights(data)
+    expect(m.topConsistentDrivers).toHaveLength(3)
+    expect(m.topConsistentDrivers[0]!.driverName).toBe("High")
+    expect(m.topConsistentDrivers[0]!.consistency).toBeCloseTo(0.95, 5)
+    expect(m.topConsistentDrivers[1]!.driverName).toBe("Mid")
+    expect(m.topConsistentDrivers[2]!.driverName).toBe("Fourth")
+    expect(m.mostConsistentDriver?.driverName).toBe("High")
+  })
+
+  it("ranks top three drivers by event-wide average lap time (fastest first)", () => {
+    const driver = (id: string, name: string, avgLapTime: number, racesParticipated: number) => ({
+      driverId: id,
+      driverName: name,
+      racesParticipated,
+      bestLapTime: avgLapTime - 1,
+      avgLapTime,
+      consistency: 0.85,
+    })
+    const data = baseData({
+      drivers: [
+        driver("d1", "Slowest", 32.5, 2),
+        driver("d2", "Mid", 29.0, 2),
+        driver("d3", "Fastest", 27.5, 2),
+        driver("d4", "Fourth", 28.0, 1),
+      ],
+    })
+    const m = buildEventHighlights(data)
+    expect(m.topFastestAvgLapDrivers).toHaveLength(3)
+    expect(m.topFastestAvgLapDrivers[0]!.driverName).toBe("Fastest")
+    expect(m.topFastestAvgLapDrivers[0]!.avgLapTime).toBeCloseTo(27.5, 5)
+    expect(m.topFastestAvgLapDrivers[1]!.driverName).toBe("Fourth")
+    expect(m.topFastestAvgLapDrivers[2]!.driverName).toBe("Mid")
+    expect(m.fastestAvgLapDriver?.driverName).toBe("Fastest")
   })
 
   it("ranks top three drivers by total laps completed across races", () => {
@@ -357,41 +423,6 @@ describe("buildEventHighlights", () => {
     expect(m.classMixByLaps[0]!.pct).toBeCloseTo((20 / 25) * 100, 5)
     expect(m.classMixByLaps[1]!.label).toBe("Touring")
     expect(m.classMixByLaps[1]!.count).toBe(5)
-  })
-
-  it("returns multi-day timeline when races span multiple local days", () => {
-    const data = baseData({
-      races: [
-        {
-          id: "r1",
-          raceId: "x1",
-          className: "Buggy",
-          raceLabel: "M1",
-          raceOrder: 1,
-          startTime: new Date("2026-03-01T10:00:00"),
-          durationSeconds: null,
-          sessionType: "main",
-          sectionHeader: null,
-          raceUrl: "u",
-          results: [],
-        },
-        {
-          id: "r2",
-          raceId: "x2",
-          className: "Buggy",
-          raceLabel: "M2",
-          raceOrder: 2,
-          startTime: new Date("2026-03-02T15:00:00"),
-          durationSeconds: null,
-          sessionType: "main",
-          sectionHeader: null,
-          raceUrl: "u",
-          results: [],
-        },
-      ],
-    })
-    const m = buildEventHighlights(data)
-    expect(m.dayTimeline.length).toBeGreaterThanOrEqual(1)
   })
 
   it("formats sub-second gaps", () => {

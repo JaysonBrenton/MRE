@@ -1,7 +1,7 @@
 ---
 created: 2026-04-05
 creator: Documentation
-lastModified: 2026-04-05
+lastModified: 2026-04-11
 description:
   Index of exploratory product and UX ideas not committed to the roadmap
 purpose:
@@ -21,6 +21,7 @@ under `docs/user-stories/future-features.md`.
 
 ## Ideas
 
-| Idea                                                  | Summary                                                                                 |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [Graph-based race replay](graph-based-race-replay.md) | Playback-style UX on top of lap trends (times, positions, gaps)—not video or track map. |
+| Idea                                                                    | Summary                                                                                 |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [Graph-based race replay](graph-based-race-replay.md)                   | Playback-style UX on top of lap trends (times, positions, gaps)—not video or track map. |
+| [Top qualifiers & seeding rounds](top-qualifiers-and-seeding-rounds.md) | Define and surface top qualifying outcomes and which sessions seed later rounds.        |

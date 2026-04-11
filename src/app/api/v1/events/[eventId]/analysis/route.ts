@@ -38,7 +38,7 @@ export async function GET(
 
   try {
     const { eventId } = await params
-    const analysisData = await getEventAnalysisData(eventId)
+    const analysisData = await getEventAnalysisData(eventId, session.user.id)
 
     if (!analysisData) {
       requestLogger.warn("Event not found", { eventId })
@@ -104,7 +104,8 @@ export async function GET(
       },
       200,
       undefined,
-      CACHE_CONTROL.USER_DATA
+      // Analysis payload changes after ingestion/reprocessing; avoid browser/proxy caching stale races (vehicle denorm, etc.).
+      CACHE_CONTROL.NO_CACHE
     )
   } catch (error) {
     // Log the error with more context for debugging

@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-04-05
+lastModified: 2026-04-07
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -13,7 +13,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-04-05  
+**Last Updated:** 2026-04-07  
 **Purpose:** Complete listing of all documentation files in the MRE repository
 
 This document provides a comprehensive index of every document in the MRE
@@ -190,6 +190,12 @@ for consistent error handling across the application.
 Performance requirements and benchmarks for the MRE application. Defines
 performance goals, performance budgets, database performance requirements, API
 response time targets, and optimization guidelines.
+
+#### [Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md)
+
+Canonical seeded vehicle-type tree, per-user global mapping rules, match types,
+resolution order, Session Analysis integration, HTTP APIs, and operational notes
+(Prisma migrate / generate in Docker).
 
 #### [Logging Standards](../architecture/logging.md)
 
@@ -698,6 +704,8 @@ Exploratory concepts not committed to the roadmap. See also
 Index of lightweight idea notes and links to individual write-ups.
 
 ### [Graph-based race replay](../future-ideas/graph-based-race-replay.md)
+
+### [Top qualifiers and seeding rounds](../future-ideas/top-qualifiers-and-seeding-rounds.md)
 
 Chart-driven playback (lap times, order, gaps) as an alternative to video or
 track-map replay, building on existing lap-trend data.

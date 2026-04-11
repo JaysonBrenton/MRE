@@ -22,7 +22,7 @@ export default async function EventAnalysisGuidePage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "My Event Analysis", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/eventAnalysis" },
           { label: "Guides", href: "/guides" },
           { label: "Event Analysis" },
         ]}

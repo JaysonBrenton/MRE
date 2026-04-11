@@ -45,7 +45,7 @@ describe("isPublicApi", () => {
     })
 
     it("should return false for non-API routes", () => {
-      expect(isPublicApi("/dashboard")).toBe(false)
+      expect(isPublicApi("/eventAnalysis")).toBe(false)
       expect(isPublicApi("/admin")).toBe(false)
       expect(isPublicApi("/login")).toBe(false)
     })

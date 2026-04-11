@@ -101,7 +101,7 @@ export default function TrackAndFavouritesModal({
         maxWidth="lg"
         ariaLabel="Select track"
       >
-        <div className="p-4 space-y-3" style={getContentBlockStyles()}>
+        <div className="space-y-3" style={getContentBlockStyles()}>
           {!selectedTrack && favouriteTrackOptions.length === 0 && (
             <p className="text-sm text-[var(--token-text-secondary)] mb-3">
               Select a track to search for events.

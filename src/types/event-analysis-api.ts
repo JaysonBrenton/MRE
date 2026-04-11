@@ -37,6 +37,8 @@ export type EventAnalysisDataApiResponse = Omit<
     className: string
     raceLabel: string
     raceOrder: number | null
+    /** LiveRC event list Time Completed (when known). */
+    completedAt?: string | null
     startTime: string | null
     durationSeconds: number | null
     /** Session type: practice, seeding, qualifying, heat, main, race, practiceday */
@@ -45,6 +47,18 @@ export type EventAnalysisDataApiResponse = Omit<
     sectionHeader?: string | null
     /** LiveRC race result page URL (e.g. https://rcra.liverc.com/results/?p=view_race_result&id=6580435) */
     raceUrl: string
+    /** Denormalized from ingestion (Session Analysis vehicle-first chips). */
+    vehicleType?: string | null
+    /** User-global taxonomy mapping (per-user; not shared). */
+    userCarTaxonomy?: {
+      taxonomyNodeId: string
+      slug: string
+      pathLabels: string[]
+      pathLabel: string
+    }
+    skillTier?: string | null
+    vehicleClassNormalizationNeedsReview?: boolean
+    eventRaceClassId?: string | null
     results: Array<{
       raceResultId: string
       raceDriverId: string

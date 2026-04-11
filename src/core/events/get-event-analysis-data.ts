@@ -31,6 +31,12 @@ import {
 import { calculateMostImprovedDrivers } from "./calculate-driver-improvement"
 import { getApprovedCorrection } from "./venue-correction"
 import { type LiveRcRaceResultStats, parseLiveRcRaceResultStats } from "./live-rc-race-result-stats"
+import {
+  indexUserCarTaxonomyRules,
+  resolveUserCarTaxonomyForRace,
+  type ResolvedUserCarTaxonomy,
+} from "@/core/car-taxonomy/resolve"
+import { assertCarTaxonomyPrismaReady } from "@/core/car-taxonomy/prisma-delegates"
 
 /** Placeholder values that should not appear in address display */
 const ADDRESS_PLACEHOLDERS = new Set(
@@ -389,6 +395,9 @@ export interface EventAnalysisData {
     className: string
     raceLabel: string
     raceOrder: number | null
+    /** LiveRC event list Time Completed (when known). */
+    completedAt?: Date | null
+    /** Derived session start: completedAt − durationSeconds; null if length unknown. */
     startTime: Date | null
     durationSeconds: number | null
     /** Session type: practice, seeding, qualifying, heat, main, race, practiceday */
@@ -397,6 +406,13 @@ export interface EventAnalysisData {
     sectionHeader: string | null
     /** LiveRC race result page URL (e.g. https://rcra.liverc.com/results/?p=view_race_result&id=6580435) */
     raceUrl: string
+    /** Denormalized vehicle type from ingestion (Session Analysis vehicle-first chips). */
+    vehicleType?: string | null
+    /** User-global car taxonomy mapping (per authenticated user); not shared between users. */
+    userCarTaxonomy?: ResolvedUserCarTaxonomy
+    skillTier?: string | null
+    vehicleClassNormalizationNeedsReview?: boolean
+    eventRaceClassId?: string | null
     results: Array<{
       raceResultId: string
       raceDriverId: string
@@ -1185,9 +1201,13 @@ function mergeEventEntriesForDisplayList<
  * Get comprehensive event analysis data
  *
  * @param eventId - Event's unique identifier
+ * @param userId - When set, merges per-user global car taxonomy rules into each race row.
  * @returns Structured event analysis data or null if event not found
  */
-export async function getEventAnalysisData(eventId: string): Promise<EventAnalysisData | null> {
+export async function getEventAnalysisData(
+  eventId: string,
+  userId?: string | null
+): Promise<EventAnalysisData | null> {
   // Fetch event with all related data
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -1324,9 +1344,10 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
   const raceDates: Date[] = []
 
   // Process each race
-  const racesData = racesToProcess.map((race) => {
-    if (race.startTime) {
-      raceDates.push(race.startTime)
+  const racesDataBase = racesToProcess.map((race) => {
+    const scheduleInstant = race.startTime ?? race.completedAt
+    if (scheduleInstant) {
+      raceDates.push(scheduleInstant)
     }
 
     const resultsData = race.results.map((result) => {
@@ -1464,14 +1485,51 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       className: race.className,
       raceLabel: race.raceLabel,
       raceOrder: race.raceOrder,
+      completedAt: race.completedAt,
       startTime: race.startTime,
       durationSeconds: race.durationSeconds,
       sessionType: race.sessionType ?? null,
       sectionHeader: race.sectionHeader ?? null,
       raceUrl: race.raceUrl,
+      vehicleType: race.vehicleType ?? null,
+      skillTier: race.skillTier ?? null,
+      vehicleClassNormalizationNeedsReview: race.vehicleClassNormalizationNeedsReview,
+      eventRaceClassId: race.eventRaceClassId ?? null,
       results: resultsData,
     }
   })
+
+  let racesData = racesDataBase
+  if (userId) {
+    assertCarTaxonomyPrismaReady()
+    const [rulesForResolve, taxonomyNodes] = await Promise.all([
+      prisma.userCarTaxonomyRule.findMany({
+        where: { userId },
+        select: { matchType: true, patternNormalized: true, taxonomyNodeId: true },
+      }),
+      prisma.carTaxonomyNode.findMany(),
+    ])
+    const ruleIndex = indexUserCarTaxonomyRules(rulesForResolve)
+    const nodeById = new Map(
+      taxonomyNodes.map((n) => [
+        n.id,
+        { id: n.id, parentId: n.parentId, slug: n.slug, label: n.label },
+      ])
+    )
+    racesData = racesDataBase.map((row) => {
+      const resolved = resolveUserCarTaxonomyForRace(
+        {
+          className: row.className,
+          raceLabel: row.raceLabel,
+          sectionHeader: row.sectionHeader,
+          sessionType: row.sessionType,
+        },
+        ruleIndex,
+        nodeById
+      )
+      return resolved ? { ...row, userCarTaxonomy: resolved } : row
+    })
+  }
 
   // Calculate driver aggregates
   const driversData = Array.from(driverMap.values()).map((driver) => {

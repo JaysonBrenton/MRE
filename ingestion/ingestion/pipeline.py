@@ -725,6 +725,7 @@ class IngestionPipeline:
                     "race_label": normalized_race["race_label"],
                     "race_order": normalized_race["race_order"],
                     "race_url": normalized_race["race_url"],
+                    "completed_at": normalized_race.get("completed_at"),
                     "start_time": normalized_race.get("start_time"),
                     "duration_seconds": normalized_race["duration_seconds"],
                     "session_type": normalized_race.get("session_type", "race"),  # Default to "race" if not inferred
@@ -741,6 +742,7 @@ class IngestionPipeline:
                 "race_label": normalized_race["race_label"],
                 "race_order": normalized_race["race_order"],
                 "race_url": normalized_race["race_url"],
+                "completed_at": normalized_race.get("completed_at"),
                 "start_time": normalized_race.get("start_time"),
                 "duration_seconds": normalized_race["duration_seconds"],
                 "session_type": normalized_race.get("session_type", "race"),  # Default to "race" if not inferred
@@ -965,19 +967,7 @@ class IngestionPipeline:
             race_results = repo.bulk_upsert_race_results(race_results_to_write)
             results_ingested = len(race_results)
             
-            # Step 4.5: Calculate and update race durations from results
-            # Calculate duration for all races that have results (only updates if duration_seconds is null)
-            if race_results_to_write:
-                # Get unique race IDs from results
-                unique_race_ids = list(set(UUID(race_id) for race_id in race_id_map.values()))
-                if unique_race_ids:
-                    updated_count = repo.calculate_and_update_race_durations(unique_race_ids)
-                    if updated_count > 0:
-                        logger.info(
-                            "race_durations_updated_from_results",
-                            updated_count=updated_count,
-                            total_races=len(unique_race_ids),
-                        )
+            # Race duration_seconds comes from LiveRC race page "Length: … Timed" only (see connector.fetch_race_page).
             
             # Step 5: Update laps with race_result IDs
             for lap in accumulated_laps:
@@ -1789,6 +1779,9 @@ class IngestionPipeline:
                 and event_entry_count > 0
                 and not new_source_race_ids
             ):
+                self._set_stage("vehicle_class_normalization", event_id)
+                repo.apply_race_vehicle_class_normalization(event_id)
+                repo.session.commit()
                 logger.info("ingestion_already_complete", event_id=str(event_id))
                 ingestion_timer.finish("already_complete")
                 return {
@@ -1904,6 +1897,10 @@ class IngestionPipeline:
             repo.session.commit()
 
             check_and_confirm_links(repo)
+            repo.session.commit()
+
+            self._set_stage("vehicle_class_normalization", event_id)
+            repo.apply_race_vehicle_class_normalization(event_id)
             repo.session.commit()
 
             event.ingest_depth = IngestDepth(depth)
@@ -2211,6 +2208,7 @@ class IngestionPipeline:
                                 "race_label": f"Practice - {s.driver_name}",
                                 "race_order": None,
                                 "race_url": s.session_url,
+                                "completed_at": None,
                                 "start_time": s.start_time,
                                 "duration_seconds": s.duration_seconds,
                                 "session_type": "practiceday",
@@ -2279,6 +2277,8 @@ class IngestionPipeline:
                                 vehicle_type=None,
                                 vehicle_type_needs_review=True,
                             )
+
+                        repo.apply_race_vehicle_class_normalization(event_id_uuid)
 
                         # Commit list phase so races + drivers + results + classes are persisted
                         session.commit()

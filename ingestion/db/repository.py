@@ -314,6 +314,7 @@ class Repository:
         race_order: Optional[int],
         race_url: str,
         start_time: Optional[datetime] = None,
+        completed_at: Optional[datetime] = None,
         duration_seconds: Optional[int] = None,
     ) -> Race:
         """
@@ -327,8 +328,9 @@ class Repository:
             race_label: Race label
             race_order: Race order
             race_url: Race URL
-            start_time: Start time
-            duration_seconds: Duration in seconds
+            start_time: Derived session start (LiveRC Time Completed − Length when both exist)
+            completed_at: LiveRC event list Time Completed
+            duration_seconds: Timed length from LiveRC race page (Length: … Timed)
         
         Returns:
             Race model instance
@@ -348,6 +350,8 @@ class Repository:
             race.race_order = race_order
             race.race_url = race_url
             race.start_time = start_time
+            if completed_at is not None:
+                race.completed_at = completed_at
             race.duration_seconds = duration_seconds
             logger.debug("race_updated", race_id=str(race.id), source_race_id=source_race_id)
             metrics.record_db_update("races")
@@ -363,6 +367,7 @@ class Repository:
                 race_order=race_order,
                 race_url=race_url,
                 start_time=start_time,
+                completed_at=completed_at,
                 duration_seconds=duration_seconds,
             )
             # Set timestamps explicitly for new records
@@ -718,6 +723,67 @@ class Repository:
             EventEntry.event_id == _uuid_to_str(event_id)
         )
         return list(self.session.scalars(stmt).unique().all())
+
+    def apply_race_vehicle_class_normalization(self, event_id: UUID) -> int:
+        """
+        Populate Race.vehicle_type, skill_tier, event_race_class_id from EventRaceClass,
+        LCQ/schedule heuristics, and entry-derived skill tiers.
+        """
+        from ingestion.common.race_vehicle_normalization import compute_normalization_for_event
+
+        eid = _uuid_to_str(event_id)
+        races = list(self.session.scalars(select(Race).where(Race.event_id == eid)).all())
+        if not races:
+            return 0
+
+        erc_rows = list(
+            self.session.scalars(select(EventRaceClass).where(EventRaceClass.event_id == eid)).all()
+        )
+        erc_by_class_name = {r.class_name: (str(r.id), r.vehicle_type) for r in erc_rows}
+
+        entries = list(self.session.scalars(select(EventEntry).where(EventEntry.event_id == eid)).all())
+        entry_class_names_by_driver: Dict[str, List[str]] = {}
+        for e in entries:
+            did = str(e.driver_id)
+            entry_class_names_by_driver.setdefault(did, []).append(e.class_name)
+
+        race_ids = [r.id for r in races]
+        driver_ids_by_race: Dict[str, List[str]] = {str(r.id): [] for r in races}
+        if race_ids:
+            rd_stmt = select(RaceDriver.race_id, RaceDriver.driver_id).where(
+                RaceDriver.race_id.in_(race_ids)
+            )
+            for race_id, driver_id in self.session.execute(rd_stmt).all():
+                rid = str(race_id)
+                if rid in driver_ids_by_race:
+                    driver_ids_by_race[rid].append(str(driver_id))
+
+        out = compute_normalization_for_event(
+            races,
+            erc_by_class_name,
+            driver_ids_by_race,
+            entry_class_names_by_driver,
+        )
+        now = datetime.utcnow()
+        updated = 0
+        for race in races:
+            rid = str(race.id)
+            if rid not in out:
+                continue
+            d = out[rid]
+            race.vehicle_type = d["vehicle_type"]
+            race.skill_tier = d["skill_tier"]
+            race.event_race_class_id = d["event_race_class_id"]
+            race.vehicle_class_normalization_needs_review = d["vehicle_class_normalization_needs_review"]
+            race.updated_at = now
+            updated += 1
+        self.session.flush()
+        logger.info(
+            "race_vehicle_class_normalization_applied",
+            event_id=eid,
+            races_updated=updated,
+        )
+        return updated
     
     def get_event_entries_by_class(
         self,
@@ -937,6 +1003,7 @@ class Repository:
                 - race_order: Optional[int]
                 - race_url: str
                 - start_time: Optional[datetime]
+                - completed_at: Optional[datetime]
                 - duration_seconds: Optional[int]
                 - session_type: Optional[str] (values: "race", "practice", "qualifying", "practiceday", "heat", "main", "seeding")
                 - section_header: Optional[str] (LiveRC round heading e.g. "Qualifier Round 1", "Main Events")
@@ -996,6 +1063,7 @@ class Repository:
                 "race_order": race_data.get("race_order"),
                 "race_url": race_data["race_url"],
                 "start_time": race_data.get("start_time"),
+                "completed_at": race_data.get("completed_at"),
                 "duration_seconds": race_data.get("duration_seconds"),
                 # Store enum object - TypeDecorator will handle conversion to value
                 "session_type": session_type_enum,
@@ -1010,13 +1078,22 @@ class Repository:
         stmt = pg_insert(Race).values(batch_data)
         
         # Build update set - update session_type only if provided (don't overwrite existing with None)
+        from sqlalchemy import case
+
         update_set = {
             "class_name": stmt.excluded.class_name,
             "race_label": stmt.excluded.race_label,
             "race_order": stmt.excluded.race_order,
             "race_url": stmt.excluded.race_url,
             "start_time": stmt.excluded.start_time,
-            "duration_seconds": stmt.excluded.duration_seconds,
+            "completed_at": case(
+                (stmt.excluded.completed_at.isnot(None), stmt.excluded.completed_at),
+                else_=Race.completed_at,
+            ),
+            "duration_seconds": case(
+                (stmt.excluded.duration_seconds.isnot(None), stmt.excluded.duration_seconds),
+                else_=Race.duration_seconds,
+            ),
             "section_header": stmt.excluded.section_header,
             "updated_at": now,
         }
@@ -1024,7 +1101,6 @@ class Repository:
         # Check if any race_data has session_type set
         has_session_type = any(r.get("session_type") for r in races_data)
         if has_session_type:
-            from sqlalchemy import case
             update_set["session_type"] = case(
                 (stmt.excluded.session_type.isnot(None), stmt.excluded.session_type),
                 else_=Race.session_type,

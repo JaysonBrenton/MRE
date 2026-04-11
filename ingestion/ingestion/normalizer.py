@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Optional
 
 from ingestion.common.logging import get_logger
+from ingestion.common.liverc_race_times import derive_race_start_from_liverc
 from ingestion.connectors.liverc.models import (
     ConnectorEventSummary,
     ConnectorRaceSummary,
@@ -432,14 +433,19 @@ class Normalizer:
         # the global event order. Using them would put Practice and Heat 1 both at order 1.
         race_order = race.race_order if race.race_order is not None else label_race_order
         
+        completed_at = race.time_completed
+        duration_seconds = race.duration_seconds
+        derived_start = derive_race_start_from_liverc(completed_at, duration_seconds)
+
         return {
             "source_race_id": race.source_race_id,
             "class_name": Normalizer.normalize_class_name(race.class_name),
             "race_label": normalized_label,
             "race_order": race_order,
             "race_url": race.race_url,
-            "start_time": race.start_time,
-            "duration_seconds": race.duration_seconds,
+            "completed_at": completed_at,
+            "start_time": derived_start,
+            "duration_seconds": duration_seconds,
             "session_type": session_type,
             "section_header": getattr(race, "section_header", None),
         }

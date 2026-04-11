@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-03-22
+lastModified: 2026-04-07
 description: Complete API reference documentation for all MRE API endpoints
 purpose:
   Provides a comprehensive catalog of all API endpoints, including
@@ -11,6 +11,7 @@ purpose:
   partners.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md (API standards)
+  - docs/architecture/car-taxonomy-user-mapping.md (car taxonomy APIs)
   - docs/architecture/liverc-ingestion/05-api-contracts.md (LiveRC ingestion
     APIs)
   - src/lib/api-utils.ts (response format utilities)
@@ -19,7 +20,9 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2026-03-22 — Aligned with `src/app/api/**/route.ts` and
+**Last Updated:** 2026-04-07 — Includes car taxonomy and user car-taxonomy-rules
+endpoints; event analysis notes `userCarTaxonomy` on races. Aligned with
+`src/app/api/**/route.ts` and
 [`docs/reference/generated/api-routes.manifest.json`](../reference/generated/api-routes.manifest.json):
 documented event entry list, laps, lap trend, track leaderboard, venue
 correction, leaderboards, practice day discover-range, ingestion job status,
@@ -894,6 +897,12 @@ Gets analysis data for a specific event including summary statistics.
 
 - `eventId` (string, required) - Event UUID
 
+**User-specific car taxonomy:** For the authenticated user, each item in
+`data.races` may include optional `userCarTaxonomy` (`taxonomyNodeId`, `slug`,
+`pathLabel`, `pathLabels`) when global user rules match that race’s class name,
+race label, section header, or session type. See
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
+
 **Response (200 OK):**
 
 ```json
@@ -930,6 +939,67 @@ Gets analysis data for a specific event including summary statistics.
 ```bash
 curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/events/uuid/analysis"
 ```
+
+---
+
+### GET /api/v1/car-taxonomy
+
+Returns the full **canonical car taxonomy** tree (`car_taxonomy_nodes`) for
+building the vehicle-class picker. Authentication required.
+
+**Response (200 OK):** `{ "success": true, "data": { "nodes": [ ... ] } }`
+
+**Cache-Control:** `public, max-age=3600` (reference data).
+
+**Related:**
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
+
+---
+
+### GET /api/v1/user/car-taxonomy-rules
+
+Lists the authenticated user’s **global** car mapping rules (includes nested
+`taxonomyNode`).
+
+**Authentication:** Required
+
+**Response (200 OK):** `{ "success": true, "data": { "rules": [ ... ] } }`
+
+**Cache-Control:** `no-store`
+
+---
+
+### POST /api/v1/user/car-taxonomy-rules
+
+Creates a rule. Target must be a **leaf** taxonomy node.
+
+**Authentication:** Required
+
+**Body (examples):**
+
+- `CLASS_NAME` / `RACE_LABEL` / `SECTION_HEADER` / `SESSION_TYPE`:
+  `{ "matchType", "pattern", "taxonomyNodeId" }`
+- `CLASS_AND_LABEL`:
+  `{ "matchType": "CLASS_AND_LABEL", "className", "raceLabel", "taxonomyNodeId" }`
+
+**Errors:** `409 CONFLICT` if a rule already exists for the same match key;
+`400` if the target is not a leaf.
+
+---
+
+### PATCH /api/v1/user/car-taxonomy-rules/[ruleId]
+
+Updates the target leaf: `{ "taxonomyNodeId" }`.
+
+**Authentication:** Required
+
+---
+
+### DELETE /api/v1/user/car-taxonomy-rules/[ruleId]
+
+Deletes a rule.
+
+**Authentication:** Required
 
 ---
 

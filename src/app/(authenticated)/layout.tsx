@@ -12,8 +12,8 @@
  *          UI across all authenticated routes without manually wrapping each page.
  *
  * @relatedFiles
- * - src/components/dashboard/DashboardLayout.tsx (adaptive racing shell)
- * - src/components/dashboard/shell/* (shell primitives)
+ * - src/components/eventAnalysis/DashboardLayout.tsx (adaptive racing shell)
+ * - src/components/eventAnalysis/shell/* (shell primitives)
  * - src/components/Footer.tsx (footer component)
  * - src/lib/auth.ts (authentication check)
  */

@@ -5,12 +5,15 @@ interface UiState {
   density: DensityPreference
   isNavCollapsed: boolean
   isCommandPaletteOpen: boolean
+  /** Slide-over nav open (viewports below `lg` where the rail is not persistently visible). */
+  isMobileNavOpen: boolean
 }
 
 const initialState: UiState = {
   density: "comfortable",
   isNavCollapsed: false,
   isCommandPaletteOpen: false,
+  isMobileNavOpen: false,
 }
 
 const uiSlice = createSlice({
@@ -32,6 +35,15 @@ const uiSlice = createSlice({
     closeCommandPalette: (state) => {
       state.isCommandPaletteOpen = false
     },
+    openMobileNav: (state) => {
+      state.isMobileNavOpen = true
+    },
+    closeMobileNav: (state) => {
+      state.isMobileNavOpen = false
+    },
+    toggleMobileNav: (state) => {
+      state.isMobileNavOpen = !state.isMobileNavOpen
+    },
   },
 })
 
@@ -41,5 +53,8 @@ export const {
   toggleNavCollapsed,
   openCommandPalette,
   closeCommandPalette,
+  openMobileNav,
+  closeMobileNav,
+  toggleMobileNav,
 } = uiSlice.actions
 export default uiSlice.reducer

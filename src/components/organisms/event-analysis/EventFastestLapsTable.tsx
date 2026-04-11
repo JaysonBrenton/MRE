@@ -1,15 +1,17 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
 import {
   StandardTable,
   StandardTableHeader,
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import Modal from "@/components/molecules/Modal"
 import ListPagination from "./ListPagination"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { formatLapTime, formatTimeUTC } from "@/lib/format-session-data"
+import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 
 type RaceSummary = EventAnalysisData["races"][number]
 type RaceResultSummary = RaceSummary["results"][number]
@@ -50,6 +52,30 @@ function SortIcon({ field, activeField, direction }: SortIconProps) {
     return null
   }
   return <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
+}
+
+/** Every driver's fastest lap in a race, fastest first (for session detail modal). */
+function fastestLapBreakdownForRace(race: RaceSummary) {
+  const rows: Array<{
+    raceResultId: string
+    driverName: string
+    lapTimeSeconds: number
+    lapNumber: number | null
+  }> = []
+  for (const r of race.results) {
+    if (r.fastLapTime == null || r.fastLapTime <= 0) continue
+    rows.push({
+      raceResultId: r.raceResultId,
+      driverName: r.driverName,
+      lapTimeSeconds: r.fastLapTime,
+      lapNumber: r.fastLapLapNumber ?? null,
+    })
+  }
+  rows.sort((a, b) => {
+    if (a.lapTimeSeconds !== b.lapTimeSeconds) return a.lapTimeSeconds - b.lapTimeSeconds
+    return a.driverName.localeCompare(b.driverName)
+  })
+  return rows
 }
 
 function formatSessionTypeLabel(sessionType: string | null, sectionHeader: string | null): string {
@@ -113,7 +139,10 @@ export default function EventFastestLapsTable({ races }: EventFastestLapsTablePr
   const [sortField, setSortField] = useState<SortField>("raceOrder")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
+  const [detailRaceId, setDetailRaceId] = useState<string | null>(null)
+  const [modalPage, setModalPage] = useState(1)
+  const [modalItemsPerPage, setModalItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
 
   const fastestLapRows: FastestLapRow[] = useMemo(() => {
     const rows: FastestLapRow[] = []
@@ -260,6 +289,68 @@ export default function EventFastestLapsTable({ races }: EventFastestLapsTablePr
     setItemsPerPage(rowsPerPage)
   }
 
+  const detailRace = useMemo(() => {
+    if (!detailRaceId) return null
+    return races.find((r) => r.id === detailRaceId) ?? null
+  }, [races, detailRaceId])
+
+  useEffect(() => {
+    if (detailRaceId && !detailRace) {
+      queueMicrotask(() => setDetailRaceId(null))
+    }
+  }, [detailRaceId, detailRace])
+
+  const breakdownRows = useMemo(() => {
+    if (!detailRace) return []
+    return fastestLapBreakdownForRace(detailRace)
+  }, [detailRace])
+
+  const modalRowCount = breakdownRows.length
+  const modalTotalPages = Math.max(1, Math.ceil(modalRowCount / modalItemsPerPage) || 1)
+  const modalStartIndex = (modalPage - 1) * modalItemsPerPage
+  const paginatedBreakdown = useMemo(
+    () => breakdownRows.slice(modalStartIndex, modalStartIndex + modalItemsPerPage),
+    [breakdownRows, modalStartIndex, modalItemsPerPage]
+  )
+
+  const detailModalKey = detailRaceId ?? ""
+
+  useEffect(() => {
+    if (!detailModalKey) return
+    queueMicrotask(() => setModalPage(1))
+  }, [detailModalKey])
+
+  useEffect(() => {
+    if (!detailRaceId) return
+    if (modalPage > modalTotalPages) {
+      queueMicrotask(() => setModalPage(modalTotalPages))
+    }
+  }, [detailRaceId, modalPage, modalTotalPages])
+
+  const handleModalRowsPerPageChange = useCallback((next: number) => {
+    setModalItemsPerPage(next)
+    setModalPage(1)
+  }, [])
+
+  const closeDetail = useCallback(() => setDetailRaceId(null), [])
+
+  const detailSubtitle = useMemo(() => {
+    if (!detailRace) return null
+    const sessionLabel = formatSessionTypeLabel(detailRace.sessionType, detailRace.sectionHeader)
+    const timeLabel = formatTimeUTC(detailRace.startTime)
+    return (
+      <span className="block space-y-0.5">
+        <span className="block truncate">
+          {detailRace.className} · {detailRace.raceLabel}
+        </span>
+        <span className="block truncate text-sm font-normal text-[var(--token-text-secondary)]">
+          {sessionLabel}
+          {timeLabel ? ` · ${timeLabel}` : ""}
+        </span>
+      </span>
+    )
+  }, [detailRace])
+
   if (fastestLapRows.length === 0) {
     return (
       <div
@@ -299,6 +390,11 @@ export default function EventFastestLapsTable({ races }: EventFastestLapsTablePr
             <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
               {`Fastest Laps: ${headerClassLabel}`}
             </h2>
+            {sortedRows.length > 0 && (
+              <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+                Click a row for every driver&apos;s fastest lap in that session.
+              </p>
+            )}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
             <div className="flex items-center gap-2">
@@ -455,7 +551,18 @@ export default function EventFastestLapsTable({ races }: EventFastestLapsTablePr
                 </StandardTableHeader>
                 <tbody>
                   {paginatedRows.map((row) => (
-                    <StandardTableRow key={row.raceId + "-" + row.driverName}>
+                    <StandardTableRow
+                      key={row.raceId}
+                      tabIndex={0}
+                      aria-label={`View all fastest laps for ${row.className} ${row.raceLabel}`}
+                      onClick={() => setDetailRaceId(row.raceId)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          setDetailRaceId(row.raceId)
+                        }
+                      }}
+                    >
                       <StandardTableCell>
                         {row.raceUrl ? (
                           <a
@@ -463,6 +570,7 @@ export default function EventFastestLapsTable({ races }: EventFastestLapsTablePr
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {row.raceLabel}
                           </a>
@@ -507,6 +615,102 @@ export default function EventFastestLapsTable({ races }: EventFastestLapsTablePr
           </>
         )}
       </div>
+
+      {detailRace && (
+        <Modal
+          isOpen
+          onClose={closeDetail}
+          title="Fastest laps by driver"
+          subtitle={detailSubtitle}
+          maxWidth="3xl"
+          footer={
+            detailRace.raceUrl ? (
+              <a
+                href={detailRace.raceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-[var(--token-accent)] underline-offset-2 hover:underline"
+              >
+                Open session on LiveRC
+              </a>
+            ) : undefined
+          }
+        >
+          <div className="space-y-3">
+            {breakdownRows.length === 0 ? (
+              <p className="text-sm text-[var(--token-text-secondary)]">
+                No drivers with a recorded fastest lap in this session.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-[var(--token-text-secondary)]">
+                  Each driver&apos;s best lap in this session, fastest first.
+                </p>
+                <StandardTable>
+                  <StandardTableHeader>
+                    <StandardTableRow className="border-b border-[var(--token-border-default)]">
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Rank
+                      </StandardTableCell>
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Driver
+                      </StandardTableCell>
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Fastest lap
+                      </StandardTableCell>
+                      <StandardTableCell
+                        header
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                      >
+                        Lap #
+                      </StandardTableCell>
+                    </StandardTableRow>
+                  </StandardTableHeader>
+                  <tbody>
+                    {paginatedBreakdown.map((entry, i) => (
+                      <StandardTableRow key={entry.raceResultId}>
+                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
+                          {modalStartIndex + i + 1}
+                        </StandardTableCell>
+                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                          {entry.driverName}
+                        </StandardTableCell>
+                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-secondary)]">
+                          {formatLapTime(entry.lapTimeSeconds)}
+                        </StandardTableCell>
+                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-secondary)]">
+                          {entry.lapNumber ?? "—"}
+                        </StandardTableCell>
+                      </StandardTableRow>
+                    ))}
+                  </tbody>
+                </StandardTable>
+                <div className="min-w-0 w-full max-w-full pt-2">
+                  <ListPagination
+                    currentPage={modalPage}
+                    totalPages={modalTotalPages}
+                    onPageChange={setModalPage}
+                    itemsPerPage={modalItemsPerPage}
+                    totalItems={modalRowCount}
+                    itemLabel="drivers"
+                    onRowsPerPageChange={handleModalRowsPerPageChange}
+                    embedded
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

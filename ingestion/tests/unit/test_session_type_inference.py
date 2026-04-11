@@ -70,7 +70,7 @@ def test_normalize_race_prefers_parser_race_order_over_label():
         race_label="EP Buggy Heat 1/3",
         race_order=8,
         race_url="https://example.com/race/123",
-        start_time=None,
+        time_completed=None,
     )
     result = Normalizer.normalize_race(race)
     assert result["race_order"] == 8, "Must use parser's race_order (8), not label-derived (1)"
@@ -85,7 +85,7 @@ def test_normalize_race_falls_back_to_label_order_when_parser_missing():
         race_label="EP Buggy Heat 2/3",
         race_order=None,
         race_url="https://example.com/race/123",
-        start_time=None,
+        time_completed=None,
     )
     result = Normalizer.normalize_race(race)
     assert result["race_order"] == 2, "Fall back to parse_race_label (2 from Heat 2/3)"

@@ -122,7 +122,7 @@ export default function SessionLapDataModal({
       maxWidth="4xl"
       ariaLabel="Session lap data"
     >
-      <div className="px-1 pb-2">
+      <div className="min-w-0">
         {loading && (
           <div className="flex items-center justify-center py-16 text-[var(--token-text-secondary)]">
             Loading lap data…

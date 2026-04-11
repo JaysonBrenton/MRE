@@ -70,7 +70,7 @@ function getDocumentBody(): HTMLElement | null {
  * This component ensures proper width constraints throughout the modal structure:
  * - Backdrop container has min-w-0
  * - Modal container has explicit width constraints and flex-shrink-0
- * - All sections (header, body, footer) have proper width constraints
+ * - All sections (header, body, footer) have proper width constraints; body uses px-4 py-4 to align with header/footer
  * - Prevents horizontal compression issues
  *
  * Usage:
@@ -236,7 +236,7 @@ export default function Modal({
 
         {/* Body */}
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4"
           style={{
             minWidth: 0,
             width: "100%",

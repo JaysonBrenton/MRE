@@ -47,6 +47,7 @@ model User {
   eventVenueCorrectionRequestsSubmitted EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestSubmitted")
   eventVenueCorrectionRequestsReviewed  EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestReviewed")
   eventsImported                      Event[]                       @relation("EventImportedBy")
+  carTaxonomyRules                    UserCarTaxonomyRule[]
 
   @@index([normalizedName])
   @@index([transponderNumber])
@@ -286,6 +287,7 @@ model EventRaceClass {
   updatedAt                DateTime     @updatedAt @map("updated_at")
   event                    Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   entries                  EventEntry[]
+  races                    Race[]
 
   @@unique([eventId, className])
   @@index([eventId])
@@ -302,16 +304,27 @@ model Race {
   raceLabel                String                @map("race_label")
   raceOrder                Int?                  @map("race_order")
   raceUrl                  String                @map("race_url")
+  /// LiveRC event list "Time Completed" (venue-local wall time as parsed from LiveRC).
+  completedAt              DateTime?             @map("completed_at")
+  /// Session start: completedAt − durationSeconds when both exist (LiveRC Length is source of truth for duration).
   startTime                DateTime?             @map("start_time")
   durationSeconds          Int?                  @map("duration_seconds")
   sessionType              SessionType?          @map("session_type")
   sectionHeader            String?               @map("section_header")
   raceMetadata             Json?                 @map("race_metadata") @db.JsonB
+  /// Denormalized from EventRaceClass.vehicleType for vehicle-first Session Analysis.
+  vehicleType              String?               @map("vehicle_type")
+  /// Skill tier (Junior, Senior, Sportsman) when inferable from class/label/entries.
+  skillTier                String?               @map("skill_tier")
+  /// True when vehicle/skill mapping could not be determined confidently.
+  vehicleClassNormalizationNeedsReview Boolean   @default(false) @map("vehicle_class_normalization_needs_review")
+  eventRaceClassId         String?               @map("event_race_class_id")
   createdAt                DateTime              @default(now()) @map("created_at")
   updatedAt                DateTime              @updatedAt @map("updated_at")
   drivers                  RaceDriver[]
   results                  RaceResult[]
   event                    Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventRaceClass           EventRaceClass?       @relation(fields: [eventRaceClassId], references: [id], onDelete: SetNull)
   transponderOverridesFrom TransponderOverride[]
 
   @@unique([eventId, sourceRaceId])
@@ -320,6 +333,8 @@ model Race {
   @@index([raceOrder])
   @@index([sessionType])
   @@index([eventId, sessionType])
+  @@index([eventId, vehicleType])
+  @@index([eventRaceClassId])
   @@map("races")
 }
 
@@ -635,6 +650,47 @@ enum SessionType {
   heat
   main
   seeding
+}
+
+/// How a user rule matches LiveRC-derived strings (global per user, not per event).
+enum CarTaxonomyMatchType {
+  CLASS_AND_LABEL
+  CLASS_NAME
+  RACE_LABEL
+  SECTION_HEADER
+  SESSION_TYPE
+}
+
+/// Hierarchical RC car / vehicle taxonomy (admin-seeded canonical classes). Users map strings to leaf nodes via UserCarTaxonomyRule.
+model CarTaxonomyNode {
+  id        String            @id @default(uuid())
+  parentId  String?           @map("parent_id")
+  slug      String            @unique
+  label     String
+  sortOrder Int               @default(0) @map("sort_order")
+  parent    CarTaxonomyNode?  @relation("CarTaxonomyHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  CarTaxonomyNode[] @relation("CarTaxonomyHierarchy")
+  rules     UserCarTaxonomyRule[]
+
+  @@index([parentId])
+  @@map("car_taxonomy_nodes")
+}
+
+model UserCarTaxonomyRule {
+  id                String               @id @default(uuid())
+  userId            String               @map("user_id")
+  matchType         CarTaxonomyMatchType @map("match_type")
+  /// Normalized match key: single-field patterns are lowercased/trimmed; CLASS_AND_LABEL uses "class||label".
+  patternNormalized String               @map("pattern_normalized")
+  taxonomyNodeId    String               @map("taxonomy_node_id")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taxonomyNode      CarTaxonomyNode      @relation(fields: [taxonomyNodeId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, matchType, patternNormalized])
+  @@index([userId])
+  @@map("user_car_taxonomy_rules")
 }
 
 model WeatherData {

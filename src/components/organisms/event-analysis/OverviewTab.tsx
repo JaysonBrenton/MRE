@@ -61,8 +61,8 @@ import {
   sortSessionTypeFilterKeys,
 } from "@/core/events/session-type-filter"
 import { Facebook, MapPin, Calendar, Phone, Globe, Mail } from "lucide-react"
-import { formatDateLong, formatTimeDisplay } from "@/lib/date-utils"
-import { formatLapTime } from "@/lib/format-session-data"
+import { formatDateLong } from "@/lib/date-utils"
+import { formatLapTime, formatTimeUTC } from "@/lib/format-session-data"
 import Tooltip from "@/components/molecules/Tooltip"
 import { computeDriverStatsFromRaces } from "@/core/events/compute-driver-stats-from-races"
 import {
@@ -70,24 +70,36 @@ import {
   getSubTabLabel,
   getSubTabOptions,
 } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
+import { isPlaceholderClass } from "@/lib/format-class-name"
+import {
+  UNCLASSIFIED_CLASS_KEY,
+  eventHasVehicleDenormalization,
+  getSkillTierOptionsForLiveRcClassName,
+  type RaceAnalysisRow,
+  raceMatchesLiveRcClassAndSkill,
+} from "@/core/events/session-analysis-filters"
 
-/** Sort races by start time (then race order), matching getEventLapTrend session ordering. */
-function sortRacesChronologically<T extends { startTime: Date | null; raceOrder: number | null }>(
-  races: T[]
-): T[] {
+/** Derived session start, else LiveRC Time Completed (matches formatTimeUTC / LiveRC wall clock). */
+function raceScheduleInstant(race: {
+  startTime: Date | null
+  completedAt?: Date | null
+}): Date | null {
+  const primary = race.startTime ?? race.completedAt ?? null
+  if (primary == null) return null
+  return primary instanceof Date ? primary : new Date(primary as unknown as string)
+}
+
+/** Sort races by schedule time (derived start, else completion), then race order. */
+function sortRacesChronologically<
+  T extends { startTime: Date | null; completedAt?: Date | null; raceOrder: number | null },
+>(races: T[]): T[] {
   return [...races].sort((a, b) => {
-    const hasA = a.startTime != null
-    const hasB = b.startTime != null
-    if (hasA && hasB) {
-      const ta =
-        a.startTime instanceof Date
-          ? a.startTime.getTime()
-          : new Date(a.startTime as unknown as string).getTime()
-      const tb =
-        b.startTime instanceof Date
-          ? b.startTime.getTime()
-          : new Date(b.startTime as unknown as string).getTime()
-      if (ta !== tb) return ta - tb
+    const ta = raceScheduleInstant(a)?.getTime()
+    const tb = raceScheduleInstant(b)?.getTime()
+    const hasA = ta != null && !Number.isNaN(ta)
+    const hasB = tb != null && !Number.isNaN(tb)
+    if (hasA && hasB && ta !== tb) {
+      return ta - tb
     }
     if (hasA && !hasB) return -1
     if (!hasA && hasB) return 1
@@ -118,6 +130,7 @@ type SessionRaceOptionFields = {
   className: string
   raceLabel: string
   startTime: Date | null
+  completedAt?: Date | null
   sessionType: string | null
   sectionHeader: string | null
 }
@@ -139,13 +152,10 @@ function formatSessionAnalysisRaceOptionLabel(
       : race.raceLabel
 
   let timeStr: string | null = null
-  if (race.startTime != null) {
-    const d =
-      race.startTime instanceof Date
-        ? race.startTime
-        : new Date(race.startTime as unknown as string)
-    const t = formatTimeDisplay(d)
-    if (t !== "Time not available") timeStr = t
+  const schedule = raceScheduleInstant(race)
+  if (schedule != null) {
+    const t = formatTimeUTC(schedule)
+    if (t !== "—") timeStr = t
   }
 
   const segments: string[] = []
@@ -264,17 +274,20 @@ export default function OverviewTab({
   const driversPerPage = 25
   const MAX_LAP_TREND_DRIVERS = 8
 
-  /** Session Analysis → compare chart: session type + race (independent of lap-trend controls). */
-  const [sessionCompareSessionTypeFilter, setSessionCompareSessionTypeFilter] = useState<
+  /** Session Analysis (vehicle): session type + race scope; drives class chip and driver-analysis charts. */
+  const [sessionAnalysisSessionTypeFilter, setSessionAnalysisSessionTypeFilter] = useState<
     string | null
   >(null)
-  const [sessionCompareRaceId, setSessionCompareRaceId] = useState<string | null>(null)
-  /** Session Analysis → lap-by-lap chart: separate session type + race scope */
-  const [sessionLapTrendSessionTypeFilter, setSessionLapTrendSessionTypeFilter] = useState<
-    string | null
-  >(null)
-  const [sessionLapTrendRaceId, setSessionLapTrendRaceId] = useState<string | null>(null)
+  const [sessionAnalysisSessionRaceId, setSessionAnalysisSessionRaceId] = useState<string | null>(
+    null
+  )
   const [sessionLapTrendChartDriverIds, setSessionLapTrendChartDriverIds] = useState<string[]>([])
+  const [sessionSkillTierFilter, setSessionSkillTierFilter] = useState<string | null>(null)
+  /** Default session type to first option once per event when multiple types exist (vehicle Session Analysis). */
+  const sessionAnalysisSessionTypeInitRef = useRef<{ eventId: string; applied: boolean }>({
+    eventId: "",
+    applied: false,
+  })
 
   const eventClassFilterTabs: EventAnalysisSubTabId[] = [
     "event-results",
@@ -285,7 +298,7 @@ export default function OverviewTab({
   // Get race classes from entry list
   const validClasses = useMemo(() => getValidClasses(data), [data])
 
-  // Filter races by selected class
+  // Filter races by selected class (legacy Session Analysis when vehicle denorm is absent)
   const filteredRaces = useMemo(() => {
     if (selectedClass === null) {
       return data.races
@@ -293,54 +306,60 @@ export default function OverviewTab({
     return data.races.filter((race) => race.className === selectedClass)
   }, [data.races, selectedClass])
 
-  /** Distinct normalized session types in the current class scope (for Session Analysis chips). */
+  const vehicleDenormActive = useMemo(() => eventHasVehicleDenormalization(data), [data])
+
+  /** Non-placeholder races for session type keys and session scope (vehicle path). */
+  const sessionAnalysisBaseRaces = useMemo(
+    () => data.races.filter((r) => !isPlaceholderClass(r.className)),
+    [data.races]
+  )
+
+  /** Distinct session types across the event (not scoped by class) so session controls work before class pick. */
   const sessionAnalysisSessionTypeKeys = useMemo(() => {
     const keys = new Set<string>()
-    for (const r of filteredRaces) {
+    for (const r of sessionAnalysisBaseRaces) {
       keys.add(normalizeRaceSessionType(r.sessionType))
     }
     return sortSessionTypeFilterKeys(Array.from(keys))
-  }, [filteredRaces])
+  }, [sessionAnalysisBaseRaces])
 
   /** When multiple session types exist, user must pick one before Session / per-chart drivers (no "All types"). */
   const sessionAnalysisRequiresSessionTypeChoice = sessionAnalysisSessionTypeKeys.length > 1
 
-  const sessionCompareSortedRaces = useMemo(() => {
-    const sorted = sortRacesChronologically(filteredRaces)
-    if (sessionCompareSessionTypeFilter === null) return sorted
-    return sorted.filter(
-      (r) => normalizeRaceSessionType(r.sessionType) === sessionCompareSessionTypeFilter
-    )
-  }, [filteredRaces, sessionCompareSessionTypeFilter])
+  const sessionSkillTierOptions = useMemo(() => {
+    if (!vehicleDenormActive) return [] as string[]
+    return getSkillTierOptionsForLiveRcClassName(data, selectedClass)
+  }, [data, vehicleDenormActive, selectedClass])
 
-  const sessionLapTrendSortedRaces = useMemo(() => {
-    const sorted = sortRacesChronologically(filteredRaces)
-    if (sessionLapTrendSessionTypeFilter === null) return sorted
-    return sorted.filter(
-      (r) => normalizeRaceSessionType(r.sessionType) === sessionLapTrendSessionTypeFilter
+  const sessionClassFilteredRaces = useMemo(() => {
+    if (!vehicleDenormActive) return []
+    return filteredRaces.filter((race) =>
+      raceMatchesLiveRcClassAndSkill(race, selectedClass, sessionSkillTierFilter)
     )
-  }, [filteredRaces, sessionLapTrendSessionTypeFilter])
+  }, [vehicleDenormActive, filteredRaces, selectedClass, sessionSkillTierFilter])
 
-  const sessionCompareScopedRaces = useMemo(() => {
-    if (sessionAnalysisRequiresSessionTypeChoice && sessionCompareSessionTypeFilter === null) {
+  const sessionAnalysisRaces = useMemo(() => {
+    if (vehicleDenormActive) return sessionClassFilteredRaces
+    return filteredRaces
+  }, [vehicleDenormActive, sessionClassFilteredRaces, filteredRaces])
+
+  const sessionDriverAnalysisSortedRaces = useMemo(() => {
+    const sorted = sortRacesChronologically(sessionAnalysisRaces)
+    if (sessionAnalysisSessionTypeFilter === null) return sorted
+    return sorted.filter(
+      (r) => normalizeRaceSessionType(r.sessionType) === sessionAnalysisSessionTypeFilter
+    )
+  }, [sessionAnalysisRaces, sessionAnalysisSessionTypeFilter])
+
+  const sessionDriverAnalysisScopedRaces = useMemo(() => {
+    if (sessionAnalysisRequiresSessionTypeChoice && sessionAnalysisSessionTypeFilter === null) {
       return []
     }
-    return sessionCompareSortedRaces
+    return sessionDriverAnalysisSortedRaces
   }, [
     sessionAnalysisRequiresSessionTypeChoice,
-    sessionCompareSessionTypeFilter,
-    sessionCompareSortedRaces,
-  ])
-
-  const sessionLapTrendScopedRaces = useMemo(() => {
-    if (sessionAnalysisRequiresSessionTypeChoice && sessionLapTrendSessionTypeFilter === null) {
-      return []
-    }
-    return sessionLapTrendSortedRaces
-  }, [
-    sessionAnalysisRequiresSessionTypeChoice,
-    sessionLapTrendSessionTypeFilter,
-    sessionLapTrendSortedRaces,
+    sessionAnalysisSessionTypeFilter,
+    sessionDriverAnalysisSortedRaces,
   ])
 
   const hasBumpUpsClassSelected =
@@ -499,8 +518,8 @@ export default function OverviewTab({
 
   // Calculate driver stats from filtered races only (for chart display)
   const driverStatsByClass = useMemo(
-    () => computeDriverStatsFromRaces(filteredRaces),
-    [filteredRaces]
+    () => computeDriverStatsFromRaces(sessionAnalysisRaces),
+    [sessionAnalysisRaces]
   )
 
   // Prepare unified chart data
@@ -537,7 +556,7 @@ export default function OverviewTab({
     const avgLapSeconds = avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
 
     let lapCount = 0
-    for (const race of filteredRaces) {
+    for (const race of sessionAnalysisRaces) {
       for (const result of race.results) {
         lapCount += result.lapsCompleted ?? 0
       }
@@ -546,78 +565,42 @@ export default function OverviewTab({
     const driverCount = driverStatsByClass.length
 
     return { bestLapSeconds, avgLapSeconds, lapCount, driverCount }
-  }, [driverStatsByClass, filteredRaces])
+  }, [driverStatsByClass, sessionAnalysisRaces])
 
-  /** Compare chart: effective race in session scope. */
-  const sessionComparePickedRaceId = useMemo(() => {
+  /** Driver Analysis charts: effective race in class + session type scope (compare + lap-by-lap share selection). */
+  const sessionDriverAnalysisPickedRaceId = useMemo(() => {
     if (!inSessionAnalysisSection || eventAnalysisTab !== "driver-analysis") {
       return null
     }
-    if (selectedClass === null || sessionCompareScopedRaces.length === 0) return null
+    if (selectedClass === null || sessionDriverAnalysisScopedRaces.length === 0) return null
     if (
-      sessionCompareRaceId &&
-      sessionCompareScopedRaces.some((r) => r.id === sessionCompareRaceId)
+      sessionAnalysisSessionRaceId &&
+      sessionDriverAnalysisScopedRaces.some((r) => r.id === sessionAnalysisSessionRaceId)
     ) {
-      return sessionCompareRaceId
+      return sessionAnalysisSessionRaceId
     }
-    return sessionCompareScopedRaces[0].id
+    return sessionDriverAnalysisScopedRaces[0].id
   }, [
     inSessionAnalysisSection,
     eventAnalysisTab,
     selectedClass,
-    sessionCompareScopedRaces,
-    sessionCompareRaceId,
+    sessionDriverAnalysisScopedRaces,
+    sessionAnalysisSessionRaceId,
   ])
 
-  /** Lap-by-lap: effective race (independent of compare chart). */
-  const sessionLapTrendPickedRaceId = useMemo(() => {
-    if (!inSessionAnalysisSection || eventAnalysisTab !== "driver-analysis") {
-      return null
-    }
-    if (selectedClass === null || sessionLapTrendScopedRaces.length === 0) return null
-    if (
-      sessionLapTrendRaceId &&
-      sessionLapTrendScopedRaces.some((r) => r.id === sessionLapTrendRaceId)
-    ) {
-      return sessionLapTrendRaceId
-    }
-    return sessionLapTrendScopedRaces[0].id
-  }, [
-    inSessionAnalysisSection,
-    eventAnalysisTab,
-    selectedClass,
-    sessionLapTrendScopedRaces,
-    sessionLapTrendRaceId,
-  ])
+  const sessionDriverAnalysisRace = useMemo(() => {
+    if (!sessionDriverAnalysisPickedRaceId) return null
+    return sessionAnalysisRaces.find((r) => r.id === sessionDriverAnalysisPickedRaceId) ?? null
+  }, [sessionAnalysisRaces, sessionDriverAnalysisPickedRaceId])
 
-  const sessionCompareDriverAnalysisRace = useMemo(() => {
-    if (!sessionComparePickedRaceId) return null
-    return filteredRaces.find((r) => r.id === sessionComparePickedRaceId) ?? null
-  }, [filteredRaces, sessionComparePickedRaceId])
-
-  const sessionLapTrendDriverAnalysisRace = useMemo(() => {
-    if (!sessionLapTrendPickedRaceId) return null
-    return filteredRaces.find((r) => r.id === sessionLapTrendPickedRaceId) ?? null
-  }, [filteredRaces, sessionLapTrendPickedRaceId])
-
-  const sessionCompareDriverStatsFromRace = useMemo(
+  const sessionDriverAnalysisDriverStatsFromRace = useMemo(
     () =>
-      sessionCompareDriverAnalysisRace
-        ? computeDriverStatsFromRaces([sessionCompareDriverAnalysisRace])
-        : [],
-    [sessionCompareDriverAnalysisRace]
-  )
-
-  const sessionLapTrendDriverStatsFromRace = useMemo(
-    () =>
-      sessionLapTrendDriverAnalysisRace
-        ? computeDriverStatsFromRaces([sessionLapTrendDriverAnalysisRace])
-        : [],
-    [sessionLapTrendDriverAnalysisRace]
+      sessionDriverAnalysisRace ? computeDriverStatsFromRaces([sessionDriverAnalysisRace]) : [],
+    [sessionDriverAnalysisRace]
   )
 
   const sessionUnifiedChartData = useMemo<DriverPerformanceData[]>(() => {
-    return sessionCompareDriverStatsFromRace.map((d) => ({
+    return sessionDriverAnalysisDriverStatsFromRace.map((d) => ({
       driverId: d.driverId,
       driverName: d.driverName,
       bestLapTime: d.bestLapTime,
@@ -634,39 +617,37 @@ export default function OverviewTab({
       top3Consecutive: d.top3Consecutive,
       stdDeviation: d.stdDeviation,
     }))
-  }, [sessionCompareDriverStatsFromRace])
+  }, [sessionDriverAnalysisDriverStatsFromRace])
 
   const sessionCompareChartSummaryStrip = useMemo(() => {
-    const bests = sessionCompareDriverStatsFromRace
+    const bests = sessionDriverAnalysisDriverStatsFromRace
       .map((d) => d.bestLapTime)
       .filter((t): t is number => t !== null && isFinite(t))
     const bestLapSeconds = bests.length > 0 ? Math.min(...bests) : null
 
-    const avgs = sessionCompareDriverStatsFromRace
+    const avgs = sessionDriverAnalysisDriverStatsFromRace
       .map((d) => d.avgLapTime)
       .filter((t): t is number => t !== null && isFinite(t))
     const avgLapSeconds = avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
 
     let lapCount = 0
-    if (sessionCompareDriverAnalysisRace) {
-      for (const result of sessionCompareDriverAnalysisRace.results) {
+    if (sessionDriverAnalysisRace) {
+      for (const result of sessionDriverAnalysisRace.results) {
         lapCount += result.lapsCompleted ?? 0
       }
     }
 
-    const driverCount = sessionCompareDriverStatsFromRace.length
+    const driverCount = sessionDriverAnalysisDriverStatsFromRace.length
 
     return { bestLapSeconds, avgLapSeconds, lapCount, driverCount }
-  }, [sessionCompareDriverStatsFromRace, sessionCompareDriverAnalysisRace])
+  }, [sessionDriverAnalysisDriverStatsFromRace, sessionDriverAnalysisRace])
 
   const sessionParticipantIds = useMemo(() => {
-    if (!sessionCompareDriverAnalysisRace) return new Set<string>()
+    if (!sessionDriverAnalysisRace) return new Set<string>()
     return new Set(
-      sessionCompareDriverAnalysisRace.results
-        .filter((r) => r.lapsCompleted > 0)
-        .map((r) => r.driverId)
+      sessionDriverAnalysisRace.results.filter((r) => r.lapsCompleted > 0).map((r) => r.driverId)
     )
-  }, [sessionCompareDriverAnalysisRace])
+  }, [sessionDriverAnalysisRace])
 
   // Build driver options from allDriverStats (not filtered by class)
   // This ensures ChartControls always has the complete driver list for correct class counts
@@ -732,7 +713,7 @@ export default function OverviewTab({
           expandedIds.add(driver.driverId)
         }
       })
-      filteredRaces.forEach((race) => {
+      sessionAnalysisRaces.forEach((race) => {
         race.results.forEach((result) => {
           if (
             result.lapsCompleted > 0 &&
@@ -752,7 +733,7 @@ export default function OverviewTab({
       const driverNameLookupSnapshot = new Map(driverNameLookup)
       return Array.from(expandedIds).filter((id) => driverNameLookupSnapshot.has(id))
     },
-    [data.drivers, data.races, driverStatsByClass, filteredRaces, driverNameLookup]
+    [data.drivers, data.races, driverStatsByClass, sessionAnalysisRaces, driverNameLookup]
   )
 
   // Expand selectedDriverIds to include all driverIds that match by normalized name
@@ -804,31 +785,44 @@ export default function OverviewTab({
     }
   }, [data.event.id, selectedClass, selectedDriverIds])
 
-  // When event changes, reset lap trend state
+  // When event changes, reset lap trend state and vehicle session scope
   useEffect(() => {
     queueMicrotask(() => {
       setLapTrendChartDriverIds([])
-      setSessionCompareRaceId(null)
-      setSessionCompareSessionTypeFilter(null)
-      setSessionLapTrendRaceId(null)
-      setSessionLapTrendSessionTypeFilter(null)
+      setSessionAnalysisSessionTypeFilter(null)
+      setSessionAnalysisSessionRaceId(null)
       setSessionLapTrendChartDriverIds([])
+      setSessionSkillTierFilter(null)
     })
   }, [data.event.id])
 
   useEffect(() => {
-    if (sessionCompareSessionTypeFilter === null) return
-    if (!sessionAnalysisSessionTypeKeys.includes(sessionCompareSessionTypeFilter)) {
-      queueMicrotask(() => setSessionCompareSessionTypeFilter(null))
+    if (sessionAnalysisSessionTypeFilter === null) return
+    if (!sessionAnalysisSessionTypeKeys.includes(sessionAnalysisSessionTypeFilter)) {
+      queueMicrotask(() => setSessionAnalysisSessionTypeFilter(null))
     }
-  }, [sessionCompareSessionTypeFilter, sessionAnalysisSessionTypeKeys])
+  }, [sessionAnalysisSessionTypeFilter, sessionAnalysisSessionTypeKeys])
 
+  /** Default session type when multiple exist so session scope is non-empty (Session Results, etc.). */
   useEffect(() => {
-    if (sessionLapTrendSessionTypeFilter === null) return
-    if (!sessionAnalysisSessionTypeKeys.includes(sessionLapTrendSessionTypeFilter)) {
-      queueMicrotask(() => setSessionLapTrendSessionTypeFilter(null))
+    const eventId = data.event.id
+    if (sessionAnalysisSessionTypeInitRef.current.eventId !== eventId) {
+      sessionAnalysisSessionTypeInitRef.current = { eventId, applied: false }
     }
-  }, [sessionLapTrendSessionTypeFilter, sessionAnalysisSessionTypeKeys])
+    if (!vehicleDenormActive) return
+    if (!sessionAnalysisRequiresSessionTypeChoice) return
+    if (sessionAnalysisSessionTypeKeys.length <= 1) return
+    if (sessionAnalysisSessionTypeInitRef.current.applied) return
+    const first = sessionAnalysisSessionTypeKeys[0]
+    if (first == null) return
+    sessionAnalysisSessionTypeInitRef.current.applied = true
+    queueMicrotask(() => setSessionAnalysisSessionTypeFilter(first))
+  }, [
+    data.event.id,
+    vehicleDenormActive,
+    sessionAnalysisRequiresSessionTypeChoice,
+    sessionAnalysisSessionTypeKeys,
+  ])
 
   // When class scope changes, clear lap-trend driver selection (user re-picks from filtered list)
   useEffect(() => {
@@ -837,19 +831,13 @@ export default function OverviewTab({
 
   useEffect(() => {
     queueMicrotask(() => setSessionLapTrendChartDriverIds([]))
-  }, [sessionLapTrendPickedRaceId, selectedClass])
+  }, [sessionDriverAnalysisPickedRaceId, selectedClass])
 
   useEffect(() => {
     if (!sessionAnalysisRequiresSessionTypeChoice) return
-    if (sessionCompareSessionTypeFilter !== null) return
-    queueMicrotask(() => setSessionCompareRaceId(null))
-  }, [sessionAnalysisRequiresSessionTypeChoice, sessionCompareSessionTypeFilter])
-
-  useEffect(() => {
-    if (!sessionAnalysisRequiresSessionTypeChoice) return
-    if (sessionLapTrendSessionTypeFilter !== null) return
-    queueMicrotask(() => setSessionLapTrendRaceId(null))
-  }, [sessionAnalysisRequiresSessionTypeChoice, sessionLapTrendSessionTypeFilter])
+    if (sessionAnalysisSessionTypeFilter !== null) return
+    queueMicrotask(() => setSessionAnalysisSessionRaceId(null))
+  }, [sessionAnalysisRequiresSessionTypeChoice, sessionAnalysisSessionTypeFilter])
 
   // Lap-by-lap trend: Event Analysis → Driver Analysis (event-wide) or Session Analysis → Driver Analysis (one session)
   useEffect(() => {
@@ -872,7 +860,7 @@ export default function OverviewTab({
       if (
         sessionLapTrendChartDriverIds.length === 0 ||
         selectedClass === null ||
-        !sessionLapTrendPickedRaceId
+        !sessionDriverAnalysisPickedRaceId
       ) {
         queueMicrotask(() => {
           setLapTrendData(null)
@@ -888,9 +876,15 @@ export default function OverviewTab({
       const cappedIds = sessionLapTrendChartDriverIds.slice(0, MAX_LAP_TREND_DRIVERS)
       const params = new URLSearchParams({
         driverIds: cappedIds.join(","),
-        raceId: sessionLapTrendPickedRaceId,
-        className: selectedClass,
+        raceId: sessionDriverAnalysisPickedRaceId,
       })
+      const lapTrendClassName =
+        vehicleDenormActive && selectedClass
+          ? selectedClass !== UNCLASSIFIED_CLASS_KEY
+            ? selectedClass
+            : null
+          : selectedClass
+      if (lapTrendClassName) params.set("className", lapTrendClassName)
       const url = `/api/v1/events/${data.event.id}/lap-trend?${params.toString()}`
       fetch(url, { cache: "no-store", credentials: "include" })
         .then(async (res) => {
@@ -956,7 +950,8 @@ export default function OverviewTab({
     variant,
     data.event.id,
     sessionLapTrendChartDriverIds,
-    sessionLapTrendPickedRaceId,
+    sessionDriverAnalysisPickedRaceId,
+    vehicleDenormActive,
     selectedClass,
     lapTrendChartDriverIds,
   ])
@@ -1012,15 +1007,15 @@ export default function OverviewTab({
 
   const sessionLapTrendDriverOptions = useMemo(
     () =>
-      sessionLapTrendDriverStatsFromRace
+      sessionDriverAnalysisDriverStatsFromRace
         .filter((d) => expandedSelectedDriverIds.includes(d.driverId))
         .map((d) => ({ driverId: d.driverId, driverName: d.driverName })),
-    [sessionLapTrendDriverStatsFromRace, expandedSelectedDriverIds]
+    [sessionDriverAnalysisDriverStatsFromRace, expandedSelectedDriverIds]
   )
 
   const sortedSessionLapTrendDrivers = useMemo(() => {
     if (!lapTrendData?.drivers?.length) return []
-    const statsMap = new Map(sessionLapTrendDriverStatsFromRace.map((d) => [d.driverId, d]))
+    const statsMap = new Map(sessionDriverAnalysisDriverStatsFromRace.map((d) => [d.driverId, d]))
     const key =
       lapTrendSortBy === "bestLap"
         ? "bestLapTime"
@@ -1055,7 +1050,7 @@ export default function OverviewTab({
       if (ascending) return aNum - bNum
       return bNum - aNum
     })
-  }, [lapTrendData, sessionLapTrendDriverStatsFromRace, lapTrendSortBy])
+  }, [lapTrendData, sessionDriverAnalysisDriverStatsFromRace, lapTrendSortBy])
 
   // Only consider selected drivers who are in the current class for "missing best lap" / "missing avg vs fastest"
   // so we don't incorrectly flag drivers from other classes when a class is selected
@@ -1065,9 +1060,9 @@ export default function OverviewTab({
   }, [expandedSelectedDriverIds, driverStatsByClass])
 
   const selectedDriverIdsInSessionRace = useMemo(() => {
-    const statsDriverIds = new Set(sessionCompareDriverStatsFromRace.map((d) => d.driverId))
+    const statsDriverIds = new Set(sessionDriverAnalysisDriverStatsFromRace.map((d) => d.driverId))
     return expandedSelectedDriverIds.filter((id) => statsDriverIds.has(id))
-  }, [expandedSelectedDriverIds, sessionCompareDriverStatsFromRace])
+  }, [expandedSelectedDriverIds, sessionDriverAnalysisDriverStatsFromRace])
 
   const missingBestLapDriverIds = useMemo(() => {
     if (!shouldShowSelectionNotices) {
@@ -1104,39 +1099,43 @@ export default function OverviewTab({
   )
 
   const sessionMissingBestLapDriverNames = useMemo(() => {
-    if (!shouldShowSelectionNotices || sessionCompareDriverStatsFromRace.length === 0) {
+    if (!shouldShowSelectionNotices || sessionDriverAnalysisDriverStatsFromRace.length === 0) {
       return []
     }
     return mapDriverIdsToNames(
-      getDriversMissingBestLap(selectedDriverIdsInSessionRace, sessionCompareDriverStatsFromRace)
+      getDriversMissingBestLap(
+        selectedDriverIdsInSessionRace,
+        sessionDriverAnalysisDriverStatsFromRace
+      )
     )
   }, [
     shouldShowSelectionNotices,
-    sessionCompareDriverStatsFromRace,
+    sessionDriverAnalysisDriverStatsFromRace,
     mapDriverIdsToNames,
     selectedDriverIdsInSessionRace,
   ])
 
   const sessionMissingAvgVsFastestDriverNames = useMemo(() => {
-    if (!shouldShowSelectionNotices || sessionCompareDriverStatsFromRace.length === 0) {
+    if (!shouldShowSelectionNotices || sessionDriverAnalysisDriverStatsFromRace.length === 0) {
       return []
     }
     return mapDriverIdsToNames(
       getDriversMissingAvgVsFastest(
         selectedDriverIdsInSessionRace,
-        sessionCompareDriverStatsFromRace
+        sessionDriverAnalysisDriverStatsFromRace
       )
     )
   }, [
     shouldShowSelectionNotices,
-    sessionCompareDriverStatsFromRace,
+    sessionDriverAnalysisDriverStatsFromRace,
     mapDriverIdsToNames,
     selectedDriverIdsInSessionRace,
   ])
 
   // Calculate unselected drivers in the selected class
   const unselectedDriversInClassIds = useMemo(() => {
-    if (!selectedClass) {
+    const classFilter = selectedClass
+    if (!classFilter || classFilter === UNCLASSIFIED_CLASS_KEY) {
       return []
     }
 
@@ -1146,7 +1145,7 @@ export default function OverviewTab({
     const classDrivers: Array<{ driverId: string }> = []
 
     data.races.forEach((race) => {
-      if (race.className === selectedClass) {
+      if (race.className?.trim() === classFilter) {
         race.results.forEach((result) => {
           // Only include drivers that are in driverOptions (have performance data)
           if (driverOptionsSet.has(result.driverId)) {
@@ -1172,18 +1171,21 @@ export default function OverviewTab({
   )
 
   const allDriversInClassSelected = useMemo(() => {
-    if (!selectedClass || driverStatsByClass.length === 0) {
+    const classScopeActive = selectedClass != null
+    if (!classScopeActive || driverStatsByClass.length === 0) {
       return false
     }
     return driverStatsByClass.every((d) => selectedDriverIds.includes(d.driverId))
   }, [selectedClass, driverStatsByClass, selectedDriverIds])
 
   const allSessionRaceDriversSelected = useMemo(() => {
-    if (!sessionCompareDriverAnalysisRace || sessionCompareDriverStatsFromRace.length === 0) {
+    if (!sessionDriverAnalysisRace || sessionDriverAnalysisDriverStatsFromRace.length === 0) {
       return false
     }
-    return sessionCompareDriverStatsFromRace.every((d) => selectedDriverIds.includes(d.driverId))
-  }, [sessionCompareDriverAnalysisRace, sessionCompareDriverStatsFromRace, selectedDriverIds])
+    return sessionDriverAnalysisDriverStatsFromRace.every((d) =>
+      selectedDriverIds.includes(d.driverId)
+    )
+  }, [sessionDriverAnalysisRace, sessionDriverAnalysisDriverStatsFromRace, selectedDriverIds])
 
   // Clear "Select All clicked" when user deselects a driver
   // Only clear if we previously had all selected and now we don't (user explicitly deselected)
@@ -1313,6 +1315,38 @@ export default function OverviewTab({
   const handleSessionClassFilterAllClassesClick = useCallback(() => {
     handleClassChange(null)
   }, [handleClassChange])
+
+  /** LiveRC class scope changed: reset skill tier (tiers are per class). */
+  useEffect(() => {
+    if (!vehicleDenormActive) return
+    queueMicrotask(() => setSessionSkillTierFilter(null))
+  }, [selectedClass, vehicleDenormActive])
+
+  /** Keep session race id in sync with class + session type scope (driver-analysis chart headers). */
+  useEffect(() => {
+    if (!vehicleDenormActive) return
+    const sorted = sessionDriverAnalysisSortedRaces
+    queueMicrotask(() => {
+      if (sessionAnalysisRequiresSessionTypeChoice && sessionAnalysisSessionTypeFilter === null) {
+        setSessionAnalysisSessionRaceId(null)
+        return
+      }
+      if (sorted.length === 0) {
+        setSessionAnalysisSessionRaceId(null)
+        return
+      }
+      setSessionAnalysisSessionRaceId((prev) => {
+        if (prev && sorted.some((r) => r.id === prev)) return prev
+        return sorted[0].id
+      })
+    })
+  }, [
+    vehicleDenormActive,
+    sessionDriverAnalysisSortedRaces,
+    sessionAnalysisRequiresSessionTypeChoice,
+    sessionAnalysisSessionTypeFilter,
+    data.event.id,
+  ])
 
   /** Arrow-key navigation for Bump-Up / Driver Progression class chips (`chipCount` excludes All Classes). */
   const handleSessionToolbarClassKeyDown = useCallback(
@@ -1473,24 +1507,15 @@ export default function OverviewTab({
   const bumpUpsSectionContentId = "bump-ups-section-content"
   const driverProgressionSectionContentId = "driver-progression-section-content"
 
-  /** Session Type + Session selects; `scope` binds independent compare vs lap-trend state. */
+  /** Session Type + Session selects; `scopedRaces` is either all races after type filter or class-scoped races for charts. */
   const renderSessionScopeControls = useCallback(
-    (idPrefix: string, scope: "compare" | "lap") => {
-      const typeFilter =
-        scope === "compare" ? sessionCompareSessionTypeFilter : sessionLapTrendSessionTypeFilter
-      const setTypeFilter =
-        scope === "compare"
-          ? setSessionCompareSessionTypeFilter
-          : setSessionLapTrendSessionTypeFilter
+    (idPrefix: string, scopedRaces: RaceAnalysisRow[], ariaSession: string) => {
+      const typeFilter = sessionAnalysisSessionTypeFilter
       const pickedRaceId =
-        scope === "compare" ? sessionComparePickedRaceId : sessionLapTrendPickedRaceId
-      const setRaceId = scope === "compare" ? setSessionCompareRaceId : setSessionLapTrendRaceId
-      const scopedRaces =
-        scope === "compare" ? sessionCompareScopedRaces : sessionLapTrendScopedRaces
-      const ariaSession =
-        scope === "compare"
-          ? "Choose session for compare chart (this block only)"
-          : "Choose session for lap-by-lap chart (this block only)"
+        sessionAnalysisSessionRaceId &&
+        scopedRaces.some((r) => r.id === sessionAnalysisSessionRaceId)
+          ? sessionAnalysisSessionRaceId
+          : (scopedRaces[0]?.id ?? null)
 
       return (
         <div className="flex min-w-0 flex-wrap items-center gap-3 gap-y-2">
@@ -1505,7 +1530,9 @@ export default function OverviewTab({
               <select
                 id={`${idPrefix}-session-type`}
                 value={typeFilter ?? ""}
-                onChange={(e) => setTypeFilter(e.target.value ? e.target.value : null)}
+                onChange={(e) =>
+                  setSessionAnalysisSessionTypeFilter(e.target.value ? e.target.value : null)
+                }
                 className="min-w-0 max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
                 aria-label="Choose session type (required before session and driver selection)"
                 required
@@ -1531,7 +1558,7 @@ export default function OverviewTab({
             <select
               id={`${idPrefix}-session-race`}
               value={pickedRaceId ?? ""}
-              onChange={(e) => setRaceId(e.target.value || null)}
+              onChange={(e) => setSessionAnalysisSessionRaceId(e.target.value || null)}
               disabled={sessionAnalysisRequiresSessionTypeChoice && typeFilter === null}
               className="min-w-0 max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)] disabled:cursor-not-allowed disabled:opacity-50"
               aria-label={ariaSession}
@@ -1560,13 +1587,9 @@ export default function OverviewTab({
     },
     [
       sessionAnalysisSessionTypeKeys,
-      sessionCompareSessionTypeFilter,
-      sessionLapTrendSessionTypeFilter,
+      sessionAnalysisSessionTypeFilter,
+      sessionAnalysisSessionRaceId,
       sessionAnalysisRequiresSessionTypeChoice,
-      sessionCompareScopedRaces,
-      sessionLapTrendScopedRaces,
-      sessionComparePickedRaceId,
-      sessionLapTrendPickedRaceId,
       selectedClass,
     ]
   )
@@ -2656,64 +2679,111 @@ export default function OverviewTab({
             {(eventClassFilterTabs.includes(eventAnalysisTab) ||
               eventAnalysisTab === "driver-analysis") &&
               validClasses.length > 0 && (
-                <div
-                  className="mt-2 -mx-1 overflow-x-hidden"
-                  role="toolbar"
-                  aria-label="Filter session analysis by class (charts and driver selection). All Classes shows every class; it is the last control."
-                >
-                  <div className="flex flex-wrap gap-2 px-1 py-1">
-                    {validClasses.map((className, index) => {
-                      const isActive = selectedClass === className
-                      return (
-                        <button
-                          key={className}
-                          type="button"
-                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                            isActive
-                              ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                              : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                          }`}
-                          onClick={() => {
-                            handleSessionClassChipClick(className)
-                          }}
-                          aria-pressed={isActive}
-                          onKeyDown={(event) =>
-                            handleEventClassFilterKeyDown(event, index, classFilterButtonRefs)
-                          }
-                          ref={(el) => {
-                            classFilterButtonRefs.current[index] = el
-                          }}
-                        >
-                          <span>{className}</span>
-                        </button>
-                      )
-                    })}
-                    <button
-                      key="__all-classes__"
-                      type="button"
-                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                        selectedClass === null
-                          ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                          : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                      }`}
-                      onClick={() => {
-                        handleSessionClassFilterAllClassesClick()
-                      }}
-                      aria-pressed={selectedClass === null}
-                      onKeyDown={(event) =>
-                        handleEventClassFilterKeyDown(
-                          event,
-                          validClasses.length,
-                          classFilterButtonRefs
+                <div className="mt-2 space-y-2">
+                  <div
+                    className="-mx-1 overflow-x-hidden"
+                    role="toolbar"
+                    aria-label="Filter session analysis by class (charts and driver selection). All Classes shows every class; it is the last control."
+                  >
+                    <div className="flex flex-wrap gap-2 px-1 py-1">
+                      {validClasses.map((className, index) => {
+                        const isActive = selectedClass === className
+                        return (
+                          <button
+                            key={className}
+                            type="button"
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                              isActive
+                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                            }`}
+                            onClick={() => {
+                              handleSessionClassChipClick(className)
+                            }}
+                            aria-pressed={isActive}
+                            onKeyDown={(event) =>
+                              handleEventClassFilterKeyDown(event, index, classFilterButtonRefs)
+                            }
+                            ref={(el) => {
+                              classFilterButtonRefs.current[index] = el
+                            }}
+                          >
+                            <span>{className}</span>
+                          </button>
                         )
-                      }
-                      ref={(el) => {
-                        classFilterButtonRefs.current[validClasses.length] = el
-                      }}
-                    >
-                      <span>All Classes</span>
-                    </button>
+                      })}
+                      <button
+                        key="__all-classes__"
+                        type="button"
+                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                          selectedClass === null
+                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                        }`}
+                        onClick={() => {
+                          handleSessionClassFilterAllClassesClick()
+                        }}
+                        aria-pressed={selectedClass === null}
+                        onKeyDown={(event) =>
+                          handleEventClassFilterKeyDown(
+                            event,
+                            validClasses.length,
+                            classFilterButtonRefs
+                          )
+                        }
+                        ref={(el) => {
+                          classFilterButtonRefs.current[validClasses.length] = el
+                        }}
+                      >
+                        <span>All Classes</span>
+                      </button>
+                    </div>
                   </div>
+                  {vehicleDenormActive &&
+                    selectedClass !== null &&
+                    sessionSkillTierOptions.length > 0 && (
+                      <div
+                        className="-mx-1 overflow-x-hidden"
+                        role="toolbar"
+                        aria-label="Filter session analysis by skill tier"
+                      >
+                        <div className="flex flex-wrap items-center gap-2 px-1 py-1">
+                          <span className="text-xs text-[var(--token-text-muted)]">Tier</span>
+                          <button
+                            type="button"
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                              sessionSkillTierFilter === null
+                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                            }`}
+                            onClick={() => setSessionSkillTierFilter(null)}
+                            aria-pressed={sessionSkillTierFilter === null}
+                          >
+                            All
+                          </button>
+                          {sessionSkillTierOptions.map((tier) => {
+                            const isTierActive = sessionSkillTierFilter === tier
+                            return (
+                              <button
+                                key={tier}
+                                type="button"
+                                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                                  isTierActive
+                                    ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                                    : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                                }`}
+                                onClick={() =>
+                                  setSessionSkillTierFilter(isTierActive ? null : tier)
+                                }
+                                aria-pressed={isTierActive}
+                              >
+                                {tier}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                 </div>
               )}
             {eventAnalysisTab === "driver-analysis" && (
@@ -2733,10 +2803,11 @@ export default function OverviewTab({
                 </section>
                 {selectedClass === null ? (
                   <p className="text-sm text-[var(--token-text-secondary)]">
-                    Select a class using the chips above or in Actions (Select drivers) to compare
-                    drivers within a single session.
+                    {vehicleDenormActive
+                      ? "Select a race class using the chips above (or Actions → Select drivers) to compare drivers within that class."
+                      : "Select a class using the chips above or in Actions (Select drivers) to compare drivers within a single session."}
                   </p>
-                ) : sessionCompareSortedRaces.length === 0 ? (
+                ) : sessionDriverAnalysisSortedRaces.length === 0 ? (
                   <p className="text-sm text-[var(--token-text-secondary)]">
                     No sessions found for this class.
                   </p>
@@ -2756,7 +2827,7 @@ export default function OverviewTab({
                         below for Avg Top 5–15, consecutive laps, and std. dev. Class comes from the
                         chips above or Actions; use{" "}
                         <span className="whitespace-nowrap">Session</span> in the chart header to
-                        pick the race.
+                        pick the race for this class.
                       </p>
                     </div>
                     <div className="space-y-4">
@@ -2830,7 +2901,7 @@ export default function OverviewTab({
                           chartTitleOverride=""
                           chartDriverPickerDisabled={
                             sessionAnalysisRequiresSessionTypeChoice &&
-                            sessionCompareSessionTypeFilter === null
+                            sessionAnalysisSessionTypeFilter === null
                           }
                           chartDriverPickerDisabledTooltip="Select a session type first"
                           selectedClass={selectedClass}
@@ -2839,15 +2910,16 @@ export default function OverviewTab({
                           }
                           chartView={chartViewState}
                           onChartViewChange={setChartViewState}
-                          chartDriverOptions={sessionCompareDriverStatsFromRace.map((d) => ({
+                          chartDriverOptions={sessionDriverAnalysisDriverStatsFromRace.map((d) => ({
                             driverId: d.driverId,
                             driverName: d.driverName,
                           }))}
                           chartSelectedDriverIds={unifiedChartDriverIds}
                           onChartDriverSelectionChange={setUnifiedChartDriverIds}
                           headerAfterClassSelect={renderSessionScopeControls(
-                            "session-driver-analysis",
-                            "compare"
+                            "session-driver-analysis-compare",
+                            sessionDriverAnalysisScopedRaces,
+                            "Choose session for compare chart"
                           )}
                           liveRcSessionScope
                         />
@@ -2904,7 +2976,11 @@ export default function OverviewTab({
                               chartTitle=""
                               headerControls={
                                 <>
-                                  {renderSessionScopeControls("session-lap-trend", "lap")}
+                                  {renderSessionScopeControls(
+                                    "session-lap-trend",
+                                    sessionDriverAnalysisScopedRaces,
+                                    "Choose session for lap-by-lap chart"
+                                  )}
                                   {sessionLapTrendDriverOptions.length > 0 && (
                                     <ChartDriverPicker
                                       drivers={sessionLapTrendDriverOptions}
@@ -2917,7 +2993,7 @@ export default function OverviewTab({
                                       label="Select Drivers"
                                       disabled={
                                         sessionAnalysisRequiresSessionTypeChoice &&
-                                        sessionLapTrendSessionTypeFilter === null
+                                        sessionAnalysisSessionTypeFilter === null
                                       }
                                       disabledTooltip="Select a session type first"
                                     />
@@ -2942,13 +3018,13 @@ export default function OverviewTab({
               </>
             )}
             {eventAnalysisTab === "event-results" && (
-              <SessionRaceResultsTable races={filteredRaces} />
+              <SessionRaceResultsTable races={sessionAnalysisRaces} />
             )}
             {eventAnalysisTab === "fastest-laps" && (
               <EventFastestLapsTable
                 races={
                   selectedClass && eventClassFilterTabs.includes("fastest-laps")
-                    ? filteredRaces
+                    ? sessionAnalysisRaces
                     : data.races
                 }
               />
@@ -2957,7 +3033,7 @@ export default function OverviewTab({
               <EventFastestAverageLapsTable
                 races={
                   selectedClass && eventClassFilterTabs.includes("fastest-average-laps")
-                    ? filteredRaces
+                    ? sessionAnalysisRaces
                     : data.races
                 }
               />

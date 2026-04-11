@@ -74,7 +74,7 @@ export default async function GuidesPage() {
   return (
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
-        items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Guides" }]}
+        items={[{ label: "My Event Analysis", href: "/eventAnalysis" }, { label: "Guides" }]}
       />
       <header className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold text-[var(--token-text-primary)]">User Guides</h1>

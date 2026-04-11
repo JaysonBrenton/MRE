@@ -128,7 +128,7 @@ export default function EventRow({
       // Otherwise, navigate to dashboard directly
       if (typeof window !== "undefined") {
         sessionStorage.setItem("mre-selected-event-id", event.id)
-        router.push(`/dashboard?eventId=${event.id}`)
+        router.push(`/eventAnalysis?eventId=${event.id}`)
       }
     }
   }

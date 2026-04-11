@@ -264,6 +264,7 @@ class EventRaceClass(Base):
 
     event = relationship("Event", back_populates="race_classes")
     entries = relationship("EventEntry", back_populates="event_race_class")
+    races = relationship("Race", back_populates="event_race_class")
 
     __table_args__ = (
         UniqueConstraint("event_id", "class_name", name="event_race_classes_event_id_class_name_key"),
@@ -284,15 +285,25 @@ class Race(Base):
     race_label = Column("race_label", String, nullable=False)
     race_order = Column("race_order", Integer, nullable=True)
     race_url = Column("race_url", String, nullable=False)
+    completed_at = Column("completed_at", DateTime(timezone=True), nullable=True)
     start_time = Column("start_time", DateTime(timezone=True), nullable=True)
     duration_seconds = Column("duration_seconds", Integer, nullable=True)
     session_type = Column("session_type", SessionTypeType(), nullable=True)
     section_header = Column("section_header", String, nullable=True)
     race_metadata = Column("race_metadata", JSONB, nullable=True)
+    vehicle_type = Column("vehicle_type", String, nullable=True)
+    skill_tier = Column("skill_tier", String, nullable=True)
+    vehicle_class_normalization_needs_review = Column(
+        "vehicle_class_normalization_needs_review", Boolean, default=False, nullable=False
+    )
+    event_race_class_id = Column(
+        "event_race_class_id", String, ForeignKey("event_race_classes.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     event = relationship("Event", back_populates="races")
+    event_race_class = relationship("EventRaceClass", back_populates="races")
     drivers = relationship("RaceDriver", back_populates="race", cascade="all, delete-orphan")
     results = relationship("RaceResult", back_populates="race", cascade="all, delete-orphan")
 
@@ -301,6 +312,8 @@ class Race(Base):
         Index("races_event_id_source_race_id_idx", "event_id", "source_race_id"),
         Index("races_event_id_idx", "event_id"),
         Index("races_race_order_idx", "race_order"),
+        Index("races_event_id_vehicle_type_idx", "event_id", "vehicle_type"),
+        Index("races_event_race_class_id_idx", "event_race_class_id"),
     )
 
 

@@ -63,7 +63,7 @@ export default function DeleteConfirmationDialog({
         </div>
       }
     >
-      <div className="px-4 py-4">
+      <div>
         <p className="text-sm text-[var(--token-text-primary)]">{message}</p>
         {itemName && (
           <p className="mt-2 text-sm font-medium text-[var(--token-text-primary)]">{itemName}</p>

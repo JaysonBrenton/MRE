@@ -8,7 +8,7 @@ import { Fragment, useId, useMemo, useState } from "react"
 import { Group } from "@visx/group"
 import { GridColumns } from "@visx/grid"
 import { scaleBand, scaleLinear } from "@visx/scale"
-import { AxisBottom, AxisLeft } from "@visx/axis"
+import { AxisBottom } from "@visx/axis"
 import { ParentSize } from "@visx/responsive"
 import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip"
 import { localPoint } from "@visx/event"
@@ -19,15 +19,45 @@ import { resolveColorToHex } from "@/lib/chart-color-utils"
 const textColor = "var(--token-text-primary)"
 const borderColor = "var(--token-border-default)"
 const axisColor = "var(--token-text-secondary)"
-const textMutedColor = "var(--token-text-muted)"
 const gridStroke = "var(--token-border-muted)"
 
 const SESSION_MARGIN = { top: 16, right: 20, bottom: 44, left: 20 }
 const SESSION_BAR_HEIGHT = 44
 const SESSION_SVG_HEIGHT = 168
 
-const CLASS_MARGIN = { top: 12, right: 16, bottom: 52, left: 12 }
+const CLASS_MARGIN = { top: 12, right: 14, bottom: 52, left: 4 }
 const ROW_STEP = 26
+
+/** ~11–12px UI sans-serif; used to size label column to content, not viewport fraction alone. */
+const CLASS_LABEL_CHAR_PX = 6.75
+const CLASS_LABEL_INNER_PAD_PX = 14
+const CLASS_LABEL_MIN_COL_PX = 88
+const CLASS_LABEL_MAX_COL_FRAC = 0.34
+/** Gap between label text end and plot (bars start at x=0). */
+const CLASS_Y_LABEL_END_X = -8
+const CLASS_PLOT_EDGE_PAD_PX = 12
+
+/**
+ * Size the Y label column from longest label + viewport cap. Avoids a wide empty band between
+ * truncated labels and the plot when the old formula reserved ~30% width regardless of text length.
+ */
+function computeClassChartLabelLayout(
+  containerWidth: number,
+  segments: SessionMixSegment[]
+): { labelColumnWidth: number; labelMaxChars: number } {
+  const longest = segments.reduce((m, s) => Math.max(m, s.label.trim().length), 0)
+  const viewportCap = Math.floor(containerWidth * CLASS_LABEL_MAX_COL_FRAC)
+  let labelMaxChars = Math.min(52, Math.max(14, longest))
+  const naturalWidth = Math.ceil(labelMaxChars * CLASS_LABEL_CHAR_PX) + CLASS_LABEL_INNER_PAD_PX
+  const labelColumnWidth = Math.min(viewportCap, Math.max(CLASS_LABEL_MIN_COL_PX, naturalWidth))
+  if (labelColumnWidth < naturalWidth) {
+    labelMaxChars = Math.max(
+      14,
+      Math.floor((labelColumnWidth - CLASS_LABEL_INNER_PAD_PX) / CLASS_LABEL_CHAR_PX)
+    )
+  }
+  return { labelColumnWidth, labelMaxChars }
+}
 
 type MixMetric = "session" | "drivers" | "laps"
 
@@ -101,7 +131,13 @@ function SessionMixStackSvg({
   })
 
   return (
-    <svg width={width} height={SESSION_SVG_HEIGHT} role="presentation">
+    <svg
+      width={width}
+      height={SESSION_SVG_HEIGHT}
+      role="presentation"
+      overflow="hidden"
+      style={{ overflow: "hidden", maxWidth: "100%" }}
+    >
       <defs>
         <clipPath id={clipId}>
           <rect x={0} y={0} width={innerWidth} height={SESSION_BAR_HEIGHT} rx={10} ry={10} />
@@ -162,7 +198,7 @@ function SessionMixStackBody({
   tooltipTop: number | undefined
 }) {
   return (
-    <div className="relative w-full" style={{ minHeight: SESSION_SVG_HEIGHT + 100 }}>
+    <div className="relative w-full min-w-0" style={{ minHeight: SESSION_SVG_HEIGHT + 100 }}>
       <ParentSize>
         {({ width: parentWidth }) => {
           const width = parentWidth || 800
@@ -227,6 +263,7 @@ function ClassMixBarsSvg({
   maxCount,
   chartBodyHeight,
   labelColumnWidth,
+  labelMaxChars,
   valueCaption,
   onBarHover,
   hideTooltip,
@@ -237,26 +274,26 @@ function ClassMixBarsSvg({
   maxCount: number
   chartBodyHeight: number
   labelColumnWidth: number
+  labelMaxChars: number
   valueCaption: string
   onBarHover: (seg: SessionMixSegment, event: React.MouseEvent | React.TouchEvent) => void
   hideTooltip: () => void
 }) {
+  /** Left margin = edge pad + label column; labels render at x ≥ -labelColumnWidth inside Group. */
   const margin = {
     ...CLASS_MARGIN,
-    left: 12 + labelColumnWidth,
+    left: CLASS_PLOT_EDGE_PAD_PX + labelColumnWidth,
   }
 
   const innerWidth = width - margin.left - margin.right
   const innerHeight = chartBodyHeight - margin.top - margin.bottom
-
-  const labelMaxChars = Math.min(52, Math.max(20, Math.floor(labelColumnWidth / 5.5)))
 
   const yScale = useMemo(
     () =>
       scaleBand<string>({
         domain: keys,
         range: [0, innerHeight],
-        padding: 0.12,
+        padding: 0.1,
       }),
     [keys, innerHeight]
   )
@@ -273,7 +310,13 @@ function ClassMixBarsSvg({
 
   return (
     <Fragment>
-      <svg width={width} height={chartBodyHeight} role="presentation">
+      <svg
+        width={width}
+        height={chartBodyHeight}
+        role="presentation"
+        overflow="hidden"
+        style={{ overflow: "hidden", maxWidth: "100%" }}
+      >
         <Group left={margin.left} top={margin.top}>
           <GridColumns
             top={0}
@@ -284,6 +327,16 @@ function ClassMixBarsSvg({
             stroke={gridStroke}
             strokeWidth={1}
             strokeOpacity={0.4}
+            pointerEvents="none"
+          />
+          <line
+            x1={0}
+            y1={0}
+            x2={0}
+            y2={innerHeight}
+            stroke={axisColor}
+            strokeWidth={1}
+            opacity={0.55}
             pointerEvents="none"
           />
           {segments.map((seg) => {
@@ -309,28 +362,28 @@ function ClassMixBarsSvg({
             )
           })}
 
-          <AxisLeft
-            left={-labelColumnWidth}
-            scale={yScale}
-            tickFormat={(k) => {
-              const raw = segments.find((s) => s.key === k)?.label ?? `${k}`
-              const t = truncateLabel(raw, labelMaxChars)
-              return t || "—"
-            }}
-            stroke={axisColor}
-            strokeWidth={1}
-            tickStroke={axisColor}
-            tickLength={5}
-            tickLineProps={{ strokeOpacity: 0.65 }}
-            tickLabelProps={() => ({
-              fill: textMutedColor,
-              fontSize: 12,
-              textAnchor: "end",
-              dx: -8,
-              dy: "0.25em",
-              fontFamily: "inherit",
-            })}
-          />
+          {segments.map((seg) => {
+            const y = yScale(seg.key)
+            if (y == null) return null
+            const raw = seg.label ?? seg.key
+            const label = truncateLabel(raw, labelMaxChars) || "—"
+            const cy = y + yScale.bandwidth() / 2
+            return (
+              <text
+                key={`ylab-${seg.key}`}
+                x={CLASS_Y_LABEL_END_X}
+                y={cy}
+                dy="0.35em"
+                textAnchor="end"
+                fill={axisColor}
+                fontSize={12}
+                fontFamily="inherit"
+                style={{ pointerEvents: "none" }}
+              >
+                {label}
+              </text>
+            )
+          })}
 
           <AxisBottom
             top={innerHeight}
@@ -394,12 +447,12 @@ function ClassMixHorizontalBarsBody({
   const containerMinHeight = chartBodyHeight + 40
 
   return (
-    <div className="relative w-full" style={{ minHeight: containerMinHeight }}>
+    <div className="relative w-full min-w-0" style={{ minHeight: containerMinHeight }}>
       <ParentSize>
         {({ width: parentWidth }) => {
           const width = parentWidth || 800
           if (width === 0) return null
-          const labelColumnWidth = Math.min(228, Math.max(128, width * 0.29))
+          const { labelColumnWidth, labelMaxChars } = computeClassChartLabelLayout(width, segments)
           return (
             <ClassMixBarsSvg
               width={width}
@@ -408,6 +461,7 @@ function ClassMixHorizontalBarsBody({
               maxCount={maxCount}
               chartBodyHeight={chartBodyHeight}
               labelColumnWidth={labelColumnWidth}
+              labelMaxChars={labelMaxChars}
               valueCaption={valueCaption}
               onBarHover={onBarHover}
               hideTooltip={hideTooltip}
@@ -444,12 +498,6 @@ const METRIC_LABELS: Record<MixMetric, string> = {
   session: "Session mix",
   drivers: "Classes by drivers",
   laps: "Classes by laps",
-}
-
-const METRIC_DESCRIPTIONS: Record<MixMetric, string> = {
-  session: "Share of race sessions by session type (Practice, Qualifier, Main, etc.)",
-  drivers: "Share of entry list rows by race class",
-  laps: "Share of total laps completed in results, grouped by race class",
 }
 
 const METRIC_ARIA: Record<MixMetric, string> = {
@@ -542,7 +590,6 @@ export function EventHighlightsMixFilteredChart({
     return null
   }
 
-  const description = METRIC_DESCRIPTIONS[effectiveMetric]
   const ariaLabel = METRIC_ARIA[effectiveMetric]
 
   const headerControls = (
@@ -589,8 +636,6 @@ export function EventHighlightsMixFilteredChart({
 
   return (
     <ChartContainer
-      title="Event mix"
-      description={description}
       height={chartHeight}
       className={`pb-4 ${className}`}
       aria-label={ariaLabel}
@@ -633,5 +678,88 @@ export function EventHighlightsMixFilteredChart({
         />
       ) : null}
     </ChartContainer>
+  )
+}
+
+/**
+ * Legacy export — same visuals as the session tab inside {@link EventHighlightsMixFilteredChart}.
+ * Kept so named imports from this module (e.g. bundler caches) continue to resolve.
+ */
+export function SessionMixStackChart({ segments }: { segments: SessionMixSegment[] }) {
+  const clipId = useId()
+  const sessionTooltip = useTooltip<SessionMixSegment>()
+
+  const onSessionHover = (seg: SessionMixSegment, event: React.MouseEvent | React.TouchEvent) => {
+    const svg = (event.target as SVGElement).ownerSVGElement
+    if (!svg) return
+    const coords = localPoint(svg, event as React.MouseEvent<SVGElement>)
+    if (coords) {
+      sessionTooltip.showTooltip({
+        tooltipLeft: coords.x,
+        tooltipTop: coords.y,
+        tooltipData: seg,
+      })
+    }
+  }
+
+  if (segments.length === 0) {
+    return null
+  }
+
+  return (
+    <SessionMixStackBody
+      segments={segments}
+      clipId={clipId}
+      onSegmentHover={onSessionHover}
+      hideTooltip={sessionTooltip.hideTooltip}
+      tooltipOpen={sessionTooltip.tooltipOpen}
+      tooltipData={sessionTooltip.tooltipData}
+      tooltipLeft={sessionTooltip.tooltipLeft}
+      tooltipTop={sessionTooltip.tooltipTop}
+    />
+  )
+}
+
+/**
+ * Legacy export — same visuals as the class-mix tabs inside {@link EventHighlightsMixFilteredChart}.
+ * Kept so named imports from this module (e.g. bundler caches) continue to resolve.
+ */
+export function ClassMixHorizontalBarChart({
+  segments,
+  valueCaption,
+}: {
+  segments: SessionMixSegment[]
+  valueCaption: string
+}) {
+  const classTooltip = useTooltip<SessionMixSegment>()
+
+  const onClassHover = (seg: SessionMixSegment, event: React.MouseEvent | React.TouchEvent) => {
+    const svg = (event.target as SVGElement).ownerSVGElement
+    if (!svg) return
+    const coords = localPoint(svg, event as React.MouseEvent<SVGElement>)
+    if (coords) {
+      classTooltip.showTooltip({
+        tooltipLeft: coords.x,
+        tooltipTop: coords.y,
+        tooltipData: seg,
+      })
+    }
+  }
+
+  if (segments.length === 0) {
+    return null
+  }
+
+  return (
+    <ClassMixHorizontalBarsBody
+      segments={segments}
+      valueCaption={valueCaption}
+      tooltipOpen={classTooltip.tooltipOpen}
+      tooltipData={classTooltip.tooltipData}
+      tooltipLeft={classTooltip.tooltipLeft}
+      tooltipTop={classTooltip.tooltipTop}
+      onBarHover={onClassHover}
+      hideTooltip={classTooltip.hideTooltip}
+    />
   )
 }

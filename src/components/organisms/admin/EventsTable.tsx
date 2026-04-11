@@ -472,7 +472,7 @@ export default function EventsTable() {
             </div>
           }
         >
-          <div className="px-4 py-4">
+          <div>
             <p className="text-sm text-[var(--token-text-primary)]">
               Are you sure you want to mark this event for re-ingestion?
             </p>

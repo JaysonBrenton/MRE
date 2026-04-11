@@ -476,7 +476,7 @@ export default function ChartControls({
           </div>
         }
       >
-        <div className="space-y-4 p-4">
+        <div className="space-y-4">
           {/* Controls: scope (class) vs list display (search, density) */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1.5">

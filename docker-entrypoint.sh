@@ -89,6 +89,12 @@ if [ -f "prisma/schema.prisma" ]; then
           NEED_PRISMA_GENERATE=true
         fi
       fi
+      if grep -q "model CarTaxonomyNode" "prisma/schema.prisma" 2>/dev/null; then
+        if ! grep -q "carTaxonomyNode" "node_modules/.prisma/client/index.d.ts" 2>/dev/null; then
+          echo "🔧 Prisma client missing carTaxonomyNode (schema includes CarTaxonomyNode)"
+          NEED_PRISMA_GENERATE=true
+        fi
+      fi
     fi
   fi
 fi

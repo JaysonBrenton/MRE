@@ -11,7 +11,7 @@
  *          so the EventAnalysisSection displays the analysis for that event.
  *
  * @relatedFiles
- * - src/app/(authenticated)/dashboard/page.tsx (uses this)
+ * - src/app/(authenticated)/eventAnalysis/page.tsx (uses this)
  * - src/store/slices/dashboardSlice.ts (Redux actions)
  */
 

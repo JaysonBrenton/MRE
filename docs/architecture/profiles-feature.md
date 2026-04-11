@@ -19,8 +19,8 @@ relatedFiles:
 # Profiles Feature Architecture
 
 **Status:** Core APIs and database models are implemented. The dashboard routes
-(`/dashboard/car-profiles`, `/dashboard/driver-profiles`) currently render
-informational placeholders while the CRUD UI is finalized.  
+(`/eventAnalysis/car-profiles`, `/eventAnalysis/driver-profiles`) currently
+render informational placeholders while the CRUD UI is finalized.  
 **Feature Scope:** Car profiles and driver profiles for user customization and
 data management
 

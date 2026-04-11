@@ -11,7 +11,7 @@
  *          Matches styling of existing driver cards with neutral theme for consistency.
  *
  * @relatedFiles
- * - src/components/dashboard/DashboardClient.tsx (uses this)
+ * - src/components/eventAnalysis/DashboardClient.tsx (uses this)
  * - src/lib/date-utils.ts (formatting utilities)
  */
 

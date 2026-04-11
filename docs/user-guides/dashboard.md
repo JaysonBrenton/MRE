@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-02-01
+lastModified: 2026-04-07
 description: Guide to using the user dashboard in My Race Engineer
 purpose:
   Explains how to navigate the My Event Analysis dashboard, select events,
@@ -9,6 +9,7 @@ purpose:
   page once an event is selected.
 relatedFiles:
   - docs/architecture/dashboard-architecture.md
+  - docs/architecture/car-taxonomy-user-mapping.md
   - docs/specs/mre-v0.1-feature-scope.md
 ---
 
@@ -46,7 +47,7 @@ The dashboard contains three main elements:
 ### 1. Event Selector & Empty State
 
 - The top of the page renders the **Dashboard Event Selector**. If an event ID
-  is present in the URL (`/dashboard?eventId=uuid`) the selector loads that
+  is present in the URL (`/eventAnalysis?eventId=uuid`) the selector loads that
   event automatically. Otherwise, the page shows a card prompting you to search
   for events.
 - The selector includes quick filters for “Recent Events” once data is loaded,
@@ -90,6 +91,19 @@ If you navigate away and return later, the persisted Redux state restores the
 last selected event. On a hard reload, the page briefly shows “Loading
 dashboard…” while Redux rehydrates; this prevents flicker before the event data
 is re-fetched.
+
+### Map car types (Actions menu)
+
+When an event is selected, open **Actions** → **Map car types** to define **your
+own** global rules: map a class name, race/session title, section heading, or
+session type (or a class + title pair) to a **canonical vehicle class** from the
+seeded list. Rules apply to **all events** for your account and do not change
+LiveRC data or other users’ views. After saving, refresh or re-fetch event
+analysis so Session Analysis can use your mappings.
+
+See
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md)
+for technical detail.
 
 ## Reading the Event Analysis Tabs
 

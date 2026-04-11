@@ -63,13 +63,6 @@ function sortRacesChronologically<T extends { startTime: Date | null; raceOrder:
   })
 }
 
-function localDateKey(d: Date): string {
-  const y = d.getFullYear()
-  const m = d.getMonth() + 1
-  const day = d.getDate()
-  return `${y}-${m}-${day}`
-}
-
 function findMultiMainBlock(data: EventAnalysisData, className: string) {
   const want = className.trim().toLowerCase()
   return data.multiMainResults.find((m) => m.classLabel.trim().toLowerCase() === want) ?? null
@@ -118,12 +111,6 @@ export interface ClosestFinishHighlight {
   gapSeconds: number
 }
 
-export interface DayTimelineRow {
-  dateLabel: string
-  raceCount: number
-  timeRange: string
-}
-
 export interface EventHighlightsModel {
   /** True when there is anything worth rendering beyond the practice-day note */
   hasHighlights: boolean
@@ -133,7 +120,6 @@ export interface EventHighlightsModel {
   classMixByDrivers: SessionMixSegment[]
   /** Sum of laps completed in results, grouped by race class */
   classMixByLaps: SessionMixSegment[]
-  deepestClass: { displayName: string; entryCount: number } | null
   classWinners: ClassWinnerHighlight[]
   /** Highest event-wide average consistency among drivers with consistency data */
   mostConsistentDriver: {
@@ -141,12 +127,24 @@ export interface EventHighlightsModel {
     consistency: number
     racesParticipated: number
   } | null
+  /** Top three drivers by event-wide average consistency */
+  topConsistentDrivers: Array<{
+    driverName: string
+    consistency: number
+    racesParticipated: number
+  }>
   /** Lowest event-wide average lap time among drivers with avg lap data */
   fastestAvgLapDriver: {
     driverName: string
     avgLapTime: number
     racesParticipated: number
   } | null
+  /** Top three drivers by event-wide average lap time (fastest first) */
+  topFastestAvgLapDrivers: Array<{
+    driverName: string
+    avgLapTime: number
+    racesParticipated: number
+  }>
   closestFinishes: ClosestFinishHighlight[]
   /** Top three driver/class rows by progression (first→last race in class), best first */
   topProgression: Array<{ driverName: string; classDisplay: string; summary: string }>
@@ -160,7 +158,6 @@ export interface EventHighlightsModel {
     raceLabel: string
     classDisplay: string
   }>
-  dayTimeline: DayTimelineRow[]
 }
 
 function uniqueClassesForWinners(data: EventAnalysisData): string[] {
@@ -288,31 +285,15 @@ function buildClassMixByLaps(data: EventAnalysisData): SessionMixSegment[] {
   }))
 }
 
-function buildDeepestClass(data: EventAnalysisData): EventHighlightsModel["deepestClass"] {
-  if (data.entryList.length === 0) return null
-  const byClass = new Map<string, number>()
-  for (const e of data.entryList) {
-    const c = e.className?.trim()
-    if (!c) continue
-    byClass.set(c, (byClass.get(c) ?? 0) + 1)
-  }
-  let best: { name: string; n: number } | null = null
-  for (const [name, n] of byClass) {
-    if (!best || n > best.n) best = { name, n }
-  }
-  if (!best) return null
-  return { displayName: formatClassName(best.name), entryCount: best.n }
-}
-
-/** Picks the driver with the highest event-wide average consistency (see `getEventAnalysisData` aggregates). */
-function buildMostConsistentDriver(
+/** Top three drivers by event-wide average consistency (see `getEventAnalysisData` aggregates). */
+function buildTopConsistentDrivers(
   data: EventAnalysisData
-): EventHighlightsModel["mostConsistentDriver"] {
+): EventHighlightsModel["topConsistentDrivers"] {
   const withConsistency = data.drivers.filter(
     (d): d is typeof d & { consistency: number } =>
       d.consistency !== null && typeof d.consistency === "number" && Number.isFinite(d.consistency)
   )
-  if (withConsistency.length === 0) return null
+  if (withConsistency.length === 0) return []
 
   const sorted = [...withConsistency].sort((a, b) => {
     if (b.consistency !== a.consistency) return b.consistency - a.consistency
@@ -321,18 +302,17 @@ function buildMostConsistentDriver(
     }
     return a.driverName.localeCompare(b.driverName, undefined, { sensitivity: "base" })
   })
-  const top = sorted[0]!
-  return {
-    driverName: top.driverName,
-    consistency: top.consistency,
-    racesParticipated: top.racesParticipated,
-  }
+  return sorted.slice(0, 3).map((d) => ({
+    driverName: d.driverName,
+    consistency: d.consistency,
+    racesParticipated: d.racesParticipated,
+  }))
 }
 
-/** Picks the driver with the lowest event-wide average lap (mean of per-race avg laps). */
-function buildFastestAvgLapDriver(
+/** Top three drivers by lowest event-wide average lap (mean of per-race avg laps). */
+function buildTopFastestAvgLapDrivers(
   data: EventAnalysisData
-): EventHighlightsModel["fastestAvgLapDriver"] {
+): EventHighlightsModel["topFastestAvgLapDrivers"] {
   const withAvg = data.drivers.filter(
     (d): d is typeof d & { avgLapTime: number } =>
       d.avgLapTime !== null &&
@@ -340,7 +320,7 @@ function buildFastestAvgLapDriver(
       Number.isFinite(d.avgLapTime) &&
       d.avgLapTime > 0
   )
-  if (withAvg.length === 0) return null
+  if (withAvg.length === 0) return []
 
   const sorted = [...withAvg].sort((a, b) => {
     if (a.avgLapTime !== b.avgLapTime) return a.avgLapTime - b.avgLapTime
@@ -349,12 +329,11 @@ function buildFastestAvgLapDriver(
     }
     return a.driverName.localeCompare(b.driverName, undefined, { sensitivity: "base" })
   })
-  const top = sorted[0]!
-  return {
-    driverName: top.driverName,
-    avgLapTime: top.avgLapTime,
-    racesParticipated: top.racesParticipated,
-  }
+  return sorted.slice(0, 3).map((d) => ({
+    driverName: d.driverName,
+    avgLapTime: d.avgLapTime,
+    racesParticipated: d.racesParticipated,
+  }))
 }
 
 function buildTopLapsCompleted(data: EventAnalysisData): EventHighlightsModel["topLapsCompleted"] {
@@ -549,96 +528,35 @@ function buildTopProgression(data: EventAnalysisData): EventHighlightsModel["top
   }))
 }
 
-function buildDayTimeline(
-  data: EventAnalysisData,
-  formatTime: (d: Date) => string,
-  formatDay: (d: Date) => string
-): DayTimelineRow[] {
-  const racesWithTime = data.races.filter((r) => r.startTime != null)
-  if (racesWithTime.length === 0) return []
-
-  const byDay = new Map<string, typeof data.races>()
-  for (const race of racesWithTime) {
-    const d = race.startTime instanceof Date ? race.startTime : new Date(race.startTime as string)
-    const key = localDateKey(d)
-    const list = byDay.get(key) ?? []
-    list.push(race)
-    byDay.set(key, list)
-  }
-
-  const sortedKeys = [...byDay.keys()].sort()
-  if (sortedKeys.length <= 1) return []
-
-  const rows: DayTimelineRow[] = []
-  for (const key of sortedKeys) {
-    const list = byDay.get(key)!
-    const sorted = sortRacesChronologically(list)
-    const first = sorted[0]?.startTime
-    const last = sorted[sorted.length - 1]?.startTime
-    const fd = first instanceof Date ? first : first ? new Date(first as string) : null
-    const ld = last instanceof Date ? last : last ? new Date(last as string) : null
-    const dateLabel = fd ? formatDay(fd) : key
-    let timeRange = "—"
-    if (fd && ld) {
-      timeRange =
-        formatTime(fd) === formatTime(ld) ? formatTime(fd) : `${formatTime(fd)} – ${formatTime(ld)}`
-    } else if (fd) {
-      timeRange = formatTime(fd)
-    }
-    rows.push({
-      dateLabel,
-      raceCount: list.length,
-      timeRange,
-    })
-  }
-  return rows
-}
-
 /**
  * Build highlight model for Event Overview. Safe to call on every render (pure).
  */
-export function buildEventHighlights(
-  data: EventAnalysisData,
-  options?: {
-    formatTimeDisplay?: (d: Date) => string
-    formatDateLong?: (d: Date) => string
-  }
-): EventHighlightsModel {
-  const formatTime =
-    options?.formatTimeDisplay ??
-    ((d: Date) =>
-      d.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", hour12: true }))
-  const formatDay =
-    options?.formatDateLong ??
-    ((d: Date) => d.toLocaleDateString("en-AU", { year: "numeric", month: "long", day: "numeric" }))
-
+export function buildEventHighlights(data: EventAnalysisData): EventHighlightsModel {
   const isPracticeDay = data.isPracticeDay === true
   const sessionMix = buildSessionMix(data)
   const classMixByDrivers = buildClassMixByDrivers(data)
   const classMixByLaps = buildClassMixByLaps(data)
-  const deepestClass = buildDeepestClass(data)
   const classWinners = buildClassWinners(data)
-  const mostConsistentDriver = buildMostConsistentDriver(data)
-  const fastestAvgLapDriver = buildFastestAvgLapDriver(data)
+  const topConsistentDrivers = buildTopConsistentDrivers(data)
+  const mostConsistentDriver = topConsistentDrivers[0] ?? null
+  const topFastestAvgLapDrivers = buildTopFastestAvgLapDrivers(data)
+  const fastestAvgLapDriver = topFastestAvgLapDrivers[0] ?? null
   const closestFinishes = buildClosestFinishes(data)
   const topProgression = buildTopProgression(data)
   const topLapsCompleted = buildTopLapsCompleted(data)
   const topFastLaps = buildTopFastLaps(data)
-  const dayTimeline = buildDayTimeline(data, formatTime, formatDay)
 
   const hasHighlights =
     sessionMix.length > 0 ||
     classMixByDrivers.length > 0 ||
     classMixByLaps.length > 0 ||
-    deepestClass != null ||
     classWinners.length > 0 ||
     mostConsistentDriver != null ||
     fastestAvgLapDriver != null ||
     closestFinishes.length > 0 ||
     topProgression.length > 0 ||
     topLapsCompleted.length > 0 ||
-    topFastLaps.length > 0 ||
-    dayTimeline.length > 0
+    topFastLaps.length > 0
 
   return {
     hasHighlights,
@@ -646,15 +564,15 @@ export function buildEventHighlights(
     sessionMix,
     classMixByDrivers,
     classMixByLaps,
-    deepestClass,
     classWinners,
     mostConsistentDriver,
+    topConsistentDrivers,
     fastestAvgLapDriver,
+    topFastestAvgLapDrivers,
     closestFinishes,
     topProgression,
     topLapsCompleted,
     topFastLaps,
-    dayTimeline,
   }
 }
 

@@ -226,7 +226,7 @@ export default function LapTimeTrendCard({
         maxWidth="4xl"
         ariaLabel="Lap-by-lap trend chart"
       >
-        <div className="p-4 min-w-0">
+        <div className="min-w-0">
           {lapTrendLoading && (
             <div
               className="flex items-center justify-center text-[var(--token-text-secondary)]"
