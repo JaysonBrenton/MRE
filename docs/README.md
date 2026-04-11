@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-29
+lastModified: 2026-04-07
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -31,6 +31,7 @@ navigating project documentation.
 - [Operations](#operations)
 - [Security](#security)
 - [Specifications](#specifications)
+- [Future Ideas](#future-ideas)
 - [Architecture Decision Records (ADRs)](#architecture-decision-records-adrs)
 - [Role Documentation](#role-documentation)
 - [Standards](#standards)
@@ -134,6 +135,19 @@ for performance rules. See
 [Ingestion Performance and Scaling](architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md)
 for ingestion performance.
 
+### [Car taxonomy and user car-type mapping](architecture/car-taxonomy-user-mapping.md)
+
+**Status:** Complete  
+**Last Updated:** 2026-04-07
+
+Per-user global rules that map LiveRC class names, race titles, and related
+strings to **canonical vehicle classes** for Session Analysis. Covers data
+model, migrations, APIs, resolution order, UI entry point (**Map car types**),
+and Docker operational notes.
+
+**Related:** [Database schema – CarTaxonomyNode](database/schema.md),
+[API Reference – car-taxonomy endpoints](api/api-reference.md).
+
 ---
 
 ## API Documentation
@@ -184,20 +198,23 @@ Database schema and data model documentation.
 ### [Database Schema Documentation](database/schema.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-29
+**Last Updated:** 2026-04-07
 
 Human-readable database schema documentation. Provides comprehensive overview of
 all models, relationships, indexes, constraints, and business rules. Essential
 reference for developers understanding the data model.
 
 **Key Topics:** Entity relationship diagram, models (User, Track, Event, Race,
-RaceDriver, RaceResult, Lap), enums, indexes, relationships, data lifecycle,
-common query patterns, performance considerations.
+RaceDriver, RaceResult, Lap, `CarTaxonomyNode`, `UserCarTaxonomyRule`), enums,
+indexes, relationships, data lifecycle, common query patterns, performance
+considerations.
 
 **Related:** See [Prisma Schema](../prisma/schema.prisma) for source of truth.
 See
 [LiveRC Ingestion Data Model](architecture/liverc-ingestion/04-data-model.md)
-for ingestion-specific models.
+for ingestion-specific models. See
+[Car taxonomy and user car-type mapping](architecture/car-taxonomy-user-mapping.md)
+for per-user vehicle-class mapping.
 
 ---
 
@@ -224,6 +241,19 @@ storage, future normalization considerations.
 `Race.className` field. See
 [LiveRC Ingestion Data Model](architecture/liverc-ingestion/04-data-model.md)
 for data model specification.
+
+### [Bump-ups inference](domain/bump-ups-inference.md)
+
+**Status:** Active  
+**Last Updated:** 2026-04-04
+
+Defines bump-ups as observed advancement from ingested results (not
+sanctioning-body rules), the LiveRC Main Events schedule model, LCQ and
+multi-strategy tier notes. Links to product spec, technical solution plan, and
+ADRs **ADR-20260404**, **ADR-20260405**.
+
+**Related:**
+[Bump-ups LiveRC Main Events solution](plans/bump-ups-liverc-main-events-solution.md).
 
 ---
 
@@ -407,6 +437,27 @@ with navigation.
 
 **Key Topics:** Route definition, required message, layout rules, component
 usage, testing requirements.
+
+---
+
+## Future Ideas
+
+Exploratory product and UX concepts that are **not** roadmap commitments. Use
+this area to capture possibilities before they graduate to plans, ADRs, or the
+formal future-features epic.
+
+### [Future Ideas Index](future-ideas/README.md)
+
+**Status:** Active  
+**Last Updated:** 2026-04-05
+
+Lightweight index of future possibilities (e.g. graph-based race replay). Not
+normative; see
+[MRE Version 0.1.1 Feature Scope](specs/mre-v0.1-feature-scope.md) for in-scope
+work.
+
+**Related:** [Future Features Epic](user-stories/future-features.md) for
+Beta+-style placeholder stories.
 
 ---
 
@@ -657,6 +708,12 @@ ingestion-specific security.
 ## Frontend
 
 Frontend-specific workflows and user experience documentation.
+
+### [Component catalog](frontend/component-catalog.md)
+
+Build-aligned inventory of every production file under `src/components/`.
+Generate with `npm run docs:component-catalog` (see also
+[`docs/reference/generated/README.md`](reference/generated/README.md)).
 
 ### [LiveRC User Workflow](frontend/liverc/user-workflow.md)
 

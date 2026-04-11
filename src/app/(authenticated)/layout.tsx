@@ -12,8 +12,8 @@
  *          UI across all authenticated routes without manually wrapping each page.
  *
  * @relatedFiles
- * - src/components/dashboard/DashboardLayout.tsx (adaptive racing shell)
- * - src/components/dashboard/shell/* (shell primitives)
+ * - src/components/eventAnalysis/DashboardLayout.tsx (adaptive racing shell)
+ * - src/components/eventAnalysis/shell/* (shell primitives)
  * - src/components/Footer.tsx (footer component)
  * - src/lib/auth.ts (authentication check)
  */
@@ -44,11 +44,11 @@ export default async function AuthenticatedLayout({ children }: { children: Reac
       <DashboardEventSearchProvider>
         <EventActionsProvider>
           <DashboardLayout user={session.user} userId={session.user.id}>
-            <div className="flex min-h-full flex-col">
+            <div className="flex w-full flex-1 flex-col">
               <EventAnalysisHeaderWrapper />
               <main
                 id="main-content"
-                className="page-container w-full min-w-0 flex-1"
+                className="page-container flex min-h-0 w-full flex-1 flex-col"
                 tabIndex={-1}
               >
                 {children}

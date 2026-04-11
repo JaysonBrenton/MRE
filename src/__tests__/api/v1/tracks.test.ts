@@ -41,28 +41,14 @@ describe("GET /api/v1/tracks", () => {
 
   describe("response format validation", () => {
     it("should return success response in standardized format", async () => {
-      const mockTracks = [
+      const mockTracks: Awaited<ReturnType<typeof getTracks>> = [
         {
           id: "track-1",
-          source: "liverc",
           sourceTrackSlug: "test-track",
           trackName: "Test Track",
-          trackUrl: "https://liverc.com/track/test-track",
-          eventsUrl: "https://liverc.com/track/test-track/events",
-          livercTrackLastUpdated: "2025-01-01",
-          lastSeenAt: new Date(),
-          isActive: true,
-          isFollowed: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          country: "Australia",
         },
       ]
-      const serializedTracks = mockTracks.map((track) => ({
-        ...track,
-        createdAt: track.createdAt.toISOString(),
-        updatedAt: track.updatedAt.toISOString(),
-        lastSeenAt: track.lastSeenAt.toISOString(),
-      }))
 
       vi.mocked(getTracks).mockResolvedValue(mockTracks)
 
@@ -74,7 +60,7 @@ describe("GET /api/v1/tracks", () => {
       expect(body).toHaveProperty("success", true)
       expect(body).toHaveProperty("data")
       expect(body.data).toHaveProperty("tracks")
-      expect(body.data.tracks).toEqual(serializedTracks)
+      expect(body.data.tracks).toEqual(mockTracks)
     })
 
     it("should handle query parameters correctly", async () => {

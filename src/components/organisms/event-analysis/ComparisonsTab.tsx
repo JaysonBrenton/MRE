@@ -196,7 +196,7 @@ export default function ComparisonsTab({ selectedClass, eventId, data }: Compari
           try {
             const errorData = await response.json()
             errorMessage = errorData.error?.message || errorData.error?.details || errorMessage
-          } catch (parseError) {
+          } catch (_parseError) {
             errorMessage = `HTTP ${response.status}: ${response.statusText}`
           }
           throw new Error(errorMessage)

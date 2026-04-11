@@ -170,6 +170,32 @@ export function resolveGeocodeCandidates(event: EventWithTrack): string[] {
   const candidates: string[] = []
   const seen = new Set<string>()
 
+  // When track/event indicates Canberra area, add Canberra Airport first for accurate weather
+  const locationText = [
+    event.track.address,
+    event.track.city,
+    event.track.state,
+    event.track.country,
+    trackName,
+    eventName,
+  ]
+    .filter((s): s is string => !!s && typeof s === "string")
+    .join(" ")
+    .toLowerCase()
+
+  // Explicit Canberra mention (e.g. "Pine Hills Dirt Racing" near Canberra)
+  const hasCanberra = locationText.includes("canberra")
+
+  // Known Canberra events where ingested track metadata has wrong city (e.g. RCRA HQ in Brisbane)
+  // 2026 RCRA Nationals was at Canberra; track "RCRA" has Brisbane in DB
+  const isKnownCanberraEvent =
+    /2026\s+RCRA\s+Nationals/i.test(eventName) || /RCRA\s+Nationals\s+2026/i.test(eventName)
+
+  if (hasCanberra || isKnownCanberraEvent) {
+    candidates.push("Canberra Airport, Australia")
+    seen.add("Canberra Airport, Australia")
+  }
+
   // Extract location candidates from event name
   const eventCandidates = extractLocationCandidates(eventName)
 

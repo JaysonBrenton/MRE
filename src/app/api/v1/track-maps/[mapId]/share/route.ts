@@ -70,7 +70,7 @@ export async function POST(
 
     // Build share URL
     const baseUrl = process.env.APP_URL || "http://localhost:3001"
-    const shareUrl = `${baseUrl}/dashboard/my-club/track-maps/shared/${map.shareToken}`
+    const shareUrl = `${baseUrl}/eventAnalysis/my-club/track-maps/shared/${map.shareToken}`
 
     return successResponse({ map, shareUrl }, 200, "Share token generated successfully")
   } catch (error: unknown) {

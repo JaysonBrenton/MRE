@@ -11,13 +11,14 @@
  *          Matches styling of existing driver cards with neutral theme for consistency.
  *
  * @relatedFiles
- * - src/components/dashboard/DashboardClient.tsx (uses this)
+ * - src/components/eventAnalysis/DashboardClient.tsx (uses this)
  * - src/lib/date-utils.ts (formatting utilities)
  */
 
 "use client"
 
 import { formatPositionImprovement, formatLapTimeImprovement } from "@/lib/date-utils"
+import { typography } from "@/lib/typography"
 import type { EventAnalysisSummary } from "@root-types/dashboard"
 
 type MostImprovedDriver = NonNullable<EventAnalysisSummary["mostImprovedDrivers"]>[number]
@@ -41,7 +42,9 @@ export default function ImprovementDriverCard({ driver, index }: ImprovementDriv
         <span className="text-xs font-bold text-[var(--token-text-primary)] bg-[var(--token-surface)] px-2.5 py-1 rounded-full border border-[var(--token-border-default)] shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
           #{index + 1}
         </span>
-        <span className="text-[10px] font-medium text-[var(--token-text-muted)] bg-[var(--token-surface)] px-2 py-0.5 rounded-full">
+        <span
+          className={`${typography.captionSmall} font-medium bg-[var(--token-surface)] px-2 py-0.5 rounded-full`}
+        >
           Improved
         </span>
       </div>
@@ -53,14 +56,12 @@ export default function ImprovementDriverCard({ driver, index }: ImprovementDriv
       </p>
       <div className="space-y-1">
         {driver.lapTimeImprovement !== null && (
-          <p className="text-[10px] text-[var(--token-text-muted)] font-medium truncate">
+          <p className={`${typography.captionSmall} font-medium truncate`}>
             Lap Time: {lapTimeDisplay}
           </p>
         )}
-        <p className="text-[10px] text-[var(--token-text-muted)] font-medium truncate">
-          {driver.raceLabel}
-        </p>
-        <p className="text-[10px] text-[var(--token-text-muted)] truncate">{driver.className}</p>
+        <p className={`${typography.captionSmall} font-medium truncate`}>{driver.raceLabel}</p>
+        <p className={`${typography.captionSmall} truncate`}>{driver.className}</p>
       </div>
     </div>
   )

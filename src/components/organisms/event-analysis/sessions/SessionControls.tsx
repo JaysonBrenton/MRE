@@ -33,7 +33,7 @@ export default function SessionControls({
   viewMode,
   onViewModeChange,
   selectedClass,
-  availableClasses,
+  availableClasses: _availableClasses,
   presetView,
   onPresetViewChange,
   isFilteringByDrivers,

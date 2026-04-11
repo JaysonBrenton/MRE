@@ -32,7 +32,7 @@ test.describe("Sessions Table Driver Names", () => {
     await page.getByRole("button", { name: /sign in/i }).click()
 
     // Wait for login to complete
-    await page.waitForURL(/\/admin|\/dashboard/, { timeout: 10000 })
+    await page.waitForURL(/\/admin|\/eventAnalysis/, { timeout: 10000 })
   })
 
   test("should display driver names in expanded sessions table", async ({ page }) => {

@@ -13,7 +13,7 @@
  *
  * @relatedFiles
  * - src/components/event-analysis/ChartControls.tsx (button logic extracted from here)
- * - src/components/dashboard/EventAnalysisSection.tsx (uses this)
+ * - src/components/eventAnalysis/EventAnalysisSection.tsx (uses this)
  */
 
 "use client"
@@ -26,6 +26,8 @@ import SidebarAction from "./SidebarAction"
 import { useDashboardEventSearch } from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { clearEvent } from "@/store/slices/dashboardSlice"
+import { sanitizeErrorMessage } from "@/lib/sanitize-error-message"
+import { typography } from "@/lib/typography"
 import type { Driver, Race } from "./ChartControls"
 
 const STORAGE_KEY_SIDEBAR_COLLAPSED = "mre-event-analysis-sidebar-collapsed"
@@ -361,8 +363,8 @@ export default function EventAnalysisSidebar({
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        const errorMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
-        setErrorMessage(errorMsg)
+        const rawMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
+        setErrorMessage(sanitizeErrorMessage(rawMsg))
         setIsErrorModalOpen(true)
         return
       }
@@ -393,8 +395,13 @@ export default function EventAnalysisSidebar({
       router.refresh()
       setIsSuccessModalOpen(true)
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error occurred"
-      setErrorMessage(`Failed to refresh event data: ${errorMsg}`)
+      const rawMsg = error instanceof Error ? error.message : "Unknown error occurred"
+      setErrorMessage(
+        sanitizeErrorMessage(
+          `Failed to refresh event data: ${rawMsg}`,
+          "Something went wrong while refreshing event data. Please try again."
+        )
+      )
       setIsErrorModalOpen(true)
     } finally {
       setIsRefreshing(false)
@@ -646,7 +653,7 @@ export default function EventAnalysisSidebar({
           </button>
           {isCollapsed && (
             <span
-              className="text-[10px] font-medium uppercase tracking-wider text-[var(--token-text-muted)] -rotate-90 origin-center whitespace-nowrap"
+              className={`${typography.uppercase} font-medium -rotate-90 origin-center whitespace-nowrap`}
               aria-hidden="true"
             >
               Actions
@@ -813,7 +820,7 @@ export default function EventAnalysisSidebar({
             </div>
           }
         >
-          <div className="space-y-4 p-4">
+          <div className="space-y-4">
             {/* Controls Row */}
             <div className="flex gap-2">
               {/* Class Filter Dropdown */}
@@ -845,7 +852,7 @@ export default function EventAnalysisSidebar({
                   </button>
                   {needsReview && (
                     <span
-                      className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
+                      className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
                       title="Vehicle type needs review"
                     >
                       ⚠
@@ -853,7 +860,7 @@ export default function EventAnalysisSidebar({
                   )}
                 </div>
                 {isClassDropdownOpen && (
-                  <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
+                  <div className="scrollbar-none absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg">
                     <button
                       type="button"
                       onClick={() => {
@@ -999,11 +1006,9 @@ export default function EventAnalysisSidebar({
           </div>
         }
       >
-        <div className="p-4">
-          <p className="text-[var(--token-text-primary)]">
-            {errorMessage || "An unknown error occurred while refreshing event data."}
-          </p>
-        </div>
+        <p className="text-[var(--token-text-primary)]">
+          {errorMessage || "An unknown error occurred while refreshing event data."}
+        </p>
       </Modal>
 
       {/* Success Modal */}
@@ -1032,7 +1037,7 @@ export default function EventAnalysisSidebar({
             </div>
           }
         >
-          <div className="p-4 space-y-4">
+          <div className="space-y-4">
             <p className="text-[var(--token-text-primary)]">
               {formatStatsMessage(successStats).message}
             </p>

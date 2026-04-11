@@ -37,7 +37,7 @@ export default function AuthenticatedNav() {
         {/* Navigation Links */}
         <div className="flex items-center gap-4">
           <Link
-            href="/dashboard"
+            href="/eventAnalysis"
             className="text-base font-medium text-[var(--token-text-primary)] hover:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
           >
             My Event Analysis

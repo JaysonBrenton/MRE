@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require("fs")
 const src = fs.readFileSync("src/components/organisms/dashboard/DashboardClient.tsx", "utf8")
 const lines = src.split("\n")

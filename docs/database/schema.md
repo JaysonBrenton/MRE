@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-29
+lastModified: 2026-04-07
 description: Human-readable database schema documentation for MRE application
 purpose:
   Provides comprehensive documentation of the database schema, including all
@@ -10,6 +10,8 @@ purpose:
   data model without reading the Prisma schema directly.
 relatedFiles:
   - prisma/schema.prisma (source of truth for schema)
+  - docs/architecture/car-taxonomy-user-mapping.md (CarTaxonomyNode,
+    UserCarTaxonomyRule)
   - docs/architecture/liverc-ingestion/04-data-model.md (ingestion-specific
     models)
   - src/lib/prisma.ts (Prisma client instance)
@@ -18,8 +20,9 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-02-14 (Added raceMetadata to Race model for practice day
-full ingestion; previous: practiceday in SessionType, sessionType on Race, etc.)  
+**Last Updated:** 2026-04-07 — Schema overview and model list aligned with
+`prisma/schema.prisma` (31 models); includes `CarTaxonomyNode` and
+`UserCarTaxonomyRule` for per-user car-type mapping.  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -47,23 +50,27 @@ the database structure.
 
 ## Schema Overview
 
-The MRE database schema consists of:
+The MRE database schema consists of **31 Prisma models** (see
+`prisma/schema.prisma`):
 
-- **1 User model** - User accounts and authentication
-- **1 Persona model** - Persona definitions and user personas
-- **11 Ingestion models** - LiveRC data ingestion (Track, Event, EventEntry,
-  EventRaceClass, Race, Driver, RaceDriver, RaceResult, Lap,
-  TransponderOverride, WeatherData)
-- **2 User-Driver Link models** - User-driver matching and linking
-  (UserDriverLink, EventDriverLink)
-- **2 System models** - Audit logging and application logging (AuditLog,
-  ApplicationLog)
-- **2 Profile models** - User profiles (CarProfile, DriverProfile)
-- **5 Enum types** - IngestDepth, PersonaType, UserDriverLinkStatus,
-  EventDriverLinkMatchType, SessionType
+- **Identity & profiles:** `User`, `Persona`, `CarProfile`, `DriverProfile`
+- **Car taxonomy (user mapping):** `CarTaxonomyNode`, `UserCarTaxonomyRule`
+- **Catalogue & events:** `Track`, `Event`, `EventEntry`, `EventRaceClass`
+- **LiveRC / results ingestion:** `Race`, `Driver`, `RaceDriver`, `RaceResult`,
+  `Lap`, `LapAnnotation`, `MultiMainResult`, `MultiMainResultEntry`
+- **Event-level standings (parsed from LiveRC):** `EventQualPoints`,
+  `EventQualPointsEntry`, `EventRoundRanking`, `EventRoundRankingEntry`
+- **Links & overrides:** `UserDriverLink`, `EventDriverLink`,
+  `TransponderOverride`
+- **Venue workflow:** `EventVenueCorrection`, `EventVenueCorrectionRequest`
+- **Supporting:** `WeatherData`, `AuditLog`, `ApplicationLog`, `TrackMap`
 
-All models use UUID primary keys and include `createdAt` and `updatedAt`
-timestamps.
+**Enums:** `PersonaType`, `IngestDepth`, `UserDriverLinkStatus`,
+`EventDriverLinkMatchType`, `EventDriverLinkStatus`, `SessionType`,
+`EventVenueCorrectionRequestStatus`, `CarTaxonomyMatchType`
+
+Most models use UUID primary keys and include `createdAt` and `updatedAt`
+timestamps where applicable.
 
 ---
 
@@ -509,8 +516,8 @@ Individual races within an event.
 | `raceUrl`         | String        | Required              | LiveRC race page URL                                                                                                                                                                                               |
 | `startTime`       | DateTime      | Optional              | Race start time                                                                                                                                                                                                    |
 | `durationSeconds` | Int           | Optional              | Race duration in seconds                                                                                                                                                                                           |
-| `sessionType`     | SessionType   | Optional              | Type of session (race, practice, qualifying, practiceday, heat, main). See [SessionType](#sessiontype) for definitions.                                                                                                                                                         |
-| `raceMetadata`    | Json          | Optional              | Practice sessions only: end_time and practiceSessionStats (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../architecture/practice-day-full-ingestion-design.md). |
+| `sessionType`     | SessionType   | Optional              | Type of session (race, practice, qualifying, practiceday, heat, main). See [SessionType](#sessiontype) for definitions.                                                                                            |
+| `raceMetadata`    | Json          | Optional              | Practice sessions only: end_time and practiceSessionStats (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../architecture/practice-day-full-ingestion-design.md).    |
 | `createdAt`       | DateTime      | Auto-generated        | Record creation timestamp                                                                                                                                                                                          |
 | `updatedAt`       | DateTime      | Auto-updated          | Last update timestamp                                                                                                                                                                                              |
 
@@ -595,23 +602,23 @@ Race results for a driver in a race.
 
 **Table:** `race_results`
 
-| Field              | Type          | Constraints           | Description                                    |
-| ------------------ | ------------- | --------------------- | ---------------------------------------------- |
-| `id`               | String (UUID) | Primary Key           | Unique race result identifier                  |
-| `raceId`           | String (UUID) | Foreign Key, Required | Reference to Race                              |
-| `raceDriverId`     | String (UUID) | Foreign Key, Required | Reference to RaceDriver                        |
-| `positionFinal`    | Int           | Required              | Final finishing position                       |
-| `lapsCompleted`    | Int           | Required              | Number of laps completed                       |
-| `totalTimeRaw`         | String        | Optional              | Total time as raw string (e.g. "47/30:31.382") |
-| `totalTimeSeconds`     | Float         | Optional              | Total time in seconds (parsed from Laps/Time)  |
-| `fastLapTime`          | Float         | Optional              | Fastest lap time in seconds                    |
-| `avgLapTime`           | Float         | Optional              | Average lap time in seconds                    |
-| `consistency`          | Float         | Optional              | Consistency percentage (e.g., 92.82)           |
-| `qualifyingPosition`   | Int           | Optional              | Qualifying position (Qual column from LiveRC)   |
-| `secondsBehind`        | Float         | Optional              | Seconds behind winner (Behind column)          |
-| `rawFieldsJson`        | Json          | Optional              | Extra metrics (avg_top_5, avg_top_10, std_deviation, etc.) |
-| `createdAt`        | DateTime      | Auto-generated        | Record creation timestamp                      |
-| `updatedAt`        | DateTime      | Auto-updated          | Last update timestamp                          |
+| Field                | Type          | Constraints           | Description                                                |
+| -------------------- | ------------- | --------------------- | ---------------------------------------------------------- |
+| `id`                 | String (UUID) | Primary Key           | Unique race result identifier                              |
+| `raceId`             | String (UUID) | Foreign Key, Required | Reference to Race                                          |
+| `raceDriverId`       | String (UUID) | Foreign Key, Required | Reference to RaceDriver                                    |
+| `positionFinal`      | Int           | Required              | Final finishing position                                   |
+| `lapsCompleted`      | Int           | Required              | Number of laps completed                                   |
+| `totalTimeRaw`       | String        | Optional              | Total time as raw string (e.g. "47/30:31.382")             |
+| `totalTimeSeconds`   | Float         | Optional              | Total time in seconds (parsed from Laps/Time)              |
+| `fastLapTime`        | Float         | Optional              | Fastest lap time in seconds                                |
+| `avgLapTime`         | Float         | Optional              | Average lap time in seconds                                |
+| `consistency`        | Float         | Optional              | Consistency percentage (e.g., 92.82)                       |
+| `qualifyingPosition` | Int           | Optional              | Qualifying position (Qual column from LiveRC)              |
+| `secondsBehind`      | Float         | Optional              | Seconds behind winner (Behind column)                      |
+| `rawFieldsJson`      | Json          | Optional              | Extra metrics (avg_top_5, avg_top_10, std_deviation, etc.) |
+| `createdAt`          | DateTime      | Auto-generated        | Record creation timestamp                                  |
+| `updatedAt`          | DateTime      | Auto-updated          | Last update timestamp                                      |
 
 **Business Rules:**
 
@@ -685,22 +692,24 @@ post-ingestion. One row per lap that has at least one tag. See
 
 **Table:** `lap_annotations`
 
-| Field           | Type          | Constraints           | Description                                              |
-| --------------- | ------------- | --------------------- | -------------------------------------------------------- |
-| `id`            | String (UUID) | Primary Key           | Unique annotation identifier                             |
-| `raceResultId`  | String (UUID) | Foreign Key, Required | Reference to RaceResult                                  |
-| `lapNumber`     | Int           | Required              | Lap number within that result                            |
-| `invalidReason` | String        | Optional              | e.g. `suspected_cut`                                     |
-| `incidentType`  | String        | Optional              | e.g. `suspected_crash`, `suspected_fuel_stop`, etc.      |
-| `confidence`    | Float         | Optional              | 0.0–1.0                                                  |
-| `metadata`      | Json          | Optional              | Extra context (e.g. baseline, thresholds)                |
-| `createdAt`     | DateTime      | Auto-generated        | Record creation timestamp                                |
-| `updatedAt`     | DateTime      | Auto-updated          | Last update timestamp                                    |
+| Field           | Type          | Constraints           | Description                                         |
+| --------------- | ------------- | --------------------- | --------------------------------------------------- |
+| `id`            | String (UUID) | Primary Key           | Unique annotation identifier                        |
+| `raceResultId`  | String (UUID) | Foreign Key, Required | Reference to RaceResult                             |
+| `lapNumber`     | Int           | Required              | Lap number within that result                       |
+| `invalidReason` | String        | Optional              | e.g. `suspected_cut`                                |
+| `incidentType`  | String        | Optional              | e.g. `suspected_crash`, `suspected_fuel_stop`, etc. |
+| `confidence`    | Float         | Optional              | 0.0–1.0                                             |
+| `metadata`      | Json          | Optional              | Extra context (e.g. baseline, thresholds)           |
+| `createdAt`     | DateTime      | Auto-generated        | Record creation timestamp                           |
+| `updatedAt`     | DateTime      | Auto-updated          | Last update timestamp                               |
 
 **Business Rules:**
 
-- `raceResultId` + `lapNumber` must be unique (one annotation row per lap per result)
-- Populated by ingestion pipeline after laps are written (post-ingestion derivation)
+- `raceResultId` + `lapNumber` must be unique (one annotation row per lap per
+  result)
+- Populated by ingestion pipeline after laps are written (post-ingestion
+  derivation)
 - Deleted when parent RaceResult is deleted (cascade delete)
 
 **Indexes:**
@@ -1022,6 +1031,89 @@ Application logging for system monitoring and debugging.
 
 ---
 
+### EventQualPoints and EventQualPointsEntry
+
+**Tables:** `event_qual_points`, `event_qual_points_entries`
+
+Qualifying points standings for an event (one header row per LiveRC points
+block, with per-driver rows). See `prisma/schema.prisma` for fields; linked to
+`Event` and `Driver`.
+
+---
+
+### EventRoundRanking and EventRoundRankingEntry
+
+**Tables:** `event_round_rankings`, `event_round_ranking_entries`
+
+Round / seeding ranking tables parsed from LiveRC (header + per-driver rows).
+See `prisma/schema.prisma` for fields.
+
+---
+
+### MultiMainResult and MultiMainResultEntry
+
+**Tables:** `multi_main_results`, `multi_main_result_entries`
+
+Stores multi-main overall results when ingested from LiveRC. `MultiMainResult`
+belongs to `Event`; `MultiMainResultEntry` rows belong to a multi-main header
+and `Driver`.
+
+---
+
+### EventVenueCorrection
+
+**Table:** `event_venue_corrections`
+
+Approved correction linking an event to a venue `Track` (one row per event when
+approved). See `EventVenueCorrection` in `prisma/schema.prisma`.
+
+---
+
+### EventVenueCorrectionRequest
+
+**Table:** `event_venue_correction_requests`
+
+User-submitted venue correction pending admin review (`status`: `pending` |
+`approved` | `rejected`). One row per event for the workflow.
+
+---
+
+### TrackMap
+
+**Table:** `track_maps`
+
+User-authored track map drawings (`mapData` JSON), optional `shareToken` for
+public share links, `isPublic` flag. Belongs to `User` and `Track`.
+
+---
+
+### CarTaxonomyNode
+
+**Table:** `car_taxonomy_nodes`
+
+Admin-seeded **canonical RC vehicle-type** hierarchy: `slug` (unique), `label`,
+`parentId` (self-relation for discipline → group → leaf). **Leaf** nodes (no
+children) are the only valid targets for user rules. Seeded via migrations (e.g.
+`20260410120000_car_taxonomy_canonical_v1`).
+
+**Related:**
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
+
+---
+
+### UserCarTaxonomyRule
+
+**Table:** `user_car_taxonomy_rules`
+
+**Per-user, global** mapping rules: `matchType` (`CarTaxonomyMatchType`),
+`pattern_normalized`, `taxonomyNodeId` (FK to a leaf `CarTaxonomyNode`). Unique
+on `(user_id, match_type, pattern_normalized)`. Cascade delete with `User`.
+
+**Related:**
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
+
+---
+
 ## Transponder Number Storage Strategy
 
 Transponder numbers are stored at multiple levels in the MRE database to support
@@ -1199,6 +1291,32 @@ Type of matching algorithm used to create event-driver links.
 
 ---
 
+### EventDriverLinkStatus
+
+Lifecycle state for an event-level driver link (separate from match type).
+
+**Values:** `suggested`, `confirmed`, `rejected` (see `EventDriverLink` in
+`prisma/schema.prisma`).
+
+---
+
+### EventVenueCorrectionRequestStatus
+
+Admin workflow for venue correction requests.
+
+**Values:** `pending`, `approved`, `rejected`
+
+---
+
+### CarTaxonomyMatchType
+
+Which LiveRC-derived field a user rule matches (`CLASS_AND_LABEL`, `CLASS_NAME`,
+`RACE_LABEL`, `SECTION_HEADER`, `SESSION_TYPE`). Used by `UserCarTaxonomyRule`.
+Resolution order is documented in
+[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
+
+---
+
 ### SessionType
 
 Type of racing session (race, practice, qualifying, practiceday, heat, main).
@@ -1209,8 +1327,10 @@ Type of racing session (race, practice, qualifying, practiceday, heat, main).
 - `practice` - Practice session
 - `qualifying` - Qualifying session (q1, q2, q3, qualifier rounds)
 - `practiceday` - Practice day session (standalone practice day events)
-- `heat` - Qualifying heat (e.g., "Heat 1/3", "Heat 2/3") — sets positions for mains
-- `main` - Main event (e.g., "A1-Main", "B2-Main", "C-Main") — the actual race finals
+- `heat` - Qualifying heat (e.g., "Heat 1/3", "Heat 2/3") — sets positions for
+  mains
+- `main` - Main event (e.g., "A1-Main", "B2-Main", "C-Main") — the actual race
+  finals
 
 **Usage:**
 

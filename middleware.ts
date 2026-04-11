@@ -179,7 +179,7 @@ export async function middleware(request: NextRequest) {
       }
 
       // Regular user - redirect to dashboard
-      const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url))
+      const redirectResponse = NextResponse.redirect(new URL("/eventAnalysis", request.url))
       return addSecurityHeaders(redirectResponse, isProduction)
     }
 
@@ -228,7 +228,7 @@ export async function middleware(request: NextRequest) {
         )
       }
       return addSecurityHeaders(
-        NextResponse.redirect(new URL("/dashboard", request.url)),
+        NextResponse.redirect(new URL("/eventAnalysis", request.url)),
         isProduction
       )
     }
@@ -242,7 +242,7 @@ export async function middleware(request: NextRequest) {
           )
         }
         return addSecurityHeaders(
-          NextResponse.redirect(new URL("/dashboard", request.url)),
+          NextResponse.redirect(new URL("/eventAnalysis", request.url)),
           isProduction
         )
       }
@@ -250,7 +250,7 @@ export async function middleware(request: NextRequest) {
 
     if (isAdminRoute && !session?.user?.isAdmin) {
       return addSecurityHeaders(
-        NextResponse.redirect(new URL("/dashboard", request.url)),
+        NextResponse.redirect(new URL("/eventAnalysis", request.url)),
         isProduction
       )
     }

@@ -26,6 +26,7 @@ import Modal from "@/components/molecules/Modal"
 import LogoutButton from "@/components/LogoutButton"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { setDensity } from "@/store/slices/uiSlice"
+import { typography } from "@/lib/typography"
 import type { UserProfile } from "@/core/users/profile"
 
 interface UserProfileModalProps {
@@ -41,7 +42,12 @@ interface UserProfileModalProps {
 
 type ProfileData = UserProfile | null
 
-export default function UserProfileModal({ isOpen, onClose, userId, user }: UserProfileModalProps) {
+export default function UserProfileModal({
+  isOpen,
+  onClose,
+  userId,
+  user: _user,
+}: UserProfileModalProps) {
   const dispatch = useAppDispatch()
   const density = useAppSelector((state) => state.ui.density)
 
@@ -132,13 +138,13 @@ export default function UserProfileModal({ isOpen, onClose, userId, user }: User
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case "confirmed":
-        return "bg-green-500/20 text-green-500"
+        return "bg-[var(--token-status-success-bg)] text-[var(--token-status-success-text)]"
       case "suggested":
-        return "bg-yellow-500/20 text-yellow-500"
+        return "bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)]"
       case "rejected":
-        return "bg-red-500/20 text-red-500"
+        return "bg-[var(--token-status-error-bg)] text-[var(--token-status-error-text)]"
       case "conflict":
-        return "bg-orange-500/20 text-orange-500"
+        return "bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)]"
       default:
         return "bg-[var(--token-surface-elevated)] text-[var(--token-text-muted)]"
     }
@@ -157,7 +163,7 @@ export default function UserProfileModal({ isOpen, onClose, userId, user }: User
         </div>
       }
     >
-      <div className="px-4 py-4 space-y-6">
+      <div className="space-y-6">
         {isLoading && (
           <div className="flex items-center justify-center py-12">
             <div className="text-sm text-[var(--token-text-muted)]">Loading profile...</div>
@@ -165,8 +171,10 @@ export default function UserProfileModal({ isOpen, onClose, userId, user }: User
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
-            <p className="text-sm text-red-500">{error}</p>
+          <div className="rounded-lg border border-[var(--token-status-error-text)]/20 bg-[var(--token-status-error-bg)] p-4">
+            <p className={`${typography.bodySecondary} text-[var(--token-status-error-text)]`}>
+              {error}
+            </p>
           </div>
         )}
 
@@ -332,7 +340,7 @@ export default function UserProfileModal({ isOpen, onClose, userId, user }: User
                         onClick={() =>
                           handleSetDensity(option.id as "compact" | "comfortable" | "spacious")
                         }
-                        className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-wide transition ${
+                        className={`rounded-full px-3 py-1 ${typography.uppercaseSecondary} transition ${
                           density === option.id
                             ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)]"
                             : "border border-[var(--token-border-default)] text-[var(--token-text-muted)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
@@ -354,7 +362,7 @@ export default function UserProfileModal({ isOpen, onClose, userId, user }: User
                         key={option.id}
                         type="button"
                         onClick={() => toggleTheme(option.id as "light" | "dark")}
-                        className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-wide transition ${
+                        className={`rounded-full px-3 py-1 ${typography.uppercaseSecondary} transition ${
                           (option.id === "light" && isLight) || (option.id === "dark" && !isLight)
                             ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)]"
                             : "border border-[var(--token-border-default)] text-[var(--token-text-muted)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"

@@ -36,7 +36,7 @@ function DefaultErrorFallback({ error, resetError }: { error: Error; resetError:
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
       <div
-        className="rounded-lg border border-red-500/20 bg-red-500/10 p-6"
+        className="rounded-lg border border-[var(--token-status-error-text)]/20 bg-[var(--token-status-error-bg)] p-6"
         style={{
           width: "100%",
           maxWidth: "28rem",
@@ -46,14 +46,16 @@ function DefaultErrorFallback({ error, resetError }: { error: Error; resetError:
           flexGrow: 0,
         }}
       >
-        <h2 className="mb-4 text-xl font-semibold text-red-400">Something went wrong</h2>
+        <h2 className="mb-4 text-xl font-semibold text-[var(--token-status-error-text)]">
+          Something went wrong
+        </h2>
         <p className="mb-4 text-sm text-gray-300">
           An unexpected error occurred. Please try refreshing the page.
         </p>
         {process.env.NODE_ENV === "development" && error && (
           <details className="mb-4">
             <summary className="cursor-pointer text-sm text-gray-400">Error details</summary>
-            <pre className="mt-2 overflow-auto rounded bg-gray-900 p-2 text-xs text-red-300">
+            <pre className="mt-2 overflow-auto rounded bg-gray-900 p-2 text-xs text-[var(--token-status-error-text)]">
               {error.message}
               {error.stack && `\n\n${error.stack}`}
             </pre>

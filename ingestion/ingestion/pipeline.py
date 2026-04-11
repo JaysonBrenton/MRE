@@ -12,6 +12,7 @@
 import asyncio
 import math
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, date
@@ -29,6 +30,8 @@ from ingestion.connectors.liverc.models import (
     ConnectorRaceSummary,
     ConnectorEntryList,
     ConnectorMultiMainSummary,
+    ConnectorQualPointsSummary,
+    ConnectorRoundRankingSummary,
     PracticeDaySummary,
     PracticeSessionDetail,
     PracticeSessionSummary,
@@ -61,6 +64,37 @@ from ingestion.ingestion.auto_confirm import check_and_confirm_links
 from ingestion.ingestion.derived_laps import run_derivation_for_race
 
 logger = get_logger(__name__)
+
+
+def _get_event_entries_for_race_class(
+    cache: Dict[str, List[Dict[str, Any]]], class_name: str
+) -> List[Dict[str, Any]]:
+    """
+    Get event entries for a race class, with fallback for Semi A/B base class.
+
+    Entry list may use base class (e.g. "1/8 Electric Buggy") while race uses
+    "1/8 Electric Buggy Semi A" or "1/8 Electric Buggy Semi B". Try exact match
+    first, then strip " Semi A" / " Semi B" suffix to find base class entries.
+
+    Also handles reverse: race "Semi A" / "Semi B" when entry list has
+    "Semi A (Even) Practice" / "Semi B (Odd) Practice".
+    """
+    entries = cache.get(class_name, [])
+    if entries:
+        return entries
+    # Fallback 1: race "1/8 Electric Buggy Semi A" → entry list "1/8 Electric Buggy"
+    base_match = re.match(r"^(.+?)\s+Semi\s+[A-Za-z]\s*$", class_name)
+    if base_match:
+        base_class = base_match.group(1).strip()
+        entries = cache.get(base_class, [])
+        if entries:
+            return entries
+    # Fallback 2: race "Semi A" / "Semi B" → entry list "Semi A (Even) Practice" / "Semi B (Odd) Practice"
+    prefix = class_name + " "
+    for cached_class, cached_entries in cache.items():
+        if cached_class.startswith(prefix) or cached_class == class_name:
+            return cached_entries
+    return []
 
 
 @dataclass
@@ -286,6 +320,8 @@ class IngestionPipeline:
                     event_entries=normalized_event["event_entries"],
                     event_drivers=normalized_event["event_drivers"],
                     event_url=event_url,
+                    event_date_end=normalized_event.get("event_date_end"),
+                    total_race_laps=normalized_event.get("total_race_laps"),
                 )
                 session.flush()
                 logger.info(
@@ -530,10 +566,24 @@ class IngestionPipeline:
             
             # Normalize result (CPU-bound)
             normalized_result = Normalizer.normalize_result(result)
+
+            # Merge racerLaps-only stats (e.g. top_2_consecutive) without overwriting table-parsed keys
+            extra_by_driver = getattr(race_package, "racer_laps_extra_by_driver", None) or {}
+            sid = str(normalized_result["source_driver_id"])
+            extra = extra_by_driver.get(sid)
+            if extra:
+                merged = dict(normalized_result.get("raw_fields_json") or {})
+                for k, v in extra.items():
+                    if v is not None and k not in merged:
+                        merged[k] = v
+                if merged:
+                    normalized_result["raw_fields_json"] = merged
             
             # Match race result driver to event entry (CPU-bound, plain dicts only - thread-safe)
             class_name = normalized_race["class_name"]
-            event_entries_plain = event_entries_plain_cache.get(class_name, [])
+            event_entries_plain = _get_event_entries_for_race_class(
+                event_entries_plain_cache, class_name
+            )
 
             matched_event_entry_plain = None
             if event_entries_plain:
@@ -675,9 +725,11 @@ class IngestionPipeline:
                     "race_label": normalized_race["race_label"],
                     "race_order": normalized_race["race_order"],
                     "race_url": normalized_race["race_url"],
+                    "completed_at": normalized_race.get("completed_at"),
                     "start_time": normalized_race.get("start_time"),
                     "duration_seconds": normalized_race["duration_seconds"],
                     "session_type": normalized_race.get("session_type", "race"),  # Default to "race" if not inferred
+                    "section_header": normalized_race.get("section_header"),
                 })
                 continue
             
@@ -690,14 +742,18 @@ class IngestionPipeline:
                 "race_label": normalized_race["race_label"],
                 "race_order": normalized_race["race_order"],
                 "race_url": normalized_race["race_url"],
+                "completed_at": normalized_race.get("completed_at"),
                 "start_time": normalized_race.get("start_time"),
                 "duration_seconds": normalized_race["duration_seconds"],
                 "session_type": normalized_race.get("session_type", "race"),  # Default to "race" if not inferred
+                "section_header": normalized_race.get("section_header"),
             })
             
             # Process results to collect driver and race_driver/result data
             class_name = normalized_race["class_name"]
-            event_entries_plain = event_entries_plain_cache.get(class_name, [])
+            event_entries_plain = _get_event_entries_for_race_class(
+                event_entries_plain_cache, class_name
+            )
 
             for processed in processed_results:
                 result = processed["result"]
@@ -709,15 +765,27 @@ class IngestionPipeline:
                     entry_id = matched_event_entry.get("id")
                     matched_event_entry = event_entry_by_id.get(entry_id) if entry_id else None
 
+                driver_id = None  # set from matched_event_entry or from fallback driver_obj
+
                 # Track cache usage
                 metrics.record_event_entry_cache_lookup(str(event_id))
                 if event_entries_plain:
                     metrics.record_event_entry_cache_hit(str(event_id))
 
-                # SKIP unmatched drivers - they don't belong in this class
-                # This ensures data integrity: drivers only appear in classes they're entered in.
-                # Multi-class drivers will still be processed when we encounter them in their actual classes.
+                # Previously, unmatched drivers (no EventEntry for this class) were skipped
+                # entirely. This caused real finishers to disappear from results when the
+                # LiveRC entry list was incomplete or misclassified for a class (e.g. a
+                # driver racing Truggy without being listed in the Truggy entry list).
+                #
+                # To preserve complete race standings, we now *fallback* by creating an
+                # EventEntry on the fly for such drivers instead of dropping their
+                # RaceResult. This ensures:
+                #   - Every visible result row on LiveRC is represented in race_results
+                #   - Downstream analytics (winners tables, charts) can show correct P1/P2/P3
+                #
+                # We still log the situation for diagnostics.
                 if not matched_event_entry:
+                    # Track for summary metrics/logging
                     skipped_drivers.append({
                         "driver_id": normalized_result["source_driver_id"],
                         "driver_name": normalized_result["display_name"],
@@ -726,7 +794,7 @@ class IngestionPipeline:
                         "race_label": normalized_race["race_label"],
                     })
                     logger.warning(
-                        "race_result_driver_not_in_class",
+                        "race_result_driver_not_in_class_fallback_entry",
                         event_id=str(event_id),
                         race_id=normalized_race["source_race_id"],
                         race_label=normalized_race["race_label"],
@@ -734,16 +802,59 @@ class IngestionPipeline:
                         driver_id=normalized_result["source_driver_id"],
                         driver_name=normalized_result["display_name"],
                         message=(
-                            f"Skipping race result - driver '{normalized_result['display_name']}' "
-                            f"not found in entry list for class '{class_name}'. "
-                            f"This driver will still be processed if they appear in races for classes they ARE entered in."
-                        )
+                            "Driver not found in entry list for this class; "
+                            "creating fallback EventEntry so race result is preserved."
+                        ),
                     )
-                    continue  # Skip this result - don't process unmatched drivers
+
+                    # Ensure a normalized Driver exists
+                    from ingestion.ingestion.normalizer import Normalizer
+                    from ingestion.db.models import Driver as DriverModel
+
+                    normalized_name = Normalizer.normalize_driver_name(
+                        normalized_result["display_name"]
+                    )
+
+                    driver_stmt = select(DriverModel).where(
+                        and_(
+                            DriverModel.source == "liverc",
+                            DriverModel.source_driver_id == normalized_result["source_driver_id"],
+                        )
+                    ).limit(1)
+                    driver_obj = repo.session.scalar(driver_stmt)
+                    if not driver_obj:
+                        driver_obj = repo.upsert_driver(
+                            source="liverc",
+                            source_driver_id=normalized_result["source_driver_id"],
+                            display_name=normalized_result["display_name"],
+                            normalized_name=normalized_name,
+                        )
+
+                    # Create or update an EventEntry linking this driver to the class so
+                    # that analytics and UI can treat them as a valid entrant.
+                    from uuid import UUID as _UUID
+                    repo.upsert_event_entry(
+                        event_id=_UUID(str(event_id)),
+                        driver_id=_UUID(str(driver_obj.id)),
+                        class_name=class_name,
+                    )
+
+                    # Reload plain cache for this class so subsequent lookups see the new entry.
+                    # Cache is in-memory only (no refetch from DB), so new entry may not appear yet.
+                    event_entries_plain_cache.pop(class_name, None)
+                    event_entries_plain = _get_event_entries_for_race_class(
+                        event_entries_plain_cache, class_name
+                    )
+                    matched_event_entry = next(
+                        (e for e in event_entries_plain if e.get("driver_id") == str(driver_obj.id)),
+                        None,
+                    )
+                    if not matched_event_entry:
+                        # Use the driver we just created so race_drivers gets a valid driver_id
+                        driver_id = str(driver_obj.id)
                 
-                # Handle driver updates
-                driver_id = None
-                if matched_event_entry:
+                # Handle driver updates (driver_id may already be set by fallback above)
+                if driver_id is None and matched_event_entry:
                     driver = matched_event_entry.driver
                     if driver.source_driver_id.startswith("entry_"):
                         # Check if a driver with the real source_driver_id already exists
@@ -856,19 +967,7 @@ class IngestionPipeline:
             race_results = repo.bulk_upsert_race_results(race_results_to_write)
             results_ingested = len(race_results)
             
-            # Step 4.5: Calculate and update race durations from results
-            # Calculate duration for all races that have results (only updates if duration_seconds is null)
-            if race_results_to_write:
-                # Get unique race IDs from results
-                unique_race_ids = list(set(UUID(race_id) for race_id in race_id_map.values()))
-                if unique_race_ids:
-                    updated_count = repo.calculate_and_update_race_durations(unique_race_ids)
-                    if updated_count > 0:
-                        logger.info(
-                            "race_durations_updated_from_results",
-                            updated_count=updated_count,
-                            total_races=len(unique_race_ids),
-                        )
+            # Race duration_seconds comes from LiveRC race page "Length: … Timed" only (see connector.fetch_race_page).
             
             # Step 5: Update laps with race_result IDs
             for lap in accumulated_laps:
@@ -1133,7 +1232,117 @@ class IngestionPipeline:
                         message="Skipping failed multi-main; continuing with others",
                     )
         return persisted
-    
+
+    async def _process_rankings(
+        self,
+        event_data: ConnectorEventSummary,
+        event_id: UUID,
+        track_slug: str,
+        repo: Repository,
+    ) -> Tuple[int, int]:
+        """
+        Fetch and persist Qual Points and Round Rankings.
+        Uses event entries for driver resolution (drivers may not have raced yet).
+        Returns (qual_points_count, round_rankings_count).
+        """
+        driver_name_to_id = repo.get_event_driver_name_to_id_map_with_entries(event_id)
+        if not driver_name_to_id:
+            logger.warning(
+                "rankings_no_drivers",
+                event_id=str(event_id),
+                message="No drivers in event - skipping rankings ingestion",
+            )
+            return (0, 0)
+
+        qual_ingested = 0
+        round_ingested = 0
+        async with HTTPXClient(self.connector._site_policy) as shared_client:
+            for summary in getattr(event_data, "qual_points_summaries", []) or []:
+                try:
+                    result = await self.connector.fetch_qual_points(
+                        track_slug=track_slug,
+                        source_points_id=summary.source_points_id,
+                        label=summary.label,
+                        rounds_completed=summary.rounds_completed,
+                        total_rounds=summary.total_rounds,
+                        shared_client=shared_client,
+                    )
+                    entries_data = [
+                        {
+                            "driver_name": e.driver_name,
+                            "class_name": e.class_name,
+                            "position": e.position,
+                            "points": e.points,
+                            "round_breakdown": e.round_breakdown,
+                        }
+                        for e in result.entries
+                    ]
+                    upserted = repo.upsert_event_qual_points(
+                        event_id=event_id,
+                        source_points_id=result.source_points_id,
+                        label=result.label,
+                        rounds_completed=result.rounds_completed,
+                        total_rounds=result.total_rounds,
+                        entries=entries_data,
+                        driver_name_to_id=driver_name_to_id,
+                    )
+                    if upserted > 0:
+                        qual_ingested += 1
+                        self._record_activity()
+                except Exception as e:
+                    logger.warning(
+                        "qual_points_fetch_failed",
+                        event_id=str(event_id),
+                        source_points_id=getattr(summary, "source_points_id", "?"),
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                        message="Skipping failed Qual Points; continuing",
+                    )
+
+            for summary in getattr(event_data, "round_ranking_summaries", []) or []:
+                try:
+                    result = await self.connector.fetch_round_ranking(
+                        track_slug=track_slug,
+                        source_round_id=summary.source_round_id,
+                        label=summary.label,
+                        order_type=summary.order_type,
+                        shared_client=shared_client,
+                    )
+                    entries_data = [
+                        {
+                            "driver_name": e.driver_name,
+                            "class_name": e.class_name,
+                            "position": e.position,
+                            "laps": e.laps,
+                            "total_time_seconds": e.total_time_seconds,
+                            "best_lap_seconds": e.best_lap_seconds,
+                            "ranking_value_raw": e.ranking_value_raw,
+                        }
+                        for e in result.entries
+                    ]
+                    upserted = repo.upsert_event_round_ranking(
+                        event_id=event_id,
+                        source_round_id=result.source_round_id,
+                        label=result.label,
+                        order_type=result.order_type,
+                        entries=entries_data,
+                        driver_name_to_id=driver_name_to_id,
+                    )
+                    if upserted > 0:
+                        round_ingested += 1
+                        self._record_activity()
+                except Exception as e:
+                    logger.warning(
+                        "round_ranking_fetch_failed",
+                        event_id=str(event_id),
+                        source_round_id=getattr(summary, "source_round_id", "?"),
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                        message="Skipping failed Round Ranking; continuing",
+                    )
+
+        return (qual_ingested, round_ingested)
+
     def _process_entry_list(
         self,
         entry_list: ConnectorEntryList,
@@ -1390,9 +1599,11 @@ class IngestionPipeline:
         self,
         event_id: UUID,
         depth: str = "laps_full",
+        force: bool = False,
+        imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Ingest event data from LiveRC while limiting lock scope."""
-        logger.info("ingestion_start", event_id=str(event_id), depth=depth)
+        logger.info("ingestion_start", event_id=str(event_id), depth=depth, force=force)
 
         event_context = self._load_event_context(event_id)
 
@@ -1439,6 +1650,8 @@ class IngestionPipeline:
             normalized_event=normalized_event,
             event_data=event_data,
             entry_list=entry_list,
+            force=force,
+            imported_by_user_id=imported_by_user_id,
         )
 
     async def _persist_with_lock(
@@ -1448,6 +1661,8 @@ class IngestionPipeline:
         normalized_event: Dict[str, Any],
         event_data: ConnectorEventSummary,
         entry_list: ConnectorEntryList,
+        force: bool = False,
+        imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Acquire the advisory lock and persist the ingestion payload."""
         # Timeout is handled by _run_with_inactivity_timeout which uses
@@ -1475,6 +1690,8 @@ class IngestionPipeline:
                         entry_list=entry_list,
                         depth=depth,
                         ingestion_timer=ingestion_timer,
+                        force=force,
+                        imported_by_user_id=imported_by_user_id,
                     ),
                     event_context.event_id,
                     ingestion_timer,
@@ -1495,7 +1712,12 @@ class IngestionPipeline:
                         lock_held = False
                         await asyncio.sleep(1.0)
                         try:
-                            result = await self.ingest_event(event_context.event_id, depth=depth)
+                            result = await self.ingest_event(
+                                event_context.event_id,
+                                depth=depth,
+                                force=force,
+                                imported_by_user_id=imported_by_user_id,
+                            )
                             return result
                         finally:
                             self._retry_events.discard(str(event_context.event_id))
@@ -1521,6 +1743,8 @@ class IngestionPipeline:
         entry_list: ConnectorEntryList,
         depth: str,
         ingestion_timer: metrics.IngestionDurationTracker,
+        force: bool = False,
+        imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         event_id = event_context.event_id
         try:
@@ -1542,7 +1766,22 @@ class IngestionPipeline:
                 select(func.count(EventEntry.id)).where(EventEntry.event_id == str(event_id))
             ) or 0
 
-            if already_at_depth and event_entry_count > 0:
+            # When already at laps_full, only short-circuit if LiveRC has no new races.
+            # Multi-day events add sessions over time; we must process new ones.
+            # force=True bypasses short-circuit to re-process all races (e.g. to fix race_order).
+            existing_source_race_ids = repo.get_existing_source_race_ids_for_event(event_id)
+            liverc_source_race_ids = {r.source_race_id for r in event_data.races}
+            new_source_race_ids = liverc_source_race_ids - existing_source_race_ids
+
+            if (
+                not force
+                and already_at_depth
+                and event_entry_count > 0
+                and not new_source_race_ids
+            ):
+                self._set_stage("vehicle_class_normalization", event_id)
+                repo.apply_race_vehicle_class_normalization(event_id)
+                repo.session.commit()
                 logger.info("ingestion_already_complete", event_id=str(event_id))
                 ingestion_timer.finish("already_complete")
                 return {
@@ -1559,6 +1798,8 @@ class IngestionPipeline:
             event.event_date = normalized_event["event_date"]
             event.event_entries = normalized_event["event_entries"]
             event.event_drivers = normalized_event["event_drivers"]
+            event.event_date_end = normalized_event.get("event_date_end")
+            event.total_race_laps = normalized_event.get("total_race_laps")
             repo.session.flush()
 
             # Process entry list first for driver matching
@@ -1581,10 +1822,18 @@ class IngestionPipeline:
             results_ingested = 0
             laps_ingested = 0
 
-            if event.ingest_depth != IngestDepth.LAPS_FULL:
+            # Process all races when not yet at laps_full; process only new races
+            # when re-ingesting (multi-day events add sessions over time).
+            # force=True processes all races to refresh metadata (e.g. race_order).
+            if event.ingest_depth != IngestDepth.LAPS_FULL or force:
+                races_to_process = event_data.races
+            else:
+                races_to_process = [r for r in event_data.races if r.source_race_id in new_source_race_ids]
+
+            if races_to_process:
                 self._set_stage("persist_races", event_id)
                 races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(
-                    race_summaries=event_data.races,
+                    race_summaries=races_to_process,
                     event_id=event_id,
                     repo=repo,
                     depth=depth,
@@ -1607,11 +1856,37 @@ class IngestionPipeline:
                             event_id=str(event_id),
                             multi_main_count=multi_main_ingested,
                         )
-            else:
+
+                # Ingest Qual Points and Round Rankings
+                if event_data.qual_points_summaries or event_data.round_ranking_summaries:
+                    self._set_stage("persist_rankings", event_id)
+                    qual_ingested, round_ingested = await self._process_rankings(
+                        event_data=event_data,
+                        event_id=event_id,
+                        track_slug=event_context.track_slug,
+                        repo=repo,
+                    )
+                    if qual_ingested > 0 or round_ingested > 0:
+                        repo.session.commit()
+                        logger.info(
+                            "rankings_persisted",
+                            event_id=str(event_id),
+                            qual_points_count=qual_ingested,
+                            round_rankings_count=round_ingested,
+                        )
+
+                if event.ingest_depth == IngestDepth.LAPS_FULL and races_ingested > 0:
+                    logger.info(
+                        "new_races_ingested_on_refresh",
+                        event_id=str(event_id),
+                        races_ingested=races_ingested,
+                        new_count=len(races_to_process),
+                    )
+            elif event.ingest_depth == IngestDepth.LAPS_FULL:
                 logger.info(
-                    "skipping_race_processing",
+                    "no_new_races_on_refresh",
                     event_id=str(event_id),
-                    message="Event already at laps_full - only processed entry list",
+                    message="Event already at laps_full - no new races on LiveRC",
                 )
 
             self._set_stage("driver_matching", event_id)
@@ -1624,8 +1899,14 @@ class IngestionPipeline:
             check_and_confirm_links(repo)
             repo.session.commit()
 
+            self._set_stage("vehicle_class_normalization", event_id)
+            repo.apply_race_vehicle_class_normalization(event_id)
+            repo.session.commit()
+
             event.ingest_depth = IngestDepth(depth)
             event.last_ingested_at = datetime.utcnow()
+            if imported_by_user_id is not None:
+                event.imported_by_user_id = imported_by_user_id
             repo.session.commit()
 
             result_payload = {
@@ -1637,6 +1918,8 @@ class IngestionPipeline:
                 "laps_ingested": laps_ingested,
                 "status": "updated",
             }
+            if imported_by_user_id is not None:
+                result_payload["imported_by_user_id"] = imported_by_user_id
             ingestion_timer.finish("success")
             return result_payload
         except Exception:
@@ -1648,6 +1931,7 @@ class IngestionPipeline:
         source_event_id: str,
         track_id: UUID,
         depth: str = "laps_full",
+        imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Ingest an event by discovering it from LiveRC and persisting it."""
         logger.info(
@@ -1732,6 +2016,7 @@ class IngestionPipeline:
             normalized_event=normalized_event,
             event_data=event_data,
             entry_list=entry_list,
+            imported_by_user_id=imported_by_user_id,
         )
     
     async def _fetch_practice_session_details_with_concurrency(
@@ -1923,6 +2208,7 @@ class IngestionPipeline:
                                 "race_label": f"Practice - {s.driver_name}",
                                 "race_order": None,
                                 "race_url": s.session_url,
+                                "completed_at": None,
                                 "start_time": s.start_time,
                                 "duration_seconds": s.duration_seconds,
                                 "session_type": "practiceday",
@@ -1991,6 +2277,8 @@ class IngestionPipeline:
                                 vehicle_type=None,
                                 vehicle_type_needs_review=True,
                             )
+
+                        repo.apply_race_vehicle_class_normalization(event_id_uuid)
 
                         # Commit list phase so races + drivers + results + classes are persisted
                         session.commit()

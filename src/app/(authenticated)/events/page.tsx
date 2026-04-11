@@ -23,7 +23,7 @@ export default async function EventsPage() {
   return (
     <section className="content-wrapper mx-auto w-full min-w-0 max-w-6xl">
       <Breadcrumbs
-        items={[{ label: "My Event Analysis", href: "/dashboard" }, { label: "Events" }]}
+        items={[{ label: "My Event Analysis", href: "/eventAnalysis" }, { label: "Events" }]}
       />
       <EventsPageClient />
     </section>

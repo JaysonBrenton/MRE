@@ -114,37 +114,62 @@ function normalizeLapTimeImprovement(lapTimeImprovement: number, firstFastLap: n
  * @param isPracticeDay - When true, use lap-time-only improvement (no position); for practice days each session has one driver so position is always 1.
  * @returns Array of most improved drivers, grouped by class, top 3 per class
  */
+/** Row shape for improvement math; matches the default Prisma query when preloaded is omitted */
+export type RaceResultRowForImprovement = {
+  id: string
+  positionFinal: number
+  fastLapTime: number | null
+  race: {
+    id: string
+    raceOrder: number | null
+    raceLabel: string
+    className: string
+    startTime: Date | null
+  }
+  raceDriver: {
+    driverId: string
+    displayName: string
+  }
+}
+
 export async function calculateMostImprovedDrivers(
   eventId: string,
-  isPracticeDay?: boolean
+  isPracticeDay?: boolean,
+  /** When provided (e.g. from getEventSummary), skips a duplicate full-table fetch */
+  preloadedRaceResults?: RaceResultRowForImprovement[]
 ): Promise<MostImprovedDriver[]> {
   // Get all race results for the event, ordered by raceOrder then startTime
   // startTime is needed as fallback since some events have all races with raceOrder=1
-  const raceResults = await prisma.raceResult.findMany({
-    where: {
-      race: {
-        eventId,
-      },
-    },
-    include: {
-      race: {
-        select: {
-          id: true,
-          raceOrder: true,
-          raceLabel: true,
-          className: true,
-          startTime: true,
+  const raceResults =
+    preloadedRaceResults ??
+    (await prisma.raceResult.findMany({
+      where: {
+        race: {
+          eventId,
         },
       },
-      raceDriver: {
-        select: {
-          driverId: true,
-          displayName: true,
+      select: {
+        id: true,
+        positionFinal: true,
+        fastLapTime: true,
+        race: {
+          select: {
+            id: true,
+            raceOrder: true,
+            raceLabel: true,
+            className: true,
+            startTime: true,
+          },
+        },
+        raceDriver: {
+          select: {
+            driverId: true,
+            displayName: true,
+          },
         },
       },
-    },
-    orderBy: [{ race: { raceOrder: "asc" } }, { race: { startTime: "asc" } }],
-  })
+      orderBy: [{ race: { raceOrder: "asc" } }, { race: { startTime: "asc" } }],
+    }))
 
   if (raceResults.length === 0) {
     return []
@@ -288,7 +313,7 @@ export async function calculateMostImprovedDrivers(
   // Sort within each class by improvement score (descending) and take top 4
   const topImprovements: MostImprovedDriver[] = []
 
-  for (const [className, classImprovements] of improvementsByClass.entries()) {
+  for (const [, classImprovements] of improvementsByClass.entries()) {
     const sorted = classImprovements.sort((a, b) => b.improvementScore - a.improvementScore)
     topImprovements.push(...sorted.slice(0, 4))
   }

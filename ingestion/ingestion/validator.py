@@ -193,14 +193,17 @@ class Validator:
                 race_id=race.source_race_id,
             )
         
-        # Validate start_time (optional)
-        if race.start_time is not None and not isinstance(race.start_time, type(race.start_time)):
-            raise ValidationError(
-                f"start_time must be a valid datetime or None",
-                field="start_time",
-                event_id=event_id,
-                race_id=race.source_race_id,
-            )
+        # Validate time_completed (optional) — LiveRC event list "Time Completed"
+        if race.time_completed is not None:
+            from datetime import datetime as dt_cls
+
+            if not isinstance(race.time_completed, dt_cls):
+                raise ValidationError(
+                    "time_completed must be a valid datetime or None",
+                    field="time_completed",
+                    event_id=event_id,
+                    race_id=race.source_race_id,
+                )
         
         # Validate duration_seconds (optional)
         if race.duration_seconds is not None:

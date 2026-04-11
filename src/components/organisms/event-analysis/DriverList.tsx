@@ -63,14 +63,14 @@ export default function DriverList({
   drivers,
   selectedDriverIds,
   onSelectionChange,
-  races = [],
-  raceClasses,
-  eventId,
+  races: _races = [],
+  raceClasses: _raceClasses,
+  eventId: _eventId,
 }: DriverListProps) {
   const [sortField, setSortField] = useState<SortField>("bestLapTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   const sortedDrivers = useMemo(() => {
     const sorted = [...drivers].sort((a, b) => {
@@ -149,7 +149,7 @@ export default function DriverList({
   return (
     <div className="space-y-4">
       {/* Table layout */}
-      <div className="overflow-x-auto">
+      <div className="scrollbar-none overflow-x-auto">
         <div className="w-full">
           {/* Table header */}
           <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] border-b border-[var(--token-border-default)]">
@@ -285,7 +285,6 @@ export default function DriverList({
         itemsPerPage={itemsPerPage}
         totalItems={sortedDrivers.length}
         itemLabel="drivers"
-        rowsPerPageOptions={[5, 10, 25, 50, 100]}
         onRowsPerPageChange={handleRowsPerPageChange}
       />
     </div>

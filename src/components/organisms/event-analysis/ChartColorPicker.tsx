@@ -19,6 +19,7 @@
 
 import { useState, useRef, useEffect, useLayoutEffect } from "react"
 import { createPortal } from "react-dom"
+import { resolveColorToHex } from "@/lib/chart-color-utils"
 
 /**
  * Preset color palette optimized for dark theme
@@ -57,7 +58,7 @@ export default function ChartColorPicker({
   position,
   label,
 }: ChartColorPickerProps) {
-  const [customColorValue, setCustomColorValue] = useState(currentColor)
+  const [, setCustomColorValue] = useState(currentColor)
   const [adjustedPosition, setAdjustedPosition] = useState<{ top: number; left: number } | null>(
     position || null
   )
@@ -152,20 +153,7 @@ export default function ChartColorPicker({
     onColorChange(color)
   }
 
-  // Convert CSS variable to hex if needed (for default accent color)
-  const getDisplayColor = (color: string): string => {
-    if (color.startsWith("var(--token-accent)")) {
-      return "#3a8eff" // Default accent color hex value
-    }
-    if (color.startsWith("var(")) {
-      // If it's a CSS variable, we can't easily get the computed value here
-      // Just return the first preset color as fallback
-      return PRESET_COLORS[0]
-    }
-    return color
-  }
-
-  const displayColor = getDisplayColor(currentColor)
+  const displayColor = resolveColorToHex(currentColor, PRESET_COLORS[0])
 
   const popoverStyle: React.CSSProperties = adjustedPosition
     ? {

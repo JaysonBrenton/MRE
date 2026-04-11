@@ -73,6 +73,21 @@ export function getModalContainerStyles(maxWidth: string): CSSProperties {
 }
 
 /**
+ * Styles for the resizable dialog panel. Uses a fixed `width` in rem (not `width: 100%`) so
+ * native `resize: both` can change horizontal size; `maxWidth` caps width at the viewport only.
+ */
+export function getModalResizableContainerStyles(initialWidthRem: string): CSSProperties {
+  return {
+    width: initialWidthRem,
+    maxWidth: "min(96vw, 100vw - 2rem)",
+    minWidth: "20rem",
+    boxSizing: "border-box",
+    flexShrink: 0,
+    flexGrow: 0,
+  }
+}
+
+/**
  * Common modal max-width values in rem units
  * These match Tailwind's max-width classes:
  * - sm: 24rem (384px) - max-w-sm
@@ -171,3 +186,12 @@ export const MODAL_MAX_WIDTHS = {
   "3xl": "48rem",
   "4xl": "56rem",
 } as const
+
+/** Shared with `Modal` backdrop (`z-[200]`). */
+export const MODAL_PORTAL_Z_INDEX = 200
+
+/**
+ * Overlays (e.g. {@link TrackSelectionModal}) opened on top of a shared `Modal` must use a higher
+ * z-index than {@link MODAL_PORTAL_Z_INDEX}.
+ */
+export const NESTED_MODAL_OVERLAY_Z_INDEX = 220

@@ -28,6 +28,7 @@ describe("dashboardSlice reducers", () => {
     expect(nextState.eventData).toBeNull()
     expect(nextState.eventError).toBeNull()
     expect(nextState.isEventLoading).toBe(false)
+    expect(nextState.activeEventAnalysisTab).toBe("event-overview")
   })
 
   it("ignores re-selecting the same event", () => {

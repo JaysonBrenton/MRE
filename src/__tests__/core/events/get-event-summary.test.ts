@@ -8,7 +8,7 @@
  * @description Regression tests to ensure getEventSummary uses database aggregations
  *              and does not load full event graph (races, results, laps)
  *
- * @purpose Validates that getEventSummary makes < 5 queries regardless of event size.
+ * @purpose Validates that getEventSummary uses one batched round of aggregations + one race_result scan (no full lap graph).
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
@@ -49,6 +49,9 @@ vi.mock("@/lib/prisma", () => ({
     lap: {
       aggregate: vi.fn(),
     },
+    raceResult: {
+      findMany: vi.fn(),
+    },
   },
 }))
 
@@ -57,7 +60,7 @@ describe("getEventSummary - Query Count Regression", () => {
     vi.clearAllMocks()
   })
 
-  it("should make < 5 queries regardless of event size", async () => {
+  it("should make a bounded number of queries (no duplicate race_result scans for stats)", async () => {
     const eventId = "event-123"
 
     // Mock event metadata query
@@ -91,6 +94,7 @@ describe("getEventSummary - Query Count Regression", () => {
       _count: { id: 1500 },
     }
     vi.mocked(prisma.lap.aggregate).mockResolvedValue(lapAggregate as never)
+    vi.mocked(prisma.raceResult.findMany).mockResolvedValue([] as never)
 
     await getEventSummary(eventId)
 
@@ -99,10 +103,10 @@ describe("getEventSummary - Query Count Regression", () => {
       (vi.mocked(prisma.event.findUnique).mock.calls.length || 0) +
       (vi.mocked(prisma.race.aggregate).mock.calls.length || 0) +
       (vi.mocked(prisma.raceDriver.groupBy).mock.calls.length || 0) +
-      (vi.mocked(prisma.lap.aggregate).mock.calls.length || 0)
+      (vi.mocked(prisma.lap.aggregate).mock.calls.length || 0) +
+      (vi.mocked(prisma.raceResult.findMany).mock.calls.length || 0)
 
-    expect(queryCount).toBeLessThan(5)
-    expect(queryCount).toBe(4) // Should be exactly 4 queries
+    expect(queryCount).toBe(5)
   })
 
   it("should not load lap data in memory", async () => {
@@ -131,6 +135,7 @@ describe("getEventSummary - Query Count Regression", () => {
       _count: { id: 1500 },
     }
     vi.mocked(prisma.lap.aggregate).mockResolvedValue(lapAggregate as never)
+    vi.mocked(prisma.raceResult.findMany).mockResolvedValue([] as never)
 
     await getEventSummary(eventId)
 

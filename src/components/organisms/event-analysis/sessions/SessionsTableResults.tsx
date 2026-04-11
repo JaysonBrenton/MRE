@@ -37,7 +37,7 @@ type SortDirection = "asc" | "desc"
 
 export default function SessionsTableResults({
   session,
-  selectedDriverIds = [],
+  selectedDriverIds: _selectedDriverIds = [],
 }: SessionsTableResultsProps) {
   const [sortField, setSortField] = useState<SortField>("position")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
@@ -167,7 +167,7 @@ export default function SessionsTableResults({
     })
 
     return normalized
-  }, [session.results, session.id, session.raceLabel])
+  }, [session])
 
   // Sort results
   const sortedResults = useMemo(() => {
@@ -261,7 +261,7 @@ export default function SessionsTableResults({
 
   return (
     <div className="px-4 py-4 bg-[var(--token-surface-alt)]">
-      <div className="overflow-x-auto">
+      <div className="scrollbar-none overflow-x-auto">
         <table
           className="w-full min-w-[800px]"
           aria-label={`Full results for ${session.raceLabel}`}
@@ -279,7 +279,6 @@ export default function SessionsTableResults({
                   }
                 }}
                 tabIndex={0}
-                role="button"
                 aria-sort={
                   sortField === "position"
                     ? sortDirection === "asc"
@@ -301,7 +300,6 @@ export default function SessionsTableResults({
                   }
                 }}
                 tabIndex={0}
-                role="button"
                 aria-sort={
                   sortField === "driverName"
                     ? sortDirection === "asc"
@@ -323,7 +321,6 @@ export default function SessionsTableResults({
                   }
                 }}
                 tabIndex={0}
-                role="button"
                 aria-sort={
                   sortField === "laps"
                     ? sortDirection === "asc"
@@ -345,7 +342,6 @@ export default function SessionsTableResults({
                   }
                 }}
                 tabIndex={0}
-                role="button"
                 aria-sort={
                   sortField === "totalTime"
                     ? sortDirection === "asc"
@@ -369,7 +365,6 @@ export default function SessionsTableResults({
                   }
                 }}
                 tabIndex={0}
-                role="button"
                 aria-sort={
                   sortField === "fastLap"
                     ? sortDirection === "asc"
@@ -391,7 +386,6 @@ export default function SessionsTableResults({
                   }
                 }}
                 tabIndex={0}
-                role="button"
                 aria-sort={
                   sortField === "avgLap"
                     ? sortDirection === "asc"
@@ -413,7 +407,6 @@ export default function SessionsTableResults({
                   }
                 }}
                 tabIndex={0}
-                role="button"
                 aria-sort={
                   sortField === "consistency"
                     ? sortDirection === "asc"

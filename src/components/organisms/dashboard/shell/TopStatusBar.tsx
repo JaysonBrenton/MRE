@@ -1,8 +1,11 @@
 "use client"
 
+import { Menu, User } from "lucide-react"
 import { useState } from "react"
 import UserProfileModal from "@/components/organisms/dashboard/shell/UserProfileModal"
 import Tooltip from "@/components/molecules/Tooltip"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { toggleMobileNav } from "@/store/slices/uiSlice"
 
 interface TopStatusBarProps {
   user?: {
@@ -15,11 +18,25 @@ interface TopStatusBarProps {
 
 export default function TopStatusBar({ user, userId }: TopStatusBarProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const dispatch = useAppDispatch()
+  const isMobileNavOpen = useAppSelector((state) => state.ui.isMobileNavOpen)
 
   return (
     <>
-      <header className="fixed left-0 right-0 top-0 z-40 h-16 border-b border-[var(--token-border-muted)] bg-[var(--token-surface)]/95 backdrop-blur-xl lg:left-[var(--nav-width)]">
-        <div className="flex h-full items-center justify-end px-3 sm:px-6">
+      <header className="fixed left-0 right-0 top-0 z-40 h-16 border-b border-[var(--token-border-muted)] bg-[var(--token-surface)]/95 backdrop-blur-xl lg:left-[calc(var(--nav-width)_+_var(--nav-content-gutter))]">
+        <div className="flex h-full w-full items-center px-3 sm:px-6">
+          <div className="flex flex-1 items-center">
+            <button
+              type="button"
+              className="rounded-md border border-[var(--token-border-default)] p-2 text-[var(--token-text-secondary)] transition hover:border-[var(--token-accent)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] lg:hidden"
+              onClick={() => dispatch(toggleMobileNav())}
+              aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={isMobileNavOpen}
+              aria-controls="dashboard-navigation-rail"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
           <div className="flex min-w-0 items-center gap-4">
             <div className="relative flex min-w-0 items-center">
               <Tooltip text="User Profile">
@@ -40,20 +57,7 @@ export default function TopStatusBar({ user, userId }: TopStatusBarProps) {
                     </span>
                   )}
                   <span className="flex shrink-0">
-                    <svg
-                      className="h-5 w-5 text-[var(--token-text-muted)]"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <circle cx="12" cy="7" r="4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <User className="h-5 w-5 text-[var(--token-text-muted)]" aria-hidden="true" />
                   </span>
                 </button>
               </Tooltip>

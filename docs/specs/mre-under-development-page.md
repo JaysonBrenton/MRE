@@ -192,11 +192,11 @@ via the `from` query parameter:
   `router.replace(\`/under-development?from=\${encodeURIComponent(route)}\`)`
 - Server-side redirects:
   `redirect(\`/under-development?from=\${encodeURIComponent(route)}\`)`
-- Direct navigation links: `/under-development?from=/dashboard/my-feature`
+- Direct navigation links: `/under-development?from=/eventAnalysis/my-feature`
 
 The `from` parameter should contain the route path that the user was attempting
-to access (e.g., `/dashboard/my-telemetry`). This allows the under-development
-page to display feature-specific descriptions.
+to access (e.g., `/eventAnalysis/my-telemetry`). This allows the
+under-development page to display feature-specific descriptions.
 
 ---
 

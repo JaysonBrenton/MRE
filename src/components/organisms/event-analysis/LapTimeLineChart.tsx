@@ -413,6 +413,19 @@ export default function LapTimeLineChart({
 
                           if (validLaps.length === 0) return null
 
+                          // LinePath connects in array order: sort by lap, then one point per lap
+                          // (duplicate lap numbers share the same x → vertical spikes).
+                          const lapsSorted = [...validLaps].sort(
+                            (a, b) => a.lapNumber - b.lapNumber
+                          )
+                          const lapsInChartOrder: typeof validLaps = []
+                          const seenLap = new Set<number>()
+                          for (const lap of lapsSorted) {
+                            if (seenLap.has(lap.lapNumber)) continue
+                            seenLap.add(lap.lapNumber)
+                            lapsInChartOrder.push(lap)
+                          }
+
                           const isEmphasized =
                             !hoveredDriverId || driver.driverId === hoveredDriverId
                           const strokeWidth = isEmphasized ? (hoveredDriverId ? 3 : 2) : 1.5
@@ -433,30 +446,17 @@ export default function LapTimeLineChart({
                               aria-label={`${driver.driverName} - Click to change line color`}
                             >
                               <LinePath
-                                data={validLaps}
+                                data={lapsInChartOrder}
                                 x={(d) => xScale(d.lapNumber)}
                                 y={(d) => yScale(d.lapTimeSeconds)}
                                 stroke={color}
                                 strokeWidth={strokeWidth}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
                                 curve={curveMonotoneX}
                                 strokeOpacity={strokeOpacity}
                                 pointerEvents="stroke"
                               />
-                              {/* Data points on lines */}
-                              {validLaps.map((d) => {
-                                const pointRadius = validLaps.length > 30 ? 2 : 3
-                                return (
-                                  <Circle
-                                    key={`${driver.driverId}-${d.lapNumber}`}
-                                    cx={xScale(d.lapNumber)}
-                                    cy={yScale(d.lapTimeSeconds)}
-                                    r={pointRadius}
-                                    fill={color}
-                                    stroke={color}
-                                    strokeWidth={1}
-                                  />
-                                )
-                              })}
                               {/* Best lap marker */}
                               {bestLap && (
                                 <Circle

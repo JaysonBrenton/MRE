@@ -18,8 +18,11 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { formatDuration, formatDateTimeUTC, formatLapTime } from "@/lib/format-session-data"
+import { formatDuration, formatTimeUTC, formatLapTime } from "@/lib/format-session-data"
+import { formatClassName } from "@/lib/format-class-name"
 import SessionsTableResults from "./SessionsTableResults"
+import { StandardTableRow, StandardTableCell } from "@/components/molecules/StandardTable"
+import StandardButton from "@/components/atoms/StandardButton"
 import type { SessionData } from "@/core/events/get-sessions-data"
 
 export interface SessionsTableRowProps {
@@ -56,10 +59,10 @@ function computeLapSummary(session: SessionData) {
 export default function SessionsTableRow({
   session,
   selectedDriverIds = [],
-  onNavigate,
+  onNavigate: _onNavigate,
   showHybridColumns = false,
-  eventId,
-  selectedClass = null,
+  eventId: _eventId,
+  selectedClass: _selectedClass = null,
   colCount = 7,
   onViewLapDetails,
 }: SessionsTableRowProps) {
@@ -89,8 +92,7 @@ export default function SessionsTableRow({
 
   return (
     <>
-      <tr
-        className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] transition-colors cursor-pointer"
+      <StandardTableRow
         onClick={handleToggleExpand}
         onKeyDown={handleKeyDown}
         tabIndex={0}
@@ -98,7 +100,7 @@ export default function SessionsTableRow({
         aria-expanded={isExpanded}
         aria-label={`${session.raceLabel} - Click to ${isExpanded ? "collapse" : "expand"} results`}
       >
-        <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
+        <StandardTableCell>
           <div className="flex items-center gap-2">
             <span
               className="text-[var(--token-text-secondary)] transition-transform"
@@ -112,20 +114,14 @@ export default function SessionsTableRow({
             </span>
             <span>{session.raceLabel}</span>
           </div>
-        </td>
-        <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
-          {session.className}
-        </td>
-        <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
-          {formatDateTimeUTC(session.startTime)}
-        </td>
-        <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)]">
-          {formatDuration(session.durationSeconds)}
-        </td>
-        <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-primary)] text-center">
-          {session.participantCount}
-        </td>
-        <td className="px-4 py-3 text-sm font-normal text-[var(--token-text-secondary)]">
+        </StandardTableCell>
+        <StandardTableCell>{formatClassName(session.className)}</StandardTableCell>
+        <StandardTableCell className="text-[var(--token-text-secondary)]">
+          {formatTimeUTC(session.startTime)}
+        </StandardTableCell>
+        <StandardTableCell>{formatDuration(session.durationSeconds)}</StandardTableCell>
+        <StandardTableCell className="text-center">{session.participantCount}</StandardTableCell>
+        <StandardTableCell className="text-[var(--token-text-secondary)]">
           <div className="flex flex-col gap-0.5">
             {topFinishers.map((finisher, index) => (
               <div key={finisher.driverId} className="text-xs">
@@ -135,39 +131,37 @@ export default function SessionsTableRow({
             ))}
             {topFinishers.length === 0 && <span className="text-xs">No results</span>}
           </div>
-        </td>
-        <td className="px-4 py-3 text-sm font-normal">
+        </StandardTableCell>
+        <StandardTableCell>
           {showHybridColumns && onViewLapDetails && (
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-              <button
+              <StandardButton
                 type="button"
                 onClick={handleViewLapDetails}
-                className="text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1 text-xs font-medium"
+                className="!px-2 !py-1 !text-xs !bg-transparent !border-0 text-[var(--token-accent)] hover:!bg-[var(--token-accent)]/10"
                 aria-label={`View lap data for ${session.raceLabel}`}
                 title="View lap data"
               >
                 View Details
-              </button>
+              </StandardButton>
             </div>
           )}
-        </td>
+        </StandardTableCell>
         {showHybridColumns && (
           <>
-            <td className="px-4 py-3 text-sm font-mono text-[var(--token-text-primary)]">
+            <StandardTableCell className="font-mono">
               {formatLapTime(lapSummary.bestLap)}
-            </td>
-            <td className="px-4 py-3 text-sm font-mono text-[var(--token-text-primary)]">
+            </StandardTableCell>
+            <StandardTableCell className="font-mono">
               {formatLapTime(lapSummary.avgLap)}
-            </td>
-            <td className="px-4 py-3 text-sm text-center text-[var(--token-text-primary)]">
-              {lapSummary.totalLaps}
-            </td>
-            <td className="px-4 py-3 text-sm text-[var(--token-text-secondary)]">
+            </StandardTableCell>
+            <StandardTableCell className="text-center">{lapSummary.totalLaps}</StandardTableCell>
+            <StandardTableCell className="text-[var(--token-text-secondary)]">
               {lapSummary.fastestDriver ?? "—"}
-            </td>
+            </StandardTableCell>
           </>
         )}
-      </tr>
+      </StandardTableRow>
       {isExpanded && (
         <tr>
           <td colSpan={colCount} className="p-0">

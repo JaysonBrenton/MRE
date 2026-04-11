@@ -99,7 +99,7 @@ export default function EventTable({
   // Helper function to get event status for sorting (matches logic in EventRow)
   function getEventStatus(
     event: Event,
-    statusOverrides?: Record<string, EventStatus>
+    _statusOverrides?: Record<string, EventStatus>
   ): EventStatus {
     // Check if event is scheduled (future) - this takes precedence
     if (isEventInFuture(event.eventDate)) {
@@ -145,26 +145,6 @@ export default function EventTable({
     failed: 3,
     imported: 4,
     stored: 4,
-  }
-
-  // Helper to check if event is importable
-  // Excludes scheduled (future) events and already imported events
-  const isEventImportable = (event: Event): boolean => {
-    // Check if event is in the future - scheduled events cannot be imported
-    if (isEventInFuture(event.eventDate)) {
-      return false
-    }
-    const overrideStatus = getStatusOverrideForEvent(event)
-    if (overrideStatus) {
-      return overrideStatus === "new"
-    }
-    // Check if LiveRC-only event
-    if (event.id.startsWith("liverc-")) {
-      return true
-    }
-    // Check ingest depth
-    const normalizedDepth = event.ingestDepth?.trim().toLowerCase() || ""
-    return normalizedDepth !== "laps_full" && normalizedDepth !== "lapsfull"
   }
 
   const handleSort = (field: SortField) => {
@@ -261,7 +241,6 @@ export default function EventTable({
       {/* Event List */}
       <div className="divide-y divide-[var(--token-border-default)]">
         {sortedEvents.map((event) => {
-          const isImportable = isEventImportable(event)
           // Check driver participation: for LiveRC events use sourceEventId, for DB events use eventId
           const containsDriver = event.id.startsWith("liverc-")
             ? event.sourceEventId

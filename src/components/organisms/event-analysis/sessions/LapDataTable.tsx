@@ -25,7 +25,7 @@ import DriverNameFilter from "./DriverNameFilter"
 import ViewModeToggle from "./ViewModeToggle"
 import ListPagination from "../ListPagination"
 import { formatLapTime } from "@/lib/format-session-data"
-import type { DriverLapData, RaceLapData, LapData } from "@/core/events/get-lap-data"
+import type { DriverLapData, RaceLapData } from "@/core/events/get-lap-data"
 
 export interface LapDataTableProps {
   eventId: string
@@ -73,8 +73,8 @@ export default function LapDataTable({
   const [expandedRaces, setExpandedRaces] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [sortField, setSortField] = useState<"driver" | "bestLap" | "totalLaps">("driver")
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+  const [sortField] = useState<"driver" | "bestLap" | "totalLaps">("driver")
+  const [sortDirection] = useState<"asc" | "desc">("asc")
 
   // Fetch lap data
   useEffect(() => {
@@ -319,20 +319,6 @@ export default function LapDataTable({
     [raceGroupedData]
   )
 
-  // Handle sort
-  const handleSort = useCallback(
-    (field: typeof sortField) => {
-      if (sortField === field) {
-        setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
-      } else {
-        setSortField(field)
-        setSortDirection("asc")
-      }
-      setCurrentPage(1)
-    },
-    [sortField]
-  )
-
   // Calculate time delta from best lap
   const getTimeDelta = useCallback((lapTime: number, bestLap: number | null): number | null => {
     if (bestLap === null) {
@@ -438,7 +424,7 @@ export default function LapDataTable({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
+        <div className="scrollbar-none overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
           <table className="w-full min-w-[1200px]" aria-label="Lap data table">
             <thead className="bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)]">
               <tr>
@@ -581,7 +567,7 @@ export default function LapDataTable({
                                 {isRaceExpanded && (
                                   <tr key={`${driver.driverId}-${race.raceId}-laps`}>
                                     <td colSpan={4} className="px-4 py-2 pl-20">
-                                      <div className="overflow-x-auto">
+                                      <div className="scrollbar-none overflow-x-auto">
                                         <table className="w-full min-w-[800px]">
                                           <thead className="bg-[var(--token-surface-alt)]">
                                             <tr>
@@ -796,7 +782,7 @@ export default function LapDataTable({
                                 {isDriverExpanded && (
                                   <tr key={`${race.raceId}-${driver.driverId}-laps`}>
                                     <td colSpan={4} className="px-4 py-2 pl-20">
-                                      <div className="overflow-x-auto">
+                                      <div className="scrollbar-none overflow-x-auto">
                                         <table className="w-full min-w-[800px]">
                                           <thead className="bg-[var(--token-surface-alt)]">
                                             <tr>
@@ -916,7 +902,7 @@ export default function LapDataTable({
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {filteredAndSortedDrivers.length > 0 && (
           <ListPagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -924,7 +910,6 @@ export default function LapDataTable({
             itemsPerPage={pageSize}
             totalItems={filteredAndSortedDrivers.length}
             itemLabel={viewMode === "driver" ? "drivers" : "races"}
-            rowsPerPageOptions={[5, 10, 25, 50, 100]}
             onRowsPerPageChange={(newRowsPerPage) => {
               setPageSize(newRowsPerPage)
               setCurrentPage(1)

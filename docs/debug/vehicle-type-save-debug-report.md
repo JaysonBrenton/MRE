@@ -199,7 +199,7 @@ Given the codebase:
 | `src/core/events/get-event-analysis-data.ts`                                     | `raceClasses` from `EventRaceClass`                     |
 | `src/store/slices/dashboardSlice.ts`                                             | `fetchEventAnalysisData`, persist config                |
 | `src/store/index.ts`                                                             | Dashboard persist whitelist: `selectedEventId` only     |
-| `src/components/dashboard/EventAnalysisSection.tsx`                              | Analysis fetch, use of `transformedData`                |
+| `src/components/eventAnalysis/EventAnalysisSection.tsx`                          | Analysis fetch, use of `transformedData`                |
 | `src/components/event-analysis/OverviewTab.tsx`                                  | Unused modal state + `ClassDetailsModal`                |
 | `src/components/event-analysis/ChartControls.tsx`                                | ChartControls `ClassDetailsModal` + `onSave`            |
 | `src/components/event-analysis/EntryList.tsx`                                    | EntryList `ClassDetailsModal` + `onSave`                |

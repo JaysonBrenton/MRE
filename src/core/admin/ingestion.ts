@@ -150,6 +150,10 @@ export async function triggerEventIngestion(
       headers: {
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        depth: "laps_full",
+        imported_by_user_id: adminUserId,
+      }),
     })
 
     if (!response.ok) {

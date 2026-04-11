@@ -18,6 +18,12 @@ import ListPagination from "./ListPagination"
 import ChartContainer from "./ChartContainer"
 import Tooltip from "@/components/molecules/Tooltip"
 import DriverNameFilter from "./sessions/DriverNameFilter"
+import {
+  StandardTable,
+  StandardTableHeader,
+  StandardTableRow,
+  StandardTableCell,
+} from "@/components/molecules/StandardTable"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface CombinedRow {
@@ -77,7 +83,7 @@ export default function CombinedDriversTable({
   const [sortField, setSortField] = useState<SortField>("driverName")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [driverLookup, setDriverLookup] = useState("")
 
   const selectedClass = selectedClassProp ?? null
@@ -269,11 +275,11 @@ export default function CombinedDriversTable({
             placeholder="Type to search"
           />
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-[var(--token-border-default)]">
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+        <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+          <StandardTable>
+            <StandardTableHeader>
+              <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("driverName")}
@@ -286,8 +292,8 @@ export default function CombinedDriversTable({
                       direction={sortDirection}
                     />
                   </button>
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("className")}
@@ -296,9 +302,9 @@ export default function CombinedDriversTable({
                     Class
                     <SortIcon field="className" activeField={sortField} direction={sortDirection} />
                   </button>
-                </th>
+                </StandardTableCell>
                 {raceClasses && (
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                  <StandardTableCell header>
                     <button
                       type="button"
                       onClick={() => handleSort("vehicleType")}
@@ -311,9 +317,9 @@ export default function CombinedDriversTable({
                         direction={sortDirection}
                       />
                     </button>
-                  </th>
+                  </StandardTableCell>
                 )}
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("transponderNumber")}
@@ -326,8 +332,8 @@ export default function CombinedDriversTable({
                       direction={sortDirection}
                     />
                   </button>
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("carNumber")}
@@ -336,8 +342,8 @@ export default function CombinedDriversTable({
                     Car Number
                     <SortIcon field="carNumber" activeField={sortField} direction={sortDirection} />
                   </button>
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                <StandardTableCell header>
                   <button
                     type="button"
                     onClick={() => handleSort("racesParticipated")}
@@ -350,8 +356,8 @@ export default function CombinedDriversTable({
                       direction={sortDirection}
                     />
                   </button>
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                <StandardTableCell header>
                   <Tooltip
                     text="Fastest single lap time across all races in this event. Lower is better."
                     position="top"
@@ -369,8 +375,8 @@ export default function CombinedDriversTable({
                       />
                     </button>
                   </Tooltip>
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                <StandardTableCell header>
                   <Tooltip
                     text="Average of this driver's average lap time per race across all races they participated in. Lower is better."
                     position="top"
@@ -388,8 +394,8 @@ export default function CombinedDriversTable({
                       />
                     </button>
                   </Tooltip>
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-[var(--token-text-secondary)]">
+                </StandardTableCell>
+                <StandardTableCell header>
                   <Tooltip
                     text="Average consistency percentage across races from the timing system. Higher means more consistent lap times within each race."
                     position="top"
@@ -407,51 +413,46 @@ export default function CombinedDriversTable({
                       />
                     </button>
                   </Tooltip>
-                </th>
+                </StandardTableCell>
               </tr>
-            </thead>
+            </StandardTableHeader>
             <tbody>
               {paginatedRows.map((row) => {
                 const vehicleType = raceClasses?.get(row.className)?.vehicleType
                 return (
-                  <tr
-                    key={row.id}
-                    className="border-b border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)] transition-colors"
-                  >
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-primary)]">
-                      {row.driverName}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                  <StandardTableRow key={row.id}>
+                    <StandardTableCell>{row.driverName}</StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {row.className}
-                    </td>
+                    </StandardTableCell>
                     {raceClasses && (
-                      <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                      <StandardTableCell className="text-[var(--token-text-secondary)]">
                         {vehicleType ?? "Not determined"}
-                      </td>
+                      </StandardTableCell>
                     )}
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {row.transponderNumber ?? "N/A"}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {row.carNumber ?? "N/A"}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {row.racesParticipated}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {formatLapTime(row.bestLapTime)}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {formatLapTime(row.avgLapTime)}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-normal text-[var(--token-text-secondary)]">
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
                       {row.consistency != null ? `${row.consistency.toFixed(1)}%` : "N/A"}
-                    </td>
-                  </tr>
+                    </StandardTableCell>
+                  </StandardTableRow>
                 )
               })}
             </tbody>
-          </table>
+          </StandardTable>
         </div>
 
         <ListPagination
@@ -461,7 +462,6 @@ export default function CombinedDriversTable({
           itemsPerPage={itemsPerPage}
           totalItems={sortedRows.length}
           itemLabel="entries"
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
           onRowsPerPageChange={handleRowsPerPageChange}
         />
       </div>

@@ -42,14 +42,14 @@ async function testDiscover() {
       try {
         const json = JSON.parse(text)
         console.log(`Parsed Error:`, JSON.stringify(json, null, 2))
-      } catch (e) {
+      } catch (_e) {
         console.log(`Could not parse as JSON`)
       }
     } else {
       try {
         const json = JSON.parse(text)
         console.log(`Success Response:`, JSON.stringify(json, null, 2))
-      } catch (e) {
+      } catch (_e) {
         console.log(`Could not parse as JSON`)
       }
     }

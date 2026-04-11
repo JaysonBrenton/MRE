@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
-import { useMemo, useState, useEffect, type ReactElement } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useMemo, useState, useEffect, useCallback, type ReactElement } from "react"
 import Tooltip from "@/components/molecules/Tooltip"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { toggleNavCollapsed } from "@/store/slices/uiSlice"
+import { setActiveEventAnalysisTab } from "@/store/slices/dashboardSlice"
+import { closeMobileNav, toggleNavCollapsed } from "@/store/slices/uiSlice"
 
 interface NavItem {
   href: string
@@ -16,7 +17,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   {
-    href: "/dashboard",
+    href: "/eventAnalysis",
     label: "My Event Analysis",
     description: "Mission control overview",
     icon: (active) => (
@@ -56,7 +57,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/dashboard/my-telemetry",
+    href: "/eventAnalysis/my-telemetry",
     label: "My Telemetry",
     description: "Data sources & traces",
     icon: (active) => (
@@ -76,7 +77,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/dashboard/car-profiles",
+    href: "/eventAnalysis/car-profiles",
     label: "My Car Profiles",
     description: "Manage car profiles & setups",
     icon: (active) => (
@@ -109,7 +110,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/dashboard/driver-profiles",
+    href: "/eventAnalysis/driver-profiles",
     label: "My Driver Profiles",
     description: "Manage driver profiles",
     icon: (active) => (
@@ -130,7 +131,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/dashboard/my-engineer",
+    href: "/eventAnalysis/my-engineer",
     label: "My Engineer",
     description: "Racing intelligence hub",
     icon: (active) => (
@@ -150,7 +151,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/under-development?from=/dashboard/my-club",
+    href: "/under-development?from=/eventAnalysis/my-club",
     label: "My Club",
     description: "Home club dashboard & community",
     icon: (active) => (
@@ -178,7 +179,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/under-development?from=/dashboard/my-team",
+    href: "/under-development?from=/eventAnalysis/my-team",
     label: "My Team",
     description: "Team dashboard & insights",
     icon: (active) => (
@@ -406,11 +407,55 @@ interface AdaptiveNavigationRailProps {
   } | null
 }
 
+function myEventsNavIcon(active: boolean) {
+  return (
+    <svg
+      className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M9 14h6M9 18h4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const dispatch = useAppDispatch()
   const isNavCollapsed = useAppSelector((state) => state.ui.isNavCollapsed)
+  const isMobileNavOpen = useAppSelector((state) => state.ui.isMobileNavOpen)
+  const selectedEventId = useAppSelector((state) => state.dashboard.selectedEventId)
+  const analysisData = useAppSelector((state) => state.dashboard.analysisData)
+  const eventData = useAppSelector((state) => state.dashboard.eventData)
+  const activeEventAnalysisTab = useAppSelector((state) => state.dashboard.activeEventAnalysisTab)
+  const isPracticeDay = analysisData?.isPracticeDay ?? eventData?.isPracticeDay ?? false
+  const showMyEventsRail =
+    pathname === "/eventAnalysis" && Boolean(selectedEventId) && !isPracticeDay
+  const myEventsActive =
+    pathname === "/eventAnalysis" && activeEventAnalysisTab === "my-events" && showMyEventsRail
+
+  const handleMyEventsInRailClick = useCallback(() => {
+    dispatch(setActiveEventAnalysisTab("my-events"))
+    dispatch(closeMobileNav())
+    if (pathname !== "/eventAnalysis") {
+      router.push("/eventAnalysis")
+    }
+  }, [dispatch, pathname, router])
+
+  /** Same URL as /eventAnalysis does not re-navigate; reset tab so My Events → main analysis works. */
+  const handleDashboardNavClick = useCallback(() => {
+    dispatch(setActiveEventAnalysisTab("event-overview"))
+    dispatch(closeMobileNav())
+  }, [dispatch])
   const [isGuidesExpanded, setIsGuidesExpanded] = useState(() => {
     if (typeof window === "undefined") {
       return false
@@ -426,6 +471,31 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     const stored = window.localStorage.getItem(STORAGE_KEY_MY_CLUB_EXPANDED)
     return stored === "true"
   })
+
+  const expandMyClubMenu = useCallback(() => {
+    setIsMyClubExpanded(true)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY_MY_CLUB_EXPANDED, "true")
+    }
+  }, [])
+
+  const handleTrackLeaderboardInRailClick = useCallback(() => {
+    expandMyClubMenu()
+    dispatch(setActiveEventAnalysisTab("track-leader-board"))
+    dispatch(closeMobileNav())
+    if (pathname !== "/eventAnalysis") {
+      router.push("/eventAnalysis")
+    }
+  }, [dispatch, expandMyClubMenu, pathname, router])
+
+  const handleClubHighlightsInRailClick = useCallback(() => {
+    expandMyClubMenu()
+    dispatch(setActiveEventAnalysisTab("club-highlights"))
+    dispatch(closeMobileNav())
+    if (pathname !== "/eventAnalysis") {
+      router.push("/eventAnalysis")
+    }
+  }, [dispatch, expandMyClubMenu, pathname, router])
 
   const navWidth = isNavCollapsed ? "w-[80px]" : "w-64"
 
@@ -461,334 +531,495 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     }
   }
 
+  useEffect(() => {
+    dispatch(closeMobileNav())
+  }, [pathname, dispatch])
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)")
+    const onMq = () => {
+      if (mq.matches) dispatch(closeMobileNav())
+    }
+    mq.addEventListener("change", onMq)
+    return () => mq.removeEventListener("change", onMq)
+  }, [dispatch])
+
+  useEffect(() => {
+    if (!isMobileNavOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") dispatch(closeMobileNav())
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [isMobileNavOpen, dispatch])
+
+  useEffect(() => {
+    if (!isMobileNavOpen) return
+    const mq = window.matchMedia("(max-width: 1023px)")
+    if (!mq.matches) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [isMobileNavOpen])
+
   return (
-    <aside
-      className={`${navWidth} fixed left-0 top-0 z-10 hidden h-screen border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width] lg:flex lg:flex-col`}
-    >
-      <div
-        className={`flex h-16 items-center ${isNavCollapsed ? "justify-center px-2" : "justify-between px-4"}`}
+    <>
+      {isMobileNavOpen ? (
+        <div
+          className="fixed inset-x-0 bottom-0 top-16 z-40 bg-black/50 lg:hidden"
+          aria-hidden
+          onClick={() => dispatch(closeMobileNav())}
+        />
+      ) : null}
+      <aside
+        id="dashboard-navigation-rail"
+        className={`${navWidth} fixed left-0 top-16 z-50 flex h-[calc(100vh-4rem)] flex-col border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width] lg:top-0 lg:z-10 lg:h-screen ${
+          isMobileNavOpen ? "translate-x-0" : "-translate-x-full max-lg:pointer-events-none"
+        } lg:translate-x-0`}
       >
-        {!isNavCollapsed && (
-          <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
-            MRE
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={handleToggleNavCollapsed}
-          className="rounded-md border border-[var(--token-border-default)] p-2 text-[var(--token-text-secondary)] transition hover:text-[var(--token-text-primary)]"
-          aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
+        <div
+          className={`flex h-16 items-center ${isNavCollapsed ? "justify-center px-2" : "justify-between px-4"}`}
         >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
-            <path
-              d={isNavCollapsed ? "m9 6 6 6-6 6" : "m15 18-6-6 6-6"}
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      </div>
+          {!isNavCollapsed && (
+            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+              MRE
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleToggleNavCollapsed}
+            className="rounded-md border border-[var(--token-border-default)] p-2 text-[var(--token-text-secondary)] transition hover:text-[var(--token-text-primary)]"
+            aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <path
+                d={isNavCollapsed ? "m9 6 6 6-6 6" : "m15 18-6-6 6-6"}
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
 
-      <nav className="flex-1 space-y-1 px-2 py-4">
-        {navItems.map((item) => {
-          // Special handling for My Club with sub-menu
-          if (
-            item.href === "/under-development?from=/dashboard/my-club" ||
-            item.href.startsWith("/dashboard/my-club")
-          ) {
-            const isExternal = false
-            const fromParam = searchParams.get("from")
-            const myClubActive =
-              (pathname === "/under-development" && fromParam === "/dashboard/my-club") ||
-              pathname.startsWith("/dashboard/my-club")
-            const trackMapsActive =
-              pathname === "/dashboard/my-club/track-maps" ||
-              pathname.startsWith("/dashboard/my-club/track-maps")
+        <nav className="flex-1 space-y-1 px-2 py-4">
+          {navItems.map((item) => {
+            // Special handling for My Club with sub-menu
+            if (
+              item.href === "/under-development?from=/eventAnalysis/my-club" ||
+              item.href.startsWith("/eventAnalysis/my-club")
+            ) {
+              const fromParam = searchParams.get("from")
+              const myClubActive =
+                (pathname === "/under-development" && fromParam === "/eventAnalysis/my-club") ||
+                pathname.startsWith("/eventAnalysis/my-club") ||
+                (pathname === "/eventAnalysis" &&
+                  (activeEventAnalysisTab === "track-leader-board" ||
+                    activeEventAnalysisTab === "club-highlights"))
+              const trackMapsActive =
+                pathname === "/eventAnalysis/my-club/track-maps" ||
+                pathname.startsWith("/eventAnalysis/my-club/track-maps")
+              const trackLeaderboardRailActive =
+                pathname === "/eventAnalysis" && activeEventAnalysisTab === "track-leader-board"
+              const clubHighlightsRailActive =
+                pathname === "/eventAnalysis" && activeEventAnalysisTab === "club-highlights"
 
-            if (isNavCollapsed) {
-              // Collapsed: Show My Club icon only
-              return (
-                <Tooltip key={item.label} text={item.label} position="right">
-                  <Link
-                    href={item.href}
-                    className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
-                    aria-current={myClubActive ? "page" : undefined}
-                    aria-label={item.label}
-                  >
-                    {item.icon(myClubActive)}
-                  </Link>
-                </Tooltip>
-              )
-            }
-
-            // Expanded: Show My Club with expandable sub-menu
-            return (
-              <div key={item.label} className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={item.href}
-                    className={`group flex flex-1 flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
-                    aria-current={myClubActive ? "page" : undefined}
-                    aria-label={item.label}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.icon(myClubActive)}
-                      <span
-                        className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${myClubActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
-                      >
-                        {item.label}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
-                      {item.description}
-                    </p>
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={toggleMyClubExpanded}
-                    className="rounded-lg p-1.5 text-[var(--token-text-muted)] hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                    aria-label={isMyClubExpanded ? "Collapse My Club menu" : "Expand My Club menu"}
-                    aria-expanded={isMyClubExpanded}
-                  >
-                    <svg
-                      className={`h-4 w-4 transition-transform ${isMyClubExpanded ? "rotate-180" : ""}`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <path
-                        d="m6 9 6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                {isMyClubExpanded && (
-                  <div className="ml-4 space-y-1 border-l-2 border-[var(--token-border-muted)] pl-3">
+              if (isNavCollapsed) {
+                // Collapsed: Show My Club icon only
+                return (
+                  <Tooltip key={item.label} text={item.label} position="right">
                     <Link
-                      href="/dashboard/my-club/track-maps"
-                      className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                        trackMapsActive
-                          ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
-                          : "text-[var(--token-text-secondary)]"
-                      }`}
-                      aria-current={trackMapsActive ? "page" : undefined}
-                      aria-label="Track Maps"
+                      href={item.href}
+                      className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+                      aria-current={myClubActive ? "page" : undefined}
+                      aria-label={item.label}
+                    >
+                      {item.icon(myClubActive)}
+                    </Link>
+                  </Tooltip>
+                )
+              }
+
+              // Expanded: Show My Club with expandable sub-menu
+              return (
+                <div key={item.label} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={item.href}
+                      className={`group flex flex-1 flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+                      aria-current={myClubActive ? "page" : undefined}
+                      aria-label={item.label}
+                    >
+                      <div className="flex items-center gap-3">
+                        {item.icon(myClubActive)}
+                        <span
+                          className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${myClubActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
+                        >
+                          {item.label}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+                        {item.description}
+                      </p>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={toggleMyClubExpanded}
+                      className="rounded-lg p-1.5 text-[var(--token-text-muted)] hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      aria-label={
+                        isMyClubExpanded ? "Collapse My Club menu" : "Expand My Club menu"
+                      }
+                      aria-expanded={isMyClubExpanded}
                     >
                       <svg
-                        className="h-4 w-4 text-[var(--token-text-muted)]"
+                        className={`h-4 w-4 transition-transform ${isMyClubExpanded ? "rotate-180" : ""}`}
                         viewBox="0 0 24 24"
                         fill="none"
                       >
                         <path
-                          d="M3 12h18M3 6h18M3 18h18"
+                          d="m6 9 6 6 6-6"
                           stroke="currentColor"
                           strokeWidth={1.5}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
-                        <path
-                          d="M9 3v18M15 3v18"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <circle cx="6" cy="9" r="1.5" stroke="currentColor" strokeWidth={1.5} />
-                        <circle cx="18" cy="15" r="1.5" stroke="currentColor" strokeWidth={1.5} />
                       </svg>
-                      <span>Track Maps</span>
-                    </Link>
+                    </button>
                   </div>
-                )}
-              </div>
-            )
-          }
-
-          // For external URLs, don't check active state
-          const isExternal = item.href.startsWith("http://") || item.href.startsWith("https://")
-          const active = isExternal
-            ? false
-            : pathname === item.href || pathname.startsWith(`${item.href}/`)
-          const linkElement = (
-            <Link
-              href={item.href}
-              className={`group flex flex-col ${isNavCollapsed ? "items-center" : "items-stretch"} rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
-              aria-current={active ? "page" : undefined}
-              aria-label={item.label}
-            >
-              <div className={`flex items-center ${isNavCollapsed ? "justify-center" : "gap-3"}`}>
-                {item.icon(active)}
-                {!isNavCollapsed && (
-                  <span
-                    className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${active ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
-                  >
-                    {item.label}
-                  </span>
-                )}
-              </div>
-              {!isNavCollapsed && (
-                <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
-                  {item.description}
-                </p>
-              )}
-            </Link>
-          )
-
-          // Only show tooltip when nav is collapsed (icon-only mode)
-          return (
-            <div key={item.label}>
-              {isNavCollapsed ? (
-                <Tooltip text={item.label} position="right">
-                  {linkElement}
-                </Tooltip>
-              ) : (
-                linkElement
-              )}
-            </div>
-          )
-        })}
-      </nav>
-
-      {/* User Guides Section */}
-      <div className="border-t border-[var(--token-border-muted)] px-2 py-4">
-        {isNavCollapsed ? (
-          <div className="space-y-1">
-            {/* Guides menu toggle - links to /guides and expands menu on click */}
-            {(() => {
-              const guidesIndexActive = pathname === "/guides" || pathname.startsWith("/guides/")
-              const guidesIcon = (
-                <svg
-                  className={`h-5 w-5 transition-transform ${guidesIndexActive ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"} ${isGuidesMenuExpanded ? "rotate-90" : ""}`}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <path
-                    d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )
-              return (
-                <div>
-                  <Link
-                    href="/guides"
-                    onClick={(e) => {
-                      // Toggle menu on left click instead of navigating
-                      e.preventDefault()
-                      setIsGuidesMenuExpanded(!isGuidesMenuExpanded)
-                    }}
-                    className={`group flex w-full items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                      isGuidesMenuExpanded ? "bg-[var(--token-surface-raised)]/50" : ""
-                    }`}
-                    aria-label="Guides"
-                    aria-expanded={isGuidesMenuExpanded}
-                  >
-                    <Tooltip text="Guides" position="right">
-                      {guidesIcon}
-                    </Tooltip>
-                  </Link>
-                  {isGuidesMenuExpanded && (
-                    <div className="mt-1 space-y-1">
-                      {GUIDE_ITEMS.map((guide) => {
-                        const active = isGuideActive(guide.href)
-                        const linkContent = (
-                          <Link
-                            key={guide.href}
-                            href={guide.href}
-                            className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                              active ? "bg-[var(--token-surface-raised)]/30" : ""
-                            }`}
-                            aria-current={active ? "page" : undefined}
-                            aria-label={guide.label}
-                          >
-                            {guide.icon(active)}
-                          </Link>
-                        )
-                        return (
-                          <Tooltip key={guide.href} text={guide.label} position="right">
-                            {linkContent}
-                          </Tooltip>
-                        )
-                      })}
+                  {isMyClubExpanded && (
+                    <div className="ml-4 space-y-1 border-l-2 border-[var(--token-border-muted)] pl-3">
+                      <Link
+                        href="/eventAnalysis/my-club/track-maps"
+                        className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                          trackMapsActive
+                            ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
+                            : "text-[var(--token-text-secondary)]"
+                        }`}
+                        aria-current={trackMapsActive ? "page" : undefined}
+                        aria-label="Track Maps"
+                      >
+                        <svg
+                          className="h-4 w-4 text-[var(--token-text-muted)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <path
+                            d="M3 12h18M3 6h18M3 18h18"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M9 3v18M15 3v18"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <circle cx="6" cy="9" r="1.5" stroke="currentColor" strokeWidth={1.5} />
+                          <circle cx="18" cy="15" r="1.5" stroke="currentColor" strokeWidth={1.5} />
+                        </svg>
+                        <span>Track Maps</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={handleTrackLeaderboardInRailClick}
+                        className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                          trackLeaderboardRailActive
+                            ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
+                            : "text-[var(--token-text-secondary)]"
+                        }`}
+                        aria-current={trackLeaderboardRailActive ? "page" : undefined}
+                        aria-label="Track Leaderboard"
+                      >
+                        <svg
+                          className="h-4 w-4 text-[var(--token-text-muted)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <path
+                            d="M4 6h16M4 12h10M4 18h16"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M18 9v6l2-2"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span>Track Leaderboard</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClubHighlightsInRailClick}
+                        className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                          clubHighlightsRailActive
+                            ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
+                            : "text-[var(--token-text-secondary)]"
+                        }`}
+                        aria-current={clubHighlightsRailActive ? "page" : undefined}
+                        aria-label="Club Highlights"
+                      >
+                        <svg
+                          className="h-4 w-4 text-[var(--token-text-muted)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <path
+                            d="M12 2l3 6 6 .5-4.5 4 1.5 6L12 16l-6 3 1.5-6L3 8.5 9 8l3-6z"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span>Club Highlights</span>
+                      </button>
                     </div>
                   )}
                 </div>
               )
-            })()}
-          </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={toggleGuidesExpanded}
-              className="group flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
-              aria-label="User Guides"
-              aria-expanded={isGuidesExpanded}
-            >
-              <div className="flex items-center gap-3">
+            }
+
+            // For external URLs, don't check active state
+            const isExternal = item.href.startsWith("http://") || item.href.startsWith("https://")
+            const active = isExternal
+              ? false
+              : pathname === item.href || pathname.startsWith(`${item.href}/`)
+            const linkElement = (
+              <Link
+                href={item.href}
+                onClick={item.href === "/eventAnalysis" ? handleDashboardNavClick : undefined}
+                className={`group flex flex-col ${isNavCollapsed ? "items-center" : "items-stretch"} rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+                aria-current={active ? "page" : undefined}
+                aria-label={item.label}
+              >
+                <div className={`flex items-center ${isNavCollapsed ? "justify-center" : "gap-3"}`}>
+                  {item.icon(active)}
+                  {!isNavCollapsed && (
+                    <span
+                      className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${active ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                </div>
+                {!isNavCollapsed && (
+                  <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+                    {item.description}
+                  </p>
+                )}
+              </Link>
+            )
+
+            const showMyEventsBelowDashboard = item.href === "/eventAnalysis" && showMyEventsRail
+
+            const myEventsRailButton = showMyEventsBelowDashboard ? (
+              isNavCollapsed ? (
+                <Tooltip text="My Events" position="right">
+                  <button
+                    type="button"
+                    id="rail-nav-my-events"
+                    onClick={handleMyEventsInRailClick}
+                    className={`group flex w-full items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                      myEventsActive ? "bg-[var(--token-surface-raised)]/50" : ""
+                    }`}
+                    aria-label="My Events"
+                    aria-pressed={myEventsActive}
+                  >
+                    {myEventsNavIcon(myEventsActive)}
+                  </button>
+                </Tooltip>
+              ) : (
+                <button
+                  type="button"
+                  id="rail-nav-my-events"
+                  onClick={handleMyEventsInRailClick}
+                  className={`group flex flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                    myEventsActive ? "bg-[var(--token-surface-raised)]/50" : ""
+                  }`}
+                  aria-label="My Events"
+                  aria-pressed={myEventsActive}
+                >
+                  <div className="flex items-center gap-3">
+                    {myEventsNavIcon(myEventsActive)}
+                    <span
+                      className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${myEventsActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
+                    >
+                      My Events
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+                    Your entries and standings
+                  </p>
+                </button>
+              )
+            ) : null
+
+            // Only show tooltip when nav is collapsed (icon-only mode)
+            return (
+              <div
+                key={item.label}
+                className={showMyEventsBelowDashboard ? "space-y-1" : undefined}
+              >
+                {isNavCollapsed ? (
+                  <Tooltip text={item.label} position="right">
+                    {linkElement}
+                  </Tooltip>
+                ) : (
+                  linkElement
+                )}
+                {myEventsRailButton}
+              </div>
+            )
+          })}
+        </nav>
+
+        {/* User Guides Section */}
+        <div className="border-t border-[var(--token-border-muted)] px-2 py-4">
+          {isNavCollapsed ? (
+            <div className="space-y-1">
+              {/* Guides menu toggle - links to /guides and expands menu on click */}
+              {(() => {
+                const guidesIndexActive = pathname === "/guides" || pathname.startsWith("/guides/")
+                const guidesIcon = (
+                  <svg
+                    className={`h-5 w-5 transition-transform ${guidesIndexActive ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"} ${isGuidesMenuExpanded ? "rotate-90" : ""}`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )
+                return (
+                  <div>
+                    <Link
+                      href="/guides"
+                      onClick={(e) => {
+                        // Toggle menu on left click instead of navigating
+                        e.preventDefault()
+                        setIsGuidesMenuExpanded(!isGuidesMenuExpanded)
+                      }}
+                      className={`group flex w-full items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                        isGuidesMenuExpanded ? "bg-[var(--token-surface-raised)]/50" : ""
+                      }`}
+                      aria-label="Guides"
+                      aria-expanded={isGuidesMenuExpanded}
+                    >
+                      <Tooltip text="Guides" position="right">
+                        {guidesIcon}
+                      </Tooltip>
+                    </Link>
+                    {isGuidesMenuExpanded && (
+                      <div className="mt-1 space-y-1">
+                        {GUIDE_ITEMS.map((guide) => {
+                          const active = isGuideActive(guide.href)
+                          const linkContent = (
+                            <Link
+                              key={guide.href}
+                              href={guide.href}
+                              className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                                active ? "bg-[var(--token-surface-raised)]/30" : ""
+                              }`}
+                              aria-current={active ? "page" : undefined}
+                              aria-label={guide.label}
+                            >
+                              {guide.icon(active)}
+                            </Link>
+                          )
+                          return (
+                            <Tooltip key={guide.href} text={guide.label} position="right">
+                              {linkContent}
+                            </Tooltip>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={toggleGuidesExpanded}
+                className="group flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                aria-label="User Guides"
+                aria-expanded={isGuidesExpanded}
+              >
+                <div className="flex items-center gap-3">
+                  <svg
+                    className="h-5 w-5 text-[var(--token-text-secondary)]"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span className="text-sm font-medium text-[var(--token-text-secondary)] transition-opacity duration-200 ease-in-out">
+                    User Guides
+                  </span>
+                </div>
                 <svg
-                  className="h-5 w-5 text-[var(--token-text-secondary)]"
+                  className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${isGuidesExpanded ? "rotate-180" : ""}`}
                   viewBox="0 0 24 24"
                   fill="none"
                 >
                   <path
-                    d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                    d="m6 9 6 6 6-6"
                     stroke="currentColor"
                     strokeWidth={1.5}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span className="text-sm font-medium text-[var(--token-text-secondary)] transition-opacity duration-200 ease-in-out">
-                  User Guides
-                </span>
-              </div>
-              <svg
-                className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${isGuidesExpanded ? "rotate-180" : ""}`}
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <path
-                  d="m6 9 6 6 6-6"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            {isGuidesExpanded && (
-              <div className="mt-1 space-y-1 pl-8">
-                {GUIDE_ITEMS.map((guide) => {
-                  const active = isGuideActive(guide.href)
-                  return (
-                    <Link
-                      key={guide.href}
-                      href={guide.href}
-                      className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                        active
-                          ? "font-medium text-[var(--token-text-primary)]"
-                          : "text-[var(--token-text-secondary)]"
-                      }`}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      {guide.label}
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </aside>
+              </button>
+              {isGuidesExpanded && (
+                <div className="mt-1 space-y-1 pl-8">
+                  {GUIDE_ITEMS.map((guide) => {
+                    const active = isGuideActive(guide.href)
+                    return (
+                      <Link
+                        key={guide.href}
+                        href={guide.href}
+                        className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
+                          active
+                            ? "font-medium text-[var(--token-text-primary)]"
+                            : "text-[var(--token-text-secondary)]"
+                        }`}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        {guide.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </aside>
+    </>
   )
 }

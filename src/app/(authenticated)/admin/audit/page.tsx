@@ -11,14 +11,14 @@ export default async function AdminAuditPage() {
     redirect("/login")
   }
   if (!session.user.isAdmin) {
-    redirect("/dashboard")
+    redirect("/eventAnalysis")
   }
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6">
       <Breadcrumbs
         items={[
-          { label: "My Event Analysis", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/eventAnalysis" },
           { label: "Admin Console", href: "/admin" },
           { label: "Audit Logs" },
         ]}

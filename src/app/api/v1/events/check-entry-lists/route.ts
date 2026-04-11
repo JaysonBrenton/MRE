@@ -16,7 +16,6 @@ import { auth } from "@/lib/auth"
 import {
   checkEntryListsForDriver,
   type LiveRCEvent,
-  type DbEvent,
 } from "@/core/events/check-entry-lists-for-driver"
 import { successResponse, errorResponse } from "@/lib/api-utils"
 import { createRequestLogger, generateRequestId } from "@/lib/request-context"

@@ -16,7 +16,7 @@
  */
 
 import type { EventAnalysisData } from "./get-event-analysis-data"
-import { getValidClasses } from "./class-validator"
+import { mergeLcqSessionsForClass } from "./lcq-bump-up-merge"
 
 export interface SessionData {
   id: string
@@ -26,6 +26,10 @@ export interface SessionData {
   raceOrder: number | null
   startTime: Date | null
   durationSeconds: number | null
+  /** Session type: practice, seeding, qualifying, heat, main, race, practiceday */
+  sessionType: string | null
+  /** LiveRC round heading (e.g. "Qualifier Round 1", "Main Events", "Seeding Round 2") */
+  sectionHeader: string | null
   participantCount: number
   topFinishers: Array<{
     driverId: string
@@ -210,6 +214,8 @@ function calculateSessionMetrics(
     raceOrder: race.raceOrder,
     startTime: race.startTime,
     durationSeconds,
+    sessionType: race.sessionType ?? null,
+    sectionHeader: race.sectionHeader ?? null,
     participantCount,
     topFinishers,
     results: race.results.map((result, index) => {
@@ -277,18 +283,6 @@ function calculateSessionMetrics(
         fastLapTime: result.fastLapTime,
         avgLapTime: result.avgLapTime,
         consistency: result.consistency,
-      }
-
-      // Log first result for verification
-      if (index === 0) {
-        console.log("[getSessionsData] First result object:", {
-          raceId: race.raceId,
-          raceLabel: race.raceLabel,
-          result: resultObj,
-          hasDriverName: "driverName" in resultObj,
-          driverNameValue: resultObj.driverName,
-          driverNameType: typeof resultObj.driverName,
-        })
       }
 
       return resultObj
@@ -386,6 +380,23 @@ export function getSessionsData(
       latest,
     },
   }
+}
+
+/**
+ * Sessions for bump-up ladder inference only.
+ * Always uses full results for the class — never filters by selected drivers (chart Actions),
+ * or entire mains/LCQs for a class can disappear when the selection omits those drivers.
+ */
+export function getSessionsForBumpUpInference(
+  data: EventAnalysisData,
+  className: string | null
+): SessionData[] {
+  const base = getSessionsData(data, [], className).sessions
+  if (className === null || (typeof className === "string" && className.trim() === "")) {
+    return base
+  }
+  const allSessions = getSessionsData(data, [], null).sessions
+  return mergeLcqSessionsForClass(data, className, base, allSessions)
 }
 
 /**

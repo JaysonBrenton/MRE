@@ -10,10 +10,10 @@
  * @purpose Provides consistent breadcrumb navigation across the application
  *
  * @relatedFiles
- * - src/app/(authenticated)/dashboard/page.tsx
+ * - src/app/(authenticated)/eventAnalysis/page.tsx
  * - src/app/(authenticated)/event-search/page.tsx
  * - src/app/(authenticated)/events/page.tsx
- * - src/app/(authenticated)/dashboard/my-event/page.tsx
+ * - src/app/(authenticated)/eventAnalysis/my-event/page.tsx
  */
 
 import Link from "next/link"

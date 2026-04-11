@@ -29,6 +29,20 @@ import type { NextConfig } from "next"
 import "./src/lib/env"
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/dashboard",
+        destination: "/eventAnalysis",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/:path*",
+        destination: "/eventAnalysis/:path*",
+        permanent: true,
+      },
+    ]
+  },
   // Exclude argon2 from Edge Runtime bundling
   // argon2 is a native Node.js module that cannot run in Edge Runtime
   // It should only be used in API routes and server components (Node.js runtime)

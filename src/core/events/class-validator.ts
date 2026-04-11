@@ -17,6 +17,8 @@
  */
 
 import type { EventAnalysisData } from "./get-event-analysis-data"
+import { isClassExcludedFromBumpUps } from "./bump-up-class-eligibility"
+import { raceMightBeBumpUpLadderRace } from "./infer-bump-ups"
 
 /**
  * Extracts race classes from EventAnalysisData.
@@ -50,5 +52,37 @@ export function getValidClasses(data: EventAnalysisData): string[] {
     })
   }
 
+  return Array.from(classes).sort()
+}
+
+/**
+ * Unique `race.className` values from ingested races (sorted).
+ * Use for filters that must align with session rows (e.g. bump-ups), where entry-list class
+ * strings may differ or include noise.
+ */
+export function getRaceClassNamesFromRaces(data: EventAnalysisData): string[] {
+  const classes = new Set<string>()
+  data.races.forEach((race) => {
+    const cn = race.className?.trim()
+    if (cn) classes.add(cn)
+  })
+  return Array.from(classes).sort()
+}
+
+/**
+ * Class names for Bump-Up chips: only `race.className` values that appear on at least one
+ * mains-ladder row (main / LCQ / semi). Omits classes that only exist on practice/qualifier
+ * rows — e.g. a short "Buggy" label on practice while mains use "1/8 Nitro Buggy".
+ */
+export function getRaceClassNamesForBumpUpChips(data: EventAnalysisData): string[] {
+  const classes = new Set<string>()
+  for (const race of data.races) {
+    const cn = race.className?.trim()
+    if (!cn) continue
+    if (!raceMightBeBumpUpLadderRace(race)) continue
+    const vehicleType = data.raceClasses?.get(cn)?.vehicleType ?? null
+    if (isClassExcludedFromBumpUps(cn, vehicleType)) continue
+    classes.add(cn)
+  }
   return Array.from(classes).sort()
 }

@@ -99,22 +99,6 @@ function calculateAvgLapTime(laps: LapData[]): number | null {
 }
 
 /**
- * Calculate final position from the driver's final lap
- * Returns the positionOnLap from the last lap (highest lapNumber)
- */
-function calculatePositionFinal(laps: LapData[]): number {
-  if (laps.length === 0) {
-    // Fallback: if no laps, return a high number to indicate DNF
-    return 999
-  }
-
-  // Find the lap with the highest lapNumber (final lap)
-  const finalLap = laps.reduce((latest, lap) => (lap.lapNumber > latest.lapNumber ? lap : latest))
-
-  return finalLap.positionOnLap
-}
-
-/**
  * Get lap data for an event, optionally filtered by class
  *
  * @param eventId - Event ID
@@ -218,8 +202,10 @@ export async function getLapData(
         const bestLapTime = calculateBestLapTime(lapData)
         const avgLapTime = calculateAvgLapTime(lapData)
 
-        // Calculate final position from the driver's final lap
-        const positionFinal = calculatePositionFinal(lapData)
+        // Use canonical positionFinal from RaceResult (official race result).
+        // Do NOT derive from positionOnLap on the last lap—multiple drivers can share
+        // the same positionOnLap when DNF'ing on different laps, causing duplicate positions.
+        const positionFinal = result.positionFinal
 
         // Add race data to driver
         driverData.races.push({
@@ -286,8 +272,12 @@ export interface LapTrendPoint {
   className: string
   lapNumber: number
   lapTimeSeconds: number
+  /** Driver position at this lap within the session */
+  positionOnLap?: number
   /** Session start time (ISO string) when available */
   raceStartTime?: string | null
+  /** Session duration in seconds (race-level) when available */
+  durationSeconds?: number | null
 }
 
 /** Per-driver lap trend for the event (every lap in order) */
@@ -304,13 +294,18 @@ export interface EventLapTrendResponse {
 /**
  * Get lap-by-lap trend data for selected drivers in an event.
  * Returns every single lap in race order with a global 1-based lap index for charting.
+ * When `raceId` is set, only that session is included and lapIndex is 1..N within that session.
  *
  * @param eventId - Event ID
  * @param driverIds - Driver IDs to include (empty = no drivers)
+ * @param className - Optional class name to filter races (e.g. "Buggy Expert"); ignored when `raceId` is set
+ * @param raceId - Optional race/session id to restrict to a single session
  */
 export async function getEventLapTrend(
   eventId: string,
-  driverIds: string[]
+  driverIds: string[],
+  className: string | null = null,
+  raceId: string | null = null
 ): Promise<EventLapTrendResponse> {
   if (driverIds.length === 0) {
     return { drivers: [] }
@@ -318,8 +313,15 @@ export async function getEventLapTrend(
 
   const driverIdSet = new Set(driverIds)
 
+  const raceWhere: { eventId: string; className?: string; id?: string } = { eventId }
+  if (raceId) {
+    raceWhere.id = raceId
+  } else if (className) {
+    raceWhere.className = className
+  }
+
   const races = await prisma.race.findMany({
-    where: { eventId },
+    where: raceWhere,
     include: {
       results: {
         where: {
@@ -344,6 +346,21 @@ export async function getEventLapTrend(
     orderBy: { raceOrder: "asc" },
   })
 
+  // Sort by startTime (chronological) first – Practice → Qualifying → Mains.
+  // race_order from LiveRC reflects page/display order (Mains often listed first), not when sessions ran.
+  races.sort((a, b) => {
+    const hasA = a.startTime != null
+    const hasB = b.startTime != null
+    if (hasA && hasB) {
+      return a.startTime!.getTime() - b.startTime!.getTime()
+    }
+    if (hasA && !hasB) return -1
+    if (!hasA && hasB) return 1
+    const orderA = a.raceOrder ?? 0
+    const orderB = b.raceOrder ?? 0
+    return orderA - orderB
+  })
+
   const driverMap = new Map<string, { driverName: string; laps: LapTrendPoint[] }>()
 
   for (const race of races) {
@@ -352,18 +369,14 @@ export async function getEventLapTrend(
       if (!driverIdSet.has(driverId)) continue
 
       const driverName =
-        result.raceDriver.displayName ||
-        result.raceDriver.driver?.displayName ||
-        "Unknown Driver"
+        result.raceDriver.displayName || result.raceDriver.driver?.displayName || "Unknown Driver"
 
       if (!driverMap.has(driverId)) {
         driverMap.set(driverId, { driverName, laps: [] })
       }
       const entry = driverMap.get(driverId)!
       const startIndex = entry.laps.length
-      const raceStartTime = race.startTime
-        ? race.startTime.toISOString()
-        : null
+      const raceStartTime = race.startTime ? race.startTime.toISOString() : null
       result.laps.forEach((lap, i) => {
         entry.laps.push({
           lapIndex: startIndex + i + 1,
@@ -372,7 +385,9 @@ export async function getEventLapTrend(
           className: race.className,
           lapNumber: lap.lapNumber,
           lapTimeSeconds: lap.lapTimeSeconds,
+          positionOnLap: lap.positionOnLap,
           raceStartTime,
+          durationSeconds: race.durationSeconds ?? null,
         })
       })
     }

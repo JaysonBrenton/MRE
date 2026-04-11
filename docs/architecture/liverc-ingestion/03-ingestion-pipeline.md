@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-03-22
 description: Ingestion pipeline specification for LiveRC data ingestion
 purpose:
   Defines the ingestion service layer that coordinates connector calls, handles
@@ -15,7 +15,13 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/08-ingestion-pipeline-internals.md
   - docs/specs/mre-v0.1-feature-scope.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
+  - ingestion/ingestion/pipeline.py (implementation)
 ---
+
+**Implementation note:** Orchestration code lives in
+`ingestion/ingestion/pipeline.py`. If this document disagrees with that module
+on sequencing, locking, or depth handling, **the code wins** until this doc is
+updated.
 
 # Ingestion Pipeline Specification
 
@@ -213,16 +219,19 @@ Via the LiveRCConnector:
 6. Fetch list of races (heats, qualifiers, mains).
 7. For each race:
    - Fetch driver results.
-   - Match race result drivers to EventEntry records (by driver ID or name)
-   - **Skip unmatched drivers**: If a race result driver does not match any
-     EventEntry for the race's class, skip that result (log warning, continue
-     processing)
-   - Update Driver `sourceDriverId` from temporary to real ID if matched
-   - Upsert Race, RaceDriver, RaceResult (only for matched drivers).
+   - Match race result drivers to EventEntry records (by driver ID or name).
+   - **Unmatched drivers**: If a race result driver does not match any
+     EventEntry for the race's class, the pipeline creates a fallback Driver and
+     EventEntry so that result is preserved (no longer skipped). This keeps
+     standings complete when the LiveRC entry list is incomplete or a driver
+     races a class they are not listed in. A valid `driver_id` is set for
+     `race_drivers` so bulk writes never use `driver_id = None`.
+   - Update Driver `sourceDriverId` from temporary to real ID if matched.
+   - Upsert Race, RaceDriver, RaceResult (including fallback drivers).
    - Note: Transponder numbers are stored in EventEntry (source of truth), not
      RaceDriver.
-   - Note: Multi-class drivers will still be processed correctly - they're only
-     skipped in classes they're not entered in.
+   - Note: Multi-class drivers are processed correctly; fallback applies only
+     when the driver has no EventEntry for that class.
 8. For each race result:
    - Fetch lap data using connector.
    - Upsert Lap rows (with safe dedupe by race_result_id + lap_number).
@@ -268,18 +277,20 @@ processed in the background.
 
 Practice day import (single “import practice day” action) performs:
 
-1. **List phase:** Fetch practice day overview; create/update Event and bulk upsert
-   Races (one per session). For each session: resolve Driver (transponder or
-   `practice_session_{session_id}`), bulk upsert RaceDrivers and RaceResults
+1. **List phase:** Fetch practice day overview; create/update Event and bulk
+   upsert Races (one per session). For each session: resolve Driver (transponder
+   or `practice_session_{session_id}`), bulk upsert RaceDrivers and RaceResults
    from list data (lap_count, fastest_lap, average_lap).
 2. **Detail phase:** Fetch each session’s detail page with bounded concurrency
    (configurable via `PRACTICE_DAY_DETAIL_CONCURRENCY`, default 5). For each
    success: update Race.race_metadata (end_time, practiceSessionStats), update
-   RaceResult (consistency, raw_fields_json, optional laps_completed/fast_lap_time/avg_lap_time), and bulk upsert Laps.
+   RaceResult (consistency, raw_fields_json, optional
+   laps_completed/fast_lap_time/avg_lap_time), and bulk upsert Laps.
 
 Partial failure (e.g. one session detail fetch fails) does not abort the import;
 list-phase data for that session is already persisted. Re-import is idempotent.
-See [Practice Day Full Ingestion design](../practice-day-full-ingestion-design.md)
+See
+[Practice Day Full Ingestion design](../practice-day-full-ingestion-design.md)
 and the implementation plan in `docs/implimentation_plans/`.
 
 ---

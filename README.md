@@ -108,10 +108,10 @@ Version 0.1.1 includes expanded UI features:
 
 **Navigation Features:**
 
-- Breadcrumb navigation (primary pattern)
-- Simplified hamburger menus (basic toggle functionality)
-- Multi-level dropdown menus (secondary pattern)
-- Tab-based navigation (secondary pattern)
+- Breadcrumb navigation (primary pattern on many screens)
+- Left navigation rail + top status bar after login; command palette for quick
+  jumps (see `docs/user-guides/navigation.md`)
+- Tab-based navigation within event analysis and similar pages
 
 **Table Components:**
 
@@ -130,8 +130,8 @@ Version 0.1.1 includes expanded UI features:
   under-development page)_
 - Track dashboard (track-specific statistics) _(future; redirects to
   under-development page)_
-- Customizable widgets (drag-and-drop, resize, rearrange) _(planned - current
-  dashboard renders Event Analysis components once an event is selected)_
+- Customizable widgets (drag-and-drop, resize, rearrange) _(not implemented;
+  dashboard focuses on event selection and Event Analysis integration)_
 
 **Telemetry Visualizations:**
 
@@ -390,15 +390,13 @@ MRE runs in Docker using PostgreSQL.
 
 Prerequisites
 
-**Docker Runtime:** Choose one:
+**Docker Runtime:** On macOS, **Docker Desktop** is required (version 20.10 or
+later): https://www.docker.com/products/docker-desktop. Ensure Docker Desktop is
+running and the active context is `desktop-linux`
+(`docker context use desktop-linux`). Colima is supported as an optional
+alternative; see `docs/operations/docker-user-guide.md`.
 
-- **Docker Desktop** (version 20.10 or later) -
-  https://www.docker.com/products/docker-desktop
-- **Colima** (macOS recommended) - `brew install colima` - See
-  `docs/operations/docker-user-guide.md` for setup
-
-**Docker Compose** (version 2.0 or later) - Included with Docker Desktop or
-installed separately
+**Docker Compose** (version 2.0 or later) - Included with Docker Desktop
 
 **Docker network:** `my-race-engineer_mre-network` (external network - must be
 created separately)

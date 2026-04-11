@@ -18,6 +18,7 @@ describe("Sessions Data Driver Names", () => {
     const mockData: EventAnalysisData = {
       event: {
         id: "test-event-id",
+        trackId: "test-track-id",
         eventName: "Test Event",
         eventDate: new Date("2025-01-01"),
         trackName: "Test Track",
@@ -43,6 +44,7 @@ describe("Sessions Data Driver Names", () => {
               fastLapTime: 30.0,
               avgLapTime: 30.0,
               consistency: 95.0,
+              liveRcStats: null,
             },
             {
               raceResultId: "result-2",
@@ -55,6 +57,7 @@ describe("Sessions Data Driver Names", () => {
               fastLapTime: 30.5,
               avgLapTime: 30.5,
               consistency: 94.0,
+              liveRcStats: null,
             },
             {
               raceResultId: "result-3",
@@ -67,6 +70,7 @@ describe("Sessions Data Driver Names", () => {
               fastLapTime: 31.0,
               avgLapTime: 31.0,
               consistency: 93.0,
+              liveRcStats: null,
             },
           ],
         },
@@ -166,6 +170,7 @@ describe("Sessions Data Driver Names", () => {
     const mockData: EventAnalysisData = {
       event: {
         id: "test-event-id",
+        trackId: "test-track-id",
         eventName: "Test Event",
         eventDate: new Date("2025-01-01"),
         trackName: "Test Track",

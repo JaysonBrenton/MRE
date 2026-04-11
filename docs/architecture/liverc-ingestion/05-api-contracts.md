@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-03-22
 description: API contracts for LiveRC ingestion subsystem HTTP endpoints
 purpose:
   Defines the backend HTTP API contracts used by MRE to interact with ingested
@@ -417,8 +417,8 @@ with `job_id` when queue is enabled (client polls job status).
 
 ### 4.4 GET /ingestion/jobs/{job_id}
 
-Returns the status of a queued ingestion job. Used when POST ingest returned
-202 with a `job_id`.
+Returns the status of a queued ingestion job. Used when POST ingest returned 202
+with a `job_id`.
 
 **Python Ingestion Service Endpoint:** `GET /api/v1/ingestion/jobs/{job_id}`
 
@@ -450,7 +450,8 @@ Response (200 OK):
   `failed`.
 
 Returns **404** if `job_id` is unknown (e.g. wrong worker or job expired when
-using in-process queue). See [28. Async Ingestion Queue](28-async-ingestion-queue.md).
+using in-process queue). See
+[28. Async Ingestion Queue](28-async-ingestion-queue.md).
 
 **TypeScript v1 Route:** `GET /api/v1/ingestion/jobs/{jobId}` — proxies to
 Python; used by frontend to poll until job completes or fails.
@@ -532,6 +533,36 @@ Backend rules for overlays:
 - Breaking changes require a new API version prefix.
 - IDs and data formats MUST remain stable within a version.
 - Ingestion MUST be deterministic for the same LiveRC inputs.
+
+---
+
+## 9. Python ingestion service HTTP API (FastAPI)
+
+The Next.js app calls the **ingestion microservice** over HTTP (see
+`src/lib/ingestion-client.ts`). The FastAPI app mounts routes at prefix
+`/api/v1` (`ingestion/api/app.py`). The following **path suffixes** (after
+`/api/v1`) are implemented in `ingestion/api/routes.py` and are the source of
+truth for request/response shapes:
+
+| Method | Path suffix                    | Purpose                                       |
+| ------ | ------------------------------ | --------------------------------------------- |
+| POST   | `/tracks/sync`                 | Start async track sync job                    |
+| GET    | `/tracks/sync/{job_id}`        | Track sync job status                         |
+| POST   | `/events/sync`                 | Sync events for a track (`track_id` query)    |
+| POST   | `/events/discover`             | Discover events for a track / date range      |
+| GET    | `/ingestion/jobs/{job_id}`     | Generic ingestion job status (queue mode)     |
+| POST   | `/events/{event_id}/ingest`    | Ingest a single event by id                   |
+| POST   | `/events/ingest`               | Ingest by source id + track                   |
+| POST   | `/events/entry-list`           | Fetch LiveRC entry list HTML / parsed payload |
+| GET    | `/ingestion/status/{event_id}` | Ingestion status for an event                 |
+| POST   | `/practice-days/discover`      | Practice day discovery (monthly)              |
+| GET    | `/practice-days/search`        | Search practice days                          |
+| POST   | `/practice-days/ingest`        | Ingest practice day                           |
+
+The **MRE Next.js** `/api/v1/*` routes documented in
+[`docs/api/api-reference.md`](../../api/api-reference.md) are the public
+contract for browsers and mobile clients; the table above documents the
+**ingestion service** only.
 
 ---
 

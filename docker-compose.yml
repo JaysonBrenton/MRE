@@ -1,6 +1,6 @@
 # Project: My Race Engineer
 # File: docker-compose.yml
-# Summary: Docker Compose configuration connecting to existing postgres container
+# Summary: Docker Compose configuration (app + ingestion + Postgres)
 #
 # SECURITY REQUIREMENTS:
 # =====================
@@ -11,6 +11,32 @@
 # The application will fail to start if AUTH_SECRET is missing or invalid.
 
 services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:16
+    container_name: mre-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pacetracer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-pacetracer}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - mre-postgres-data:/var/lib/postgresql/data
+    networks:
+      - mre-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-pacetracer} -d ${POSTGRES_DB:-pacetracer}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # Next.js application service
   app:
     build:
@@ -55,6 +81,9 @@ services:
     networks:
       - mre-network
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     stdin_open: true
     tty: true
     healthcheck:
@@ -129,6 +158,9 @@ services:
     networks:
       - mre-network
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -145,9 +177,9 @@ services:
           # Minimum guaranteed memory
           memory: 256M
 
+volumes:
+  mre-postgres-data:
+
 networks:
-  # Development network (external - created separately to allow postgres container persistence)
-  # The network is created manually: docker network create my-race-engineer_mre-network
   mre-network:
-    external: true
     name: my-race-engineer_mre-network

@@ -15,7 +15,13 @@
  * - src/core/events/calculate-driver-stats.ts (driver statistics)
  */
 
+import { Prisma } from "@prisma/client"
 import { toDateOnlyUTC } from "@/lib/date-utils"
+import {
+  formatClassName,
+  isPlaceholderClass,
+  normalizeClassNameForEntryMergeKey,
+} from "@/lib/format-class-name"
 import { prisma } from "@/lib/prisma"
 import {
   calculateClassThresholds,
@@ -23,6 +29,100 @@ import {
   type RaceResultForValidation,
 } from "./validate-lap-times"
 import { calculateMostImprovedDrivers } from "./calculate-driver-improvement"
+import { getApprovedCorrection } from "./venue-correction"
+import { type LiveRcRaceResultStats, parseLiveRcRaceResultStats } from "./live-rc-race-result-stats"
+import {
+  indexUserCarTaxonomyRules,
+  resolveUserCarTaxonomyForRace,
+  type ResolvedUserCarTaxonomy,
+} from "@/core/car-taxonomy/resolve"
+import { assertCarTaxonomyPrismaReady } from "@/core/car-taxonomy/prisma-delegates"
+
+/** Placeholder values that should not appear in address display */
+const ADDRESS_PLACEHOLDERS = new Set(
+  ["none", "n/a", "null", "na", "undefined", "—", "–", "-"].map((s) => s.toLowerCase())
+)
+
+/** Postal codes that are placeholders (invalid for address display) */
+const PLACEHOLDER_POSTAL_CODES = new Set(["00000", "0000", "000000", "0"])
+
+/** Regex to detect email addresses (exclude from address) */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** Check if a string looks like an email address */
+function looksLikeEmail(s: string): boolean {
+  return EMAIL_REGEX.test(s.trim())
+}
+
+/** Check if a part should be excluded from address display */
+function isValidAddressPart(part: string): boolean {
+  const t = part.trim()
+  if (!t || t.length === 0) return false
+  const lower = t.toLowerCase()
+  if (ADDRESS_PLACEHOLDERS.has(lower)) return false
+  if (looksLikeEmail(t)) return false
+  if (PLACEHOLDER_POSTAL_CODES.has(t)) return false
+  return true
+}
+
+/** Clean a valid address part (e.g. strip trailing placeholder postal like "Brisbane 00000" -> "Brisbane") */
+function cleanAddressPart(part: string): string {
+  let t = part.trim()
+  for (const code of PLACEHOLDER_POSTAL_CODES) {
+    const suffix = ` ${code}`
+    if (t.endsWith(suffix)) {
+      t = t.slice(0, -suffix.length).trim()
+      break
+    }
+  }
+  return t
+}
+
+/**
+ * Normalize address string for display: remove non-address data (emails, placeholders),
+ * deduplicate parts, and filter invalid values.
+ */
+function normalizeAddressForDisplay(raw: string | null | undefined): string | null {
+  if (!raw || typeof raw !== "string") return null
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+
+  const parts = trimmed
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+  const seen = new Set<string>()
+  const filtered: string[] = []
+  for (const part of parts) {
+    if (!isValidAddressPart(part)) continue
+    const cleaned = cleanAddressPart(part)
+    if (!cleaned) continue
+    const key = cleaned.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    filtered.push(cleaned)
+  }
+  return filtered.length > 0 ? filtered.join(", ") : null
+}
+
+/** Format track address from address, city, state, postalCode, country; normalized for display */
+function formatTrackAddress(track: {
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  postalCode?: string | null
+  country?: string | null
+}): string | null {
+  const parts = [
+    track.address?.trim(),
+    track.city?.trim(),
+    track.state?.trim(),
+    track.postalCode?.trim(),
+    track.country?.trim(),
+  ].filter((p): p is string => !!p && p.length > 0)
+  const raw = parts.length > 0 ? parts.join(", ") : null
+  return normalizeAddressForDisplay(raw)
+}
 
 function sanitizeLapTime(value: number | null | undefined): number | null {
   if (typeof value !== "number") {
@@ -45,6 +145,60 @@ function sanitizeDuration(value: number | null | undefined): number | null {
 }
 
 const LAP_TIME_TOLERANCE = 0.001
+
+/** Load lap rows only when DB aggregates are incomplete (avoids loading every lap for the event). */
+function raceResultNeedsLapRowsForDerivation(result: {
+  fastLapTime: number | null
+  avgLapTime: number | null
+  totalTimeSeconds: number | null
+}): boolean {
+  return result.fastLapTime == null || result.avgLapTime == null || result.totalTimeSeconds == null
+}
+
+type LapRowLite = { lapNumber: number; lapTimeSeconds: number }
+
+async function loadLapsGroupedByRaceResultId(
+  raceResultIds: string[]
+): Promise<Map<string, LapRowLite[]>> {
+  if (raceResultIds.length === 0) return new Map()
+  const rows = await prisma.lap.findMany({
+    where: { raceResultId: { in: raceResultIds } },
+    select: { raceResultId: true, lapNumber: true, lapTimeSeconds: true },
+    orderBy: { lapNumber: "asc" },
+  })
+  const m = new Map<string, LapRowLite[]>()
+  for (const row of rows) {
+    let arr = m.get(row.raceResultId)
+    if (!arr) {
+      arr = []
+      m.set(row.raceResultId, arr)
+    }
+    arr.push({ lapNumber: row.lapNumber, lapTimeSeconds: row.lapTimeSeconds })
+  }
+  return m
+}
+
+/** One query: lap number that matches stored fast_lap_time per result (when aggregates are complete). */
+async function fetchFastLapLapNumberByRaceResultForEvent(
+  eventId: string
+): Promise<Map<string, number>> {
+  const rows = await prisma.$queryRaw<Array<{ raceResultId: string; lapNumber: number }>>(
+    Prisma.sql`
+      SELECT rr.id AS "raceResultId", MIN(l.lap_number)::int AS "lapNumber"
+      FROM laps l
+      INNER JOIN race_results rr ON rr.id = l.race_result_id
+        AND ABS(l.lap_time_seconds - rr.fast_lap_time) < ${LAP_TIME_TOLERANCE}
+      INNER JOIN races r ON r.id = rr.race_id AND r.event_id = ${eventId}
+      WHERE rr.fast_lap_time IS NOT NULL
+      GROUP BY rr.id
+    `
+  )
+  const map = new Map<string, number>()
+  for (const row of rows) {
+    map.set(row.raceResultId, row.lapNumber)
+  }
+  return map
+}
 
 function findFastLapLapNumber(
   laps: Array<{ lapNumber: number; lapTimeSeconds: number }>,
@@ -206,9 +360,32 @@ export interface EventSummary {
 export interface EventAnalysisData {
   event: {
     id: string
+    trackId: string
     eventName: string
     eventDate: Date
+    /** End date for multi-day events (e.g. Mar 5–8) */
+    eventDateEnd?: Date | null
     trackName: string
+    /** LiveRC track dashboard URL (e.g. https://bayrc.liverc.com/) when source is liverc */
+    trackDashboardUrl?: string | null
+    /** LiveRC event page URL (external link) */
+    eventUrl?: string
+    /** Track website URL */
+    website?: string | null
+    /** Track Facebook page URL */
+    facebookUrl?: string | null
+    /** Track address (formatted from address, city, state, postalCode, country) */
+    address?: string | null
+    /** Track phone number */
+    phone?: string | null
+    /** Track email address */
+    email?: string | null
+    /** True when venue was corrected by user (approved correction) */
+    venueCorrected?: boolean
+    /** LiveRC source event id for entry list fetch; only set for LiveRC events */
+    sourceEventId?: string
+    /** LiveRC track slug for entry list URL; only set when track has source */
+    trackSlug?: string
   }
   /** True when event.sourceEventId contains '-practice-' (practice day). */
   isPracticeDay?: boolean
@@ -218,8 +395,24 @@ export interface EventAnalysisData {
     className: string
     raceLabel: string
     raceOrder: number | null
+    /** LiveRC event list Time Completed (when known). */
+    completedAt?: Date | null
+    /** Derived session start: completedAt − durationSeconds; null if length unknown. */
     startTime: Date | null
     durationSeconds: number | null
+    /** Session type: practice, seeding, qualifying, heat, main, race, practiceday */
+    sessionType: string | null
+    /** LiveRC round heading (e.g. "Qualifier Round 1", "Main Events", "Seeding Round 2") */
+    sectionHeader: string | null
+    /** LiveRC race result page URL (e.g. https://rcra.liverc.com/results/?p=view_race_result&id=6580435) */
+    raceUrl: string
+    /** Denormalized vehicle type from ingestion (Session Analysis vehicle-first chips). */
+    vehicleType?: string | null
+    /** User-global car taxonomy mapping (per authenticated user); not shared between users. */
+    userCarTaxonomy?: ResolvedUserCarTaxonomy
+    skillTier?: string | null
+    vehicleClassNormalizationNeedsReview?: boolean
+    eventRaceClassId?: string | null
     results: Array<{
       raceResultId: string
       raceDriverId: string
@@ -233,6 +426,8 @@ export interface EventAnalysisData {
       fastLapLapNumber?: number | null
       avgLapTime: number | null
       consistency: number | null
+      /** LiveRC table/JS stats from raw_fields_json (ingestion); null if none stored */
+      liveRcStats: LiveRcRaceResultStats | null
       // laps array removed - not used by any components, only needed for metric derivation
     }>
   }>
@@ -269,6 +464,7 @@ export interface EventAnalysisData {
     entries: Array<{
       position: number
       seededPosition: number | null
+      driverId: string
       driverName: string
       points: number
       mainBreakdown: Record<string, { position: number; points: number; lapsTime: string }> | null
@@ -321,67 +517,71 @@ export async function getEventSummary(
 
   const isPracticeDay = event.sourceEventId?.includes("-practice-") ?? false
 
-  // Get race count and date range using aggregations
-  const raceStats = await prisma.race.aggregate({
-    where: { eventId },
-    _count: {
-      id: true,
-    },
-    _min: {
-      startTime: true,
-    },
-    _max: {
-      startTime: true,
-    },
-  })
-
-  // Get distinct driver count (using raceDriver.driverId)
-  const distinctDrivers = await prisma.raceDriver.groupBy({
-    by: ["driverId"],
-    where: {
-      race: {
-        eventId,
+  // Aggregations + one race_result scan (replaces three overlapping findMany calls + separate improvement fetch)
+  const [raceStats, distinctDrivers, lapStats, eventRaceResults] = await Promise.all([
+    prisma.race.aggregate({
+      where: { eventId },
+      _count: {
+        id: true,
       },
-    },
-  })
-
-  // Get total lap count using aggregation
-  const lapStats = await prisma.lap.aggregate({
-    where: {
-      raceResult: {
+      _min: {
+        startTime: true,
+      },
+      _max: {
+        startTime: true,
+      },
+    }),
+    prisma.raceDriver.groupBy({
+      by: ["driverId"],
+      where: {
         race: {
           eventId,
         },
       },
-    },
-    _count: {
-      id: true,
-    },
-  })
+    }),
+    prisma.lap.aggregate({
+      where: {
+        raceResult: {
+          race: {
+            eventId,
+          },
+        },
+      },
+      _count: {
+        id: true,
+      },
+    }),
+    prisma.raceResult.findMany({
+      where: { race: { eventId } },
+      select: {
+        id: true,
+        positionFinal: true,
+        fastLapTime: true,
+        avgLapTime: true,
+        consistency: true,
+        race: {
+          select: {
+            id: true,
+            raceOrder: true,
+            raceLabel: true,
+            className: true,
+            startTime: true,
+          },
+        },
+        raceDriver: {
+          select: {
+            driverId: true,
+            displayName: true,
+          },
+        },
+      },
+      orderBy: [{ race: { raceOrder: "asc" } }, { race: { startTime: "asc" } }],
+    }),
+  ])
 
-  // Get top 3 fastest drivers
-  const allResults = await prisma.raceResult.findMany({
-    where: {
-      race: { eventId },
-      fastLapTime: { not: null },
-    },
-    select: {
-      fastLapTime: true,
-      race: {
-        select: {
-          raceLabel: true,
-          className: true,
-          id: true,
-        },
-      },
-      raceDriver: {
-        select: {
-          driverId: true,
-          displayName: true,
-        },
-      },
-    },
-  })
+  const allResults = eventRaceResults.filter((r) => r.fastLapTime !== null)
+  const allResultsWithConsistency = eventRaceResults.filter((r) => r.consistency !== null)
+  const allResultsWithAvgLap = eventRaceResults.filter((r) => r.avgLapTime !== null)
 
   // Calculate class thresholds for validation
   const resultsForValidation: RaceResultForValidation[] = allResults.map((result) => ({
@@ -480,30 +680,6 @@ export async function getEventSummary(
   // Sort all drivers by fastest lap time to maintain overall ranking
   topDrivers.sort((a, b) => a.fastestLapTime - b.fastestLapTime)
 
-  // Get top 3 most consistent drivers (highest consistency score)
-  const allResultsWithConsistency = await prisma.raceResult.findMany({
-    where: {
-      race: { eventId },
-      consistency: { not: null },
-    },
-    select: {
-      consistency: true,
-      race: {
-        select: {
-          raceLabel: true,
-          className: true,
-          id: true,
-        },
-      },
-      raceDriver: {
-        select: {
-          driverId: true,
-          displayName: true,
-        },
-      },
-    },
-  })
-
   const driverBestConsistency = new Map<
     string,
     {
@@ -538,30 +714,6 @@ export async function getEventSummary(
   const mostConsistentDrivers = Array.from(driverBestConsistency.values())
     .sort((a, b) => b.consistency - a.consistency)
     .slice(0, 3)
-
-  // Get top 3 drivers by best average lap time (lowest average from any single race)
-  const allResultsWithAvgLap = await prisma.raceResult.findMany({
-    where: {
-      race: { eventId },
-      avgLapTime: { not: null },
-    },
-    select: {
-      avgLapTime: true,
-      race: {
-        select: {
-          raceLabel: true,
-          className: true,
-          id: true,
-        },
-      },
-      raceDriver: {
-        select: {
-          driverId: true,
-          displayName: true,
-        },
-      },
-    },
-  })
 
   const driverBestAvgLap = new Map<
     string,
@@ -599,7 +751,11 @@ export async function getEventSummary(
     .slice(0, 3)
 
   // Get most improved drivers (lap-time-only for practice days)
-  const mostImprovedDrivers = await calculateMostImprovedDrivers(eventId, isPracticeDay)
+  const mostImprovedDrivers = await calculateMostImprovedDrivers(
+    eventId,
+    isPracticeDay,
+    eventRaceResults
+  )
 
   // Get user's best lap if userId provided
   let userBestLap: { lapTime: number; position: number; gapToFastest: number } | undefined
@@ -920,6 +1076,7 @@ export async function getEventSummary(
       id: event.id,
       eventName: event.eventName,
       eventDate: event.eventDate,
+      eventDateEnd: event.eventDateEnd ?? undefined,
       trackName: event.track.trackName,
     },
     isPracticeDay,
@@ -949,12 +1106,108 @@ export async function getEventSummary(
 }
 
 /**
+ * Ingestion can create multiple `Driver` rows with the same display name, each with its own
+ * `EventEntry` (unique on event + driver + class). Race fallbacks vs entry-list matching then
+ * produce duplicate rows for one person. Merge on (class identity, displayName): same
+ * `eventRaceClassId` when set, else normalized class string (so "1:8th …" and "1/8 …" merge).
+ * Display `className` is resolved to the official `EventRaceClass` label when possible.
+ */
+function driverDisplayNameMergeKey(displayName: string): string {
+  return displayName.trim().toLowerCase().replace(/\s+/g, " ")
+}
+
+function eventEntryMergeGroupKey<
+  T extends {
+    className: string
+    eventRaceClassId: string | null
+    driver: { displayName: string }
+  },
+>(e: T): string {
+  const name = driverDisplayNameMergeKey(e.driver.displayName)
+  if (e.eventRaceClassId) {
+    return `erc\0${e.eventRaceClassId}\0${name}`
+  }
+  return `cls\0${normalizeClassNameForEntryMergeKey(e.className)}\0${name}`
+}
+
+function pickCanonicalClassNameForMergedGroup<
+  T extends {
+    className: string
+  },
+>(group: T[], officialClassNames: string[]): string {
+  const norm = normalizeClassNameForEntryMergeKey
+  for (const official of officialClassNames) {
+    const want = norm(official)
+    for (const e of group) {
+      if (norm(e.className) === want) return official
+    }
+  }
+  const formatted = group.map((g) => formatClassName(g.className)).filter((s) => s.length > 0)
+  if (formatted.length === 0) return group[0].className
+  return formatted.sort((a, b) => b.length - a.length)[0]!
+}
+
+function mergeEventEntriesForDisplayList<
+  T extends {
+    id: string
+    driverId: string
+    className: string
+    transponderNumber: string | null
+    carNumber: string | null
+    eventRaceClassId: string | null
+    driver: { id: string; displayName: string }
+  },
+>(entries: T[], officialClassNames: string[]): T[] {
+  const groups = new Map<string, T[]>()
+  for (const e of entries) {
+    const key = eventEntryMergeGroupKey(e)
+    const g = groups.get(key)
+    if (g) g.push(e)
+    else groups.set(key, [e])
+  }
+  const out: T[] = []
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      const sole = group[0]
+      const canonical = pickCanonicalClassNameForMergedGroup(group, officialClassNames)
+      if (canonical !== sole.className) {
+        out.push({ ...sole, className: canonical })
+      } else {
+        out.push(sole)
+      }
+      continue
+    }
+    const mergedTp =
+      group.map((g) => g.transponderNumber?.trim()).find((t) => t && t.length > 0) ?? null
+    const mergedCar = group.map((g) => g.carNumber?.trim()).find((t) => t && t.length > 0) ?? null
+    const primary = group.reduce((best, cur) => {
+      const score = (r: T) => (r.transponderNumber?.trim() ? 2 : 0) + (r.carNumber?.trim() ? 1 : 0)
+      return score(cur) > score(best) ? cur : best
+    })
+    const mergedErc =
+      group.find((g) => g.eventRaceClassId)?.eventRaceClassId ?? primary.eventRaceClassId
+    out.push({
+      ...primary,
+      transponderNumber: mergedTp,
+      carNumber: mergedCar,
+      className: pickCanonicalClassNameForMergedGroup(group, officialClassNames),
+      eventRaceClassId: mergedErc,
+    })
+  }
+  return out
+}
+
+/**
  * Get comprehensive event analysis data
  *
  * @param eventId - Event's unique identifier
+ * @param userId - When set, merges per-user global car taxonomy rules into each race row.
  * @returns Structured event analysis data or null if event not found
  */
-export async function getEventAnalysisData(eventId: string): Promise<EventAnalysisData | null> {
+export async function getEventAnalysisData(
+  eventId: string,
+  userId?: string | null
+): Promise<EventAnalysisData | null> {
   // Fetch event with all related data
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -994,11 +1247,6 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
                   },
                 },
               },
-              laps: {
-                orderBy: {
-                  lapNumber: "asc",
-                },
-              },
             },
             orderBy: {
               positionFinal: "asc",
@@ -1016,10 +1264,13 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     return null
   }
 
+  // Exclude LiveRC scheduling placeholders (e.g. Track Maintenance) - not real races
+  const racesToProcess = event.races.filter((race) => !isPlaceholderClass(race.className))
+
   // Calculate class thresholds for validation
   // Collect all race results with fastLapTime for threshold calculation
   const allResultsForValidation: RaceResultForValidation[] = []
-  for (const race of event.races) {
+  for (const race of racesToProcess) {
     for (const result of race.results) {
       if (result.fastLapTime !== null) {
         allResultsForValidation.push({
@@ -1030,6 +1281,52 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     }
   }
   const classThresholds = calculateClassThresholds(allResultsForValidation)
+
+  const needsDerivationIds: string[] = []
+  for (const race of racesToProcess) {
+    for (const result of race.results) {
+      if (raceResultNeedsLapRowsForDerivation(result)) {
+        needsDerivationIds.push(result.id)
+      }
+    }
+  }
+
+  const [totalLaps, lapsByRaceResultId, fastLapLapNumberFromJoin, eventEntries, eventRaceClasses] =
+    await Promise.all([
+      prisma.lap.count({
+        where: {
+          raceResult: {
+            race: {
+              eventId: eventId,
+            },
+          },
+        },
+      }),
+      needsDerivationIds.length > 0
+        ? loadLapsGroupedByRaceResultId(needsDerivationIds)
+        : Promise.resolve(new Map<string, LapRowLite[]>()),
+      fetchFastLapLapNumberByRaceResultForEvent(eventId),
+      prisma.eventEntry.findMany({
+        where: { eventId },
+        include: {
+          driver: {
+            select: {
+              id: true,
+              displayName: true,
+            },
+          },
+        },
+        orderBy: { className: "asc" },
+      }),
+      prisma.eventRaceClass.findMany({
+        where: { eventId },
+        select: {
+          className: true,
+          vehicleType: true,
+          vehicleTypeNeedsReview: true,
+        },
+      }),
+    ])
 
   // Aggregate driver data across all races using normalized Driver ID
   const driverMap = new Map<
@@ -1046,27 +1343,17 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
 
   const raceDates: Date[] = []
 
-  // Get total laps count using database aggregation (more efficient than loading all laps)
-  const totalLapsResult = await prisma.lap.count({
-    where: {
-      raceResult: {
-        race: {
-          eventId: eventId,
-        },
-      },
-    },
-  })
-  const totalLaps = totalLapsResult
-
   // Process each race
-  const racesData = event.races.map((race) => {
-    if (race.startTime) {
-      raceDates.push(race.startTime)
+  const racesDataBase = racesToProcess.map((race) => {
+    const scheduleInstant = race.startTime ?? race.completedAt
+    if (scheduleInstant) {
+      raceDates.push(scheduleInstant)
     }
 
     const resultsData = race.results.map((result) => {
+      const lapsForResult = lapsByRaceResultId.get(result.id) ?? []
       // Derive lap metrics when LiveRC omits aggregate columns
-      const derivedMetrics = deriveLapMetrics(result.laps)
+      const derivedMetrics = deriveLapMetrics(lapsForResult)
       let normalizedFastLap = sanitizeLapTime(result.fastLapTime) ?? derivedMetrics.bestLap
 
       // Validate fast lap time against class threshold
@@ -1079,7 +1366,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
 
       const normalizedAvgLap = sanitizeLapTime(result.avgLapTime) ?? derivedMetrics.averageLap
 
-      const derivedTotalTime = calculateTotalTimeFromLaps(result.laps)
+      const derivedTotalTime = calculateTotalTimeFromLaps(lapsForResult)
       const totalTimeSeconds = sanitizeDuration(result.totalTimeSeconds) ?? derivedTotalTime
 
       // Track driver stats using normalized Driver ID (not raceDriverId)
@@ -1167,8 +1454,10 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       }
 
       const fastLapLapNumber =
-        normalizedFastLap !== null && result.laps?.length
-          ? findFastLapLapNumber(result.laps, normalizedFastLap)
+        normalizedFastLap !== null
+          ? lapsForResult.length > 0
+            ? findFastLapLapNumber(lapsForResult, normalizedFastLap)
+            : (fastLapLapNumberFromJoin.get(result.id) ?? null)
           : null
 
       return {
@@ -1183,6 +1472,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
         fastLapLapNumber,
         avgLapTime: normalizedAvgLap,
         consistency: result.consistency,
+        liveRcStats: parseLiveRcRaceResultStats(result.rawFieldsJson),
         // Note: laps array removed from response to reduce payload size
         // Individual lap data is not used by any components
         // Laps are only loaded to derive metrics when aggregates are missing
@@ -1195,11 +1485,51 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       className: race.className,
       raceLabel: race.raceLabel,
       raceOrder: race.raceOrder,
+      completedAt: race.completedAt,
       startTime: race.startTime,
       durationSeconds: race.durationSeconds,
+      sessionType: race.sessionType ?? null,
+      sectionHeader: race.sectionHeader ?? null,
+      raceUrl: race.raceUrl,
+      vehicleType: race.vehicleType ?? null,
+      skillTier: race.skillTier ?? null,
+      vehicleClassNormalizationNeedsReview: race.vehicleClassNormalizationNeedsReview,
+      eventRaceClassId: race.eventRaceClassId ?? null,
       results: resultsData,
     }
   })
+
+  let racesData = racesDataBase
+  if (userId) {
+    assertCarTaxonomyPrismaReady()
+    const [rulesForResolve, taxonomyNodes] = await Promise.all([
+      prisma.userCarTaxonomyRule.findMany({
+        where: { userId },
+        select: { matchType: true, patternNormalized: true, taxonomyNodeId: true },
+      }),
+      prisma.carTaxonomyNode.findMany(),
+    ])
+    const ruleIndex = indexUserCarTaxonomyRules(rulesForResolve)
+    const nodeById = new Map(
+      taxonomyNodes.map((n) => [
+        n.id,
+        { id: n.id, parentId: n.parentId, slug: n.slug, label: n.label },
+      ])
+    )
+    racesData = racesDataBase.map((row) => {
+      const resolved = resolveUserCarTaxonomyForRace(
+        {
+          className: row.className,
+          raceLabel: row.raceLabel,
+          sectionHeader: row.sectionHeader,
+          sessionType: row.sessionType,
+        },
+        ruleIndex,
+        nodeById
+      )
+      return resolved ? { ...row, userCarTaxonomy: resolved } : row
+    })
+  }
 
   // Calculate driver aggregates
   const driversData = Array.from(driverMap.values()).map((driver) => {
@@ -1232,30 +1562,6 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
       : event.eventDate
   )
 
-  // Fetch entry list (EventEntry records)
-  const eventEntries = await prisma.eventEntry.findMany({
-    where: { eventId },
-    include: {
-      driver: {
-        select: {
-          id: true,
-          displayName: true,
-        },
-      },
-    },
-    orderBy: { className: "asc" },
-  })
-
-  // Fetch EventRaceClass records for vehicle type information
-  const eventRaceClasses = await prisma.eventRaceClass.findMany({
-    where: { eventId },
-    select: {
-      className: true,
-      vehicleType: true,
-      vehicleTypeNeedsReview: true,
-    },
-  })
-
   // Create map of race classes to vehicle type info
   const raceClassesMap = new Map<
     string,
@@ -1275,7 +1581,17 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     return a.driver.displayName.localeCompare(b.driver.displayName)
   })
 
-  const entryListData = sortedEntries.map((entry) => ({
+  const officialClassNames = eventRaceClasses.map((rc) => rc.className)
+  const mergedEntries = mergeEventEntriesForDisplayList(sortedEntries, officialClassNames)
+  const entriesForList = [...mergedEntries].sort((a, b) => {
+    const classNameCompare = a.className.localeCompare(b.className)
+    if (classNameCompare !== 0) return classNameCompare
+    return a.driver.displayName.localeCompare(b.driver.displayName)
+  })
+
+  const entriesWithTransponder = entriesForList.filter((e) => Boolean(e.transponderNumber?.trim()))
+
+  const entryListData = entriesWithTransponder.map((entry) => ({
     id: entry.id,
     driverId: entry.driverId,
     driverName: entry.driver.displayName,
@@ -1295,6 +1611,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     entries: mm.entries.map((e) => ({
       position: e.position,
       seededPosition: e.seededPosition,
+      driverId: e.driverId,
       driverName: e.driver.displayName,
       points: e.points,
       mainBreakdown: e.mainBreakdownJson as Record<
@@ -1304,12 +1621,92 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     })),
   }))
 
+  // Venue correction may fail if Prisma client was built before EventVenueCorrection models (e.g. stale container)
+  type VenueTrackSelect = {
+    trackName: string
+    trackUrl: string
+    address: string | null
+    city: string | null
+    state: string | null
+    postalCode: string | null
+    country: string | null
+    phone: string | null
+    website: string | null
+    email: string | null
+    facebookUrl: string | null
+  }
+  let venueTrackRecord: VenueTrackSelect | null = null
+  try {
+    const correction = await getApprovedCorrection(event.id)
+    const hasValidVenueCorrection = correction?.venueTrackId && correction?.venueTrack
+    if (hasValidVenueCorrection && correction?.venueTrackId) {
+      venueTrackRecord = await prisma.track.findUnique({
+        where: { id: correction.venueTrackId },
+        select: {
+          trackName: true,
+          trackUrl: true,
+          address: true,
+          city: true,
+          state: true,
+          postalCode: true,
+          country: true,
+          phone: true,
+          website: true,
+          email: true,
+          facebookUrl: true,
+        },
+      })
+    }
+  } catch {
+    // Fall back to event track if venue correction lookup fails (e.g. prisma.eventVenueCorrection undefined)
+  }
+
+  const effectiveTrack =
+    venueTrackRecord != null
+      ? {
+          trackName: venueTrackRecord.trackName,
+          trackUrl: venueTrackRecord.trackUrl,
+          address: formatTrackAddress(venueTrackRecord),
+          phone: venueTrackRecord.phone,
+          website: venueTrackRecord.website,
+          email: venueTrackRecord.email,
+          facebookUrl: venueTrackRecord.facebookUrl,
+          venueCorrected: true,
+        }
+      : {
+          trackName: event.track.trackName,
+          trackUrl: event.track.trackUrl,
+          address: formatTrackAddress(event.track),
+          phone: event.track.phone,
+          website: event.track.website,
+          email: event.track.email,
+          facebookUrl: event.track.facebookUrl,
+          venueCorrected: false,
+        }
+
+  // Use Track.trackUrl - canonical LiveRC track dashboard (e.g. https://bayrc.liverc.com/)
+  const trackDashboardUrl = effectiveTrack.trackUrl?.trim() ? effectiveTrack.trackUrl.trim() : null
+
   return {
     event: {
       id: event.id,
+      trackId: event.trackId,
       eventName: event.eventName,
       eventDate: event.eventDate,
-      trackName: event.track.trackName,
+      eventDateEnd: event.eventDateEnd ?? undefined,
+      trackName: effectiveTrack.trackName,
+      trackDashboardUrl: trackDashboardUrl ?? undefined,
+      eventUrl: event.eventUrl ?? undefined,
+      website: effectiveTrack.website ?? null,
+      facebookUrl: effectiveTrack.facebookUrl ?? null,
+      address: effectiveTrack.address ?? null,
+      phone: effectiveTrack.phone ?? null,
+      email: effectiveTrack.email ?? null,
+      venueCorrected: effectiveTrack.venueCorrected,
+      /** LiveRC source event id (e.g. "491882") for entry list fetch; only set for LiveRC events */
+      sourceEventId: event.sourceEventId ?? undefined,
+      /** LiveRC track slug (e.g. "rcra") for entry list URL; only set when track has source */
+      trackSlug: event.track.sourceTrackSlug ?? undefined,
     },
     isPracticeDay,
     races: racesData,
@@ -1318,7 +1715,7 @@ export async function getEventAnalysisData(eventId: string): Promise<EventAnalys
     raceClasses: raceClassesMap,
     multiMainResults: multiMainResultsData,
     summary: {
-      totalRaces: event.races.length,
+      totalRaces: racesData.length,
       totalDrivers: driversData.length,
       totalLaps,
       dateRange: {

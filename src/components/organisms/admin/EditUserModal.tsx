@@ -115,7 +115,7 @@ export default function EditUserModal({ isOpen, onClose, user, onSave }: EditUse
         </div>
       }
     >
-      <form id="edit-user-form" onSubmit={handleSubmit} className="px-4 py-4 space-y-4">
+      <form id="edit-user-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-md border border-[var(--token-border-error)] bg-[var(--token-surface-elevated)] p-3">
             <p className="text-sm text-[var(--token-text-error)]">{error}</p>

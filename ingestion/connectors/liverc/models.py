@@ -15,6 +15,58 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
+class ConnectorQualPointsSummary(BaseModel):
+    """Qual Points link from event page (view_points)."""
+    source_points_id: str
+    label: str  # e.g. "Qual Points (2 of 4)"
+    rounds_completed: Optional[int] = None
+    total_rounds: Optional[int] = None
+
+
+class ConnectorRoundRankingSummary(BaseModel):
+    """Round ranking link from event page (view_round_ranking)."""
+    source_round_id: str
+    label: str  # e.g. "Qualifier Round 1 Rankings"
+    order_type: Optional[str] = None  # e.g. "laps_time", "top_3_consecutive"
+
+
+class ConnectorQualPointsEntry(BaseModel):
+    """Single driver entry in Qual Points (per class)."""
+    class_name: str
+    position: int
+    driver_name: str
+    points: int
+    round_breakdown: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ConnectorQualPointsResult(BaseModel):
+    """Full Qual Points result from view_points page (multiple classes)."""
+    source_points_id: str
+    label: str
+    rounds_completed: Optional[int] = None
+    total_rounds: Optional[int] = None
+    entries: List[ConnectorQualPointsEntry] = Field(default_factory=list)
+
+
+class ConnectorRoundRankingEntry(BaseModel):
+    """Single driver entry in Round Ranking (per class)."""
+    class_name: str
+    position: int
+    driver_name: str
+    laps: Optional[int] = None
+    total_time_seconds: Optional[float] = None
+    best_lap_seconds: Optional[float] = None
+    ranking_value_raw: Optional[str] = None
+
+
+class ConnectorRoundRankingResult(BaseModel):
+    """Full Round Ranking result from view_round_ranking page."""
+    source_round_id: str
+    label: str
+    order_type: Optional[str] = None
+    entries: List[ConnectorRoundRankingEntry] = Field(default_factory=list)
+
+
 class ConnectorEventSummary(BaseModel):
     """High-level event metadata from event page."""
     source_event_id: str
@@ -22,10 +74,20 @@ class ConnectorEventSummary(BaseModel):
     event_date: datetime
     event_entries: int
     event_drivers: int
+    event_date_end: Optional[datetime] = None
+    total_race_laps: Optional[int] = None
     races: List["ConnectorRaceSummary"]
     multi_main_summaries: List["ConnectorMultiMainSummary"] = Field(
         default_factory=list,
         description="Multi-main result links (triple/double main overall standings)",
+    )
+    qual_points_summaries: List[ConnectorQualPointsSummary] = Field(
+        default_factory=list,
+        description="Qual Points links (view_points)",
+    )
+    round_ranking_summaries: List[ConnectorRoundRankingSummary] = Field(
+        default_factory=list,
+        description="Practice/Qualifier round ranking links (view_round_ranking)",
     )
 
 
@@ -37,8 +99,13 @@ class ConnectorRaceSummary(BaseModel):
     race_label: str
     race_order: Optional[int] = None
     race_url: str
-    start_time: Optional[datetime] = None
+    #: LiveRC event list column "Time Completed" (not session start).
+    time_completed: Optional[datetime] = None
     duration_seconds: Optional[int] = None
+    section_header: Optional[str] = Field(
+        default=None,
+        description="Section header from event page (e.g. Seeding Round 1, Qualifier Round 3)",
+    )
 
 
 class ConnectorRaceResult(BaseModel):
@@ -77,6 +144,13 @@ class ConnectorRacePackage(BaseModel):
         description="Dictionary keyed by source_driver_id -> list of ConnectorLap"
     )
     fetch_method: str = "httpx"
+    racer_laps_extra_by_driver: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description=(
+            "Optional stats from racerLaps JS (e.g. top_2_consecutive) merged into raw_fields_json; "
+            "does not replace table-parsed keys"
+        ),
+    )
 
 
 class ConnectorEntryDriver(BaseModel):
@@ -94,6 +168,10 @@ class ConnectorEntryList(BaseModel):
     entries_by_class: Dict[str, List[ConnectorEntryDriver]] = Field(
         default_factory=dict,
         description="Dictionary keyed by class_name -> list of ConnectorEntryDriver"
+    )
+    class_order: Optional[List[str]] = Field(
+        default=None,
+        description="Class names in the order shown on the LiveRC page (nav pills). When set, UI should use this order for class filter.",
     )
 
 

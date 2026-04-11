@@ -35,6 +35,10 @@ from ingestion.db.models import (
     LapAnnotation,
     MultiMainResult,
     MultiMainResultEntry,
+    EventQualPoints,
+    EventQualPointsEntry,
+    EventRoundRanking,
+    EventRoundRankingEntry,
     IngestDepth,
     User,
     UserDriverLink,
@@ -235,6 +239,8 @@ class Repository:
         event_entries: int,
         event_drivers: int,
         event_url: str,
+        event_date_end: Optional[datetime] = None,
+        total_race_laps: Optional[int] = None,
     ) -> Event:
         """
         Upsert event by natural key (source, source_event_id).
@@ -248,6 +254,8 @@ class Repository:
             event_entries: Number of entries
             event_drivers: Number of drivers
             event_url: Event URL
+            event_date_end: Optional event end date (for multi-day events)
+            total_race_laps: Optional total race laps from event stats
         
         Returns:
             Event model instance
@@ -262,13 +270,14 @@ class Repository:
         
         if event:
             # Update existing (but preserve ingest_depth)
-            # Convert UUID to string since the database column is String
             event.track_id = _uuid_to_str(track_id)
             event.event_name = event_name
             event.event_date = event_date
             event.event_entries = event_entries
             event.event_drivers = event_drivers
             event.event_url = event_url
+            event.event_date_end = event_date_end
+            event.total_race_laps = total_race_laps
             logger.debug("event_updated", event_id=str(event.id), source_event_id=source_event_id)
             metrics.record_db_update("events")
         else:
@@ -277,15 +286,16 @@ class Repository:
             event = Event(
                 source=source,
                 source_event_id=source_event_id,
-                track_id=_uuid_to_str(track_id),  # Convert UUID to string since the database column is String
+                track_id=_uuid_to_str(track_id),
                 event_name=event_name,
                 event_date=event_date,
                 event_entries=event_entries,
                 event_drivers=event_drivers,
                 event_url=event_url,
+                event_date_end=event_date_end,
+                total_race_laps=total_race_laps,
                 ingest_depth=IngestDepth.NONE,
             )
-            # Set timestamps explicitly for new records
             event.created_at = now
             event.updated_at = now
             self.session.add(event)
@@ -304,6 +314,7 @@ class Repository:
         race_order: Optional[int],
         race_url: str,
         start_time: Optional[datetime] = None,
+        completed_at: Optional[datetime] = None,
         duration_seconds: Optional[int] = None,
     ) -> Race:
         """
@@ -317,8 +328,9 @@ class Repository:
             race_label: Race label
             race_order: Race order
             race_url: Race URL
-            start_time: Start time
-            duration_seconds: Duration in seconds
+            start_time: Derived session start (LiveRC Time Completed − Length when both exist)
+            completed_at: LiveRC event list Time Completed
+            duration_seconds: Timed length from LiveRC race page (Length: … Timed)
         
         Returns:
             Race model instance
@@ -338,6 +350,8 @@ class Repository:
             race.race_order = race_order
             race.race_url = race_url
             race.start_time = start_time
+            if completed_at is not None:
+                race.completed_at = completed_at
             race.duration_seconds = duration_seconds
             logger.debug("race_updated", race_id=str(race.id), source_race_id=source_race_id)
             metrics.record_db_update("races")
@@ -353,6 +367,7 @@ class Repository:
                 race_order=race_order,
                 race_url=race_url,
                 start_time=start_time,
+                completed_at=completed_at,
                 duration_seconds=duration_seconds,
             )
             # Set timestamps explicitly for new records
@@ -708,6 +723,67 @@ class Repository:
             EventEntry.event_id == _uuid_to_str(event_id)
         )
         return list(self.session.scalars(stmt).unique().all())
+
+    def apply_race_vehicle_class_normalization(self, event_id: UUID) -> int:
+        """
+        Populate Race.vehicle_type, skill_tier, event_race_class_id from EventRaceClass,
+        LCQ/schedule heuristics, and entry-derived skill tiers.
+        """
+        from ingestion.common.race_vehicle_normalization import compute_normalization_for_event
+
+        eid = _uuid_to_str(event_id)
+        races = list(self.session.scalars(select(Race).where(Race.event_id == eid)).all())
+        if not races:
+            return 0
+
+        erc_rows = list(
+            self.session.scalars(select(EventRaceClass).where(EventRaceClass.event_id == eid)).all()
+        )
+        erc_by_class_name = {r.class_name: (str(r.id), r.vehicle_type) for r in erc_rows}
+
+        entries = list(self.session.scalars(select(EventEntry).where(EventEntry.event_id == eid)).all())
+        entry_class_names_by_driver: Dict[str, List[str]] = {}
+        for e in entries:
+            did = str(e.driver_id)
+            entry_class_names_by_driver.setdefault(did, []).append(e.class_name)
+
+        race_ids = [r.id for r in races]
+        driver_ids_by_race: Dict[str, List[str]] = {str(r.id): [] for r in races}
+        if race_ids:
+            rd_stmt = select(RaceDriver.race_id, RaceDriver.driver_id).where(
+                RaceDriver.race_id.in_(race_ids)
+            )
+            for race_id, driver_id in self.session.execute(rd_stmt).all():
+                rid = str(race_id)
+                if rid in driver_ids_by_race:
+                    driver_ids_by_race[rid].append(str(driver_id))
+
+        out = compute_normalization_for_event(
+            races,
+            erc_by_class_name,
+            driver_ids_by_race,
+            entry_class_names_by_driver,
+        )
+        now = datetime.utcnow()
+        updated = 0
+        for race in races:
+            rid = str(race.id)
+            if rid not in out:
+                continue
+            d = out[rid]
+            race.vehicle_type = d["vehicle_type"]
+            race.skill_tier = d["skill_tier"]
+            race.event_race_class_id = d["event_race_class_id"]
+            race.vehicle_class_normalization_needs_review = d["vehicle_class_normalization_needs_review"]
+            race.updated_at = now
+            updated += 1
+        self.session.flush()
+        logger.info(
+            "race_vehicle_class_normalization_applied",
+            event_id=eid,
+            races_updated=updated,
+        )
+        return updated
     
     def get_event_entries_by_class(
         self,
@@ -927,8 +1003,10 @@ class Repository:
                 - race_order: Optional[int]
                 - race_url: str
                 - start_time: Optional[datetime]
+                - completed_at: Optional[datetime]
                 - duration_seconds: Optional[int]
-                - session_type: Optional[str] (values: "race", "practice", "qualifying", "practiceday", "heat", "main")
+                - session_type: Optional[str] (values: "race", "practice", "qualifying", "practiceday", "heat", "main", "seeding")
+                - section_header: Optional[str] (LiveRC round heading e.g. "Qualifier Round 1", "Main Events")
         
         Returns:
             Dictionary mapping source_race_id to Race instance
@@ -985,9 +1063,11 @@ class Repository:
                 "race_order": race_data.get("race_order"),
                 "race_url": race_data["race_url"],
                 "start_time": race_data.get("start_time"),
+                "completed_at": race_data.get("completed_at"),
                 "duration_seconds": race_data.get("duration_seconds"),
                 # Store enum object - TypeDecorator will handle conversion to value
                 "session_type": session_type_enum,
+                "section_header": race_data.get("section_header"),
                 "created_at": now,
                 "updated_at": now,
             }
@@ -998,20 +1078,29 @@ class Repository:
         stmt = pg_insert(Race).values(batch_data)
         
         # Build update set - update session_type only if provided (don't overwrite existing with None)
+        from sqlalchemy import case
+
         update_set = {
             "class_name": stmt.excluded.class_name,
             "race_label": stmt.excluded.race_label,
             "race_order": stmt.excluded.race_order,
             "race_url": stmt.excluded.race_url,
             "start_time": stmt.excluded.start_time,
-            "duration_seconds": stmt.excluded.duration_seconds,
+            "completed_at": case(
+                (stmt.excluded.completed_at.isnot(None), stmt.excluded.completed_at),
+                else_=Race.completed_at,
+            ),
+            "duration_seconds": case(
+                (stmt.excluded.duration_seconds.isnot(None), stmt.excluded.duration_seconds),
+                else_=Race.duration_seconds,
+            ),
+            "section_header": stmt.excluded.section_header,
             "updated_at": now,
         }
         # Only update session_type if a value is provided (not None)
         # Check if any race_data has session_type set
         has_session_type = any(r.get("session_type") for r in races_data)
         if has_session_type:
-            from sqlalchemy import case
             update_set["session_type"] = case(
                 (stmt.excluded.session_type.isnot(None), stmt.excluded.session_type),
                 else_=Race.session_type,
@@ -1268,6 +1357,27 @@ class Repository:
         rows = self.session.execute(stmt).all()
         return {display_name.strip().upper(): driver_id for display_name, driver_id in rows if display_name}
 
+    def get_event_driver_name_to_id_map_with_entries(self, event_id: UUID) -> Dict[str, str]:
+        """
+        Build mapping of driver display names to driver_ids for an event.
+        Includes both RaceDriver (from races) and Driver (from EventEntry).
+        Used for Qual Points and Round Rankings where drivers may not have raced yet.
+        """
+        result: Dict[str, str] = {}
+        # From EventEntry -> Driver
+        stmt = (
+            select(Driver.display_name, Driver.id)
+            .join(EventEntry, EventEntry.driver_id == Driver.id)
+            .where(EventEntry.event_id == _uuid_to_str(event_id))
+        )
+        for display_name, driver_id in self.session.execute(stmt).all():
+            if display_name:
+                result[display_name.strip().upper()] = driver_id
+        # From RaceDriver (overwrites if same name - race data takes precedence)
+        race_map = self.get_event_driver_name_to_id_map(event_id)
+        result.update(race_map)
+        return result
+
     def upsert_multi_main_result(
         self,
         event_id: UUID,
@@ -1304,6 +1414,8 @@ class Repository:
                 tie_breaker=tie_breaker,
                 completed_mains=completed_mains,
                 total_mains=total_mains,
+                created_at=now,
+                updated_at=now,
             )
             self.session.add(multi_main)
             self.session.flush()
@@ -1353,6 +1465,8 @@ class Repository:
                     driver_id=driver_id,
                     points=entry["points"],
                     main_breakdown_json=entry.get("main_breakdown"),
+                    created_at=now,
+                    updated_at=now,
                 )
                 self.session.add(mm_entry)
                 metrics.record_db_insert("multi_main_result_entries")
@@ -1360,7 +1474,207 @@ class Repository:
 
         self.session.flush()
         return upserted
-    
+
+    def upsert_event_qual_points(
+        self,
+        event_id: UUID,
+        source_points_id: str,
+        label: str,
+        rounds_completed: Optional[int],
+        total_rounds: Optional[int],
+        entries: List[Dict[str, Any]],
+        driver_name_to_id: Dict[str, str],
+    ) -> int:
+        """Upsert Qual Points and entries. Skips entries where driver cannot be resolved. Returns count upserted."""
+        event_id_str = _uuid_to_str(event_id)
+        now = datetime.utcnow()
+
+        qual_points = self.session.scalar(
+            select(EventQualPoints).where(
+                and_(
+                    EventQualPoints.event_id == event_id_str,
+                    EventQualPoints.source_points_id == source_points_id,
+                )
+            )
+        )
+        if not qual_points:
+            qual_points = EventQualPoints(
+                event_id=event_id_str,
+                source="liverc",
+                source_points_id=source_points_id,
+                label=label,
+                rounds_completed=rounds_completed,
+                total_rounds=total_rounds,
+                created_at=now,
+                updated_at=now,
+            )
+            self.session.add(qual_points)
+            self.session.flush()
+            metrics.record_db_insert("event_qual_points")
+        else:
+            qual_points.label = label
+            qual_points.rounds_completed = rounds_completed
+            qual_points.total_rounds = total_rounds
+            qual_points.updated_at = now
+            metrics.record_db_update("event_qual_points")
+
+        upserted = 0
+        for entry in entries:
+            driver_name = entry.get("driver_name", "")
+            driver_id = driver_name_to_id.get(driver_name.strip().upper())
+            if not driver_id:
+                logger.debug(
+                    "qual_points_entry_driver_not_found",
+                    driver_name=driver_name,
+                    message="Skipping - driver not in event",
+                )
+                continue
+
+            class_name = entry.get("class_name", "Unknown")
+            existing = self.session.scalar(
+                select(EventQualPointsEntry).where(
+                    and_(
+                        EventQualPointsEntry.event_qual_points_id == qual_points.id,
+                        EventQualPointsEntry.driver_id == driver_id,
+                        EventQualPointsEntry.class_name == class_name,
+                    )
+                )
+            )
+            if existing:
+                existing.position = entry["position"]
+                existing.points = entry["points"]
+                existing.round_breakdown_json = entry.get("round_breakdown")
+                existing.updated_at = now
+                metrics.record_db_update("event_qual_points_entries")
+            else:
+                eq_entry = EventQualPointsEntry(
+                    event_qual_points_id=qual_points.id,
+                    driver_id=driver_id,
+                    class_name=class_name,
+                    position=entry["position"],
+                    points=entry["points"],
+                    round_breakdown_json=entry.get("round_breakdown"),
+                    created_at=now,
+                    updated_at=now,
+                )
+                self.session.add(eq_entry)
+                metrics.record_db_insert("event_qual_points_entries")
+            upserted += 1
+
+        self.session.flush()
+        return upserted
+
+    def upsert_event_round_ranking(
+        self,
+        event_id: UUID,
+        source_round_id: str,
+        label: str,
+        order_type: Optional[str],
+        entries: List[Dict[str, Any]],
+        driver_name_to_id: Dict[str, str],
+    ) -> int:
+        """Upsert Round Ranking and entries. Skips entries where driver cannot be resolved. Returns count upserted."""
+        event_id_str = _uuid_to_str(event_id)
+        now = datetime.utcnow()
+
+        round_ranking = self.session.scalar(
+            select(EventRoundRanking).where(
+                and_(
+                    EventRoundRanking.event_id == event_id_str,
+                    EventRoundRanking.source_round_id == source_round_id,
+                )
+            )
+        )
+        if not round_ranking:
+            round_ranking = EventRoundRanking(
+                event_id=event_id_str,
+                source="liverc",
+                source_round_id=source_round_id,
+                label=label,
+                order_type=order_type,
+                created_at=now,
+                updated_at=now,
+            )
+            self.session.add(round_ranking)
+            self.session.flush()
+            metrics.record_db_insert("event_round_rankings")
+        else:
+            round_ranking.label = label
+            round_ranking.order_type = order_type
+            round_ranking.updated_at = now
+            metrics.record_db_update("event_round_rankings")
+
+        # Deduplicate entries by (driver_id, class_name) - keep best position per driver/class.
+        # Source data (e.g. RCRA) can have same driver in multiple tables/sections with empty
+        # class_name, causing UniqueViolation on event_round_ranking_entries_ranking_driver_class_key.
+        seen: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        for entry in entries:
+            driver_name = entry.get("driver_name", "")
+            driver_id = driver_name_to_id.get(driver_name.strip().upper())
+            if not driver_id:
+                logger.debug(
+                    "round_ranking_entry_driver_not_found",
+                    driver_name=driver_name,
+                    message="Skipping - driver not in event",
+                )
+                continue
+
+            class_name = entry.get("class_name") or "Unknown"
+            if isinstance(class_name, str) and not class_name.strip():
+                class_name = "Unknown"
+            key = (driver_id, class_name)
+            pos = entry.get("position")
+            curr = seen.get(key)
+            curr_pos = curr.get("position") if curr else None
+            if curr is None or (pos is not None and (curr_pos is None or pos < curr_pos)):
+                entry_copy = dict(entry)
+                entry_copy["class_name"] = class_name
+                seen[key] = entry_copy
+
+        upserted = 0
+        for entry in seen.values():
+            driver_name = entry.get("driver_name", "")
+            driver_id = driver_name_to_id.get(driver_name.strip().upper())
+            if not driver_id:
+                continue
+            class_name = entry.get("class_name", "Unknown")
+            existing = self.session.scalar(
+                select(EventRoundRankingEntry).where(
+                    and_(
+                        EventRoundRankingEntry.event_round_ranking_id == round_ranking.id,
+                        EventRoundRankingEntry.driver_id == driver_id,
+                        EventRoundRankingEntry.class_name == class_name,
+                    )
+                )
+            )
+            if existing:
+                existing.position = entry["position"]
+                existing.laps = entry.get("laps")
+                existing.total_time_seconds = entry.get("total_time_seconds")
+                existing.best_lap_seconds = entry.get("best_lap_seconds")
+                existing.ranking_value_raw = entry.get("ranking_value_raw")
+                existing.updated_at = now
+                metrics.record_db_update("event_round_ranking_entries")
+            else:
+                er_entry = EventRoundRankingEntry(
+                    event_round_ranking_id=round_ranking.id,
+                    driver_id=driver_id,
+                    class_name=class_name,
+                    position=entry["position"],
+                    laps=entry.get("laps"),
+                    total_time_seconds=entry.get("total_time_seconds"),
+                    best_lap_seconds=entry.get("best_lap_seconds"),
+                    ranking_value_raw=entry.get("ranking_value_raw"),
+                    created_at=now,
+                    updated_at=now,
+                )
+                self.session.add(er_entry)
+                metrics.record_db_insert("event_round_ranking_entries")
+            upserted += 1
+
+        self.session.flush()
+        return upserted
+
     def calculate_and_update_race_durations(
         self,
         race_ids: List[UUID],
@@ -1721,6 +2035,23 @@ class Repository:
         """
         # Convert UUID to string since the database column is String, not UUID
         return self.session.get(Event, _uuid_to_str(event_id))
+
+    def get_existing_source_race_ids_for_event(self, event_id: UUID) -> set:
+        """
+        Get source_race_ids of races already in DB for the given event.
+        Used to detect new races on LiveRC during refresh/re-ingestion.
+
+        Args:
+            event_id: Event ID
+
+        Returns:
+            Set of source_race_id strings
+        """
+        stmt = select(Race.source_race_id).where(
+            Race.event_id == _uuid_to_str(event_id)
+        )
+        rows = self.session.execute(stmt).scalars().all()
+        return set(rows) if rows else set()
 
     def upsert_lap(
         self,

@@ -19,6 +19,7 @@ import {
 } from "@/components/molecules/StandardTable"
 import { useAppSelector } from "@/store/hooks"
 import type { EventSearchResult, SessionSearchResult } from "@/core/search/types"
+import { formatClassName } from "@/lib/format-class-name"
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "—"
@@ -137,7 +138,7 @@ function EventResultRow({ event }: { event: EventSearchResult }) {
       <StandardTableCell>{formatDate(event.eventDate)}</StandardTableCell>
       <StandardTableCell>
         <Link
-          href={`/dashboard?eventId=${event.id}`}
+          href={`/eventAnalysis?eventId=${event.id}`}
           className="text-[var(--token-accent)] hover:underline"
         >
           View Event
@@ -151,13 +152,13 @@ function SessionResultRow({ session }: { session: SessionSearchResult }) {
   return (
     <StandardTableRow>
       <StandardTableCell>{session.raceLabel}</StandardTableCell>
-      <StandardTableCell>{session.className}</StandardTableCell>
+      <StandardTableCell>{formatClassName(session.className)}</StandardTableCell>
       <StandardTableCell>{formatSessionType(session.sessionType)}</StandardTableCell>
       <StandardTableCell>{session.eventName}</StandardTableCell>
       <StandardTableCell>{formatDate(session.eventDate)}</StandardTableCell>
       <StandardTableCell>
         <Link
-          href={`/dashboard?eventId=${session.eventId}`}
+          href={`/eventAnalysis?eventId=${session.eventId}`}
           className="text-[var(--token-accent)] hover:underline"
         >
           View Event

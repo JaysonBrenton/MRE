@@ -13,8 +13,8 @@
  *          globally from the navigation rail, not just on event analysis pages.
  *
  * @relatedFiles
- * - src/components/dashboard/EventActionsProvider.tsx (provider component)
- * - src/components/dashboard/shell/AdaptiveNavigationRail.tsx (uses this context)
+ * - src/components/eventAnalysis/EventActionsProvider.tsx (provider component)
+ * - src/components/eventAnalysis/shell/AdaptiveNavigationRail.tsx (uses this context)
  */
 
 "use client"

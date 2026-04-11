@@ -14,7 +14,7 @@
  * - docs/design/mre-dark-theme-guidelines.md (theme tokens)
  */
 
-import { ReactNode } from "react"
+import type { HTMLAttributes, ReactNode } from "react"
 
 export interface StandardTableProps {
   children: ReactNode
@@ -26,7 +26,10 @@ export interface StandardTableHeaderProps {
   className?: string
 }
 
-export interface StandardTableRowProps {
+export interface StandardTableRowProps extends Omit<
+  HTMLAttributes<HTMLTableRowElement>,
+  "children"
+> {
   children: ReactNode
   className?: string
   onClick?: () => void
@@ -59,14 +62,19 @@ export function StandardTableHeader({ children, className = "" }: StandardTableH
   return <thead className={className}>{children}</thead>
 }
 
-export function StandardTableRow({ children, className = "", onClick }: StandardTableRowProps) {
+export function StandardTableRow({
+  children,
+  className = "",
+  onClick,
+  ...rest
+}: StandardTableRowProps) {
   const baseClasses = "border-b border-[var(--token-border-default)]"
   const interactiveClasses = onClick
     ? "hover:bg-[var(--token-surface-raised)] cursor-pointer"
     : "hover:bg-[var(--token-surface-raised)]"
 
   return (
-    <tr className={`${baseClasses} ${interactiveClasses} ${className}`} onClick={onClick}>
+    <tr className={`${baseClasses} ${interactiveClasses} ${className}`} onClick={onClick} {...rest}>
       {children}
     </tr>
   )

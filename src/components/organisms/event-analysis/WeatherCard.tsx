@@ -110,7 +110,11 @@ export default function WeatherCard({ weather, weatherLoading, weatherError }: W
         <span className={LABEL_CLASS}>Humidity:</span>
         <span>{weather.humidity}%</span>
         <span className={LABEL_CLASS}>Precip:</span>
-        <span>{weather.precip}%</span>
+        <span>
+          {weather.precipMm != null && weather.precipMm > 0
+            ? `${weather.precipMm} mm`
+            : `${weather.precip}%`}
+        </span>
         {summary && summary.hourly.length >= 2 && (
           <>
             <span className={LABEL_CLASS}>Day:</span>

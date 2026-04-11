@@ -43,7 +43,6 @@ export async function GET(request: NextRequest) {
       active,
     })
 
-    // Call core business logic function
     const tracks = await getTracks({
       followed,
       active,
@@ -53,8 +52,9 @@ export async function GET(request: NextRequest) {
       trackCount: tracks.length,
     })
 
-    // Static reference data - cache for 1 hour
-    return successResponse({ tracks }, 200, undefined, CACHE_CONTROL.STATIC)
+    // In development users often run track sync after first load.
+    // Use NO_CACHE so clients don't get a stale empty list.
+    return successResponse({ tracks }, 200, undefined, CACHE_CONTROL.NO_CACHE)
   } catch (error: unknown) {
     // Handle unexpected errors using server error handler
     const errorInfo = handleApiError(error, request, requestId)

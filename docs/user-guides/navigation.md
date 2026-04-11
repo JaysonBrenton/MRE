@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-01-27
+lastModified: 2026-03-22
 description: Guide to navigating My Race Engineer application
 purpose:
   Provides comprehensive instructions for using breadcrumb navigation, menus,
@@ -69,84 +69,21 @@ Home > Guides > Getting Started
 - **Context**: Understand the page hierarchy
 - **Consistency**: Same pattern throughout the application
 
-## Main Navigation Menu
+## Main navigation (authenticated shell)
 
-The main navigation provides access to all major sections of MRE.
+After login, MRE uses a **left navigation rail** plus **top status bar**
+(`src/components/organisms/dashboard/shell/`). Items include **My Event
+Analysis** (`/eventAnalysis`), **Global Search** (`/search`), car profiles,
+practice-day tooling, and other entries; several items still route to
+`/under-development` until those areas ship.
 
-### Accessing the Menu
+**Top bar:** The menu icon opens the **command palette** (quick jump to a few
+routes such as dashboard, search, telemetry); it does **not** toggle the whole
+navigation rail. Use the rail collapse control on the sidebar if you need more
+horizontal space.
 
-**Desktop:**
-
-- Sidebar navigation (usually visible)
-- Hamburger menu (if sidebar is collapsed)
-
-**Mobile:**
-
-- Hamburger menu icon (☰) in top corner
-- Tap to open/close menu
-
-### Menu Sections
-
-**Dashboard:**
-
-- Your personal dashboard
-- Statistics and quick actions
-- Usually the default landing page
-
-**Event Search:**
-
-- Search for race events
-- Import events from LiveRC
-- Core feature for discovering events
-
-**My Events:**
-
-- View all your events
-- Filter and sort your events
-- Access event analysis
-
-**Guides:**
-
-- User guides and documentation
-- Help and tutorials
-- This guide and others
-
-### Menu Behavior
-
-**Desktop:**
-
-- Sidebar may be collapsible
-- Hover to expand submenus
-- Click to navigate
-
-### Guides Menu in Collapsed Sidebar
-
-When the sidebar is collapsed (icon-only mode), the guides section has special
-behavior:
-
-**Collapsed Sidebar Guides Menu:**
-
-- A guides icon appears at the bottom of the collapsed sidebar
-- Clicking the guides icon expands a menu showing all available guides
-- The icon rotates when the menu is expanded to indicate its state
-- Each guide appears as an icon with a tooltip showing its name
-- Clicking a guide link navigates to that guide while keeping the menu open
-- Click the guides icon again to collapse the menu
-- The guides icon links to `/guides` (the guides index page) for right-click or
-  middle-click navigation
-
-**Expanded Sidebar Guides Section:**
-
-- When the sidebar is expanded, the guides section shows a "User Guides" button
-- Click the button to expand/collapse the list of guides
-- The expanded state is remembered in your browser's local storage
-- All guides are listed with their full names
-
-**Mobile:**
-
-- Full-screen overlay when open
-- Tap outside to close
-- Swipe to close (if supported)
+**Guides:** The guides section at the bottom of the rail links to `/guides` and
+lists user guides; expanded/collapsed state may be remembered locally.
 
 ## Tab Navigation
 
@@ -184,80 +121,19 @@ Tabs appear horizontally (desktop) or as a scrollable list (mobile):
 - **State Persistence**: Selected tab may be remembered
 - **Accessibility**: Keyboard and screen reader support
 
-## Dropdown Menus
+## Keyboard and command palette
 
-Some navigation items have dropdown menus for sub-options.
+There are **no global Alt+letter** shortcuts for navigation in the current
+build. Use:
 
-### Multi-Level Dropdowns
+- **Command palette** (top bar menu icon): filterable list of jump targets
+  (`src/components/organisms/dashboard/shell/CommandPalette.tsx`).
+- **Escape:** closes the command palette and many modals (palette listens for
+  Escape).
+- **Standard focus:** Tab / Shift+Tab / Enter behave as usual in the browser.
 
-**Structure:**
-
-- Main menu item
-- Submenu items (appear on hover or click)
-- Nested submenus (if applicable)
-
-**Usage:**
-
-1. Hover or click main menu item
-2. Submenu appears
-3. Click submenu item to navigate
-4. Menu closes after selection
-
-### Dropdown Behavior
-
-**Desktop:**
-
-- Hover to open
-- Click to navigate
-- Click outside to close
-
-**Mobile:**
-
-- Tap to open
-- Tap item to navigate
-- Tap outside to close
-
-## Keyboard Shortcuts
-
-MRE supports keyboard shortcuts for common actions.
-
-### Navigation Shortcuts
-
-**General Navigation:**
-
-- **Alt + H**: Go to Home/Dashboard
-- **Alt + S**: Go to Event Search
-- **Alt + E**: Go to My Events
-- **Alt + G**: Go to Guides
-
-**Page Navigation:**
-
-- **Esc**: Close modals or menus
-- **Tab**: Move focus to next element
-- **Shift + Tab**: Move focus to previous element
-- **Enter**: Activate focused element
-
-**Tab Navigation:**
-
-- **Arrow Left/Right**: Switch between tabs
-- **Home**: Go to first tab
-- **End**: Go to last tab
-
-### Form Shortcuts
-
-- **Enter**: Submit form (when in form)
-- **Esc**: Cancel or close form
-- **Tab**: Move to next field
-- **Shift + Tab**: Move to previous field
-
-### Browser Shortcuts
-
-Standard browser shortcuts also work:
-
-- **Back**: Browser back button or Alt + Left Arrow
-- **Forward**: Browser forward button or Alt + Right Arrow
-- **Refresh**: F5 or Ctrl/Cmd + R
-- **Find**: Ctrl/Cmd + F
+For **tab strips** inside a page (e.g. Event Analysis), use the mouse or
+standard focus navigation; do not rely on undocumented global shortcuts.
 
 ## Finding Features
 
@@ -306,17 +182,15 @@ Standard browser shortcuts also work:
 
 **Features:**
 
-- Hamburger menu (hidden by default)
+- Same rail + top bar pattern with responsive layout
 - Touch interactions
 - Single column layouts
-- Full-screen overlays
+- Full-screen overlays for modals
 
 **Patterns:**
 
 - Breadcrumbs at top (may be abbreviated)
-- Hamburger menu icon
-- Tabs scrollable horizontal
-- Dropdowns on tap
+- Tabs scrollable horizontal where used
 
 ### Responsive Behavior
 
@@ -330,9 +204,9 @@ Standard browser shortcuts also work:
 ### Efficient Navigation
 
 1. **Use Breadcrumbs**: Quick way to go back multiple levels
-2. **Learn Shortcuts**: Keyboard shortcuts save time
+2. **Command palette**: Use the top-bar menu icon for quick jumps
 3. **Bookmark Pages**: Use browser bookmarks for frequently visited pages
-4. **Use Search**: If available, search is faster than browsing
+4. **Global Search** (`/search`): Fast path to events and sessions
 
 ### Understanding Location
 

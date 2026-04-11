@@ -12,7 +12,7 @@
  *
  * @relatedFiles
  * - src/components/Breadcrumbs.tsx (breadcrumb navigation)
- * - src/components/dashboard/shell/AdaptiveNavigationRail.tsx (navigation)
+ * - src/components/eventAnalysis/shell/AdaptiveNavigationRail.tsx (navigation)
  * - docs/user-guides/getting-started.md (markdown documentation)
  */
 
@@ -23,7 +23,7 @@ export default async function GettingStartedPage() {
     <section className="content-wrapper w-full min-w-0">
       <Breadcrumbs
         items={[
-          { label: "My Event Analysis", href: "/dashboard" },
+          { label: "My Event Analysis", href: "/eventAnalysis" },
           { label: "Guides", href: "/guides" },
           { label: "Getting Started" },
         ]}

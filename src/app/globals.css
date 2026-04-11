@@ -20,6 +20,7 @@
 
   /* Surface colors */
   --token-surface: #0a0a0b;
+  --token-surface-alt: #0f1012;
   --token-surface-elevated: #111214;
   --token-surface-raised: #18191c;
 
@@ -27,6 +28,7 @@
   --token-text-primary: #f2f2f3;
   --token-text-secondary: #b8bbc2;
   --token-text-muted: #6b7280;
+  --token-text-error: var(--token-status-error-text);
 
   /* Border colors */
   --token-border-default: #26272e;
@@ -70,6 +72,23 @@
   --token-status-warning-text: #f59e0b;
   --token-status-error-bg: rgba(239, 68, 68, 0.2);
   --token-status-error-text: #ef4444;
+
+  /* Chart series palette (for line/bar charts - LapByLapTrendChart, etc.) */
+  --token-chart-series-1: #3a8eff;
+  --token-chart-series-2: #4ecdc4;
+  --token-chart-series-3: #ff6b6b;
+  --token-chart-series-4: #ffe66d;
+  --token-chart-series-5: #a8e6cf;
+  --token-chart-series-6: #ff8b94;
+  --token-chart-series-7: #95e1d3;
+  --token-chart-series-8: #f38181;
+  --token-chart-series-9: #aa96da;
+  --token-chart-series-10: #fcbad3;
+  --token-chart-series-11: #a8d8ea;
+  --token-chart-series-12: #ff9a3c;
+  /* Session band colors for lap trend charts */
+  --token-chart-session-band-1: #6366f1;
+  --token-chart-session-band-2: #fbbf24;
 
   /* Racing tokens */
   --token-sector-s1: #38bdf8;
@@ -115,12 +134,14 @@
 .light {
   /* Surface colors */
   --token-surface: #ffffff;
+  --token-surface-alt: #fafafa;
   --token-surface-elevated: #f5f5f5;
 
   /* Text colors */
   --token-text-primary: #171717;
   --token-text-secondary: #525252;
   --token-text-muted: #737373;
+  --token-text-error: var(--token-status-error-text);
 
   /* Border colors */
   --token-border-default: #d4d4d4;
@@ -242,7 +263,7 @@
 
 html {
   width: 100%;
-  min-width: 0;
+  max-width: 100%;
   overflow-x: hidden; /* Prevent horizontal scroll */
   box-sizing: border-box;
 }
@@ -255,13 +276,25 @@ html {
 
 body {
   width: 100%;
-  min-width: 0;
+  min-width: 100%;
+  max-width: 100%;
   overflow-x: hidden; /* Prevent horizontal scroll */
   background: var(--token-surface);
   color: var(--token-text-primary);
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
   padding: 0;
+}
+
+/* Hide scrollbars but keep overflow scroll (wheel / touch / keyboard still work) */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 [data-density="compact"] {
@@ -282,10 +315,9 @@ body {
   --dashboard-font-scale: 1.05;
 }
 
-/* Ensure portal content can expand properly */
+/* Portal roots — cap width only; avoid min-width:0 here (it can interact badly with layout). */
 nextjs-portal > *,
 [nextjs-portal] > * {
-  min-width: 0;
   max-width: 100%;
 }
 
@@ -298,24 +330,22 @@ nextjs-portal > *,
    to minimal width when used in flex column layouts.
    ============================================================================ */
 
-/* Page container base - ensures proper flex behavior */
+/* Page container — full width; do not set min-width: 0 (that let flex layouts collapse to a sliver). */
 .page-container {
-  min-width: 0 !important; /* Allow flex shrinking - important to override any conflicting styles */
-  width: 100% !important; /* Force full width - important to override any conflicting styles */
-  flex-basis: 100%; /* Set flex basis to full width */
-  flex-shrink: 1; /* Allow shrinking but with min-width constraint */
-  max-width: 100%; /* Ensure it doesn't exceed viewport */
-  box-sizing: border-box; /* Include padding in width calculation */
+  width: 100% !important;
+  flex-basis: 100%;
+  flex-shrink: 1;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-/* Content wrapper base - ensures proper width constraints */
+/* Content wrapper — full width; avoid min-width: 0 here for the same reason. */
 .content-wrapper {
-  min-width: 0 !important; /* Allow flex shrinking - important to override any conflicting styles */
-  width: 100% !important; /* Force full width - important to override any conflicting styles */
-  flex-basis: 100%; /* Set flex basis to full width */
-  flex-shrink: 1; /* Allow shrinking but with min-width constraint */
-  max-width: 100%; /* Ensure it respects max-w-* classes */
-  box-sizing: border-box; /* Include padding/border in width calculation */
+  width: 100% !important;
+  flex-basis: 100%;
+  flex-shrink: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Form inputs - prevent width expansion issues */
@@ -333,11 +363,12 @@ select {
   box-sizing: border-box; /* Include padding/border in width calculation */
 }
 
-/* Ensure all flex containers allow proper shrinking */
-.flex {
-  min-width: 0; /* Allow flex children to shrink */
-}
+/* Do not globally force min-width: 0 on .flex / .flex-col — it caused main dashboard content to
+   resolve to ~tens of px wide. Apply min-w-0 only on components that need overflow clipping. */
 
-.flex-col {
-  min-width: 0; /* Allow flex column containers to shrink */
+/* Authenticated shell: main is flex column; .content-wrapper uses flex-basis:100% globally.
+   That combination can resolve section width to min-content (~60px). Auto basis restores stretch.
+   Do NOT add width rules to [data-scroll-container] — fixed + left/right conflicts with padding. */
+#main-content.flex.flex-col > section.content-wrapper {
+  flex-basis: auto;
 }

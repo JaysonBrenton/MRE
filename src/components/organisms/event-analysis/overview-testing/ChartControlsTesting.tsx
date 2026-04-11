@@ -478,7 +478,7 @@ export default function ChartControlsTesting({
             </button>
             {needsReview && (
               <span
-                className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
+                className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
                 title="Vehicle type needs review"
               >
                 ⚠
@@ -486,7 +486,7 @@ export default function ChartControlsTesting({
             )}
           </div>
           {isClassDropdownOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
+            <div className="scrollbar-none absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg">
               <button
                 type="button"
                 onClick={() => {
@@ -599,7 +599,7 @@ export default function ChartControlsTesting({
             </div>
           }
         >
-          <div className="space-y-4 p-4">
+          <div className="space-y-4">
             {/* Controls Row */}
             <div className="flex gap-2">
               {/* Class Filter Dropdown */}
@@ -631,7 +631,7 @@ export default function ChartControlsTesting({
                   </button>
                   {needsReview && (
                     <span
-                      className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded"
+                      className="px-1.5 py-0.5 text-xs bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] rounded"
                       title="Vehicle type needs review"
                     >
                       ⚠
@@ -639,7 +639,7 @@ export default function ChartControlsTesting({
                   )}
                 </div>
                 {isClassDropdownOpen && (
-                  <div className="absolute z-10 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto">
+                  <div className="scrollbar-none absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg">
                     <button
                       type="button"
                       onClick={() => {

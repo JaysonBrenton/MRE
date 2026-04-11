@@ -3,7 +3,12 @@ import { PrismaClient } from "@prisma/client"
 const prisma = new PrismaClient()
 
 async function main() {
-  const eventId = "67affaa1-f667-4d22-9621-9d1cc189f7a0"
+  const eventId = process.argv[2]
+
+  if (!eventId) {
+    console.error("Usage: ts-node scripts/force-reingest.ts <eventId>")
+    process.exit(1)
+  }
 
   // Reset ingest depth to force re-ingestion
   const result = await prisma.$executeRaw`

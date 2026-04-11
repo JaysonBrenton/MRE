@@ -25,6 +25,8 @@ import { type DateRangePreset, PRESETS as DATE_RANGE_PRESETS } from "./DateRange
 import DateRangeModal from "./DateRangeModal"
 import MonthYearPicker from "../practice-days/MonthYearPicker"
 import Button from "@/components/atoms/Button"
+import LabeledSwitch from "@/components/molecules/LabeledSwitch"
+import Tooltip from "@/components/molecules/Tooltip"
 import { clientLogger } from "@/lib/client-logger"
 import { isPracticeDaysEnabled } from "@/lib/feature-flags"
 
@@ -51,6 +53,10 @@ export interface EventSearchFormProps {
   onSearch: (track?: Track) => void
   searchMode?: "events" | "practice-days"
   onSearchModeChange?: (mode: "events" | "practice-days") => void
+  /** When true, a search or background discovery is currently in flight */
+  isSearchingInFlight?: boolean
+  /** Called when the user requests to stop the current search */
+  onStop?: () => void
   practiceYear?: number
   practiceMonth?: number
   onPracticeYearChange?: (year: number) => void
@@ -58,6 +64,9 @@ export interface EventSearchFormProps {
   /** When true, event search also includes practice days in the same list (events mode only) */
   includePracticeDays?: boolean
   onIncludePracticeDaysChange?: (checked: boolean) => void
+  /** When true, only show events already ingested (skip LiveRC discovery) */
+  ingestedEventsOnly?: boolean
+  onIngestedEventsOnlyChange?: (checked: boolean) => void
 }
 
 export default function EventSearchForm({
@@ -77,12 +86,16 @@ export default function EventSearchForm({
   onSearch,
   searchMode = "events",
   onSearchModeChange: _onSearchModeChange,
+  isSearchingInFlight = false,
+  onStop,
   practiceYear,
   practiceMonth,
   onPracticeYearChange,
   onPracticeMonthChange,
   includePracticeDays = false,
   onIncludePracticeDaysChange,
+  ingestedEventsOnly = true,
+  onIngestedEventsOnlyChange,
 }: EventSearchFormProps) {
   const practiceDaysEnabled = isPracticeDaysEnabled()
 
@@ -98,9 +111,21 @@ export default function EventSearchForm({
     e.preventDefault()
     clientLogger.debug("EventSearchForm: handleSearch called", {
       hasOnSearch: !!onSearch,
+      hasOnStop: !!onStop,
       selectedTrack,
       isLoading,
+      isSearchingInFlight,
     })
+
+    if (isSearchingInFlight) {
+      if (onStop) {
+        onStop()
+      } else {
+        clientLogger.error("EventSearchForm: onStop prop is missing while search is in flight")
+      }
+      return
+    }
+
     if (onSearch) {
       onSearch()
     } else {
@@ -139,24 +164,28 @@ export default function EventSearchForm({
           </span>
           <div className="flex flex-wrap gap-6 items-start">
             <div>
-              <label
-                htmlFor="track-selector-trigger"
-                className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
-              >
-                Track
-              </label>
+              <Tooltip text="Choose the race track or venue to search events for." position="top">
+                <label
+                  htmlFor="track-selector-trigger"
+                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                >
+                  Track Selection
+                </label>
+              </Tooltip>
               <Button
                 type="button"
                 id="track-selector-trigger"
                 aria-describedby={trackErrorId}
                 onClick={() => setIsTrackModalOpen(true)}
                 variant="default"
-                className="h-11 w-[9rem] min-w-[9rem] justify-start"
+                className="h-11 w-[9rem] min-w-[9rem] justify-center px-3"
                 aria-haspopup="dialog"
                 aria-expanded={isTrackModalOpen}
                 aria-label="Select a track"
               >
-                Select a Track
+                <span className="truncate">
+                  {selectedTrack ? selectedTrack.trackName : "Select a Track"}
+                </span>
               </Button>
               {errors?.track && (
                 <p
@@ -170,45 +199,80 @@ export default function EventSearchForm({
             </div>
             {searchMode === "events" && onDateRangePresetChange && (
               <div>
-                <label
-                  htmlFor="date-range-trigger"
-                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                <Tooltip
+                  text="Filter events by when they occurred (e.g. last 12 months)."
+                  position="top"
                 >
-                  Date range
-                </label>
+                  <label
+                    htmlFor="date-range-trigger"
+                    className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                  >
+                    Event Date Range
+                  </label>
+                </Tooltip>
                 <Button
                   type="button"
                   id="date-range-trigger"
                   variant="default"
                   onClick={() => setIsDateRangeModalOpen(true)}
-                  className="h-11 w-[9rem] min-w-[9rem] justify-start"
+                  className="h-11 w-[9rem] min-w-[9rem] justify-center px-3"
                   aria-haspopup="dialog"
                   aria-expanded={isDateRangeModalOpen}
                 >
-                  {DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ??
-                    "Date range"}
+                  <span className="truncate">
+                    {DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ??
+                      "Date range"}
+                  </span>
                 </Button>
               </div>
             )}
             {searchMode === "events" && practiceDaysEnabled && onIncludePracticeDaysChange && (
               <div>
-                <label
-                  htmlFor="include-practice-days-trigger"
-                  className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                <Tooltip text="Include practice day sessions in the event list." position="top">
+                  <label
+                    htmlFor="include-practice-days-trigger"
+                    className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                  >
+                    Include practice days
+                  </label>
+                </Tooltip>
+                <div className="flex items-center min-h-11">
+                  <LabeledSwitch
+                    id="include-practice-days-trigger"
+                    leftLabel="Off"
+                    rightLabel="On"
+                    checked={includePracticeDays}
+                    onChange={onIncludePracticeDaysChange}
+                    disabled={isLoading}
+                    aria-label="Include practice days in results"
+                  />
+                </div>
+              </div>
+            )}
+            {searchMode === "events" && onIngestedEventsOnlyChange && (
+              <div>
+                <Tooltip
+                  text="Only show events already in MRE; turn off to discover events from LiveRC."
+                  position="top"
                 >
-                  Include practice days
-                </label>
-                <Button
-                  type="button"
-                  id="include-practice-days-trigger"
-                  variant={includePracticeDays ? "primary" : "default"}
-                  onClick={() => onIncludePracticeDaysChange(!includePracticeDays)}
-                  className="h-11 w-[9rem] min-w-[9rem] justify-center"
-                  aria-pressed={includePracticeDays}
-                  aria-label="Include practice days in results"
-                >
-                  {includePracticeDays ? "On" : "Off"}
-                </Button>
+                  <label
+                    htmlFor="ingested-events-only-trigger"
+                    className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
+                  >
+                    Ingested events only
+                  </label>
+                </Tooltip>
+                <div className="flex items-center min-h-11">
+                  <LabeledSwitch
+                    id="ingested-events-only-trigger"
+                    leftLabel="Off"
+                    rightLabel="On"
+                    checked={ingestedEventsOnly}
+                    onChange={onIngestedEventsOnlyChange}
+                    disabled={isLoading}
+                    aria-label="Search within ingested events only (skip LiveRC discovery)"
+                  />
+                </div>
               </div>
             )}
             <div>
@@ -216,17 +280,22 @@ export default function EventSearchForm({
                 htmlFor="event-search-execute"
                 className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
               >
-                Execute
+                Search events
               </label>
               <div className="flex flex-wrap gap-4">
                 <Button
                   type="submit"
                   id="event-search-execute"
-                  variant="primary"
-                  disabled={isLoading || !selectedTrack}
-                  className="h-11 w-[9rem] min-w-[9rem]"
+                  variant={isSearchingInFlight ? "default" : "primary"}
+                  disabled={!selectedTrack}
+                  className={`h-11 w-[9rem] min-w-[9rem] font-semibold ${
+                    isSearchingInFlight
+                      ? "text-[var(--token-error-text)] border-[var(--token-error-text)]/60 bg-[var(--token-error-text)]/10 hover:bg-[var(--token-error-text)]/20"
+                      : ""
+                  }`}
+                  aria-label={isSearchingInFlight ? "Stop current search" : "Run event search"}
                 >
-                  {isLoading ? "Searching..." : "Search"}
+                  {isSearchingInFlight ? "Stop" : isLoading ? "Running..." : "Run"}
                 </Button>
               </div>
             </div>
@@ -279,7 +348,6 @@ export default function EventSearchForm({
         trackError={errors?.track}
         onTrackSelect={onTrackSelect}
         onToggleFavourite={onToggleFavourite}
-        onSearch={onSearch}
       />
 
       {/* Date range modal (Events mode) */}

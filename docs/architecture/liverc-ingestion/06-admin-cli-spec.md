@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-03-22
 description: Admin CLI specification for LiveRC ingestion management
 purpose:
   Defines command-line tools for administrators to manage LiveRC ingestion,
@@ -95,23 +95,35 @@ instructions.
 
 ## 2. CLI Commands Overview
 
-The CLI provides the following top-level commands:
+Authoritative implementation: `ingestion/cli/commands.py` (Click). Namespace:
+`python -m ingestion.cli ingest liverc …` plus top-level
+`python -m ingestion.cli auto-confirm-links` and
+`python -m ingestion.cli drivers deduplicate`.
+
+The CLI provides at least the following `liverc` subcommands:
 
 1. Tracks
-   - list-tracks
-   - refresh-tracks
+   - `list-tracks`
+   - `refresh-tracks` (optional metadata refresh)
+   - `backfill-track-countries`
 
 2. Events
-   - list-events
-   - refresh-events
-   - refresh-followed-events
-   - ingest-event
+   - `list-events`
+   - `refresh-events`
+   - `refresh-followed-events`
+   - `ingest-event`
+   - `reingest-section-headers`
 
 3. Diagnostics
-   - status
-   - verify-integrity
+   - `status`
+   - `verify-integrity`
 
-These commands are described below.
+4. Other entrypoints (not under `liverc`)
+   - `auto-confirm-links` — batch-confirm user–driver links where appropriate
+   - `drivers deduplicate` — driver deduplication maintenance
+
+Detailed behaviour for each command remains in the sections below where
+documented; use the source file for flags and options not yet expanded here.
 
 ---
 

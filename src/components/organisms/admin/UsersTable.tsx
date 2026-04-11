@@ -33,10 +33,9 @@ export default function UsersTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [searchQuery, setSearchQuery] = useState("")
   const [isAdminFilter, setIsAdminFilter] = useState<string>("all")
-  const [teamNameFilter, setTeamNameFilter] = useState("")
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deleteUser, setDeleteUser] = useState<User | null>(null)
   const [toggleAdminUser, setToggleAdminUser] = useState<User | null>(null)
@@ -151,11 +150,6 @@ export default function UsersTable() {
       setActionLoading(false)
     }
   }
-
-  // Get unique team names for filter
-  const uniqueTeamNames = Array.from(
-    new Set(users.map((u) => u.teamName).filter((t): t is string => t !== null))
-  ).sort()
 
   if (loading && users.length === 0) {
     return (
@@ -317,7 +311,6 @@ export default function UsersTable() {
           itemsPerPage={itemsPerPage}
           totalItems={total}
           itemLabel="users"
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
           onRowsPerPageChange={(newRowsPerPage) => {
             setItemsPerPage(newRowsPerPage)
             setPage(1)
@@ -372,7 +365,7 @@ export default function UsersTable() {
             </div>
           }
         >
-          <div className="px-4 py-4">
+          <div>
             <p className="text-sm text-[var(--token-text-primary)]">
               {toggleAdminUser?.isAdmin
                 ? `Are you sure you want to remove administrator privileges from ${toggleAdminUser.email}?`

@@ -1,9 +1,9 @@
 /**
  * @fileoverview Event analysis actions dropdown menu
  *
- * @description Actions menu visible when viewing Event Overview, Event Sessions, or Drivers.
+ * @description Actions menu visible when viewing Overview or Entry List.
  *              Replaces the former sidebar event-actions block. Items: Find and Import Events,
- *              Refresh Event Data, Select a Class, Select Drivers, Clear Event.
+ *              Refresh Event Data, Map car types, Clear Event.
  *              "View as driver" (practice day) is in the Select Drivers modal.
  *
  * @purpose Single "Actions" control in the tab row; click opens dropdown with event actions.
@@ -12,8 +12,9 @@
 "use client"
 
 import { useRef, useEffect, useCallback, useState, type KeyboardEvent } from "react"
-import { createPortal } from "react-dom"
 import { useEventActionsOptional } from "@/components/organisms/dashboard/EventActionsContext"
+import { useAppSelector } from "@/store/hooks"
+import CarTaxonomyModal from "@/components/organisms/event-analysis/CarTaxonomyModal"
 
 function SearchIcon({ className }: { className?: string }) {
   return (
@@ -48,39 +49,31 @@ function RefreshIcon({ className, spin }: { className?: string; spin?: boolean }
   )
 }
 
-function DriversIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function ClassIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 function ClearEventIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function CarTaxonomyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 7h16M4 12h10M4 17h16"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+      <path
+        d="M17 10v4l2-2-2-2z"
         stroke="currentColor"
         strokeWidth={1.5}
         strokeLinecap="round"
@@ -108,103 +101,50 @@ const iconClass = "h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
 const itemClass =
   "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)]/70 hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-accent)] disabled:opacity-50 disabled:cursor-not-allowed"
 
-const classItemClass =
-  "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-accent)]"
-
-const CLASS_LIST_POPOVER_GAP = 8
-const CLASS_LIST_ESTIMATE_WIDTH = 200
-const CLASS_LIST_ESTIMATE_HEIGHT = 240
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- Reserved for future use
-export interface EventAnalysisActionsMenuProps {}
-
 export default function EventAnalysisActionsMenu() {
   const eventActions = useEventActionsOptional()
+  const analysisData = useAppSelector((s) => s.dashboard.analysisData)
+  const selectedEventId = useAppSelector((s) => s.dashboard.selectedEventId)
   const [open, setOpen] = useState(false)
-  const [isClassListExpanded, setIsClassListExpanded] = useState(false)
-  const [classListPosition, setClassListPosition] = useState({ top: 0, left: 0 })
+  const [carTaxonomyOpen, setCarTaxonomyOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const classListAnchorRef = useRef<HTMLButtonElement>(null)
-  const classListPanelRef = useRef<HTMLDivElement>(null)
 
   const hasEventSelected = eventActions?.hasEventSelected ?? false
-  const selectedDriverCount = eventActions?.selectedDriverIds.length ?? 0
-  const classesForFilter = eventActions?.classesForFilter ?? []
 
   const close = useCallback(() => {
     setOpen(false)
-    setIsClassListExpanded(false)
   }, [])
 
-  // Click outside to close (main menu and portaled class list count as "inside")
+  // Close menu when refresh starts (e.g. from keyboard shortcut)
+  useEffect(() => {
+    if (eventActions?.isRefreshing) {
+      queueMicrotask(() => close())
+    }
+  }, [eventActions?.isRefreshing, close])
+
+  // Click outside to close
   useEffect(() => {
     if (!open) return
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Node
-      if (
-        buttonRef.current?.contains(target) ||
-        panelRef.current?.contains(target) ||
-        classListPanelRef.current?.contains(target)
-      )
-        return
+      if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return
       close()
     }
     document.addEventListener("mousedown", handleClick)
     return () => document.removeEventListener("mousedown", handleClick)
   }, [open, close])
 
-  // Escape: close class list first if open, then close menu
+  // Escape: close menu
   useEffect(() => {
     if (!open) return
     const handleKey = (e: globalThis.KeyboardEvent) => {
       if (e.key !== "Escape") return
-      if (isClassListExpanded) {
-        setIsClassListExpanded(false)
-      } else {
-        close()
-      }
+      close()
     }
     document.addEventListener("keydown", handleKey)
     return () => document.removeEventListener("keydown", handleKey)
-  }, [open, close, isClassListExpanded])
-
-  // Position portaled class list to the right of "Select a Class" button, with viewport bounds
-  useEffect(() => {
-    if (!isClassListExpanded || !open || !classListAnchorRef.current || !classListPanelRef.current)
-      return
-
-    const updatePosition = () => {
-      if (!classListAnchorRef.current || !classListPanelRef.current) return
-      const anchorRect = classListAnchorRef.current.getBoundingClientRect()
-      const panelRect = classListPanelRef.current.getBoundingClientRect()
-      const viewport = { width: window.innerWidth, height: window.innerHeight }
-      const panelWidth = panelRect.width || CLASS_LIST_ESTIMATE_WIDTH
-      const panelHeight = panelRect.height || CLASS_LIST_ESTIMATE_HEIGHT
-
-      let preferredLeft = anchorRect.right + CLASS_LIST_POPOVER_GAP
-      let preferredTop = anchorRect.top
-
-      if (preferredLeft + panelWidth > viewport.width - 8) {
-        preferredLeft = anchorRect.left - panelWidth - CLASS_LIST_POPOVER_GAP
-      }
-      preferredLeft = Math.max(8, Math.min(viewport.width - panelWidth - 8, preferredLeft))
-      preferredTop = Math.max(8, Math.min(viewport.height - panelHeight - 8, preferredTop))
-
-      setClassListPosition({ top: preferredTop, left: preferredLeft })
-    }
-
-    const timeoutId = setTimeout(updatePosition, 0)
-    const handleScroll = () => updatePosition()
-    const handleResize = () => updatePosition()
-    window.addEventListener("scroll", handleScroll, true)
-    window.addEventListener("resize", handleResize)
-    return () => {
-      clearTimeout(timeoutId)
-      window.removeEventListener("scroll", handleScroll, true)
-      window.removeEventListener("resize", handleResize)
-    }
-  }, [isClassListExpanded, open])
+  }, [open, close])
 
   const handleItemClick = useCallback(
     (action: () => void) => {
@@ -214,15 +154,8 @@ export default function EventAnalysisActionsMenu() {
     [close]
   )
 
-  const handleClassSelect = useCallback(
-    (className: string | null) => {
-      eventActions?.onClassChange(className)
-      close()
-    },
-    [eventActions, close]
-  )
-
   const handleButtonKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (!eventActions || eventActions.isRefreshing) return
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault()
       setOpen((prev) => !prev)
@@ -232,22 +165,35 @@ export default function EventAnalysisActionsMenu() {
 
   if (!eventActions) return null
 
+  const isRefreshing = eventActions.isRefreshing
+
   return (
     <div className="relative flex shrink-0">
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => !isRefreshing && setOpen((prev) => !prev)}
         onKeyDown={handleButtonKeyDown}
-        className="flex items-center gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+        disabled={isRefreshing}
+        className="flex items-center gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-[var(--token-surface-elevated)]"
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label="Event actions menu"
+        aria-busy={isRefreshing}
+        aria-label={isRefreshing ? "Refreshing event data" : "Event actions menu"}
       >
-        <span>Actions</span>
-        <ChevronDownIcon
-          className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        {isRefreshing ? (
+          <>
+            <RefreshIcon className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]" spin />
+            <span>Refreshing...</span>
+          </>
+        ) : (
+          <>
+            <span>Actions</span>
+            <ChevronDownIcon
+              className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </>
+        )}
       </button>
 
       {open && (
@@ -289,43 +235,19 @@ export default function EventAnalysisActionsMenu() {
               </button>
             )}
 
-            {/* Select a Class - when event selected: opens portaled class list to the right */}
-            {hasEventSelected && (
-              <button
-                ref={classListAnchorRef}
-                type="button"
-                role="menuitem"
-                onClick={() => setIsClassListExpanded((prev) => !prev)}
-                className={itemClass}
-                aria-label="Filter by class (number is drivers per class)"
-                aria-expanded={isClassListExpanded}
-                aria-haspopup="menu"
-              >
-                <ClassIcon className={iconClass} />
-                <span>Select a Class</span>
-                <ChevronDownIcon
-                  className={`ml-auto h-4 w-4 text-[var(--token-text-muted)] transition-transform ${isClassListExpanded ? "rotate-180" : ""}`}
-                />
-              </button>
-            )}
+            {/* Select a Class and Select Drivers buttons removed per design */}
 
-            {/* Select Drivers - when event selected; count shown in label so "23" is clear */}
+            {/* Map car types — global per-user rules; opens modal */}
             {hasEventSelected && (
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => handleItemClick(eventActions.openDriverSelection)}
-                disabled={!hasEventSelected}
+                onClick={() => handleItemClick(() => setCarTaxonomyOpen(true))}
                 className={itemClass}
-                aria-label={`Select Drivers (⌘D)${selectedDriverCount > 0 ? ` — ${selectedDriverCount} selected` : " — no drivers selected"}`}
-                aria-haspopup="dialog"
-                aria-expanded={eventActions.isDriverModalOpen}
+                aria-label="Map car types for session analysis"
               >
-                <DriversIcon className={iconClass} />
-                <span>
-                  Select Drivers
-                  {selectedDriverCount > 0 && ` (${selectedDriverCount})`}
-                </span>
+                <CarTaxonomyIcon className={iconClass} />
+                <span>Map car types</span>
               </button>
             )}
 
@@ -346,48 +268,14 @@ export default function EventAnalysisActionsMenu() {
         </div>
       )}
 
-      {/* Portaled class list: pops out to the right of "Select a Class" */}
-      {open &&
-        isClassListExpanded &&
-        typeof document !== "undefined" &&
-        document.body &&
-        createPortal(
-          <div
-            ref={classListPanelRef}
-            role="menu"
-            aria-label="Select a class"
-            className="fixed z-[60] w-[200px] max-h-60 overflow-auto rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-1 shadow-lg"
-            style={{
-              top: `${classListPosition.top}px`,
-              left: `${classListPosition.left}px`,
-              visibility:
-                classListPosition.top === 0 && classListPosition.left === 0 ? "hidden" : "visible",
-            }}
-          >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => handleClassSelect(null)}
-              className={classItemClass}
-              aria-label="All Classes"
-            >
-              All Classes
-            </button>
-            {classesForFilter.map(({ className, count }) => (
-              <button
-                key={className}
-                type="button"
-                role="menuitem"
-                onClick={() => handleClassSelect(className)}
-                className={classItemClass}
-                aria-label={`${className} (${count} drivers)`}
-              >
-                {className} ({count})
-              </button>
-            ))}
-          </div>,
-          document.body
-        )}
+      <CarTaxonomyModal
+        isOpen={carTaxonomyOpen}
+        onClose={() => setCarTaxonomyOpen(false)}
+        eventId={selectedEventId}
+        analysisData={analysisData}
+      />
+
+      {/* Class list popover removed with "Select a Class" */}
     </div>
   )
 }

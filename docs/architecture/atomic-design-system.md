@@ -1,7 +1,7 @@
 ---
 created: 2026-01-31
 creator: Implementation
-lastModified: 2026-01-31
+lastModified: 2026-03-22
 description: Atomic design system for MRE UI components
 purpose:
   Defines the component tier structure, import rules, and folder map for the MRE
@@ -11,6 +11,7 @@ relatedFiles:
   - docs/standards/typescript-react-style-guide.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/compact-label-value-card.md
+  - docs/frontend/component-catalog.md (full file list)
 ---
 
 # MRE Atomic Design System
@@ -42,17 +43,22 @@ may import from a higher tier (e.g. no atom may import an organism).
 
 ## Folder Map
 
+Machine-generated inventory with one line per file:
+[`docs/frontend/component-catalog.md`](../frontend/component-catalog.md)
+(regenerate: `npm run docs:component-catalog` inside the app container).
+
 ```
 src/components/
-  atoms/           Button, ListRow, LoadingState, StandardButton, StandardInput,
-                   StatusBadge, ChartIcon, Breadcrumbs, Switch
-  molecules/       Modal, Tooltip, StandardTable, EventStatusBadge, ErrorDisplay,
-                   ContentWrapper, PageContainer, LabeledSwitch
-  organisms/       event-analysis/, event-search/, admin/, dashboard/, practice-days/,
-                   search/, track-maps/, events/, users/
+  atoms/           Breadcrumbs, Button, ChartIcon, ListRow, LoadingState,
+                   StandardButton, StandardInput, StatusBadge, Switch
+  molecules/       ContentWrapper, ErrorDisplay, EventStatusBadge, LabeledSwitch,
+                   Modal, PageContainer, StandardTable, Stepper, Tooltip
+  organisms/       admin/, dashboard/, event-analysis/, event-search/, events/,
+                   practice-days/, search/, track-maps/, users/
   templates/       DashboardLayout
-  (root)           AdminNav, ConditionalNav, ErrorBoundary, Footer, LogoutButton,
-                   Providers, store/ReduxProvider
+  (root)           AdminNav, AuthenticatedNav, AuthenticatedNavLinks,
+                   ConditionalNav, ErrorBoundary, Footer, GlobalErrorHandler,
+                   Hero, LogoutButton, NavBar, Providers, store/ReduxProvider
 ```
 
 ---
@@ -73,21 +79,21 @@ src/components/
 
 ## Key Component Paths
 
-| Component       | Path                                                   |
-| --------------- | ------------------------------------------------------ |
-| Modal           | `@/components/molecules/Modal`                         |
-| Tooltip         | `@/components/molecules/Tooltip` (wraps long text; use for all tooltips) |
-| StandardTable   | `@/components/molecules/StandardTable`                 |
-| ListRow         | `@/components/atoms/ListRow`                           |
-| Breadcrumbs     | `@/components/atoms/Breadcrumbs`                       |
-| PageContainer   | `@/components/molecules/PageContainer`                 |
-| ContentWrapper  | `@/components/molecules/ContentWrapper`                |
-| ListPagination  | `@/components/organisms/event-analysis/ListPagination` |
-| ChartContainer   | `@/components/organisms/event-analysis/ChartContainer`   |
-| LapTimeLineChart | `@/components/organisms/event-analysis/LapTimeLineChart` |
-| EventStats       | `@/components/organisms/event-analysis/EventStats`       |
-| WeatherCard      | `@/components/organisms/event-analysis/WeatherCard`       |
-| DashboardLayout  | `@/components/templates/DashboardLayout`                |
+| Component        | Path                                                                     |
+| ---------------- | ------------------------------------------------------------------------ |
+| Modal            | `@/components/molecules/Modal`                                           |
+| Tooltip          | `@/components/molecules/Tooltip` (wraps long text; use for all tooltips) |
+| StandardTable    | `@/components/molecules/StandardTable`                                   |
+| ListRow          | `@/components/atoms/ListRow`                                             |
+| Breadcrumbs      | `@/components/atoms/Breadcrumbs`                                         |
+| PageContainer    | `@/components/molecules/PageContainer`                                   |
+| ContentWrapper   | `@/components/molecules/ContentWrapper`                                  |
+| ListPagination   | `@/components/organisms/event-analysis/ListPagination`                   |
+| ChartContainer   | `@/components/organisms/event-analysis/ChartContainer`                   |
+| LapTimeLineChart | `@/components/organisms/event-analysis/LapTimeLineChart`                 |
+| EventStats       | `@/components/organisms/event-analysis/EventStats`                       |
+| WeatherCard      | `@/components/organisms/event-analysis/WeatherCard`                      |
+| DashboardLayout  | `@/components/templates/DashboardLayout`                                 |
 
 ---
 
@@ -100,25 +106,46 @@ src/components/
 4. **Use `@/components/` paths** in imports, not relative paths when crossing
    tiers
 5. **Charts (including line graphs):** New chart organisms in
-   `organisms/event-analysis/` must follow `docs/design/chart-design-standards.md`
-   and use `ChartContainer`. Future lap-time line graphs should follow the same
-   pattern as `LapTimeLineChart` (ChartContainer, ParentSize, Visx, legend,
-   wrapper `minHeight` when content is below the SVG).
-5a. **Compact label–value cards:** Any new card that displays multiple "Label:
-    value" rows in a single compact box must follow
-    `docs/design/compact-label-value-card.md` (grid alignment, left-aligned labels,
-    content-width card, table-style dates). Reference: `EventStats.tsx`.
-5b. **Lookup/filter fields:** Lookup fields, filter inputs, and similar form
-    controls (e.g. "Find driver") must use the standard width
-    `w-[9rem] min-w-[9rem]` per `docs/design/standard-form-field-width.md` to
-    match the Event Search form. Reference: `CombinedDriversTable.tsx`.
+   `organisms/event-analysis/` must follow
+   `docs/design/chart-design-standards.md` and use `ChartContainer`. Future
+   lap-time line graphs should follow the same pattern as `LapTimeLineChart`
+   (ChartContainer, ParentSize, Visx, legend, wrapper `minHeight` when content
+   is below the SVG). 5a. **Compact label–value cards:** Any new card that
+   displays multiple "Label: value" rows in a single compact box must follow
+   `docs/design/compact-label-value-card.md` (grid alignment, left-aligned
+   labels, content-width card, table-style dates). Reference: `EventStats.tsx`.
+   5b. **Lookup/filter fields:** Lookup fields, filter inputs, and similar form
+   controls (e.g. "Find driver") must use the standard width
+   `w-[9rem] min-w-[9rem]` per `docs/design/standard-form-field-width.md` to
+   match the Event Search form. Reference: `CombinedDriversTable.tsx`.
 6. **Tooltips:** Use the shared `@/components/molecules/Tooltip` for all
    tooltips (not native `title` for long text). It wraps long content within its
    border and shows instantly; do not change it to `whitespace-nowrap` or the
    text will overflow.
-7. **Icons:** Prefer `lucide-react` for new UI icons (tree-shaken named imports).
-   Existing inline SVGs (e.g. in EventAnalysisHeader) remain valid; no need to
-   migrate them.
+7. **Icons:** Use `lucide-react` for UI icons wherever possible (tree-shaken
+   named imports). New components must not introduce custom inline SVG icons
+   when an equivalent Lucide icon exists. Existing inline SVGs should be
+   migrated opportunistically to Lucide as files are touched.
+
+### Icon Mapping (Dashboard + Event Analysis)
+
+Use the following canonical icon mappings in dashboard/event-analysis scope:
+
+- **Search / find**: `Search` (e.g. command palette, find events)
+- **Close / dismiss**: `X` (e.g. modal close buttons, clear search)
+- **Calendar / date range**: `CalendarRange` or `CalendarDays` (e.g. event
+  context ribbon)
+- **Refresh / reload data**: `RefreshCcw` (e.g. refresh event data)
+- **User / profile**: `User` (e.g. top status bar profile trigger)
+- **People / drivers/classes**: `Users` (e.g. driver/class selection)
+- **Success / “You participated”**: `CheckCircle2`
+- **Warning / attention**: `AlertTriangle`
+- **Delete / destructive**: `Trash2`
+- **External link**: `ExternalLink`
+
+Icons should generally use `w-4 h-4` for inline controls and `w-5 h-5` for
+primary buttons, with `strokeWidth` left at the Lucide default unless a specific
+design call requires otherwise.
 
 ---
 

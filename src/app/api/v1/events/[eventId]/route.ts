@@ -55,6 +55,7 @@ export async function GET(
       event_url: event.eventUrl,
       ingest_depth: event.ingestDepth,
       last_ingested_at: event.lastIngestedAt?.toISOString() || null,
+      imported_by_user_id: event.importedByUserId ?? null,
       races: event.races.map((race) => ({
         id: race.id,
         event_id: race.eventId,

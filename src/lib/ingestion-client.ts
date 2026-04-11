@@ -22,6 +22,7 @@ export interface IngestEventResponse {
   event_id: string
   ingest_depth: string
   last_ingested_at?: string
+  imported_by_user_id?: string
   races_ingested: number
   results_ingested: number
   laps_ingested: number
@@ -138,6 +139,8 @@ export interface EntryListResponse {
   data: {
     source_event_id: string
     entries_by_class: Record<string, EntryListDriver[]>
+    /** Class names in LiveRC page order (nav pills); use for filter dropdown order */
+    class_order?: string[]
   }
 }
 
@@ -702,35 +705,42 @@ export class IngestionClient {
 
   async ingestEvent(
     eventId: string,
-    depth: "laps_full" | "none" = "laps_full"
+    depth: "laps_full" | "none" = "laps_full",
+    importedByUserId?: string
   ): Promise<IngestEventResponse | QueuedIngestionResponse> {
     assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/${eventId}/ingest`
-    return this.performIngestionRequest(url, { depth }, 10 * 60 * 1000)
+    const body: Record<string, unknown> = { depth }
+    if (importedByUserId) {
+      body.imported_by_user_id = importedByUserId
+    }
+    return this.performIngestionRequest(url, body, 10 * 60 * 1000)
   }
 
   async ingestEventBySourceId(
     sourceEventId: string,
     trackId: string,
-    depth: "laps_full" | "none" = "laps_full"
+    depth: "laps_full" | "none" = "laps_full",
+    importedByUserId?: string
   ): Promise<IngestEventResponse | QueuedIngestionResponse> {
     assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/ingest`
-    return this.performIngestionRequest(
-      url,
-      {
-        source_event_id: sourceEventId,
-        track_id: trackId,
-        depth,
-      },
-      10 * 60 * 1000
-    )
+    const body: Record<string, unknown> = {
+      source_event_id: sourceEventId,
+      track_id: trackId,
+      depth,
+    }
+    if (importedByUserId) {
+      body.imported_by_user_id = importedByUserId
+    }
+    return this.performIngestionRequest(url, body, 10 * 60 * 1000)
   }
 
   async getIngestionStatus(eventId: string): Promise<{
     event_id: string
     ingest_depth: string
     last_ingested_at: string | null
+    imported_by_user_id: string | null
   }> {
     const url = `${this.baseUrl}/api/v1/ingestion/status/${eventId}`
 

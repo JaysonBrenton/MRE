@@ -3,19 +3,20 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2026-01-31
+ * @lastModified 2026-04-06
  *
- * @description Drivers tab content for event analysis
- *
- * @purpose Displays combined entry list with driver stats (one table, no selection).
+ * @description Entry List tab content: shows `EventEntry` rows from MRE (same payload as
+ *              getEventAnalysisData.entryList), not a live LiveRC scrape.
  *
  * @relatedFiles
- * - src/components/event-analysis/CombinedDriversTable.tsx (combined table)
+ * - src/core/events/get-event-analysis-data.ts (entryList from prisma.eventEntry)
+ * - src/components/organisms/event-analysis/EntryList.tsx
  */
 
 "use client"
 
-import CombinedDriversTable from "./CombinedDriversTable"
+import EntryList from "./EntryList"
+import ChartContainer from "./ChartContainer"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface DriversTabProps {
@@ -24,18 +25,24 @@ export interface DriversTabProps {
   onClassChange?: (className: string | null) => void
 }
 
-export default function DriversTab({
-  data,
-  selectedClass,
-  onClassChange,
-}: DriversTabProps) {
+export default function DriversTab({ data }: DriversTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
-      <CombinedDriversTable
-        data={data}
-        selectedClass={selectedClass}
-        onClassChange={onClassChange}
-      />
+      <div id="drivers-table-region">
+        {data.entryList.length === 0 ? (
+          <ChartContainer aria-label="Entry list - no data available">
+            <div className="flex h-64 items-center justify-center text-[var(--token-text-secondary)]">
+              No entry list data available for this event.
+            </div>
+          </ChartContainer>
+        ) : (
+          <EntryList
+            entries={data.entryList}
+            raceClasses={data.raceClasses}
+            eventId={data.event.id}
+          />
+        )}
+      </div>
     </div>
   )
 }

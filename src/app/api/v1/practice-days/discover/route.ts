@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
       trackId: track_id,
       year: year,
       month: month,
-      trackSlug: typeof track_slug === "string" && track_slug.trim() !== "" ? track_slug.trim() : undefined,
+      trackSlug:
+        typeof track_slug === "string" && track_slug.trim() !== "" ? track_slug.trim() : undefined,
     })
     const durationMs = Date.now() - startMs
 
@@ -69,7 +70,8 @@ export async function POST(request: NextRequest) {
 
     // Summary-only: strip sessions for list view (reduces payload size)
     const practiceDaysSummary = result.practiceDays.map((pd) => {
-      const { sessions: _s, ...rest } = pd as unknown as { sessions?: unknown; [k: string]: unknown }
+      const { sessions, ...rest } = pd as unknown as { sessions?: unknown; [k: string]: unknown }
+      void sessions
       return rest
     })
 

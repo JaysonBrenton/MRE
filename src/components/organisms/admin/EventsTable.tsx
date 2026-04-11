@@ -75,7 +75,7 @@ export default function EventsTable() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [reingestEvent, setReingestEvent] = useState<Event | null>(null)
   const [deleteEvent, setDeleteEvent] = useState<Event | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -439,7 +439,6 @@ export default function EventsTable() {
           itemsPerPage={itemsPerPage}
           totalItems={total}
           itemLabel="events"
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
           onRowsPerPageChange={(newRowsPerPage) => {
             setItemsPerPage(newRowsPerPage)
             setPage(1)
@@ -473,7 +472,7 @@ export default function EventsTable() {
             </div>
           }
         >
-          <div className="px-4 py-4">
+          <div>
             <p className="text-sm text-[var(--token-text-primary)]">
               Are you sure you want to mark this event for re-ingestion?
             </p>

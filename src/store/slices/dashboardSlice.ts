@@ -1,52 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit"
 import type { EventAnalysisSummary, ImportedEventSummary } from "@root-types/dashboard"
-import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-
-// API response type with ISO string dates (as returned from API)
-type EventAnalysisDataApiResponse = Omit<
-  EventAnalysisData,
-  "event" | "races" | "summary" | "raceClasses"
-> & {
-  isPracticeDay?: boolean
-  event: {
-    id: string
-    eventName: string
-    eventDate: string // ISO string
-    trackName: string
-  }
-  races: Array<{
-    id: string
-    raceId: string
-    className: string
-    raceLabel: string
-    raceOrder: number | null
-    startTime: string | null // ISO string
-    durationSeconds: number | null
-    results: Array<{
-      raceResultId: string
-      raceDriverId: string
-      driverId: string
-      driverName: string
-      positionFinal: number
-      lapsCompleted: number
-      totalTimeSeconds: number | null
-      fastLapTime: number | null
-      avgLapTime: number | null
-      consistency: number | null
-      // laps array removed - not used by any components
-    }>
-  }>
-  raceClasses: Record<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
-  summary: {
-    totalRaces: number
-    totalDrivers: number
-    totalLaps: number
-    dateRange: {
-      earliest: string | null // ISO string
-      latest: string | null // ISO string
-    }
-  }
-}
+import type { EventAnalysisDataApiResponse } from "@/types/event-analysis-api"
+import type { TabId } from "@/components/organisms/event-analysis/TabNavigation"
+import { parseApiResponse } from "@/lib/api-response-helper"
 
 interface DashboardState {
   selectedEventId: string | null
@@ -61,6 +17,8 @@ interface DashboardState {
   currentFetchRequestId: string | null // Track current fetch to ignore stale responses
   /** For practice days: currently viewed driver id (null = "All sessions"). */
   selectedPracticeDriverId: string | null
+  /** Active tab in dashboard event analysis (EventAnalysisSection). */
+  activeEventAnalysisTab: TabId
 }
 
 interface FetchEventError {
@@ -80,6 +38,7 @@ const initialState: DashboardState = {
   analysisError: null,
   currentFetchRequestId: null,
   selectedPracticeDriverId: null,
+  activeEventAnalysisTab: "event-overview",
 }
 
 // Async thunk for fetching event data
@@ -90,7 +49,7 @@ export const fetchEventData = createAsyncThunk<
 >("dashboard/fetchEventData", async (eventId: string, { rejectWithValue, signal }) => {
   try {
     const response = await fetch(`/api/v1/events/${eventId}/summary`, {
-      cache: "no-store",
+      credentials: "include",
       signal,
     })
 
@@ -106,15 +65,15 @@ export const fetchEventData = createAsyncThunk<
       return rejectWithValue({ message: "Failed to load event data", code: "UNKNOWN" })
     }
 
-    const result = await response.json()
+    const parsed = await parseApiResponse<EventAnalysisSummary>(response)
 
     // Check again if request was aborted before processing result
     if (signal?.aborted) {
       throw new Error("Request aborted")
     }
 
-    if (result.success && result.data) {
-      return result.data
+    if (parsed.success && parsed.data) {
+      return parsed.data
     }
 
     return rejectWithValue({ message: "Invalid response from server", code: "UNKNOWN" })
@@ -148,24 +107,20 @@ export const fetchRecentEvents = createAsyncThunk<
     if (!response.ok) {
       // Try to get error message from response
       let errorMessage = "Failed to load recent events"
-      try {
-        const errorData = await response.json()
-        if (errorData.error?.message) {
-          errorMessage = errorData.error.message
-        }
-      } catch {
-        // If response is not JSON, use status text
+      const errParsed = await parseApiResponse<{ events?: unknown }>(response)
+      if (!errParsed.success && errParsed.error?.message) {
+        errorMessage = errParsed.error.message
+      } else if (!errParsed.success) {
         errorMessage = response.statusText || errorMessage
       }
       return rejectWithValue(errorMessage)
     }
 
-    const json = await response.json()
-    if (json.success && Array.isArray(json.data?.events)) {
-      return json.data.events
-    } else {
-      return rejectWithValue("Invalid response from server")
+    const listParsed = await parseApiResponse<{ events: ImportedEventSummary[] }>(response)
+    if (listParsed.success && listParsed.data && Array.isArray(listParsed.data.events)) {
+      return listParsed.data.events
     }
+    return rejectWithValue("Invalid response from server")
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw error
@@ -183,32 +138,29 @@ export const fetchEventAnalysisData = createAsyncThunk<
 >("dashboard/fetchEventAnalysisData", async (eventId: string, { rejectWithValue, signal }) => {
   try {
     const response = await fetch(`/api/v1/events/${eventId}/analysis`, {
-      cache: "no-store",
+      credentials: "include",
       signal,
+      cache: "no-store",
     })
 
     if (!response.ok) {
       if (response.status === 404) {
         return rejectWithValue({ message: "Event not found", code: "NOT_FOUND" })
       }
-      // Try to get error message from response
       let errorMessage = "Failed to load event analysis data"
-      try {
-        const errorData = await response.json()
-        if (errorData.error?.message) {
-          errorMessage = errorData.error.message
-        }
-      } catch {
-        // If response is not JSON, use status text
+      const errParsed = await parseApiResponse<unknown>(response)
+      if (!errParsed.success && errParsed.error?.message) {
+        errorMessage = errParsed.error.message
+      } else if (!errParsed.success) {
         errorMessage = response.statusText || errorMessage
       }
       return rejectWithValue({ message: errorMessage, code: "UNKNOWN" })
     }
 
-    const result = await response.json()
+    const analysisParsed = await parseApiResponse<EventAnalysisDataApiResponse>(response)
 
-    if (result.success && result.data) {
-      return result.data as EventAnalysisDataApiResponse
+    if (analysisParsed.success && analysisParsed.data) {
+      return analysisParsed.data
     }
 
     return rejectWithValue({ message: "Invalid response from server", code: "UNKNOWN" })
@@ -238,6 +190,7 @@ const dashboardSlice = createSlice({
         state.analysisData = null
         state.analysisError = null
         state.selectedPracticeDriverId = null
+        state.activeEventAnalysisTab = "event-overview"
       }
 
       if (!nextSelected) {
@@ -250,6 +203,7 @@ const dashboardSlice = createSlice({
         state.isAnalysisLoading = false
         state.currentFetchRequestId = null
         state.selectedPracticeDriverId = null
+        state.activeEventAnalysisTab = "event-overview"
       } else if (nextSelected !== prevSelected) {
         // Only set isEventLoading - isAnalysisLoading will be set when fetchEventAnalysisData actually starts
         state.isEventLoading = true
@@ -266,6 +220,10 @@ const dashboardSlice = createSlice({
       state.isAnalysisLoading = false
       state.currentFetchRequestId = null
       state.selectedPracticeDriverId = null
+      state.activeEventAnalysisTab = "event-overview"
+    },
+    setActiveEventAnalysisTab: (state, action: PayloadAction<TabId>) => {
+      state.activeEventAnalysisTab = action.payload
     },
     setSelectedPracticeDriverId: (state, action: PayloadAction<string | null>) => {
       state.selectedPracticeDriverId = action.payload
@@ -359,5 +317,6 @@ const dashboardSlice = createSlice({
   },
 })
 
-export const { selectEvent, clearEvent, setSelectedPracticeDriverId } = dashboardSlice.actions
+export const { selectEvent, clearEvent, setSelectedPracticeDriverId, setActiveEventAnalysisTab } =
+  dashboardSlice.actions
 export default dashboardSlice.reducer

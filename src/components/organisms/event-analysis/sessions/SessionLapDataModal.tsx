@@ -122,7 +122,7 @@ export default function SessionLapDataModal({
       maxWidth="4xl"
       ariaLabel="Session lap data"
     >
-      <div className="px-1 pb-2">
+      <div className="min-w-0">
         {loading && (
           <div className="flex items-center justify-center py-16 text-[var(--token-text-secondary)]">
             Loading lap data…
@@ -137,7 +137,7 @@ export default function SessionLapDataModal({
           </div>
         )}
         {!loading && !error && drivers.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
+          <div className="scrollbar-none overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
             <table className="w-full min-w-[800px]" aria-label="Lap data by driver">
               <thead className="bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)]">
                 <tr>
@@ -218,7 +218,7 @@ export default function SessionLapDataModal({
                       {expanded && (
                         <tr>
                           <td colSpan={5} className="px-4 py-2 pl-8">
-                            <div className="overflow-x-auto rounded border border-[var(--token-border-default)]/60">
+                            <div className="scrollbar-none overflow-x-auto rounded border border-[var(--token-border-default)]/60">
                               <table className="w-full min-w-[600px]">
                                 <thead className="bg-[var(--token-surface-alt)]">
                                   <tr>

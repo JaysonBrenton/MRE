@@ -188,7 +188,7 @@ export default function DriverNameFilter({
         <div
           ref={suggestionsRef}
           id="driver-name-suggestions"
-          className="absolute z-50 w-full mt-1 bg-[var(--token-surface-elevated)] border border-[var(--token-border-default)] rounded-md shadow-lg max-h-60 overflow-auto"
+          className="scrollbar-none absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg"
           role="listbox"
         >
           {filteredSuggestions.map((suggestion, index) => (

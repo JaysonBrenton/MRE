@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-01-27
+lastModified: 2026-04-07
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -13,7 +13,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-01-27  
+**Last Updated:** 2026-04-07  
 **Purpose:** Complete listing of all documentation files in the MRE repository
 
 This document provides a comprehensive index of every document in the MRE
@@ -36,6 +36,7 @@ Use this document to discover and navigate all available documentation.
 - [Ingestion Service Documentation](#ingestion-service-documentation)
 - [Security](#security)
 - [Specifications](#specifications)
+- [Future Ideas](#future-ideas)
 - [Architecture Decision Records (ADRs)](#architecture-decision-records-adrs)
 - [User Stories](#user-stories)
 - [Role Documentation](#role-documentation)
@@ -156,15 +157,21 @@ guidelines.
 
 Design for Event Search with optional “Include practice days”: single combined
 list (events + practice days), practice range = event min/max, in-app Prisma for
-practice-day list, single discover-range request (or streaming), 180-day default,
-and cache for fast repeat searches.
+practice-day list, single discover-range request (or streaming), 180-day
+default, and cache for fast repeat searches.
 
 #### [Practice Day Search Performance Design](../architecture/practice-day-search-performance-design.md)
 
-Practice day discovery performance: design options and **implemented** improvements
-(single discover-range request, cache, timeouts, streaming, 180-day default, skip
-when covered, optimistic import). Includes before/after timings and env vars for
-cache TTL and timeouts.
+Practice day discovery performance: design options and **implemented**
+improvements (single discover-range request, cache, timeouts, streaming, 180-day
+default, skip when covered, optimistic import). Includes before/after timings
+and env vars for cache TTL and timeouts.
+
+#### [Driver Deduplication Design](../architecture/driver-deduplication-design.md)
+
+Design for merging duplicate Driver records using transponder + normalized name.
+Addresses track leaderboard fragmentation (e.g. multiple "Steven Rukavina"
+rows). CLI: `drivers deduplicate` (dry-run) / `drivers deduplicate --execute`.
 
 #### [Dashboard Architecture](../architecture/dashboard-architecture.md)
 
@@ -183,6 +190,12 @@ for consistent error handling across the application.
 Performance requirements and benchmarks for the MRE application. Defines
 performance goals, performance budgets, database performance requirements, API
 response time targets, and optimization guidelines.
+
+#### [Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md)
+
+Canonical seeded vehicle-type tree, per-user global mapping rules, match types,
+resolution order, Session Analysis integration, HTTP APIs, and operational notes
+(Prisma migrate / generate in Docker).
 
 #### [Logging Standards](../architecture/logging.md)
 
@@ -351,6 +364,16 @@ polling, and configuration (INGESTION_USE_QUEUE, UVICORN_WORKERS).
 
 ---
 
+## Everlaps (preliminary)
+
+### [00 - Preliminary scoping and design](../architecture/everlaps-ingestion/00-preliminary-scoping-and-design.md)
+
+Exploratory scope and design for Everlaps as a timing/event source without a
+LiveRC-style track catalog: derived venues, event-driven indexing, phased
+results, risks, and open questions.
+
+---
+
 ## API Documentation
 
 API reference documentation and versioning strategy.
@@ -366,6 +389,17 @@ requirements, error codes, and usage examples.
 API versioning strategy and deprecation policy. Defines versioning approach,
 when to create new versions, deprecation timeline, breaking change policy, and
 migration guide.
+
+### [Generated documentation inventory](../reference/generated/README.md)
+
+Machine-generated manifests (`api-routes.manifest.json`,
+`component-files.manifest.json`) used to keep API and UI inventories aligned
+with the build. Regenerate via `npm run docs:inventory` in the app container.
+
+### [Component catalog](../frontend/component-catalog.md)
+
+One row per production component file under `src/components/` (tier and feature
+area). Regenerate via `npm run docs:component-catalog` in the app container.
 
 ---
 
@@ -390,6 +424,20 @@ Domain models and business logic documentation.
 Authoritative domain model for racing classes in the MRE application. Defines
 the complete taxonomy of car classes (vehicle types), modification rules
 (Modified/Stock), and skill groupings (Junior/Pro/Expert).
+
+### [Triple A-Main Overall Scoring (IFMAR & ROAR)](../domain/triple-a-main-scoring.md)
+
+Reference for triple A-main point systems, best-two-of-three overall scoring,
+IFMAR reduced-finals handling, and ROAR tie-breakers including early winner (sit
+out A3). Use when computing or displaying overall standings for electric
+off-road triple-main formats.
+
+### [Bump-ups inference (domain)](../domain/bump-ups-inference.md)
+
+Defines what “bump-up” means in MRE (observed advancement from results, not
+rulebooks), LiveRC Main Events schedule model, same-class vs LCQ class names,
+tier strategies, and multi-main aggregate usage. Entry point for bump-up product
+and engineering semantics.
 
 ---
 
@@ -646,6 +694,24 @@ with navigation.
 
 ---
 
+## Future Ideas
+
+Exploratory concepts not committed to the roadmap. See also
+[Future Features](../user-stories/future-features.md) for formal Beta+ epics.
+
+### [Future Ideas Index](../future-ideas/README.md)
+
+Index of lightweight idea notes and links to individual write-ups.
+
+### [Graph-based race replay](../future-ideas/graph-based-race-replay.md)
+
+### [Top qualifiers and seeding rounds](../future-ideas/top-qualifiers-and-seeding-rounds.md)
+
+Chart-driven playback (lap times, order, gaps) as an alternative to video or
+track-map replay, building on existing lap-trend data.
+
+---
+
 ## Architecture Decision Records (ADRs)
 
 Documentation of significant architectural decisions.
@@ -654,6 +720,16 @@ Documentation of significant architectural decisions.
 
 Index and guidelines for Architecture Decision Records (ADRs). Defines when to
 create ADRs, ADR format, lifecycle, storage structure, and usage in development.
+
+### [ADR-20260405: Bump-ups — LiveRC heat sheet ladder strategy](../adr/ADR-20260405-bump-ups-liveRC-heat-sheet-ladder-strategy.md)
+
+Multi-strategy ladder tiers for heterogeneous LiveRC labels, LCQ association
+without new schema fields, and exposing `driverId` on multi-main analysis
+entries. Complements ADR-20260404.
+
+### [ADR-20260404: Bump-ups inferred from LiveRC results](../adr/ADR-20260404-bump-ups-inferred-from-results.md)
+
+Bump-ups as graph inference on sessions and results; no rulebook runtime in v1.
 
 ### [ADR-20250127: Adopt Mobile-Safe Architecture](../adr/ADR-20250127-adopt-mobile-safe-architecture.md)
 
@@ -804,6 +880,19 @@ Defines search patterns, filtering, and data analysis workflows.
 
 Implementation plans for major architectural changes and improvements.
 
+### [Bump-ups — LiveRC Main Events solution](../plans/bump-ups-liverc-main-events-solution.md)
+
+Technical specification for robust bump-up inference aligned with LiveRC heat
+sheet order, multi-strategy ladder parsing (lettered mains, bracket finals, LCQ
+merge), `EventAnalysisData` changes (multi-main `driverId`), phased
+implementation, testing, and references to ADRs and ingestion.
+
+### [Application Performance Remediation (March 2026)](../implimentation_plans/application-performance-remediation-2026-03.md)
+
+Detailed implementation plan for P0–P7 backlog from the March 2026 application
+performance review: dependencies, acceptance criteria, Docker verification, PR
+sequencing, and documentation updates.
+
 ### [Codex Deep Review Remediation Plan](../implimentation_plans/codex-deep-review-remediation-plan.md)
 
 Comprehensive remediation plan based on codex deep review findings. Defines
@@ -817,13 +906,18 @@ strategy, implementation steps, and transition plan.
 
 ### [Practice Day Full Ingestion Implementation Plan](../implimentation_plans/practice-day-full-ingestion-implementation-plan.md)
 
-Phased implementation plan for full practice day ingestion: list + drivers/results
-from list + session detail fetch with concurrency + race_metadata, result stats,
-and laps. References design doc and covers schema, pipeline, API, docs, and tests.
+Phased implementation plan for full practice day ingestion: list +
+drivers/results from list + session detail fetch with concurrency +
+race_metadata, result stats, and laps. References design doc and covers schema,
+pipeline, API, docs, and tests.
 
 ### [Telemetry MVP Implementation Decisions](../telemetry/Design/Telemetry_MVP_Implementation_Decisions.md)
 
-Authoritative MVP decisions for telemetry: job table (single-table queue), upload/artifact lifecycle, raw file storage path, session time placeholders, fixture files, pyarrow dependency, failure response when session failed, naming convention, and deferral of teams/sharing to v1. Reference when implementing Phase 2–3.
+Authoritative MVP decisions for telemetry: job table (single-table queue),
+upload/artifact lifecycle, raw file storage path, session time placeholders,
+fixture files, pyarrow dependency, failure response when session failed, naming
+convention, and deferral of teams/sharing to v1. Reference when implementing
+Phase 2–3.
 
 ### [Telemetry Implementation Plan](../implimentation_plans/telemetry-implementation-plan.md)
 
@@ -837,6 +931,13 @@ operations. References Telemetry Implementation Design; v1/v2 scoped in design.
 ## Reviews
 
 Code and architecture review documentation.
+
+### [Application Performance Review (March 2026)](../reviews/application-performance-review-2026-03.md)
+
+Evidence-based performance review: locked user journeys, criteria from
+performance-requirements.md, baseline samples (health, tracks), build/bundle
+status, static findings for event analysis core, API routes, dashboard Redux/UI,
+and Python ingestion, plus ranked remediation backlog.
 
 ### [Dashboard Performance Review](../reviews/dashboard-performance-review.md)
 

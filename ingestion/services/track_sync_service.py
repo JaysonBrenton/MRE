@@ -19,7 +19,7 @@ from ingestion.common.logging import get_logger
 from ingestion.connectors.liverc.connector import LiveRCConnector
 from ingestion.connectors.liverc.parsers.track_list_parser import TrackSummary
 from ingestion.connectors.liverc.parsers.track_dashboard_parser import TrackDashboardData
-from ingestion.db.models import Track
+from ingestion.db.models import Track, TrackCatalogueSyncState
 from ingestion.db.repository import Repository
 from ingestion.ingestion.errors import ConnectorHTTPError
 from ingestion.reports.track_sync_report import (
@@ -30,6 +30,9 @@ from ingestion.reports.track_sync_report import (
 logger = get_logger(__name__)
 
 ProgressCallback = Optional[Callable[[str, int, int], None]]
+
+# Single row id for track_catalogue_sync_state (Prisma + SQLAlchemy)
+CATALOGUE_SYNC_STATE_ID = "singleton"
 
 # Default batch size for bulk database operations
 BULK_UPSERT_BATCH_SIZE = 50  # Reduced to avoid SQL statement size limits
@@ -494,6 +497,8 @@ class TrackSyncService:
         if deactivation_values:
             self._execute_bulk_update(deactivation_values, now)
 
+        self._upsert_catalogue_sync_completed(now)
+
         self._db.commit()
 
         return {
@@ -504,6 +509,26 @@ class TrackSyncService:
             "updated_tracks": updated_tracks,
             "deactivated_tracks": deactivated_tracks,
         }
+
+    def _upsert_catalogue_sync_completed(self, completed_at: datetime) -> None:
+        """Persist singleton row: last successful catalogue sync (same transaction as track upserts)."""
+        stmt = (
+            pg_insert(TrackCatalogueSyncState.__table__)
+            .values(
+                id=CATALOGUE_SYNC_STATE_ID,
+                completed_at=completed_at,
+                created_at=completed_at,
+                updated_at=completed_at,
+            )
+            .on_conflict_do_update(
+                index_elements=[TrackCatalogueSyncState.__table__.c.id],
+                set_={
+                    "completed_at": completed_at,
+                    "updated_at": completed_at,
+                },
+            )
+        )
+        self._db.execute(stmt)
 
     def _execute_bulk_upsert(self, batch_values: List[Dict[str, Any]], now: datetime) -> None:
         """Execute bulk upsert using PostgreSQL INSERT ... ON CONFLICT DO UPDATE."""

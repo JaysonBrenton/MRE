@@ -1,20 +1,25 @@
 # @fileoverview Track dashboard parser for LiveRC
-# 
+#
 # @created 2025-01-27
 # @creator Auto (AI Assistant)
-# @lastModified 2025-01-27
-# 
+# @lastModified 2025-03-08
+#
 # @description Parser for track dashboard pages to extract metadata
-# 
+#
 # @purpose Extracts location data, contact information, track statistics,
 #          descriptions, and logos from LiveRC track dashboard pages
 
-from typing import Optional
+from typing import Optional, Tuple
 from urllib.parse import urlparse, parse_qs, unquote
 from selectolax.parser import HTMLParser
 import re
 
 from ingestion.common.logging import get_logger
+from ingestion.common.country_lookup import (
+    is_known_country as _is_known_country,
+    normalize_country as _normalize_country,
+    COUNTRY_INDICATORS,
+)
 from ingestion.ingestion.errors import EventPageFormatError
 
 logger = get_logger(__name__)
@@ -61,7 +66,7 @@ class TrackDashboardData:
 
 class TrackDashboardParser:
     """Parser for LiveRC track dashboard page."""
-    
+
     def parse(self, html: str, url: str) -> TrackDashboardData:
         """
         Parse track dashboard page to extract metadata.
@@ -146,16 +151,6 @@ class TrackDashboardParser:
             # Split by newlines (which were inserted by separator)
             address_lines = [line.strip() for line in full_text.split("\n") if line.strip()]
             
-            # Remove track name (first line, usually after <strong>)
-            if address_lines and address_lines[0]:
-                # Track name is typically in <strong> and might be the first line
-                # Skip it if it looks like a track name (contains common track words)
-                first_line = address_lines[0]
-                track_name_indicators = ["rc", "speedway", "raceway", "track", "off-road", "offroad"]
-                if not any(indicator.lower() in first_line.lower() for indicator in track_name_indicators):
-                    # Might not be track name, keep it
-                    pass
-            
             # Try to extract structured address from lines
             if address_lines:
                 # Filter out contact info lines (phone, website, email)
@@ -166,34 +161,42 @@ class TrackDashboardParser:
                 ]
                 
                 if address_only_lines:
-                    # Build full address string from remaining lines
-                    data.address = ", ".join(address_only_lines)
-                    
-                    # Try to parse city/state/country from last line
-                    if len(address_only_lines) > 0:
-                        last_line = address_only_lines[-1]
-                        # Check if last line contains city/state/country patterns
-                        if re.search(r'\d{4,5}', last_line) or any(
-                            country in last_line 
-                            for country in ["United States", "USA", "US", "Australia", "AU", "Canada", "CA"]
-                        ):
-                            self._parse_city_state_country(last_line, data)
-                        elif len(address_only_lines) > 1:
-                            # Try second-to-last line if last doesn't match
-                            second_last = address_only_lines[-2]
-                            if re.search(r'\d{4,5}', second_last):
+                    track_name_indicators = ["rc", "speedway", "raceway", "track", "off-road", "offroad"]
+                    addr_start = 0
+                    if any(
+                        ind in address_only_lines[0].lower()
+                        for ind in track_name_indicators
+                    ):
+                        addr_start = 1
+                    addr_lines = address_only_lines[addr_start:]
+                    if addr_lines:
+                        data.address = ", ".join(addr_lines)
+                        last_line = addr_lines[-1]
+                        second_last = addr_lines[-2] if len(addr_lines) > 1 else None
+                        if _is_known_country(last_line):
+                            data.country = _normalize_country(last_line.strip())
+                            if second_last and not data.city:
                                 self._parse_city_state_country(second_last, data)
+                        else:
+                            self._parse_city_state_country(last_line, data)
+                            if second_last and not data.country and _is_known_country(second_last):
+                                data.country = _normalize_country(second_last.strip())
             
             # Extract phone
             phone_link = panel_body.css_first("address a[href^='tel:']")
             if phone_link:
-                phone_href = phone_link.attributes.get("href", "")
-                if phone_href.startswith("tel:"):
-                    data.phone = phone_href[4:].strip()
+                href = phone_link.attributes.get("href", "")
+                if href.startswith("tel:"):
+                    data.phone = href[4:].strip()
                 else:
-                    phone_text = phone_link.text(separator=" ").strip()
-                    if phone_text:
-                        data.phone = phone_text
+                    t = phone_link.text(separator=" ").strip()
+                    if t:
+                        data.phone = t
+            else:
+                for line in address_lines:
+                    if line.upper().startswith("P:") and "N/A" in line.upper():
+                        data.phone = "N/A"
+                        break
             
             # Extract website
             website_link = panel_body.css_first("address a[href^='http']:not([href^='tel:'])")
@@ -249,13 +252,12 @@ class TrackDashboardParser:
                     data.state = state_postal[:postal_match.start()].strip()
                 else:
                     data.state = state_postal
-                data.country = parts[2]
+                data.country = _normalize_country(parts[2])
             elif len(parts) == 2:
                 # Format: City, State Postal Country or City State, Country
-                # Check if second part contains country name
-                country_indicators = ["United States", "USA", "US", "Australia", "AU", "Canada", "CA"]
-                if any(ind in parts[1] for ind in country_indicators):
-                    data.country = parts[1]
+                # Check if second part is a known country (exact match, incl. ISO codes)
+                if _is_known_country(parts[1]):
+                    data.country = _normalize_country(parts[1])
                     # First part is city, state, postal
                     first = parts[0]
                     postal_match = re.search(r'(\d{4,5})', first)
@@ -269,6 +271,9 @@ class TrackDashboardParser:
                             data.state = words[-1]
                         else:
                             data.city = remaining
+                    else:
+                        # No postal: entire first part is city (e.g. "Suwon" in "Suwon, KR")
+                        data.city = first
                 else:
                     # Probably City, State Postal
                     data.city = parts[0]
@@ -283,10 +288,9 @@ class TrackDashboardParser:
                 # Single part - try to extract components
                 words = line.split()
                 if words:
-                    # Check for country at end
-                    country_indicators = ["United States", "USA", "US", "Australia", "AU", "Canada", "CA"]
-                    if words[-1] in country_indicators:
-                        data.country = words[-1]
+                    # Check for country at end (exact match, incl. ISO codes)
+                    if _is_known_country(words[-1]):
+                        data.country = _normalize_country(words[-1])
                         words = words[:-1]
                     
                     # Check for postal code
@@ -300,10 +304,52 @@ class TrackDashboardParser:
         except Exception as e:
             logger.debug("parse_city_state_country_error", error=str(e))
     
+    def _parse_map_address(
+        self, address_query: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """
+        Parse map q= address into (address, city, state, postal_code, country).
+        Format often: "Street,City,+Postal,AU" or "Venue,Street,City State Postal,Country"
+        """
+        raw = unquote(address_query).strip()
+        if not raw:
+            return None, None, None, None, None
+        parts = [p.strip() for p in raw.split(",") if p.strip()]
+        if not parts:
+            return raw, None, None, None, None
+        country = None
+        postal_code = None
+        city = None
+        state = None
+        last = parts[-1].strip()
+        if _is_known_country(last):
+            country = _normalize_country(last)
+            parts = parts[:-1]
+        if parts:
+            second_last = parts[-1].strip()
+            postal_match = re.search(r"(\d{4,5})", second_last)
+            if postal_match:
+                postal_code = postal_match.group(1)
+                remaining = second_last[: postal_match.start()].strip().replace("+", " ").strip()
+                words = remaining.split()
+                if len(words) >= 2:
+                    state = words[-1]
+                    city = " ".join(words[:-1])
+                elif len(words) == 1 and words[0]:
+                    state = words[0]
+                    city = parts[-2].strip() if len(parts) >= 2 else None
+                elif len(parts) >= 2:
+                    city = parts[-2].strip()
+            else:
+                city = second_last
+            address = ", ".join(parts[:-1]) if len(parts) > 1 else parts[0]
+        else:
+            address = raw
+        return address, city, state, postal_code, country
+
     def _parse_map_section(self, tree: HTMLParser, data: TrackDashboardData) -> None:
-        """Extract map coordinates or address from Google Maps embed."""
+        """Extract map address from Google Maps embed; use as fallback for missing fields."""
         try:
-            # Find Track Map panel by looking for panel-heading containing "Track Map"
             panel_headings = tree.css("div.panel-heading")
             map_panel = None
             for heading in panel_headings:
@@ -311,53 +357,53 @@ class TrackDashboardParser:
                 if "Track Map" in text or "Map" in text:
                     map_panel = heading
                     break
-            
-            if not map_panel:
+
+            if not map_panel or not map_panel.parent:
                 return
-            
-            panel = map_panel.parent
-            if not panel:
-                return
-            
-            # Find iframe
-            iframe = panel.css_first("iframe[src*='google.com/maps']")
+
+            iframe = map_panel.parent.css_first("iframe[src*='google.com/maps']")
             if not iframe:
                 return
-            
+
             src = iframe.attributes.get("src", "")
             if not src:
                 return
-            
-            # Parse Google Maps embed URL
-            # Format: https://www.google.com/maps/embed/v1/place?key=...&q=ADDRESS
+
             parsed = urlparse(src)
             query_params = parse_qs(parsed.query)
-            
-            # Extract address from 'q' parameter
-            if 'q' in query_params:
-                address_query = query_params['q'][0]
-                # Decode URL encoding
-                address_query = unquote(address_query)
-                
-                # If we don't have an address yet, use this
-                if not data.address:
-                    data.address = address_query
-                
-                # Try to extract coordinates if present in query
-                # Some embeds might have lat/lng in the URL
-                if 'center' in query_params:
-                    center = query_params['center'][0]
-                    coords = center.split(',')
-                    if len(coords) == 2:
-                        try:
-                            data.latitude = float(coords[0])
-                            data.longitude = float(coords[1])
-                        except ValueError:
-                            pass
-            
-            # Note: Direct coordinate extraction from Google Maps embed is limited
-            # We'll need to geocode the address as a fallback
-        
+
+            if "q" not in query_params:
+                return
+
+            address_query = query_params["q"][0]
+            map_addr, map_city, map_state, map_postal, map_country = self._parse_map_address(
+                address_query
+            )
+
+            if not map_addr:
+                return
+
+            if not data.address:
+                data.address = unquote(address_query)
+            if not data.city and map_city:
+                data.city = map_city
+            if not data.state and map_state:
+                data.state = map_state
+            if not data.postal_code and map_postal:
+                data.postal_code = map_postal
+            if not data.country and map_country:
+                data.country = map_country
+
+            if "center" in query_params:
+                center = query_params["center"][0]
+                coords = center.split(",")
+                if len(coords) == 2:
+                    try:
+                        data.latitude = float(coords[0])
+                        data.longitude = float(coords[1])
+                    except ValueError:
+                        pass
+
         except Exception as e:
             logger.debug("parse_map_section_error", error=str(e))
     

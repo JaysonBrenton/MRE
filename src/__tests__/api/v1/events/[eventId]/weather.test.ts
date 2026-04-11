@@ -175,7 +175,7 @@ describe("GET /api/v1/events/[eventId]/weather", () => {
       const request = new NextRequest(`http://localhost/api/v1/events/${eventId}/weather`)
       await GET(request, { params: Promise.resolve({ eventId }) })
 
-      expect(getWeatherForEvent).toHaveBeenCalledWith(eventId)
+      expect(getWeatherForEvent).toHaveBeenCalledWith(eventId, { skipCache: false })
     })
   })
 })

@@ -19,35 +19,35 @@
  * Maps route patterns to feature names and descriptions
  */
 export const FEATURE_DESCRIPTIONS: Record<string, { name: string; description: string }> = {
-  "/dashboard/my-telemetry": {
+  "/eventAnalysis/my-telemetry": {
     name: "My Telemetry",
     description: "Connect data sources and view telemetry traces",
   },
-  "/dashboard/my-engineer": {
+  "/eventAnalysis/my-engineer": {
     name: "My Engineer",
     description: "Racing intelligence hub",
   },
-  "/dashboard/profile": {
+  "/eventAnalysis/profile": {
     name: "Profile",
     description: "Manage your account settings and preferences",
   },
-  "/dashboard/data-sources": {
+  "/eventAnalysis/data-sources": {
     name: "Data Sources",
     description: "Configure and manage telemetry data sources",
   },
-  "/dashboard/all-events": {
+  "/eventAnalysis/all-events": {
     name: "All Events",
     description: "View and manage all your racing events",
   },
-  "/dashboard/my-club": {
+  "/eventAnalysis/my-club": {
     name: "My Club",
     description: "Home club dashboard & community",
   },
-  "/dashboard/my-club/track-maps": {
+  "/eventAnalysis/my-club/track-maps": {
     name: "Track Maps",
     description: "Build and share track layouts",
   },
-  "/dashboard/my-team": {
+  "/eventAnalysis/my-team": {
     name: "My Team",
     description: "Team dashboard & insights",
   },
@@ -68,12 +68,12 @@ export const FEATURE_PATTERNS: Array<{
     description: "View detailed driver profile and statistics",
   },
   {
-    pattern: /^\/dashboard\/my-club\/track-maps\/[^/]+$/,
+    pattern: /^\/eventAnalysis\/my-club\/track-maps\/[^/]+$/,
     name: "Track Map Editor",
     description: "Edit and customize track map layouts",
   },
   {
-    pattern: /^\/dashboard\/my-club\/track-maps\/shared\/[^/]+$/,
+    pattern: /^\/eventAnalysis\/my-club\/track-maps\/shared\/[^/]+$/,
     name: "Shared Track Map",
     description: "View shared track map",
   },
@@ -81,7 +81,7 @@ export const FEATURE_PATTERNS: Array<{
 
 /**
  * Get feature description for a given route
- * @param route - The route path (e.g., "/dashboard/my-telemetry")
+ * @param route - The route path (e.g., "/eventAnalysis/my-telemetry")
  * @returns Feature information with name and description, or null if not found
  */
 export function getFeatureDescription(

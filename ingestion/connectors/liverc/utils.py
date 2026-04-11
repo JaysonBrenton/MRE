@@ -82,6 +82,42 @@ def build_multi_main_url(track_slug: str, source_multi_main_id: str) -> str:
     return f"https://{track_slug}.liverc.com/results/?p=view_multi_main_result&id={source_multi_main_id}"
 
 
+def build_points_url(track_slug: str, source_points_id: str) -> str:
+    """
+    Build Qual Points page URL (view_points).
+
+    Args:
+        track_slug: Track subdomain slug
+        source_points_id: Points ID from LiveRC (view_points&id=...)
+
+    Returns:
+        Full URL (e.g., "https://rcra.liverc.com/results/?p=view_points&id=7342064")
+    """
+    return f"https://{track_slug}.liverc.com/results/?p=view_points&id={source_points_id}"
+
+
+def build_round_ranking_url(
+    track_slug: str,
+    source_round_id: str,
+    order_type: Optional[str] = None,
+) -> str:
+    """
+    Build Round Ranking page URL (view_round_ranking).
+
+    Args:
+        track_slug: Track subdomain slug
+        source_round_id: Round ID from LiveRC (view_round_ranking&id=...)
+        order_type: Optional order param (e.g., "laps_time", "top_3_consecutive")
+
+    Returns:
+        Full URL
+    """
+    base = f"https://{track_slug}.liverc.com/results/?p=view_round_ranking&id={source_round_id}"
+    if order_type:
+        return f"{base}&o={order_type}"
+    return base
+
+
 def build_entry_list_url(track_slug: str, source_event_id: str) -> str:
     """
     Build entry list page URL.

@@ -21,7 +21,15 @@ import ChartContainer from "../ChartContainer"
 import SessionsTableRow from "./SessionsTableRow"
 import ListPagination from "../ListPagination"
 import SessionLapDataModal from "./SessionLapDataModal"
+import {
+  StandardTable,
+  StandardTableHeader,
+  StandardTableRow,
+  StandardTableCell,
+} from "@/components/molecules/StandardTable"
+import StandardButton from "@/components/atoms/StandardButton"
 import type { SessionData } from "@/core/events/get-sessions-data"
+import { formatClassName } from "@/lib/format-class-name"
 
 export interface SessionsTableProps {
   sessions: SessionData[]
@@ -56,23 +64,51 @@ export default function SessionsTable({
   selectedClass = null,
 }: SessionsTableProps) {
   const colCount = showHybridColumns ? BASE_COLUMNS + HYBRID_COLUMNS : BASE_COLUMNS
-  const [sortField, setSortField] = useState<SortField>("startTime")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [sortField] = useState<SortField>("startTime")
+  const [sortDirection] = useState<SortDirection>("asc")
   const [searchTerm, setSearchTerm] = useState("")
-  const [isGrouped, setIsGrouped] = useState(false)
+  const [selectedRoundHeading, setSelectedRoundHeading] = useState<string | null>(null)
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string | null>(null)
+  const [isGrouped] = useState(false)
   const [groupExpanded, setGroupExpanded] = useState<Record<string, boolean>>({})
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(5)
+  const [pageSize, setPageSize] = useState(10)
   const [lapModalSession, setLapModalSession] = useState<SessionData | null>(null)
 
-  // Filter sessions by session name (raceLabel) and driver names only
+  // Round headings from LiveRC (e.g. "Qualifier Round 1", "Seeding Round 2", "Main Events") - for filter dropdown
+  const availableRoundHeadings = useMemo(() => {
+    const headings = new Set<string>()
+    sessions.forEach((s) => {
+      const h = s.sectionHeader?.trim()
+      if (h) headings.add(h)
+    })
+    return Array.from(headings).sort()
+  }, [sessions])
+
+  // Classes present in the data (for filter dropdown)
+  const availableClasses = useMemo(() => {
+    const classes = new Set<string>()
+    sessions.forEach((s) => {
+      if (s.className?.trim()) classes.add(s.className.trim())
+    })
+    return Array.from(classes).sort()
+  }, [sessions])
+
+  // Filter sessions by round heading, class, and driver names
   const filteredSessions = useMemo(() => {
     let filtered = [...sessions]
+
+    if (selectedRoundHeading) {
+      filtered = filtered.filter((s) => s.sectionHeader?.trim() === selectedRoundHeading.trim())
+    }
+
+    if (selectedClassFilter) {
+      filtered = filtered.filter((s) => s.className?.trim() === selectedClassFilter.trim())
+    }
 
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
       filtered = filtered.filter((session) => {
-        const sessionNameMatch = session.raceLabel.toLowerCase().includes(searchLower)
         const driverNames = new Set<string>()
         session.topFinishers.forEach((f) => {
           if (f.driverName?.trim()) driverNames.add(f.driverName.trim().toLowerCase())
@@ -80,13 +116,12 @@ export default function SessionsTable({
         session.results.forEach((r) => {
           if (r.driverName?.trim()) driverNames.add(r.driverName.trim().toLowerCase())
         })
-        const driverMatch = [...driverNames].some((name) => name.includes(searchLower))
-        return sessionNameMatch || driverMatch
+        return [...driverNames].some((name) => name.includes(searchLower))
       })
     }
 
     return filtered
-  }, [sessions, searchTerm])
+  }, [sessions, selectedRoundHeading, selectedClassFilter, searchTerm])
 
   // Sort sessions
   const sortedSessions = useMemo(() => {
@@ -152,26 +187,6 @@ export default function SessionsTable({
     return sortedSessions.slice(startIndex, endIndex)
   }, [sortedSessions, currentPage, pageSize, isGrouped])
 
-  const handleSort = useCallback(
-    (field: SortField) => {
-      if (sortField === field) {
-        setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-      } else {
-        setSortField(field)
-        setSortDirection("asc")
-      }
-      setCurrentPage(1)
-    },
-    [sortField, sortDirection]
-  )
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return "↕"
-    }
-    return sortDirection === "asc" ? "↑" : "↓"
-  }
-
   const handleToggleGroup = (className: string) => {
     setGroupExpanded((prev) => ({
       ...prev,
@@ -181,6 +196,8 @@ export default function SessionsTable({
 
   const handleClearFilters = () => {
     setSearchTerm("")
+    setSelectedRoundHeading(null)
+    setSelectedClassFilter(null)
     setCurrentPage(1)
   }
 
@@ -192,16 +209,17 @@ export default function SessionsTable({
     setLapModalSession(null)
   }, [])
 
-  const activeFilterCount = searchTerm ? 1 : 0
+  const activeFilterCount =
+    (searchTerm ? 1 : 0) + (selectedRoundHeading ? 1 : 0) + (selectedClassFilter ? 1 : 0)
 
   if (sessions.length === 0) {
     return (
-    <ChartContainer
-      title="Sessions Overview"
-      titleClassName="text-sm font-medium text-[var(--token-text-secondary)] mb-2"
-      className={className}
-      aria-label="Sessions table - no data available"
-    >
+      <ChartContainer
+        title="Sessions Overview"
+        titleClassName="text-sm font-medium text-[var(--token-text-secondary)] mb-2"
+        className={className}
+        aria-label="Sessions table - no data available"
+      >
         <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">
           No sessions available
         </div>
@@ -218,122 +236,125 @@ export default function SessionsTable({
         {/* Single header row: title + search + clear */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--token-border-default)] pb-3">
           <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-            <h3 className="text-sm font-medium text-[var(--token-text-secondary)] shrink-0">
-              Sessions Overview
-            </h3>
-            <input
-              type="text"
-              placeholder="Search sessions..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] w-full sm:w-64 sm:min-w-[200px]"
-            />
+            <div className="flex flex-col gap-1 shrink-0">
+              <label
+                htmlFor="sessions-round-select"
+                className="text-xs font-medium text-[var(--token-text-secondary)]"
+              >
+                Filter by Round
+              </label>
+              <select
+                id="sessions-round-select"
+                aria-label="Filter by round heading"
+                value={selectedRoundHeading ?? ""}
+                onChange={(e) => {
+                  setSelectedRoundHeading(e.target.value || null)
+                  setCurrentPage(1)
+                }}
+                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] shrink-0"
+              >
+                <option value="">All Sessions</option>
+                {availableRoundHeadings.map((heading) => (
+                  <option key={heading} value={heading}>
+                    {heading}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 shrink-0">
+              <label
+                htmlFor="sessions-class-filter"
+                className="text-xs font-medium text-[var(--token-text-secondary)]"
+              >
+                Filter by Class Type
+              </label>
+              <select
+                id="sessions-class-filter"
+                aria-label="Filter by class"
+                value={selectedClassFilter ?? ""}
+                onChange={(e) => {
+                  setSelectedClassFilter(e.target.value || null)
+                  setCurrentPage(1)
+                }}
+                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] shrink-0"
+              >
+                <option value="">All classes</option>
+                {availableClasses.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 shrink-0 w-40">
+              <label
+                htmlFor="sessions-search-input"
+                className="text-xs font-medium text-[var(--token-text-secondary)]"
+              >
+                Filter by Driver Name
+              </label>
+              <input
+                id="sessions-search-input"
+                type="text"
+                placeholder="Search by driver name..."
+                aria-label="Filter sessions by driver name"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setCurrentPage(1)
+                }}
+                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] w-full"
+              />
+            </div>
           </div>
 
           {/* Right: Clear Filters */}
           <div className="flex items-center shrink-0">
             {activeFilterCount > 0 && (
-              <button
+              <StandardButton
                 type="button"
                 onClick={handleClearFilters}
-                className="px-3 py-2 text-sm font-medium text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                className="!px-3 !py-2 !bg-transparent !border-0 text-[var(--token-accent)] hover:!bg-[var(--token-accent)]/10"
               >
                 Clear Filters ({activeFilterCount})
-              </button>
+              </StandardButton>
             )}
           </div>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-[var(--token-border-default)]">
-          <table
-            className={`w-full ${showHybridColumns ? "min-w-[1200px]" : "min-w-[900px]"}`}
-            aria-label="Sessions table"
-          >
-            <thead className="bg-[var(--token-surface-alt)] border-b border-[var(--token-border-default)]">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Session Name
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Class
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Start Time
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Duration
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-center text-sm font-medium text-[var(--token-text-secondary)]"
-                >
+        <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+          <StandardTable className={showHybridColumns ? "min-w-[1200px]" : "min-w-[900px]"}>
+            <StandardTableHeader>
+              <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                <StandardTableCell header>Session Name</StandardTableCell>
+                <StandardTableCell header>Class</StandardTableCell>
+                <StandardTableCell header>Start Time</StandardTableCell>
+                <StandardTableCell header>Duration</StandardTableCell>
+                <StandardTableCell header className="text-center">
                   Participants
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Top 3 Finishers
-                </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                >
-                  Actions
-                </th>
+                </StandardTableCell>
+                <StandardTableCell header>Top 3 Finishers</StandardTableCell>
+                <StandardTableCell header>Actions</StandardTableCell>
                 {showHybridColumns && (
                   <>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                    >
-                      Best Lap
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                    >
-                      Avg Lap
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-center text-sm font-medium text-[var(--token-text-secondary)]"
-                    >
+                    <StandardTableCell header>Best Lap</StandardTableCell>
+                    <StandardTableCell header>Avg Lap</StandardTableCell>
+                    <StandardTableCell header className="text-center">
                       Total Laps
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-sm font-medium text-[var(--token-text-secondary)]"
-                    >
-                      Fastest Driver
-                    </th>
+                    </StandardTableCell>
+                    <StandardTableCell header>Fastest Driver</StandardTableCell>
                   </>
                 )}
               </tr>
-            </thead>
+            </StandardTableHeader>
             <tbody className="bg-[var(--token-surface)]">
               {isGrouped
                 ? groupedSessions.map((group) => (
                     <Fragment key={`group-${group.className}`}>
-                      <tr
-                        className="bg-[var(--token-surface-raised)] border-b border-[var(--token-border-default)] cursor-pointer hover:bg-[var(--token-surface-elevated)] transition-colors"
+                      <StandardTableRow
                         onClick={() => handleToggleGroup(group.className)}
+                        className="bg-[var(--token-surface-raised)] cursor-pointer hover:!bg-[var(--token-surface-elevated)]"
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
@@ -358,7 +379,7 @@ export default function SessionsTable({
                               ▶
                             </span>
                             <span className="text-[var(--token-text-primary)]">
-                              {group.className}
+                              {formatClassName(group.className)}
                             </span>
                             <span className="text-sm text-[var(--token-text-secondary)]">
                               ({group.sessions.length} session
@@ -366,7 +387,7 @@ export default function SessionsTable({
                             </span>
                           </div>
                         </td>
-                      </tr>
+                      </StandardTableRow>
                       {group.isExpanded &&
                         group.sessions.map((session) => (
                           <SessionsTableRow
@@ -401,7 +422,7 @@ export default function SessionsTable({
                     />
                   ))}
             </tbody>
-          </table>
+          </StandardTable>
 
           {filteredSessions.length === 0 && (
             <div className="flex items-center justify-center py-12 text-[var(--token-text-secondary)]">
@@ -419,7 +440,6 @@ export default function SessionsTable({
             itemsPerPage={pageSize}
             totalItems={sortedSessions.length}
             itemLabel="sessions"
-            rowsPerPageOptions={[5, 10, 25, 50, 100]}
             onRowsPerPageChange={(newRowsPerPage) => {
               setPageSize(newRowsPerPage)
               setCurrentPage(1)

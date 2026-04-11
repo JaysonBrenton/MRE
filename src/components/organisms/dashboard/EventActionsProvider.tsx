@@ -12,8 +12,8 @@
  *          on all pages, not just event analysis pages.
  *
  * @relatedFiles
- * - src/components/dashboard/EventActionsContext.tsx (context definition)
- * - src/components/dashboard/shell/AdaptiveNavigationRail.tsx (uses this context)
+ * - src/components/eventAnalysis/EventActionsContext.tsx (context definition)
+ * - src/components/eventAnalysis/shell/AdaptiveNavigationRail.tsx (uses this context)
  * - src/components/event-analysis/EventAnalysisSidebar.tsx (old implementation - to be removed)
  */
 
@@ -26,8 +26,12 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { clearEvent } from "@/store/slices/dashboardSlice"
 import { useDashboardEventSearch } from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 import Modal from "@/components/molecules/Modal"
+import StandardInput from "@/components/atoms/StandardInput"
 import PracticeDriverSelector from "@/components/organisms/event-analysis/PracticeDriverSelector"
 import { EventActionsContext, type EventActionsContextValue } from "./EventActionsContext"
+import { sanitizeErrorMessage } from "@/lib/sanitize-error-message"
+import { getValidClasses } from "@/core/events/class-validator"
+import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 // Types for driver selection modal
 interface Driver {
@@ -264,10 +268,11 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     lastIngestedAt?: string
   } | null>(null)
 
-  // Driver selection state
-  // Default to "All Classes" (null) when event is first loaded
+  // Driver selection state; class is set to first entry-list class when analysis loads (see effect below)
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([])
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
+  /** After analysis loads for an event, we apply first class once (matches OverviewTab chip order). */
+  const lastDefaultClassEventId = useRef<string | null>(null)
   const isCompact = false // Always expanded view
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
@@ -275,11 +280,11 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Reset selections when event changes
-  // Ensures "All Classes" (null) is the default when an event is first loaded
+  // Reset selections when event changes; allow first-class default to run again for the new event
   useEffect(() => {
     setSelectedDriverIds([])
-    setSelectedClass(null) // Default to "All Classes" when event changes
+    setSelectedClass(null)
+    lastDefaultClassEventId.current = null
   }, [selectedEventId])
 
   // Debounce search query
@@ -393,6 +398,22 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     },
     [races, allDrivers]
   )
+
+  // Default class + drivers to first entry-list class (same order as getValidClasses / Overview chips)
+  useEffect(() => {
+    if (!selectedEventId || !analysisData || analysisData.event.id !== selectedEventId) {
+      return
+    }
+    if (lastDefaultClassEventId.current === selectedEventId) {
+      return
+    }
+    const classes = getValidClasses(analysisData as EventAnalysisData)
+    lastDefaultClassEventId.current = selectedEventId
+    if (classes.length === 0) {
+      return
+    }
+    handleClassChangeFromDropdown(classes[0])
+  }, [selectedEventId, analysisData, handleClassChangeFromDropdown])
 
   const handleDriverToggle = useCallback(
     (driverId: string) => {
@@ -570,8 +591,8 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        const errorMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
-        setErrorMessage(errorMsg)
+        const rawMsg = data.error?.message || `Error: ${response.status} ${response.statusText}`
+        setErrorMessage(sanitizeErrorMessage(rawMsg))
         setIsErrorModalOpen(true)
         return
       }
@@ -626,7 +647,12 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
           }
 
           if (jobData.status === "failed") {
-            setErrorMessage(jobData.error_message ?? "Import failed.")
+            setErrorMessage(
+              sanitizeErrorMessage(
+                jobData.error_message,
+                "Something went wrong while refreshing event data. Please try again. If the problem persists, try again later or contact support."
+              )
+            )
             setIsErrorModalOpen(true)
             return
           }
@@ -659,8 +685,13 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
       router.refresh()
       setIsSuccessModalOpen(true)
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error occurred"
-      setErrorMessage(`Failed to refresh event data: ${errorMsg}`)
+      const rawMsg = error instanceof Error ? error.message : "Unknown error occurred"
+      setErrorMessage(
+        sanitizeErrorMessage(
+          `Failed to refresh event data: ${rawMsg}`,
+          "Something went wrong while refreshing event data. Please try again."
+        )
+      )
       setIsErrorModalOpen(true)
     } finally {
       setIsRefreshing(false)
@@ -759,7 +790,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
             </div>
           }
         >
-          <div className="space-y-4 p-4">
+          <div className="space-y-4">
             {/* View as driver - practice day only; integrated so it lives with driver selection */}
             {isPracticeDay && drivers.length > 0 && (
               <div
@@ -793,8 +824,8 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
 
             {/* Controls Row */}
             <div className="flex gap-2">
-              {/* Class Filter Dropdown */}
-              <div className="relative flex-initial w-[220px] min-w-[220px]" ref={dropdownRef}>
+              {/* Class Filter Dropdown - w-[9rem] per standard-form-field-width.md */}
+              <div className="relative flex-initial w-[9rem] min-w-[9rem]" ref={dropdownRef}>
                 <label className="block text-xs font-medium text-[var(--token-text-secondary)] mb-1">
                   Class
                 </label>
@@ -853,22 +884,27 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                 )}
               </div>
 
-              {/* Search Input */}
-              <div className="flex-initial w-[220px] min-w-[220px] relative">
+              {/* Search Input - w-[9rem] per standard-form-field-width.md */}
+              <div
+                className="flex-initial w-[9rem] min-w-[9rem] relative"
+                role="group"
+                aria-labelledby="driver-search-label"
+              >
                 <label
+                  id="driver-search-label"
                   htmlFor="driver-search-input"
                   className="block text-xs font-medium text-[var(--token-text-secondary)] mb-1"
                 >
                   Search drivers
                 </label>
-                <input
+                <StandardInput
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search drivers..."
-                  className="w-full px-3 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                   aria-label="Search drivers"
                   id="driver-search-input"
+                  className="py-2 pr-8 text-sm"
                 />
                 {searchQuery && (
                   <button
@@ -925,7 +961,6 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
       )}
 
       {/* Error Modal */}
-      {/* Error Modal */}
       <Modal
         isOpen={isErrorModalOpen}
         onClose={() => {
@@ -950,11 +985,9 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
           </div>
         }
       >
-        <div className="p-4">
-          <p className="text-[var(--token-text-primary)]">
-            {errorMessage || "An unknown error occurred while refreshing event data."}
-          </p>
-        </div>
+        <p className="text-[var(--token-text-primary)]">
+          {errorMessage || "An unknown error occurred while refreshing event data."}
+        </p>
       </Modal>
 
       {/* Success Modal */}
@@ -983,7 +1016,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
             </div>
           }
         >
-          <div className="p-4 space-y-4">
+          <div className="space-y-4">
             <p className="text-[var(--token-text-primary)]">
               {formatStatsMessage(successStats).message}
             </p>

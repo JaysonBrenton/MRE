@@ -25,7 +25,10 @@ export interface WeatherData {
   windDirection: number | null // degrees (0-360)
   humidity: number // percentage (0-100)
   airTemperature: number // Celsius
+  /** Precipitation probability (0-100) - forecast API */
   precipitation: number // percentage (0-100)
+  /** Precipitation amount in mm - actual rainfall; use for historical when precip > 0 */
+  precipitationMm?: number
   timestamp: Date
 }
 
@@ -61,7 +64,8 @@ interface OpenMeteoResponse {
     windspeed_10m: number[]
     winddirection_10m: (number | null)[]
     weathercode: number[]
-    precipitation_probability: (number | null)[]
+    precipitation_probability?: (number | null)[]
+    precipitation?: (number | null)[]
   }
 }
 
@@ -147,13 +151,14 @@ export async function fetchWeather(
 
   try {
     // Build API URL with parameters
+    // precipitation (mm) - actual rainfall, reliable for historical; precipitation_probability (%) - forecast
     const params = new URLSearchParams({
       latitude: latitude.toString(),
       longitude: longitude.toString(),
       start_date: eventDateStr,
       end_date: eventDateStr,
       hourly:
-        "temperature_2m,relativehumidity_2m,windspeed_10m,winddirection_10m,weathercode,precipitation_probability",
+        "temperature_2m,relativehumidity_2m,windspeed_10m,winddirection_10m,weathercode,precipitation,precipitation_probability",
       timezone: "auto", // Automatically detect timezone based on coordinates
     })
 
@@ -210,20 +215,46 @@ export async function fetchWeather(
       req.end()
     })
 
-    // Find the hour that matches the event date/time
-    // Open-Meteo returns hourly data, so we need to find the closest hour
     const hourlyTimes = data.hourly.time
-    let targetIndex = hourlyTimes.findIndex((timeStr) => {
-      const time = new Date(timeStr)
-      return time.getHours() === eventHour
-    })
+    const precipMmArr = data.hourly.precipitation ?? []
+    const precipProbArr = data.hourly.precipitation_probability ?? []
 
-    // If exact hour not found, use the first available hour
-    if (targetIndex === -1) {
-      targetIndex = 0
+    // Daily total precipitation (mm) - sum of all hourly values
+    const dailyPrecipMm = precipMmArr.reduce(
+      (sum, v) => sum + (typeof v === "number" && Number.isFinite(v) ? v : 0),
+      0
+    )
+
+    // Use the hour with the highest precipitation (mm) to capture the rainiest moment
+    // Falls back to noon or first hour if no precipitation
+    let targetIndex = 0
+    let maxPrecipMm = 0
+    for (let i = 0; i < hourlyTimes.length; i++) {
+      const mm = precipMmArr[i]
+      const val = typeof mm === "number" && Number.isFinite(mm) ? mm : 0
+      if (val > maxPrecipMm) {
+        maxPrecipMm = val
+        targetIndex = i
+      }
     }
 
-    // Extract current weather data for the event time
+    // If no rain anywhere, use noon (or closest) for typical daytime conditions
+    if (maxPrecipMm === 0) {
+      const noonIndex = hourlyTimes.findIndex((timeStr) => {
+        const time = new Date(timeStr)
+        return time.getHours() === eventHour
+      })
+      if (noonIndex >= 0) targetIndex = noonIndex
+    }
+
+    const maxPrecipProb =
+      precipProbArr.length > 0
+        ? Math.max(
+            ...precipProbArr.map((v) => (typeof v === "number" && Number.isFinite(v) ? v : 0))
+          )
+        : 0
+
+    // Extract current weather data - use rainiest hour for conditions
     const currentWeather: WeatherData = {
       condition: formatCondition(
         wmoWeatherCodeToCondition(data.hourly.weathercode[targetIndex] || 0)
@@ -232,7 +263,8 @@ export async function fetchWeather(
       windDirection: data.hourly.winddirection_10m[targetIndex] ?? null,
       humidity: data.hourly.relativehumidity_2m[targetIndex] || 0,
       airTemperature: data.hourly.temperature_2m[targetIndex] || 0,
-      precipitation: data.hourly.precipitation_probability[targetIndex] ?? 0,
+      precipitation: Math.round(maxPrecipProb),
+      precipitationMm: dailyPrecipMm > 0 ? Math.round(dailyPrecipMm * 10) / 10 : undefined,
       timestamp: new Date(hourlyTimes[targetIndex]),
     }
 
@@ -249,7 +281,7 @@ export async function fetchWeather(
         const weatherCode = data.hourly.weathercode[forecastIndex] || 0
         const condition = formatCondition(wmoWeatherCodeToCondition(weatherCode))
         const windSpeedKmh = data.hourly.windspeed_10m[forecastIndex] || 0
-        const precipProb = data.hourly.precipitation_probability[forecastIndex] ?? 0
+        const precipProb = precipProbArr[forecastIndex] ?? 0
 
         // Determine forecast detail
         let detail = condition

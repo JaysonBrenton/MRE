@@ -22,27 +22,12 @@ import { ReactNode, useState, useCallback, useMemo } from "react"
 import ChartColorPicker from "./ChartColorPicker"
 import Tooltip from "@/components/molecules/Tooltip"
 import { useChartColor } from "@/hooks/useChartColors"
+import { resolveColorToHex } from "@/lib/chart-color-utils"
+import { typography } from "@/lib/typography"
 
-const DEFAULT_AXIS_COLOR = "#ffffff"
-
-/** Resolve CSS variable to hex for display in color picker; returns input if already hex. */
-function resolveAxisColorForPicker(color: string): string {
-  if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)) return color
-  if (typeof window === "undefined" || !color.startsWith("var(")) return color
-  const match = color.match(/var\(([^)]+)\)/)
-  if (!match) return DEFAULT_AXIS_COLOR
-  const resolved = getComputedStyle(document.documentElement)
-    .getPropertyValue(match[1].trim())
-    .trim()
-  if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(resolved)) return resolved
-  if (resolved.startsWith("rgb")) {
-    const [r, g, b] = resolved.match(/\d+/g)?.map(Number) ?? []
-    if (r != null && g != null && b != null) {
-      return `#${[r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("")}`
-    }
-  }
-  return DEFAULT_AXIS_COLOR
-}
+const DEFAULT_AXIS_COLOR = "var(--token-text-primary)"
+/** Hex fallback when resolving CSS variables for color picker (matches --token-text-primary in dark theme) */
+const AXIS_COLOR_PICKER_FALLBACK_HEX = "#f2f2f3"
 
 export type AxisColorKey = "x" | "y" | "yRight"
 
@@ -174,7 +159,7 @@ export default function ChartContainer({
         border: "1px solid var(--glass-border)",
         boxShadow: "var(--glass-shadow), var(--glass-shadow-inset)",
         padding: "20px",
-        overflow: "hidden",
+        overflow: "visible",
       }}
       role="img"
       aria-label={ariaLabel || title || "Chart"}
@@ -207,7 +192,7 @@ export default function ChartContainer({
                     <h3
                       className={
                         titleClassName ??
-                        `text-lg font-semibold text-[var(--token-text-primary)] ${
+                        `${typography.h4} ${
                           onTitleClick
                             ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
                             : ""
@@ -236,7 +221,7 @@ export default function ChartContainer({
                   <h3
                     className={
                       titleClassName ??
-                      `text-lg font-semibold text-[var(--token-text-primary)] ${
+                      `${typography.h4} ${
                         onTitleClick
                           ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
                           : ""
@@ -286,7 +271,10 @@ export default function ChartContainer({
       </div>
       {axisPickerOpen != null && showAxisPickers && chartInstanceId && (
         <ChartColorPicker
-          currentColor={resolveAxisColorForPicker(axisColorByKey[axisPickerOpen])}
+          currentColor={resolveColorToHex(
+            axisColorByKey[axisPickerOpen],
+            AXIS_COLOR_PICKER_FALLBACK_HEX
+          )}
           onColorChange={handleAxisColorChange(axisPickerOpen)}
           onClose={() => {
             setAxisPickerOpen(null)

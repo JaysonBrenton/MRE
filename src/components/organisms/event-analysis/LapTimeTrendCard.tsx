@@ -159,7 +159,7 @@ export default function LapTimeTrendCard({
       )}
 
       {customizeOpen && trendCompareDriverIds !== null && (
-        <div className="mb-3 max-h-40 overflow-y-auto rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] p-2">
+        <div className="scrollbar-none mb-3 max-h-40 overflow-y-auto rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] p-2">
           <p className="text-xs text-[var(--token-text-secondary)] mb-2">
             Select drivers to compare in the trend:
           </p>
@@ -226,7 +226,7 @@ export default function LapTimeTrendCard({
         maxWidth="4xl"
         ariaLabel="Lap-by-lap trend chart"
       >
-        <div className="p-4 min-w-0">
+        <div className="min-w-0">
           {lapTrendLoading && (
             <div
               className="flex items-center justify-center text-[var(--token-text-secondary)]"

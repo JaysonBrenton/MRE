@@ -29,12 +29,12 @@ ENVIRONMENT.**
   containers. There is no local development server. The application is accessed
   via Docker containers (`mre-app` for Next.js, `mre-liverc-ingestion-service`
   for Python ingestion).
-  - **Docker Runtime:** On macOS, **Colima is the required Docker runtime for
-    this project** (see `docs/operations/docker-user-guide.md` for Colima
-    setup). Do NOT use Docker Desktop. When troubleshooting Docker/container
-    issues (e.g. "too many open files", mount errors), use `colima stop &&
-    colima start` to restart the Docker runtime. Never run `open -a Docker` or
-    suggest Docker Desktop.
+  - **Docker Runtime:** On macOS, **Docker Desktop is the required Docker
+    runtime for this project** (see `docs/operations/docker-user-guide.md`).
+    Ensure Docker Desktop is running and the active context is `desktop-linux`
+    (`docker context use desktop-linux`). When troubleshooting Docker/container
+    issues (e.g. "too many open files", mount errors), restart Docker Desktop
+    from the app menu.
 - **All Commands Run in Docker** – When suggesting commands, always prefix with
   `docker exec -it mre-app` (for Next.js) or
   `docker exec -it mre-liverc-ingestion-service` (for Python). Never suggest
@@ -65,8 +65,8 @@ ENVIRONMENT.**
 **When troubleshooting build or runtime errors:**
 
 1. For Docker runtime issues ("too many open files", mount errors): restart
-   Colima with `colima stop && colima start`. Never use Docker Desktop
-   (`open -a Docker`).
+   Docker Desktop from the app menu, or ensure context is `desktop-linux`
+   (`docker context use desktop-linux`).
 2. First check if dependencies are installed in the container:
    `docker exec mre-app ls node_modules | grep <package-name>`
 3. Restart the container to trigger automatic dependency installation:
@@ -79,8 +79,14 @@ ENVIRONMENT.**
   `docs/specs/mre-v0.1-feature-scope.md#6-llm-guardrails`. Reject any change
   outside registration, login, welcome/admin pages, LiveRC ingestion, navigation
   features, table components, dashboard systems, and telemetry visualizations.
-- **Docs Are Canon** – Architecture, ops, security, and UX documents under
-  `docs/` outrank code comments. Quote them when defending design decisions.
+- **Documentation and truth** – **Normative** standards (ADRs, folder contracts,
+  security policies, intended architecture) live under `docs/` and guide how
+  work should be done. **Descriptive** docs (API reference, user guides, ops
+  runbooks, component catalog, database schema prose) must match the **actual
+  build**; when they disagree, update the docs or mark content as
+  planned/not-implemented. Architecture and ops documents still outrank ad-hoc
+  code comments for **design intent**, but shipped behavior is proven by code,
+  tests, and manifests.
 - **All Documentation in `docs/`** – **ALL documentation files must live under
   `docs/`**. This includes reports, reviews, ADRs, architecture docs, operations
   guides, and any other documentation. The only exception is `README.md` at the
@@ -107,9 +113,8 @@ ENVIRONMENT.**
   `docs/architecture/mobile-safe-architecture-guidelines.md`,
   `docs/architecture/atomic-design-system.md`,
   `docs/design/mre-dark-theme-guidelines.md`,
-  `docs/design/mre-mobile-ux-guidelines.md`.
-  For shared or persisted UI state: `docs/architecture/search-feature.md`,
-  `src/store/` (slices and hooks).
+  `docs/design/mre-mobile-ux-guidelines.md`. For shared or persisted UI state:
+  `docs/architecture/search-feature.md`, `src/store/` (slices and hooks).
 - **Rules**:
   - Never access Prisma directly from React components; use
     `src/core/.../repo.ts` per architecture rules.

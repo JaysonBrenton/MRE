@@ -14,6 +14,7 @@ from selectolax.parser import HTMLParser
 from ingestion.common.logging import get_logger
 from ingestion.connectors.liverc.models import ConnectorEntryDriver, ConnectorEntryList
 from ingestion.ingestion.errors import EventPageFormatError
+from ingestion.ingestion.normalizer import Normalizer
 
 logger = get_logger(__name__)
 
@@ -71,20 +72,31 @@ class EntryListParser:
             EventPageFormatError: If page structure is unexpected
         """
         logger.debug("parse_entry_list_start", url=url, event_id=source_event_id)
-        
+
         try:
             tree = HTMLParser(html)
             entries_by_class: Dict[str, List[ConnectorEntryDriver]] = {}
-            
+
+            # Extract class order from nav pills (ul.nav.nav-pills li a) - canonical order as on LiveRC page
+            class_order_from_nav: List[str] = []
+            nav_pills = tree.css("ul.nav.nav-pills li a")
+            for link in nav_pills:
+                text = (link.text() or "").strip()
+                if text:
+                    normalized = Normalizer.normalize_class_name(text)
+                    if normalized and normalized not in class_order_from_nav:
+                        class_order_from_nav.append(normalized)
+
             # Find all tables on the page
             tables = tree.css("table")
-            
+
             if not tables:
                 logger.warning("entry_list_no_tables", url=url, event_id=source_event_id)
                 # Return empty entry list - not an error, some events may not have entry lists
                 return ConnectorEntryList(
                     source_event_id=source_event_id,
                     entries_by_class={},
+                    class_order=class_order_from_nav if class_order_from_nav else None,
                 )
             
             for table in tables:
@@ -113,13 +125,12 @@ class EntryListParser:
                             continue
                     else:
                         class_name = class_header_div.text().strip()
-                    
+
                     if not class_name:
                         continue
-                    
-                    # Normalize class name
-                    from ingestion.ingestion.normalizer import Normalizer
-                    class_name = Normalizer.normalize_string(class_name)
+
+                    # Normalize class name (match nav pill normalization)
+                    class_name = Normalizer.normalize_class_name(class_name)
                     
                     # Find entry rows in tbody
                     entry_rows = table.css("tbody tr")
@@ -203,10 +214,22 @@ class EntryListParser:
                     logger.warning("entry_list_table_parse_error", error=str(e), url=url)
                     continue
             
+            # Build class_order: nav pill order, then any table classes not in nav (for robustness)
+            class_order: Optional[List[str]] = None
+            if class_order_from_nav or entries_by_class:
+                seen = set(class_order_from_nav)
+                order = [c for c in class_order_from_nav if c in entries_by_class]
+                for c in entries_by_class:
+                    if c not in seen:
+                        order.append(c)
+                        seen.add(c)
+                class_order = order if order else list(entries_by_class.keys())
+
             logger.debug("parse_entry_list_success", class_count=len(entries_by_class), url=url)
             return ConnectorEntryList(
                 source_event_id=source_event_id,
                 entries_by_class=entries_by_class,
+                class_order=class_order,
             )
         
         except Exception as e:

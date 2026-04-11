@@ -26,6 +26,8 @@ export interface EventWeatherData {
   air: number
   track: number
   precip: number
+  /** Precipitation amount in mm - actual rainfall; prefer for display when > 0 */
+  precipMm?: number
   forecast: Array<{ label: string; detail: string }>
   dailyTemperatureSummary?: DailyTemperatureSummary
   cachedAt?: string

@@ -15,7 +15,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
 from ingestion.common.logging import get_logger
@@ -41,12 +41,14 @@ class IngestBySourceIdPayload:
     source_event_id: str
     track_id: str
     depth: str
+    imported_by_user_id: Optional[str] = None
 
 
 @dataclass
 class IngestByEventIdPayload:
     event_id: str
     depth: str
+    imported_by_user_id: Optional[str] = None
 
 
 @dataclass
@@ -102,12 +104,18 @@ _job_retention_seconds = int(os.getenv("INGESTION_QUEUE_JOB_TTL_SECONDS", "3600"
 _workers_started = False
 
 
-def enqueue_by_source_id(source_event_id: str, track_id: str, depth: str = "laps_full") -> str:
+def enqueue_by_source_id(
+    source_event_id: str,
+    track_id: str,
+    depth: str = "laps_full",
+    imported_by_user_id: Optional[str] = None,
+) -> str:
     job_id = str(uuid4())
     payload = IngestBySourceIdPayload(
         source_event_id=source_event_id,
         track_id=track_id,
         depth=depth,
+        imported_by_user_id=imported_by_user_id,
     )
     job = Job(job_id=job_id, job_type=JobType.BY_SOURCE_ID, payload=payload)
     _job_store[job_id] = job
@@ -117,9 +125,13 @@ def enqueue_by_source_id(source_event_id: str, track_id: str, depth: str = "laps
     return job_id
 
 
-def enqueue_by_event_id(event_id: str, depth: str = "laps_full") -> str:
+def enqueue_by_event_id(
+    event_id: str, depth: str = "laps_full", imported_by_user_id: Optional[str] = None
+) -> str:
     job_id = str(uuid4())
-    payload = IngestByEventIdPayload(event_id=event_id, depth=depth)
+    payload = IngestByEventIdPayload(
+        event_id=event_id, depth=depth, imported_by_user_id=imported_by_user_id
+    )
     job = Job(job_id=job_id, job_type=JobType.BY_EVENT_ID, payload=payload)
     _job_store[job_id] = job
     _queue.put_nowait(job)
@@ -162,6 +174,55 @@ def _prune_queue_order() -> None:
             _remove_from_queue_order(job_id)
 
 
+# Technical error patterns - if str(e) matches, use friendly fallback for end users
+_USER_UNSAFE_PATTERNS = (
+    "AttributeError",
+    "KeyError",
+    "TypeError",
+    "ValueError",
+    "IndexError",
+    "RuntimeError",
+    "NoneType",
+    "has no attribute",
+    "object has no attribute",
+    "traceback",
+    "File \"",
+    "line ",
+    "ECONNREFUSED",
+    "ENOTFOUND",
+    # Database / SQL / ORM errors
+    "psycopg2.",
+    "UniqueViolation",
+    "IntegrityError",
+    "OperationalError",
+    "duplicate key value violates",
+    "violates unique constraint",
+    "[SQL:",
+    "INSERT INTO",
+    "[parameters:",
+    "DETAIL:",
+    "sqlalche.me",
+    "Session.rollback",
+    "transaction has been rolled back",
+)
+
+_USER_FRIENDLY_FALLBACK = (
+    "Something went wrong while importing event data. Please try again. "
+    "If the problem persists, try again later or contact support."
+)
+
+
+def _user_friendly_error_message(exc: BaseException) -> str:
+    """Return a user-safe error message; never expose technical exceptions to end users."""
+    msg = str(exc)
+    if not msg:
+        return _USER_FRIENDLY_FALLBACK
+    lower = msg.lower()
+    if any(p.lower() in lower for p in _USER_UNSAFE_PATTERNS):
+        return _USER_FRIENDLY_FALLBACK
+    return msg
+
+
 def _cleanup_jobs() -> None:
     if _job_retention_seconds <= 0:
         to_delete = [job_id for job_id, job in _job_store.items() if job.status != JobStatus.QUEUED]
@@ -191,6 +252,7 @@ async def _run_job(job: Job) -> None:
                 source_event_id=p.source_event_id,
                 track_id=UUID(p.track_id),
                 depth=p.depth,
+                imported_by_user_id=p.imported_by_user_id,
             )
         else:
             p = job.payload
@@ -199,6 +261,7 @@ async def _run_job(job: Job) -> None:
             result = await pipeline.ingest_event(
                 event_id=UUID(p.event_id),
                 depth=p.depth,
+                imported_by_user_id=p.imported_by_user_id,
             )
         job.status = JobStatus.COMPLETED
         job.result = result
@@ -214,7 +277,7 @@ async def _run_job(job: Job) -> None:
         job.updated_at = datetime.utcnow()
         code = getattr(e, "code", "INGESTION_ERROR")
         job.error_code = code if isinstance(code, str) else "INGESTION_ERROR"
-        job.error_message = str(e)
+        job.error_message = _user_friendly_error_message(e)
         logger.error(
             "ingestion_job_failed",
             job_id=job.job_id,

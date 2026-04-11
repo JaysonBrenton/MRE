@@ -10,14 +10,23 @@
  *
  * @purpose Provides the full Event Search interface in a modal, allowing users
  *          to search by track and date range, then select an event to activate
- *          in the dashboard context.
+ *          in the dashboard context. Panel uses the same native resize + backdrop
+ *          pointer-dismiss pattern as @/components/molecules/Modal.
  */
 
 "use client"
 
+import { X } from "lucide-react"
+import type { CSSProperties } from "react"
 import { useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import EventSearchContainer from "@/components/organisms/event-search/EventSearchContainer"
-import { getModalContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
+import { useModalPanelDrag } from "@/hooks/useModalPanelDrag"
+import {
+  getModalResizableContainerStyles,
+  MODAL_MAX_WIDTHS,
+  MODAL_PORTAL_Z_INDEX,
+} from "@/lib/modal-styles"
 
 interface EventSearchModalProps {
   isOpen: boolean
@@ -30,9 +39,22 @@ export default function EventSearchModal({
   isOpen,
   onClose,
   onSelectEvent,
-  selectedEventId,
+  selectedEventId: _selectedEventId,
 }: EventSearchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const { offset: dragOffset, isDragging, headerPointerDown } = useModalPanelDrag(isOpen, modalRef)
+
+  // Reset overlay scroll so the panel is not partially scrolled out of view (fixes clipped top on open)
+  useEffect(() => {
+    if (!isOpen) return
+    const el = backdropRef.current
+    if (!el) return
+    el.scrollTop = 0
+    requestAnimationFrame(() => {
+      el.scrollTop = 0
+    })
+  }, [isOpen])
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -86,10 +108,24 @@ export default function EventSearchModal({
 
   if (!isOpen) return null
 
-  return (
+  // Portal to document.body so fixed + z-index stack above shell chrome (TopStatusBar z-40, nav z-10)
+  // without being trapped under a parent stacking context.
+  if (typeof document === "undefined") return null
+
+  const panelStyles: CSSProperties = {
+    ...getModalResizableContainerStyles(MODAL_MAX_WIDTHS["4xl"]),
+    resize: "both",
+    overflow: "hidden",
+    minHeight: "12rem",
+    maxHeight: "min(92dvh, calc(100dvh - 7rem))",
+    transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+  }
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/75 p-4"
-      onClick={(e) => {
+      ref={backdropRef}
+      className="fixed inset-0 flex min-h-full items-start justify-center overflow-y-auto overscroll-contain bg-black/75 px-4 pb-10 pt-10 sm:px-6 sm:pb-12 sm:pt-12"
+      onPointerDown={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
         }
@@ -97,18 +133,20 @@ export default function EventSearchModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="event-search-modal-title"
-      style={{ minWidth: 0, overflowY: "auto" }}
+      style={{ minWidth: 0, zIndex: MODAL_PORTAL_Z_INDEX }}
     >
       <div
         ref={modalRef}
-        className="max-h-[calc(100vh-2rem)] my-4 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]"
-        onClick={(e) => e.stopPropagation()}
-        style={getModalContainerStyles(MODAL_MAX_WIDTHS["4xl"])}
+        className="min-h-0 shrink-0 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]"
+        style={panelStyles}
       >
-        {/* Header */}
+        {/* Header — drag handle (close button excluded via hook) */}
         <div
-          className="flex items-center justify-between px-4 py-4 border-b border-[var(--token-border-accent-soft)]"
-          style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
+          className={`flex shrink-0 select-none items-center justify-between px-4 py-4 border-b border-[var(--token-border-accent-soft)] ${
+            isDragging ? "cursor-grabbing" : "cursor-grab"
+          }`}
+          style={{ minWidth: 0, width: "100%", boxSizing: "border-box", touchAction: "none" }}
+          onPointerDown={headerPointerDown}
         >
           <h2
             id="event-search-modal-title"
@@ -123,14 +161,7 @@ export default function EventSearchModal({
             className="p-2 flex items-center justify-center text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md flex-shrink-0"
             aria-label="Close modal"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <X className="w-6 h-6" aria-hidden="true" />
           </button>
         </div>
 
@@ -151,6 +182,7 @@ export default function EventSearchModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

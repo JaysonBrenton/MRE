@@ -10,7 +10,7 @@
 
 import json
 import re
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 from selectolax.parser import HTMLParser
 
 from ingestion.common.logging import get_logger
@@ -18,6 +18,55 @@ from ingestion.connectors.liverc.models import ConnectorLap
 from ingestion.ingestion.errors import LapTableMissingError, RacePageFormatError
 
 logger = get_logger(__name__)
+
+
+def _coerce_liverc_float(val: Any) -> Optional[float]:
+    """Parse a LiveRC stat that may be a string or number."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)) and not isinstance(val, bool):
+        if val != val:  # NaN
+            return None
+        return float(val)
+    s = str(val).strip()
+    if not s:
+        return None
+    m = re.search(r"([\d.]+)", s)
+    if not m:
+        return None
+    try:
+        return float(m.group(1))
+    except ValueError:
+        return None
+
+
+def _extract_top2_consecutive_from_driver_block(driver_data: Dict[str, Any]) -> Optional[float]:
+    """
+    LiveRC embeds Top 2 Consecutive in racerLaps[ID] (modal / header), not always in the main grid.
+    Try known key names, then a loose key scan.
+    """
+    if not driver_data:
+        return None
+    for key in (
+        "top2Consec",
+        "top2_consec",
+        "top2Consecutive",
+        "top_2_consec",
+        "top2ConsecTotal",
+        "top2ConsecTime",
+        "top2ConsecLap",
+    ):
+        if key in driver_data:
+            v = _coerce_liverc_float(driver_data[key])
+            if v is not None:
+                return v
+    for k, v in driver_data.items():
+        kl = str(k).lower()
+        if "top" in kl and "2" in kl and "consec" in kl:
+            out = _coerce_liverc_float(v)
+            if out is not None:
+                return out
+    return None
 
 
 class RaceLapParser:
@@ -409,4 +458,70 @@ class RaceLapParser:
                 f"Failed to parse lap data for all drivers: {str(e)}",
                 url=url,
             )
+
+    def extract_racer_laps_extra_stats(self, html: str, url: str) -> Dict[str, Dict[str, float]]:
+        """
+        Extract per-driver stats present in racerLaps[...] JS but not in the main results grid
+        (e.g. Top 2 Consecutive from the lap modal/header). Merged into raw_fields_json at ingest;
+        does not overwrite table-parsed keys.
+        """
+        logger.debug("extract_racer_laps_extra_stats_start", url=url)
+        out: Dict[str, Dict[str, float]] = {}
+        start_pattern = r"racerLaps\[(\d+)\]\s*=\s*(\{)"
+        start_matches = list(re.finditer(start_pattern, html))
+
+        for start_match in start_matches:
+            driver_id = start_match.group(1)
+            start_pos = start_match.end(2) - 1
+            brace_count = 0
+            bracket_count = 0
+            pos = start_pos
+            end_pos = None
+
+            while pos < len(html):
+                char = html[pos]
+                if char == "{":
+                    brace_count += 1
+                elif char == "}":
+                    brace_count -= 1
+                    if brace_count == 0 and bracket_count == 0:
+                        end_pos = pos + 1
+                        break
+                elif char == "[":
+                    bracket_count += 1
+                elif char == "]":
+                    bracket_count -= 1
+                pos += 1
+
+            if end_pos is None:
+                continue
+
+            js_block = html[start_pos:end_pos]
+            try:
+                js_block_clean = js_block.replace("'", '"')
+                try:
+                    driver_data = json.loads(js_block_clean)
+                except json.JSONDecodeError:
+                    import ast
+
+                    js_block_single = js_block.replace('"', "'")
+                    driver_data = ast.literal_eval(js_block_single)
+            except Exception as e:
+                logger.warning(
+                    "racer_laps_extra_parse_block_error",
+                    driver_id=driver_id,
+                    url=url,
+                    error=str(e),
+                )
+                continue
+
+            if not isinstance(driver_data, dict):
+                continue
+
+            top2 = _extract_top2_consecutive_from_driver_block(driver_data)
+            if top2 is not None:
+                out[str(driver_id)] = {"top_2_consecutive": top2}
+
+        logger.debug("extract_racer_laps_extra_stats_done", url=url, driver_count=len(out))
+        return out
 

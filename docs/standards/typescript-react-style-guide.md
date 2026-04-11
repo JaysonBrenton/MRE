@@ -280,7 +280,7 @@ type EventHandler = (event: Event) => void
 
 ```typescript
 // Good - Co-located with component
-// components/dashboard/DashboardClient.tsx
+// components/eventAnalysis/DashboardClient.tsx
 interface DashboardClientProps {
   userId: string
 }

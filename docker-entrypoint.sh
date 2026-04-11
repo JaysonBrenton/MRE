@@ -77,12 +77,23 @@ if [ -f "prisma/schema.prisma" ]; then
       NEED_PRISMA_GENERATE=true
     fi
     
-    # Additional safety check: verify auditLog exists in generated client
-    # This catches cases where the client exists but is missing models
+    # Additional safety check: verify generated client matches schema (mtime checks can miss bind-mount quirks)
     if [ "$NEED_PRISMA_GENERATE" = false ] && [ -f "node_modules/.prisma/client/index.d.ts" ]; then
       if ! grep -q "auditLog" "node_modules/.prisma/client/index.d.ts" 2>/dev/null; then
         echo "🔧 Prisma client missing expected models (auditLog not found)"
         NEED_PRISMA_GENERATE=true
+      fi
+      if grep -q "weatherDate" "prisma/schema.prisma" 2>/dev/null; then
+        if ! grep -q "weatherDate" "node_modules/.prisma/client/index.d.ts" 2>/dev/null; then
+          echo "🔧 Prisma client missing weatherDate (schema includes it)"
+          NEED_PRISMA_GENERATE=true
+        fi
+      fi
+      if grep -q "model CarTaxonomyNode" "prisma/schema.prisma" 2>/dev/null; then
+        if ! grep -q "carTaxonomyNode" "node_modules/.prisma/client/index.d.ts" 2>/dev/null; then
+          echo "🔧 Prisma client missing carTaxonomyNode (schema includes CarTaxonomyNode)"
+          NEED_PRISMA_GENERATE=true
+        fi
       fi
     fi
   fi
