@@ -53,15 +53,15 @@ const defaultTabs: Array<{ id: ChartTabId; label: string }> = [
 
 export default function SessionChartTabs({
   sessions,
-  allClassesWithCounts,
+  allClassesWithCounts: _allClassesWithCounts,
   driverLapTrends,
   heatProgression: _heatProgression,
   eventId,
   selectedClass,
-  onClassChange,
+  onClassChange: _onClassChange,
   data,
   userDriverName: userDriverNameProp,
-  height = 500,
+  height: _height = 500,
   className = "",
 }: SessionChartTabsProps) {
   const [activeTab, setActiveTab] = useState<ChartTabId>("overview")

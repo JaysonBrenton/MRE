@@ -12,7 +12,7 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 import TrackMapEditor from "@/components/organisms/track-maps/TrackMapEditor"
@@ -26,15 +26,7 @@ export default function TrackMapEditorPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (mapId && mapId !== "new") {
-      loadTrackMap()
-    } else {
-      setLoading(false)
-    }
-  }, [mapId])
-
-  async function loadTrackMap() {
+  const loadTrackMap = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/v1/track-maps/${mapId}`)
@@ -52,7 +44,15 @@ export default function TrackMapEditorPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [mapId])
+
+  useEffect(() => {
+    if (mapId && mapId !== "new") {
+      void loadTrackMap()
+    } else {
+      setLoading(false)
+    }
+  }, [mapId, loadTrackMap])
 
   if (loading) {
     return (

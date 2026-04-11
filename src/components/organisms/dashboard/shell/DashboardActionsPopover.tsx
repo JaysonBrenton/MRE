@@ -97,9 +97,6 @@ export default function DashboardActionsPopover({
     // Use a slight delay to allow popover to render and get dimensions
     const timeoutId = setTimeout(updatePosition, 0)
 
-    const handleScroll = () => updatePosition()
-    const handleResize = () => updatePosition()
-
     // Use requestAnimationFrame for smoother updates
     let rafId: number
     const handleUpdate = () => {

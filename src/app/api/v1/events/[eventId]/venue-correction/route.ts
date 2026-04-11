@@ -6,7 +6,7 @@
  *              GET: Get approved correction and current user's request status
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import { successResponse, errorResponse, parseRequestBody } from "@/lib/api-utils"
 import {

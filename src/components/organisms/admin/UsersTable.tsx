@@ -36,7 +36,6 @@ export default function UsersTable() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [searchQuery, setSearchQuery] = useState("")
   const [isAdminFilter, setIsAdminFilter] = useState<string>("all")
-  const [teamNameFilter, setTeamNameFilter] = useState("")
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deleteUser, setDeleteUser] = useState<User | null>(null)
   const [toggleAdminUser, setToggleAdminUser] = useState<User | null>(null)
@@ -151,11 +150,6 @@ export default function UsersTable() {
       setActionLoading(false)
     }
   }
-
-  // Get unique team names for filter
-  const uniqueTeamNames = Array.from(
-    new Set(users.map((u) => u.teamName).filter((t): t is string => t !== null))
-  ).sort()
 
   if (loading && users.length === 0) {
     return (

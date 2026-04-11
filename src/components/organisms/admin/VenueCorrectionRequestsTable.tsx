@@ -46,7 +46,7 @@ export default function VenueCorrectionRequestsTable() {
       if (json.success && json.data?.requests) {
         setRequests(json.data.requests)
       }
-    } catch (e) {
+    } catch (_e) {
       setError("Failed to load venue correction requests")
     } finally {
       setLoading(false)
@@ -73,7 +73,7 @@ export default function VenueCorrectionRequestsTable() {
       } else {
         setError(json.error?.message ?? "Failed to approve")
       }
-    } catch (e) {
+    } catch (_e) {
       setError("Failed to approve")
     } finally {
       setActionLoading(false)
@@ -101,7 +101,7 @@ export default function VenueCorrectionRequestsTable() {
       } else {
         setError(json.error?.message ?? "Failed to reject")
       }
-    } catch (e) {
+    } catch (_e) {
       setError("Failed to reject")
     } finally {
       setActionLoading(false)

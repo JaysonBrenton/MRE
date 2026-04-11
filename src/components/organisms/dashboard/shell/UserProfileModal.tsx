@@ -42,7 +42,12 @@ interface UserProfileModalProps {
 
 type ProfileData = UserProfile | null
 
-export default function UserProfileModal({ isOpen, onClose, userId, user }: UserProfileModalProps) {
+export default function UserProfileModal({
+  isOpen,
+  onClose,
+  userId,
+  user: _user,
+}: UserProfileModalProps) {
   const dispatch = useAppDispatch()
   const density = useAppSelector((state) => state.ui.density)
 

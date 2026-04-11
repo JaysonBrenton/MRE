@@ -37,8 +37,6 @@ import {
   getUnselectedDriversInClass,
 } from "@/core/events/event-analysis-notices"
 import { clientLogger } from "@/lib/client-logger"
-import { getValidClasses } from "@/core/events/class-validator"
-import { formatDateLong } from "@/lib/date-utils"
 
 interface WeatherData {
   condition: string
@@ -104,9 +102,6 @@ export default function OverviewTabTesting({
   const selectionKey = selectedDriverIds.join("|")
   const currentPage = paginationState.selectionKey === selectionKey ? paginationState.page : 1
   const driversPerPage = 25
-
-  // Get race classes from entry list
-  const validClasses = useMemo(() => getValidClasses(data), [data])
 
   // Filter races by selected class
   const filteredRaces = useMemo(() => {

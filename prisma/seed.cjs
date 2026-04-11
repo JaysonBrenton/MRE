@@ -39,10 +39,10 @@ async function main() {
 
     if (!existingPersona) {
       await prisma.persona.create({ data: personaData })
-      // eslint-disable-next-line no-console
+       
       console.log(`Created persona: ${personaData.name}`)
     } else {
-      // eslint-disable-next-line no-console
+       
       console.log(`Persona already exists: ${personaData.name}`)
     }
   }
@@ -56,7 +56,7 @@ async function main() {
   })
 
   if (existingAdmin) {
-    // eslint-disable-next-line no-console
+     
     console.log(`Admin user with email ${adminEmail} already exists. Skipping creation.`)
     return
   }
@@ -83,26 +83,26 @@ async function main() {
       where: { id: admin.id },
       data: { personaId: adminPersona.id },
     })
-    // eslint-disable-next-line no-console
+     
     console.log("Admin persona assigned to user")
   } else {
-    // eslint-disable-next-line no-console
+     
     console.warn("Admin persona not found; skipping persona assignment")
   }
 
-  // eslint-disable-next-line no-console
+   
   console.log("Admin user created successfully:")
-  // eslint-disable-next-line no-console
+   
   console.log(`  Email: ${admin.email}`)
-  // eslint-disable-next-line no-console
+   
   console.log(`  Driver Name: ${admin.driverName}`)
-  // eslint-disable-next-line no-console
+   
   console.log(`  Password: ${adminPassword} (change this after first login!)`)
 }
 
 main()
   .catch((e) => {
-    // eslint-disable-next-line no-console
+     
     console.error("Error seeding database:", e)
     process.exit(1)
   })

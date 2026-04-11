@@ -63,9 +63,9 @@ export default function DriverList({
   drivers,
   selectedDriverIds,
   onSelectionChange,
-  races = [],
-  raceClasses,
-  eventId,
+  races: _races = [],
+  raceClasses: _raceClasses,
+  eventId: _eventId,
 }: DriverListProps) {
   const [sortField, setSortField] = useState<SortField>("bestLapTime")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")

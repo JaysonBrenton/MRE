@@ -58,7 +58,7 @@ export default function ChartColorPicker({
   position,
   label,
 }: ChartColorPickerProps) {
-  const [customColorValue, setCustomColorValue] = useState(currentColor)
+  const [, setCustomColorValue] = useState(currentColor)
   const [adjustedPosition, setAdjustedPosition] = useState<{ top: number; left: number } | null>(
     position || null
   )

@@ -19,20 +19,6 @@ import TrackSelectionModal from "./TrackSelectionModal"
 import { type Track } from "./TrackRow"
 import { getContentBlockStyles, NESTED_MODAL_OVERLAY_Z_INDEX } from "@/lib/modal-styles"
 
-function ChevronDownIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="m6 9 6 6 6-6"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 export interface TrackAndFavouritesModalProps {
   isOpen: boolean
   onClose: () => void

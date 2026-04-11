@@ -64,12 +64,12 @@ export default function SessionsTable({
   selectedClass = null,
 }: SessionsTableProps) {
   const colCount = showHybridColumns ? BASE_COLUMNS + HYBRID_COLUMNS : BASE_COLUMNS
-  const [sortField, setSortField] = useState<SortField>("startTime")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [sortField] = useState<SortField>("startTime")
+  const [sortDirection] = useState<SortDirection>("asc")
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRoundHeading, setSelectedRoundHeading] = useState<string | null>(null)
   const [selectedClassFilter, setSelectedClassFilter] = useState<string | null>(null)
-  const [isGrouped, setIsGrouped] = useState(false)
+  const [isGrouped] = useState(false)
   const [groupExpanded, setGroupExpanded] = useState<Record<string, boolean>>({})
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -186,26 +186,6 @@ export default function SessionsTable({
     const endIndex = startIndex + pageSize
     return sortedSessions.slice(startIndex, endIndex)
   }, [sortedSessions, currentPage, pageSize, isGrouped])
-
-  const handleSort = useCallback(
-    (field: SortField) => {
-      if (sortField === field) {
-        setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-      } else {
-        setSortField(field)
-        setSortDirection("asc")
-      }
-      setCurrentPage(1)
-    },
-    [sortField, sortDirection]
-  )
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return "↕"
-    }
-    return sortDirection === "asc" ? "↑" : "↓"
-  }
 
   const handleToggleGroup = (className: string) => {
     setGroupExpanded((prev) => ({

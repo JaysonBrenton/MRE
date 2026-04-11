@@ -24,7 +24,8 @@ function stripSessions(
   practiceDays: Array<{ sessions?: unknown; [k: string]: unknown }>
 ): Record<string, unknown>[] {
   return practiceDays.map((pd) => {
-    const { sessions: _s, ...rest } = pd
+    const { sessions, ...rest } = pd
+    void sessions
     return rest
   })
 }
@@ -46,7 +47,12 @@ export async function POST(request: NextRequest) {
     if (!track_id) {
       return errorResponse("VALIDATION_ERROR", "track_id is required", {}, 400)
     }
-    if (!start_date || typeof start_date !== "string" || !end_date || typeof end_date !== "string") {
+    if (
+      !start_date ||
+      typeof start_date !== "string" ||
+      !end_date ||
+      typeof end_date !== "string"
+    ) {
       return errorResponse(
         "VALIDATION_ERROR",
         "start_date and end_date are required (ISO date strings)",
@@ -63,7 +69,12 @@ export async function POST(request: NextRequest) {
       return errorResponse("VALIDATION_ERROR", "Invalid start_date or end_date", {}, 400)
     }
     if (start > end) {
-      return errorResponse("VALIDATION_ERROR", "start_date must be before or equal to end_date", {}, 400)
+      return errorResponse(
+        "VALIDATION_ERROR",
+        "start_date must be before or equal to end_date",
+        {},
+        400
+      )
     }
 
     const trackSlug =
@@ -113,11 +124,16 @@ export async function POST(request: NextRequest) {
                 const idx = pending.findIndex((p) => p.year === year && p.month === month)
                 if (idx !== -1) pending.splice(idx, 1)
                 const summary = stripSessions(
-                  result.practiceDays as unknown as Array<{ sessions?: unknown; [k: string]: unknown }>
+                  result.practiceDays as unknown as Array<{
+                    sessions?: unknown
+                    [k: string]: unknown
+                  }>
                 )
                 total += result.practiceDays.length
                 controller.enqueue(
-                  encoder.encode(JSON.stringify({ type: "month", year, month, practice_days: summary }) + "\n")
+                  encoder.encode(
+                    JSON.stringify({ type: "month", year, month, practice_days: summary }) + "\n"
+                  )
                 )
               }
             }

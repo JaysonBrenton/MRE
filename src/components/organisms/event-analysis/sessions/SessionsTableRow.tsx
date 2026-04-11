@@ -59,10 +59,10 @@ function computeLapSummary(session: SessionData) {
 export default function SessionsTableRow({
   session,
   selectedDriverIds = [],
-  onNavigate,
+  onNavigate: _onNavigate,
   showHybridColumns = false,
-  eventId,
-  selectedClass = null,
+  eventId: _eventId,
+  selectedClass: _selectedClass = null,
   colCount = 7,
   onViewLapDetails,
 }: SessionsTableRowProps) {

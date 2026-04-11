@@ -146,7 +146,6 @@ const LAST_TRACK_STORAGE_KEY = "mre_last_track"
 const USE_DATE_FILTER_STORAGE_KEY = "mre_use_date_filter"
 const DATE_RANGE_PRESET_STORAGE_KEY = "mre_date_range_preset"
 const PAGINATION_STORAGE_KEY = "mre_event_search_pagination"
-const PENDING_REFRESH_DELAY_MS = 5000
 
 const KNOWN_IMPORTED_STORAGE_KEY = "mre_known_imported_events"
 const KNOWN_IMPORTED_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -187,17 +186,6 @@ function isEventFullyIngested(e: { id: string; ingestDepth?: string }): boolean 
   if (e.id.startsWith("liverc-")) return false
   const d = (e.ingestDepth ?? "").trim().toLowerCase()
   return d === "laps_full" || d === "lapsfull"
-}
-
-// Get default date range (last 30 days) - used for reset
-function getDefaultDateRange(): { startDate: string; endDate: string } {
-  const endDate = new Date()
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - 30)
-  return {
-    startDate: toLocalDateString(startDate),
-    endDate: toLocalDateString(endDate),
-  }
 }
 
 function getRangeForPreset(preset: string): { startDate: string; endDate: string } {
@@ -270,7 +258,7 @@ export default function EventSearchContainer({
   const dbEventsRef = useRef<Event[]>([]) // Ref to track DB events to ensure they're preserved
   const abortControllerRef = useRef<AbortController | null>(null) // Ref to track AbortController for cancelling LiveRC requests
   const [driverInEvents, setDriverInEvents] = useState<Record<string, boolean>>({}) // Map of sourceEventId to boolean
-  const [isCheckingEntryLists, setIsCheckingEntryLists] = useState(false) // Track if we're checking entry lists
+  const [, setIsCheckingEntryLists] = useState(false) // Track if we're checking entry lists
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [errors, setErrors] = useState<{
@@ -773,6 +761,7 @@ export default function EventSearchContainer({
 
     // Load tracks from API
     loadTracks()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: load track list once; loadTracks closes over initial selectedTrack
   }, [])
 
   // Validate selected track exists in loaded tracks whenever tracks change
@@ -2029,7 +2018,7 @@ export default function EventSearchContainer({
     maxAttempts = 100,
     pollIntervalMs = 2500,
     displayEventId?: string,
-    sourceEventId?: string
+    _sourceEventId?: string
   ) => {
     // Stop any existing polling for this event
     stopPollingEventStatus(eventId)
@@ -2195,7 +2184,6 @@ export default function EventSearchContainer({
 
             // If the event ID changed (LiveRC -> DB), replace the event
             if (result.data.id !== eventId && result.data.id !== displayEventId) {
-              const oldEventId = displayEventId || eventId
               // Need to get full event data to replace - for now just update
               updateEventInList(eventId, eventData, result.data.source_event_id)
             } else {
@@ -2247,7 +2235,7 @@ export default function EventSearchContainer({
 
   const importEvent = async (
     event: Event,
-    { refreshAfter = true }: { refreshAfter?: boolean } = {}
+    { refreshAfter: _refreshAfter = true }: { refreshAfter?: boolean } = {}
   ) => {
     if (!selectedTrack) {
       return false
@@ -2828,33 +2816,8 @@ export default function EventSearchContainer({
     }
   }
 
-  // Helper function to check if an event is importable
-  const isEventImportable = (event: Event): boolean => {
-    // Check if event is in the future - scheduled events cannot be imported
-    if (isEventInFuture(event.eventDate)) {
-      return false
-    }
-
-    const overrideStatus = eventStatusOverrides[event.id]
-    if (overrideStatus) {
-      // Only "new" status makes an event importable
-      // "importing", "imported", "failed", "scheduled", etc. make it not importable
-      if (overrideStatus === "new") {
-        return true
-      }
-      // For any other override status (importing, imported, failed, scheduled), event is not importable
-      return false
-    }
-    // Check if LiveRC-only event
-    if (event.id.startsWith("liverc-")) {
-      return true
-    }
-    // Check ingest depth
-    const normalizedDepth = event.ingestDepth?.trim().toLowerCase() || ""
-    return normalizedDepth !== "laps_full" && normalizedDepth !== "lapsfull"
-  }
-
-  // Handle check entry lists for driver
+  // Handle check entry lists for driver (referenced from setApiError onRetry callbacks)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- false positive: used in onRetry below
   const handleCheckEntryLists = async () => {
     if (!selectedTrack) return
 
@@ -3037,13 +3000,6 @@ export default function EventSearchContainer({
       })
     }
   }
-
-  // Get events count for button visibility (both LiveRC and DB events)
-  const livercEventsCount = events.filter(
-    (event) => event.id.startsWith("liverc-") && event.sourceEventId
-  ).length
-  const dbEventsCount = events.filter((event) => !event.id.startsWith("liverc-") && event.id).length
-  const totalEventsCount = livercEventsCount + dbEventsCount
 
   // When ingested-only mode, show only fully-ingested events (laps_full).
   // Excludes LiveRC-only and DB events with ingest_depth = none.

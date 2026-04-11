@@ -247,7 +247,6 @@ export async function fetchWeather(
       if (noonIndex >= 0) targetIndex = noonIndex
     }
 
-    const precipProb = precipProbArr[targetIndex] ?? 0
     const maxPrecipProb =
       precipProbArr.length > 0
         ? Math.max(

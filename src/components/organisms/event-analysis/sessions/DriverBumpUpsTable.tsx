@@ -19,7 +19,6 @@ const headerCell =
   "px-3 py-2 text-left text-xs font-semibold text-[var(--token-text-primary)] sm:text-sm"
 const headerCellNumeric = `${headerCell} tabular-nums`
 const bodyCell = "px-3 py-1.5 text-sm text-[var(--token-text-primary)]"
-const bodyCellMuted = "px-3 py-1.5 text-sm text-[var(--token-text-secondary)]"
 const bodyCellMutedNarrow = "max-w-[14rem] px-3 py-1.5 text-sm text-[var(--token-text-secondary)]"
 const bodyCellClass = "max-w-[12rem] px-3 py-1.5 text-sm text-[var(--token-text-secondary)]"
 const bodyCellNumeric =

@@ -12,7 +12,7 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Breadcrumbs from "@/components/atoms/Breadcrumbs"
 import type { TrackMapWithRelations } from "@/core/track-maps/repo"
@@ -24,13 +24,7 @@ export default function SharedTrackMapPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (shareToken) {
-      loadSharedMap()
-    }
-  }, [shareToken])
-
-  async function loadSharedMap() {
+  const loadSharedMap = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/v1/track-maps/shared/${shareToken}`)
@@ -48,7 +42,13 @@ export default function SharedTrackMapPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [shareToken])
+
+  useEffect(() => {
+    if (shareToken) {
+      void loadSharedMap()
+    }
+  }, [shareToken, loadSharedMap])
 
   if (loading) {
     return (

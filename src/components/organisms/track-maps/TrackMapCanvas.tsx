@@ -12,7 +12,7 @@
 
 "use client"
 
-import { useRef, useState, useCallback, useEffect } from "react"
+import { useRef, useState, useCallback, useEffect, useMemo } from "react"
 import { Group } from "@visx/group"
 import type { TrackMapData, TrackMapShape, TrackMapShapeType } from "@/core/track-maps/repo"
 
@@ -36,13 +36,13 @@ export default function TrackMapCanvas({
   selectedTool,
   onShapeAdd,
   onShapeSelect,
-  onShapeUpdate,
+  onShapeUpdate: _onShapeUpdate,
   onShapeDelete,
 }: TrackMapCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [currentPoints, setCurrentPoints] = useState<number[][]>([])
-  const [viewBox, setViewBox] = useState({ x: 0, y: 0, scale: 1 })
+  const viewBox = useMemo(() => ({ x: 0, y: 0, scale: 1 }), [])
 
   const canvasWidth = mapData.canvasWidth || 1000
   const canvasHeight = mapData.canvasHeight || 1000

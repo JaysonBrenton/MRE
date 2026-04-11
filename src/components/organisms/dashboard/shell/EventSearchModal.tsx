@@ -39,7 +39,7 @@ export default function EventSearchModal({
   isOpen,
   onClose,
   onSelectEvent,
-  selectedEventId,
+  selectedEventId: _selectedEventId,
 }: EventSearchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)

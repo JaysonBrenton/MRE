@@ -10,7 +10,7 @@
  * @purpose Validates weather API integration with mocked responses for current/forecast/historical.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { fetchWeather } from "@/core/weather/fetch-weather"
 
 // Mock fetch globally
@@ -139,9 +139,7 @@ describe("fetchWeather", () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => {
-            list: []
-          },
+          json: async () => ({ list: [] }),
         })
 
       const result = await fetchWeather(0, 0, new Date())

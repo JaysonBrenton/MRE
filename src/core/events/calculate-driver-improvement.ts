@@ -313,7 +313,7 @@ export async function calculateMostImprovedDrivers(
   // Sort within each class by improvement score (descending) and take top 4
   const topImprovements: MostImprovedDriver[] = []
 
-  for (const [className, classImprovements] of improvementsByClass.entries()) {
+  for (const [, classImprovements] of improvementsByClass.entries()) {
     const sorted = classImprovements.sort((a, b) => b.improvementScore - a.improvementScore)
     topImprovements.push(...sorted.slice(0, 4))
   }

@@ -909,6 +909,7 @@ export default function DriverCardsAndWeatherGrid({
     selectedClass,
     prefersReducedMotion,
     isCarouselVisible,
+    sectionRefs,
   ])
 
   // Update current section based on scroll position

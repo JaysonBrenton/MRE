@@ -25,7 +25,7 @@ import DriverNameFilter from "./DriverNameFilter"
 import ViewModeToggle from "./ViewModeToggle"
 import ListPagination from "../ListPagination"
 import { formatLapTime } from "@/lib/format-session-data"
-import type { DriverLapData, RaceLapData, LapData } from "@/core/events/get-lap-data"
+import type { DriverLapData, RaceLapData } from "@/core/events/get-lap-data"
 
 export interface LapDataTableProps {
   eventId: string
@@ -73,8 +73,8 @@ export default function LapDataTable({
   const [expandedRaces, setExpandedRaces] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [sortField, setSortField] = useState<"driver" | "bestLap" | "totalLaps">("driver")
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+  const [sortField] = useState<"driver" | "bestLap" | "totalLaps">("driver")
+  const [sortDirection] = useState<"asc" | "desc">("asc")
 
   // Fetch lap data
   useEffect(() => {
@@ -317,20 +317,6 @@ export default function LapDataTable({
       })
     },
     [raceGroupedData]
-  )
-
-  // Handle sort
-  const handleSort = useCallback(
-    (field: typeof sortField) => {
-      if (sortField === field) {
-        setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
-      } else {
-        setSortField(field)
-        setSortDirection("asc")
-      }
-      setCurrentPage(1)
-    },
-    [sortField]
   )
 
   // Calculate time delta from best lap

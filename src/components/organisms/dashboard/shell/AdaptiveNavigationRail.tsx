@@ -612,7 +612,6 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
               item.href === "/under-development?from=/eventAnalysis/my-club" ||
               item.href.startsWith("/eventAnalysis/my-club")
             ) {
-              const isExternal = false
               const fromParam = searchParams.get("from")
               const myClubActive =
                 (pathname === "/under-development" && fromParam === "/eventAnalysis/my-club") ||

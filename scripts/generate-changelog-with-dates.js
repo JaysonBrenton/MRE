@@ -59,14 +59,14 @@ function detectCommitType(message) {
   }
 
   // Check for keywords in message
-  for (const [type, section] of Object.entries(TYPE_MAPPINGS)) {
+  for (const [type] of Object.entries(TYPE_MAPPINGS)) {
     if (lowerMessage.startsWith(type + ":") || lowerMessage.startsWith(type + " ")) {
       return type
     }
   }
 
   // Fallback: check for keywords anywhere in message
-  for (const [type, section] of Object.entries(TYPE_MAPPINGS)) {
+  for (const [type] of Object.entries(TYPE_MAPPINGS)) {
     if (
       lowerMessage.includes(type) &&
       (lowerMessage.includes("add") ||
@@ -200,12 +200,10 @@ function groupCommitsByVersion(commits, tags) {
         date,
         commits: commits.filter((c) => tagCommits.includes(c.fullHash)),
       }
-    } catch (error) {
+    } catch (_error) {
       // Fallback: use date-based grouping
       try {
         const tagDate = date ? new Date(date) : null
-        const nextTagDate =
-          i > 0 && sortedTags[i - 1].date ? new Date(sortedTags[i - 1].date) : new Date()
 
         grouped.versions[tag] = {
           date,

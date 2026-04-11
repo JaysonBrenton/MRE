@@ -144,7 +144,7 @@ export default function EventRow({
       return undefined
     }
 
-    const { stage, counts } = importProgress
+    const { stage } = importProgress
 
     // Stage-based progress estimation
     if (stage) {

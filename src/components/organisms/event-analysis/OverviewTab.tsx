@@ -948,6 +948,7 @@ export default function OverviewTab({
     inSessionAnalysisSection,
     eventAnalysisTab,
     variant,
+    overviewPrimarySection,
     data.event.id,
     sessionLapTrendChartDriverIds,
     sessionDriverAnalysisPickedRaceId,

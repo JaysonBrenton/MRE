@@ -54,7 +54,7 @@ export default function ShareMapDialog({ isOpen, onClose, mapId, mapName }: Shar
       await navigator.clipboard.writeText(shareUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
+    } catch (_err) {
       alert("Failed to copy link")
     }
   }

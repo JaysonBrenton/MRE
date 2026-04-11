@@ -25,13 +25,10 @@ export default function PracticeMySessionsTab({
   data,
   selectedDriverId,
   selectedClass,
-  onClassChange,
+  onClassChange: _onClassChange,
   eventId,
 }: PracticeMySessionsTabProps) {
-  const driverIds = useMemo(
-    () => (selectedDriverId ? [selectedDriverId] : []),
-    [selectedDriverId]
-  )
+  const driverIds = useMemo(() => (selectedDriverId ? [selectedDriverId] : []), [selectedDriverId])
 
   const sessionsData = useMemo(
     () => getSessionsData(data, driverIds, selectedClass),
@@ -57,7 +54,8 @@ export default function PracticeMySessionsTab({
         <LinkYourDriverPrompt />
         <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
           <p className="text-sm text-[var(--token-text-secondary)]">
-            Select a driver above to see their sessions in chronological order, or view All Sessions for the full list.
+            Select a driver above to see their sessions in chronological order, or view All Sessions
+            for the full list.
           </p>
         </div>
       </div>
@@ -72,9 +70,7 @@ export default function PracticeMySessionsTab({
       aria-labelledby="tab-my-sessions"
     >
       <div>
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">
-          My Sessions
-        </h2>
+        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">My Sessions</h2>
         <p className="text-sm text-[var(--token-text-secondary)]">
           Your sessions in chronological order. Best lap, average lap, and consistency per session.
         </p>

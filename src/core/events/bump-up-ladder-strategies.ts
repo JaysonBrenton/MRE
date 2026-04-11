@@ -4,8 +4,6 @@
  * @see docs/plans/bump-ups-liverc-main-events-solution.md
  */
 
-import { parseMainBracketLeg } from "./main-bracket-overall"
-
 /** LiveRC "Main Events" heat sheet section (case-insensitive). */
 export function isMainEventsSection(sectionHeader: string | null | undefined): boolean {
   const s = (sectionHeader ?? "").trim().toLowerCase()
