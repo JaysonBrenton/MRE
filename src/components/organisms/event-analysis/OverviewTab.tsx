@@ -236,6 +236,7 @@ export default function OverviewTab({
   const inSessionAnalysisSection =
     variant === "session-analysis-only" || overviewPrimarySection === "session-analysis"
   const [isVenueInfoOpen, setIsVenueInfoOpen] = useState(true)
+  const [isHostTrackOpen, setIsHostTrackOpen] = useState(true)
   const [isEventWeatherDataOpen, setIsEventWeatherDataOpen] = useState(true)
   const isControlledAnalysisSubTab =
     analysisSubTabProp !== undefined && onAnalysisSubTabChange !== undefined
@@ -1885,19 +1886,14 @@ export default function OverviewTab({
                               className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
                               aria-hidden
                             />
-                            <span className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-[var(--token-text-primary)]">
-                                {data.event.address}
-                              </span>
-                              <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.event.address!)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[var(--token-accent)] underline-offset-2 hover:underline"
-                              >
-                                Open in Maps
-                              </a>
-                            </span>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.event.address!)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                            >
+                              {data.event.address}
+                            </a>
                           </div>
                         )}
                         {hasPhone && (
@@ -1969,6 +1965,152 @@ export default function OverviewTab({
                   </div>
                 )
               })()}
+
+              {/* User-selected host track (catalogue); only when set */}
+              {data.userHostTrack &&
+                (() => {
+                  const h = data.userHostTrack
+                  const hasAddress = !!(
+                    h.address &&
+                    typeof h.address === "string" &&
+                    h.address.trim()
+                  )
+                  const hasPhone = !!(h.phone && typeof h.phone === "string" && h.phone.trim())
+                  const hasWebsite = !!(
+                    h.website &&
+                    typeof h.website === "string" &&
+                    h.website.trim()
+                  )
+                  const hasEmail = !!(h.email && typeof h.email === "string" && h.email.trim())
+                  const hasFacebook = !!(
+                    h.facebookUrl &&
+                    typeof h.facebookUrl === "string" &&
+                    h.facebookUrl.trim()
+                  )
+                  const hasHostBlock =
+                    h.trackName || hasAddress || hasPhone || hasWebsite || hasEmail || hasFacebook
+                  if (!hasHostBlock) return null
+                  const hostContentId = "host-track-content"
+                  return (
+                    <div className="w-full shrink-0 basis-full border-t border-[var(--token-border-muted)] pt-3">
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--token-text-muted)] transition-colors hover:text-[var(--token-text-secondary)]"
+                        aria-expanded={isHostTrackOpen}
+                        aria-controls={hostContentId}
+                        onClick={() => setIsHostTrackOpen((prev) => !prev)}
+                      >
+                        <span>Host track</span>
+                        <span
+                          className={`shrink-0 transition-transform duration-150 ${
+                            isHostTrackOpen ? "rotate-0" : "-rotate-90"
+                          }`}
+                          aria-hidden
+                        >
+                          ▾
+                        </span>
+                      </button>
+                      {isHostTrackOpen && (
+                        <div
+                          id={hostContentId}
+                          className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2"
+                        >
+                          {h.trackName && (
+                            <div className="flex items-start gap-2 sm:col-span-2">
+                              <MapPin
+                                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                                aria-hidden
+                              />
+                              <span className="font-medium text-[var(--token-text-primary)]">
+                                {h.trackName}
+                              </span>
+                            </div>
+                          )}
+                          {hasAddress && (
+                            <div className="flex items-start gap-2">
+                              <MapPin
+                                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                                aria-hidden
+                              />
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.address!)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                              >
+                                {h.address}
+                              </a>
+                            </div>
+                          )}
+                          {hasPhone && (
+                            <div className="flex items-start gap-2">
+                              <Phone
+                                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                                aria-hidden
+                              />
+                              <a
+                                href={`tel:${h.phone!.replace(/\s/g, "")}`}
+                                className="text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                              >
+                                {h.phone}
+                              </a>
+                            </div>
+                          )}
+                          {hasWebsite && (
+                            <div className="flex items-start gap-2">
+                              <Globe
+                                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                                aria-hidden
+                              />
+                              <a
+                                href={
+                                  h.website!.startsWith("http")
+                                    ? h.website!
+                                    : `https://${h.website}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                              >
+                                {h.website}
+                              </a>
+                            </div>
+                          )}
+                          {hasFacebook && (
+                            <div className="flex items-start gap-2">
+                              <Facebook
+                                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                                aria-hidden
+                              />
+                              <a
+                                href={h.facebookUrl!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                              >
+                                View on Facebook
+                              </a>
+                            </div>
+                          )}
+                          {hasEmail && (
+                            <div className="flex items-start gap-2">
+                              <Mail
+                                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                                aria-hidden
+                              />
+                              <a
+                                href={`mailto:${h.email}`}
+                                className="truncate text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
+                              >
+                                {h.email}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
 
               {/* Collapsible Event Weather Data */}
               <div className="w-full shrink-0 basis-full border-t border-[var(--token-border-muted)] pt-3">
@@ -2922,7 +3064,6 @@ export default function OverviewTab({
                             sessionDriverAnalysisScopedRaces,
                             "Choose session for compare chart"
                           )}
-                          liveRcSessionScope
                         />
                       </ChartSection>
                     </div>

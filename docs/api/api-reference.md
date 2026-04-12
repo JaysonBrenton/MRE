@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-04-07
+lastModified: 2026-04-14
 description: Complete API reference documentation for all MRE API endpoints
 purpose:
   Provides a comprehensive catalog of all API endpoints, including
@@ -11,6 +11,8 @@ purpose:
   partners.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md (API standards)
+  - docs/architecture/venue-correction-deprecation.md (venue correction APIs
+    deprecated)
   - docs/architecture/car-taxonomy-user-mapping.md (car taxonomy APIs)
   - docs/architecture/liverc-ingestion/05-api-contracts.md (LiveRC ingestion
     APIs)
@@ -20,13 +22,16 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2026-04-07 — Includes car taxonomy and user car-taxonomy-rules
-endpoints; event analysis notes `userCarTaxonomy` on races. Aligned with
-`src/app/api/**/route.ts` and
+**Last Updated:** 2026-04-12 — Telemetry MVP (`GET /telemetry/sessions`, session
+detail + datasets, `GET .../map`, My Telemetry UI). **2026-04-13:** Venue
+correction endpoints are **deprecated** (see
+[`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md));
+replacement direction is per-user host track. **2026-04-07:** car taxonomy and
+user car-taxonomy-rules endpoints; event analysis notes `userCarTaxonomy` on
+races. Aligned with `src/app/api/**/route.ts` and
 [`docs/reference/generated/api-routes.manifest.json`](../reference/generated/api-routes.manifest.json):
-documented event entry list, laps, lap trend, track leaderboard, venue
-correction, leaderboards, practice day discover-range, ingestion job status,
-track maps, and admin venue-correction-requests. Removed obsolete
+documented event entry list, laps, lap trend, track leaderboard, leaderboards,
+practice day discover-range, ingestion job status, track maps. Removed obsolete
 `/api/v1/tracks/[trackId]/performance-trends` (no route implementation).  
 **API Version:** v1  
 **Base URL:** `/api/v1/` (relative to application root)
@@ -55,10 +60,11 @@ guidelines and use standardized request/response formats.
 14. [Leaderboard Endpoints](#leaderboard-endpoints)
 15. [Track Maps Endpoints](#track-maps-endpoints)
 16. [Ingestion Job Status](#ingestion-job-status)
-17. [Health Check](#health-check)
-18. [Error Handling](#error-handling)
-19. [Authentication Requirements](#authentication-requirements)
-20. [Rate Limiting](#rate-limiting)
+17. [Telemetry (stage 1)](#telemetry-stage-1)
+18. [Health Check](#health-check)
+19. [Error Handling](#error-handling)
+20. [Authentication Requirements](#authentication-requirements)
+21. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -1107,6 +1113,12 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/even
 
 ### GET /api/v1/events/[eventId]/venue-correction
 
+> **Deprecated.** Full venue correction is deprecated; do not integrate new
+> clients. See
+> [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md).
+> Replacement: per-user **host track**
+> ([`event-host-track-user-override.md`](../architecture/event-host-track-user-override.md)).
+
 Gets approved venue correction (if any) and the current user’s pending request
 for this event, plus whether the user may submit.
 
@@ -1115,6 +1127,8 @@ for this event, plus whether the user may submit.
 ---
 
 ### POST /api/v1/events/[eventId]/venue-correction
+
+> **Deprecated.** See GET note above.
 
 Submits a venue correction request for admin review.
 
@@ -1131,6 +1145,8 @@ Submits a venue correction request for admin review.
 ---
 
 ### DELETE /api/v1/events/[eventId]/venue-correction
+
+> **Deprecated.** See GET note above.
 
 Deletes the current user’s **pending** venue correction request for this event.
 
@@ -4034,6 +4050,9 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admi
 
 ### GET /api/v1/admin/venue-correction-requests
 
+> **Deprecated.** Admin venue correction is deprecated end-to-end. See
+> [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md).
+
 Lists venue correction requests (admin only).
 
 **Authentication:** Required (Admin only)
@@ -4045,6 +4064,8 @@ Lists venue correction requests (admin only).
 ---
 
 ### PATCH /api/v1/admin/venue-correction-requests/[id]
+
+> **Deprecated.** See GET admin venue-correction-requests note above.
 
 Approves or rejects a venue correction request (admin only).
 
@@ -4167,6 +4188,99 @@ ingestion HTTP API.
 ```bash
 curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/ingestion/jobs/job-uuid"
 ```
+
+---
+
+## Telemetry (stage 1)
+
+GNSS/IMU file intake: metadata in Postgres, raw bytes on a shared volume
+(`TELEMETRY_UPLOAD_ROOT`, default `/data/telemetry` in Docker), processing by
+the **`telemetry-worker`** container (`artifact_validate` job). Normative API
+details:
+[`docs/telemetry/Design/API_Contract_Telemetry.md`](../telemetry/Design/API_Contract_Telemetry.md).
+Implementation status:
+[`docs/implimentation_plans/telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md).
+
+### POST /api/v1/telemetry/uploads
+
+Creates a `telemetry_artifacts` row (no session yet) and returns the upload id
+and absolute `uploadUrl` for the bytes step.
+
+**Authentication:** Required
+
+**Request JSON:**
+
+```json
+{ "originalFileName": "session.csv", "contentType": "text/csv" }
+```
+
+**Success `data`:** `uploadId`, `uploadUrl`, `method` (`PUT`), `storagePath`
+(relative key under `TELEMETRY_UPLOAD_ROOT`).
+
+### PUT /api/v1/telemetry/uploads/[uploadId]/bytes
+
+Request body is the raw file bytes. Updates `byte_size` and `sha256` on the
+artifact.
+
+**Authentication:** Required
+
+**Errors:** `404` (not found), `409` (already finalised).
+
+### POST /api/v1/telemetry/uploads/[uploadId]/finalise
+
+Creates `telemetry_sessions`, links the artifact, creates
+`telemetry_processing_runs`, enqueues `telemetry_jobs` (`artifact_validate`).
+Optional JSON body `{ "name": "My session" }` or empty body.
+
+**Authentication:** Required
+
+**Success `data`:** `sessionId`, `runId` (when not idempotent),
+`sessionPollUrl`, `idempotent`.
+
+### GET /api/v1/telemetry/sessions
+
+Lists the signed-in user’s telemetry sessions (newest first).
+
+**Authentication:** Required
+
+**Query parameters (MVP):**
+
+| Parameter | Description                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `limit`   | Page size (default `50`, max `200`)                                                                 |
+| `cursor`  | Opaque cursor from the previous response’s `nextCursor`                                             |
+| `status`  | Optional filter: `uploading`, `processing`, `ready`, `failed`, … (matches `TelemetrySessionStatus`) |
+
+**Success `data`:** `{ items: [...], nextCursor: string | null }`  
+Each item includes `id`, `name`, `status`, `startTimeUtc`, `endTimeUtc`,
+`createdAt`, and `summary: { datasetCount, hasGnss }`.
+
+### GET /api/v1/telemetry/sessions/[sessionId]
+
+Returns session metadata, `datasets[]` (type, `parquetRelativePath` when the run
+succeeded), `currentRun` summary, and `failure` `{ code, message }` when
+`status` is `failed`. User-facing `message` is derived from stable worker codes
+(see `src/core/telemetry/telemetry-failure-messages.ts`).
+
+**Authentication:** Required
+
+### GET /api/v1/telemetry/sessions/[sessionId]/map
+
+Returns a **downsampled** GNSS polyline for map/path preview from canonical
+`gnss_pvt.parquet` (bounded read; not full resolution analytics).
+
+**Authentication:** Required
+
+**Query parameters:**
+
+| Parameter    | Description                                                     |
+| ------------ | --------------------------------------------------------------- |
+| `max_points` | Optional cap on polyline points (default ~2000, hard max 10000) |
+
+**Success `data`:**
+`{ meta: { level, pointCount, rowCount, timeBounds }, data: { lat_deg, lon_deg } }`  
+**Errors:**
+`404` (session or file), `409` (session not `ready`), `413` (file/row limits).
 
 ---
 

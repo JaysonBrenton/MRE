@@ -65,6 +65,8 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3001}
       # Ingestion service URL (internal Docker network)
       INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://liverc-ingestion-service:8000}
+      # Telemetry raw uploads (shared with telemetry-worker; stage 1)
+      TELEMETRY_UPLOAD_ROOT: ${TELEMETRY_UPLOAD_ROOT:-/data/telemetry}
       # Feature flags (NEXT_PUBLIC_ prefix required for client-side access)
       NEXT_PUBLIC_ENABLE_PRACTICE_DAYS: ${NEXT_PUBLIC_ENABLE_PRACTICE_DAYS:-true}
       # AUTH_SECRET is loaded from .env.docker via env_file directive
@@ -78,6 +80,8 @@ services:
       # Exclude node_modules and .next to use container versions
       - /app/node_modules
       - /app/.next
+      # Telemetry uploads (same volume as telemetry-worker)
+      - mre-telemetry-uploads:/data/telemetry
     networks:
       - mre-network
     restart: unless-stopped
@@ -146,6 +150,7 @@ services:
       # Track sync report retention (days)
       TRACK_SYNC_REPORT_RETENTION_DAYS: ${TRACK_SYNC_REPORT_RETENTION_DAYS:-30}
       SITE_POLICY_PATH: ${SITE_POLICY_PATH:-/app/policies/site_policy/policy.json}
+      TELEMETRY_UPLOAD_ROOT: ${TELEMETRY_UPLOAD_ROOT:-/data/telemetry}
     ports:
       - "${INGESTION_PORT:-8000}:8000"
     volumes:
@@ -155,6 +160,7 @@ services:
       - ./docs/reports:/app/docs/reports
       # Mount site policy config so ingestion honors shared throttling rules
       - ./policies:/app/policies:ro
+      - mre-telemetry-uploads:/data/telemetry
     networks:
       - mre-network
     restart: unless-stopped
@@ -177,8 +183,45 @@ services:
           # Minimum guaranteed memory
           memory: 256M
 
+  # Telemetry pipeline worker (validate → parse_raw → Parquet + datasets). Same image as ingestion.
+  telemetry-worker:
+    build:
+      context: ./ingestion
+      dockerfile: Dockerfile
+      target: ${INGESTION_BUILD_TARGET:-development}
+    container_name: mre-telemetry-worker
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    dns_search: []
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pacetracer}:${POSTGRES_PASSWORD:-change-me}@mre-postgres:5432/${POSTGRES_DB:-pacetracer}?connection_limit=5&pool_timeout=10
+      PYTHONUNBUFFERED: 1
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TZ: ${TZ:-Australia/Sydney}
+      TELEMETRY_UPLOAD_ROOT: ${TELEMETRY_UPLOAD_ROOT:-/data/telemetry}
+      TELEMETRY_WORKER_ID: ${TELEMETRY_WORKER_ID:-telemetry-worker-1}
+      TELEMETRY_WORKER_POLL_INTERVAL_SEC: ${TELEMETRY_WORKER_POLL_INTERVAL_SEC:-2}
+    # Override ingestion image ENTRYPOINT (cron-entrypoint.sh); otherwise `command` is ignored.
+    entrypoint: ["python", "-m", "ingestion.telemetry.worker"]
+    working_dir: /app
+    volumes:
+      - ./ingestion:/app/ingestion
+      - ./policies:/app/policies:ro
+      - mre-telemetry-uploads:/data/telemetry
+    networks:
+      - mre-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   mre-postgres-data:
+  mre-telemetry-uploads:
 
 networks:
   mre-network:

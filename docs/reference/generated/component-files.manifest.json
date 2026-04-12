@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-22T10:14:33.213Z",
+  "generatedAt": "2026-04-12T05:58:57.537Z",
   "source": "src/components",
   "exclusions": "Excludes: *.test.ts, *.test.tsx, __tests__/**, organisms/**/overview-testing/**",
-  "count": 155,
+  "count": 172,
   "components": [
     {
       "file": "src/components/AdminNav.tsx",
@@ -200,11 +200,6 @@
       "featureArea": "admin"
     },
     {
-      "file": "src/components/organisms/admin/VenueCorrectionRequestsTable.tsx",
-      "tier": "organism:admin",
-      "featureArea": "admin"
-    },
-    {
       "file": "src/components/organisms/dashboard/DashboardClient.tsx",
       "tier": "organism:dashboard",
       "featureArea": "dashboard"
@@ -285,12 +280,42 @@
       "featureArea": "dashboard"
     },
     {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/MyClubNavSection.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/NavigationRailGuidesSection.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/NavigationRailNavItems.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/navigationRailConfig.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/useMobileNavFocusTrap.ts",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
       "file": "src/components/organisms/event-analysis/AvgVsFastestChart.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
     {
       "file": "src/components/organisms/event-analysis/BestLapBarChart.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/CarTaxonomyModal.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -335,17 +360,12 @@
       "featureArea": "event-analysis"
     },
     {
-      "file": "src/components/organisms/event-analysis/ClassMostImprovedCard.tsx",
-      "tier": "organism:event-analysis",
-      "featureArea": "event-analysis"
-    },
-    {
-      "file": "src/components/organisms/event-analysis/ClassTopAverageLapsCard.tsx",
-      "tier": "organism:event-analysis",
-      "featureArea": "event-analysis"
-    },
-    {
       "file": "src/components/organisms/event-analysis/ClassTopFastestLapsCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ClubHighlightsTab.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -370,11 +390,6 @@
       "featureArea": "event-analysis"
     },
     {
-      "file": "src/components/organisms/event-analysis/CorrectVenueModal.tsx",
-      "tier": "organism:event-analysis",
-      "featureArea": "event-analysis"
-    },
-    {
       "file": "src/components/organisms/event-analysis/CountryLeaderboardCard.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -386,6 +401,11 @@
     },
     {
       "file": "src/components/organisms/event-analysis/DriverList.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/DriverProgressionTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -440,6 +460,16 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/EventHighlightsMixCharts.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventHighlightsSection.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/EventMostImprovedTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -450,7 +480,27 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/EventTopAverageLapsPerClassTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventTopFastestLapsPerClassTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventTopMostImprovedPerClassTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/HeatsCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/HostTrackModal.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -485,22 +535,17 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/MainBracketResultsTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/MainPodiumCard.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
     {
       "file": "src/components/organisms/event-analysis/MainsCard.tsx",
-      "tier": "organism:event-analysis",
-      "featureArea": "event-analysis"
-    },
-    {
-      "file": "src/components/organisms/event-analysis/MainBracketResultsTable.tsx",
-      "tier": "organism:event-analysis",
-      "featureArea": "event-analysis"
-    },
-    {
-      "file": "src/components/organisms/event-analysis/SessionRaceResultsTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -550,6 +595,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/SessionRaceResultsTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/SessionsTab.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -581,6 +631,26 @@
     },
     {
       "file": "src/components/organisms/event-analysis/WeatherCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/car-taxonomy-modal/carTaxonomyModalStyles.ts",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/car-taxonomy-modal/humanizeSuggestionReason.ts",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/event-analysis-sub-tabs.ts",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/sessions/DriverBumpUpsTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -738,6 +808,16 @@
       "file": "src/components/organisms/search/SearchResultsTable.tsx",
       "tier": "organism:search",
       "featureArea": "search"
+    },
+    {
+      "file": "src/components/organisms/telemetry/TelemetrySessionDetailClient.tsx",
+      "tier": "organism:telemetry",
+      "featureArea": "telemetry"
+    },
+    {
+      "file": "src/components/organisms/telemetry/TelemetrySessionsPageClient.tsx",
+      "tier": "organism:telemetry",
+      "featureArea": "telemetry"
     },
     {
       "file": "src/components/organisms/track-maps/ShapePropertiesPanel.tsx",

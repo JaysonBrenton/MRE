@@ -42,12 +42,13 @@ model User {
   carProfiles       CarProfile[]
   driverProfiles    DriverProfile[]
   trackMaps         TrackMap[]
-  eventVenueCorrectionsSubmitted EventVenueCorrection[] @relation("EventVenueCorrectionsSubmitted")
-  eventVenueCorrectionsApproved  EventVenueCorrection[] @relation("EventVenueCorrectionsApproved")
-  eventVenueCorrectionRequestsSubmitted EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestSubmitted")
-  eventVenueCorrectionRequestsReviewed  EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestReviewed")
   eventsImported                      Event[]                       @relation("EventImportedBy")
   carTaxonomyRules                    UserCarTaxonomyRule[]
+  userEventHostTracks                 UserEventHostTrack[]
+  telemetrySessionsOwned              TelemetrySession[]      @relation("TelemetrySessionOwner")
+  telemetryArtifactsOwned           TelemetryArtifact[]     @relation("TelemetryArtifactOwner")
+  telemetryDevicesOwned             TelemetryDevice[]       @relation("TelemetryDeviceOwner")
+  telemetryProcessingRunsRequested  TelemetryProcessingRun[] @relation("TelemetryRunRequestedBy")
 
   @@index([normalizedName])
   @@index([transponderNumber])
@@ -81,6 +82,7 @@ model DriverProfile {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telemetrySessions TelemetrySession[]
 
   @@index([userId])
   @@map("driver_profiles")
@@ -117,8 +119,8 @@ model Track {
   updatedAt              DateTime  @updatedAt @map("updated_at")
   events                 Event[]
   trackMaps              TrackMap[]
-  eventVenueCorrectionsAsVenue EventVenueCorrection[] @relation("EventVenueCorrectionVenueTrack")
-  eventVenueCorrectionRequestsAsVenue EventVenueCorrectionRequest[] @relation("EventVenueCorrectionRequestVenueTrack")
+  userEventHostTracks    UserEventHostTrack[]
+  telemetrySessions      TelemetrySession[]
 
   @@unique([source, sourceTrackSlug])
   @@index([source, sourceTrackSlug])
@@ -165,8 +167,7 @@ model Event {
   multiMainResults     MultiMainResult[]
   qualPoints           EventQualPoints[]
   roundRankings        EventRoundRanking[]
-  eventVenueCorrection EventVenueCorrection?
-  eventVenueCorrectionRequest EventVenueCorrectionRequest?
+  userEventHostTracks UserEventHostTrack[]
 
   @@unique([source, sourceEventId])
   @@index([source, sourceEventId])
@@ -563,51 +564,23 @@ model EventDriverLink {
   @@map("event_driver_links")
 }
 
-model EventVenueCorrection {
-  id               String   @id @default(uuid())
-  eventId          String   @unique @map("event_id")
-  venueTrackId     String?  @map("venue_track_id")
-  submittedByUserId String  @map("submitted_by_user_id")
-  approvedAt       DateTime @map("approved_at")
-  approvedByUserId String   @map("approved_by_user_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+/// Per-user designation of which catalogue track was the physical host for an event (LiveRC venue may be organiser office).
+model UserEventHostTrack {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  eventId     String   @map("event_id")
+  hostTrackId String   @map("host_track_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  event      Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  venueTrack Track? @relation("EventVenueCorrectionVenueTrack", fields: [venueTrackId], references: [id], onDelete: SetNull)
-  submittedBy User @relation("EventVenueCorrectionsSubmitted", fields: [submittedByUserId], references: [id], onDelete: Cascade)
-  approvedBy  User @relation("EventVenueCorrectionsApproved", fields: [approvedByUserId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  hostTrack Track  @relation(fields: [hostTrackId], references: [id], onDelete: Restrict)
 
+  @@unique([userId, eventId])
+  @@index([userId])
   @@index([eventId])
-  @@map("event_venue_corrections")
-}
-
-model EventVenueCorrectionRequest {
-  id               String   @id @default(uuid())
-  eventId          String   @unique @map("event_id")
-  venueTrackId     String?  @map("venue_track_id")
-  submittedByUserId String  @map("submitted_by_user_id")
-  status           EventVenueCorrectionRequestStatus @default(pending)
-  reviewedAt       DateTime? @map("reviewed_at")
-  reviewedByUserId String?  @map("reviewed_by_user_id")
-  adminNotes       String?  @map("admin_notes") @db.Text
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  event      Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  venueTrack Track? @relation("EventVenueCorrectionRequestVenueTrack", fields: [venueTrackId], references: [id], onDelete: SetNull)
-  submittedBy User @relation("EventVenueCorrectionRequestSubmitted", fields: [submittedByUserId], references: [id], onDelete: Cascade)
-  reviewedBy  User? @relation("EventVenueCorrectionRequestReviewed", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-
-  @@index([status])
-  @@index([eventId])
-  @@map("event_venue_correction_requests")
-}
-
-enum EventVenueCorrectionRequestStatus {
-  pending
-  approved
-  rejected
+  @@map("user_event_host_tracks")
 }
 
 enum PersonaType {
@@ -788,4 +761,270 @@ model TrackMap {
   @@index([isPublic])
   @@index([shareToken])
   @@map("track_maps")
+}
+
+// --- Telemetry (GNSS/IMU import) — see docs/telemetry/ ---
+
+enum TelemetrySessionPrivacy {
+  PRIVATE
+  TEAM
+  PUBLIC
+}
+
+enum TelemetrySessionStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+  DELETED
+}
+
+enum TelemetryArtifactRole {
+  GNSS
+  IMU
+  FUSED
+  MIXED
+  UNKNOWN
+}
+
+enum TelemetryArtifactStatus {
+  UPLOADED
+  CANONICALISED
+  REJECTED
+  DELETED
+}
+
+enum TelemetryDeviceType {
+  PHONE
+  RACEBOX
+  CUSTOM
+  OTHER
+}
+
+enum TelemetryProcessingRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum TelemetryJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum TelemetryDatasetType {
+  CANON_GNSS
+  CANON_ACCEL
+  CANON_GYRO
+  CANON_MAG
+  FUSED_POSE
+  LAP_EVENTS
+  DOWNSAMPLE_GNSS
+  DOWNSAMPLE_ACCEL
+  DOWNSAMPLE_GYRO
+  DOWNSAMPLE_MAG
+  DOWNSAMPLE_POSE
+}
+
+enum TelemetryDatasetSensorType {
+  GNSS
+  IMU
+  FUSION
+}
+
+enum TelemetryLapValidity {
+  VALID
+  INVALID
+  OUTLAP
+  INLAP
+}
+
+model TelemetryDevice {
+  id               String            @id @default(uuid())
+  ownerUserId      String            @map("owner_user_id")
+  deviceType       TelemetryDeviceType @map("device_type")
+  make             String?
+  model            String?
+  serial           String?
+  firmwareVersion  String?           @map("firmware_version")
+  capabilities     Json?
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  owner            User              @relation("TelemetryDeviceOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  artifacts        TelemetryArtifact[]
+  sessionsPrimary  TelemetrySession[] @relation("TelemetrySessionPrimaryDevice")
+
+  @@index([ownerUserId])
+  @@index([deviceType])
+  @@map("telemetry_devices")
+}
+
+model TelemetrySession {
+  id               String                   @id @default(uuid())
+  ownerUserId      String                   @map("owner_user_id")
+  driverProfileId  String?                  @map("driver_profile_id")
+  trackId          String?                  @map("track_id")
+  name             String?
+  notes            String?
+  privacy          TelemetrySessionPrivacy    @default(PRIVATE)
+  startTimeUtc     DateTime                 @map("start_time_utc")
+  endTimeUtc       DateTime                 @map("end_time_utc")
+  timeZone         String?                  @map("time_zone")
+  primaryDeviceId  String?                  @map("primary_device_id")
+  currentRunId     String?                  @unique @map("current_run_id")
+  status           TelemetrySessionStatus     @default(UPLOADING)
+  deletedAt        DateTime?                @map("deleted_at")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+
+  owner            User                     @relation("TelemetrySessionOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  driverProfile    DriverProfile?           @relation(fields: [driverProfileId], references: [id], onDelete: SetNull)
+  track            Track?                   @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  primaryDevice    TelemetryDevice?         @relation("TelemetrySessionPrimaryDevice", fields: [primaryDeviceId], references: [id], onDelete: SetNull)
+  currentRun       TelemetryProcessingRun?  @relation("TelemetrySessionCurrentRun", fields: [currentRunId], references: [id], onDelete: SetNull)
+  runs             TelemetryProcessingRun[] @relation("TelemetrySessionRuns")
+  artifacts        TelemetryArtifact[]
+  datasets         TelemetryDataset[]
+  laps             TelemetryLap[]
+
+  @@index([ownerUserId, startTimeUtc(sort: Desc)])
+  @@index([trackId, startTimeUtc(sort: Desc)])
+  @@index([currentRunId])
+  @@map("telemetry_sessions")
+}
+
+model TelemetryArtifact {
+  id               String                 @id @default(uuid())
+  sessionId        String?                @map("session_id")
+  ownerUserId      String                 @map("owner_user_id")
+  deviceId         String?                @map("device_id")
+  artifactRole     TelemetryArtifactRole  @default(UNKNOWN) @map("artifact_role")
+  originalFileName String                 @map("original_file_name")
+  contentType      String                 @map("content_type")
+  byteSize         BigInt                 @map("byte_size")
+  sha256           String
+  uploadedAt       DateTime               @default(now()) @map("uploaded_at")
+  storagePath      String                 @map("storage_path")
+  formatDetected   String?                @map("format_detected")
+  status           TelemetryArtifactStatus @default(UPLOADED)
+  discardedAt      DateTime?              @map("discarded_at")
+  ingestWarnings   Json?                  @map("ingest_warnings")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+
+  session          TelemetrySession?      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  owner            User                   @relation("TelemetryArtifactOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  device           TelemetryDevice?       @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, sha256, byteSize])
+  @@index([sessionId, uploadedAt])
+  @@index([ownerUserId, uploadedAt])
+  @@map("telemetry_artifacts")
+}
+
+model TelemetryProcessingRun {
+  id                    String                     @id @default(uuid())
+  sessionId             String                     @map("session_id")
+  status                TelemetryProcessingRunStatus
+  requestedByUserId     String?                    @map("requested_by_user_id")
+  startedAt             DateTime?                  @map("started_at")
+  finishedAt            DateTime?                  @map("finished_at")
+  pipelineVersion       String                     @map("pipeline_version")
+  canonicaliserVersion  String                     @map("canonicaliser_version")
+  fusionVersion         String?                    @map("fusion_version")
+  lapDetectorVersion    String?                    @map("lap_detector_version")
+  inputArtifactIds      Json                       @map("input_artifact_ids")
+  outputDatasetIds      Json?                      @map("output_dataset_ids")
+  qualitySummary        Json?                      @map("quality_summary")
+  errorCode             String?                    @map("error_code")
+  errorDetail           String?                    @map("error_detail")
+  createdAt             DateTime                   @default(now()) @map("created_at")
+  updatedAt             DateTime                   @updatedAt @map("updated_at")
+
+  session               TelemetrySession           @relation("TelemetrySessionRuns", fields: [sessionId], references: [id], onDelete: Cascade)
+  requestedBy           User?                      @relation("TelemetryRunRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  currentForSession     TelemetrySession?          @relation("TelemetrySessionCurrentRun")
+  jobs                  TelemetryJob[]
+  datasets              TelemetryDataset[]
+  laps                  TelemetryLap[]
+
+  @@index([sessionId, startedAt(sort: Desc)])
+  @@map("telemetry_processing_runs")
+}
+
+model TelemetryJob {
+  id               String             @id @default(uuid())
+  runId            String             @map("run_id")
+  jobType          String             @map("job_type")
+  status           TelemetryJobStatus
+  payload          Json?
+  attemptCount     Int                @default(0) @map("attempt_count")
+  maxAttempts      Int                @default(3) @map("max_attempts")
+  lockedAt         DateTime?          @map("locked_at")
+  lockedBy         String?            @map("locked_by")
+  lastErrorCode    String?            @map("last_error_code")
+  lastErrorMessage String?            @map("last_error_message")
+  nextRetryAt      DateTime?          @map("next_retry_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  run              TelemetryProcessingRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRetryAt, createdAt])
+  @@map("telemetry_jobs")
+}
+
+model TelemetryDataset {
+  id                     String                   @id @default(uuid())
+  sessionId              String                   @map("session_id")
+  runId                  String                   @map("run_id")
+  datasetType            TelemetryDatasetType     @map("dataset_type")
+  sensorType             TelemetryDatasetSensorType? @map("sensor_type")
+  imuDof                 Int?                     @map("imu_dof")
+  imuChannels            String[]                 @default([]) @map("imu_channels")
+  frame                  String?
+  axisConvention         String?                  @map("axis_convention")
+  sampleRateHz           Int?                     @map("sample_rate_hz")
+  downsampleFactor       Int?                     @map("downsample_factor")
+  clickhouseTable        String                   @default("not_materialized") @map("clickhouse_table")
+  clickhouseWhereHint    String?                  @map("clickhouse_where_hint")
+  schemaVersion          Int                      @default(1) @map("schema_version")
+  unitsVersion           Int                      @default(1) @map("units_version")
+  createdFromArtifactIds Json                     @map("created_from_artifact_ids")
+  createdAt              DateTime                 @default(now()) @map("created_at")
+  updatedAt              DateTime                 @updatedAt @map("updated_at")
+
+  session                TelemetrySession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  run                    TelemetryProcessingRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, datasetType])
+  @@index([runId])
+  @@map("telemetry_datasets")
+}
+
+model TelemetryLap {
+  id          String             @id @default(uuid())
+  sessionId   String             @map("session_id")
+  runId       String             @map("run_id")
+  lapNumber   Int                @map("lap_number")
+  startTimeUtc DateTime          @map("start_time_utc")
+  endTimeUtc   DateTime          @map("end_time_utc")
+  durationMs  Int                @map("duration_ms")
+  validity    TelemetryLapValidity @default(VALID)
+  qualityScore Float?           @map("quality_score")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  session     TelemetrySession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  run         TelemetryProcessingRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, lapNumber])
+  @@index([sessionId, lapNumber])
+  @@index([runId, lapNumber])
+  @@map("telemetry_laps")
 }

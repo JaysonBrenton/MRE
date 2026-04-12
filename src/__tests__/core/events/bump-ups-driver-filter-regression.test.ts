@@ -92,6 +92,7 @@ function mockEvent(): EventAnalysisData {
       totalLaps: 30,
       dateRange: { earliest: new Date("2026-01-01"), latest: new Date("2026-01-01") },
     },
+    userHostTrack: null,
   }
 }
 

@@ -407,7 +407,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     if (lastDefaultClassEventId.current === selectedEventId) {
       return
     }
-    const classes = getValidClasses(analysisData as EventAnalysisData)
+    const classes = getValidClasses(analysisData as unknown as EventAnalysisData)
     lastDefaultClassEventId.current = selectedEventId
     if (classes.length === 0) {
       return

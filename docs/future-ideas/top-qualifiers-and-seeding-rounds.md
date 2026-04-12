@@ -1,7 +1,7 @@
 ---
 created: 2026-04-11
 creator: Documentation
-lastModified: 2026-04-11
+lastModified: 2026-04-12
 description:
   Future product concepts for defining and surfacing top qualifiers and seeding
   rounds from ingested race data
@@ -9,11 +9,21 @@ purpose:
   Capture two related ideas so they can be scoped later without losing intent.
 relatedFiles:
   - docs/future-ideas/README.md
+  - docs/architecture/top-qualifiers.md
+  - docs/implimentation_plans/top-qualifiers-2026-04.md
   - docs/domain/racing-classes.md
   - prisma/schema.prisma
 ---
 
 # Idea: Top qualifiers and seeding rounds
+
+**Documentation status:** Normative definitions, v1 rules, data inputs, and
+persistence options for **top qualifiers** live in
+[docs/architecture/top-qualifiers.md](../architecture/top-qualifiers.md). A
+phased implementation checklist is in
+[docs/implimentation_plans/top-qualifiers-2026-04.md](../implimentation_plans/top-qualifiers-2026-04.md).
+This note remains the lightweight product/UX capture; **seeding rounds**
+(section 2 below) still have no separate architecture spec.
 
 Two related enhancements: **what counts as a top qualifier** (and how we show
 it), and **what counts as a seeding round** (and how we show it).

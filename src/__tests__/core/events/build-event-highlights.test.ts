@@ -26,6 +26,7 @@ function baseData(overrides: Partial<EventAnalysisData> = {}): EventAnalysisData
       totalLaps: 0,
       dateRange: { earliest: null, latest: null },
     },
+    userHostTrack: null,
     ...overrides,
   }
 }

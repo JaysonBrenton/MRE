@@ -91,6 +91,7 @@ function mockBuggyLadder(): EventAnalysisData {
       totalLaps: 30,
       dateRange: { earliest: new Date("2026-01-01"), latest: new Date("2026-01-01") },
     },
+    userHostTrack: null,
   }
 }
 
@@ -178,6 +179,7 @@ describe("getRaceClassNamesForDriverProgressionChips", () => {
         totalLaps: 10,
         dateRange: { earliest: new Date("2026-01-01"), latest: new Date("2026-01-01") },
       },
+      userHostTrack: null,
     }
     const chips = getRaceClassNamesForDriverProgressionChips(data)
     expect(chips).toContain("TwoRoundClass")
@@ -255,6 +257,7 @@ describe("buildDriverMainEventProgressionMatrix", () => {
         totalLaps: 20,
         dateRange: { earliest: new Date("2026-01-01"), latest: new Date("2026-01-01") },
       },
+      userHostTrack: null,
     }
     const { rows } = buildDriverMainEventProgressionMatrix(data, "Buggy")
     expect(rows).toHaveLength(2)

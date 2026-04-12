@@ -3040,11 +3040,11 @@ export default function EventSearchContainer({
     }))
     // When ingested-only mode, exclude discovered-only and partially-ingested practice days
     if (ingestedEventsOnly) {
-      practiceItems = practiceItems.filter(
-        (item) =>
-          item.ingested &&
-          isEventFullyIngested({ id: item.ingested.id, ingestDepth: item.ingested.ingestDepth })
-      )
+      practiceItems = practiceItems.filter((item) => {
+        if (item.kind !== "practice") return false
+        const ing = item.ingested
+        return !!ing && isEventFullyIngested({ id: ing.id, ingestDepth: ing.ingestDepth })
+      })
     }
     const items: CombinedItem[] = [
       ...displayedEvents.map((e) => ({ kind: "event" as const, event: e })),

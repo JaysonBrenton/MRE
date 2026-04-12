@@ -22,6 +22,7 @@
 import { useState, useEffect, useRef, useMemo, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import TrackRow, { type Track } from "./TrackRow"
+import { clientLogger } from "@/lib/client-logger"
 import { getModalResizableContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
 import { useModalPanelDrag } from "@/hooks/useModalPanelDrag"
 

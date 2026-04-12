@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-03-22T10:14:33.201Z",
+  "generatedAt": "2026-04-12T05:58:57.523Z",
   "source": "src/app/api",
-  "count": 68,
+  "count": 77,
   "routes": [
     {
       "file": "src/app/api/auth/[...nextauth]/route.ts",
@@ -79,16 +79,6 @@
       "methods": ["GET"]
     },
     {
-      "file": "src/app/api/v1/admin/venue-correction-requests/[id]/route.ts",
-      "urlPath": "/api/v1/admin/venue-correction-requests/[id]",
-      "methods": ["PATCH"]
-    },
-    {
-      "file": "src/app/api/v1/admin/venue-correction-requests/route.ts",
-      "urlPath": "/api/v1/admin/venue-correction-requests",
-      "methods": ["GET"]
-    },
-    {
       "file": "src/app/api/v1/auth/login/route.ts",
       "urlPath": "/api/v1/auth/login",
       "methods": ["POST"]
@@ -107,6 +97,11 @@
       "file": "src/app/api/v1/car-profiles/route.ts",
       "urlPath": "/api/v1/car-profiles",
       "methods": ["GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/car-taxonomy/route.ts",
+      "urlPath": "/api/v1/car-taxonomy",
+      "methods": ["GET"]
     },
     {
       "file": "src/app/api/v1/driver-profiles/[id]/route.ts",
@@ -167,11 +162,6 @@
       "file": "src/app/api/v1/events/[eventId]/track-leaderboard/route.ts",
       "urlPath": "/api/v1/events/[eventId]/track-leaderboard",
       "methods": ["GET"]
-    },
-    {
-      "file": "src/app/api/v1/events/[eventId]/venue-correction/route.ts",
-      "urlPath": "/api/v1/events/[eventId]/venue-correction",
-      "methods": ["DELETE", "GET", "POST"]
     },
     {
       "file": "src/app/api/v1/events/[eventId]/weather/route.ts",
@@ -279,6 +269,36 @@
       "methods": ["GET"]
     },
     {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/map/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/map",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/uploads/[uploadId]/bytes/route.ts",
+      "urlPath": "/api/v1/telemetry/uploads/[uploadId]/bytes",
+      "methods": ["PUT"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/uploads/[uploadId]/finalise/route.ts",
+      "urlPath": "/api/v1/telemetry/uploads/[uploadId]/finalise",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/uploads/route.ts",
+      "urlPath": "/api/v1/telemetry/uploads",
+      "methods": ["POST"]
+    },
+    {
       "file": "src/app/api/v1/track-maps/[mapId]/route.ts",
       "urlPath": "/api/v1/track-maps/[mapId]",
       "methods": ["DELETE", "GET", "PUT"]
@@ -299,8 +319,18 @@
       "methods": ["GET"]
     },
     {
+      "file": "src/app/api/v1/tracks/catalogue-sync-state/route.ts",
+      "urlPath": "/api/v1/tracks/catalogue-sync-state",
+      "methods": ["GET"]
+    },
+    {
       "file": "src/app/api/v1/tracks/route.ts",
       "urlPath": "/api/v1/tracks",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/tracks/search/route.ts",
+      "urlPath": "/api/v1/tracks/search",
       "methods": ["GET"]
     },
     {
@@ -312,6 +342,21 @@
       "file": "src/app/api/v1/transponder-overrides/route.ts",
       "urlPath": "/api/v1/transponder-overrides",
       "methods": ["GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/user/car-taxonomy-rules/[ruleId]/route.ts",
+      "urlPath": "/api/v1/user/car-taxonomy-rules/[ruleId]",
+      "methods": ["DELETE", "PATCH"]
+    },
+    {
+      "file": "src/app/api/v1/user/car-taxonomy-rules/route.ts",
+      "urlPath": "/api/v1/user/car-taxonomy-rules",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/user/events/[eventId]/host-track/route.ts",
+      "urlPath": "/api/v1/user/events/[eventId]/host-track",
+      "methods": ["DELETE", "GET", "PUT"]
     },
     {
       "file": "src/app/api/v1/users/[userId]/driver-links/events/[eventId]/route.ts",

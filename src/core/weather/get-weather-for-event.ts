@@ -31,7 +31,6 @@ import {
 } from "./repo"
 import { utcCalendarDayStart } from "./utc-calendar-day"
 import { getEventWithTrack } from "@/core/events/repo"
-import { getApprovedCorrection } from "@/core/events/venue-correction"
 import { resolveGeocodeCandidates } from "./resolve-geocode-candidates"
 
 export interface WeatherForEvent {
@@ -99,29 +98,17 @@ export async function getWeatherForEvent(
       throw new Error(`Event track not found for event: ${eventId}`)
     }
 
-    // Priority 0: Use approved venue correction if available (user-corrected venue)
-    const correction = await getApprovedCorrection(eventId)
-    const venueTrack =
-      correction?.venueTrackId && correction?.venueTrack ? correction.venueTrack : null
-
     let geocodeResult = null
     let lastError: Error | null = null
     const attemptedCandidates: string[] = []
 
-    // Use venue track from correction when available and valid; otherwise event.track
-    const trackForCoords = venueTrack
-      ? {
-          latitude: venueTrack.latitude,
-          longitude: venueTrack.longitude,
-          trackName: correction?.venueTrackName ?? event.track.trackName,
-          address: venueTrack.address,
-        }
-      : {
-          latitude: event.track.latitude,
-          longitude: event.track.longitude,
-          trackName: event.track.trackName,
-          address: event.track.address,
-        }
+    /** Geocode using LiveRC-linked event track (see per-user host track in event analysis only). */
+    const trackForCoords = {
+      latitude: event.track.latitude,
+      longitude: event.track.longitude,
+      trackName: event.track.trackName,
+      address: event.track.address,
+    }
 
     const hasStoredCoordinates =
       trackForCoords.latitude !== null &&
@@ -137,10 +124,9 @@ export async function getWeatherForEvent(
         longitude: storedLng,
         displayName: trackForCoords.trackName,
       }
-    } else if (venueTrack?.address) {
-      // Venue track has address but no coords - geocode from address
+    } else if (trackForCoords.address) {
       try {
-        geocodeResult = await geocodeTrack(venueTrack.address)
+        geocodeResult = await geocodeTrack(trackForCoords.address)
       } catch (e) {
         lastError = e instanceof Error ? e : new Error(String(e))
       }
@@ -390,25 +376,15 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
     return dates.map((d) => byDateStr.get(d.toISOString().split("T")[0])!)
   }
 
-  // Geocode once when any day needs a fresh fetch — use approved venue correction if available
+  // Geocode once when any day needs a fresh fetch (LiveRC-linked track)
   let geocodeResult: { latitude: number; longitude: number; displayName: string } | null = null
 
-  const correction = await getApprovedCorrection(eventId)
-  const venueTrack =
-    correction?.venueTrackId && correction?.venueTrack ? correction.venueTrack : null
-  const trackForCoords = venueTrack
-    ? {
-        latitude: venueTrack.latitude,
-        longitude: venueTrack.longitude,
-        trackName: correction?.venueTrackName ?? event.track.trackName,
-        address: venueTrack.address,
-      }
-    : {
-        latitude: event.track.latitude,
-        longitude: event.track.longitude,
-        trackName: event.track.trackName,
-        address: event.track.address,
-      }
+  const trackForCoords = {
+    latitude: event.track.latitude,
+    longitude: event.track.longitude,
+    trackName: event.track.trackName,
+    address: event.track.address,
+  }
 
   const hasStoredCoordinates =
     trackForCoords.latitude !== null &&
@@ -422,9 +398,9 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
       longitude: trackForCoords.longitude as number,
       displayName: trackForCoords.trackName,
     }
-  } else if (venueTrack?.address) {
+  } else if (trackForCoords.address) {
     try {
-      geocodeResult = await geocodeTrack(venueTrack.address)
+      geocodeResult = await geocodeTrack(trackForCoords.address)
     } catch {
       // Fall through to candidates
     }

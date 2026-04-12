@@ -98,6 +98,7 @@ describe("mergeLcqSessionsForClass", () => {
         totalLaps: 0,
         dateRange: { earliest: null, latest: null },
       },
+      userHostTrack: null,
     }
 
     const buggySessions = [sess("bug", "bug", "Buggy", "Buggy 1/1 Even Final", 11)]

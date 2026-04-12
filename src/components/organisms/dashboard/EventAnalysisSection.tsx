@@ -91,7 +91,6 @@ function transformApiResponseToEventAnalysisData(
       address: apiData.event.address ?? undefined,
       phone: apiData.event.phone ?? undefined,
       email: apiData.event.email ?? undefined,
-      venueCorrected: apiData.event.venueCorrected ?? false,
       sourceEventId: apiData.event.sourceEventId,
       trackSlug: apiData.event.trackSlug,
     },
@@ -125,6 +124,7 @@ function transformApiResponseToEventAnalysisData(
           : null,
       },
     },
+    userHostTrack: apiData.userHostTrack ?? null,
   }
 }
 

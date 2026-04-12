@@ -25,7 +25,6 @@ const ADMIN_NAV_LINKS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/events", label: "Events" },
-  { href: "/admin/venue-corrections", label: "Venue Corrections" },
   { href: "/admin/tracks", label: "Tracks" },
   { href: "/admin/ingestion", label: "Ingestion" },
   { href: "/admin/audit", label: "Audit Logs" },
