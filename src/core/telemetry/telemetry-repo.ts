@@ -4,6 +4,7 @@
 
 import { createHash, randomUUID } from "crypto"
 import {
+  Prisma,
   TelemetryArtifactStatus,
   TelemetryJobStatus,
   TelemetryProcessingRunStatus,
@@ -16,8 +17,8 @@ import {
   writeTelemetryBytesToDisk,
 } from "./telemetry-upload-storage"
 
-export const TELEMETRY_PIPELINE_VERSION = "telemetry-infra-0.1.0"
-export const TELEMETRY_CANONICALISER_VERSION = "stub-0.1.0"
+export const TELEMETRY_PIPELINE_VERSION = "telemetry-mvp-0.2.0"
+export const TELEMETRY_CANONICALISER_VERSION = "csv-gpx-parquet-0.2.0"
 
 export type CreateUploadIntentInput = {
   originalFileName: string
@@ -160,11 +161,117 @@ export async function finaliseTelemetryUpload(
   return { ok: true as const, idempotent: false as const, ...result }
 }
 
+export type TelemetrySessionListCursor = {
+  createdAt: string
+  id: string
+}
+
+function encodeTelemetryListCursor(c: TelemetrySessionListCursor): string {
+  return Buffer.from(JSON.stringify(c), "utf8").toString("base64url")
+}
+
+export function decodeTelemetryListCursor(raw: string | null): TelemetrySessionListCursor | null {
+  if (!raw?.trim()) return null
+  try {
+    const json = Buffer.from(raw, "base64url").toString("utf8")
+    const parsed = JSON.parse(json) as { createdAt?: unknown; id?: unknown }
+    if (typeof parsed.createdAt === "string" && typeof parsed.id === "string") {
+      return { createdAt: parsed.createdAt, id: parsed.id }
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+export async function listTelemetrySessionsForUser(
+  ownerUserId: string,
+  opts: {
+    limit: number
+    cursor?: TelemetrySessionListCursor | null
+    status?: TelemetrySessionStatus
+  }
+) {
+  const take = Math.min(Math.max(opts.limit, 1), 200)
+
+  const where: Prisma.TelemetrySessionWhereInput = {
+    ownerUserId,
+    deletedAt: null,
+  }
+  if (opts.status) {
+    where.status = opts.status
+  }
+  if (opts.cursor) {
+    const d = new Date(opts.cursor.createdAt)
+    where.OR = [
+      { createdAt: { lt: d } },
+      { AND: [{ createdAt: d }, { id: { lt: opts.cursor.id } }] },
+    ]
+  }
+
+  const rows = await prisma.telemetrySession.findMany({
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: take + 1,
+    include: {
+      _count: { select: { datasets: true } },
+      currentRun: {
+        select: {
+          id: true,
+          status: true,
+          qualitySummary: true,
+        },
+      },
+    },
+  })
+
+  const hasMore = rows.length > take
+  const page = hasMore ? rows.slice(0, take) : rows
+  const last = page[page.length - 1]
+  const nextCursor =
+    hasMore && last
+      ? encodeTelemetryListCursor({
+          createdAt: last.createdAt.toISOString(),
+          id: last.id,
+        })
+      : null
+
+  return { items: page, nextCursor }
+}
+
+/**
+ * Resolve parquet key from processing run quality summary for a dataset row.
+ */
+export function resolveDatasetParquetRelativePath(params: {
+  datasetId: string
+  qualitySummary: unknown
+  outputDatasetIds: unknown
+}): string | null {
+  const { datasetId, qualitySummary, outputDatasetIds } = params
+  if (!qualitySummary || typeof qualitySummary !== "object") return null
+  const qs = qualitySummary as { parquetRelativePath?: unknown }
+  const path = typeof qs.parquetRelativePath === "string" ? qs.parquetRelativePath.trim() : null
+  if (!path) return null
+  if (path.includes(datasetId)) return path.replace(/^[/\\]+/, "")
+
+  let ids: string[] = []
+  if (Array.isArray(outputDatasetIds)) {
+    ids = outputDatasetIds.filter((x): x is string => typeof x === "string")
+  }
+  if (ids.length === 1 && ids[0] === datasetId) {
+    return path.replace(/^[/\\]+/, "")
+  }
+  return null
+}
+
 export async function getTelemetrySessionForUser(sessionId: string, ownerUserId: string) {
   const session = await prisma.telemetrySession.findFirst({
     where: { id: sessionId, ownerUserId, deletedAt: null },
     include: {
       currentRun: true,
+      datasets: {
+        orderBy: { createdAt: "asc" },
+      },
     },
   })
   return session

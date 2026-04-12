@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-04-12T05:14:37.641Z",
+  "generatedAt": "2026-04-12T05:58:57.523Z",
   "source": "src/app/api",
-  "count": 75,
+  "count": 77,
   "routes": [
     {
       "file": "src/app/api/auth/[...nextauth]/route.ts",
@@ -269,8 +269,18 @@
       "methods": ["GET"]
     },
     {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/map/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/map",
+      "methods": ["GET"]
+    },
+    {
       "file": "src/app/api/v1/telemetry/sessions/[sessionId]/route.ts",
       "urlPath": "/api/v1/telemetry/sessions/[sessionId]",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions",
       "methods": ["GET"]
     },
     {

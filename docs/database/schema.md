@@ -22,8 +22,10 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-04-13 — `EventVenueCorrection` /
-`EventVenueCorrectionRequest` are **deprecated** (see
+**Last Updated:** 2026-04-12 — Telemetry read APIs + UI (see
+[`docs/api/api-reference.md`](../api/api-reference.md) §Telemetry).
+**2026-04-13:** `EventVenueCorrection` / `EventVenueCorrectionRequest` are
+**deprecated** (see
 [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md)).
 **2026-04-07:** Schema overview and model list aligned with
 `prisma/schema.prisma`; includes `CarTaxonomyNode` and `UserCarTaxonomyRule` for

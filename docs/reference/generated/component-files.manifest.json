@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-12T05:14:37.659Z",
+  "generatedAt": "2026-04-12T05:58:57.537Z",
   "source": "src/components",
   "exclusions": "Excludes: *.test.ts, *.test.tsx, __tests__/**, organisms/**/overview-testing/**",
-  "count": 165,
+  "count": 172,
   "components": [
     {
       "file": "src/components/AdminNav.tsx",
@@ -276,6 +276,31 @@
     },
     {
       "file": "src/components/organisms/dashboard/shell/UserProfileModal.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/MyClubNavSection.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/NavigationRailGuidesSection.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/NavigationRailNavItems.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/navigationRailConfig.tsx",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/adaptive-navigation-rail/useMobileNavFocusTrap.ts",
       "tier": "organism:dashboard",
       "featureArea": "dashboard"
     },
@@ -783,6 +808,16 @@
       "file": "src/components/organisms/search/SearchResultsTable.tsx",
       "tier": "organism:search",
       "featureArea": "search"
+    },
+    {
+      "file": "src/components/organisms/telemetry/TelemetrySessionDetailClient.tsx",
+      "tier": "organism:telemetry",
+      "featureArea": "telemetry"
+    },
+    {
+      "file": "src/components/organisms/telemetry/TelemetrySessionsPageClient.tsx",
+      "tier": "organism:telemetry",
+      "featureArea": "telemetry"
     },
     {
       "file": "src/components/organisms/track-maps/ShapePropertiesPanel.tsx",

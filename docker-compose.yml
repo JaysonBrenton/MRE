@@ -183,7 +183,7 @@ services:
           # Minimum guaranteed memory
           memory: 256M
 
-  # Telemetry pipeline worker (Postgres job queue + artifact_validate). Same image as ingestion.
+  # Telemetry pipeline worker (validate → parse_raw → Parquet + datasets). Same image as ingestion.
   telemetry-worker:
     build:
       context: ./ingestion

@@ -57,7 +57,7 @@ Out of scope:
   - scheduled process that deletes expired artifacts and datasets
   - enforces user deletion requests
 
-### 2.2 Telemetry worker (stage 1)
+### 2.2 Telemetry worker (MVP pipeline)
 
 As of 2026-04-14, Compose includes a dedicated **`telemetry-worker`** service
 (`mre-telemetry-worker`) that runs `python -m ingestion.telemetry.worker`. The
@@ -66,10 +66,12 @@ uses `entrypoint: ["python", "-m", "ingestion.telemetry.worker"]`); without that
 override, the default `cron-entrypoint.sh` would start Uvicorn instead of the
 telemetry loop.
 
-- **Purpose:** Poll `telemetry_jobs` using `FOR UPDATE SKIP LOCKED`, execute
-  `artifact_validate` (verify raw file exists on disk and size matches
-  `telemetry_artifacts.byte_size`), then mark run/session/job success or
-  failure.
+- **Purpose:** Poll `telemetry_jobs` using `FOR UPDATE SKIP LOCKED`, run
+  **`artifact_validate`** (raw file exists; size matches
+  `telemetry_artifacts.byte_size`), then **`parse_raw`** (CSV/GPX → canonical
+  Parquet under `canonical/…`, `telemetry_datasets` row, session time range from
+  parsed timestamps, session `READY`). On failure, run/session/job are marked
+  failed with a stable error code (for example `CSV_NO_TIME_COLUMN`).
 - **Shared volume:** `mre-telemetry-uploads` is mounted at **`/data/telemetry`**
   on **`app`**, **`liverc-ingestion-service`**, and **`telemetry-worker`**. The
   Next.js API writes bytes under `TELEMETRY_UPLOAD_ROOT`; `storagePath` on each
@@ -501,7 +503,8 @@ Operators need:
 ### 12.1 Playbook: ingestion failing for new uploads
 
 1. Confirm /api/ready and storage connectivity
-2. Check artifact_validate failures and error codes
+2. Check `telemetry_jobs` / run error codes (`artifact_validate`, `parse_raw`,
+   for example `CSV_NO_TIME_COLUMN`, `PARSE_RAW_FAILED`)
 3. Check storage permissions and signed URL issuance
 4. Rollback recent deploy if correlated
 5. Communicate status and workaround, for example export as CSV

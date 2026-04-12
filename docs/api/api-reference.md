@@ -22,9 +22,9 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2026-04-14 — Telemetry stage-1 endpoints
-(`/api/v1/telemetry/*`). **2026-04-13:** Venue correction endpoints are
-**deprecated** (see
+**Last Updated:** 2026-04-12 — Telemetry MVP (`GET /telemetry/sessions`, session
+detail + datasets, `GET .../map`, My Telemetry UI). **2026-04-13:** Venue
+correction endpoints are **deprecated** (see
 [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md));
 replacement direction is per-user host track. **2026-04-07:** car taxonomy and
 user car-taxonomy-rules endpoints; event analysis notes `userCarTaxonomy` on
@@ -4237,12 +4237,50 @@ Optional JSON body `{ "name": "My session" }` or empty body.
 **Success `data`:** `sessionId`, `runId` (when not idempotent),
 `sessionPollUrl`, `idempotent`.
 
-### GET /api/v1/telemetry/sessions/[sessionId]
+### GET /api/v1/telemetry/sessions
 
-Returns session metadata, `currentRun` summary, and `failure`
-`{ code, message }` when status is failed.
+Lists the signed-in user’s telemetry sessions (newest first).
 
 **Authentication:** Required
+
+**Query parameters (MVP):**
+
+| Parameter | Description                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `limit`   | Page size (default `50`, max `200`)                                                                 |
+| `cursor`  | Opaque cursor from the previous response’s `nextCursor`                                             |
+| `status`  | Optional filter: `uploading`, `processing`, `ready`, `failed`, … (matches `TelemetrySessionStatus`) |
+
+**Success `data`:** `{ items: [...], nextCursor: string | null }`  
+Each item includes `id`, `name`, `status`, `startTimeUtc`, `endTimeUtc`,
+`createdAt`, and `summary: { datasetCount, hasGnss }`.
+
+### GET /api/v1/telemetry/sessions/[sessionId]
+
+Returns session metadata, `datasets[]` (type, `parquetRelativePath` when the run
+succeeded), `currentRun` summary, and `failure` `{ code, message }` when
+`status` is `failed`. User-facing `message` is derived from stable worker codes
+(see `src/core/telemetry/telemetry-failure-messages.ts`).
+
+**Authentication:** Required
+
+### GET /api/v1/telemetry/sessions/[sessionId]/map
+
+Returns a **downsampled** GNSS polyline for map/path preview from canonical
+`gnss_pvt.parquet` (bounded read; not full resolution analytics).
+
+**Authentication:** Required
+
+**Query parameters:**
+
+| Parameter    | Description                                                     |
+| ------------ | --------------------------------------------------------------- |
+| `max_points` | Optional cap on polyline points (default ~2000, hard max 10000) |
+
+**Success `data`:**
+`{ meta: { level, pointCount, rowCount, timeBounds }, data: { lat_deg, lon_deg } }`  
+**Errors:**
+`404` (session or file), `409` (session not `ready`), `413` (file/row limits).
 
 ---
 

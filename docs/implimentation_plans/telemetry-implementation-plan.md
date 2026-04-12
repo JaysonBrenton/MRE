@@ -28,13 +28,13 @@ with no parsing/fusion yet.
 
 **Delivered:**
 
-| Area              | What                                                                                                                                                                                                                                                                                                        |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Postgres**      | Prisma models and migration `20260414120000_telemetry_infra_stage1`: `telemetry_sessions`, `telemetry_artifacts`, `telemetry_devices`, `telemetry_processing_runs`, `telemetry_jobs`, `telemetry_datasets`, `telemetry_laps` (datasets/laps unused until later phases).                                     |
-| **Local storage** | `TELEMETRY_UPLOAD_ROOT` (default `/data/telemetry`); artifact `storagePath` is a relative key `uploads/{userId}/{artifactId}`. Shared Docker volume `mre-telemetry-uploads` mounted at `/data/telemetry` on `app`, `liverc-ingestion-service`, and `telemetry-worker`.                                      |
-| **API**           | Authenticated routes under `/api/v1/telemetry/`: create upload intent, PUT bytes, finalise (session + run + job), GET session status.                                                                                                                                                                       |
-| **Worker**        | `mre-telemetry-worker` runs `python -m ingestion.telemetry.worker`; claims `telemetry_jobs` with `FOR UPDATE SKIP LOCKED`; runs job type `artifact_validate` (file exists, size matches `byte_size`). On success: run `SUCCEEDED`, session `READY`. On failure: run/session/job `FAILED` with error detail. |
-| **Docs**          | This file; operational notes in [`docs/telemetry/Design/Operational Runbook.md`](../telemetry/Design/Operational%20Runbook.md) §Telemetry worker; schema prose in [`docs/database/schema.md`](../database/schema.md).                                                                                       |
+| Area              | What                                                                                                                                                                                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Postgres**      | Prisma models and migration `20260414120000_telemetry_infra_stage1`: `telemetry_sessions`, `telemetry_artifacts`, `telemetry_devices`, `telemetry_processing_runs`, `telemetry_jobs`, `telemetry_datasets`, `telemetry_laps` (datasets/laps unused until later phases). |
+| **Local storage** | `TELEMETRY_UPLOAD_ROOT` (default `/data/telemetry`); artifact `storagePath` is a relative key `uploads/{userId}/{artifactId}`. Shared Docker volume `mre-telemetry-uploads` mounted at `/data/telemetry` on `app`, `liverc-ingestion-service`, and `telemetry-worker`.  |
+| **API**           | Authenticated routes under `/api/v1/telemetry/`: create upload intent, PUT bytes, finalise (session + run + job), GET session status.                                                                                                                                   |
+| **Worker**        | `mre-telemetry-worker` runs `python -m ingestion.telemetry.worker`; claims `telemetry_jobs` with `FOR UPDATE SKIP LOCKED`; initially job type `artifact_validate` only (file exists, size matches `byte_size`). _Superseded by Phase 2 pipeline below._                 |
+| **Docs**          | This file; operational notes in [`docs/telemetry/Design/Operational Runbook.md`](../telemetry/Design/Operational%20Runbook.md) §Telemetry worker; schema prose in [`docs/database/schema.md`](../database/schema.md).                                                   |
 
 **Apply migration (Docker):**
 
@@ -53,16 +53,44 @@ docker exec -it mre-app npx prisma migrate deploy
 4. `GET /api/v1/telemetry/sessions/{sessionId}` until `session.status` is
    `ready` (worker must be running).
 
-## Phase 2 — MVP schema usage + parsers (next)
+**Behaviour change (Phase 2):** Processing no longer stops at
+`artifact_validate`. The worker enqueues `parse_raw` after validation; session
+`READY` and `start_time_utc` / `end_time_utc` are set when parsing and Parquet
+write succeed.
 
-1. Implement CSV/GPX parsers per
-   [`Supported Formats and Parser Specification`](../telemetry/Design/Supported%20Formats%20and%20Parser%20Specification.md).
-2. Write canonical Parquet to object storage (relative paths under
-   `TELEMETRY_UPLOAD_ROOT` or future S3 prefix); add job types after
-   `artifact_validate`.
-3. Populate `telemetry_datasets` / `telemetry_laps` when data exists.
-4. Session time range updates from canonical min/max timestamps per MVP
-   decisions.
+## Phase 2 — MVP schema usage + parsers — **COMPLETE**
+
+**Goal:** Level 1 CSV + GPX GNSS → canonical Parquet, datasets row, session time
+range from parsed data, session `READY` only after `parse_raw` succeeds.
+
+**Delivered:**
+
+| Area         | What                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Parsers**  | `ingestion/telemetry/parsers/csv_gnss.py`, `gpx_gnss.py`; stable errors (`CSV_NO_TIME_COLUMN`, etc.) per MVP decisions.                                                                                                                                                                                                                                                  |
+| **Parquet**  | `ingestion/telemetry/canonical_parquet.py` (pyarrow): `t_ns`, `lat_deg`, `lon_deg`, `alt_m`, `speed_mps`. Relative path `canonical/{sessionId}/{runId}/{datasetId}/gnss_pvt.parquet` under `TELEMETRY_UPLOAD_ROOT`.                                                                                                                                                      |
+| **Jobs**     | `artifact_validate` (file exists + size); enqueues `parse_raw`. `parse_raw` classifies CSV vs GPX, parses, writes Parquet, inserts `telemetry_datasets` (`CANON_GNSS`), updates run `output_dataset_ids` / `quality_summary`, sets artifact `format_detected` + `CANONICALISED`, updates session `start_time_utc` / `end_time_utc` from min/max `t_ns`, session `READY`. |
+| **Versions** | `TELEMETRY_PIPELINE_VERSION` = `telemetry-mvp-0.2.0`, `TELEMETRY_CANONICALISER_VERSION` = `csv-gpx-parquet-0.2.0` in `src/core/telemetry/telemetry-repo.ts`.                                                                                                                                                                                                             |
+| **Tests**    | `ingestion/tests/unit/test_telemetry_parsers.py`, `test_telemetry_parquet.py` (fixtures under `ingestion/tests/fixtures/telemetry/`).                                                                                                                                                                                                                                    |
+| **Laps**     | Not populated in Phase 2 (lap detection is later).                                                                                                                                                                                                                                                                                                                       |
+
+**Manual smoke test:** Same as Phase 1 steps 1–3; step 4: `GET session` until
+`ready`; confirm `start_time_utc` / `end_time_utc` reflect parsed GNSS range
+(not placeholder `createdAt` only).
+
+## Phase 2b — MVP list/detail + map read + UI — **COMPLETE**
+
+**Goal:** Authenticated **session list**, **session detail** (datasets + mapped
+failure messages), **bounded Parquet read** for map preview, and **desktop UI**
+wired to upload → finalise → poll.
+
+**Delivered:**
+
+| Area      | What                                                                                                                                                                                                                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **API**   | `GET /api/v1/telemetry/sessions` (cursor pagination, optional `status`); extended `GET .../sessions/{id}` with `datasets[]` and `failure.message` from `telemetry-failure-messages`; `GET .../sessions/{id}/map` (hyparquet + compressors, size/row caps, downsampled `lat_deg`/`lon_deg`). |
+| **UI**    | `eventAnalysis/my-telemetry` list + import; `eventAnalysis/my-telemetry/[sessionId]` detail, failure banner, SVG path preview.                                                                                                                                                              |
+| **Tests** | Vitest: `telemetry-failure-messages`, `telemetry-repo` cursor/path helpers, existing upload storage tests.                                                                                                                                                                                  |
 
 ## Phase 3 — v1 (design reference)
 

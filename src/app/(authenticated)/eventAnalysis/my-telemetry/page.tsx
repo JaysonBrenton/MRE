@@ -1,14 +1,9 @@
-"use client"
-
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import TelemetrySessionsPageClient from "@/components/organisms/telemetry/TelemetrySessionsPageClient"
 
 export default function MyTelemetryPage() {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace(`/under-development?from=${encodeURIComponent("/eventAnalysis/my-telemetry")}`)
-  }, [router])
-
-  return null
+  return (
+    <section className="content-wrapper w-full min-w-full max-w-full shrink-0 px-0">
+      <TelemetrySessionsPageClient />
+    </section>
+  )
 }

@@ -1,25 +1,54 @@
 /**
- * GET /api/v1/telemetry/sessions/{sessionId} — session metadata and processing status (stage 1).
+ * GET /api/v1/telemetry/sessions/{sessionId} — session metadata, datasets summary, processing status.
  */
 
 import { NextRequest } from "next/server"
+import { TelemetrySessionStatus } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { successResponse, errorResponse, CACHE_CONTROL } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
-import { TelemetrySessionStatus } from "@prisma/client"
-import { getTelemetrySessionForUser } from "@/core/telemetry/telemetry-repo"
+import { telemetryFailureUserMessage } from "@/core/telemetry/telemetry-failure-messages"
+import {
+  getTelemetrySessionForUser,
+  resolveDatasetParquetRelativePath,
+} from "@/core/telemetry/telemetry-repo"
 
 function serializeSession(
   row: NonNullable<Awaited<ReturnType<typeof getTelemetrySessionForUser>>>
 ) {
+  const run = row.currentRun
+  const errorCode = run?.errorCode ?? null
+  const errorDetail = run?.errorDetail ?? null
+
   const failure =
-    row.status === TelemetrySessionStatus.FAILED && row.currentRun?.errorCode
+    row.status === TelemetrySessionStatus.FAILED
       ? {
-          code: row.currentRun.errorCode,
-          message: row.currentRun.errorDetail || row.currentRun.errorCode,
+          code: errorCode?.trim() || "UNKNOWN_FAILURE",
+          message: errorCode
+            ? telemetryFailureUserMessage(errorCode, errorDetail)
+            : telemetryFailureUserMessage(null, errorDetail),
         }
       : undefined
+
+  const datasets = row.datasets.map((d) => {
+    const parquetRelativePath =
+      run?.status === "SUCCEEDED"
+        ? resolveDatasetParquetRelativePath({
+            datasetId: d.id,
+            qualitySummary: run.qualitySummary,
+            outputDatasetIds: run.outputDatasetIds,
+          })
+        : null
+
+    return {
+      id: d.id,
+      datasetType: d.datasetType.toLowerCase(),
+      sensorType: d.sensorType?.toLowerCase() ?? null,
+      sampleRateHz: d.sampleRateHz,
+      parquetRelativePath,
+    }
+  })
 
   return {
     id: row.id,
@@ -29,14 +58,15 @@ function serializeSession(
     endTimeUtc: row.endTimeUtc.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    currentRun: row.currentRun
+    datasets,
+    currentRun: run
       ? {
-          id: row.currentRun.id,
-          status: row.currentRun.status.toLowerCase(),
-          pipelineVersion: row.currentRun.pipelineVersion,
-          errorCode: row.currentRun.errorCode,
-          startedAt: row.currentRun.startedAt?.toISOString() ?? null,
-          finishedAt: row.currentRun.finishedAt?.toISOString() ?? null,
+          id: run.id,
+          status: run.status.toLowerCase(),
+          pipelineVersion: run.pipelineVersion,
+          errorCode: run.errorCode,
+          startedAt: run.startedAt?.toISOString() ?? null,
+          finishedAt: run.finishedAt?.toISOString() ?? null,
         }
       : null,
     failure,
