@@ -15,6 +15,7 @@ import { useRef, useEffect, useCallback, useState, type KeyboardEvent } from "re
 import { useEventActionsOptional } from "@/components/organisms/dashboard/EventActionsContext"
 import { useAppSelector } from "@/store/hooks"
 import CarTaxonomyModal from "@/components/organisms/event-analysis/CarTaxonomyModal"
+import HostTrackModal from "@/components/organisms/event-analysis/HostTrackModal"
 
 function SearchIcon({ className }: { className?: string }) {
   return (
@@ -54,6 +55,20 @@ function ClearEventIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function HostTrackIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"
         stroke="currentColor"
         strokeWidth={1.5}
         strokeLinecap="round"
@@ -107,6 +122,7 @@ export default function EventAnalysisActionsMenu() {
   const selectedEventId = useAppSelector((s) => s.dashboard.selectedEventId)
   const [open, setOpen] = useState(false)
   const [carTaxonomyOpen, setCarTaxonomyOpen] = useState(false)
+  const [hostTrackOpen, setHostTrackOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -251,6 +267,19 @@ export default function EventAnalysisActionsMenu() {
               </button>
             )}
 
+            {hasEventSelected && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleItemClick(() => setHostTrackOpen(true))}
+                className={itemClass}
+                aria-label="Update host track for this event"
+              >
+                <HostTrackIcon className={iconClass} />
+                <span>Update host track</span>
+              </button>
+            )}
+
             {/* Clear Event - when event selected */}
             {hasEventSelected && (
               <button
@@ -271,6 +300,13 @@ export default function EventAnalysisActionsMenu() {
       <CarTaxonomyModal
         isOpen={carTaxonomyOpen}
         onClose={() => setCarTaxonomyOpen(false)}
+        eventId={selectedEventId}
+        analysisData={analysisData}
+      />
+
+      <HostTrackModal
+        isOpen={hostTrackOpen}
+        onClose={() => setHostTrackOpen(false)}
         eventId={selectedEventId}
         analysisData={analysisData}
       />

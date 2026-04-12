@@ -1,405 +1,22 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useMemo, useState, useEffect, useCallback, type ReactElement } from "react"
-import Tooltip from "@/components/molecules/Tooltip"
+import { usePathname, useRouter } from "next/navigation"
+import { useMemo, useState, useEffect, useCallback, useRef } from "react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { setActiveEventAnalysisTab } from "@/store/slices/dashboardSlice"
 import { closeMobileNav, toggleNavCollapsed } from "@/store/slices/uiSlice"
+import NavigationRailGuidesSection from "./adaptive-navigation-rail/NavigationRailGuidesSection"
+import NavigationRailNavItems from "./adaptive-navigation-rail/NavigationRailNavItems"
+import {
+  ADMIN_NAV_ITEM,
+  NAV_ITEMS,
+  STORAGE_KEY_GUIDES_EXPANDED,
+  STORAGE_KEY_MY_CLUB_EXPANDED,
+} from "./adaptive-navigation-rail/navigationRailConfig"
+import { useMobileNavFocusTrap } from "./adaptive-navigation-rail/useMobileNavFocusTrap"
 
-interface NavItem {
-  href: string
-  label: string
-  description: string
-  icon: (active: boolean) => ReactElement
-}
-
-const NAV_ITEMS: NavItem[] = [
-  {
-    href: "/eventAnalysis",
-    label: "My Event Analysis",
-    description: "Mission control overview",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/search",
-    label: "Global Search",
-    description: "Search events and sessions",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={1.5} />
-        <path
-          d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-          stroke="currentColor"
-          strokeWidth={1.5}
-        />
-        <path d="M2 12h20" stroke="currentColor" strokeWidth={1.5} />
-      </svg>
-    ),
-  },
-  {
-    href: "/eventAnalysis/my-telemetry",
-    label: "My Telemetry",
-    description: "Data sources & traces",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M4 14c2.5-4 4.5-4 7 0s4.5 4 7 0"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-        />
-        <path d="M3 6h18v12H3z" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/eventAnalysis/car-profiles",
-    label: "My Car Profiles",
-    description: "Manage car profiles & setups",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="m12 15 2 2 4-4"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M9 9h6M9 12h6M9 15h3"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/eventAnalysis/driver-profiles",
-    label: "My Driver Profiles",
-    description: "Manage driver profiles",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth={1.5} />
-      </svg>
-    ),
-  },
-  {
-    href: "/eventAnalysis/my-engineer",
-    label: "My Engineer",
-    description: "Racing intelligence hub",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M12 14a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 0c-5 0-7 3-7 5v1h14v-1c0-2-2-5-7-5z"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/under-development?from=/eventAnalysis/my-club",
-    label: "My Club",
-    description: "Home club dashboard & community",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M3 21h18M5 21V7l7-4 7 4v14"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M9 9v6m6-6v6"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="12" cy="4" r="1.5" stroke="currentColor" strokeWidth={1.5} />
-      </svg>
-    ),
-  },
-  {
-    href: "/under-development?from=/eventAnalysis/my-team",
-    label: "My Team",
-    description: "Team dashboard & insights",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth={1.5} />
-        <path
-          d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-]
-
-interface GuideItem {
-  href: string
-  label: string
-  icon: (active: boolean) => ReactElement
-}
-
-const GUIDE_ITEMS: GuideItem[] = [
-  {
-    href: "/guides/getting-started",
-    label: "Getting Started",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/guides/event-search",
-    label: "Event Search",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth={1.5} />
-        <path d="m20 20-4-4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/guides/event-analysis",
-    label: "Event Analysis",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M3 3v18h18M7 16l4-4 4 4 6-6"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/guides/dashboard",
-    label: "My Event Analysis",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/guides/driver-features",
-    label: "Driver Features",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M12 14a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 0c-5 0-7 3-7 5v1h14v-1c0-2-2-5-7-5z"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/guides/navigation",
-    label: "Navigation",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M3 12h18M3 6h18M3 18h18"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/guides/account-management",
-    label: "Account Management",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "/guides/troubleshooting",
-    label: "Troubleshooting",
-    icon: (active) => (
-      <svg
-        className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={1.5} />
-        <path
-          d="M12 16v-4M12 8h.01"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
-  },
-]
-
-const STORAGE_KEY_GUIDES_EXPANDED = "mre-user-guides-expanded"
-const STORAGE_KEY_MY_CLUB_EXPANDED = "mre-my-club-expanded"
-
-const ADMIN_NAV_ITEM: NavItem = {
-  href: "/admin",
-  label: "MRE Administration",
-  description: "System administration console",
-  icon: (active) => (
-    <svg
-      className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-}
+const RAIL_TRANSITION =
+  "transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none motion-reduce:duration-0"
 
 interface AdaptiveNavigationRailProps {
   user?: {
@@ -407,30 +24,11 @@ interface AdaptiveNavigationRailProps {
   } | null
 }
 
-function myEventsNavIcon(active: boolean) {
-  return (
-    <svg
-      className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M9 14h6M9 18h4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
-    </svg>
-  )
-}
-
 export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const dispatch = useAppDispatch()
+  const railRef = useRef<HTMLElement>(null)
   const isNavCollapsed = useAppSelector((state) => state.ui.isNavCollapsed)
   const isMobileNavOpen = useAppSelector((state) => state.ui.isMobileNavOpen)
   const selectedEventId = useAppSelector((state) => state.dashboard.selectedEventId)
@@ -451,11 +49,11 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     }
   }, [dispatch, pathname, router])
 
-  /** Same URL as /eventAnalysis does not re-navigate; reset tab so My Events → main analysis works. */
   const handleDashboardNavClick = useCallback(() => {
     dispatch(setActiveEventAnalysisTab("event-overview"))
     dispatch(closeMobileNav())
   }, [dispatch])
+
   const [isGuidesExpanded, setIsGuidesExpanded] = useState(() => {
     if (typeof window === "undefined") {
       return false
@@ -511,25 +109,25 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     return items
   }, [user?.isAdmin])
 
-  const toggleGuidesExpanded = () => {
+  const toggleGuidesExpanded = useCallback(() => {
     const newState = !isGuidesExpanded
     setIsGuidesExpanded(newState)
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY_GUIDES_EXPANDED, String(newState))
     }
-  }
+  }, [isGuidesExpanded])
 
-  const isGuideActive = (href: string) => {
-    return pathname === href || pathname.startsWith(`${href}/`)
-  }
+  const toggleGuidesMenuExpanded = useCallback(() => {
+    setIsGuidesMenuExpanded((v) => !v)
+  }, [])
 
-  const toggleMyClubExpanded = () => {
+  const toggleMyClubExpanded = useCallback(() => {
     const newState = !isMyClubExpanded
     setIsMyClubExpanded(newState)
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY_MY_CLUB_EXPANDED, String(newState))
     }
-  }
+  }, [isMyClubExpanded])
 
   useEffect(() => {
     dispatch(closeMobileNav())
@@ -564,6 +162,8 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
     }
   }, [isMobileNavOpen])
 
+  useMobileNavFocusTrap(railRef, isMobileNavOpen)
+
   return (
     <>
       {isMobileNavOpen ? (
@@ -574,26 +174,28 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
         />
       ) : null}
       <aside
+        ref={railRef}
         id="dashboard-navigation-rail"
-        className={`${navWidth} fixed left-0 top-16 z-50 flex h-[calc(100vh-4rem)] flex-col border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width] lg:top-0 lg:z-10 lg:h-screen ${
+        aria-label="Primary navigation"
+        className={`${navWidth} fixed left-0 top-16 z-50 flex h-[calc(100vh-4rem)] flex-col border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg ${RAIL_TRANSITION} will-change-[width] motion-reduce:will-change-auto lg:top-0 lg:z-10 lg:h-screen ${
           isMobileNavOpen ? "translate-x-0" : "-translate-x-full max-lg:pointer-events-none"
         } lg:translate-x-0`}
       >
         <div
-          className={`flex h-16 items-center ${isNavCollapsed ? "justify-center px-2" : "justify-between px-4"}`}
+          className={`flex h-16 shrink-0 items-center ${isNavCollapsed ? "justify-center px-2" : "justify-between px-4"}`}
         >
           {!isNavCollapsed && (
-            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out motion-reduce:transition-none">
               MRE
             </div>
           )}
           <button
             type="button"
             onClick={handleToggleNavCollapsed}
-            className="rounded-md border border-[var(--token-border-default)] p-2 text-[var(--token-text-secondary)] transition hover:text-[var(--token-text-primary)]"
+            className="rounded-md border border-[var(--token-border-default)] p-2 text-[var(--token-text-secondary)] transition motion-reduce:transition-none hover:text-[var(--token-text-primary)]"
             aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d={isNavCollapsed ? "m9 6 6 6-6 6" : "m15 18-6-6 6-6"}
                 stroke="currentColor"
@@ -605,419 +207,34 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-2 py-4">
-          {navItems.map((item) => {
-            // Special handling for My Club with sub-menu
-            if (
-              item.href === "/under-development?from=/eventAnalysis/my-club" ||
-              item.href.startsWith("/eventAnalysis/my-club")
-            ) {
-              const fromParam = searchParams.get("from")
-              const myClubActive =
-                (pathname === "/under-development" && fromParam === "/eventAnalysis/my-club") ||
-                pathname.startsWith("/eventAnalysis/my-club") ||
-                (pathname === "/eventAnalysis" &&
-                  (activeEventAnalysisTab === "track-leader-board" ||
-                    activeEventAnalysisTab === "club-highlights"))
-              const trackMapsActive =
-                pathname === "/eventAnalysis/my-club/track-maps" ||
-                pathname.startsWith("/eventAnalysis/my-club/track-maps")
-              const trackLeaderboardRailActive =
-                pathname === "/eventAnalysis" && activeEventAnalysisTab === "track-leader-board"
-              const clubHighlightsRailActive =
-                pathname === "/eventAnalysis" && activeEventAnalysisTab === "club-highlights"
-
-              if (isNavCollapsed) {
-                // Collapsed: Show My Club icon only
-                return (
-                  <Tooltip key={item.label} text={item.label} position="right">
-                    <Link
-                      href={item.href}
-                      className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
-                      aria-current={myClubActive ? "page" : undefined}
-                      aria-label={item.label}
-                    >
-                      {item.icon(myClubActive)}
-                    </Link>
-                  </Tooltip>
-                )
-              }
-
-              // Expanded: Show My Club with expandable sub-menu
-              return (
-                <div key={item.label} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={item.href}
-                      className={`group flex flex-1 flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
-                      aria-current={myClubActive ? "page" : undefined}
-                      aria-label={item.label}
-                    >
-                      <div className="flex items-center gap-3">
-                        {item.icon(myClubActive)}
-                        <span
-                          className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${myClubActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
-                        >
-                          {item.label}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
-                        {item.description}
-                      </p>
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={toggleMyClubExpanded}
-                      className="rounded-lg p-1.5 text-[var(--token-text-muted)] hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      aria-label={
-                        isMyClubExpanded ? "Collapse My Club menu" : "Expand My Club menu"
-                      }
-                      aria-expanded={isMyClubExpanded}
-                    >
-                      <svg
-                        className={`h-4 w-4 transition-transform ${isMyClubExpanded ? "rotate-180" : ""}`}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <path
-                          d="m6 9 6 6 6-6"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                  {isMyClubExpanded && (
-                    <div className="ml-4 space-y-1 border-l-2 border-[var(--token-border-muted)] pl-3">
-                      <Link
-                        href="/eventAnalysis/my-club/track-maps"
-                        className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                          trackMapsActive
-                            ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
-                            : "text-[var(--token-text-secondary)]"
-                        }`}
-                        aria-current={trackMapsActive ? "page" : undefined}
-                        aria-label="Track Maps"
-                      >
-                        <svg
-                          className="h-4 w-4 text-[var(--token-text-muted)]"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <path
-                            d="M3 12h18M3 6h18M3 18h18"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M9 3v18M15 3v18"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <circle cx="6" cy="9" r="1.5" stroke="currentColor" strokeWidth={1.5} />
-                          <circle cx="18" cy="15" r="1.5" stroke="currentColor" strokeWidth={1.5} />
-                        </svg>
-                        <span>Track Maps</span>
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={handleTrackLeaderboardInRailClick}
-                        className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                          trackLeaderboardRailActive
-                            ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
-                            : "text-[var(--token-text-secondary)]"
-                        }`}
-                        aria-current={trackLeaderboardRailActive ? "page" : undefined}
-                        aria-label="Track Leaderboard"
-                      >
-                        <svg
-                          className="h-4 w-4 text-[var(--token-text-muted)]"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <path
-                            d="M4 6h16M4 12h10M4 18h16"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M18 9v6l2-2"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                        <span>Track Leaderboard</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleClubHighlightsInRailClick}
-                        className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                          clubHighlightsRailActive
-                            ? "text-[var(--token-text-primary)] bg-[var(--token-surface-raised)]/50"
-                            : "text-[var(--token-text-secondary)]"
-                        }`}
-                        aria-current={clubHighlightsRailActive ? "page" : undefined}
-                        aria-label="Club Highlights"
-                      >
-                        <svg
-                          className="h-4 w-4 text-[var(--token-text-muted)]"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <path
-                            d="M12 2l3 6 6 .5-4.5 4 1.5 6L12 16l-6 3 1.5-6L3 8.5 9 8l3-6z"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                        <span>Club Highlights</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            }
-
-            // For external URLs, don't check active state
-            const isExternal = item.href.startsWith("http://") || item.href.startsWith("https://")
-            const active = isExternal
-              ? false
-              : pathname === item.href || pathname.startsWith(`${item.href}/`)
-            const linkElement = (
-              <Link
-                href={item.href}
-                onClick={item.href === "/eventAnalysis" ? handleDashboardNavClick : undefined}
-                className={`group flex flex-col ${isNavCollapsed ? "items-center" : "items-stretch"} rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
-                aria-current={active ? "page" : undefined}
-                aria-label={item.label}
-              >
-                <div className={`flex items-center ${isNavCollapsed ? "justify-center" : "gap-3"}`}>
-                  {item.icon(active)}
-                  {!isNavCollapsed && (
-                    <span
-                      className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${active ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
-                    >
-                      {item.label}
-                    </span>
-                  )}
-                </div>
-                {!isNavCollapsed && (
-                  <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
-                    {item.description}
-                  </p>
-                )}
-              </Link>
-            )
-
-            const showMyEventsBelowDashboard = item.href === "/eventAnalysis" && showMyEventsRail
-
-            const myEventsRailButton = showMyEventsBelowDashboard ? (
-              isNavCollapsed ? (
-                <Tooltip text="My Events" position="right">
-                  <button
-                    type="button"
-                    id="rail-nav-my-events"
-                    onClick={handleMyEventsInRailClick}
-                    className={`group flex w-full items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                      myEventsActive ? "bg-[var(--token-surface-raised)]/50" : ""
-                    }`}
-                    aria-label="My Events"
-                    aria-pressed={myEventsActive}
-                  >
-                    {myEventsNavIcon(myEventsActive)}
-                  </button>
-                </Tooltip>
-              ) : (
-                <button
-                  type="button"
-                  id="rail-nav-my-events"
-                  onClick={handleMyEventsInRailClick}
-                  className={`group flex flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                    myEventsActive ? "bg-[var(--token-surface-raised)]/50" : ""
-                  }`}
-                  aria-label="My Events"
-                  aria-pressed={myEventsActive}
-                >
-                  <div className="flex items-center gap-3">
-                    {myEventsNavIcon(myEventsActive)}
-                    <span
-                      className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${myEventsActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
-                    >
-                      My Events
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
-                    Your entries and standings
-                  </p>
-                </button>
-              )
-            ) : null
-
-            // Only show tooltip when nav is collapsed (icon-only mode)
-            return (
-              <div
-                key={item.label}
-                className={showMyEventsBelowDashboard ? "space-y-1" : undefined}
-              >
-                {isNavCollapsed ? (
-                  <Tooltip text={item.label} position="right">
-                    {linkElement}
-                  </Tooltip>
-                ) : (
-                  linkElement
-                )}
-                {myEventsRailButton}
-              </div>
-            )
-          })}
+        <nav
+          className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 py-4"
+          aria-label="Application sections"
+        >
+          <NavigationRailNavItems
+            navItems={navItems}
+            isNavCollapsed={isNavCollapsed}
+            pathname={pathname}
+            onDashboardNavClick={handleDashboardNavClick}
+            showMyEventsRail={showMyEventsRail}
+            myEventsActive={myEventsActive}
+            onMyEventsInRailClick={handleMyEventsInRailClick}
+            activeEventAnalysisTab={activeEventAnalysisTab}
+            isMyClubExpanded={isMyClubExpanded}
+            onToggleMyClubExpanded={toggleMyClubExpanded}
+            onTrackLeaderboardInRailClick={handleTrackLeaderboardInRailClick}
+            onClubHighlightsInRailClick={handleClubHighlightsInRailClick}
+          />
         </nav>
 
-        {/* User Guides Section */}
-        <div className="border-t border-[var(--token-border-muted)] px-2 py-4">
-          {isNavCollapsed ? (
-            <div className="space-y-1">
-              {/* Guides menu toggle - links to /guides and expands menu on click */}
-              {(() => {
-                const guidesIndexActive = pathname === "/guides" || pathname.startsWith("/guides/")
-                const guidesIcon = (
-                  <svg
-                    className={`h-5 w-5 transition-transform ${guidesIndexActive ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"} ${isGuidesMenuExpanded ? "rotate-90" : ""}`}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <path
-                      d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )
-                return (
-                  <div>
-                    <Link
-                      href="/guides"
-                      onClick={(e) => {
-                        // Toggle menu on left click instead of navigating
-                        e.preventDefault()
-                        setIsGuidesMenuExpanded(!isGuidesMenuExpanded)
-                      }}
-                      className={`group flex w-full items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                        isGuidesMenuExpanded ? "bg-[var(--token-surface-raised)]/50" : ""
-                      }`}
-                      aria-label="Guides"
-                      aria-expanded={isGuidesMenuExpanded}
-                    >
-                      <Tooltip text="Guides" position="right">
-                        {guidesIcon}
-                      </Tooltip>
-                    </Link>
-                    {isGuidesMenuExpanded && (
-                      <div className="mt-1 space-y-1">
-                        {GUIDE_ITEMS.map((guide) => {
-                          const active = isGuideActive(guide.href)
-                          const linkContent = (
-                            <Link
-                              key={guide.href}
-                              href={guide.href}
-                              className={`group flex items-center justify-center rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                                active ? "bg-[var(--token-surface-raised)]/30" : ""
-                              }`}
-                              aria-current={active ? "page" : undefined}
-                              aria-label={guide.label}
-                            >
-                              {guide.icon(active)}
-                            </Link>
-                          )
-                          return (
-                            <Tooltip key={guide.href} text={guide.label} position="right">
-                              {linkContent}
-                            </Tooltip>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={toggleGuidesExpanded}
-                className="group flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
-                aria-label="User Guides"
-                aria-expanded={isGuidesExpanded}
-              >
-                <div className="flex items-center gap-3">
-                  <svg
-                    className="h-5 w-5 text-[var(--token-text-secondary)]"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <path
-                      d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium text-[var(--token-text-secondary)] transition-opacity duration-200 ease-in-out">
-                    User Guides
-                  </span>
-                </div>
-                <svg
-                  className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${isGuidesExpanded ? "rotate-180" : ""}`}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <path
-                    d="m6 9 6 6 6-6"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              {isGuidesExpanded && (
-                <div className="mt-1 space-y-1 pl-8">
-                  {GUIDE_ITEMS.map((guide) => {
-                    const active = isGuideActive(guide.href)
-                    return (
-                      <Link
-                        key={guide.href}
-                        href={guide.href}
-                        className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] ${
-                          active
-                            ? "font-medium text-[var(--token-text-primary)]"
-                            : "text-[var(--token-text-secondary)]"
-                        }`}
-                        aria-current={active ? "page" : undefined}
-                      >
-                        {guide.label}
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </>
-          )}
+        <div className="shrink-0">
+          <NavigationRailGuidesSection
+            isNavCollapsed={isNavCollapsed}
+            isGuidesExpanded={isGuidesExpanded}
+            onToggleGuidesExpanded={toggleGuidesExpanded}
+            isGuidesMenuExpanded={isGuidesMenuExpanded}
+            onToggleGuidesMenuExpanded={toggleGuidesMenuExpanded}
+          />
         </div>
       </aside>
     </>

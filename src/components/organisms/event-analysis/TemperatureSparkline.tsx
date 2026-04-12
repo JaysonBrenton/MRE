@@ -11,6 +11,7 @@
 "use client"
 
 import { useId, useState, useRef } from "react"
+import { createPortal } from "react-dom"
 import { formatTimeDisplay } from "@/lib/date-utils"
 
 const WIDTH = 140
@@ -45,9 +46,7 @@ export default function TemperatureSparkline({
   const gradientId = useId().replace(/:/g, "-")
   const svgRef = useRef<SVGSVGElement>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(
-    null,
-  )
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
 
   if (hourly.length < 2) return null
 
@@ -55,19 +54,14 @@ export default function TemperatureSparkline({
   const xStep = (WIDTH - PADDING * 2) / (hourly.length - 1)
   const points = hourly.map((h, i) => {
     const x = PADDING + i * xStep
-    const y =
-      HEIGHT -
-      PADDING -
-      ((h.temperature - minTemp) / tempRange) * (HEIGHT - PADDING * 2)
+    const y = HEIGHT - PADDING - ((h.temperature - minTemp) / tempRange) * (HEIGHT - PADDING * 2)
     return `${x},${y}`
   })
   const pathD = `M ${points.join(" L ")}`
   const gradientStops = hourly.map((h, i) => {
     const offset = (i / (hourly.length - 1)) * 100
     const color = tempToColor(h.temperature)
-    return (
-      <stop key={i} offset={`${offset}%`} stopColor={color} />
-    )
+    return <stop key={i} offset={`${offset}%`} stopColor={color} />
   })
 
   function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
@@ -113,9 +107,11 @@ export default function TemperatureSparkline({
       </svg>
       {hoveredIndex !== null &&
         tooltipPos !== null &&
-        hourly[hoveredIndex] && (
+        hourly[hoveredIndex] &&
+        typeof document !== "undefined" &&
+        createPortal(
           <span
-            className="pointer-events-none fixed z-50 whitespace-nowrap rounded px-2 py-1 text-xs shadow-lg"
+            className="pointer-events-none fixed z-[100] whitespace-nowrap rounded px-2 py-1 text-xs shadow-lg"
             style={{
               left: tooltipPos.x,
               top: tooltipPos.y - 36,
@@ -127,7 +123,8 @@ export default function TemperatureSparkline({
           >
             {formatTimeDisplay(hourly[hoveredIndex].time)} •{" "}
             {Math.round(hourly[hoveredIndex].temperature)}°C
-          </span>
+          </span>,
+          document.body
         )}
     </span>
   )

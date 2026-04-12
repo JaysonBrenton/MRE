@@ -36,12 +36,14 @@ export interface UseModalPanelDragResult {
 }
 
 /**
- * Drag the modal panel by the header. Resets offset when `isOpen` becomes true.
+ * Drag the modal panel by the header. Resets offset when `isOpen` becomes true, and when
+ * `resetSignal` changes while open (e.g. toggling fullscreen layout).
  * @param modalRef - Ref on the panel root (same element that receives `transform`).
  */
 export function useModalPanelDrag(
   isOpen: boolean,
-  modalRef: RefObject<HTMLElement | null>
+  modalRef: RefObject<HTMLElement | null>,
+  resetSignal?: unknown
 ): UseModalPanelDragResult {
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
@@ -54,7 +56,7 @@ export function useModalPanelDrag(
   useEffect(() => {
     if (!isOpen) return
     queueMicrotask(() => setOffset({ x: 0, y: 0 }))
-  }, [isOpen])
+  }, [isOpen, resetSignal])
 
   const headerPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {

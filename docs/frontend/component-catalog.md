@@ -25,19 +25,18 @@ source file for behavior and props.
 
 ## admin
 
-| File                                                              | Tier             | Purpose                         |
-| ----------------------------------------------------------------- | ---------------- | ------------------------------- |
-| `src/components/organisms/admin/AdminDashboardStats.tsx`          | organism (admin) | Admin Dashboard Stats           |
-| `src/components/organisms/admin/AuditLogTable.tsx`                | organism (admin) | Audit Log Table                 |
-| `src/components/organisms/admin/DeleteConfirmationDialog.tsx`     | organism (admin) | Delete Confirmation Dialog      |
-| `src/components/organisms/admin/EditUserModal.tsx`                | organism (admin) | Edit User Modal                 |
-| `src/components/organisms/admin/EventsTable.tsx`                  | organism (admin) | Events Table                    |
-| `src/components/organisms/admin/HealthStatus.tsx`                 | organism (admin) | Health Status                   |
-| `src/components/organisms/admin/IngestionControls.tsx`            | organism (admin) | Ingestion Controls              |
-| `src/components/organisms/admin/LogViewer.tsx`                    | organism (admin) | Log Viewer                      |
-| `src/components/organisms/admin/TracksTable.tsx`                  | organism (admin) | Tracks Table                    |
-| `src/components/organisms/admin/UsersTable.tsx`                   | organism (admin) | Users Table                     |
-| `src/components/organisms/admin/VenueCorrectionRequestsTable.tsx` | organism (admin) | Venue Correction Requests Table |
+| File                                                          | Tier             | Purpose                    |
+| ------------------------------------------------------------- | ---------------- | -------------------------- |
+| `src/components/organisms/admin/AdminDashboardStats.tsx`      | organism (admin) | Admin Dashboard Stats      |
+| `src/components/organisms/admin/AuditLogTable.tsx`            | organism (admin) | Audit Log Table            |
+| `src/components/organisms/admin/DeleteConfirmationDialog.tsx` | organism (admin) | Delete Confirmation Dialog |
+| `src/components/organisms/admin/EditUserModal.tsx`            | organism (admin) | Edit User Modal            |
+| `src/components/organisms/admin/EventsTable.tsx`              | organism (admin) | Events Table               |
+| `src/components/organisms/admin/HealthStatus.tsx`             | organism (admin) | Health Status              |
+| `src/components/organisms/admin/IngestionControls.tsx`        | organism (admin) | Ingestion Controls         |
+| `src/components/organisms/admin/LogViewer.tsx`                | organism (admin) | Log Viewer                 |
+| `src/components/organisms/admin/TracksTable.tsx`              | organism (admin) | Tracks Table               |
+| `src/components/organisms/admin/UsersTable.tsx`               | organism (admin) | Users Table                |
 
 ## atoms
 

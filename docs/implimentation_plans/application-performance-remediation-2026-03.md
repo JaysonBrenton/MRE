@@ -189,6 +189,12 @@ Medium (1–2 days including verification).
 
 **Source:** Review §7 C1, §9 P3.
 
+**2026-04-13:** **Venue correction is fully deprecated** (see
+[`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md)).
+Prefer **removing** `fetchVenueCorrection` / success handlers entirely rather
+than optimizing the double-fetch path. If this section is obsolete after UI
+removal, close P3 as **won’t fix** / **superseded by deprecation**.
+
 ### 5.1 Files
 
 - [EventAnalysisSection.tsx](../../src/components/organisms/dashboard/EventAnalysisSection.tsx)

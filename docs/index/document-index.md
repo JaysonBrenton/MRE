@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-04-07
+lastModified: 2026-04-12
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -13,7 +13,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-04-07  
+**Last Updated:** 2026-04-12  
 **Purpose:** Complete listing of all documentation files in the MRE repository
 
 This document provides a comprehensive index of every document in the MRE
@@ -196,6 +196,13 @@ response time targets, and optimization guidelines.
 Canonical seeded vehicle-type tree, per-user global mapping rules, match types,
 resolution order, Session Analysis integration, HTTP APIs, and operational notes
 (Prisma migrate / generate in Docker).
+
+#### [Top qualifiers](../architecture/top-qualifiers.md)
+
+Normative design for top qualifier (TQ) definitions, v1 derivation rules from
+`Race` / `RaceResult` and qualifying sessions, edge cases, persistence options,
+and links to ingestion semantics. Companion implementation plan under
+`docs/implimentation_plans/`.
 
 #### [Logging Standards](../architecture/logging.md)
 
@@ -705,10 +712,15 @@ Index of lightweight idea notes and links to individual write-ups.
 
 ### [Graph-based race replay](../future-ideas/graph-based-race-replay.md)
 
-### [Top qualifiers and seeding rounds](../future-ideas/top-qualifiers-and-seeding-rounds.md)
-
 Chart-driven playback (lap times, order, gaps) as an alternative to video or
 track-map replay, building on existing lap-trend data.
+
+### [Top qualifiers and seeding rounds](../future-ideas/top-qualifiers-and-seeding-rounds.md)
+
+Product background for top qualifiers and seeding; normative TQ definitions and
+implementation plan are
+[architecture/top-qualifiers.md](../architecture/top-qualifiers.md) and
+[implimentation_plans/top-qualifiers-2026-04.md](../implimentation_plans/top-qualifiers-2026-04.md).
 
 ---
 
@@ -892,6 +904,12 @@ implementation, testing, and references to ADRs and ingestion.
 Detailed implementation plan for P0–P7 backlog from the March 2026 application
 performance review: dependencies, acceptance criteria, Docker verification, PR
 sequencing, and documentation updates.
+
+### [Top qualifiers (April 2026)](../implimentation_plans/top-qualifiers-2026-04.md)
+
+Phased plan for top qualifier (TQ) derivation, event analysis payload, UI, and
+documentation handoff; pairs with
+[architecture/top-qualifiers.md](../architecture/top-qualifiers.md).
 
 ### [Codex Deep Review Remediation Plan](../implimentation_plans/codex-deep-review-remediation-plan.md)
 

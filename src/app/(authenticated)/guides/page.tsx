@@ -3,7 +3,7 @@
  *
  * @created 2025-01-28
  * @creator Jayson Brenton
- * @lastModified 2026-01-27
+ * @lastModified 2026-04-11
  *
  * @description Guides index page listing all available user guides
  *
@@ -38,6 +38,12 @@ export default async function GuidesPage() {
       href: "/guides/event-analysis",
       description:
         "Learn how to analyze race event data, view interactive charts, compare drivers, explore sessions, and export data.",
+    },
+    {
+      title: "Car type mapping",
+      href: "/guides/car-type-mapping",
+      description:
+        "Why map event classes to vehicle classes, how account-wide rules work, and how to use suggestions and manual mapping in Event Analysis.",
     },
     {
       title: "My Event Analysis",

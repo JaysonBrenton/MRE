@@ -29,7 +29,7 @@
 "use client"
 
 import type { CSSProperties } from "react"
-import { ReactNode, useEffect, useRef, useSyncExternalStore } from "react"
+import { ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { createPortal } from "react-dom"
 import {
   getModalContainerStyles,
@@ -54,6 +54,11 @@ export interface ModalProps {
    * bottom-right corner (native browser handle; best supported on desktop).
    */
   resizable?: boolean
+  /**
+   * When true, double-clicking the header (not the close button) toggles the panel between normal
+   * layout and filling the viewport. Opt-in so most modals keep the default behavior.
+   */
+  doubleClickHeaderFullscreen?: boolean
 }
 
 // Use shared modal styles utility to ensure consistency
@@ -95,14 +100,21 @@ export default function Modal({
   footer,
   ariaLabel,
   resizable = true,
+  doubleClickHeaderFullscreen = false,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const portalTarget = useSyncExternalStore(
     () => () => {},
     getDocumentBody,
     () => null
   )
-  const { offset: dragOffset, isDragging, headerPointerDown } = useModalPanelDrag(isOpen, modalRef)
+  const fullscreenToggle = doubleClickHeaderFullscreen ? isFullscreen : undefined
+  const {
+    offset: dragOffset,
+    isDragging,
+    headerPointerDown,
+  } = useModalPanelDrag(isOpen, modalRef, fullscreenToggle)
 
   // Prevent background scroll; modal is portaled to body so layout scroll does not clip it
   useEffect(() => {
@@ -112,6 +124,11 @@ export default function Modal({
     return () => {
       document.body.style.overflow = prevOverflow
     }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (isOpen) return
+    queueMicrotask(() => setIsFullscreen(false))
   }, [isOpen])
 
   // Handle Escape key to close modal
@@ -161,22 +178,49 @@ export default function Modal({
 
   if (!isOpen || !portalTarget) return null
 
-  const panelStyles: CSSProperties = {
-    ...(resizable
-      ? {
-          ...getModalResizableContainerStyles(maxWidthInRem[maxWidth]),
-          resize: "both",
+  const fullscreenPanel =
+    doubleClickHeaderFullscreen && isFullscreen
+      ? ({
+          width: "100%",
+          height: "100%",
+          maxWidth: "none",
+          minWidth: "20rem",
+          maxHeight: "none",
+          minHeight: 0,
+          boxSizing: "border-box",
+          flexShrink: 0,
           overflow: "hidden",
-          minHeight: "12rem",
-          maxHeight: "calc(100vh - 2rem)",
-        }
-      : getModalContainerStyles(maxWidthInRem[maxWidth])),
-    transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+          resize: "none",
+        } satisfies CSSProperties)
+      : null
+
+  const panelStyles: CSSProperties = {
+    ...(fullscreenPanel
+      ? fullscreenPanel
+      : resizable
+        ? {
+            ...getModalResizableContainerStyles(maxWidthInRem[maxWidth]),
+            resize: "both",
+            overflow: "hidden",
+            minHeight: "12rem",
+            maxHeight: "calc(100vh - 2rem)",
+          }
+        : getModalContainerStyles(maxWidthInRem[maxWidth])),
+    transform:
+      doubleClickHeaderFullscreen && isFullscreen
+        ? undefined
+        : `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
   }
+
+  const backdropFullscreen = doubleClickHeaderFullscreen && isFullscreen
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-start justify-center bg-black/70 backdrop-blur-[2px] p-4"
+      className={`fixed inset-0 bg-black/70 backdrop-blur-[2px] ${
+        backdropFullscreen
+          ? "overflow-hidden p-0"
+          : "flex items-start justify-center overflow-y-auto p-4"
+      }`}
       onPointerDown={(e) => {
         // Use pointerdown (not click) so closing the overlay does not fire when a resize drag
         // ends with the pointer over the dimmed area (click would target the backdrop).
@@ -187,12 +231,14 @@ export default function Modal({
       role="dialog"
       aria-modal="true"
       aria-labelledby={ariaLabel || "modal-title"}
-      style={{ minWidth: 0, overflowY: "auto", zIndex: MODAL_PORTAL_Z_INDEX }}
+      style={{ minWidth: 0, zIndex: MODAL_PORTAL_Z_INDEX }}
     >
       <div
         ref={modalRef}
-        className={`my-4 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)] ${
-          resizable ? "min-h-0" : "max-h-[calc(100vh-2rem)]"
+        className={`bg-[var(--token-surface-raised)] shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)] ${
+          backdropFullscreen
+            ? "h-full w-full min-h-0 rounded-none"
+            : `my-4 rounded-lg ${resizable ? "min-h-0" : "max-h-[calc(100vh-2rem)]"}`
         }`}
         style={panelStyles}
       >
@@ -203,6 +249,14 @@ export default function Modal({
           }`}
           style={{ minWidth: 0, width: "100%", boxSizing: "border-box", touchAction: "none" }}
           onPointerDown={headerPointerDown}
+          onDoubleClick={(e) => {
+            if (!doubleClickHeaderFullscreen) return
+            const el = e.target as HTMLElement
+            if (el.closest("button, a, input, select, textarea")) return
+            e.preventDefault()
+            setIsFullscreen((v) => !v)
+          }}
+          title={doubleClickHeaderFullscreen ? "Double-click to toggle full screen" : undefined}
         >
           <div style={{ minWidth: 0, flex: "1 1 auto" }}>
             <h2

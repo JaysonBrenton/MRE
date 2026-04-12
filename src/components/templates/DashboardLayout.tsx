@@ -55,7 +55,7 @@ function DashboardShell({
       <TopStatusBar user={user ?? null} userId={userId} />
       <div
         data-scroll-container
-        className="scrollbar-none fixed left-0 right-0 top-16 bottom-0 z-0 flex min-h-0 flex-col overflow-y-auto overflow-x-hidden px-1 py-6 transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] sm:px-2 md:px-2 lg:px-2 lg:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] xl:pr-4 xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] 2xl:pr-6 2xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))]"
+        className="scrollbar-none fixed left-0 right-0 top-16 bottom-0 z-0 flex min-h-0 flex-col overflow-y-auto overflow-x-hidden px-1 py-6 transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none motion-reduce:duration-0 sm:px-2 md:px-2 lg:px-2 lg:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] xl:pr-4 xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] 2xl:pr-6 2xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))]"
       >
         {children}
       </div>

@@ -8,7 +8,7 @@ import type { LiveRcRaceResultStats } from "@/core/events/live-rc-race-result-st
  */
 export type EventAnalysisDataApiResponse = Omit<
   EventAnalysisData,
-  "event" | "races" | "summary" | "raceClasses"
+  "event" | "races" | "summary" | "raceClasses" | "userHostTrack"
 > & {
   isPracticeDay?: boolean
   event: {
@@ -25,7 +25,6 @@ export type EventAnalysisDataApiResponse = Omit<
     address?: string | null
     phone?: string | null
     email?: string | null
-    venueCorrected?: boolean
     /** LiveRC source event id (e.g. "491882") for entry list fetch; only set for LiveRC events */
     sourceEventId?: string
     /** LiveRC track slug (e.g. "rcra") for entry list URL; only set when track has source */
@@ -85,4 +84,6 @@ export type EventAnalysisDataApiResponse = Omit<
       latest: string | null
     }
   }
+  /** Per-user host track (catalogue); mirrors `EventAnalysisData.userHostTrack`. */
+  userHostTrack?: EventAnalysisData["userHostTrack"]
 }

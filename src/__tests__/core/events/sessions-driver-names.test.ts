@@ -15,7 +15,7 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 describe("Sessions Data Driver Names", () => {
   it("should always include driverName in results array", () => {
     // Create mock event analysis data
-    const mockData: EventAnalysisData = {
+    const mockData = {
       event: {
         id: "test-event-id",
         trackId: "test-track-id",
@@ -63,7 +63,7 @@ describe("Sessions Data Driver Names", () => {
               raceResultId: "result-3",
               raceDriverId: "race-driver-3",
               driverId: "driver-3",
-              driverName: undefined as string | undefined, // Undefined
+              driverName: undefined as unknown as string, // Undefined at runtime for this case
               positionFinal: 3,
               lapsCompleted: 9,
               totalTimeSeconds: 310,
@@ -137,7 +137,8 @@ describe("Sessions Data Driver Names", () => {
           latest: new Date("2025-01-01T10:00:00"),
         },
       },
-    }
+      userHostTrack: null,
+    } as EventAnalysisData
 
     // Get sessions data
     const sessionsData = getSessionsData(mockData, [], "Test Class")
@@ -167,7 +168,7 @@ describe("Sessions Data Driver Names", () => {
   })
 
   it("should use fallback driver names from lookup when result.driverName is missing", () => {
-    const mockData: EventAnalysisData = {
+    const mockData = {
       event: {
         id: "test-event-id",
         trackId: "test-track-id",
@@ -189,7 +190,7 @@ describe("Sessions Data Driver Names", () => {
               raceResultId: "result-1",
               raceDriverId: "race-driver-1",
               driverId: "driver-1",
-              driverName: undefined as string | undefined, // Missing driver name
+              driverName: undefined as unknown as string, // Missing driver name
               positionFinal: 1,
               lapsCompleted: 10,
               totalTimeSeconds: 300,
@@ -230,7 +231,8 @@ describe("Sessions Data Driver Names", () => {
           latest: new Date("2025-01-01T10:00:00"),
         },
       },
-    }
+      userHostTrack: null,
+    } as EventAnalysisData
 
     const sessionsData = getSessionsData(mockData, [], "Test Class")
 

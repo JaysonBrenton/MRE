@@ -57,7 +57,34 @@ Out of scope:
   - scheduled process that deletes expired artifacts and datasets
   - enforces user deletion requests
 
-### 2.2 Critical invariants
+### 2.2 Telemetry worker (stage 1)
+
+As of 2026-04-14, Compose includes a dedicated **`telemetry-worker`** service
+(`mre-telemetry-worker`) that runs `python -m ingestion.telemetry.worker`. The
+service **overrides the ingestion image `ENTRYPOINT`** (`docker-compose.yml`
+uses `entrypoint: ["python", "-m", "ingestion.telemetry.worker"]`); without that
+override, the default `cron-entrypoint.sh` would start Uvicorn instead of the
+telemetry loop.
+
+- **Purpose:** Poll `telemetry_jobs` using `FOR UPDATE SKIP LOCKED`, execute
+  `artifact_validate` (verify raw file exists on disk and size matches
+  `telemetry_artifacts.byte_size`), then mark run/session/job success or
+  failure.
+- **Shared volume:** `mre-telemetry-uploads` is mounted at **`/data/telemetry`**
+  on **`app`**, **`liverc-ingestion-service`**, and **`telemetry-worker`**. The
+  Next.js API writes bytes under `TELEMETRY_UPLOAD_ROOT`; `storagePath` on each
+  artifact is relative to that root (see
+  [`Telemetry_MVP_Implementation_Decisions`](Telemetry_MVP_Implementation_Decisions.md)
+  §3).
+- **Env:** `TELEMETRY_UPLOAD_ROOT`, `TELEMETRY_WORKER_ID`,
+  `TELEMETRY_WORKER_POLL_INTERVAL_SEC` (see
+  [`telemetry-implementation-plan.md`](../../implimentation_plans/telemetry-implementation-plan.md)).
+- **If sessions stay `processing`:** confirm the worker container is running
+  (`docker compose ps`) and that migration
+  `20260414120000_telemetry_infra_stage1` has been applied
+  (`docker exec -it mre-app npx prisma migrate deploy`).
+
+### 2.3 Critical invariants
 
 - No cross-tenant access, every request is scoped by `owner_user_id`
 - No Restricted telemetry values in application logs
@@ -246,12 +273,12 @@ Actions:
 These patterns cause parser or pipeline failures and have stable error codes.
 Check job attempt `last_error_code` and `last_error_message` for these:
 
-| Pattern | Error code (example) | First checks |
-| -------- | -------------------- | ------------- |
-| **Timebase mismatch** | `TIME_ALIGNMENT_DRIFT`, `TIMESTAMP_NON_MONOTONIC` | GNSS vs IMU clock drift; device time vs UTC mapping; duplicate timestamps |
-| **IMU axis confusion** | `IMU_AXIS_MISMATCH`, `FRAME_AMBIGUOUS` | Device family axis convention (RH_Z_UP vs RH_Z_DOWN); coordinate frame metadata |
-| **GNSS jitter** | `GNSS_JITTER_HIGH`, `GNSS_TELEPORT_EVENTS` | HDOP spikes; dropout spans; multipath near structures |
-| **Missing timestamps** | `CSV_NO_TIME_COLUMN`, `GPX_MISSING_TIME` | Header mapping; time column detection; fallback to relative time |
+| Pattern                | Error code (example)                              | First checks                                                                    |
+| ---------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Timebase mismatch**  | `TIME_ALIGNMENT_DRIFT`, `TIMESTAMP_NON_MONOTONIC` | GNSS vs IMU clock drift; device time vs UTC mapping; duplicate timestamps       |
+| **IMU axis confusion** | `IMU_AXIS_MISMATCH`, `FRAME_AMBIGUOUS`            | Device family axis convention (RH_Z_UP vs RH_Z_DOWN); coordinate frame metadata |
+| **GNSS jitter**        | `GNSS_JITTER_HIGH`, `GNSS_TELEPORT_EVENTS`        | HDOP spikes; dropout spans; multipath near structures                           |
+| **Missing timestamps** | `CSV_NO_TIME_COLUMN`, `GPX_MISSING_TIME`          | Header mapping; time column detection; fallback to relative time                |
 
 Operator actions: run golden fixtures to confirm parser baseline; check device
 family in parse metadata; suggest user re-export with timestamps enabled.

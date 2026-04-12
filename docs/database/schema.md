@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-04-07
+lastModified: 2026-04-14
 description: Human-readable database schema documentation for MRE application
 purpose:
   Provides comprehensive documentation of the database schema, including all
@@ -10,6 +10,8 @@ purpose:
   data model without reading the Prisma schema directly.
 relatedFiles:
   - prisma/schema.prisma (source of truth for schema)
+  - docs/architecture/venue-correction-deprecation.md (venue correction tables
+    deprecated; slated for removal)
   - docs/architecture/car-taxonomy-user-mapping.md (CarTaxonomyNode,
     UserCarTaxonomyRule)
   - docs/architecture/liverc-ingestion/04-data-model.md (ingestion-specific
@@ -20,9 +22,12 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-04-07 — Schema overview and model list aligned with
-`prisma/schema.prisma` (31 models); includes `CarTaxonomyNode` and
-`UserCarTaxonomyRule` for per-user car-type mapping.  
+**Last Updated:** 2026-04-13 — `EventVenueCorrection` /
+`EventVenueCorrectionRequest` are **deprecated** (see
+[`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md)).
+**2026-04-07:** Schema overview and model list aligned with
+`prisma/schema.prisma`; includes `CarTaxonomyNode` and `UserCarTaxonomyRule` for
+per-user car-type mapping.  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -50,7 +55,7 @@ the database structure.
 
 ## Schema Overview
 
-The MRE database schema consists of **31 Prisma models** (see
+The MRE database schema consists of **38 Prisma models** (see
 `prisma/schema.prisma`):
 
 - **Identity & profiles:** `User`, `Persona`, `CarProfile`, `DriverProfile`
@@ -62,12 +67,23 @@ The MRE database schema consists of **31 Prisma models** (see
   `EventQualPointsEntry`, `EventRoundRanking`, `EventRoundRankingEntry`
 - **Links & overrides:** `UserDriverLink`, `EventDriverLink`,
   `TransponderOverride`
-- **Venue workflow:** `EventVenueCorrection`, `EventVenueCorrectionRequest`
+- **Venue workflow (deprecated — removal planned):** `EventVenueCorrection`,
+  `EventVenueCorrectionRequest` — see
+  [venue-correction-deprecation.md](../architecture/venue-correction-deprecation.md)
 - **Supporting:** `WeatherData`, `AuditLog`, `ApplicationLog`, `TrackMap`
+- **Telemetry (GNSS/IMU import):** `TelemetrySession`, `TelemetryArtifact`,
+  `TelemetryDevice`, `TelemetryProcessingRun`, `TelemetryJob`,
+  `TelemetryDataset`, `TelemetryLap` — see
+  [`docs/implimentation_plans/telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md)
+  and [`docs/telemetry/README.md`](../telemetry/README.md)
 
 **Enums:** `PersonaType`, `IngestDepth`, `UserDriverLinkStatus`,
 `EventDriverLinkMatchType`, `EventDriverLinkStatus`, `SessionType`,
-`EventVenueCorrectionRequestStatus`, `CarTaxonomyMatchType`
+`EventVenueCorrectionRequestStatus`, `CarTaxonomyMatchType`,
+`TelemetrySessionPrivacy`, `TelemetrySessionStatus`, `TelemetryArtifactRole`,
+`TelemetryArtifactStatus`, `TelemetryDeviceType`,
+`TelemetryProcessingRunStatus`, `TelemetryJobStatus`, `TelemetryDatasetType`,
+`TelemetryDatasetSensorType`, `TelemetryLapValidity`
 
 Most models use UUID primary keys and include `createdAt` and `updatedAt`
 timestamps where applicable.
@@ -1062,6 +1078,9 @@ and `Driver`.
 
 ### EventVenueCorrection
 
+> **Deprecated.** Full removal planned. See
+> [venue-correction-deprecation.md](../architecture/venue-correction-deprecation.md).
+
 **Table:** `event_venue_corrections`
 
 Approved correction linking an event to a venue `Track` (one row per event when
@@ -1070,6 +1089,9 @@ approved). See `EventVenueCorrection` in `prisma/schema.prisma`.
 ---
 
 ### EventVenueCorrectionRequest
+
+> **Deprecated.** Full removal planned. See
+> [venue-correction-deprecation.md](../architecture/venue-correction-deprecation.md).
 
 **Table:** `event_venue_correction_requests`
 
@@ -1301,6 +1323,8 @@ Lifecycle state for an event-level driver link (separate from match type).
 ---
 
 ### EventVenueCorrectionRequestStatus
+
+> **Deprecated** with venue correction tables; remove when models are dropped.
 
 Admin workflow for venue correction requests.
 

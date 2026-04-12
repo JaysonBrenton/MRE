@@ -138,14 +138,23 @@ pytest
 - `POST /api/v1/events/sync` - Sync events for track
 - `POST /api/v1/events/{event_id}/ingest` - Trigger event ingestion
 - `POST /api/v1/events/ingest` - Ingest event by source_event_id + track_id
-- `POST /api/v1/practice-days/ingest` - Ingest practice day (full: list + session detail + laps). See [Practice Day Full Ingestion](../docs/architecture/practice-day-full-ingestion-design.md) and [implementation plan](../docs/implimentation_plans/practice-day-full-ingestion-implementation-plan.md).
-- `GET /api/v1/ingestion/jobs/{job_id}` - Get queued ingestion job status (when queue enabled)
+- `POST /api/v1/practice-days/ingest` - Ingest practice day (full: list +
+  session detail + laps). See
+  [Practice Day Full Ingestion](../docs/architecture/practice-day-full-ingestion-design.md)
+  and
+  [implementation plan](../docs/implimentation_plans/practice-day-full-ingestion-implementation-plan.md).
+- `GET /api/v1/ingestion/jobs/{job_id}` - Get queued ingestion job status (when
+  queue enabled)
 - `GET /api/v1/ingestion/status/{event_id}` - Get ingestion status
 - `GET /health` - Health check
 
 ### Async ingestion (queue)
 
-When `INGESTION_USE_QUEUE=true` (default), ingest POSTs return **202 Accepted** with a `job_id`; clients poll `GET /api/v1/ingestion/jobs/{job_id}` until the job completes or fails. Configuration: `INGESTION_USE_QUEUE`, `INGESTION_QUEUE_MAX_CONCURRENT`, `UVICORN_WORKERS` (must be 1 when queue enabled). See `docs/architecture/liverc-ingestion/28-async-ingestion-queue.md`.
+When `INGESTION_USE_QUEUE=true` (default), ingest POSTs return **202 Accepted**
+with a `job_id`; clients poll `GET /api/v1/ingestion/jobs/{job_id}` until the
+job completes or fails. Configuration: `INGESTION_USE_QUEUE`,
+`INGESTION_QUEUE_MAX_CONCURRENT`, `UVICORN_WORKERS` (must be 1 when queue
+enabled). See `docs/architecture/liverc-ingestion/28-async-ingestion-queue.md`.
 
 ## Architecture
 
@@ -233,6 +242,15 @@ Fixtures enable:
    ```
 
 4. Add `notes.md` documenting any quirks or edge cases
+
+### Telemetry worker (stage 1)
+
+Docker Compose service **`telemetry-worker`** (`mre-telemetry-worker`) runs the
+Postgres-backed queue consumer (`python -m ingestion.telemetry.worker`). It
+shares the **`mre-telemetry-uploads`** volume with the Next.js app at
+`/data/telemetry`. See
+`docs/implimentation_plans/telemetry-implementation-plan.md` and
+`ingestion/telemetry/worker.py`.
 
 ### Telemetry Fixtures
 

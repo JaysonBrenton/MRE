@@ -220,7 +220,7 @@ export async function fetchWeather(
     const precipProbArr = data.hourly.precipitation_probability ?? []
 
     // Daily total precipitation (mm) - sum of all hourly values
-    const dailyPrecipMm = precipMmArr.reduce(
+    const dailyPrecipMm = precipMmArr.reduce<number>(
       (sum, v) => sum + (typeof v === "number" && Number.isFinite(v) ? v : 0),
       0
     )
