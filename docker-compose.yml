@@ -69,6 +69,8 @@ services:
       TELEMETRY_UPLOAD_ROOT: ${TELEMETRY_UPLOAD_ROOT:-/data/telemetry}
       # Feature flags (NEXT_PUBLIC_ prefix required for client-side access)
       NEXT_PUBLIC_ENABLE_PRACTICE_DAYS: ${NEXT_PUBLIC_ENABLE_PRACTICE_DAYS:-true}
+      # Optional: ClickHouse HTTP URL for telemetry cache cleanup on session delete
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://mre-clickhouse:8123}
       # AUTH_SECRET is loaded from .env.docker via env_file directive
       # REQUIRED: Must be at least 32 characters. Generate with: openssl rand -base64 32
       # The application validates AUTH_SECRET at build time and will fail if invalid
@@ -113,6 +115,18 @@ services:
         reservations:
           # Minimum guaranteed memory
           memory: 512M
+
+  # ClickHouse (optional telemetry query cache; worker materialises GNSS when CLICKHOUSE_HOST is set)
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: mre-clickhouse
+    ports:
+      - "${CLICKHOUSE_PORT:-8123}:8123"
+    volumes:
+      - mre-clickhouse-data:/var/lib/clickhouse
+    networks:
+      - mre-network
+    restart: unless-stopped
 
   # Python ingestion service
   liverc-ingestion-service:
@@ -205,6 +219,12 @@ services:
       TELEMETRY_UPLOAD_ROOT: ${TELEMETRY_UPLOAD_ROOT:-/data/telemetry}
       TELEMETRY_WORKER_ID: ${TELEMETRY_WORKER_ID:-telemetry-worker-1}
       TELEMETRY_WORKER_POLL_INTERVAL_SEC: ${TELEMETRY_WORKER_POLL_INTERVAL_SEC:-2}
+      # GNSS materialisation to ClickHouse is optional. Leave empty to skip (Parquet + API still work).
+      # Set to mre-clickhouse when credentials match your ClickHouse server (see TELEMETRY_WORKER_CLICKHOUSE_*).
+      CLICKHOUSE_HOST: ${TELEMETRY_WORKER_CLICKHOUSE_HOST:-}
+      CLICKHOUSE_HTTP_PORT: ${CLICKHOUSE_HTTP_PORT:-8123}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
     # Override ingestion image ENTRYPOINT (cron-entrypoint.sh); otherwise `command` is ignored.
     entrypoint: ["python", "-m", "ingestion.telemetry.worker"]
     working_dir: /app
@@ -222,6 +242,7 @@ services:
 volumes:
   mre-postgres-data:
   mre-telemetry-uploads:
+  mre-clickhouse-data:
 
 networks:
   mre-network:

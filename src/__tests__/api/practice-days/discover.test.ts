@@ -6,7 +6,7 @@
  * @lastModified 2026-01-XX
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest"
 import { POST } from "@/app/api/v1/practice-days/discover/route"
 import { NextRequest } from "next/server"
 import * as discoverPracticeDays from "@/core/practice-days/discover-practice-days"
@@ -28,7 +28,7 @@ describe("POST /api/v1/practice-days/discover", () => {
 
   it("should return 401 if not authenticated", async () => {
     const { auth } = await import("@/lib/auth")
-    vi.mocked(auth).mockResolvedValueOnce(null)
+    vi.mocked(auth as Mock).mockResolvedValueOnce(null)
 
     const request = new NextRequest("http://localhost/api/v1/practice-days/discover", {
       method: "POST",

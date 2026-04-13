@@ -120,7 +120,7 @@ describe("weather repository", () => {
 
     it("should provide helpful error message when Prisma client weatherData is undefined", async () => {
       const originalWeatherData = prisma.weatherData
-      ;(prisma as Record<string, unknown>).weatherData = undefined
+      ;(prisma as unknown as Record<string, unknown>).weatherData = undefined
 
       try {
         await getCachedWeather(eventId, calendarDay)
@@ -132,7 +132,7 @@ describe("weather repository", () => {
         )
         expect((error as Error).message).toContain("npx prisma generate")
       } finally {
-        ;(prisma as Record<string, unknown>).weatherData = originalWeatherData
+        ;(prisma as unknown as Record<string, unknown>).weatherData = originalWeatherData
       }
     })
   })

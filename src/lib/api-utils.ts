@@ -61,18 +61,25 @@ export const CACHE_CONTROL = {
  * @param status - HTTP status code (default: 200)
  * @param message - Optional success message
  * @param cacheControl - Optional Cache-Control header value
+ * @param extraHeaders - Optional additional headers (e.g. ETag)
  * @returns NextResponse with standardized success format
  */
 export function successResponse<T>(
   data: T,
   status = 200,
   message?: string,
-  cacheControl?: string
+  cacheControl?: string,
+  extraHeaders?: Record<string, string>
 ): NextResponse<ApiSuccessResponse<T>> {
   const headers: HeadersInit = {}
 
   if (cacheControl) {
     headers["Cache-Control"] = cacheControl
+  }
+  if (extraHeaders) {
+    for (const [k, v] of Object.entries(extraHeaders)) {
+      headers[k] = v
+    }
   }
 
   return NextResponse.json(

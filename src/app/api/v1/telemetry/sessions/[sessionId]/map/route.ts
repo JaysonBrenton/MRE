@@ -2,13 +2,17 @@
  * GET /api/v1/telemetry/sessions/{sessionId}/map — bounded GNSS polyline for map preview (MVP).
  */
 
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { TelemetrySessionStatus } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { successResponse, errorResponse, CACHE_CONTROL } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
-import { getTelemetrySessionForUser } from "@/core/telemetry/telemetry-repo"
+import { weakEtagFromParts } from "@/core/telemetry/telemetry-etag"
+import {
+  getGnssParquetRelativePathForMapPreview,
+  getTelemetrySessionForUser,
+} from "@/core/telemetry/telemetry-repo"
 import { MapReadError, readGnssMapPolyline } from "@/core/telemetry/telemetry-parquet-map"
 
 export async function GET(
@@ -32,18 +36,7 @@ export async function GET(
       return errorResponse("NOT_READY", "Session has no previewable GNSS data yet", undefined, 409)
     }
 
-    const run = row.currentRun
-    if (
-      !run?.qualitySummary ||
-      typeof run.qualitySummary !== "object" ||
-      run.qualitySummary === null
-    ) {
-      return errorResponse("NOT_FOUND", "No canonical GNSS path for this session", undefined, 404)
-    }
-
-    const qs = run.qualitySummary as { parquetRelativePath?: unknown }
-    const parquetRelativePath =
-      typeof qs.parquetRelativePath === "string" ? qs.parquetRelativePath.trim() : null
+    const parquetRelativePath = getGnssParquetRelativePathForMapPreview(row)
     if (!parquetRelativePath) {
       return errorResponse("NOT_FOUND", "No canonical GNSS path for this session", undefined, 404)
     }
@@ -53,6 +46,20 @@ export async function GET(
     const maxPoints = maxPointsRaw ? Number.parseInt(maxPointsRaw, 10) : undefined
     if (maxPointsRaw !== null && maxPointsRaw !== "" && Number.isNaN(maxPoints ?? NaN)) {
       return errorResponse("VALIDATION_ERROR", "Invalid max_points", undefined, 400)
+    }
+
+    const etag = weakEtagFromParts([
+      sessionId,
+      row.updatedAt.toISOString(),
+      parquetRelativePath,
+      String(maxPoints ?? ""),
+    ])
+    const inm = request.headers.get("if-none-match")
+    if (inm && inm === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: { ETag: etag, "Cache-Control": CACHE_CONTROL.NO_CACHE },
+      })
     }
 
     try {
@@ -76,7 +83,8 @@ export async function GET(
         },
         200,
         undefined,
-        CACHE_CONTROL.NO_CACHE
+        CACHE_CONTROL.NO_CACHE,
+        { ETag: etag }
       )
     } catch (err: unknown) {
       if (err instanceof MapReadError) {

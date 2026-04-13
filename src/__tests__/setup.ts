@@ -1,3 +1,5 @@
+import "@testing-library/jest-dom/vitest"
+
 /**
  * @fileoverview Test setup file for Vitest
  *

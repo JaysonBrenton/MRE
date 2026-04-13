@@ -37,8 +37,8 @@
  * @param name - Driver name to normalize
  * @returns Normalized name string
  */
-export function normalizeDriverName(name: string): string {
-  if (!name) {
+export function normalizeDriverName(name: string | null | undefined): string {
+  if (name == null || !name.trim()) {
     return ""
   }
 

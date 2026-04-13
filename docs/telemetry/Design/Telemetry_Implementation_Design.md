@@ -879,7 +879,10 @@ detection (v1), (7) ClickHouse materialisation (v1).
 
 ### 9.3 Phase v1
 
-1. All text parsers: CSV, GPX, NMEA, JSON, FIT
+1. All text parsers: CSV, GPX, NMEA, JSON, FIT — **NMEA 0183 (Phase 3a)** and
+   **JSON + FIT GNSS (Phase 3b)** shipped in
+   [`telemetry-implementation-plan.md`](../../implimentation_plans/telemetry-implementation-plan.md);
+   broader v1 items below remain
 2. Full canonical stream set (GNSS, accel, gyro, mag as present)
 3. Time alignment, unit normalisation
 4. Downsample pyramid (L0, L1, L2)
@@ -932,28 +935,33 @@ API, then pipeline and parsers.
 
 #### Phase v1
 
-- [ ] All text parsers: CSV, GPX, NMEA, JSON, FIT
-- [ ] Time alignment, unit normalisation
-- [ ] Full canonical stream set (GNSS, accel, gyro, mag as present)
-- [ ] Downsample pyramid (L0, L1, L2)
-- [ ] Server-side GNSS+IMU fusion (Kalman) for 6-axis+
-- [ ] Auto SFL lap detection
-- [ ] ClickHouse materialisation job
-- [ ] ClickHouse tables (telemetry_gnss_v1, telemetry_pose_v1, etc.)
-- [ ] Full quality scoring (reason codes, task scores, feature gating)
-- [ ] Optional LiveRC link (eventId, practiceDayId on sessions)
-- [ ] API: session CRUD, time-series read, lap list, quality explain
-- [ ] ETag, cache headers on read endpoints
+- [x] All text parsers: CSV, GPX (**MVP**), **NMEA 0183** (**Phase 3a**),
+      **JSON + FIT GNSS** (**Phase 3b** → canonical GNSS Parquet)
+- [x] Time alignment (`time_align_gnss`); unit normalisation per MVP parsers
+- [x] Canonical streams as present (GNSS; IMU accel/gyro/mag from FIT when
+      logged)
+- [x] Downsample GNSS variants + API `stride` / `ds_rate` hints (not full
+      L0/L1/L2 product naming everywhere)
+- [x] Server-side GNSS+IMU fusion (EKF) for 6-axis+; optional mag blend when
+      stable
+- [x] Lap detection (user line, track catalogue line, auto loop)
+- [x] ClickHouse materialisation (optional `telemetry_gnss_v1`; pose cache table
+      deferred)
+- [x] Quality scoring v1 (reason codes, gates, task scores — not full Trust doc)
+- [x] Optional LiveRC link (`livercEventId`, `livercRaceId` on sessions)
+- [x] API: session CRUD, timeseries, map, laps, quality, coaching, compare,
+      share, export, reprocess
+- [x] ETag / cache headers on key read endpoints
 
 #### Phase v2
 
-- [ ] UBX parser
-- [ ] Binary format parsers (as needed)
-- [ ] Track catalogue SFL
-- [ ] User-defined SFL (draw on map)
-- [ ] 9-axis fusion with mag gating
-- [ ] Segment and corner detection
-- [ ] Extended comparison and coaching features
+- [x] UBX parser (NAV-PVT; extended messages optional)
+- [ ] Additional binary parsers (vendor-specific) as needed
+- [x] Track catalogue SFL (consumes `Track.startFinishLineGeoJson`; admin PATCH)
+- [x] User-defined SFL (GeoJSON + UI draw + reprocess)
+- [x] 9-axis fusion with mag gating (heuristic stability + blend)
+- [x] Segment and corner detection (heuristic from GNSS heading rate)
+- [x] Comparison API + coaching hints; full product “coaching” UX TBD
 
 ---
 

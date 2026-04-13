@@ -38,6 +38,12 @@ const geocodeCache = new Map<string, GeocodeResult>()
 let lastRequestTime = 0
 const MIN_REQUEST_INTERVAL_MS = 1000
 
+/** Clears cache + rate limiter state (Vitest only). */
+export function __resetGeocodeTestState(): void {
+  geocodeCache.clear()
+  lastRequestTime = 0
+}
+
 /**
  * Geocodes a track name to geographic coordinates
  *

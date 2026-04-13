@@ -2,6 +2,8 @@
  * @fileoverview Tests for CountryLeaderboardCard component
  */
 
+/** @vitest-environment jsdom */
+
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import CountryLeaderboardCard from "@/components/organisms/event-analysis/CountryLeaderboardCard"
@@ -24,28 +26,31 @@ describe("CountryLeaderboardCard", () => {
       if (url.includes("/api/v1/leaderboards/countries")) {
         return {
           ok: true,
-          json: async () => ({ countries: ["Australia"] }),
+          json: async () => ({ success: true, data: { countries: ["Australia"] } }),
         } as unknown as Response
       }
       if (url.includes("/api/v1/leaderboards/country")) {
         return {
           ok: true,
           json: async () => ({
-            country: "Australia",
-            year: 2026,
-            total: 1,
-            classes: ["1/8 Nitro Buggy"],
-            rows: [
-              {
-                driverId: "d1",
-                driverName: "Driver 1",
-                className: "1/8 Nitro Buggy",
-                points: 25,
-                wins: 1,
-                podiums: 0,
-                eventsCount: 1,
-              },
-            ],
+            success: true,
+            data: {
+              country: "Australia",
+              year: 2026,
+              total: 1,
+              classes: ["1/8 Nitro Buggy"],
+              rows: [
+                {
+                  driverId: "d1",
+                  driverName: "Driver 1",
+                  className: "1/8 Nitro Buggy",
+                  points: 25,
+                  wins: 1,
+                  podiums: 0,
+                  eventsCount: 1,
+                },
+              ],
+            },
           }),
         } as unknown as Response
       }

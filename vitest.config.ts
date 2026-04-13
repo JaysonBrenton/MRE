@@ -17,7 +17,7 @@
  * - tsconfig.json (TypeScript path aliases)
  */
 
-import { defineConfig } from "vitest/config"
+import { defineConfig, configDefaults } from "vitest/config"
 import path from "path"
 
 export default defineConfig({
@@ -25,6 +25,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     setupFiles: ["./src/__tests__/setup.ts"],
+    exclude: [...configDefaults.exclude, "**/e2e/**", "**/*.spec.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

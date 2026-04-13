@@ -2,10 +2,11 @@
  * @fileoverview Tests for practice day discover-range API route
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest"
 import { POST } from "@/app/api/v1/practice-days/discover-range/route"
 import { NextRequest } from "next/server"
 import * as discoverPracticeDays from "@/core/practice-days/discover-practice-days"
+import type { PracticeDaySummary } from "@/core/practice-days/types"
 
 vi.mock("@/core/practice-days/discover-practice-days", () => ({
   discoverPracticeDaysRange: vi.fn(),
@@ -22,7 +23,7 @@ describe("POST /api/v1/practice-days/discover-range", () => {
 
   it("should return 401 if not authenticated", async () => {
     const { auth } = await import("@/lib/auth")
-    vi.mocked(auth).mockResolvedValueOnce(null)
+    vi.mocked(auth as Mock).mockResolvedValueOnce(null)
 
     const request = new NextRequest("http://localhost/api/v1/practice-days/discover-range", {
       method: "POST",
@@ -76,15 +77,26 @@ describe("POST /api/v1/practice-days/discover-range", () => {
   })
 
   it("should successfully discover practice days for range", async () => {
-    const mockPracticeDays = [
+    const mockPracticeDays: PracticeDaySummary[] = [
       {
         date: "2025-06-15",
-        track_slug: "testtrack",
-        session_count: 4,
-        total_laps: 120,
-        unique_drivers: 3,
-        unique_classes: 2,
-        sessions: [{ session_id: "1" }],
+        trackSlug: "testtrack",
+        sessionCount: 4,
+        totalLaps: 120,
+        totalTrackTimeSeconds: 3600,
+        uniqueDrivers: 3,
+        uniqueClasses: 2,
+        sessions: [
+          {
+            sessionId: "1",
+            driverName: "Driver",
+            className: "Stock",
+            startTime: "2025-06-15T10:00:00Z",
+            durationSeconds: 600,
+            lapCount: 30,
+            sessionUrl: "https://example.com/s/1",
+          },
+        ],
       },
     ]
 
@@ -110,11 +122,12 @@ describe("POST /api/v1/practice-days/discover-range", () => {
     expect(data.data.practice_days).toHaveLength(1)
     expect(data.data.practice_days[0]).toMatchObject({
       date: "2025-06-15",
-      track_slug: "testtrack",
-      session_count: 4,
-      total_laps: 120,
-      unique_drivers: 3,
-      unique_classes: 2,
+      trackSlug: "testtrack",
+      sessionCount: 4,
+      totalLaps: 120,
+      totalTrackTimeSeconds: 3600,
+      uniqueDrivers: 3,
+      uniqueClasses: 2,
     })
     expect(data.data.practice_days[0]).not.toHaveProperty("sessions")
   })

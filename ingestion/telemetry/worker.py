@@ -15,24 +15,30 @@ import os
 import time
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 
 from ingestion.common.logging import configure_logging, get_logger
+from ingestion.common.metrics import record_telemetry_job
 from ingestion.db.session import engine as _engine
 from ingestion.telemetry.canonical_parquet import write_gnss_parquet
 from ingestion.telemetry.errors import TelemetryParseError
+from ingestion.telemetry.pipeline_v1 import run_v1_postprocess
 from ingestion.telemetry.parsers.csv_gnss import parse_csv_gnss
+from ingestion.telemetry.parsers.fit_gnss import is_fit_magic, parse_fit_gnss
 from ingestion.telemetry.parsers.gpx_gnss import parse_gpx_gnss
+from ingestion.telemetry.parsers.json_gnss import parse_json_gnss
+from ingestion.telemetry.parsers.nmea_gnss import looks_like_nmea_text, parse_nmea_gnss
+from ingestion.telemetry.parsers.ubx_gnss import looks_like_ubx
+from ingestion.telemetry.storage_paths import UPLOAD_ROOT, estimate_hz, resolve_artifact_path
+from ingestion.telemetry.time_align import time_align_gnss
 
 logger = get_logger(__name__)
 
 WORKER_ID = os.getenv("TELEMETRY_WORKER_ID", "telemetry-worker-1")
 POLL_SEC = float(os.getenv("TELEMETRY_WORKER_POLL_INTERVAL_SEC", "2"))
-UPLOAD_ROOT = Path(os.getenv("TELEMETRY_UPLOAD_ROOT", "/data/telemetry"))
 
 
 def _get_engine() -> Engine:
@@ -84,17 +90,6 @@ def claim_next_job(conn: Connection, worker_id: str) -> Optional[Dict[str, Any]]
         .one()
     )
     return dict(job)
-
-
-def _resolve_artifact_path(storage_path: str) -> Path:
-    rel = storage_path.lstrip("/\\")
-    full = (UPLOAD_ROOT / rel).resolve()
-    root = UPLOAD_ROOT.resolve()
-    root_str = str(root)
-    full_str = str(full)
-    if full_str != root_str and not full_str.startswith(root_str + os.sep):
-        raise ValueError("storage_path escapes TELEMETRY_UPLOAD_ROOT")
-    return full
 
 
 def _enqueue_job(
@@ -183,7 +178,7 @@ def _artifact_validate(conn: Connection, job: Dict[str, Any]) -> None:
         {"rid": run_id},
     )
 
-    path = _resolve_artifact_path(art["storage_path"])
+    path = resolve_artifact_path(art["storage_path"])
     if not path.is_file():
         raise FileNotFoundError("FILE_NOT_FOUND")
 
@@ -216,32 +211,32 @@ def _artifact_validate(conn: Connection, job: Dict[str, Any]) -> None:
     )
 
 
-def _estimate_hz(samples: List[Any]) -> Optional[int]:
-    if len(samples) < 2:
-        return None
-    dts: List[int] = []
-    for i in range(1, len(samples)):
-        dt = samples[i].t_ns - samples[i - 1].t_ns
-        if dt > 0:
-            dts.append(dt)
-    if not dts:
-        return None
-    dts.sort()
-    med = dts[len(dts) // 2]
-    if med <= 0:
-        return None
-    return max(1, int(round(1_000_000_000 / med)))
-
-
-def _detect_format(path: Path, original_file_name: str) -> str:
+def _detect_format(path, original_file_name: str) -> str:
     name = (original_file_name or "").lower()
     if name.endswith(".gpx"):
         return "gpx"
-    if name.endswith(".csv"):
-        return "csv"
     head = path.read_bytes()[:512].lstrip()
     if head.startswith(b"<?xml") or head.startswith(b"<gpx"):
         return "gpx"
+    if name.endswith(".nmea"):
+        return "nmea"
+    try:
+        text_head = path.read_text(encoding="utf-8-sig")[:16384]
+    except UnicodeDecodeError:
+        text_head = ""
+    if looks_like_nmea_text(text_head):
+        return "nmea"
+    raw_probe_ubx = path.read_bytes()[:4096]
+    if name.endswith(".ubx") or looks_like_ubx(raw_probe_ubx):
+        return "ubx"
+    raw_probe = path.read_bytes()[:64]
+    if name.endswith(".fit") or is_fit_magic(raw_probe):
+        return "fit"
+    th = text_head.lstrip()
+    if name.endswith(".json") or th.startswith("{") or th.startswith("["):
+        return "json"
+    if name.endswith(".csv"):
+        return "csv"
     return "csv"
 
 
@@ -314,29 +309,63 @@ def _parse_raw(conn: Connection, job: Dict[str, Any]) -> None:
         {"rid": run_id},
     )
 
-    path = _resolve_artifact_path(art["storage_path"])
+    path = resolve_artifact_path(art["storage_path"])
     fmt = _detect_format(path, str(art["original_file_name"]))
     raw_bytes = path.read_bytes()
 
     if fmt == "gpx":
         samples, pmeta = parse_gpx_gnss(raw_bytes)
         detected = "gpx"
+    elif fmt == "ubx":
+        from ingestion.telemetry.parsers.ubx_gnss import parse_ubx_gnss
+
+        samples, pmeta = parse_ubx_gnss(raw_bytes)
+        detected = "ubx_gnss"
+    elif fmt == "fit":
+        samples, pmeta = parse_fit_gnss(raw_bytes)
+        detected = "fit_gnss"
+    elif fmt == "json":
+        try:
+            decoded_utf8 = raw_bytes.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise TelemetryParseError(
+                "JSON_UNSUPPORTED_ENCODING",
+                f"Could not decode as UTF-8: {exc}",
+            ) from exc
+        samples, pmeta = parse_json_gnss(
+            decoded_utf8, session_created_at=sess["created_at"]
+        )
+        detected = "json_gnss"
+    elif fmt == "nmea":
+        try:
+            decoded_utf8 = raw_bytes.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise TelemetryParseError(
+                "CSV_UNSUPPORTED_ENCODING",
+                f"Could not decode as UTF-8: {exc}",
+            ) from exc
+        samples, pmeta = parse_nmea_gnss(
+            decoded_utf8, session_created_at=sess["created_at"]
+        )
+        detected = "nmea_gnss"
     else:
         try:
-            text = raw_bytes.decode("utf-8-sig")
+            decoded_utf8 = raw_bytes.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
             raise TelemetryParseError(
                 "CSV_UNSUPPORTED_ENCODING",
                 f"Could not decode as UTF-8: {exc}",
             ) from exc
         samples, pmeta = parse_csv_gnss(
-            text, session_created_at=sess["created_at"]
+            decoded_utf8, session_created_at=sess["created_at"]
         )
         detected = "csv_gnss"
 
+    samples = time_align_gnss(samples)
+
     dataset_id = str(uuid.uuid4())
     rel_parquet = f"canonical/{session_id}/{run_id}/{dataset_id}/gnss_pvt.parquet"
-    out_path = _resolve_artifact_path(rel_parquet)
+    out_path = resolve_artifact_path(rel_parquet)
     write_gnss_parquet(out_path, samples)
 
     t_ns_list = [s.t_ns for s in samples]
@@ -349,14 +378,7 @@ def _parse_raw(conn: Connection, job: Dict[str, Any]) -> None:
     start_dt = _ns_to_dt(t_min_ns)
     end_dt = _ns_to_dt(t_max_ns)
 
-    sr = _estimate_hz(samples)
-
-    quality = {
-        "parquetRelativePath": rel_parquet,
-        "rowCount": len(samples),
-        "formatDetected": detected,
-        "parserMeta": pmeta,
-    }
+    sr = estimate_hz(samples)
 
     conn.execute(
         text(
@@ -388,6 +410,19 @@ def _parse_raw(conn: Connection, job: Dict[str, Any]) -> None:
         },
     )
 
+    quality_summary, out_ids, fusion_ver, lap_det_ver = run_v1_postprocess(
+        conn,
+        session_id=session_id,
+        run_id=run_id,
+        artifact_id=artifact_id,
+        gnss_dataset_id=dataset_id,
+        rel_gnss_parquet=rel_parquet,
+        samples=samples,
+        raw_bytes=raw_bytes,
+        format_detected=detected,
+        parser_meta=pmeta,
+    )
+
     conn.execute(
         text(
             """
@@ -398,14 +433,18 @@ def _parse_raw(conn: Connection, job: Dict[str, Any]) -> None:
                 error_detail = NULL,
                 output_dataset_ids = CAST(:ods AS jsonb),
                 quality_summary = CAST(:qs AS jsonb),
+                fusion_version = :fv,
+                lap_detector_version = :lv,
                 updated_at = NOW()
             WHERE id = :rid
             """
         ),
         {
             "rid": run_id,
-            "ods": json.dumps([dataset_id]),
-            "qs": json.dumps(quality),
+            "ods": json.dumps(out_ids),
+            "qs": json.dumps(quality_summary),
+            "fv": fusion_ver,
+            "lv": lap_det_ver,
         },
     )
 
@@ -517,7 +556,7 @@ def process_one(engine: Engine, worker_id: str) -> bool:
             job = claim_next_job(conn, worker_id)
             if not job:
                 return False
-            jt = job.get("job_type")
+            jt = job.get("job_type") or "unknown"
             try:
                 if jt == "artifact_validate":
                     _artifact_validate(conn, job)
@@ -525,14 +564,17 @@ def process_one(engine: Engine, worker_id: str) -> bool:
                     _parse_raw(conn, job)
                 else:
                     raise ValueError(f"UNKNOWN_JOB_TYPE:{jt}")
+                record_telemetry_job(str(jt), "success")
             except TelemetryParseError as exc:
                 msg = f"{exc.code}: {exc.detail}"
                 logger.warning("telemetry_job_failed", job_id=job["id"], error=msg)
+                record_telemetry_job(str(jt), "failed")
                 _fail_job(conn, job, code=exc.code, message=exc.detail)
             except Exception as exc:  # noqa: BLE001
                 msg = f"{type(exc).__name__}: {exc}"
                 code = "ARTIFACT_VALIDATE_FAILED" if jt == "artifact_validate" else "PARSE_RAW_FAILED"
                 logger.warning("telemetry_job_failed", job_id=job["id"], error=msg)
+                record_telemetry_job(str(jt), "failed")
                 _fail_job(conn, job, code=code, message=msg)
         return True
 

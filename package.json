@@ -73,6 +73,9 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
     "@commitlint/cli": "^20.3.0",
     "@commitlint/config-conventional": "^20.3.0",
     "@playwright/test": "^1.57.0",
@@ -90,6 +93,7 @@
     "eslint-config-next": "16.0.5",
     "eslint-config-prettier": "^9.1.2",
     "husky": "^9.1.7",
+    "jsdom": "^25.0.1",
     "lint-staged": "^15.5.2",
     "prettier": "^3.7.4",
     "standard-version": "^9.5.0",

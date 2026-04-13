@@ -160,6 +160,18 @@ _PRACTICE_DAY_SESSIONS_DETAIL_FAILED = Counter(
     registry=REGISTRY,
 )
 
+_TELEMETRY_JOBS = Counter(
+    "telemetry_jobs_total",
+    "Telemetry worker jobs by type and outcome",
+    labelnames=("job_type", "outcome"),
+    registry=REGISTRY,
+)
+
+
+def record_telemetry_job(job_type: str, outcome: str) -> None:
+    """Record telemetry worker job success or failure."""
+    _TELEMETRY_JOBS.labels(job_type=job_type, outcome=outcome).inc()
+
 
 def record_db_insert(table: str, count: int = 1) -> None:
     """Increment the DB insert counter."""

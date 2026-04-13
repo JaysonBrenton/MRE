@@ -22,9 +22,11 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2026-04-12 — Telemetry MVP (`GET /telemetry/sessions`, session
-detail + datasets, `GET .../map`, My Telemetry UI). **2026-04-13:** Venue
-correction endpoints are **deprecated** (see
+**Last Updated:** 2026-04-12 — Telemetry: session list/detail/map; worker ingest
+for CSV, GPX, NMEA 0183, JSON, and FIT (see
+[`telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md)
+Phases 3a–3b). **2026-04-13:** Venue correction endpoints are **deprecated**
+(see
 [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md));
 replacement direction is per-user host track. **2026-04-07:** car taxonomy and
 user car-taxonomy-rules endpoints; event analysis notes `userCarTaxonomy` on
@@ -4201,6 +4203,13 @@ details:
 Implementation status:
 [`docs/implimentation_plans/telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md).
 
+**Ingest formats (telemetry-worker `parse_raw`):** UTF-8 CSV with GNSS columns,
+GPX 1.1 track points, NMEA 0183 text (`RMC`/`GGA` sentences, including `GN`
+talker IDs), UTF-8 JSON (array of points or `points`/`samples`/`records`/`data`
+wrapper), and Garmin FIT (`.FIT` header, `record` messages with position).
+Successful runs set `telemetry_artifacts.format_detected` to `csv_gnss`, `gpx`,
+`nmea_gnss`, `json_gnss`, or `fit_gnss` respectively.
+
 ### POST /api/v1/telemetry/uploads
 
 Creates a `telemetry_artifacts` row (no session yet) and returns the upload id
@@ -4281,6 +4290,43 @@ Returns a **downsampled** GNSS polyline for map/path preview from canonical
 `{ meta: { level, pointCount, rowCount, timeBounds }, data: { lat_deg, lon_deg } }`  
 **Errors:**
 `404` (session or file), `409` (session not `ready`), `413` (file/row limits).
+
+### GET /api/v1/telemetry/sessions/[sessionId]/timeseries
+
+GNSS columns from ClickHouse (if materialised) or Parquet.
+
+**Query parameters:** `t_ns_min`, `t_ns_max`, `max_rows`, optional `stride`
+(subsample after read), optional `ds_rate` (`10hz` / `ds_10hz` or `1hz` /
+`ds_1hz`) as hints for stride.
+
+### GET /api/v1/telemetry/sessions/[sessionId]/export
+
+Streams canonical GNSS Parquet bytes. `?format=arrow` or `format=ipc` returns
+**501** (Arrow IPC not implemented).
+
+### GET /api/v1/telemetry/sessions/compare
+
+**Query:** `ids=uuid,uuid` (2–4 **READY** sessions, same owner). Returns lap
+summaries and best lap per session.
+
+### POST / DELETE /api/v1/telemetry/sessions/[sessionId]/share
+
+Mint or revoke a **read-only share token** (`telemetry_sessions.share_token`).
+
+### GET /api/v1/telemetry/share/[token] and …/map
+
+**No authentication.** Public session summary and map polyline when token is
+valid.
+
+### POST /api/v1/telemetry/sessions/[sessionId]/reprocess
+
+Full re-ingest for **READY** sessions. **429** when
+`TELEMETRY_REPROCESS_COOLDOWN_SEC` is violated.
+
+### PATCH /api/v1/admin/tracks/[trackId]
+
+Admin may set `startFinishLineGeoJson` (catalogue SFL) in addition to
+`isFollowed`.
 
 ---
 

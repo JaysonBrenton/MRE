@@ -22,7 +22,11 @@ relatedFiles:
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-04-12 — Telemetry read APIs + UI (see
+**Last Updated:** 2026-04-18 — `TelemetrySession` adds optional
+`last_reprocess_at`, `share_token`, `share_token_created_at` (public read-only
+links + reprocess cooldown). See
+[`telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md).
+Earlier: telemetry read APIs + UI (see
 [`docs/api/api-reference.md`](../api/api-reference.md) §Telemetry).
 **2026-04-13:** `EventVenueCorrection` / `EventVenueCorrectionRequest` are
 **deprecated** (see

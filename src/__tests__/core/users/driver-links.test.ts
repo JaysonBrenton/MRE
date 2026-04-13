@@ -28,7 +28,7 @@ type EventDriverLinkResult = Prisma.EventDriverLinkGetPayload<{
 const timestamp = new Date()
 
 function buildLink(overrides: Partial<UserDriverLinkResult>): UserDriverLinkResult {
-  return {
+  const base: UserDriverLinkResult = {
     id: "link-base",
     userId: "user-1",
     driverId: "driver-base",
@@ -47,22 +47,18 @@ function buildLink(overrides: Partial<UserDriverLinkResult>): UserDriverLinkResu
     matchedAt: timestamp,
     confirmedAt: null,
     rejectedAt: null,
+    matcherId: "matcher-default",
+    matcherVersion: "test",
     conflictReason: null,
     createdAt: timestamp,
     updatedAt: timestamp,
     events: [],
+  }
+  return {
+    ...base,
     ...overrides,
-    driver: overrides.driver ?? {
-      id: "driver-base",
-      source: "liverc",
-      sourceDriverId: "liverc-driver-base",
-      displayName: "Driver Base",
-      normalizedName: null,
-      transponderNumber: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
-    events: overrides.events ?? [],
+    driver: overrides.driver ?? base.driver,
+    events: overrides.events ?? base.events,
   }
 }
 

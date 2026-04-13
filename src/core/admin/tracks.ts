@@ -18,7 +18,7 @@
 import { prisma } from "@/lib/prisma"
 import { getTrackById } from "@/core/tracks/repo"
 import { createAuditLog } from "./audit"
-import type { Track, Prisma } from "@prisma/client"
+import { Prisma, type Track } from "@prisma/client"
 
 /**
  * Get all tracks with pagination and filtering
@@ -118,6 +118,47 @@ export async function setTrackFollowStatus(
       trackName: track.trackName,
       previousIsFollowed: track.isFollowed,
       newIsFollowed: isFollowed,
+    },
+    ipAddress,
+    userAgent,
+  })
+
+  return updatedTrack
+}
+
+/**
+ * Set catalogue start/finish line GeoJSON (admin). `null` clears the line.
+ */
+export async function updateTrackStartFinishLine(
+  trackId: string,
+  startFinishLineGeoJson: unknown | null,
+  adminUserId: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<Track> {
+  const track = await getTrackById(trackId)
+  if (!track) {
+    throw new Error("Track not found")
+  }
+
+  const updatedTrack = await prisma.track.update({
+    where: { id: trackId },
+    data: {
+      startFinishLineGeoJson:
+        startFinishLineGeoJson === null
+          ? Prisma.JsonNull
+          : (startFinishLineGeoJson as Prisma.InputJsonValue),
+    },
+  })
+
+  await createAuditLog({
+    userId: adminUserId,
+    action: "track.start_finish_line_update",
+    resourceType: "track",
+    resourceId: trackId,
+    details: {
+      trackName: track.trackName,
+      cleared: startFinishLineGeoJson === null,
     },
     ipAddress,
     userAgent,

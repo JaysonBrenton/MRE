@@ -13,19 +13,28 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { registerUser } from "@/core/auth/register"
-import { findUserByEmail, createUser } from "@/core/users/repo"
+import { findUserByEmail } from "@/core/users/repo"
 import { validateRegisterInput } from "@/core/auth/validate-register"
+import { getPersonaByType } from "@/core/personas/repo"
+import { prisma } from "@/lib/prisma"
 import argon2 from "argon2"
 import { z } from "zod"
 
 // Mock dependencies
 vi.mock("@/core/users/repo")
 vi.mock("@/core/auth/validate-register")
+vi.mock("@/core/personas/repo")
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    $transaction: vi.fn(),
+  },
+}))
 vi.mock("argon2")
 
 describe("registerUser", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getPersonaByType).mockResolvedValue({ id: "driver-persona-id" } as never)
   })
 
   describe("successful registration", () => {
@@ -54,7 +63,14 @@ describe("registerUser", () => {
       vi.mocked(validateRegisterInput).mockReturnValue(mockInput)
       vi.mocked(findUserByEmail).mockResolvedValue(null)
       vi.mocked(argon2.hash).mockResolvedValue("hashed-password")
-      vi.mocked(createUser).mockResolvedValue(mockUser)
+      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+        const tx = {
+          user: {
+            create: vi.fn().mockResolvedValue(mockUser),
+          },
+        }
+        return fn(tx as never)
+      })
 
       const result = await registerUser(mockInput)
 
@@ -66,14 +82,8 @@ describe("registerUser", () => {
       expect(validateRegisterInput).toHaveBeenCalledWith(mockInput)
       expect(findUserByEmail).toHaveBeenCalledWith(mockInput.email)
       expect(argon2.hash).toHaveBeenCalledWith(mockInput.password)
-      expect(createUser).toHaveBeenCalledWith({
-        email: mockInput.email,
-        passwordHash: "hashed-password",
-        driverName: mockInput.driverName,
-        teamName: mockInput.teamName,
-        isAdmin: false,
-        transponderNumber: null,
-      })
+      expect(getPersonaByType).toHaveBeenCalledWith("driver")
+      expect(prisma.$transaction).toHaveBeenCalled()
     })
 
     it("should register user without teamName", async () => {
@@ -100,7 +110,14 @@ describe("registerUser", () => {
       vi.mocked(validateRegisterInput).mockReturnValue(mockInput)
       vi.mocked(findUserByEmail).mockResolvedValue(null)
       vi.mocked(argon2.hash).mockResolvedValue("hashed-password")
-      vi.mocked(createUser).mockResolvedValue(mockUser)
+      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+        const tx = {
+          user: {
+            create: vi.fn().mockResolvedValue(mockUser),
+          },
+        }
+        return fn(tx as never)
+      })
 
       const result = await registerUser(mockInput)
 
@@ -135,7 +152,7 @@ describe("registerUser", () => {
         expect(result.error.message).toBe("Invalid email address")
       }
       expect(findUserByEmail).not.toHaveBeenCalled()
-      expect(createUser).not.toHaveBeenCalled()
+      expect(prisma.$transaction).not.toHaveBeenCalled()
     })
   })
 
@@ -173,7 +190,7 @@ describe("registerUser", () => {
         expect(result.error.message).toBe("Email already registered")
       }
       expect(argon2.hash).not.toHaveBeenCalled()
-      expect(createUser).not.toHaveBeenCalled()
+      expect(prisma.$transaction).not.toHaveBeenCalled()
     })
 
     it("should return error for Prisma unique constraint violation", async () => {
@@ -186,7 +203,7 @@ describe("registerUser", () => {
       vi.mocked(validateRegisterInput).mockReturnValue(mockInput)
       vi.mocked(findUserByEmail).mockResolvedValue(null)
       vi.mocked(argon2.hash).mockResolvedValue("hashed-password")
-      vi.mocked(createUser).mockRejectedValue({ code: "P2002" })
+      vi.mocked(prisma.$transaction).mockRejectedValue({ code: "P2002" })
 
       const result = await registerUser(mockInput)
 
@@ -209,7 +226,7 @@ describe("registerUser", () => {
       vi.mocked(validateRegisterInput).mockReturnValue(mockInput)
       vi.mocked(findUserByEmail).mockResolvedValue(null)
       vi.mocked(argon2.hash).mockResolvedValue("hashed-password")
-      vi.mocked(createUser).mockRejectedValue({ code: "P1001" })
+      vi.mocked(prisma.$transaction).mockRejectedValue({ code: "P1001" })
 
       const result = await registerUser(mockInput)
 
@@ -230,7 +247,7 @@ describe("registerUser", () => {
       vi.mocked(validateRegisterInput).mockReturnValue(mockInput)
       vi.mocked(findUserByEmail).mockResolvedValue(null)
       vi.mocked(argon2.hash).mockResolvedValue("hashed-password")
-      vi.mocked(createUser).mockRejectedValue({ code: "P2003" })
+      vi.mocked(prisma.$transaction).mockRejectedValue({ code: "P2003" })
 
       const result = await registerUser(mockInput)
 

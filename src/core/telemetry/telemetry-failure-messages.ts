@@ -24,6 +24,26 @@ const TELEMETRY_FAILURE_MESSAGES: Record<string, string> = {
   GPX_NO_TRACKPOINTS: "This GPX has no track points. Export a route with track data.",
   GPX_MISSING_TIME: "This GPX is missing time on track points. Export with timestamps.",
   GPX_NO_VALID_POINTS: "No track points had both position and time.",
+  NMEA_EMPTY: "This NMEA file is empty.",
+  NMEA_NO_FIX:
+    "This NMEA log has no usable position fixes. Check that RMC/GGA sentences include a valid fix.",
+  JSON_EMPTY: "This JSON file is empty.",
+  JSON_PARSE_ERROR: "This file isn't valid JSON. Export again or save as UTF-8 JSON.",
+  JSON_NO_POINTS:
+    "This JSON doesn't contain a points array (or points/samples/records/data). Check the export format.",
+  JSON_NO_DATA: "This JSON has no usable GNSS points after parsing.",
+  JSON_NO_POSITION:
+    "This JSON is missing latitude, longitude, or time on the points we could read.",
+  JSON_NO_TIME: "A point is missing a time value. Every sample needs a timestamp.",
+  JSON_AMBIGUOUS_TIME:
+    "We couldn't interpret a time value. Use epoch milliseconds or ISO-8601 strings.",
+  JSON_UNSUPPORTED_ENCODING: "We couldn't read this file as UTF-8. Save it as UTF-8 and try again.",
+  FIT_EMPTY: "This FIT file is empty.",
+  FIT_NOT_FIT: "This doesn't look like a Garmin FIT activity file.",
+  FIT_PARSE_ERROR: "We couldn't read this FIT file. Try re-exporting from your device or app.",
+  FIT_NO_POSITION: "This FIT file has no position records with timestamps.",
+  UBX_NO_FIX:
+    "This UBX log has no valid NAV-PVT position fixes. Record with a 3D fix and try again.",
 }
 
 export function telemetryFailureUserMessage(
@@ -32,6 +52,15 @@ export function telemetryFailureUserMessage(
 ): string {
   if (!code) {
     return detail?.trim() || "Processing failed. Try again or use a different export."
+  }
+  const d = detail?.toLowerCase() ?? ""
+  if (
+    code === "PARSE_RAW_FAILED" &&
+    (d.includes("clickhouse") ||
+      d.includes("authentication_failed") ||
+      d.includes("password is incorrect"))
+  ) {
+    return "The import failed due to a telemetry cache (ClickHouse) connection issue on the server, not because your file is invalid. Try Retry import after the server is fixed, or contact support if it persists."
   }
   const mapped = TELEMETRY_FAILURE_MESSAGES[code]
   if (mapped) return mapped

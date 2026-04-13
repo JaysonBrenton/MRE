@@ -78,20 +78,12 @@ import and analysis.
 
 Suggested order for moving from docs to code:
 
-1. **Done (stage 1):** Infrastructure — Postgres `telemetry_*` tables, local
-   upload root + shared Docker volume, `/api/v1/telemetry/*` upload + finalise +
-   session GET, `telemetry-worker` claiming `telemetry_jobs`
-   (`artifact_validate`). See
-   [telemetry-implementation-plan.md](../implimentation_plans/telemetry-implementation-plan.md)
-   §Phase 1.
-2. Data model usage — Parquet canonical write, parsers (CSV/GPX), additional job
-   types
-3. API contract extensions — time-series reads, channels (per
-   [API Contract](Design/API_Contract_Telemetry.md))
-4. Processing pipeline and state machine — full validate → classify → parse
-   chain
-5. Supported formats and parser spec
-6. Trust, quality, honesty rules (v1)
+1. **Done:** Infrastructure through **v1 / v2-style telemetry** (upload, worker,
+   canonical Parquet, optional ClickHouse, compare/share/reprocess, admin track
+   SFL, UI). See
+   [telemetry-implementation-plan.md](../implimentation_plans/telemetry-implementation-plan.md).
+2. **Ongoing:** Operational tuning (metrics `telemetry_jobs_total*`, cooldowns),
+   retention policies per ADR, and product analytics beyond the compare API.
 
 **Task-level plan:**
 [docs/implimentation_plans/telemetry-implementation-plan.md](../implimentation_plans/telemetry-implementation-plan.md)

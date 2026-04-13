@@ -4,6 +4,7 @@ import { stat } from "fs/promises"
 import { compressors } from "hyparquet-compressors"
 import { asyncBufferFromFile, parquetMetadataAsync, parquetReadObjects } from "hyparquet"
 
+import { coerceParquetNumber } from "./telemetry-parquet-coerce"
 import { absolutePathFromStoragePath } from "./telemetry-upload-storage"
 
 const MAX_PARQUET_BYTES = 32 * 1024 * 1024
@@ -92,10 +93,10 @@ export async function readGnssMapPolyline(params: {
 
   for (let i = 0; i < rowCount; i += stride) {
     const row = rows[i]
-    const lat = row.lat_deg
-    const lon = row.lon_deg
-    const tns = row.t_ns
-    if (typeof lat !== "number" || typeof lon !== "number" || typeof tns !== "number") {
+    const lat = coerceParquetNumber(row.lat_deg)
+    const lon = coerceParquetNumber(row.lon_deg)
+    const tns = coerceParquetNumber(row.t_ns)
+    if (lat === null || lon === null || tns === null) {
       continue
     }
     latDeg.push(lat)

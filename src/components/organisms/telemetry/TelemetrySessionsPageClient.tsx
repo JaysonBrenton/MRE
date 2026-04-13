@@ -46,6 +46,7 @@ export default function TelemetrySessionsPageClient() {
     "idle"
   )
   const [importMessage, setImportMessage] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -67,6 +68,33 @@ export default function TelemetrySessionsPageClient() {
       void load()
     })
   }, [load])
+
+  const deleteSession = useCallback(async (sessionId: string, displayName: string | null) => {
+    const label = displayName?.trim() || "Untitled"
+    if (
+      !window.confirm(
+        `Delete telemetry session "${label}"? This removes it from your list and deletes stored files. This cannot be undone.`
+      )
+    ) {
+      return
+    }
+    setDeletingId(sessionId)
+    setListError(null)
+    try {
+      const res = await fetch(`/api/v1/telemetry/sessions/${sessionId}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      const parsed = await parseJson<{ deleted?: boolean }>(res)
+      if (!parsed.ok) {
+        setListError(parsed.message)
+        return
+      }
+      setItems((prev) => prev.filter((x) => x.id !== sessionId))
+    } finally {
+      setDeletingId(null)
+    }
+  }, [])
 
   const onFile = async (file: File | null) => {
     if (!file) return
@@ -145,7 +173,8 @@ export default function TelemetrySessionsPageClient() {
           My Telemetry
         </h1>
         <p className={`${typography.bodySecondary} mt-2 w-full max-w-none`}>
-          Import CSV or GPX, then review sessions and path previews (desktop).
+          Import GNSS exports (CSV, GPX, NMEA, JSON, or FIT), then review sessions and path previews
+          (desktop).
         </p>
       </header>
 
@@ -155,13 +184,14 @@ export default function TelemetrySessionsPageClient() {
       >
         <h2 className={`${typography.h3} text-[var(--token-text-primary)]`}>Import</h2>
         <p className={`${typography.bodySecondary} mt-2`}>
-          Supported: CSV (GNSS) and GPX. One file per import for MVP.
+          Supported: CSV, GPX, NMEA 0183, JSON (array or points/samples/records/data), and Garmin
+          FIT. UTF-8 text; one file per import.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.gpx,text/csv,application/gpx+xml,text/xml,application/xml"
+            accept=".csv,.gpx,.json,.fit,.nmea,text/csv,application/gpx+xml,application/json,application/octet-stream,text/xml,application/xml"
             className="sr-only"
             aria-hidden
             tabIndex={-1}
@@ -216,7 +246,7 @@ export default function TelemetrySessionsPageClient() {
                     Start (UTC)
                   </th>
                   <th className="py-2 pr-4 font-medium text-[var(--token-text-secondary)]">GNSS</th>
-                  <th className="py-2 font-medium text-[var(--token-text-secondary)]" />
+                  <th className="py-2 font-medium text-[var(--token-text-secondary)]">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -240,12 +270,26 @@ export default function TelemetrySessionsPageClient() {
                       {s.summary.hasGnss ? "Yes" : "—"}
                     </td>
                     <td className="py-3">
-                      <Link
-                        href={`/eventAnalysis/my-telemetry/${s.id}`}
-                        className="text-[var(--token-accent)] hover:underline"
-                      >
-                        Open
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                          href={`/eventAnalysis/my-telemetry/${s.id}`}
+                          className="text-[var(--token-accent)] hover:underline"
+                        >
+                          Open
+                        </Link>
+                        <Button
+                          type="button"
+                          variant="error"
+                          disabled={deletingId !== null}
+                          className="!px-3 !py-1.5 text-xs"
+                          aria-label={`Delete session ${s.name || "Untitled"}`}
+                          onClick={() => {
+                            void deleteSession(s.id, s.name)
+                          }}
+                        >
+                          {deletingId === s.id ? "Deleting…" : "Delete"}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

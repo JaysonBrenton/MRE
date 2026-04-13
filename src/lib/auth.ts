@@ -32,26 +32,9 @@ async function getAuthorizeFunction() {
 }
 
 import { env } from "./env"
+import { isPublicApi } from "./public-api-routes"
 
-/**
- * Public API endpoint prefixes that do not require authentication
- */
-export const publicApiPrefixes = [
-  "/api/v1/auth/login",
-  "/api/v1/auth/register",
-  "/api/health",
-  "/api/v1/health",
-] as const
-
-/**
- * Check if a given pathname is a public API endpoint
- *
- * @param pathname - The pathname to check
- * @returns true if the pathname matches a public API prefix
- */
-export function isPublicApi(pathname: string): boolean {
-  return publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))
-}
+export { publicApiPrefixes, isPublicApi } from "./public-api-routes"
 
 export const config = {
   secret: env.AUTH_SECRET,

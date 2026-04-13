@@ -14,6 +14,10 @@ import { assertScrapingEnabled, isScrapingEnabled } from "@/lib/site-policy"
 import { ingestionClient } from "@/lib/ingestion-client"
 import { triggerEventIngestion, triggerTrackSync } from "@/core/admin/ingestion"
 
+vi.mock("@/core/admin/audit", () => ({
+  createAuditLog: vi.fn().mockResolvedValue(undefined),
+}))
+
 describe("Scraping Kill-Switch", () => {
   const originalEnv = process.env.MRE_SCRAPE_ENABLED
 

@@ -92,18 +92,64 @@ wired to upload → finalise → poll.
 | **UI**    | `eventAnalysis/my-telemetry` list + import; `eventAnalysis/my-telemetry/[sessionId]` detail, failure banner, SVG path preview.                                                                                                                                                              |
 | **Tests** | Vitest: `telemetry-failure-messages`, `telemetry-repo` cursor/path helpers, existing upload storage tests.                                                                                                                                                                                  |
 
-## Phase 3 — v1 (design reference)
+## Phase 3 — v1 + v2-style features — **COMPLETE** (ongoing hardening)
 
-Fusion, lap detection, ClickHouse materialisation, full quality scoring — per
+Parsers (CSV, GPX, NMEA, JSON, FIT, UBX NAV-PVT), post-parse pipeline (fusion
+with optional mag gating, laps, segments, quality, optional ClickHouse),
+extended APIs (compare, share, reprocess cooldown, timeseries stride /
+`ds_rate`), admin track SFL updates, and UI (export, compare, share, speed
+chart) are shipped. See
 [`Telemetry_Implementation_Design.md`](../telemetry/Design/Telemetry_Implementation_Design.md)
-§9.3.
+§9 and API reference.
+
+### Phase 3a — NMEA 0183 GNSS parser — **COMPLETE**
+
+**Definition of done:** NMEA text logs with valid `RMC` and/or `GGA` sentences
+ingest through `parse_raw`, write the same canonical `gnss_pvt.parquet` layout
+as CSV/GPX, set `telemetry_artifacts.format_detected` to `nmea_gnss`, surface
+stable failure codes with UI copy, pytest + Vitest coverage.
+
+**Delivered:**
+
+| Area         | What                                                                                                                                                                                                 |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Parser**   | `ingestion/telemetry/parsers/nmea_gnss.py` — `GPRMC`/`GNRMC` (UTC date/time, position, speed), `GPGGA`/`GNGGA` (position, altitude); merge on second boundary; checksum validation when `*` present. |
+| **Worker**   | `ingestion/telemetry/worker.py` — format sniff: `.nmea`, or UTF-8 head with `$…GGA`/`$…RMC`; `parse_raw` branch for `nmea_gnss`.                                                                     |
+| **Errors**   | `NMEA_EMPTY`, `NMEA_NO_FIX` (`TelemetryParseError`); user strings in `src/core/telemetry/telemetry-failure-messages.ts`.                                                                             |
+| **Versions** | `TELEMETRY_PIPELINE_VERSION` = `telemetry-mvp-0.3.0`, `TELEMETRY_CANONICALISER_VERSION` = `csv-gpx-nmea-parquet-0.3.0` in `src/core/telemetry/telemetry-repo.ts`.                                    |
+| **Tests**    | `ingestion/tests/unit/test_telemetry_parsers.py`; fixture `ingestion/tests/fixtures/telemetry/sample_nmea_rmc_gga.nmea`; Vitest `telemetry-failure-messages.test.ts`.                                |
+
+### Phase 3b — JSON + FIT GNSS parsers — **COMPLETE**
+
+**Definition of done:** JSON and Garmin FIT exports ingest through `parse_raw`,
+write the same canonical `gnss_pvt.parquet` layout as CSV/GPX/NMEA, set
+`telemetry_artifacts.format_detected` to `json_gnss` / `fit_gnss`, surface
+stable failure codes with UI copy, pytest coverage.
+
+**Delivered:**
+
+| Area         | What                                                                                                                                                                                           |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Parsers**  | `ingestion/telemetry/parsers/json_gnss.py` (array or `points`/`samples`/`records`/`data`, flexible keys); `fit_gnss.py` (`fitparse`, FIT `.FIT` magic, `record` messages, semicircle→degrees). |
+| **Worker**   | `ingestion/telemetry/worker.py` — sniff: `.json` / UTF-8 `{`/`[`, `.fit` / `.FIT` header; `parse_raw` branches.                                                                                |
+| **Errors**   | `JSON_*`, `FIT_*` (`TelemetryParseError`); user strings in `src/core/telemetry/telemetry-failure-messages.ts`.                                                                                 |
+| **Versions** | `TELEMETRY_PIPELINE_VERSION` = `telemetry-mvp-0.4.0`, `TELEMETRY_CANONICALISER_VERSION` = `csv-gpx-nmea-json-fit-parquet-0.4.0` in `src/core/telemetry/telemetry-repo.ts`.                     |
+| **Tests**    | `ingestion/tests/unit/test_telemetry_parsers.py`; fixtures `sample_gnss.json`, `sample_activity.fit` (upstream FIT test file).                                                                 |
+
+**Remaining / future:** Apache Arrow IPC export (501), full multi-job
+orchestration as separate queued stages (currently inline in `parse_raw`),
+deeper binary UBX beyond NAV-PVT, cross-session analytics product layer beyond
+compare API.
 
 ## Configuration reference
 
-| Variable                             | Service                                               | Purpose                                                  |
-| ------------------------------------ | ----------------------------------------------------- | -------------------------------------------------------- |
-| `TELEMETRY_UPLOAD_ROOT`              | `app`, `liverc-ingestion-service`, `telemetry-worker` | Root directory for relative `storagePath` values.        |
-| `TELEMETRY_WORKER_ID`                | `telemetry-worker`                                    | Value stored in `telemetry_jobs.locked_by` when claimed. |
-| `TELEMETRY_WORKER_POLL_INTERVAL_SEC` | `telemetry-worker`                                    | Sleep when queue is empty (default `2`).                 |
+| Variable                                   | Service                                               | Purpose                                                                          |
+| ------------------------------------------ | ----------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `TELEMETRY_UPLOAD_ROOT`                    | `app`, `liverc-ingestion-service`, `telemetry-worker` | Root directory for relative `storagePath` values.                                |
+| `TELEMETRY_WORKER_ID`                      | `telemetry-worker`                                    | Value stored in `telemetry_jobs.locked_by` when claimed.                         |
+| `TELEMETRY_WORKER_POLL_INTERVAL_SEC`       | `telemetry-worker`                                    | Sleep when queue is empty (default `2`).                                         |
+| `TELEMETRY_REPROCESS_COOLDOWN_SEC`         | `app`                                                 | Minimum seconds between full re-ingest requests (default `90`, clamped 10–3600). |
+| `CLICKHOUSE_URL`                           | `app`                                                 | HTTP base for GNSS timeseries reads (optional).                                  |
+| `CLICKHOUSE_HOST` / `CLICKHOUSE_HTTP_PORT` | `telemetry-worker`                                    | Optional materialisation to `telemetry_gnss_v1`.                                 |
 
 See also [`.env.docker.example`](../../.env.docker.example).

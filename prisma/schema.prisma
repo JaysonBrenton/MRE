@@ -115,6 +115,8 @@ model Track {
   totalLaps              Int?      @default(0) @map("total_laps")
   totalRaces             Int?      @default(0) @map("total_races")
   totalEvents            Int?      @default(0) @map("total_events")
+  /// Optional WGS84 GeoJSON LineString for catalogue start/finish (admin or import).
+  startFinishLineGeoJson Json?     @map("start_finish_line_geojson") @db.JsonB
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
   events                 Event[]
@@ -161,6 +163,7 @@ model Event {
   importedBy           User?                 @relation("EventImportedBy", fields: [importedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   track                Track                 @relation(fields: [trackId], references: [id], onDelete: Cascade)
   races                Race[]
+  telemetrySessions    TelemetrySession[]
   transponderOverrides TransponderOverride[]
   weatherData          WeatherData[]
   raceClasses          EventRaceClass[]
@@ -327,6 +330,7 @@ model Race {
   event                    Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventRaceClass           EventRaceClass?       @relation(fields: [eventRaceClassId], references: [id], onDelete: SetNull)
   transponderOverridesFrom TransponderOverride[]
+  telemetrySessions        TelemetrySession[]
 
   @@unique([eventId, sourceRaceId])
   @@index([eventId, sourceRaceId])
@@ -869,6 +873,12 @@ model TelemetrySession {
   ownerUserId      String                   @map("owner_user_id")
   driverProfileId  String?                  @map("driver_profile_id")
   trackId          String?                  @map("track_id")
+  /// Optional link to an imported LiveRC event (same id as `events.id`).
+  livercEventId    String?                  @map("liverc_event_id")
+  /// Optional link to a LiveRC race / practice session row (`races.id`).
+  livercRaceId     String?                  @map("liverc_race_id")
+  /// User-drawn start/finish as WGS84 GeoJSON LineString (takes precedence over track catalogue).
+  userSflLineGeoJson Json?                @map("user_sfl_line_geojson") @db.JsonB
   name             String?
   notes            String?
   privacy          TelemetrySessionPrivacy    @default(PRIVATE)
@@ -878,6 +888,11 @@ model TelemetrySession {
   primaryDeviceId  String?                  @map("primary_device_id")
   currentRunId     String?                  @unique @map("current_run_id")
   status           TelemetrySessionStatus     @default(UPLOADING)
+  /// Last time a full re-ingest was requested (rate limiting).
+  lastReprocessAt  DateTime?                @map("last_reprocess_at")
+  /// Opaque token for read-only shared access (map/session summary).
+  shareToken       String?                  @unique @map("share_token")
+  shareTokenCreatedAt DateTime?             @map("share_token_created_at")
   deletedAt        DateTime?                @map("deleted_at")
   createdAt        DateTime                 @default(now()) @map("created_at")
   updatedAt        DateTime                 @updatedAt @map("updated_at")
@@ -885,6 +900,8 @@ model TelemetrySession {
   owner            User                     @relation("TelemetrySessionOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   driverProfile    DriverProfile?           @relation(fields: [driverProfileId], references: [id], onDelete: SetNull)
   track            Track?                   @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  livercEvent      Event?                   @relation(fields: [livercEventId], references: [id], onDelete: SetNull)
+  livercRace       Race?                    @relation(fields: [livercRaceId], references: [id], onDelete: SetNull)
   primaryDevice    TelemetryDevice?         @relation("TelemetrySessionPrimaryDevice", fields: [primaryDeviceId], references: [id], onDelete: SetNull)
   currentRun       TelemetryProcessingRun?  @relation("TelemetrySessionCurrentRun", fields: [currentRunId], references: [id], onDelete: SetNull)
   runs             TelemetryProcessingRun[] @relation("TelemetrySessionRuns")
@@ -894,6 +911,8 @@ model TelemetrySession {
 
   @@index([ownerUserId, startTimeUtc(sort: Desc)])
   @@index([trackId, startTimeUtc(sort: Desc)])
+  @@index([livercEventId])
+  @@index([livercRaceId])
   @@index([currentRunId])
   @@map("telemetry_sessions")
 }

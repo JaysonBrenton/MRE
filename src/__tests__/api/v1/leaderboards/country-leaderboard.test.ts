@@ -2,7 +2,7 @@
  * @fileoverview Tests for country leaderboard API route
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest"
 import { NextRequest } from "next/server"
 import { GET } from "@/app/api/v1/leaderboards/country/route"
 import { getCountryLeaderboard } from "@/core/leaderboards/get-country-leaderboard"
@@ -39,7 +39,7 @@ describe("GET /api/v1/leaderboards/country", () => {
 
   it("should return 401 if not authenticated", async () => {
     const { auth } = await import("@/lib/auth")
-    vi.mocked(auth).mockResolvedValueOnce(null)
+    vi.mocked(auth as Mock).mockResolvedValueOnce(null)
 
     const request = new NextRequest("http://localhost/api/v1/leaderboards/country?country=AU")
     const response = await GET(request)

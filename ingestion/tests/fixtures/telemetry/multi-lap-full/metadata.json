@@ -1,0 +1,21 @@
+{
+  "fixture_version": 1,
+  "source": "synthetic_multi_lap_full",
+  "track_template": "track-templates/cormcc.kml",
+  "seed": 42,
+  "laps": 5,
+  "sample_hz": 10.0,
+  "session_start_utc_iso": "2026-06-01T12:00:00Z",
+  "ground_truth": {
+    "lap_times_ms": [24500, 24700, 24800, 24300, 24300],
+    "lap_boundaries_sample_idx": [0, 245, 492, 740, 983],
+    "total_distance_m": 285.98,
+    "row_count": 1226
+  },
+  "files": {
+    "session_full.csv": "GNSS + synthetic IMU columns (parser uses GNSS columns only)",
+    "session_full.json": "Same data as JSON array",
+    "session_full.gpx": "GPX 1.1 track, times from session_start + timestamp_ms",
+    "session_full_1hz.nmea": "GPRMC+GPGGA at 1 Hz (NMEA parser merges by second)"
+  }
+}

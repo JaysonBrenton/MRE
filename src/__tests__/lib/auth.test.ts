@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest"
-import { isPublicApi, publicApiPrefixes } from "@/lib/auth"
+import { isPublicApi, publicApiPrefixes } from "@/lib/public-api-routes"
 
 describe("isPublicApi", () => {
   describe("public API endpoints", () => {
@@ -28,6 +28,7 @@ describe("isPublicApi", () => {
     it("should return true for paths starting with public prefixes", () => {
       expect(isPublicApi("/api/health/check")).toBe(true)
       expect(isPublicApi("/api/v1/auth/login/validate")).toBe(true)
+      expect(isPublicApi("/api/v1/telemetry/share/abcd")).toBe(true)
     })
   })
 
@@ -62,6 +63,10 @@ describe("isPublicApi", () => {
 
     it("should include /api/v1/auth/register", () => {
       expect(publicApiPrefixes).toContain("/api/v1/auth/register")
+    })
+
+    it("should include /api/v1/telemetry/share", () => {
+      expect(publicApiPrefixes).toContain("/api/v1/telemetry/share")
     })
 
     it("should maintain synchronization with isPublicApi logic", () => {

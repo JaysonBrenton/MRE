@@ -2,12 +2,13 @@
  * GET /api/v1/telemetry/sessions — list telemetry sessions for the authenticated user.
  */
 
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { TelemetrySessionStatus } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { successResponse, errorResponse, CACHE_CONTROL } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
+import { weakEtagFromParts } from "@/core/telemetry/telemetry-etag"
 import {
   decodeTelemetryListCursor,
   listTelemetrySessionsForUser,
@@ -50,6 +51,22 @@ export async function GET(request: NextRequest) {
       status,
     })
 
+    const etag = weakEtagFromParts([
+      session.user.id,
+      String(limit),
+      searchParams.get("cursor") ?? "",
+      status ?? "",
+      nextCursor ?? "",
+      items.map((r) => `${r.id}:${r.updatedAt.getTime()}`).join(","),
+    ])
+    const inm = request.headers.get("if-none-match")
+    if (inm && inm === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: { ETag: etag, "Cache-Control": CACHE_CONTROL.NO_CACHE },
+      })
+    }
+
     const payload = {
       items: items.map((row) => ({
         id: row.id,
@@ -67,7 +84,7 @@ export async function GET(request: NextRequest) {
       nextCursor,
     }
 
-    return successResponse(payload, 200, undefined, CACHE_CONTROL.NO_CACHE)
+    return successResponse(payload, 200, undefined, CACHE_CONTROL.NO_CACHE, { ETag: etag })
   } catch (error: unknown) {
     const errorInfo = handleApiError(error, request, requestId)
     return errorResponse(errorInfo.code, errorInfo.message, undefined, errorInfo.statusCode)

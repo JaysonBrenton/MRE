@@ -68,10 +68,11 @@ telemetry loop.
 
 - **Purpose:** Poll `telemetry_jobs` using `FOR UPDATE SKIP LOCKED`, run
   **`artifact_validate`** (raw file exists; size matches
-  `telemetry_artifacts.byte_size`), then **`parse_raw`** (CSV/GPX → canonical
-  Parquet under `canonical/…`, `telemetry_datasets` row, session time range from
-  parsed timestamps, session `READY`). On failure, run/session/job are marked
-  failed with a stable error code (for example `CSV_NO_TIME_COLUMN`).
+  `telemetry_artifacts.byte_size`), then **`parse_raw`** (CSV/GPX/NMEA/JSON/FIT
+  → canonical Parquet under `canonical/…`, `telemetry_datasets` row, session
+  time range from parsed timestamps, session `READY`). On failure,
+  run/session/job are marked failed with a stable error code (for example
+  `CSV_NO_TIME_COLUMN`).
 - **Shared volume:** `mre-telemetry-uploads` is mounted at **`/data/telemetry`**
   on **`app`**, **`liverc-ingestion-service`**, and **`telemetry-worker`**. The
   Next.js API writes bytes under `TELEMETRY_UPLOAD_ROOT`; `storagePath` on each
@@ -81,10 +82,40 @@ telemetry loop.
 - **Env:** `TELEMETRY_UPLOAD_ROOT`, `TELEMETRY_WORKER_ID`,
   `TELEMETRY_WORKER_POLL_INTERVAL_SEC` (see
   [`telemetry-implementation-plan.md`](../../implimentation_plans/telemetry-implementation-plan.md)).
+- **Metrics:** Prometheus counter `telemetry_jobs_total{job_type,outcome}`
+  (labels `artifact_validate` / `parse_raw`, `success` / `failed`) on the
+  ingestion registry.
+- **Reprocess:** App enforces `TELEMETRY_REPROCESS_COOLDOWN_SEC` (default 90s)
+  using `telemetry_sessions.last_reprocess_at`.
+- **Raw retention:** Canonical Parquet is authoritative; raw bytes policy
+  remains per ADR-20260131 — schedule deletion of raw uploads separately if you
+  retain them post-canonicalisation.
 - **If sessions stay `processing`:** confirm the worker container is running
   (`docker compose ps`) and that migration
   `20260414120000_telemetry_infra_stage1` has been applied
   (`docker exec -it mre-app npx prisma migrate deploy`).
+
+#### Smoke test (upload → ready)
+
+After a code or dependency change (for example new `ingestion/requirements.txt`
+packages such as `fitparse`), rebuild images so **`mre-telemetry-worker`** and
+**`mre-liverc-ingestion-service`** match:
+
+```bash
+docker compose build liverc-ingestion-service telemetry-worker
+docker compose up -d liverc-ingestion-service telemetry-worker
+```
+
+Quick validation:
+
+1. **`docker compose ps`** — `mre-telemetry-worker` and `mre-app` (or your app
+   service) are **running**.
+2. **UI:** Sign in → **My Telemetry** → **Choose file** → upload a small fixture
+   (for example `ingestion/tests/fixtures/telemetry/sample_gnss_10hz.csv` or
+   `sample_gnss.json`). Expect redirect to session detail and status **ready**
+   with a path preview, or a clear **failure** message if the file is invalid.
+3. **Optional:** `docker exec mre-telemetry-worker pip show fitparse` — package
+   present after rebuild (confirms the image installed current requirements).
 
 ### 2.3 Critical invariants
 

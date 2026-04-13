@@ -12,6 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import type { Event } from "@prisma/client"
 import { importEvent } from "@/core/events/import-event"
 import { getEventById } from "@/core/events/repo"
 import { ingestionClient } from "@/lib/ingestion-client"
@@ -19,6 +20,19 @@ import { ingestionClient } from "@/lib/ingestion-client"
 // Mock dependencies
 vi.mock("@/core/events/repo")
 vi.mock("@/lib/ingestion-client")
+
+/** Minimal Event row for mocked `getEventById` (matches Prisma `Event`). */
+function buildMockEvent(
+  partial: Omit<Event, "metadata" | "eventDateEnd" | "totalRaceLaps" | "importedByUserId">
+): Event {
+  return {
+    metadata: null,
+    eventDateEnd: null,
+    totalRaceLaps: null,
+    importedByUserId: null,
+    ...partial,
+  }
+}
 
 describe("Event Import Integration", () => {
   beforeEach(() => {
@@ -31,7 +45,7 @@ describe("Event Import Integration", () => {
 
   describe("successful event import", () => {
     it("should successfully import event via Python service", async () => {
-      const mockEvent = {
+      const mockEvent = buildMockEvent({
         id: "event-123",
         source: "liverc",
         sourceEventId: "12345",
@@ -41,11 +55,11 @@ describe("Event Import Integration", () => {
         eventEntries: 50,
         eventDrivers: 45,
         eventUrl: "https://liverc.com/event/12345",
-        ingestDepth: "none" as const,
+        ingestDepth: "none",
         lastIngestedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      }
+      })
 
       const mockIngestionResult = {
         event_id: "event-123",
@@ -73,7 +87,7 @@ describe("Event Import Integration", () => {
       }
 
       expect(getEventById).toHaveBeenCalledWith("event-123")
-      expect(ingestionClient.ingestEvent).toHaveBeenCalledWith("event-123", "laps_full")
+      expect(ingestionClient.ingestEvent).toHaveBeenCalledWith("event-123", "laps_full", undefined)
     })
   })
 
@@ -96,7 +110,7 @@ describe("Event Import Integration", () => {
     })
 
     it("should handle Python service ingestion failure", async () => {
-      const mockEvent = {
+      const mockEvent = buildMockEvent({
         id: "event-123",
         source: "liverc",
         sourceEventId: "12345",
@@ -106,11 +120,11 @@ describe("Event Import Integration", () => {
         eventEntries: 50,
         eventDrivers: 45,
         eventUrl: "https://liverc.com/event/12345",
-        ingestDepth: "none" as const,
+        ingestDepth: "none",
         lastIngestedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      }
+      })
 
       vi.mocked(getEventById).mockResolvedValue(mockEvent)
       vi.mocked(ingestionClient.ingestEvent).mockRejectedValue(
@@ -130,7 +144,7 @@ describe("Event Import Integration", () => {
     })
 
     it("should handle Python service HTTP errors", async () => {
-      const mockEvent = {
+      const mockEvent = buildMockEvent({
         id: "event-123",
         source: "liverc",
         sourceEventId: "12345",
@@ -140,11 +154,11 @@ describe("Event Import Integration", () => {
         eventEntries: 50,
         eventDrivers: 45,
         eventUrl: "https://liverc.com/event/12345",
-        ingestDepth: "none" as const,
+        ingestDepth: "none",
         lastIngestedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      }
+      })
 
       vi.mocked(getEventById).mockResolvedValue(mockEvent)
       vi.mocked(ingestionClient.ingestEvent).mockRejectedValue(
@@ -165,7 +179,7 @@ describe("Event Import Integration", () => {
 
   describe("response mapping", () => {
     it("should map Python service response correctly for already complete event", async () => {
-      const mockEvent = {
+      const mockEvent = buildMockEvent({
         id: "event-123",
         source: "liverc",
         sourceEventId: "12345",
@@ -175,11 +189,11 @@ describe("Event Import Integration", () => {
         eventEntries: 50,
         eventDrivers: 45,
         eventUrl: "https://liverc.com/event/12345",
-        ingestDepth: "laps_full" as const,
+        ingestDepth: "laps_full",
         lastIngestedAt: new Date("2025-01-26"),
         createdAt: new Date(),
         updatedAt: new Date(),
-      }
+      })
 
       const mockIngestionResult = {
         event_id: "event-123",

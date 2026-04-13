@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   decodeTelemetryListCursor,
   resolveDatasetParquetRelativePath,
-} from "@/core/telemetry/telemetry-repo"
+} from "@/core/telemetry/telemetry-session-list"
 
 describe("decodeTelemetryListCursor", () => {
   it("round-trips", () => {

@@ -15,7 +15,7 @@
 
 import { NextRequest } from "next/server"
 import { requireAdmin } from "@/lib/admin-auth"
-import { setTrackFollowStatus } from "@/core/admin/tracks"
+import { setTrackFollowStatus, updateTrackStartFinishLine } from "@/core/admin/tracks"
 import { successResponse, errorResponse, parseRequestBody } from "@/lib/api-utils"
 import { handleApiError } from "@/lib/server-error-handler"
 import { generateRequestId } from "@/lib/request-context"
@@ -45,7 +45,10 @@ export async function PATCH(
 
     const { trackId } = await params
 
-    const bodyResult = await parseRequestBody<{ isFollowed: boolean }>(request)
+    const bodyResult = await parseRequestBody<{
+      isFollowed?: boolean
+      startFinishLineGeoJson?: unknown | null
+    }>(request)
 
     if (!bodyResult.success) {
       return bodyResult.response
@@ -55,13 +58,39 @@ export async function PATCH(
       request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined
     const userAgent = request.headers.get("user-agent") || undefined
 
-    const updatedTrack = await setTrackFollowStatus(
-      trackId,
-      bodyResult.data.isFollowed,
-      authResult.userId,
-      ipAddress,
-      userAgent
-    )
+    const { isFollowed, startFinishLineGeoJson } = bodyResult.data
+    if (isFollowed === undefined && startFinishLineGeoJson === undefined) {
+      return errorResponse(
+        "VALIDATION_ERROR",
+        "Provide isFollowed and/or startFinishLineGeoJson",
+        undefined,
+        400
+      )
+    }
+
+    let updatedTrack = null
+    if (typeof isFollowed === "boolean") {
+      updatedTrack = await setTrackFollowStatus(
+        trackId,
+        isFollowed,
+        authResult.userId,
+        ipAddress,
+        userAgent
+      )
+    }
+    if (startFinishLineGeoJson !== undefined) {
+      updatedTrack = await updateTrackStartFinishLine(
+        trackId,
+        startFinishLineGeoJson,
+        authResult.userId,
+        ipAddress,
+        userAgent
+      )
+    }
+
+    if (!updatedTrack) {
+      return errorResponse("UNPROCESSABLE_ENTITY", "No updates applied", undefined, 422)
+    }
 
     return successResponse(updatedTrack, 200, "Track updated successfully")
   } catch (error: unknown) {

@@ -66,10 +66,14 @@ describe("searchEvents", () => {
         mockInput.startDate,
         mockInput.endDate
       )
+      const expectedStart = new Date(mockInput.startDate)
+      expectedStart.setHours(0, 0, 0, 0)
+      const expectedEnd = new Date(mockInput.endDate)
+      expectedEnd.setHours(23, 59, 59, 999)
       expect(searchEventsFromRepo).toHaveBeenCalledWith({
         trackId: mockInput.trackId,
-        startDate: new Date(mockInput.startDate),
-        endDate: new Date(mockInput.endDate),
+        startDate: expectedStart,
+        endDate: expectedEnd,
       })
     })
 

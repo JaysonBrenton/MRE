@@ -2,7 +2,7 @@
  * @fileoverview Tests for event track leaderboard API route
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest"
 import { GET } from "@/app/api/v1/events/[eventId]/track-leaderboard/route"
 import { getTrackLeaderboard } from "@/core/tracks/get-track-leaderboard"
 import { NextRequest } from "next/server"
@@ -49,7 +49,7 @@ describe("GET /api/v1/events/[eventId]/track-leaderboard", () => {
 
   it("should return 401 if not authenticated", async () => {
     const { auth } = await import("@/lib/auth")
-    vi.mocked(auth).mockResolvedValueOnce(null)
+    vi.mocked(auth as Mock).mockResolvedValueOnce(null)
 
     const request = new NextRequest("http://localhost/api/v1/events/event-123/track-leaderboard")
     const response = await GET(request, {

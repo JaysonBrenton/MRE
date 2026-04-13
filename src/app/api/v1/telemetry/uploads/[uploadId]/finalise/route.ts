@@ -23,23 +23,42 @@ export async function POST(
 
     const { uploadId } = await params
     let name: string | undefined
+    let livercEventId: string | undefined
+    let livercRaceId: string | undefined
     try {
       const raw = await request.text()
       if (raw.trim()) {
-        const body = JSON.parse(raw) as { name?: unknown }
+        const body = JSON.parse(raw) as {
+          name?: unknown
+          livercEventId?: unknown
+          livercRaceId?: unknown
+        }
         if (typeof body.name === "string") {
           name = body.name
+        }
+        if (typeof body.livercEventId === "string" && body.livercEventId.trim()) {
+          livercEventId = body.livercEventId.trim()
+        }
+        if (typeof body.livercRaceId === "string" && body.livercRaceId.trim()) {
+          livercRaceId = body.livercRaceId.trim()
         }
       }
     } catch {
       return errorResponse("UNPROCESSABLE_ENTITY", "Invalid JSON body", undefined, 422)
     }
 
-    const result = await finaliseTelemetryUpload(session.user.id, uploadId, { name })
+    const result = await finaliseTelemetryUpload(session.user.id, uploadId, {
+      name,
+      livercEventId,
+      livercRaceId,
+    })
 
     if (!result.ok) {
       if (result.code === "NOT_FOUND") {
         return errorResponse("NOT_FOUND", "Upload not found", undefined, 404)
+      }
+      if (result.code === "BAD_LIVERC_EVENT" || result.code === "BAD_LIVERC_RACE") {
+        return errorResponse("VALIDATION_ERROR", "Invalid LiveRC link reference", undefined, 400)
       }
       return errorResponse(
         "VALIDATION_ERROR",

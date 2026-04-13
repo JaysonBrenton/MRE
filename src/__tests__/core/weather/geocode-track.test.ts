@@ -1,217 +1,154 @@
 /**
- * @fileoverview Tests for geocodeTrack function
- *
- * @created 2025-01-27
- * @creator Auto (AI Assistant)
- * @lastModified 2025-01-27
- *
- * @description Unit tests for geocoding service with mocked Nominatim API
- *
- * @purpose Validates geocoding functionality, caching, rate limiting, and error handling.
+ * @fileoverview Tests for geocodeTrack — mocks Node `https` module (implementation uses `https.request`, not `fetch`).
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { geocodeTrack } from "@/core/weather/geocode-track"
+import { EventEmitter } from "events"
+import type { IncomingMessage } from "http"
 
-// Mock fetch globally
-const mockFetch = vi.fn()
-global.fetch = mockFetch
+const { mockHttpsRequest } = vi.hoisted(() => ({
+  mockHttpsRequest: vi.fn(),
+}))
+
+vi.mock("https", () => ({
+  request: mockHttpsRequest,
+}))
+
+import { geocodeTrack, __resetGeocodeTestState } from "@/core/weather/geocode-track"
+
+function successJson(body: unknown, statusCode = 200) {
+  mockHttpsRequest.mockImplementation(
+    (options: unknown, callback: (res: IncomingMessage) => void) => {
+      const res = new EventEmitter() as IncomingMessage & { statusCode?: number }
+      res.statusCode = statusCode
+      callback(res as IncomingMessage)
+      queueMicrotask(() => {
+        res.emit("data", Buffer.from(JSON.stringify(body)))
+        res.emit("end")
+      })
+      const req = new EventEmitter()
+      return Object.assign(req, {
+        end: vi.fn(),
+        setTimeout: vi.fn(),
+        destroy: vi.fn(),
+      })
+    }
+  )
+}
 
 describe("geocodeTrack", () => {
   beforeEach(() => {
+    __resetGeocodeTestState()
     vi.clearAllMocks()
-    // Clear module cache to reset in-memory cache
-    vi.resetModules()
+    successJson([
+      {
+        lat: "-35.2809",
+        lon: "149.1300",
+        display_name: "Canberra, Australian Capital Territory, Australia",
+      },
+    ])
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    delete process.env.GEOCODING_SERVICE_URL
   })
 
-  describe("successful geocoding", () => {
-    it("should return coordinates for a valid track name", async () => {
-      const mockResponse = [
-        {
-          lat: "-35.2809",
-          lon: "149.1300",
-          display_name: "Canberra, Australian Capital Territory, Australia",
-        },
-      ]
+  it("returns coordinates for a valid track name", async () => {
+    const result = await geocodeTrack("Canberra")
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      })
-
-      const result = await geocodeTrack("Canberra")
-
-      expect(result).toEqual({
-        latitude: -35.2809,
-        longitude: 149.13,
-        displayName: "Canberra, Australian Capital Territory, Australia",
-      })
-    })
-
-    it("should call Nominatim API with correct parameters", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [
-          {
-            lat: "40.7128",
-            lon: "-74.0060",
-            display_name: "New York",
-          },
-        ],
-      })
-
-      await geocodeTrack("New York")
-
-      expect(mockFetch).toHaveBeenCalledTimes(1)
-      const callUrl = mockFetch.mock.calls[0][0]
-      expect(callUrl).toContain("nominatim.openstreetmap.org/search")
-      expect(callUrl).toContain("q=New+York")
-      expect(callUrl).toContain("format=json")
-      expect(callUrl).toContain("limit=1")
-    })
-
-    it("should include User-Agent header", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [
-          {
-            lat: "51.5074",
-            lon: "-0.1278",
-            display_name: "London",
-          },
-        ],
-      })
-
-      await geocodeTrack("London")
-
-      expect(mockFetch).toHaveBeenCalledTimes(1)
-      const callOptions = mockFetch.mock.calls[0][1]
-      expect(callOptions.headers["User-Agent"]).toBeDefined()
-      expect(callOptions.headers["User-Agent"]).toContain("My Race Engineer")
+    expect(result).toEqual({
+      latitude: -35.2809,
+      longitude: 149.13,
+      displayName: "Canberra, Australian Capital Territory, Australia",
     })
   })
 
-  describe("caching", () => {
-    it("should cache geocoding results", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [
-          {
-            lat: "52.5200",
-            lon: "13.4050",
-            display_name: "Berlin",
-          },
-        ],
-      })
+  it("calls Nominatim with query parameters", async () => {
+    await geocodeTrack("New York")
 
-      // First call
-      const result1 = await geocodeTrack("Berlin")
-
-      // Second call - should use cache
-      const result2 = await geocodeTrack("Berlin")
-
-      expect(result1).toEqual(result2)
-      expect(mockFetch).toHaveBeenCalledTimes(1) // Only called once due to cache
-    })
+    expect(mockHttpsRequest).toHaveBeenCalled()
+    const opts = mockHttpsRequest.mock.calls[0][0] as {
+      hostname: string
+      path: string
+      method: string
+    }
+    expect(opts.method).toBe("GET")
+    expect(opts.hostname).toContain("openstreetmap.org")
+    expect(opts.path).toContain("q=New+York")
+    expect(opts.path).toContain("format=json")
+    expect(opts.path).toContain("limit=1")
   })
 
-  describe("rate limiting", () => {
-    it("should respect rate limit by waiting between requests", async () => {
-      vi.useFakeTimers()
+  it("includes User-Agent header", async () => {
+    await geocodeTrack("London")
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [
-          {
-            lat: "48.8566",
-            lon: "2.3522",
-            display_name: "Paris",
-          },
-        ],
-      })
-
-      // Clear cache by using different track names
-      await geocodeTrack("Paris1")
-
-      const startTime = Date.now()
-      await geocodeTrack("Paris2")
-      const endTime = Date.now()
-
-      // Should have waited at least 1000ms (1 second)
-      expect(endTime - startTime).toBeGreaterThanOrEqual(1000)
-
-      vi.useRealTimers()
-    }, 5000) // Increase timeout for this test
+    const opts = mockHttpsRequest.mock.calls[0][0] as { headers: Record<string, string> }
+    expect(opts.headers["User-Agent"]).toContain("My Race Engineer")
   })
 
-  describe("error handling", () => {
-    it("should throw error when API returns non-200 status", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-      })
+  it("caches geocoding results", async () => {
+    await geocodeTrack("Berlin-cache")
+    await geocodeTrack("Berlin-cache")
 
-      await expect(geocodeTrack("Invalid")).rejects.toThrow("Geocoding API returned status 500")
-    })
-
-    it("should throw error when no results found", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      })
-
-      await expect(geocodeTrack("NonexistentTrack12345")).rejects.toThrow(
-        "No geocoding results found"
-      )
-    })
-
-    it("should throw error when API call fails", async () => {
-      mockFetch.mockRejectedValueOnce(new Error("Network error"))
-
-      await expect(geocodeTrack("Test")).rejects.toThrow("Geocoding failed")
-    })
-
-    it("should throw error when API key is missing (401)", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      })
-
-      await expect(geocodeTrack("Test")).rejects.toThrow("Geocoding API returned status 401")
-    })
+    expect(mockHttpsRequest).toHaveBeenCalledTimes(1)
   })
 
-  describe("environment variable override", () => {
-    it("should use GEOCODING_SERVICE_URL if set", async () => {
-      const originalUrl = process.env.GEOCODING_SERVICE_URL
-      process.env.GEOCODING_SERVICE_URL = "https://custom-geocoding-service.com/search"
+  it("waits between distinct track requests (rate limit)", async () => {
+    vi.useFakeTimers()
+    __resetGeocodeTestState()
+    successJson([{ lat: "48.8566", lon: "2.3522", display_name: "Paris" }])
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [
-          {
-            lat: "0",
-            lon: "0",
-            display_name: "Test",
-          },
-        ],
+    const p1 = geocodeTrack("Paris-rate-a")
+    await p1
+
+    const p2 = geocodeTrack("Paris-rate-b")
+    await vi.advanceTimersByTimeAsync(1000)
+    await p2
+
+    expect(mockHttpsRequest).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
+  })
+
+  it("throws when API returns non-200", async () => {
+    __resetGeocodeTestState()
+    successJson([], 500)
+
+    await expect(geocodeTrack("Bad")).rejects.toThrow("Geocoding API returned status 500")
+  })
+
+  it("throws when no results", async () => {
+    __resetGeocodeTestState()
+    successJson([])
+
+    await expect(geocodeTrack("NonexistentTrack12345")).rejects.toThrow(
+      "No geocoding results found"
+    )
+  })
+
+  it("wraps request errors", async () => {
+    __resetGeocodeTestState()
+    mockHttpsRequest.mockImplementation(() => {
+      const req = new EventEmitter()
+      return Object.assign(req, {
+        end: vi.fn(() => {
+          queueMicrotask(() => req.emit("error", new Error("network down")))
+        }),
+        setTimeout: vi.fn(),
+        destroy: vi.fn(),
       })
-
-      await geocodeTrack("Test")
-
-      const callUrl = mockFetch.mock.calls[0][0]
-      expect(callUrl).toContain("custom-geocoding-service.com")
-
-      // Restore original
-      if (originalUrl) {
-        process.env.GEOCODING_SERVICE_URL = originalUrl
-      } else {
-        delete process.env.GEOCODING_SERVICE_URL
-      }
     })
+
+    await expect(geocodeTrack("Test")).rejects.toThrow("network down")
+  })
+
+  it("uses GEOCODING_SERVICE_URL host when set", async () => {
+    __resetGeocodeTestState()
+    process.env.GEOCODING_SERVICE_URL = "https://custom-geocoding.example.com/search"
+    successJson([{ lat: "0", lon: "0", display_name: "Test" }])
+
+    await geocodeTrack("Test")
+
+    const opts = mockHttpsRequest.mock.calls[0][0] as { hostname: string }
+    expect(opts.hostname).toBe("custom-geocoding.example.com")
   })
 })

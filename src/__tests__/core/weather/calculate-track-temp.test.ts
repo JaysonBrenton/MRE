@@ -69,7 +69,8 @@ describe("calculateTrackTemperature", () => {
 
     it("should handle negative air temperatures", () => {
       const result = calculateTrackTemperature(-5)
-      expect(result).toBe(-6) // -5 * 1.2 = -6, but clamped to >= -5
+      // Base -6 from 1.2× air temp, then clamped so track is never below air (-5)
+      expect(result).toBe(-5)
       expect(result).toBeGreaterThanOrEqual(-5)
     })
   })
