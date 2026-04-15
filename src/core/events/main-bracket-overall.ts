@@ -14,15 +14,66 @@ function labelLooksLikeStandaloneFinal(raceLabel: string): boolean {
   return /\bfinal\b/.test(lower)
 }
 
+/** Last-chance / LCQ is a ladder round, not the championship main for event-level results. */
+function labelLooksLikeLcq(label: string): boolean {
+  const L = label.toLowerCase()
+  return /\blcq\b/i.test(L) || /last\s*chance/i.test(L)
+}
+
+/**
+ * Semi-finals / split semis (not A/B/C lettered mains). Aligns with bump-up ladder naming.
+ */
+function labelLooksLikeSemiRound(label: string): boolean {
+  const L = label.toLowerCase()
+  if (/\bsemi[\s-]*final/i.test(L)) return true
+  if (/\bsemi\b/i.test(L) && !/\ba[\s\d]*[-–]?\s*main/i.test(L)) return true
+  return false
+}
+
+/** Schedule placeholder rows (LiveRC often puts these under “Main Events” with sessionType main). */
+function labelLooksLikeScheduleBreakOrPlaceholder(text: string): boolean {
+  if (/\*{3,}/.test(text)) return true
+  const L = text.toLowerCase()
+  if (/\bintermission\b/.test(L)) return true
+  if (/\b(?:\d+\s*)?min(?:ute)?s?\s*break\b/.test(L)) return true
+  return false
+}
+
+type MainSessionFieldRace = {
+  sessionType: string | null
+  raceLabel: string
+  sectionHeader: string | null
+  className?: string | null
+}
+
+/**
+ * Hard negatives for “event main” / podium main: practice, ladder rounds, LCQ, schedule breaks.
+ * Scans both label and className so banner text used as `className` cannot become a chip.
+ * Checked first so sessionType or section cannot promote them.
+ */
+function isDisqualifiedAsEventMain(race: MainSessionFieldRace): boolean {
+  const st = (race.sessionType ?? "").toLowerCase()
+  if (st === "practice" || st === "practiceday") return true
+  const label = race.raceLabel?.trim() ?? ""
+  const cn = (race.className ?? "").trim()
+  const haystacks = [label, cn].filter((s) => s.length > 0)
+  if (haystacks.length === 0) return false
+  for (const text of haystacks) {
+    const L = text.toLowerCase()
+    if (/\bpractice\b/i.test(L)) return true
+    if (labelLooksLikeLcq(text)) return true
+    if (labelLooksLikeSemiRound(text)) return true
+    if (labelLooksLikeScheduleBreakOrPlaceholder(text)) return true
+  }
+  return false
+}
+
 /**
  * Core “is this a main / final session?” check from structured fields + label.
  * Used for event podium filtering and bump-up mains scoping.
  */
-export function isMainSessionFromFields(race: {
-  sessionType: string | null
-  raceLabel: string
-  sectionHeader: string | null
-}): boolean {
+export function isMainSessionFromFields(race: MainSessionFieldRace): boolean {
+  if (isDisqualifiedAsEventMain(race)) return false
   if (race.sessionType === "main") return true
   const label = race.raceLabel?.trim() ?? ""
   if (label.length > 0) {
@@ -35,11 +86,10 @@ export function isMainSessionFromFields(race: {
 }
 
 /**
- * Whether a race counts as a main/final for event podium purposes. Aligns with leaderboard
- * heuristics (`sessionType` main or "main" in the label) and includes LiveRC rounds listed
- * under **Main Events** when the label omits "main" (e.g. "Final" only) but `sessionType`
- * stayed `race`. Also treats standalone **Final** in the label (not semi-final) when section
- * headers are missing.
+ * Whether a race counts as a main/final for event podium and event-level class chips. Excludes
+ * practice, LCQ, semis, schedule breaks / asterisk banners (often under **Main Events**), and
+ * uses both `raceLabel` and `className` for those negatives. Otherwise aligns with `sessionType`
+ * main, “main” / Final in the label, and **Main Events** when the label is a plain final.
  */
 export function isEventMainSession(race: RaceSummary): boolean {
   return isMainSessionFromFields(race)
@@ -161,8 +211,9 @@ function computeRankingTuple(d: DriverAccum): number[] {
 
 /**
  * Sort races in a bracket group by leg number, then raceOrder.
+ * Exported for UI that lists the same leg order used for bracket standings.
  */
-function sortBracketRaces(races: RaceSummary[]): RaceSummary[] {
+export function sortBracketRaces(races: RaceSummary[]): RaceSummary[] {
   return [...races].sort((a, b) => {
     const pa = parseMainBracketLeg(a.raceLabel)
     const pb = parseMainBracketLeg(b.raceLabel)

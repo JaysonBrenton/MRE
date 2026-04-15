@@ -24,6 +24,7 @@ import Tooltip from "@/components/molecules/Tooltip"
 import { useChartColor } from "@/hooks/useChartColors"
 import { resolveColorToHex } from "@/lib/chart-color-utils"
 import { typography } from "@/lib/typography"
+import { OVERVIEW_GLASS_SURFACE_STYLE } from "@/components/organisms/event-analysis/overview-glass-surface"
 
 const DEFAULT_AXIS_COLOR = "var(--token-text-primary)"
 /** Hex fallback when resolving CSS variables for color picker (matches --token-text-primary in dark theme) */
@@ -152,11 +153,8 @@ export default function ChartContainer({
       className={`w-full relative ${className}`}
       style={{
         minHeight: `${height}px`,
-        backgroundColor: "var(--glass-bg)",
-        backdropFilter: "var(--glass-blur)",
+        ...OVERVIEW_GLASS_SURFACE_STYLE,
         WebkitBackdropFilter: "var(--glass-blur)",
-        borderRadius: "16px",
-        border: "1px solid var(--glass-border)",
         boxShadow: "var(--glass-shadow), var(--glass-shadow-inset)",
         padding: "20px",
         overflow: "visible",

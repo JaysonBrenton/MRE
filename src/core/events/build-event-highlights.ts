@@ -9,8 +9,8 @@ import { formatClassName } from "@/lib/format-class-name"
 import { getLadderRank } from "./infer-bump-ups"
 import { isEventMainSession } from "./main-bracket-overall"
 import {
-  normalizeRaceSessionType,
   sessionTypeFilterChipLabel,
+  sessionTypeFilterKeyForRace,
   sortSessionTypeFilterKeys,
 } from "./session-type-filter"
 import { formatLapTime } from "@/lib/format-session-data"
@@ -210,7 +210,7 @@ function buildClassWinners(data: EventAnalysisData): ClassWinnerHighlight[] {
 function buildSessionMix(data: EventAnalysisData): SessionMixSegment[] {
   const counts = new Map<string, number>()
   for (const race of data.races) {
-    const key = normalizeRaceSessionType(race.sessionType)
+    const key = sessionTypeFilterKeyForRace(race)
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
   const total = data.races.length

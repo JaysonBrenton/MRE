@@ -25,16 +25,12 @@ import ListPagination from "@/components/organisms/event-analysis/ListPagination
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { multiMainResultMatchesClassFilter } from "@/core/events/multi-main-class-match"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
-
-const SURFACE_CLASS =
-  "rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-const SURFACE_STYLE = {
-  backgroundColor: "var(--glass-bg)",
-  backdropFilter: "var(--glass-blur)",
-  borderRadius: 16,
-  border: "1px solid var(--glass-border)",
-  boxShadow: "var(--glass-shadow)",
-} as const
+import {
+  OVERVIEW_GLASS_SURFACE_CLASS,
+  OVERVIEW_GLASS_SURFACE_STYLE,
+} from "@/components/organisms/event-analysis/overview-glass-surface"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
+import { typography } from "@/lib/typography"
 
 export interface MultiMainOverallCardProps {
   multiMainResults: EventAnalysisData["multiMainResults"]
@@ -79,11 +75,9 @@ function MultiMainClassBlock({ mm }: { mm: MultiMainBlock }) {
   }, [currentPage, totalPages])
 
   return (
-    <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
+    <div className={OVERVIEW_GLASS_SURFACE_CLASS} style={OVERVIEW_GLASS_SURFACE_STYLE}>
       <div className="border-b border-[var(--token-border-default)] px-4 py-3">
-        <h4 className="text-base font-semibold text-[var(--token-text-primary)]">
-          {mm.classLabel}
-        </h4>
+        <h4 className={typography.h5}>{mm.classLabel}</h4>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--token-text-secondary)]">
           <span>
             Mains: {mm.completedMains} of {mm.totalMains} completed
@@ -92,53 +86,55 @@ function MultiMainClassBlock({ mm }: { mm: MultiMainBlock }) {
         </div>
       </div>
       <div className="px-2 py-2 sm:px-4">
-        <StandardTable>
-          <StandardTableHeader>
-            <StandardTableRow className="border-b border-[var(--token-border-default)]">
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                Overall
-              </StandardTableCell>
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                Driver
-              </StandardTableCell>
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                Pts
-              </StandardTableCell>
-            </StandardTableRow>
-          </StandardTableHeader>
-          <tbody>
-            {paginatedEntries.map((entry) => {
-              const isPodium = entry.position >= 1 && entry.position <= 3
-              return (
-                <StandardTableRow
-                  key={`${mm.id}-${entry.driverId}`}
-                  className={isPodium ? "bg-[var(--token-accent-soft-bg)]/30" : ""}
+        <DataTableFrame>
+          <StandardTable>
+            <StandardTableHeader>
+              <StandardTableRow className="border-b border-[var(--token-border-default)]">
+                <StandardTableCell
+                  header
+                  className={`px-3 py-2 text-left ${typography.tableHeader}`}
                 >
-                  <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                    {entry.position}
-                  </StandardTableCell>
-                  <StandardTableCell
-                    className={`px-3 py-2 text-sm ${isPodium ? "font-semibold text-[var(--token-text-primary)]" : "text-[var(--token-text-primary)]"}`}
+                  Overall
+                </StandardTableCell>
+                <StandardTableCell
+                  header
+                  className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                >
+                  Driver
+                </StandardTableCell>
+                <StandardTableCell
+                  header
+                  className={`px-3 py-2 text-right ${typography.tableHeader}`}
+                >
+                  Pts
+                </StandardTableCell>
+              </StandardTableRow>
+            </StandardTableHeader>
+            <tbody>
+              {paginatedEntries.map((entry) => {
+                const isPodium = entry.position >= 1 && entry.position <= 3
+                return (
+                  <StandardTableRow
+                    key={`${mm.id}-${entry.driverId}`}
+                    className={isPodium ? "bg-[var(--token-accent-soft-bg)]/30" : ""}
                   >
-                    {entry.driverName}
-                  </StandardTableCell>
-                  <StandardTableCell className="px-3 py-2 text-right text-sm text-[var(--token-text-secondary)]">
-                    {entry.points}
-                  </StandardTableCell>
-                </StandardTableRow>
-              )
-            })}
-          </tbody>
-        </StandardTable>
+                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                      {entry.position}
+                    </StandardTableCell>
+                    <StandardTableCell
+                      className={`px-3 py-2 text-sm ${isPodium ? "font-semibold text-[var(--token-text-primary)]" : "text-[var(--token-text-primary)]"}`}
+                    >
+                      {entry.driverName}
+                    </StandardTableCell>
+                    <StandardTableCell className="px-3 py-2 text-right text-sm text-[var(--token-text-secondary)]">
+                      {entry.points}
+                    </StandardTableCell>
+                  </StandardTableRow>
+                )
+              })}
+            </tbody>
+          </StandardTable>
+        </DataTableFrame>
         {mm.entries.length > 0 && (
           <div className="min-w-0 w-full max-w-full">
             <ListPagination
@@ -177,10 +173,8 @@ export default function MultiMainOverallCard({
   return (
     <div className="w-full space-y-4" id="multi-main-overall-content">
       <div className="space-y-1">
-        <h3 className="text-lg font-semibold text-[var(--token-text-primary)]">
-          Overall multi-main standings
-        </h3>
-        <p className="text-sm text-[var(--token-text-secondary)]">
+        <h3 className={typography.h4}>Overall multi-main standings</h3>
+        <p className={typography.bodySecondary}>
           Official overall results from LiveRC multi-main pages (best legs / tie-breaks as
           published).
         </p>

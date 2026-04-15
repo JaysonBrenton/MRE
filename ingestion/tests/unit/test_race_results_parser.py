@@ -141,6 +141,71 @@ def test_parse_race_duration_seconds_one_hour():
     assert parse_race_duration_seconds(html) == 3600
 
 
+def test_parse_race_results_behind_non_numeric_stores_display(parser):
+    """LiveRC uses text such as '1 Lap' when the gap is not expressible as seconds."""
+    html = """<html><body>
+<table class="race_result"><tbody>
+<tr>
+<td>5</td>
+<td>
+  <span class="driver_name">LAP DOWN DRIVER</span>
+  <a href="#" data-driver-id="100" class="driver_laps">View Laps</a>
+</td>
+<td>2</td>
+<td>10/5:03.542</td>
+<td>1 Lap</td>
+<td>27.5</td>
+<td><div class="hidden">30.5</div>30.5</td>
+<td></td><td></td><td></td><td></td><td></td>
+<td>88%</td>
+</tr>
+</tbody></table>
+</body></html>"""
+    url = "https://example.liverc.com/results/?p=view_race_result&id=1"
+    results = parser.parse(html, url)
+    assert len(results) == 1
+    r = results[0]
+    assert r.seconds_behind is None
+    assert r.behind_display == "1 Lap"
+
+
+def test_parse_race_results_datatables_id_without_race_result_class(parser):
+    """DataTables output may use id=DataTables_Table_0 without class race_result."""
+    html = """<html><body>
+<table id="DataTables_Table_0" class="table table-striped" cellspacing="0">
+<thead>
+<tr><th colspan="14">header</th></tr>
+<tr>
+<th>Pos</th><th>Driver</th><th>Qual</th><th>Laps/Time</th><th>Behind</th>
+<th>Fastest Lap</th><th>Avg Lap</th><th>Avg Top 5</th><th>Avg Top 10</th><th>Avg Top 15</th>
+<th>Top 3 Consecutive</th><th>Std. Deviation</th><th>Consistency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5</td>
+<td><span class="driver_name">LAP DOWN DRIVER</span>
+  <a href="#" data-driver-id="100" class="driver_laps">View Laps</a>
+</td>
+<td>2</td>
+<td>10/5:03.542</td>
+<td>1 Lap</td>
+<td>27.5</td>
+<td><div class="hidden">30.5</div>30.5</td>
+<td></td><td></td><td></td><td></td><td></td>
+<td>88%</td>
+</tr>
+</tbody>
+</table>
+</body></html>"""
+    url = "https://example.liverc.com/results/?p=view_race_result&id=1"
+    results = parser.parse(html, url)
+    assert len(results) == 1
+    r = results[0]
+    assert r.seconds_behind is None
+    assert r.behind_display == "1 Lap"
+
+
 def test_parse_race_results_extracts_qual_behind_and_total_time_seconds(parser, race_html):
     """Test that Qual, Behind, and total_time_seconds are extracted."""
     url = "https://canberraoffroad.liverc.com/results/?p=view_race_result&id=6304829"

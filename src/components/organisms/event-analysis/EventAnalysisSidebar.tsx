@@ -193,7 +193,7 @@ const DriverItem = React.memo<{
         style={style}
         className="flex items-center px-3 py-2 bg-[var(--token-surface)] border-b border-[var(--token-border-default)]"
       >
-        <h3 className="text-sm font-semibold text-[var(--token-text-primary)]">
+        <h3 className={typography.h6}>
           {item.data.className} ({item.data.driverCount})
         </h3>
       </div>
@@ -1046,27 +1046,21 @@ export default function EventAnalysisSidebar({
               successStats.resultsIngested > 0 ||
               successStats.lapsIngested > 0) && (
               <div className="border-t border-[var(--token-border-default)] pt-4">
-                <h3 className="text-sm font-semibold text-[var(--token-text-primary)] mb-2">
-                  Statistics
-                </h3>
+                <h3 className={`${typography.h6} mb-2`}>Statistics</h3>
                 <dl className="grid grid-cols-3 gap-4">
                   <div>
                     <dt className="text-xs text-[var(--token-text-secondary)]">Races</dt>
-                    <dd className="text-lg font-medium text-[var(--token-text-primary)]">
-                      {successStats.racesIngested.toLocaleString()}
-                    </dd>
+                    <dd className={typography.h4}>{successStats.racesIngested.toLocaleString()}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-[var(--token-text-secondary)]">Results</dt>
-                    <dd className="text-lg font-medium text-[var(--token-text-primary)]">
+                    <dd className={typography.h4}>
                       {successStats.resultsIngested.toLocaleString()}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-[var(--token-text-secondary)]">Laps</dt>
-                    <dd className="text-lg font-medium text-[var(--token-text-primary)]">
-                      {successStats.lapsIngested.toLocaleString()}
-                    </dd>
+                    <dd className={typography.h4}>{successStats.lapsIngested.toLocaleString()}</dd>
                   </div>
                 </dl>
               </div>

@@ -11,7 +11,9 @@ import { useMemo } from "react"
 import { getSessionsData } from "@/core/events/get-sessions-data"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import SessionsTable from "./sessions/SessionsTable"
+import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 import LinkYourDriverPrompt from "./LinkYourDriverPrompt"
+import { typography } from "@/lib/typography"
 
 export interface PracticeMySessionsTabProps {
   data: EventAnalysisData
@@ -53,7 +55,7 @@ export default function PracticeMySessionsTab({
       >
         <LinkYourDriverPrompt />
         <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-          <p className="text-sm text-[var(--token-text-secondary)]">
+          <p className={typography.bodySecondary}>
             Select a driver above to see their sessions in chronological order, or view All Sessions
             for the full list.
           </p>
@@ -69,12 +71,11 @@ export default function PracticeMySessionsTab({
       id="tabpanel-my-sessions"
       aria-labelledby="tab-my-sessions"
     >
-      <div>
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)] mb-2">My Sessions</h2>
-        <p className="text-sm text-[var(--token-text-secondary)]">
-          Your sessions in chronological order. Best lap, average lap, and consistency per session.
-        </p>
-      </div>
+      <TabPanelIntro
+        eyebrow="Practice day"
+        title="My sessions"
+        description="Your sessions in chronological order. Best lap, average lap, and consistency per session."
+      />
       <SessionsTable
         sessions={sessionsChronological}
         selectedDriverIds={driverIds}

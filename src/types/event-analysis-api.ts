@@ -11,6 +11,8 @@ export type EventAnalysisDataApiResponse = Omit<
   "event" | "races" | "summary" | "raceClasses" | "userHostTrack"
 > & {
   isPracticeDay?: boolean
+  /** Distinct raw registration class names from `event_entries` (see `EventAnalysisData`). */
+  registrationClassNames?: string[]
   event: {
     id: string
     trackId: string
@@ -71,6 +73,9 @@ export type EventAnalysisDataApiResponse = Omit<
       fastLapLapNumber?: number | null
       avgLapTime: number | null
       consistency: number | null
+      qualifyingPosition: number | null
+      secondsBehind: number | null
+      behindDisplay?: string | null
       liveRcStats: LiveRcRaceResultStats | null
     }>
   }>

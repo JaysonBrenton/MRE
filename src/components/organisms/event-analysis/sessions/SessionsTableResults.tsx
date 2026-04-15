@@ -17,7 +17,13 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { formatLapTime, formatTotalTime, formatConsistency } from "@/lib/format-session-data"
+import {
+  formatConsistency,
+  behindSortKey,
+  formatRaceBehind,
+  formatLapTime,
+  formatLapsSlashTime,
+} from "@/lib/format-session-data"
 import type { SessionData } from "@/core/events/get-sessions-data"
 
 export interface SessionsTableResultsProps {
@@ -28,12 +34,32 @@ export interface SessionsTableResultsProps {
 type SortField =
   | "position"
   | "driverName"
-  | "laps"
+  | "qual"
   | "totalTime"
+  | "behind"
   | "fastLap"
   | "avgLap"
+  | "avgTop5"
+  | "avgTop10"
+  | "avgTop15"
+  | "top3Consecutive"
+  | "stdDeviation"
   | "consistency"
 type SortDirection = "asc" | "desc"
+
+function fmtQualCell(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) {
+    return "—"
+  }
+  return String(n)
+}
+
+function fmtLapStat(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) {
+    return "—"
+  }
+  return formatLapTime(value)
+}
 
 export default function SessionsTableResults({
   session,
@@ -187,17 +213,42 @@ export default function SessionsTableResults({
             const nameB = (b.driverName?.trim() || "").toLowerCase()
             comparison = nameA.localeCompare(nameB)
             break
-          case "laps":
-            comparison = a.lapsCompleted - b.lapsCompleted
+          case "qual":
+            comparison = (a.qualifyingPosition ?? Infinity) - (b.qualifyingPosition ?? Infinity)
             break
           case "totalTime":
             comparison = (a.totalTimeSeconds ?? Infinity) - (b.totalTimeSeconds ?? Infinity)
+            break
+          case "behind":
+            comparison =
+              behindSortKey(a.secondsBehind, a.behindDisplay) -
+              behindSortKey(b.secondsBehind, b.behindDisplay)
             break
           case "fastLap":
             comparison = (a.fastLapTime ?? Infinity) - (b.fastLapTime ?? Infinity)
             break
           case "avgLap":
             comparison = (a.avgLapTime ?? Infinity) - (b.avgLapTime ?? Infinity)
+            break
+          case "avgTop5":
+            comparison = (a.liveRcStats?.avgTop5 ?? Infinity) - (b.liveRcStats?.avgTop5 ?? Infinity)
+            break
+          case "avgTop10":
+            comparison =
+              (a.liveRcStats?.avgTop10 ?? Infinity) - (b.liveRcStats?.avgTop10 ?? Infinity)
+            break
+          case "avgTop15":
+            comparison =
+              (a.liveRcStats?.avgTop15 ?? Infinity) - (b.liveRcStats?.avgTop15 ?? Infinity)
+            break
+          case "top3Consecutive":
+            comparison =
+              (a.liveRcStats?.top3Consecutive ?? Infinity) -
+              (b.liveRcStats?.top3Consecutive ?? Infinity)
+            break
+          case "stdDeviation":
+            comparison =
+              (a.liveRcStats?.stdDeviation ?? Infinity) - (b.liveRcStats?.stdDeviation ?? Infinity)
             break
           case "consistency":
             comparison = (b.consistency ?? 0) - (a.consistency ?? 0) // Higher is better
@@ -263,14 +314,14 @@ export default function SessionsTableResults({
     <div className="px-4 py-4 bg-[var(--token-surface-alt)]">
       <div className="scrollbar-none overflow-x-auto">
         <table
-          className="w-full min-w-[800px]"
+          className="w-full min-w-[1100px]"
           aria-label={`Full results for ${session.raceLabel}`}
         >
           <thead>
             <tr className="border-b border-[var(--token-border-default)]">
               <th
                 scope="col"
-                className="px-3 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
                 onClick={() => handleSort("position")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -291,7 +342,7 @@ export default function SessionsTableResults({
               </th>
               <th
                 scope="col"
-                className="px-3 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
                 onClick={() => handleSort("driverName")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -312,28 +363,28 @@ export default function SessionsTableResults({
               </th>
               <th
                 scope="col"
-                className="px-3 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
-                onClick={() => handleSort("laps")}
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
+                onClick={() => handleSort("qual")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault()
-                    handleSort("laps")
+                    handleSort("qual")
                   }
                 }}
                 tabIndex={0}
                 aria-sort={
-                  sortField === "laps"
+                  sortField === "qual"
                     ? sortDirection === "asc"
                       ? "ascending"
                       : "descending"
                     : "none"
                 }
               >
-                <span className="flex items-center gap-1">Laps {getSortIcon("laps")}</span>
+                <span className="flex items-center gap-1">Qual {getSortIcon("qual")}</span>
               </th>
               <th
                 scope="col"
-                className="px-3 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
                 onClick={() => handleSort("totalTime")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -351,12 +402,33 @@ export default function SessionsTableResults({
                 }
               >
                 <span className="flex items-center gap-1">
-                  Total Time {getSortIcon("totalTime")}
+                  Laps/Time {getSortIcon("totalTime")}
                 </span>
               </th>
               <th
                 scope="col"
-                className="px-3 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
+                onClick={() => handleSort("behind")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleSort("behind")
+                  }
+                }}
+                tabIndex={0}
+                aria-sort={
+                  sortField === "behind"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                <span className="flex items-center gap-1">Behind {getSortIcon("behind")}</span>
+              </th>
+              <th
+                scope="col"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
                 onClick={() => handleSort("fastLap")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -373,11 +445,13 @@ export default function SessionsTableResults({
                     : "none"
                 }
               >
-                <span className="flex items-center gap-1">Fast Lap {getSortIcon("fastLap")}</span>
+                <span className="flex items-center gap-1">
+                  Fastest Lap {getSortIcon("fastLap")}
+                </span>
               </th>
               <th
                 scope="col"
-                className="px-3 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
                 onClick={() => handleSort("avgLap")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -398,7 +472,120 @@ export default function SessionsTableResults({
               </th>
               <th
                 scope="col"
-                className="px-3 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
+                onClick={() => handleSort("avgTop5")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleSort("avgTop5")
+                  }
+                }}
+                tabIndex={0}
+                aria-sort={
+                  sortField === "avgTop5"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                <span className="flex items-center gap-1">Avg Top 5 {getSortIcon("avgTop5")}</span>
+              </th>
+              <th
+                scope="col"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
+                onClick={() => handleSort("avgTop10")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleSort("avgTop10")
+                  }
+                }}
+                tabIndex={0}
+                aria-sort={
+                  sortField === "avgTop10"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                <span className="flex items-center gap-1">
+                  Avg Top 10 {getSortIcon("avgTop10")}
+                </span>
+              </th>
+              <th
+                scope="col"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
+                onClick={() => handleSort("avgTop15")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleSort("avgTop15")
+                  }
+                }}
+                tabIndex={0}
+                aria-sort={
+                  sortField === "avgTop15"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                <span className="flex items-center gap-1">
+                  Avg Top 15 {getSortIcon("avgTop15")}
+                </span>
+              </th>
+              <th
+                scope="col"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
+                onClick={() => handleSort("top3Consecutive")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleSort("top3Consecutive")
+                  }
+                }}
+                tabIndex={0}
+                aria-sort={
+                  sortField === "top3Consecutive"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                <span className="flex items-center gap-1">
+                  Top 3 Consecutive {getSortIcon("top3Consecutive")}
+                </span>
+              </th>
+              <th
+                scope="col"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
+                onClick={() => handleSort("stdDeviation")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleSort("stdDeviation")
+                  }
+                }}
+                tabIndex={0}
+                aria-sort={
+                  sortField === "stdDeviation"
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                <span className="flex items-center gap-1">
+                  Std. Deviation {getSortIcon("stdDeviation")}
+                </span>
+              </th>
+              <th
+                scope="col"
+                className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-[var(--token-text-secondary)] uppercase tracking-wider cursor-pointer hover:text-[var(--token-text-primary)] transition-colors sm:px-3"
                 onClick={() => handleSort("consistency")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -437,6 +624,8 @@ export default function SessionsTableResults({
                 })
               }
 
+              const ls = result.liveRcStats
+
               return (
                 <tr
                   key={result.raceResultId}
@@ -444,11 +633,11 @@ export default function SessionsTableResults({
                     index % 2 === 0 ? "bg-[var(--token-surface)]" : "bg-[var(--token-surface-alt)]"
                   }`}
                 >
-                  <td className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                  <td className="px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
                     {result.positionFinal}
                   </td>
                   <td
-                    className="px-3 py-2 text-sm text-[var(--token-text-primary)]"
+                    className="px-2 py-2 text-sm text-[var(--token-text-primary)] sm:px-3"
                     style={{ color: "var(--token-text-primary)" }}
                   >
                     {(() => {
@@ -474,19 +663,37 @@ export default function SessionsTableResults({
                       return displayName
                     })()}
                   </td>
-                  <td className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                    {result.lapsCompleted}
+                  <td className="px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
+                    {fmtQualCell(result.qualifyingPosition)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                    {formatTotalTime(result.totalTimeSeconds)}
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
+                    {formatLapsSlashTime(result.lapsCompleted, result.totalTimeSeconds)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                  <td className="px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
+                    {formatRaceBehind(result.secondsBehind, result.behindDisplay)}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
                     {formatLapTime(result.fastLapTime)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
                     {formatLapTime(result.avgLapTime)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
+                    {fmtLapStat(ls?.avgTop5)}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
+                    {fmtLapStat(ls?.avgTop10)}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
+                    {fmtLapStat(ls?.avgTop15)}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
+                    {fmtLapStat(ls?.top3Consecutive)}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
+                    {fmtLapStat(ls?.stdDeviation)}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-sm tabular-nums text-[var(--token-text-primary)] sm:px-3">
                     {formatConsistency(result.consistency)}
                   </td>
                 </tr>

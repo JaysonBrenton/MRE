@@ -12,6 +12,14 @@ import ListPagination from "./ListPagination"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { formatLapTime, formatTimeUTC } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
+import DataPanelSurface, {
+  DataTableFrame,
+} from "@/components/organisms/event-analysis/DataPanelSurface"
+import { typography } from "@/lib/typography"
+import {
+  sessionTypeFilterKeyForRace,
+  sessionTypeFilterChipLabel,
+} from "@/core/events/session-type-filter"
 
 type RaceSummary = EventAnalysisData["races"][number]
 type RaceResultSummary = RaceSummary["results"][number]
@@ -78,34 +86,15 @@ function averageLapBreakdownForRace(race: RaceSummary) {
   return rows
 }
 
-function formatSessionTypeLabel(sessionType: string | null, sectionHeader: string | null): string {
-  if (sectionHeader && sectionHeader.trim().length > 0) {
-    return sectionHeader
-  }
-
-  if (!sessionType) {
-    return "Race"
-  }
-
-  const normalized = sessionType.toLowerCase()
-  switch (normalized) {
-    case "practice":
-      return "Practice"
-    case "seeding":
-      return "Seeding"
-    case "qualifying":
-      return "Qualifier"
-    case "heat":
-      return "Heat"
-    case "main":
-      return "Main"
-    case "race":
-      return "Race"
-    case "practiceday":
-      return "Practice Day"
-    default:
-      return sessionType
-  }
+function formatSessionTypeLabel(
+  race: Pick<
+    EventAnalysisData["races"][number],
+    "sessionType" | "sectionHeader" | "raceLabel" | "className"
+  >
+): string {
+  const sh = race.sectionHeader?.trim()
+  if (sh) return sh
+  return sessionTypeFilterChipLabel(sessionTypeFilterKeyForRace(race))
 }
 
 export interface EventFastestAverageLapsTableProps {
@@ -165,7 +154,7 @@ export default function EventFastestAverageLapsTable({ races }: EventFastestAver
         raceId: race.id,
         raceLabel: race.raceLabel,
         className: race.className,
-        sessionType: formatSessionTypeLabel(race.sessionType, race.sectionHeader),
+        sessionType: formatSessionTypeLabel(race),
         raceOrder: race.raceOrder,
         startTime: race.startTime,
         raceUrl: race.raceUrl,
@@ -336,7 +325,7 @@ export default function EventFastestAverageLapsTable({ races }: EventFastestAver
 
   const detailSubtitle = useMemo(() => {
     if (!detailRace) return null
-    const sessionLabel = formatSessionTypeLabel(detailRace.sessionType, detailRace.sectionHeader)
+    const sessionLabel = formatSessionTypeLabel(detailRace)
     const timeLabel = formatTimeUTC(detailRace.startTime)
     return (
       <span className="block space-y-0.5">
@@ -353,52 +342,25 @@ export default function EventFastestAverageLapsTable({ races }: EventFastestAver
 
   if (fastestAverageRows.length === 0) {
     return (
-      <div
-        className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-        style={{
-          backgroundColor: "var(--glass-bg)",
-          backdropFilter: "var(--glass-blur)",
-          borderRadius: 16,
-          border: "1px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
-      >
-        <div className="px-4 py-3">
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-            Fastest Average Laps
-          </h2>
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-            No fastest average lap data available for this event.
-          </p>
-        </div>
-      </div>
+      <DataPanelSurface
+        title="Fastest Average Laps"
+        subtitle="No fastest average lap data available for this event."
+        contentClassName="px-4 py-3"
+      />
     )
   }
 
   return (
-    <div
-      className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-      style={{
-        backgroundColor: "var(--glass-bg)",
-        backdropFilter: "var(--glass-blur)",
-        borderRadius: 16,
-        border: "1px solid var(--glass-border)",
-        boxShadow: "var(--glass-shadow)",
-      }}
-    >
-      <div className="px-4 py-3 border-b border-[var(--token-border-default)]">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              {`Fastest Average Laps: ${headerClassLabel}`}
-            </h2>
-            {sortedRows.length > 0 && (
-              <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-                Click a row for every driver&apos;s average lap in that session.
-              </p>
-            )}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
+    <>
+      <DataPanelSurface
+        title={`Fastest Average Laps: ${headerClassLabel}`}
+        subtitle={
+          sortedRows.length > 0
+            ? "Click a row for every driver's average lap in that session."
+            : null
+        }
+        headerControls={
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <label
                 htmlFor="fastest-avg-session-filter"
@@ -437,17 +399,16 @@ export default function EventFastestAverageLapsTable({ races }: EventFastestAver
               />
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="px-4 py-3">
+        }
+        contentClassName="px-4 py-3"
+      >
         {sortedRows.length === 0 ? (
           <div className="flex h-32 items-center justify-center text-sm text-[var(--token-text-secondary)]">
             No races match the selected filters.
           </div>
         ) : (
           <>
-            <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+            <DataTableFrame>
               <StandardTable>
                 <StandardTableHeader>
                   <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -602,7 +563,7 @@ export default function EventFastestAverageLapsTable({ races }: EventFastestAver
                   ))}
                 </tbody>
               </StandardTable>
-            </div>
+            </DataTableFrame>
             <div className="mt-4">
               <ListPagination
                 currentPage={currentPage}
@@ -616,7 +577,7 @@ export default function EventFastestAverageLapsTable({ races }: EventFastestAver
             </div>
           </>
         )}
-      </div>
+      </DataPanelSurface>
 
       {detailRace && (
         <Modal
@@ -648,54 +609,56 @@ export default function EventFastestAverageLapsTable({ races }: EventFastestAver
                 <p className="text-sm text-[var(--token-text-secondary)]">
                   Each driver&apos;s average lap time in this session, lowest average first.
                 </p>
-                <StandardTable>
-                  <StandardTableHeader>
-                    <StandardTableRow className="border-b border-[var(--token-border-default)]">
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Rank
-                      </StandardTableCell>
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Driver
-                      </StandardTableCell>
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Avg lap
-                      </StandardTableCell>
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Laps
-                      </StandardTableCell>
-                    </StandardTableRow>
-                  </StandardTableHeader>
-                  <tbody>
-                    {paginatedBreakdown.map((entry, i) => (
-                      <StandardTableRow key={entry.raceResultId}>
-                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
-                          {modalStartIndex + i + 1}
+                <DataTableFrame>
+                  <StandardTable>
+                    <StandardTableHeader>
+                      <StandardTableRow className="border-b border-[var(--token-border-default)]">
+                        <StandardTableCell
+                          header
+                          className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                        >
+                          Rank
                         </StandardTableCell>
-                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                          {entry.driverName}
+                        <StandardTableCell
+                          header
+                          className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                        >
+                          Driver
                         </StandardTableCell>
-                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-secondary)]">
-                          {formatLapTime(entry.avgLapSeconds)}
+                        <StandardTableCell
+                          header
+                          className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                        >
+                          Avg lap
                         </StandardTableCell>
-                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-secondary)]">
-                          {entry.lapsCompleted}
+                        <StandardTableCell
+                          header
+                          className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                        >
+                          Laps
                         </StandardTableCell>
                       </StandardTableRow>
-                    ))}
-                  </tbody>
-                </StandardTable>
+                    </StandardTableHeader>
+                    <tbody>
+                      {paginatedBreakdown.map((entry, i) => (
+                        <StandardTableRow key={entry.raceResultId}>
+                          <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
+                            {modalStartIndex + i + 1}
+                          </StandardTableCell>
+                          <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                            {entry.driverName}
+                          </StandardTableCell>
+                          <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-secondary)]">
+                            {formatLapTime(entry.avgLapSeconds)}
+                          </StandardTableCell>
+                          <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-secondary)]">
+                            {entry.lapsCompleted}
+                          </StandardTableCell>
+                        </StandardTableRow>
+                      ))}
+                    </tbody>
+                  </StandardTable>
+                </DataTableFrame>
                 <div className="min-w-0 w-full max-w-full pt-2">
                   <ListPagination
                     currentPage={modalPage}
@@ -713,6 +676,6 @@ export default function EventFastestAverageLapsTable({ races }: EventFastestAver
           </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }

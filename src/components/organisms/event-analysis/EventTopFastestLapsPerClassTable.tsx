@@ -16,6 +16,10 @@ import {
 } from "@/core/events/event-top-fastest-laps-per-class"
 import { formatLapTime } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
+import { typography } from "@/lib/typography"
+import DataPanelSurface, {
+  DataTableFrame,
+} from "@/components/organisms/event-analysis/DataPanelSurface"
 
 export interface EventTopFastestLapsPerClassTableProps {
   races: EventAnalysisData["races"]
@@ -229,51 +233,23 @@ export default function EventTopFastestLapsPerClassTable({
 
   if (rows.length === 0) {
     return (
-      <div
-        className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-        style={{
-          backgroundColor: "var(--glass-bg)",
-          backdropFilter: "var(--glass-blur)",
-          borderRadius: 16,
-          border: "1px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
-      >
-        <div className="px-4 py-3">
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-            Fastest Laps Per Class
-          </h2>
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-            No fastest lap data available for this event.
-          </p>
-        </div>
-      </div>
+      <DataPanelSurface
+        title="Fastest Laps Per Class"
+        subtitle="No fastest lap data available for this event."
+        contentClassName="px-4 py-3"
+      />
     )
   }
 
   return (
-    <div
-      className="w-full rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-      style={{
-        backgroundColor: "var(--glass-bg)",
-        backdropFilter: "var(--glass-blur)",
-        borderRadius: 16,
-        border: "1px solid var(--glass-border)",
-        boxShadow: "var(--glass-shadow)",
-      }}
-    >
-      <div className="border-b border-[var(--token-border-default)] px-4 py-3">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              {`Fastest Laps Per Class: ${headerClassLabel}`}
-            </h2>
-            <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-              The table lists the top three distinct lap times per class (ties included). Click a
-              row to see every driver&apos;s best lap in that class.
-            </p>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
+    <>
+      <DataPanelSurface
+        title={`Fastest Laps Per Class: ${headerClassLabel}`}
+        subtitle={
+          "The table lists the top three distinct lap times per class (ties included). Click a row to see every driver's best lap in that class."
+        }
+        headerControls={
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <label
                 htmlFor="event-top-fastest-driver-filter"
@@ -291,17 +267,16 @@ export default function EventTopFastestLapsPerClassTable({
               />
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="px-4 py-3">
+        }
+        contentClassName="px-4 py-3"
+      >
         {sortedRows.length === 0 ? (
           <div className="flex h-32 items-center justify-center text-sm text-[var(--token-text-secondary)]">
             No rows match the selected filters.
           </div>
         ) : (
           <>
-            <div className="overflow-hidden rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
+            <DataTableFrame>
               <StandardTable>
                 <StandardTableHeader>
                   <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -423,7 +398,7 @@ export default function EventTopFastestLapsPerClassTable({
                   ))}
                 </tbody>
               </StandardTable>
-            </div>
+            </DataTableFrame>
             <div className="mt-4">
               <ListPagination
                 currentPage={currentPage}
@@ -437,7 +412,7 @@ export default function EventTopFastestLapsPerClassTable({
             </div>
           </>
         )}
-      </div>
+      </DataPanelSurface>
 
       {detailClassName && (
         <Modal
@@ -463,31 +438,31 @@ export default function EventTopFastestLapsPerClassTable({
                     <StandardTableRow className="border-b border-[var(--token-border-default)]">
                       <StandardTableCell
                         header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                        className={`px-3 py-2 text-left ${typography.tableHeader}`}
                       >
                         Rank
                       </StandardTableCell>
                       <StandardTableCell
                         header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                        className={`px-3 py-2 text-left ${typography.tableHeader}`}
                       >
                         Driver
                       </StandardTableCell>
                       <StandardTableCell
                         header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                        className={`px-3 py-2 text-left ${typography.tableHeader}`}
                       >
                         Fastest lap
                       </StandardTableCell>
                       <StandardTableCell
                         header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                        className={`px-3 py-2 text-left ${typography.tableHeader}`}
                       >
                         Lap #
                       </StandardTableCell>
                       <StandardTableCell
                         header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                        className={`px-3 py-2 text-left ${typography.tableHeader}`}
                       >
                         Session
                       </StandardTableCell>
@@ -544,6 +519,6 @@ export default function EventTopFastestLapsPerClassTable({
           </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }

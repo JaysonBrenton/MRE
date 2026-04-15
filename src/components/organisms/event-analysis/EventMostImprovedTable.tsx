@@ -10,6 +10,13 @@ import {
 import ListPagination from "./ListPagination"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { formatTimeUTC } from "@/lib/format-session-data"
+import DataPanelSurface, {
+  DataTableFrame,
+} from "@/components/organisms/event-analysis/DataPanelSurface"
+import {
+  sessionTypeFilterKeyForRace,
+  sessionTypeFilterChipLabel,
+} from "@/core/events/session-type-filter"
 
 type RaceSummary = EventAnalysisData["races"][number]
 type RaceResultSummary = RaceSummary["results"][number]
@@ -50,34 +57,15 @@ function SortIcon({ field, activeField, direction }: SortIconProps) {
   return <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
 }
 
-function formatSessionTypeLabel(sessionType: string | null, sectionHeader: string | null): string {
-  if (sectionHeader && sectionHeader.trim().length > 0) {
-    return sectionHeader
-  }
-
-  if (!sessionType) {
-    return "Race"
-  }
-
-  const normalized = sessionType.toLowerCase()
-  switch (normalized) {
-    case "practice":
-      return "Practice"
-    case "seeding":
-      return "Seeding"
-    case "qualifying":
-      return "Qualifier"
-    case "heat":
-      return "Heat"
-    case "main":
-      return "Main"
-    case "race":
-      return "Race"
-    case "practiceday":
-      return "Practice Day"
-    default:
-      return sessionType
-  }
+function formatSessionTypeLabel(
+  race: Pick<
+    EventAnalysisData["races"][number],
+    "sessionType" | "sectionHeader" | "raceLabel" | "className"
+  >
+): string {
+  const sh = race.sectionHeader?.trim()
+  if (sh) return sh
+  return sessionTypeFilterChipLabel(sessionTypeFilterKeyForRace(race))
 }
 
 function sanitizeLapTime(value: number | null | undefined): number | null {
@@ -245,7 +233,7 @@ export default function EventMostImprovedTable({
           raceId: race.id,
           raceLabel: race.raceLabel,
           className: race.className,
-          sessionType: formatSessionTypeLabel(race.sessionType, race.sectionHeader),
+          sessionType: formatSessionTypeLabel(race),
           raceOrder: race.raceOrder,
           startTime: race.startTime,
           raceUrl: race.raceUrl,
@@ -260,7 +248,7 @@ export default function EventMostImprovedTable({
         raceId: race.id,
         raceLabel: race.raceLabel,
         className: race.className,
-        sessionType: formatSessionTypeLabel(race.sessionType, race.sectionHeader),
+        sessionType: formatSessionTypeLabel(race),
         raceOrder: race.raceOrder,
         startTime: race.startTime,
         raceUrl: race.raceUrl,
@@ -379,210 +367,180 @@ export default function EventMostImprovedTable({
 
   if (mostImprovedRows.length === 0) {
     return (
-      <div
-        className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-        style={{
-          backgroundColor: "var(--glass-bg)",
-          backdropFilter: "var(--glass-blur)",
-          borderRadius: 16,
-          border: "1px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
-      >
-        <div className="px-4 py-3">
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-            Most Improved Drivers
-          </h2>
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-            No improvement data available for this event.
-          </p>
-        </div>
-      </div>
+      <DataPanelSurface
+        title="Most Improved Drivers"
+        subtitle="No improvement data available for this event."
+        contentClassName="px-4 py-3"
+      />
     )
   }
 
   return (
-    <div
-      className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-      style={{
-        backgroundColor: "var(--glass-bg)",
-        backdropFilter: "var(--glass-blur)",
-        borderRadius: 16,
-        border: "1px solid var(--glass-border)",
-        boxShadow: "var(--glass-shadow)",
-      }}
-    >
-      <div className="px-4 py-3 border-b border-[var(--token-border-default)]">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              {`Most Improved Drivers: ${headerClassLabel}`}
-            </h2>
+    <DataPanelSurface
+      title={`Most Improved Drivers: ${headerClassLabel}`}
+      headerControls={
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="most-improved-session-filter"
+              className="text-xs font-medium text-[var(--token-text-secondary)]"
+            >
+              Session
+            </label>
+            <select
+              id="most-improved-session-filter"
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value)}
+              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            >
+              <option value="">All session types</option>
+              {sessionOptions.map((session) => (
+                <option key={session} value={session}>
+                  {session}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="most-improved-session-filter"
-                className="text-xs font-medium text-[var(--token-text-secondary)]"
-              >
-                Session
-              </label>
-              <select
-                id="most-improved-session-filter"
-                value={sessionFilter}
-                onChange={(e) => setSessionFilter(e.target.value)}
-                className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              >
-                <option value="">All session types</option>
-                {sessionOptions.map((session) => (
-                  <option key={session} value={session}>
-                    {session}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="most-improved-driver-filter"
-                className="text-xs font-medium text-[var(--token-text-secondary)]"
-              >
-                Driver
-              </label>
-              <input
-                id="most-improved-driver-filter"
-                type="text"
-                value={driverSearch}
-                onChange={(e) => setDriverSearch(e.target.value)}
-                placeholder="Search driver name"
-                className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="most-improved-driver-filter"
+              className="text-xs font-medium text-[var(--token-text-secondary)]"
+            >
+              Driver
+            </label>
+            <input
+              id="most-improved-driver-filter"
+              type="text"
+              value={driverSearch}
+              onChange={(e) => setDriverSearch(e.target.value)}
+              placeholder="Search driver name"
+              className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            />
           </div>
         </div>
-      </div>
-
-      <div className="px-4 py-3">
-        {sortedRows.length === 0 ? (
-          <div className="flex h-32 items-center justify-center text-sm text-[var(--token-text-secondary)]">
-            No races match the selected filters.
+      }
+      contentClassName="px-4 py-3"
+    >
+      {sortedRows.length === 0 ? (
+        <div className="flex h-32 items-center justify-center text-sm text-[var(--token-text-secondary)]">
+          No races match the selected filters.
+        </div>
+      ) : (
+        <>
+          <DataTableFrame>
+            <StandardTable>
+              <StandardTableHeader>
+                <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("raceLabel")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Race
+                      <SortIcon
+                        field="raceLabel"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("className")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Class
+                      <SortIcon
+                        field="className"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("sessionType")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Session
+                      <SortIcon
+                        field="sessionType"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("startTime")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Start Time
+                      <SortIcon
+                        field="startTime"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>1st Place</StandardTableCell>
+                  <StandardTableCell header>2nd Place</StandardTableCell>
+                  <StandardTableCell header>3rd Place</StandardTableCell>
+                </tr>
+              </StandardTableHeader>
+              <tbody>
+                {paginatedRows.map((row) => (
+                  <StandardTableRow key={row.raceId}>
+                    <StandardTableCell>
+                      {row.raceUrl ? (
+                        <a
+                          href={row.raceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                        >
+                          {row.raceLabel}
+                        </a>
+                      ) : (
+                        row.raceLabel
+                      )}
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
+                      {row.className}
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
+                      {row.sessionType}
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
+                      {formatTimeUTC(row.startTime)}
+                    </StandardTableCell>
+                    <StandardTableCell className="font-semibold">
+                      {row.first?.driverName ?? "—"}
+                    </StandardTableCell>
+                    <StandardTableCell>{row.second?.driverName ?? "—"}</StandardTableCell>
+                    <StandardTableCell>{row.third?.driverName ?? "—"}</StandardTableCell>
+                  </StandardTableRow>
+                ))}
+              </tbody>
+            </StandardTable>
+          </DataTableFrame>
+          <div className="mt-4">
+            <ListPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={sortedRows.length}
+              itemLabel="races"
+              onRowsPerPageChange={handleRowsPerPageChange}
+            />
           </div>
-        ) : (
-          <>
-            <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
-              <StandardTable>
-                <StandardTableHeader>
-                  <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("raceLabel")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Race
-                        <SortIcon
-                          field="raceLabel"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("className")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Class
-                        <SortIcon
-                          field="className"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("sessionType")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Session
-                        <SortIcon
-                          field="sessionType"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("startTime")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Start Time
-                        <SortIcon
-                          field="startTime"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>1st Place</StandardTableCell>
-                    <StandardTableCell header>2nd Place</StandardTableCell>
-                    <StandardTableCell header>3rd Place</StandardTableCell>
-                  </tr>
-                </StandardTableHeader>
-                <tbody>
-                  {paginatedRows.map((row) => (
-                    <StandardTableRow key={row.raceId}>
-                      <StandardTableCell>
-                        {row.raceUrl ? (
-                          <a
-                            href={row.raceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[var(--token-accent)] underline-offset-2 hover:underline"
-                          >
-                            {row.raceLabel}
-                          </a>
-                        ) : (
-                          row.raceLabel
-                        )}
-                      </StandardTableCell>
-                      <StandardTableCell className="text-[var(--token-text-secondary)]">
-                        {row.className}
-                      </StandardTableCell>
-                      <StandardTableCell className="text-[var(--token-text-secondary)]">
-                        {row.sessionType}
-                      </StandardTableCell>
-                      <StandardTableCell className="text-[var(--token-text-secondary)]">
-                        {formatTimeUTC(row.startTime)}
-                      </StandardTableCell>
-                      <StandardTableCell className="font-semibold">
-                        {row.first?.driverName ?? "—"}
-                      </StandardTableCell>
-                      <StandardTableCell>{row.second?.driverName ?? "—"}</StandardTableCell>
-                      <StandardTableCell>{row.third?.driverName ?? "—"}</StandardTableCell>
-                    </StandardTableRow>
-                  ))}
-                </tbody>
-              </StandardTable>
-            </div>
-            <div className="mt-4">
-              <ListPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-                itemsPerPage={itemsPerPage}
-                totalItems={sortedRows.length}
-                itemLabel="races"
-                onRowsPerPageChange={handleRowsPerPageChange}
-              />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+        </>
+      )}
+    </DataPanelSurface>
   )
 }

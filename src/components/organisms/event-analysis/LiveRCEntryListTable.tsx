@@ -20,6 +20,7 @@ import {
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
 import ListPagination from "./ListPagination"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 
 export interface LiveRCEntryListTableProps {
   eventId: string
@@ -198,7 +199,7 @@ export default function LiveRCEntryListTable({ eventId }: LiveRCEntryListTablePr
               className="min-w-[12rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2 text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Filter by class"
             >
-              <option value="">All classes</option>
+              <option value="">All Classes</option>
               {classOptions.map((cls) => (
                 <option key={cls} value={cls}>
                   {cls}
@@ -208,7 +209,7 @@ export default function LiveRCEntryListTable({ eventId }: LiveRCEntryListTablePr
           </label>
         </div>
 
-        <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+        <DataTableFrame>
           <StandardTable>
             <StandardTableHeader>
               <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -235,7 +236,7 @@ export default function LiveRCEntryListTable({ eventId }: LiveRCEntryListTablePr
               ))}
             </tbody>
           </StandardTable>
-        </div>
+        </DataTableFrame>
 
         <ListPagination
           currentPage={currentPage}

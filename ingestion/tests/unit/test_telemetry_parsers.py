@@ -7,7 +7,6 @@ import pytest
 
 from ingestion.telemetry.errors import TelemetryParseError
 from ingestion.telemetry.parsers.csv_gnss import parse_csv_gnss
-from ingestion.telemetry.parsers.fit_gnss import parse_fit_gnss
 from ingestion.telemetry.parsers.gpx_gnss import parse_gpx_gnss
 from ingestion.telemetry.parsers.json_gnss import parse_json_gnss
 from ingestion.telemetry.parsers.nmea_gnss import parse_nmea_gnss
@@ -85,11 +84,3 @@ def test_sample_gnss_json_parses() -> None:
     assert meta["format"] == "json_gnss"
     assert meta["rowCount"] == 11
     assert samples[0].lat_deg == pytest.approx(-35.33670471)
-
-
-def test_sample_activity_fit_parses() -> None:
-    raw = (FIXTURES / "sample_activity.fit").read_bytes()
-    samples, meta = parse_fit_gnss(raw)
-    assert len(samples) == 14
-    assert meta["format"] == "fit_gnss"
-    assert samples[0].lat_deg == pytest.approx(41.51392607, rel=1e-6)

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   getRaceClassNamesForBumpUpChips,
   getRaceClassNamesFromRaces,
+  getValidClasses,
 } from "@/core/events/class-validator"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
@@ -20,6 +21,77 @@ function minimalRace(className: string, id: string): EventAnalysisData["races"][
     results: [],
   }
 }
+
+describe("getValidClasses", () => {
+  it("uses distinct class names from event main races first on non-practice events", () => {
+    const data = {
+      registrationClassNames: ["Buggy", "Truggy", "Last Chance Qualifier"],
+      entryList: [],
+      races: [
+        minimalRace("Buggy", "m1"),
+        minimalRace("Truggy", "m2"),
+        {
+          ...minimalRace("Last Chance Qualifier", "lcq"),
+          raceLabel: "Last Chance Qualifier",
+          sessionType: "race",
+          sectionHeader: "Main Events",
+        },
+      ],
+      isPracticeDay: false,
+    } as unknown as EventAnalysisData
+    expect(getValidClasses(data)).toEqual(["Buggy", "Truggy"])
+  })
+
+  it("falls back to registration when no rows qualify as event mains", () => {
+    const data = {
+      registrationClassNames: ["Buggy", "Truggy"],
+      entryList: [{ className: "Semi A (Even) Practice", id: "1", driverId: "d", driverName: "X" }],
+      races: [
+        {
+          ...minimalRace("Semi A (Even) Practice", "r99"),
+          raceLabel: "Semi A (Even) Practice A-Main",
+        },
+      ],
+      isPracticeDay: false,
+    } as unknown as EventAnalysisData
+    expect(getValidClasses(data)).toEqual(["Buggy", "Truggy"])
+  })
+
+  it("uses race class names only for practice days when entry list is empty", () => {
+    const data = {
+      entryList: [],
+      races: [minimalRace("Session Only", "s1")],
+      isPracticeDay: true,
+    } as unknown as EventAnalysisData
+    expect(getValidClasses(data)).toEqual(["Session Only"])
+  })
+
+  it("does not use entry list fallback for non-practice events with empty entry list and no mains", () => {
+    const data = {
+      entryList: [],
+      races: [
+        {
+          ...minimalRace("Session Only", "s1"),
+          sessionType: "heat",
+          raceLabel: "Heat 1",
+          sectionHeader: "Qualifier Round 1",
+        },
+      ],
+      isPracticeDay: false,
+    } as unknown as EventAnalysisData
+    expect(getValidClasses(data)).toEqual([])
+  })
+
+  it("does not fall back to entryList when registrationClassNames is empty on non-practice events", () => {
+    const data = {
+      registrationClassNames: [],
+      entryList: [{ className: "Last Chance Qualifier", id: "1", driverId: "d", driverName: "X" }],
+      races: [minimalRace("Semi A (Even) Practice", "r1")],
+      isPracticeDay: false,
+    } as unknown as EventAnalysisData
+    expect(getValidClasses(data)).toEqual([])
+  })
+})
 
 describe("getRaceClassNamesFromRaces", () => {
   it("returns unique sorted class names from races only", () => {

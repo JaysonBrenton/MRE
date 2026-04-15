@@ -24,6 +24,7 @@ import {
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 export interface CombinedRow {
@@ -275,7 +276,7 @@ export default function CombinedDriversTable({
             placeholder="Type to search"
           />
         </div>
-        <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+        <DataTableFrame>
           <StandardTable>
             <StandardTableHeader>
               <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -453,7 +454,7 @@ export default function CombinedDriversTable({
               })}
             </tbody>
           </StandardTable>
-        </div>
+        </DataTableFrame>
 
         <ListPagination
           currentPage={currentPage}

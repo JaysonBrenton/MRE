@@ -8,11 +8,15 @@
 # 
 # @purpose Extracts driver entries with transponder numbers from entry list page
 
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional, Tuple
 from selectolax.parser import HTMLParser
 
 from ingestion.common.logging import get_logger
 from ingestion.connectors.liverc.models import ConnectorEntryDriver, ConnectorEntryList
+from ingestion.connectors.liverc.parsers.entry_list_nav_clusters import (
+    allowed_class_names_from_first_tab_cluster,
+    filter_dict_by_allowed_keys,
+)
 from ingestion.ingestion.errors import EventPageFormatError
 from ingestion.ingestion.normalizer import Normalizer
 
@@ -79,6 +83,7 @@ class EntryListParser:
 
             # Extract class order from nav pills (ul.nav.nav-pills li a) - canonical order as on LiveRC page
             class_order_from_nav: List[str] = []
+            nav_link_pairs: List[Tuple[str, str]] = []
             nav_pills = tree.css("ul.nav.nav-pills li a")
             for link in nav_pills:
                 text = (link.text() or "").strip()
@@ -86,6 +91,9 @@ class EntryListParser:
                     normalized = Normalizer.normalize_class_name(text)
                     if normalized and normalized not in class_order_from_nav:
                         class_order_from_nav.append(normalized)
+                    href = (link.attributes.get("href") or "").strip()
+                    if normalized:
+                        nav_link_pairs.append((normalized, href))
 
             # Find all tables on the page
             tables = tree.css("table")
@@ -214,6 +222,22 @@ class EntryListParser:
                     logger.warning("entry_list_table_parse_error", error=str(e), url=url)
                     continue
             
+            # LiveRC sometimes adds session buckets as extra nav tabs with new tab ID ranges (e.g. RCRA
+            # Nationals). Keep only the first tab-ID cluster so entry list reflects registration classes.
+            allowed_nav = allowed_class_names_from_first_tab_cluster(nav_link_pairs)
+            if allowed_nav is not None:
+                before = len(entries_by_class)
+                entries_by_class = filter_dict_by_allowed_keys(entries_by_class, allowed_nav)
+                dropped = before - len(entries_by_class)
+                if dropped:
+                    logger.info(
+                        "entry_list_filtered_session_nav_tabs",
+                        url=url,
+                        event_id=source_event_id,
+                        kept_classes=sorted(entries_by_class.keys()),
+                        dropped_count=dropped,
+                    )
+
             # Build class_order: nav pill order, then any table classes not in nav (for robustness)
             class_order: Optional[List[str]] = None
             if class_order_from_nav or entries_by_class:

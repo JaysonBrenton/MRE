@@ -18,16 +18,23 @@ import {
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
 import Modal from "@/components/molecules/Modal"
+import FullRaceResultsTable from "@/components/organisms/event-analysis/FullRaceResultsTable"
 import ListPagination from "@/components/organisms/event-analysis/ListPagination"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { getSortedRaceResults } from "@/core/events/main-bracket-overall"
 import {
-  normalizeRaceSessionType,
+  sessionTypeFilterKeyForRace,
   sortSessionTypeFilterKeys,
   sessionTypeFilterChipLabel,
 } from "@/core/events/session-type-filter"
-import { formatLapTime, formatTimeUTC, formatTotalTime } from "@/lib/format-session-data"
+import { formatTimeUTC } from "@/lib/format-session-data"
+import { typography } from "@/lib/typography"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
+import {
+  OVERVIEW_GLASS_SURFACE_CLASS,
+  OVERVIEW_GLASS_SURFACE_STYLE,
+} from "@/components/organisms/event-analysis/overview-glass-surface"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 
 type Row = {
   raceId: string
@@ -93,44 +100,22 @@ function resolveSortFieldForDisplay(sortField: SortField, showClassColumn: boole
 const HEADER_BUTTON_CLASS =
   "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
 
-const SURFACE_CLASS =
-  "rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-const SURFACE_STYLE = {
-  backgroundColor: "var(--glass-bg)",
-  backdropFilter: "var(--glass-blur)",
-  borderRadius: 16,
-  border: "1px solid var(--glass-border)",
-  boxShadow: "var(--glass-shadow)",
-} as const
+const SURFACE_CLASS = OVERVIEW_GLASS_SURFACE_CLASS
+const SURFACE_STYLE = OVERVIEW_GLASS_SURFACE_STYLE
 
-function formatSessionTypeLabel(sessionType: string | null, sectionHeader: string | null): string {
-  if (sectionHeader && sectionHeader.trim().length > 0) {
-    return sectionHeader
-  }
-  if (!sessionType) return "Race"
-  const normalized = sessionType.toLowerCase()
-  switch (normalized) {
-    case "main":
-      return "Main"
-    case "qualifying":
-      return "Qualifier"
-    case "heat":
-      return "Heat"
-    case "seeding":
-      return "Seeding"
-    case "practiceday":
-      return "Practice day"
-    case "practice":
-      return "Practice"
-    default:
-      return sessionType
-  }
+function formatSessionTypeLabel(
+  race: Pick<
+    EventAnalysisData["races"][number],
+    "sessionType" | "sectionHeader" | "raceLabel" | "className"
+  >
+): string {
+  const sh = race.sectionHeader?.trim()
+  if (sh) return sh
+  return sessionTypeFilterChipLabel(sessionTypeFilterKeyForRace(race))
 }
 
 function sessionLabelForRace(race: EventAnalysisData["races"][number]): string {
-  const sh = race.sectionHeader?.trim()
-  if (sh) return sh
-  return formatSessionTypeLabel(race.sessionType, null)
+  return formatSessionTypeLabel(race)
 }
 
 function podiumFromRaceResults(race: EventAnalysisData["races"][number]): {
@@ -193,7 +178,7 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
   }, [races])
 
   const sessionTypeOptions = useMemo(() => {
-    const keys = new Set(races.map((r) => normalizeRaceSessionType(r.sessionType)))
+    const keys = new Set(races.map((r) => sessionTypeFilterKeyForRace(r)))
     return sortSessionTypeFilterKeys([...keys])
   }, [races])
 
@@ -204,9 +189,7 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
 
   const displayRaces = useMemo(() => {
     if (!effectiveSessionTypeFilter) return races
-    return races.filter(
-      (r) => normalizeRaceSessionType(r.sessionType) === effectiveSessionTypeFilter
-    )
+    return races.filter((r) => sessionTypeFilterKeyForRace(r) === effectiveSessionTypeFilter)
   }, [races, effectiveSessionTypeFilter])
 
   const rows: Row[] = useMemo(() => {
@@ -401,9 +384,7 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
     return (
       <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
         <div className="px-4 py-3">
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-            Session Results
-          </h2>
+          <h2 className={typography.h4}>Session Results</h2>
           <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
             No races in this selection.
           </p>
@@ -417,9 +398,7 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
       <div className="border-b border-[var(--token-border-default)] px-4 py-3">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              {`Session Results: ${headerClassLabel}`}
-            </h2>
+            <h2 className={typography.h4}>{`Session Results: ${headerClassLabel}`}</h2>
             {displayRaces.length > 0 && driverFilteredRows.length > 0 && (
               <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
                 Click a row for the full finishing order for that session.
@@ -479,187 +458,189 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
         </div>
       ) : (
         <div className="space-y-3 px-2 py-2 sm:px-4">
-          <StandardTable>
-            <StandardTableHeader>
-              <StandardTableRow className="border-b border-[var(--token-border-default)]">
-                {showClassColumn && (
+          <DataTableFrame>
+            <StandardTable>
+              <StandardTableHeader>
+                <StandardTableRow className="border-b border-[var(--token-border-default)]">
+                  {showClassColumn && (
+                    <StandardTableCell
+                      header
+                      className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort("className")}
+                        className={HEADER_BUTTON_CLASS}
+                      >
+                        Class
+                        <SortIcon
+                          field="className"
+                          activeField={resolvedSortField}
+                          direction={sortDirection}
+                        />
+                      </button>
+                    </StandardTableCell>
+                  )}
                   <StandardTableCell
                     header
-                    className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                    className={`px-3 py-2 text-left ${typography.tableHeader}`}
                   >
                     <button
                       type="button"
-                      onClick={() => handleSort("className")}
+                      onClick={() => handleSort("raceLabel")}
                       className={HEADER_BUTTON_CLASS}
                     >
-                      Class
+                      Race
                       <SortIcon
-                        field="className"
+                        field="raceLabel"
+                        activeField={
+                          resolvedSortField === "raceOrder" ? "raceLabel" : resolvedSortField
+                        }
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell
+                    header
+                    className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSort("sessionLabel")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      Session
+                      <SortIcon
+                        field="sessionLabel"
                         activeField={resolvedSortField}
                         direction={sortDirection}
                       />
                     </button>
                   </StandardTableCell>
-                )}
-                <StandardTableCell
-                  header
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleSort("raceLabel")}
-                    className={HEADER_BUTTON_CLASS}
+                  <StandardTableCell
+                    header
+                    className={`px-3 py-2 text-left ${typography.tableHeader}`}
                   >
-                    Race
-                    <SortIcon
-                      field="raceLabel"
-                      activeField={
-                        resolvedSortField === "raceOrder" ? "raceLabel" : resolvedSortField
-                      }
-                      direction={sortDirection}
-                    />
-                  </button>
-                </StandardTableCell>
-                <StandardTableCell
-                  header
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleSort("sessionLabel")}
-                    className={HEADER_BUTTON_CLASS}
-                  >
-                    Session
-                    <SortIcon
-                      field="sessionLabel"
-                      activeField={resolvedSortField}
-                      direction={sortDirection}
-                    />
-                  </button>
-                </StandardTableCell>
-                <StandardTableCell
-                  header
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleSort("startTime")}
-                    className={HEADER_BUTTON_CLASS}
-                  >
-                    Start time
-                    <SortIcon
-                      field="startTime"
-                      activeField={resolvedSortField}
-                      direction={sortDirection}
-                    />
-                  </button>
-                </StandardTableCell>
-                <StandardTableCell
-                  header
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleSort("firstName")}
-                    className={HEADER_BUTTON_CLASS}
-                  >
-                    1st
-                    <SortIcon
-                      field="firstName"
-                      activeField={resolvedSortField}
-                      direction={sortDirection}
-                    />
-                  </button>
-                </StandardTableCell>
-                <StandardTableCell
-                  header
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleSort("secondName")}
-                    className={HEADER_BUTTON_CLASS}
-                  >
-                    2nd
-                    <SortIcon
-                      field="secondName"
-                      activeField={resolvedSortField}
-                      direction={sortDirection}
-                    />
-                  </button>
-                </StandardTableCell>
-                <StandardTableCell
-                  header
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleSort("thirdName")}
-                    className={HEADER_BUTTON_CLASS}
-                  >
-                    3rd
-                    <SortIcon
-                      field="thirdName"
-                      activeField={resolvedSortField}
-                      direction={sortDirection}
-                    />
-                  </button>
-                </StandardTableCell>
-              </StandardTableRow>
-            </StandardTableHeader>
-            <tbody>
-              {paginatedRows.map((row) => (
-                <StandardTableRow
-                  key={row.raceId}
-                  tabIndex={0}
-                  aria-label={`View full session results for ${row.className} ${row.raceLabel}`}
-                  onClick={() => setDetailRaceId(row.raceId)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault()
-                      setDetailRaceId(row.raceId)
-                    }
-                  }}
-                >
-                  {showClassColumn && (
-                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                      {row.className}
-                    </StandardTableCell>
-                  )}
-                  <StandardTableCell className="px-3 py-2 text-sm font-medium text-[var(--token-text-primary)]">
-                    {row.raceUrl ? (
-                      <a
-                        href={row.raceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[var(--token-accent)] underline-offset-2 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {row.raceLabel}
-                      </a>
-                    ) : (
-                      row.raceLabel
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleSort("startTime")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      Start time
+                      <SortIcon
+                        field="startTime"
+                        activeField={resolvedSortField}
+                        direction={sortDirection}
+                      />
+                    </button>
                   </StandardTableCell>
-                  <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                    {row.sessionLabel}
+                  <StandardTableCell
+                    header
+                    className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSort("firstName")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      1st
+                      <SortIcon
+                        field="firstName"
+                        activeField={resolvedSortField}
+                        direction={sortDirection}
+                      />
+                    </button>
                   </StandardTableCell>
-                  <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                    {formatTimeUTC(row.startTime)}
+                  <StandardTableCell
+                    header
+                    className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSort("secondName")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      2nd
+                      <SortIcon
+                        field="secondName"
+                        activeField={resolvedSortField}
+                        direction={sortDirection}
+                      />
+                    </button>
                   </StandardTableCell>
-                  <StandardTableCell className="px-3 py-2 text-sm font-semibold text-[var(--token-text-primary)]">
-                    {row.firstName}
-                  </StandardTableCell>
-                  <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                    {row.secondName ?? "—"}
-                  </StandardTableCell>
-                  <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                    {row.thirdName ?? "—"}
+                  <StandardTableCell
+                    header
+                    className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSort("thirdName")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      3rd
+                      <SortIcon
+                        field="thirdName"
+                        activeField={resolvedSortField}
+                        direction={sortDirection}
+                      />
+                    </button>
                   </StandardTableCell>
                 </StandardTableRow>
-              ))}
-            </tbody>
-          </StandardTable>
+              </StandardTableHeader>
+              <tbody>
+                {paginatedRows.map((row) => (
+                  <StandardTableRow
+                    key={row.raceId}
+                    tabIndex={0}
+                    aria-label={`View full session results for ${row.className} ${row.raceLabel}`}
+                    onClick={() => setDetailRaceId(row.raceId)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        setDetailRaceId(row.raceId)
+                      }
+                    }}
+                  >
+                    {showClassColumn && (
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                        {row.className}
+                      </StandardTableCell>
+                    )}
+                    <StandardTableCell className="px-3 py-2 text-sm font-medium text-[var(--token-text-primary)]">
+                      {row.raceUrl ? (
+                        <a
+                          href={row.raceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {row.raceLabel}
+                        </a>
+                      ) : (
+                        row.raceLabel
+                      )}
+                    </StandardTableCell>
+                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                      {row.sessionLabel}
+                    </StandardTableCell>
+                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                      {formatTimeUTC(row.startTime)}
+                    </StandardTableCell>
+                    <StandardTableCell className="px-3 py-2 text-sm font-semibold text-[var(--token-text-primary)]">
+                      {row.firstName}
+                    </StandardTableCell>
+                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                      {row.secondName ?? "—"}
+                    </StandardTableCell>
+                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                      {row.thirdName ?? "—"}
+                    </StandardTableCell>
+                  </StandardTableRow>
+                ))}
+              </tbody>
+            </StandardTable>
+          </DataTableFrame>
           <div className="min-w-0 w-full max-w-full">
             <ListPagination
               currentPage={currentPage}
@@ -681,7 +662,7 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
           onClose={closeDetail}
           title="Full session results"
           subtitle={detailSubtitle}
-          maxWidth="3xl"
+          maxWidth="4xl"
           footer={
             detailRace.raceUrl ? (
               <a
@@ -702,63 +683,7 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
               </p>
             ) : (
               <>
-                <StandardTable>
-                  <StandardTableHeader>
-                    <StandardTableRow className="border-b border-[var(--token-border-default)]">
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Pos
-                      </StandardTableCell>
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Driver
-                      </StandardTableCell>
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Laps
-                      </StandardTableCell>
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Total
-                      </StandardTableCell>
-                      <StandardTableCell
-                        header
-                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                      >
-                        Fast
-                      </StandardTableCell>
-                    </StandardTableRow>
-                  </StandardTableHeader>
-                  <tbody>
-                    {paginatedSessionResults.map((r) => (
-                      <StandardTableRow key={r.raceResultId}>
-                        <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
-                          {r.positionFinal}
-                        </StandardTableCell>
-                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                          {r.driverName}
-                        </StandardTableCell>
-                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                          {r.lapsCompleted}
-                        </StandardTableCell>
-                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                          {formatTotalTime(r.totalTimeSeconds)}
-                        </StandardTableCell>
-                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                          {formatLapTime(r.fastLapTime)}
-                        </StandardTableCell>
-                      </StandardTableRow>
-                    ))}
-                  </tbody>
-                </StandardTable>
+                <FullRaceResultsTable rows={paginatedSessionResults} />
                 <div className="min-w-0 w-full max-w-full pt-2">
                   <ListPagination
                     currentPage={modalPage}

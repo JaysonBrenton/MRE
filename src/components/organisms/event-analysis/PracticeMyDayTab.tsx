@@ -10,7 +10,9 @@
 import { useMemo } from "react"
 import { formatLapTime, formatLapTimeImprovement } from "@/lib/date-utils"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 import LinkYourDriverPrompt from "./LinkYourDriverPrompt"
+import { typography } from "@/lib/typography"
 
 export interface PracticeMyDayTabProps {
   data: EventAnalysisData
@@ -131,7 +133,7 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
       <div className="space-y-6" role="tabpanel" id="tabpanel-my-day" aria-labelledby="tab-my-day">
         <LinkYourDriverPrompt />
         <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-          <p className="text-sm text-[var(--token-text-secondary)]">
+          <p className={typography.bodySecondary}>
             Select a driver above to see their lap time progression, class comparison, and
             consistency.
           </p>
@@ -142,11 +144,14 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
 
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-my-day" aria-labelledby="tab-my-day">
+      <TabPanelIntro
+        eyebrow="Practice day"
+        title="My day"
+        description="Lap time progression, how you stack up in class, and consistency across your sessions."
+      />
       {/* Lap time progression */}
       <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-        <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
-          Lap time progression
-        </h2>
+        <h2 className={`${typography.h4} mb-4`}>Lap time progression</h2>
         {driverSessions.length === 0 ? (
           <p className="text-sm text-[var(--token-text-muted)]">No session data for this driver.</p>
         ) : (
@@ -197,7 +202,7 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
 
       {/* Class comparison */}
       <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-        <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
+        <h2 className={`${typography.h4} mb-4`}>
           Class comparison {driverClass ? `– ${driverClass}` : ""}
         </h2>
         {!driverClass ? (
@@ -251,7 +256,7 @@ export default function PracticeMyDayTab({ data, selectedDriverId }: PracticeMyD
 
       {/* Consistency */}
       <section className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-        <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">Consistency</h2>
+        <h2 className={`${typography.h4} mb-4`}>Consistency</h2>
         {avgConsistency != null ? (
           <p className="text-sm text-[var(--token-text-secondary)]">
             Average consistency across {driverSessions.length} session

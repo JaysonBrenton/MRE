@@ -31,6 +31,7 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { useChartColors } from "@/hooks/useChartColors"
 import { formatLapTime } from "@/lib/date-utils"
 import { formatDateTimeUTC } from "@/lib/format-session-data"
+import { typography } from "@/lib/typography"
 import { ExternalLink } from "lucide-react"
 
 const WIZARD_STEPS = [
@@ -601,7 +602,9 @@ export default function MyLapsContent({
           style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h3 className="text-sm font-medium text-[var(--token-text-primary)]">Select a race</h3>
+            <h3 className={`${typography.labelSmall} text-[var(--token-text-primary)]`}>
+              Select a race
+            </h3>
             <LabeledSwitch
               leftLabel="All races"
               rightLabel="My races"
@@ -656,7 +659,7 @@ export default function MyLapsContent({
           ) : availableDriversForRace.length > 0 ? (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <h3 className="text-sm font-medium text-[var(--token-text-primary)]">
+                <h3 className={`${typography.labelSmall} text-[var(--token-text-primary)]`}>
                   Select drivers to compare (1 or more)
                 </h3>
                 <LabeledSwitch
@@ -769,9 +772,7 @@ export default function MyLapsContent({
               {driverMetrics.length > 0 && (
                 <section className="space-y-4">
                   <div>
-                    <h3 className="w-fit text-lg font-semibold text-[var(--token-text-primary)]">
-                      Driver Performance Comparison
-                    </h3>
+                    <h3 className={`w-fit ${typography.h4}`}>Driver Performance Comparison</h3>
                     {selectedRaceFull && (
                       <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
                         {selectedRaceFull.raceUrl ? (
@@ -826,9 +827,7 @@ export default function MyLapsContent({
                               style={{ backgroundColor: driverColor }}
                               aria-hidden="true"
                             />
-                            <h4 className="font-semibold text-sm text-[var(--token-text-primary)] flex-1">
-                              {driver.driverName}
-                            </h4>
+                            <h4 className={`${typography.h6} flex-1`}>{driver.driverName}</h4>
                           </div>
 
                           {/* Metrics */}
@@ -859,7 +858,9 @@ export default function MyLapsContent({
                                   )
                                 })()}
                               </div>
-                              <div className="text-sm font-medium text-[var(--token-text-primary)]">
+                              <div
+                                className={`${typography.labelSmall} text-[var(--token-text-primary)]`}
+                              >
                                 {finalPositionByDriver.has(driver.driverId)
                                   ? finalPositionByDriver.get(driver.driverId)
                                   : "—"}
@@ -884,7 +885,9 @@ export default function MyLapsContent({
                                         : `#${fastestRank}`}
                                 </span>
                               </div>
-                              <div className="text-sm font-medium text-[var(--token-text-primary)]">
+                              <div
+                                className={`${typography.labelSmall} text-[var(--token-text-primary)]`}
+                              >
                                 {formatLapTime(driver.fastLapTime)}
                               </div>
                               <div className="w-full h-1.5 bg-[var(--token-surface)] rounded-full mt-1">
@@ -916,7 +919,9 @@ export default function MyLapsContent({
                                         : `#${averageRank}`}
                                 </span>
                               </div>
-                              <div className="text-sm font-medium text-[var(--token-text-primary)]">
+                              <div
+                                className={`${typography.labelSmall} text-[var(--token-text-primary)]`}
+                              >
                                 {formatLapTime(driver.avgLapTime)}
                               </div>
                               <div className="w-full h-1.5 bg-[var(--token-surface)] rounded-full mt-1">
@@ -948,7 +953,9 @@ export default function MyLapsContent({
                                         : `#${consistentRank}`}
                                 </span>
                               </div>
-                              <div className="text-sm font-medium text-[var(--token-text-primary)]">
+                              <div
+                                className={`${typography.labelSmall} text-[var(--token-text-primary)]`}
+                              >
                                 {driver.consistency !== null
                                   ? driver.consistency.toFixed(2)
                                   : "N/A"}
@@ -969,7 +976,9 @@ export default function MyLapsContent({
                               <span className="text-xs text-[var(--token-text-secondary)]">
                                 Laps Completed
                               </span>
-                              <div className="text-sm font-medium text-[var(--token-text-primary)]">
+                              <div
+                                className={`${typography.labelSmall} text-[var(--token-text-primary)]`}
+                              >
                                 {driver.lapsCompleted}
                               </div>
                             </div>
@@ -984,9 +993,7 @@ export default function MyLapsContent({
               {/* Quick Stats Summary Section */}
               {driverMetrics.length >= 2 && (
                 <section className="p-4 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-                  <h3 className="text-sm font-semibold text-[var(--token-text-primary)] mb-4">
-                    Quick Stats Summary
-                  </h3>
+                  <h3 className={`${typography.h6} mb-4`}>Quick Stats Summary</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Fastest Driver */}
                     {winners.fastest && (
@@ -994,9 +1001,7 @@ export default function MyLapsContent({
                         <div className="text-xs text-[var(--token-text-secondary)] mb-1">
                           Fastest Driver
                         </div>
-                        <div className="text-sm font-semibold text-[var(--token-text-primary)] mb-1">
-                          {winners.fastest.driverName}
-                        </div>
+                        <div className={`${typography.h6} mb-1`}>{winners.fastest.driverName}</div>
                         <div className="text-xs text-[var(--token-text-secondary)]">
                           {formatLapTime(winners.fastest.value)}
                           {winners.fastest.gapToSecond !== undefined && (
@@ -1014,7 +1019,7 @@ export default function MyLapsContent({
                         <div className="text-xs text-[var(--token-text-secondary)] mb-1">
                           Most Consistent
                         </div>
-                        <div className="text-sm font-semibold text-[var(--token-text-primary)] mb-1">
+                        <div className={`${typography.h6} mb-1`}>
                           {winners.mostConsistent.driverName}
                         </div>
                         <div className="text-xs text-[var(--token-text-secondary)]">
@@ -1034,7 +1039,7 @@ export default function MyLapsContent({
                         <div className="text-xs text-[var(--token-text-secondary)] mb-1">
                           Best Average Lap
                         </div>
-                        <div className="text-sm font-semibold text-[var(--token-text-primary)] mb-1">
+                        <div className={`${typography.h6} mb-1`}>
                           {winners.bestAverage.driverName}
                         </div>
                         <div className="text-xs text-[var(--token-text-secondary)]">

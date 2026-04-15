@@ -26,7 +26,7 @@ export default function ContextBar({
   selectedClass,
   selectedDriverCount,
 }: ContextBarProps) {
-  const classDisplay = selectedClass || "All classes"
+  const classDisplay = selectedClass || "All Classes"
   const driverCountText = selectedDriverCount === 1 ? "driver" : "drivers"
 
   return (

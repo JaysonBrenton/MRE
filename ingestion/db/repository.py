@@ -11,7 +11,7 @@
 
 import hashlib
 from datetime import datetime
-from typing import Optional, Dict, Any, Union, List, Tuple
+from typing import Optional, Dict, Any, Union, List, Tuple, Set
 from uuid import UUID
 
 from sqlalchemy import select, and_, func, text, tuple_, delete
@@ -656,6 +656,7 @@ class Repository:
         class_name: str,
         vehicle_type: Optional[str] = None,
         vehicle_type_needs_review: bool = True,
+        from_entry_list: Optional[bool] = None,
     ) -> EventRaceClass:
         """
         Upsert event race class by natural key (event_id, class_name).
@@ -665,6 +666,8 @@ class Repository:
             class_name: Race class name
             vehicle_type: Inferred vehicle type (optional)
             vehicle_type_needs_review: Whether vehicle type needs review (default: True)
+            from_entry_list: When True, class came from LiveRC registration entry list; when False,
+                row exists for race/session bucket labels only. None = do not change on update; default True on insert.
         
         Returns:
             EventRaceClass model instance
@@ -682,15 +685,19 @@ class Repository:
             if vehicle_type is not None:
                 event_race_class.vehicle_type = vehicle_type
             event_race_class.vehicle_type_needs_review = vehicle_type_needs_review
+            if from_entry_list is not None:
+                event_race_class.from_entry_list = from_entry_list
             event_race_class.updated_at = datetime.utcnow()
             logger.debug("event_race_class_updated", event_race_class_id=str(event_race_class.id), event_id=str(event_id), class_name=class_name)
             metrics.record_db_update("event_race_classes")
         else:
             # Insert new
             now = datetime.utcnow()
+            fe = True if from_entry_list is None else from_entry_list
             event_race_class = EventRaceClass(
                 event_id=_uuid_to_str(event_id),
                 class_name=class_name,
+                from_entry_list=fe,
                 vehicle_type=vehicle_type,
                 vehicle_type_needs_review=vehicle_type_needs_review,
             )
@@ -702,6 +709,109 @@ class Repository:
             metrics.record_db_insert("event_race_classes")
         
         return event_race_class
+
+    def delete_event_entries_not_in_class_names(self, event_id: UUID, allowed_class_names: Set[str]) -> int:
+        """
+        Remove EventEntry rows whose class_name is not in the allowed set (e.g. after entry list
+        no longer includes session-bucket tabs parsed as classes).
+        """
+        if not allowed_class_names:
+            return 0
+        eid = _uuid_to_str(event_id)
+        allowed = list(allowed_class_names)
+        stmt = delete(EventEntry).where(
+            and_(
+                EventEntry.event_id == eid,
+                ~EventEntry.class_name.in_(allowed),
+            )
+        )
+        result = self.session.execute(stmt)
+        return int(result.rowcount or 0)
+
+    def ensure_event_race_classes_for_distinct_race_class_names(
+        self,
+        event_id: UUID,
+        registration_class_names: Optional[Set[str]] = None,
+    ) -> int:
+        """
+        Upsert EventRaceClass for every distinct Race.class_name on the event so session-only class
+        strings (e.g. mains ladder rows) still resolve while registration classes come from entry list.
+
+        When registration_class_names is provided (keys from the filtered entry list), sets
+        from_entry_list from that set so stale EventEntry rows cannot keep session buckets marked
+        as registration classes. When omitted, uses EventEntry.class_name presence (legacy).
+        """
+        from ingestion.ingestion.infer_vehicle_type import infer_vehicle_type
+
+        eid = _uuid_to_str(event_id)
+        races = list(self.session.scalars(select(Race).where(Race.event_id == eid)).all())
+        if not races:
+            return 0
+        erc_rows = list(
+            self.session.scalars(select(EventRaceClass).where(EventRaceClass.event_id == eid)).all()
+        )
+        existing = {r.class_name for r in erc_rows}
+        erc_by_cn = {r.class_name: r for r in erc_rows}
+        entry_class_names = {
+            e.class_name.strip()
+            for e in self.session.scalars(select(EventEntry).where(EventEntry.event_id == eid)).all()
+            if e.class_name and e.class_name.strip()
+        }
+        needed = {r.class_name.strip() for r in races if r.class_name and r.class_name.strip()}
+        touched = 0
+        for cn in sorted(needed):
+            inferred = infer_vehicle_type(cn)
+            vt = None if inferred == "Unknown" else inferred
+            if registration_class_names is not None:
+                from_list = cn in registration_class_names
+                if cn not in existing:
+                    new_row = self.upsert_event_race_class(
+                        event_id,
+                        cn,
+                        vehicle_type=vt,
+                        vehicle_type_needs_review=True,
+                        from_entry_list=from_list,
+                    )
+                    existing.add(cn)
+                    erc_by_cn[cn] = new_row
+                    touched += 1
+                else:
+                    row = erc_by_cn.get(cn)
+                    if row is not None and row.from_entry_list != from_list:
+                        self.upsert_event_race_class(
+                            event_id,
+                            cn,
+                            vehicle_type=None,
+                            vehicle_type_needs_review=row.vehicle_type_needs_review,
+                            from_entry_list=from_list,
+                        )
+                        touched += 1
+            elif cn not in existing:
+                self.upsert_event_race_class(
+                    event_id,
+                    cn,
+                    vehicle_type=vt,
+                    vehicle_type_needs_review=True,
+                    from_entry_list=False,
+                )
+                existing.add(cn)
+                touched += 1
+            elif cn not in entry_class_names:
+                self.upsert_event_race_class(
+                    event_id,
+                    cn,
+                    vehicle_type=None,
+                    vehicle_type_needs_review=True,
+                    from_entry_list=False,
+                )
+                touched += 1
+        if touched:
+            logger.info(
+                "event_race_class_ensured_from_races",
+                event_id=eid,
+                touched=touched,
+            )
+        return touched
     
     def get_event_entries_by_event(
         self,
@@ -847,6 +957,7 @@ class Repository:
         consistency: Optional[float],
         qualifying_position: Optional[int] = None,
         seconds_behind: Optional[float] = None,
+        behind_display: Optional[str] = None,
         raw_fields_json: Optional[Dict[str, Any]] = None,
     ) -> RaceResult:
         """
@@ -886,6 +997,7 @@ class Repository:
             result.consistency = consistency
             result.qualifying_position = qualifying_position
             result.seconds_behind = seconds_behind
+            result.behind_display = behind_display
             result.raw_fields_json = raw_fields_json
             logger.debug("result_updated", result_id=str(result.id))
             metrics.record_db_update("race_results")
@@ -904,6 +1016,7 @@ class Repository:
                 consistency=consistency,
                 qualifying_position=qualifying_position,
                 seconds_behind=seconds_behind,
+                behind_display=behind_display,
                 raw_fields_json=raw_fields_json,
             )
             # Set timestamps explicitly for new records
@@ -1275,6 +1388,7 @@ class Repository:
                 - consistency: Optional[float]
                 - qualifying_position: Optional[int]
                 - seconds_behind: Optional[float]
+                - behind_display: Optional[str]
                 - raw_fields_json: Optional[Dict[str, Any]]
         
         Returns:
@@ -1300,6 +1414,7 @@ class Repository:
                 "consistency": rr_data.get("consistency"),
                 "qualifying_position": rr_data.get("qualifying_position"),
                 "seconds_behind": rr_data.get("seconds_behind"),
+                "behind_display": rr_data.get("behind_display"),
                 "raw_fields_json": rr_data.get("raw_fields_json"),
                 "created_at": now,
                 "updated_at": now,
@@ -1321,6 +1436,7 @@ class Repository:
                 "consistency": stmt.excluded.consistency,
                 "qualifying_position": stmt.excluded.qualifying_position,
                 "seconds_behind": stmt.excluded.seconds_behind,
+                "behind_display": stmt.excluded.behind_display,
                 "raw_fields_json": stmt.excluded.raw_fields_json,
                 "updated_at": now,
             },

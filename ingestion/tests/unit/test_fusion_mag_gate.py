@@ -2,7 +2,7 @@
 
 from ingestion.telemetry.fusion_ekf import evaluate_mag_stability, fuse_gnss_imu_ekf
 from ingestion.telemetry.parsers.csv_gnss import GnssSample
-from ingestion.telemetry.parsers.fit_imu import ImuSample
+from ingestion.telemetry.parsers.imu_sample import ImuSample
 
 
 def test_mag_gate_rejects_unstable_field():

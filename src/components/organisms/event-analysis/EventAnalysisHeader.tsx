@@ -41,7 +41,7 @@ function formatDateRange(
   const startDate = new Date(start)
   const endDate = new Date(end)
   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return formatDateLong(start)
-  return `${formatDateLong(start)} to ${formatDateLong(end)}`
+  return `${formatDateLong(start)} – ${formatDateLong(end)}`
 }
 
 export default function EventAnalysisHeader({

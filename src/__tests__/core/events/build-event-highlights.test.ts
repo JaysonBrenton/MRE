@@ -71,6 +71,8 @@ describe("buildEventHighlights", () => {
               fastLapTime: 28.5,
               avgLapTime: 30,
               consistency: 0.9,
+              qualifyingPosition: null,
+              secondsBehind: null,
               liveRcStats: null,
             },
             {
@@ -84,6 +86,8 @@ describe("buildEventHighlights", () => {
               fastLapTime: 28.6,
               avgLapTime: 30.1,
               consistency: 0.88,
+              qualifyingPosition: null,
+              secondsBehind: null,
               liveRcStats: null,
             },
           ],
@@ -195,6 +199,8 @@ describe("buildEventHighlights", () => {
       fastLapTime: 28.5,
       avgLapTime: 30,
       consistency: 0.9,
+      qualifyingPosition: null,
+      secondsBehind: null,
       liveRcStats: null,
     })
     const data = baseData({
@@ -254,6 +260,8 @@ describe("buildEventHighlights", () => {
       fastLapTime: fastLap,
       avgLapTime: fastLap + 1,
       consistency: 0.9,
+      qualifyingPosition: null,
+      secondsBehind: null,
       liveRcStats: null,
     })
     const data = baseData({
@@ -371,6 +379,8 @@ describe("buildEventHighlights", () => {
               fastLapTime: 28,
               avgLapTime: 30,
               consistency: 0.9,
+              qualifyingPosition: null,
+              secondsBehind: null,
               liveRcStats: null,
             },
             {
@@ -384,6 +394,8 @@ describe("buildEventHighlights", () => {
               fastLapTime: 28.1,
               avgLapTime: 30.1,
               consistency: 0.88,
+              qualifyingPosition: null,
+              secondsBehind: null,
               liveRcStats: null,
             },
           ],
@@ -411,6 +423,8 @@ describe("buildEventHighlights", () => {
               fastLapTime: 29,
               avgLapTime: 31,
               consistency: 0.85,
+              qualifyingPosition: null,
+              secondsBehind: null,
               liveRcStats: null,
             },
           ],

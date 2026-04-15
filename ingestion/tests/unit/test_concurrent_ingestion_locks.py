@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 import pytest
 
@@ -30,6 +30,18 @@ def _minimal_event_data(source_event_id: str):
     mock.event_drivers = 1
     mock.races = []
     return mock
+
+
+class _FakeSession:
+    def __init__(self):
+        self.rollback_calls = 0
+        self.invalidate_calls = 0
+
+    def rollback(self):
+        self.rollback_calls += 1
+
+    def invalidate(self):
+        self.invalidate_calls += 1
 
 
 @pytest.mark.asyncio
@@ -73,3 +85,37 @@ async def test_ingest_by_source_id_raises_when_source_event_lock_not_acquired():
 
     assert source_event_id in str(exc_info.value)
     assert exc_info.value.code == "INGESTION_IN_PROGRESS"
+
+
+def test_release_event_lock_safely_rolls_back_and_retries():
+    pipeline = IngestionPipeline()
+    fake_session = _FakeSession()
+    repo = MagicMock()
+    repo.session = fake_session
+    repo.release_event_lock.side_effect = [Exception("tx aborted"), None]
+
+    pipeline._release_event_lock_safely(
+        repo=repo,
+        event_id=UUID("00000000-0000-0000-0000-000000000001"),
+    )
+
+    assert fake_session.rollback_calls == 1
+    assert fake_session.invalidate_calls == 0
+    assert repo.release_event_lock.call_count == 2
+
+
+def test_release_event_lock_safely_invalidates_if_retry_fails():
+    pipeline = IngestionPipeline()
+    fake_session = _FakeSession()
+    repo = MagicMock()
+    repo.session = fake_session
+    repo.release_event_lock.side_effect = [Exception("tx aborted"), Exception("still aborted")]
+
+    with pytest.raises(Exception):
+        pipeline._release_event_lock_safely(
+            repo=repo,
+            event_id=UUID("00000000-0000-0000-0000-000000000002"),
+        )
+
+    assert fake_session.rollback_calls == 1
+    assert fake_session.invalidate_calls == 1

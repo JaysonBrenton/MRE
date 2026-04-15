@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useState } from "react"
 import ListPagination from "./ListPagination"
 import { formatClassName } from "@/lib/format-class-name"
+import { typography } from "@/lib/typography"
 
 interface CountryLeaderboardRow {
   driverId: string
@@ -174,10 +175,10 @@ export default function CountryLeaderboardCard({
 
   return (
     <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-      <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
+      <h2 className={`${typography.h4} mb-4`}>
         Country Leaderboard{selectedCountry ? `: ${selectedCountry}` : ""}
       </h2>
-      <p className="text-sm text-[var(--token-text-secondary)] mb-4">
+      <p className={`${typography.bodySecondary} mb-4`}>
         Drivers ranked by points from main races at tracks in{" "}
         {selectedCountry || "the selected country"} (Calendar year {year}). Points: 1st=25, 2nd=18,
         3rd=15, 4th=12, 5th=10, then 8–1 for 6th–10th. Points are summed across all main races per
@@ -243,7 +244,7 @@ export default function CountryLeaderboardCard({
             onChange={(e) => setClassName(e.target.value)}
             className="rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           >
-            <option value="">All classes</option>
+            <option value="">All Classes</option>
             {allClasses.map((c) => (
               <option key={c} value={c}>
                 {c}

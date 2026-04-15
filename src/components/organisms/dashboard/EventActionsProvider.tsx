@@ -23,7 +23,7 @@ import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { FixedSizeList } from "react-window"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { clearEvent } from "@/store/slices/dashboardSlice"
+import { clearEvent, fetchEventAnalysisData, fetchEventData } from "@/store/slices/dashboardSlice"
 import { useDashboardEventSearch } from "@/components/organisms/dashboard/DashboardEventSearchProvider"
 import Modal from "@/components/molecules/Modal"
 import StandardInput from "@/components/atoms/StandardInput"
@@ -642,6 +642,14 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
             })
             await new Promise((resolve) => setTimeout(resolve, 500))
             router.refresh()
+            try {
+              await Promise.all([
+                dispatch(fetchEventData(selectedEventId)).unwrap(),
+                dispatch(fetchEventAnalysisData(selectedEventId)).unwrap(),
+              ])
+            } catch (err) {
+              console.error("Post-ingest dashboard refresh failed", err)
+            }
             setIsSuccessModalOpen(true)
             return
           }
@@ -683,6 +691,14 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
 
       await new Promise((resolve) => setTimeout(resolve, 1000))
       router.refresh()
+      try {
+        await Promise.all([
+          dispatch(fetchEventData(selectedEventId)).unwrap(),
+          dispatch(fetchEventAnalysisData(selectedEventId)).unwrap(),
+        ])
+      } catch (err) {
+        console.error("Post-ingest dashboard refresh failed", err)
+      }
       setIsSuccessModalOpen(true)
     } catch (error) {
       const rawMsg = error instanceof Error ? error.message : "Unknown error occurred"
@@ -696,7 +712,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
     } finally {
       setIsRefreshing(false)
     }
-  }, [selectedEventId, isRefreshing, router])
+  }, [selectedEventId, isRefreshing, router, dispatch])
 
   const handleClearEvent = useCallback(() => {
     dispatch(clearEvent())

@@ -476,6 +476,9 @@ class Normalizer:
             "consistency": result.consistency,
             "qualifying_position": result.qualifying_position,
             "seconds_behind": result.seconds_behind,
+            "behind_display": Normalizer.normalize_string(result.behind_display)
+            if result.behind_display
+            else None,
             "raw_fields_json": result.raw_fields_json,
         }
     

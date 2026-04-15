@@ -20,6 +20,7 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { buildEventHighlights, formatClosestFinishGap } from "@/core/events/build-event-highlights"
 import { EventHighlightsMixFilteredChart } from "./EventHighlightsMixCharts"
 import { formatLapTime } from "@/lib/format-session-data"
+import { typography } from "@/lib/typography"
 
 export interface EventHighlightsSectionProps {
   data: EventAnalysisData
@@ -149,9 +150,7 @@ function ClassHighlightsScrollRow({ items }: { items: ClassWinnerCard[] }) {
               <p className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
                 {cw.classDisplay}
               </p>
-              <p className="mt-1 text-sm font-semibold text-[var(--token-text-primary)]">
-                {cw.winnerName}
-              </p>
+              <p className={`mt-1 ${typography.h6}`}>{cw.winnerName}</p>
               <p className="mt-0.5 line-clamp-2 text-[0.65rem] text-[var(--token-text-muted)]">
                 {cw.raceLabel}
               </p>
@@ -198,7 +197,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
       {isOpen && (
         <div id={eventHighlightsContentId} className="mt-3 min-w-0 w-full max-w-full space-y-4">
           <div className="min-w-0 w-full max-w-full">
-            <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+            <h4 className={`mb-2 flex items-center gap-2 ${typography.tableHeaderMuted}`}>
               <BarChart3 className="h-3.5 w-3.5 text-[var(--token-chart-series-1)]" aria-hidden />
               Event mix
             </h4>
@@ -211,7 +210,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
 
           {model.topLapsCompleted.length > 0 && (
             <div className="min-w-0 w-full max-w-full">
-              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+              <h4 className={`mb-2 flex items-center gap-2 ${typography.tableHeaderMuted}`}>
                 <ListOrdered
                   className="h-3.5 w-3.5 text-[var(--token-chart-series-9)]"
                   aria-hidden
@@ -241,9 +240,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
                       <p className="font-mono text-lg font-bold tabular-nums text-[var(--token-text-primary)]">
                         {row.totalLaps.toLocaleString()}
                       </p>
-                      <p className="mt-0.5 text-sm font-semibold text-[var(--token-text-primary)]">
-                        {row.driverName}
-                      </p>
+                      <p className={`mt-0.5 ${typography.h6}`}>{row.driverName}</p>
                       <p className="mt-1 text-[0.65rem] text-[var(--token-text-muted)]">
                         Total laps completed (event)
                       </p>
@@ -256,7 +253,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
 
           {model.topConsistentDrivers.length > 0 && (
             <div className="min-w-0 w-full max-w-full">
-              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+              <h4 className={`mb-2 flex items-center gap-2 ${typography.tableHeaderMuted}`}>
                 <Activity className="h-3.5 w-3.5 text-[var(--token-chart-series-3)]" aria-hidden />
                 Consistency
               </h4>
@@ -283,9 +280,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
                       <p className="font-mono text-lg font-bold tabular-nums text-[var(--token-text-primary)]">
                         {row.consistency.toFixed(1)}%
                       </p>
-                      <p className="mt-0.5 text-sm font-semibold text-[var(--token-text-primary)]">
-                        {row.driverName}
-                      </p>
+                      <p className={`mt-0.5 ${typography.h6}`}>{row.driverName}</p>
                       <p className="mt-1 text-[0.65rem] text-[var(--token-text-muted)]">
                         Event-wide average across {row.racesParticipated} session
                         {row.racesParticipated === 1 ? "" : "s"}
@@ -299,7 +294,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
 
           {model.topFastestAvgLapDrivers.length > 0 && (
             <div className="min-w-0 w-full max-w-full">
-              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+              <h4 className={`mb-2 flex items-center gap-2 ${typography.tableHeaderMuted}`}>
                 <Timer className="h-3.5 w-3.5 text-[var(--token-chart-series-8)]" aria-hidden />
                 Fastest averages
               </h4>
@@ -326,9 +321,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
                       <p className="font-mono text-lg font-bold tabular-nums text-[var(--token-text-primary)]">
                         {formatLapTime(row.avgLapTime)}
                       </p>
-                      <p className="mt-0.5 text-sm font-semibold text-[var(--token-text-primary)]">
-                        {row.driverName}
-                      </p>
+                      <p className={`mt-0.5 ${typography.h6}`}>{row.driverName}</p>
                       <p className="mt-1 text-[0.65rem] text-[var(--token-text-muted)]">
                         Event-wide average across {row.racesParticipated} session
                         {row.racesParticipated === 1 ? "" : "s"}
@@ -342,7 +335,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
 
           {model.topFastLaps.length > 0 && (
             <div className="min-w-0 w-full max-w-full">
-              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+              <h4 className={`mb-2 flex items-center gap-2 ${typography.tableHeaderMuted}`}>
                 <Zap className="h-3.5 w-3.5 text-[var(--token-chart-series-8)]" aria-hidden />
                 Best laps
               </h4>
@@ -366,9 +359,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
                       <p className="font-mono text-lg font-bold tabular-nums text-[var(--token-text-primary)]">
                         {formatLapTime(row.fastLapTime)}
                       </p>
-                      <p className="mt-0.5 text-sm font-semibold text-[var(--token-text-primary)]">
-                        {row.driverName}
-                      </p>
+                      <p className={`mt-0.5 ${typography.h6}`}>{row.driverName}</p>
                       <p className="mt-1 text-[0.65rem] text-[var(--token-text-muted)]">
                         {row.raceLabel} · {row.classDisplay}
                       </p>
@@ -381,7 +372,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
 
           {model.topProgression.length > 0 && (
             <div className="min-w-0 w-full max-w-full">
-              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+              <h4 className={`mb-2 flex items-center gap-2 ${typography.tableHeaderMuted}`}>
                 <ArrowUpCircle
                   className="h-3.5 w-3.5 text-[var(--token-chart-series-6)]"
                   aria-hidden
@@ -408,9 +399,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
                         <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
                         {rankLabel}
                       </div>
-                      <p className="text-sm font-semibold text-[var(--token-text-primary)]">
-                        {p.driverName}
-                      </p>
+                      <p className={typography.h6}>{p.driverName}</p>
                       <p className="mt-0.5 text-xs text-[var(--token-text-secondary)]">
                         {p.classDisplay}
                       </p>
@@ -426,7 +415,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
 
           {model.classWinners.length > 0 && (
             <div className="min-w-0 w-full max-w-full">
-              <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+              <h4 className={`mb-2 flex items-center gap-2 ${typography.tableHeaderMuted}`}>
                 <Trophy className="h-3.5 w-3.5 text-[var(--token-chart-series-4)]" aria-hidden />
                 Session highlight
               </h4>
@@ -436,7 +425,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
 
           {model.closestFinishes.length > 0 && (
             <div>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
+              <h4 className={`mb-2 ${typography.tableHeaderMuted}`}>
                 Closest finishes (by gap on total time)
               </h4>
               <ul className="space-y-2">
@@ -446,7 +435,9 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
                     className="flex flex-col gap-1 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-[var(--token-text-primary)]">
+                      <p
+                        className={`truncate ${typography.labelSmall} text-[var(--token-text-primary)]`}
+                      >
                         {h.p1Name}
                         <span className="text-[var(--token-text-muted)]"> vs </span>
                         {h.p2Name}

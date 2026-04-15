@@ -167,3 +167,56 @@ export function formatConsistency(consistency: number | null): string {
 
   return `${consistency.toFixed(1)}%`
 }
+
+/**
+ * LiveRC-style combined laps count and total race time (e.g. "12 / 5:30").
+ */
+export function formatLapsSlashTime(
+  lapsCompleted: number,
+  totalTimeSeconds: number | null
+): string {
+  return `${lapsCompleted} / ${formatTotalTime(totalTimeSeconds)}`
+}
+
+/**
+ * Gap behind the leader in seconds (LiveRC `seconds_behind`). Leader / no data → "—".
+ */
+export function formatGapBehindSeconds(seconds: number | null): string {
+  if (seconds === null || seconds === 0) {
+    return "—"
+  }
+  return `+${seconds.toFixed(3)}s`
+}
+
+/**
+ * LiveRC Behind column: numeric gap (`seconds_behind`) or non-numeric text (`behind_display`, e.g. "1 Lap").
+ */
+export function formatRaceBehind(
+  secondsBehind: number | null,
+  behindDisplay: string | null | undefined
+): string {
+  const raw = behindDisplay?.trim()
+  if (raw) {
+    return raw
+  }
+  return formatGapBehindSeconds(secondsBehind ?? null)
+}
+
+/** Sort key for Behind column: time gaps in seconds; lap-gap text sorts after any plausible second gap. */
+export function behindSortKey(
+  secondsBehind: number | null,
+  behindDisplay: string | null | undefined
+): number {
+  const raw = behindDisplay?.trim()
+  if (raw) {
+    const m = /^(\d+)\s*Laps?$/i.exec(raw)
+    if (m) {
+      return 1_000_000 + Number.parseInt(m[1], 10)
+    }
+    return 1_000_000
+  }
+  if (secondsBehind != null && Number.isFinite(secondsBehind)) {
+    return secondsBehind
+  }
+  return 0
+}

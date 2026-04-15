@@ -9,7 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from ingestion.telemetry.parsers.csv_gnss import GnssSample
-from ingestion.telemetry.parsers.fit_imu import ImuSample
+from ingestion.telemetry.parsers.imu_sample import ImuSample
 
 
 def write_gnss_parquet(path: Path, samples: List[GnssSample]) -> None:

@@ -19,6 +19,7 @@
 
 import { useState } from "react"
 import { formatDateLong } from "@/lib/date-utils"
+import { typography } from "@/lib/typography"
 
 export interface EventStatsTestingProps {
   totalRaces: number
@@ -64,9 +65,7 @@ export default function EventStatsTesting({
 
   return (
     <section className="mb-6">
-      <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-4">
-        Event at a glance
-      </h2>
+      <h2 className={`${typography.h4} mb-4`}>Event at a glance</h2>
       <div className={`grid gap-4 ${statsToShow.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
         {statsToShow.map((stat, index) => (
           <div
@@ -74,7 +73,7 @@ export default function EventStatsTesting({
             className="bg-[var(--token-surface-elevated)] rounded-md border border-[var(--token-border-default)] p-4"
           >
             <div className="text-sm text-[var(--token-text-secondary)] mb-1">{stat.label}</div>
-            <div className="text-2xl font-semibold text-[var(--token-text-primary)]">
+            <div className={typography.h2}>
               {typeof stat.value === "string" || typeof stat.value === "number"
                 ? stat.value
                 : stat.value}

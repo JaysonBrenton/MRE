@@ -283,6 +283,8 @@ model EventRaceClass {
   id                       String       @id @default(uuid())
   eventId                  String       @map("event_id")
   className                 String       @map("class_name")
+  /// False when this class row exists only for race/session rows (e.g. LCQ, semi practice), not registration.
+  fromEntryList            Boolean      @default(true) @map("from_entry_list")
   vehicleType              String?      @map("vehicle_type")
   vehicleTypeNeedsReview   Boolean      @default(true) @map("vehicle_type_needs_review")
   vehicleTypeReviewedAt    DateTime?    @map("vehicle_type_reviewed_at")
@@ -402,6 +404,8 @@ model RaceResult {
   consistency          Float?
   qualifyingPosition   Int?       @map("qualifying_position")
   secondsBehind        Float?     @map("seconds_behind")
+  /** LiveRC Behind cell when not numeric seconds (e.g. "1 Lap") */
+  behindDisplay        String?    @map("behind_display")
   rawFieldsJson        Json?      @map("raw_fields_json")
   createdAt        DateTime   @default(now()) @map("created_at")
   updatedAt        DateTime   @updatedAt @map("updated_at")

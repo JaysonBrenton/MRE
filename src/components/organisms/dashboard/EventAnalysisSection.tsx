@@ -95,6 +95,7 @@ function transformApiResponseToEventAnalysisData(
       trackSlug: apiData.event.trackSlug,
     },
     isPracticeDay: apiData.isPracticeDay,
+    registrationClassNames: apiData.registrationClassNames,
     races: apiData.races.map((race) => ({
       ...race,
       completedAt: race.completedAt ? new Date(race.completedAt) : null,

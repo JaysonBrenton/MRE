@@ -24,6 +24,7 @@ import ChartContainer from "./ChartContainer"
 import ChartColorPicker from "./ChartColorPicker"
 import { formatDateTimeUTC, formatDuration } from "@/lib/format-session-data"
 import { useChartColor, useChartColors } from "@/hooks/useChartColors"
+import { typography } from "@/lib/typography"
 import type { DriverLapTrendSeries, LapTrendPoint } from "@/core/events/get-lap-data"
 
 function formatDeltaSeconds(delta: number): string {
@@ -976,7 +977,7 @@ export default function LapByLapTrendChart({
                   <div className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
                     Lap time
                   </div>
-                  <div className="font-mono text-lg font-semibold tabular-nums leading-tight text-[var(--token-text-primary)]">
+                  <div className={`font-mono tabular-nums leading-tight ${typography.h4}`}>
                     {formatLapTime(tooltipData.lapTimeSeconds)}
                   </div>
                   <div className="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs text-[var(--token-text-secondary)]">

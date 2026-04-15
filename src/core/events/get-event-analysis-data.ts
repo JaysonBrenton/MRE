@@ -32,6 +32,7 @@ import {
 import { calculateMostImprovedDrivers } from "./calculate-driver-improvement"
 import { getUserEventHostTrackRow } from "./user-event-host-track"
 import { type LiveRcRaceResultStats, parseLiveRcRaceResultStats } from "./live-rc-race-result-stats"
+import { withDerivedBehindSeconds } from "./derive-race-behind"
 import {
   indexUserCarTaxonomyRules,
   resolveUserCarTaxonomyForRace,
@@ -304,6 +305,12 @@ export interface EventAnalysisData {
   }
   /** True when event.sourceEventId contains '-practice-' (practice day). */
   isPracticeDay?: boolean
+  /**
+   * Distinct `EventEntry.className` values from the database (before merge/canonicalization).
+   * Use for class chips so session-only `race.className` buckets (LCQ, semi practice, etc.) do not
+   * appear when `entryList` is empty or merged display strings drift.
+   */
+  registrationClassNames?: string[]
   races: Array<{
     id: string
     raceId: string
@@ -341,6 +348,12 @@ export interface EventAnalysisData {
       fastLapLapNumber?: number | null
       avgLapTime: number | null
       consistency: number | null
+      /** Qualifying seed position when ingested from LiveRC */
+      qualifyingPosition: number | null
+      /** Seconds behind leader when ingested from LiveRC */
+      secondsBehind: number | null
+      /** Non-numeric Behind from LiveRC (e.g. "1 Lap"); takes precedence for display */
+      behindDisplay?: string | null
       /** LiveRC table/JS stats from raw_fields_json (ingestion); null if none stored */
       liveRcStats: LiveRcRaceResultStats | null
       // laps array removed - not used by any components, only needed for metric derivation
@@ -1251,6 +1264,7 @@ export async function getEventAnalysisData(
         where: { eventId },
         select: {
           className: true,
+          fromEntryList: true,
           vehicleType: true,
           vehicleTypeNeedsReview: true,
         },
@@ -1401,6 +1415,9 @@ export async function getEventAnalysisData(
         fastLapLapNumber,
         avgLapTime: normalizedAvgLap,
         consistency: result.consistency,
+        qualifyingPosition: result.qualifyingPosition ?? null,
+        secondsBehind: result.secondsBehind ?? null,
+        behindDisplay: result.behindDisplay ?? null,
         liveRcStats: parseLiveRcRaceResultStats(result.rawFieldsJson),
         // Note: laps array removed from response to reduce payload size
         // Individual lap data is not used by any components
@@ -1424,7 +1441,7 @@ export async function getEventAnalysisData(
       skillTier: race.skillTier ?? null,
       vehicleClassNormalizationNeedsReview: race.vehicleClassNormalizationNeedsReview,
       eventRaceClassId: race.eventRaceClassId ?? null,
-      results: resultsData,
+      results: withDerivedBehindSeconds(resultsData),
     }
   })
 
@@ -1502,6 +1519,22 @@ export async function getEventAnalysisData(
       vehicleTypeNeedsReview: rc.vehicleTypeNeedsReview,
     })
   })
+
+  const ercByClassName = new Map(eventRaceClasses.map((rc) => [rc.className, rc] as const))
+
+  const registrationClassNames = Array.from(
+    new Set(
+      eventEntries
+        .map((e) => e.className?.trim())
+        .filter((cn): cn is string => Boolean(cn && cn.length > 0))
+    )
+  )
+    .filter((cn) => {
+      const erc = ercByClassName.get(cn)
+      // Session-bucket ERC rows (LCQ, semi practice, etc.) are not registration classes.
+      return erc?.fromEntryList !== false
+    })
+    .sort((a, b) => a.localeCompare(b))
 
   // Sort by className first, then by driver name
   const sortedEntries = [...eventEntries].sort((a, b) => {
@@ -1603,6 +1636,7 @@ export async function getEventAnalysisData(
       trackSlug: event.track.sourceTrackSlug ?? undefined,
     },
     isPracticeDay,
+    registrationClassNames,
     races: racesData,
     drivers: driversData,
     entryList: entryListData,

@@ -109,6 +109,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: 9,
           avgLapTime: 10,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -132,6 +135,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -151,6 +157,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -186,6 +195,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -208,6 +220,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -238,6 +253,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -257,6 +275,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -282,6 +303,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -303,6 +327,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -333,6 +360,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -352,6 +382,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -379,6 +412,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -399,6 +435,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })
@@ -419,6 +458,9 @@ describe("inferBumpUpsFromSessions", () => {
           fastLapTime: null,
           avgLapTime: null,
           consistency: null,
+          qualifyingPosition: null,
+          secondsBehind: null,
+          liveRcStats: null,
         },
       ],
     })

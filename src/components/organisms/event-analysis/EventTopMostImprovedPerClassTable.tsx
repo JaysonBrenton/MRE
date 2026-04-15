@@ -11,6 +11,9 @@ import ListPagination from "./ListPagination"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { computeMostImprovedPerClass } from "@/core/events/event-most-improved-per-class"
 import { formatPositionImprovement, formatLapTimeImprovement } from "@/lib/date-utils"
+import DataPanelSurface, {
+  DataTableFrame,
+} from "@/components/organisms/event-analysis/DataPanelSurface"
 
 export interface EventTopMostImprovedPerClassTableProps {
   races: EventAnalysisData["races"]
@@ -232,242 +235,212 @@ export default function EventTopMostImprovedPerClassTable({
 
   if (rows.length === 0) {
     return (
-      <div
-        className="rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-        style={{
-          backgroundColor: "var(--glass-bg)",
-          backdropFilter: "var(--glass-blur)",
-          borderRadius: 16,
-          border: "1px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
-      >
-        <div className="px-4 py-3">
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-            Most Improved Drivers Per Class
-          </h2>
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-            No improvement data available for this event.
-          </p>
-        </div>
-      </div>
+      <DataPanelSurface
+        title="Most Improved Drivers Per Class"
+        subtitle="No improvement data available for this event."
+        contentClassName="px-4 py-3"
+      />
     )
   }
 
   return (
-    <div
-      className="w-full rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-      style={{
-        backgroundColor: "var(--glass-bg)",
-        backdropFilter: "var(--glass-blur)",
-        borderRadius: 16,
-        border: "1px solid var(--glass-border)",
-        boxShadow: "var(--glass-shadow)",
-      }}
-    >
-      <div className="border-b border-[var(--token-border-default)] px-4 py-3">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-              {`Most Improved Drivers Per Class: ${headerClassLabel}`}
-            </h2>
+    <DataPanelSurface
+      title={`Most Improved Drivers Per Class: ${headerClassLabel}`}
+      headerControls={
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="event-top-mi-class-filter"
+              className="text-xs font-medium text-[var(--token-text-secondary)]"
+            >
+              Class
+            </label>
+            <select
+              id="event-top-mi-class-filter"
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            >
+              <option value="">All Classes</option>
+              {classOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="event-top-mi-class-filter"
-                className="text-xs font-medium text-[var(--token-text-secondary)]"
-              >
-                Class
-              </label>
-              <select
-                id="event-top-mi-class-filter"
-                value={classFilter}
-                onChange={(e) => setClassFilter(e.target.value)}
-                className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              >
-                <option value="">All classes</option>
-                {classOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="event-top-mi-driver-filter"
-                className="text-xs font-medium text-[var(--token-text-secondary)]"
-              >
-                Driver
-              </label>
-              <input
-                id="event-top-mi-driver-filter"
-                type="text"
-                value={driverSearch}
-                onChange={(e) => setDriverSearch(e.target.value)}
-                placeholder="Search driver name"
-                className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="event-top-mi-driver-filter"
+              className="text-xs font-medium text-[var(--token-text-secondary)]"
+            >
+              Driver
+            </label>
+            <input
+              id="event-top-mi-driver-filter"
+              type="text"
+              value={driverSearch}
+              onChange={(e) => setDriverSearch(e.target.value)}
+              placeholder="Search driver name"
+              className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            />
           </div>
         </div>
-      </div>
-
-      <div className="px-4 py-3">
-        {sortedRows.length === 0 ? (
-          <div className="flex h-32 items-center justify-center text-sm text-[var(--token-text-secondary)]">
-            No rows match the selected filters.
-          </div>
-        ) : (
-          <>
-            <div className="scrollbar-none overflow-x-auto overflow-y-hidden rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
-              <StandardTable>
-                <StandardTableHeader>
-                  <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("rank")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Rank
-                        <SortIcon field="rank" activeField={sortField} direction={sortDirection} />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("className")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Class
-                        <SortIcon
-                          field="className"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("driverName")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Driver
-                        <SortIcon
-                          field="driverName"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("positionImprovement")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Position
-                        <SortIcon
-                          field="positionImprovement"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("lapTimeImprovement")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Lap Δ
-                        <SortIcon
-                          field="lapTimeImprovement"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("firstRaceLabel")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        First race
-                        <SortIcon
-                          field="firstRaceLabel"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                    <StandardTableCell header>
-                      <button
-                        type="button"
-                        onClick={() => handleSort("lastRaceLabel")}
-                        className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                      >
-                        Last race
-                        <SortIcon
-                          field="lastRaceLabel"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </StandardTableCell>
-                  </tr>
-                </StandardTableHeader>
-                <tbody>
-                  {paginatedRows.map((row, idx) => (
-                    <StandardTableRow
-                      key={`${row.className}-${row.driverId}-${row.rank}-${row.improvementScore}-${startIndex + idx}`}
+      }
+      contentClassName="px-4 py-3"
+    >
+      {sortedRows.length === 0 ? (
+        <div className="flex h-32 items-center justify-center text-sm text-[var(--token-text-secondary)]">
+          No rows match the selected filters.
+        </div>
+      ) : (
+        <>
+          <DataTableFrame className="scrollbar-none">
+            <StandardTable>
+              <StandardTableHeader>
+                <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("rank")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
                     >
-                      <StandardTableCell className="tabular-nums">
-                        {formatRankLabel(row.rank)}
-                      </StandardTableCell>
-                      <StandardTableCell className="text-[var(--token-text-secondary)]">
-                        {row.className}
-                      </StandardTableCell>
-                      <StandardTableCell className="font-semibold">
-                        {row.driverName}
-                      </StandardTableCell>
-                      <StandardTableCell className="max-w-[14rem] text-sm">
-                        {formatPositionImprovement(row.firstRacePosition, row.lastRacePosition)}
-                      </StandardTableCell>
-                      <StandardTableCell className="tabular-nums text-sm">
-                        {row.lapTimeImprovement != null
-                          ? formatLapTimeImprovement(row.lapTimeImprovement)
-                          : "—"}
-                      </StandardTableCell>
-                      <StandardTableCell className="max-w-[12rem] text-[var(--token-text-secondary)] text-sm">
-                        {row.firstRaceLabel}
-                      </StandardTableCell>
-                      <StandardTableCell className="max-w-[12rem] text-[var(--token-text-secondary)] text-sm">
-                        {row.lastRaceLabel}
-                      </StandardTableCell>
-                    </StandardTableRow>
-                  ))}
-                </tbody>
-              </StandardTable>
-            </div>
-            <div className="mt-4">
-              <ListPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-                itemsPerPage={itemsPerPage}
-                totalItems={sortedRows.length}
-                itemLabel="results"
-                onRowsPerPageChange={handleRowsPerPageChange}
-              />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+                      Rank
+                      <SortIcon field="rank" activeField={sortField} direction={sortDirection} />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("className")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Class
+                      <SortIcon
+                        field="className"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("driverName")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Driver
+                      <SortIcon
+                        field="driverName"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("positionImprovement")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Position
+                      <SortIcon
+                        field="positionImprovement"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("lapTimeImprovement")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Lap Δ
+                      <SortIcon
+                        field="lapTimeImprovement"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("firstRaceLabel")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      First race
+                      <SortIcon
+                        field="firstRaceLabel"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell header>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("lastRaceLabel")}
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    >
+                      Last race
+                      <SortIcon
+                        field="lastRaceLabel"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                </tr>
+              </StandardTableHeader>
+              <tbody>
+                {paginatedRows.map((row, idx) => (
+                  <StandardTableRow
+                    key={`${row.className}-${row.driverId}-${row.rank}-${row.improvementScore}-${startIndex + idx}`}
+                  >
+                    <StandardTableCell className="tabular-nums">
+                      {formatRankLabel(row.rank)}
+                    </StandardTableCell>
+                    <StandardTableCell className="text-[var(--token-text-secondary)]">
+                      {row.className}
+                    </StandardTableCell>
+                    <StandardTableCell className="font-semibold">
+                      {row.driverName}
+                    </StandardTableCell>
+                    <StandardTableCell className="max-w-[14rem] text-sm">
+                      {formatPositionImprovement(row.firstRacePosition, row.lastRacePosition)}
+                    </StandardTableCell>
+                    <StandardTableCell className="tabular-nums text-sm">
+                      {row.lapTimeImprovement != null
+                        ? formatLapTimeImprovement(row.lapTimeImprovement)
+                        : "—"}
+                    </StandardTableCell>
+                    <StandardTableCell className="max-w-[12rem] text-[var(--token-text-secondary)] text-sm">
+                      {row.firstRaceLabel}
+                    </StandardTableCell>
+                    <StandardTableCell className="max-w-[12rem] text-[var(--token-text-secondary)] text-sm">
+                      {row.lastRaceLabel}
+                    </StandardTableCell>
+                  </StandardTableRow>
+                ))}
+              </tbody>
+            </StandardTable>
+          </DataTableFrame>
+          <div className="mt-4">
+            <ListPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={sortedRows.length}
+              itemLabel="results"
+              onRowsPerPageChange={handleRowsPerPageChange}
+            />
+          </div>
+        </>
+      )}
+    </DataPanelSurface>
   )
 }

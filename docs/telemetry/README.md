@@ -66,6 +66,13 @@ import and analysis.
 | [Telemetry Design Review](reviews/telemetry_design_review.md)                         | Design review notes, conflicts, recommended fixes |
 | [Gaps And Recommended Additions](reviews/Old/Gaps%20And%20Recommended%20Additions.md) | Earlier gap analysis (archived)                   |
 
+## Product policy: Garmin and FIT
+
+MRE does **not** support Garmin devices or the Garmin FIT (`.fit`) format.
+Telemetry documentation, API reference, and user-facing copy must not describe
+FIT as a supported or recommended import path. A legacy FIT code path may still
+exist until it is removed from the application.
+
 ## Platform Scope
 
 - **Desktop-only** for first release. No mobile web support.

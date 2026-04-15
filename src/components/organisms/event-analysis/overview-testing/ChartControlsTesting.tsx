@@ -21,6 +21,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FixedSizeList } from "react-window"
 import Modal from "@/components/molecules/Modal"
+import { typography } from "@/lib/typography"
 
 export interface Driver {
   driverId: string
@@ -441,9 +442,7 @@ export default function ChartControlsTesting({
 
   return (
     <section className="space-y-4 mb-6">
-      <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-4">
-        Filter by class & drivers
-      </h2>
+      <h2 className={`${typography.h4} mb-4`}>Filter by class & drivers</h2>
 
       {/* Quick Filters - Class dropdown always visible */}
       <div className="space-y-3">

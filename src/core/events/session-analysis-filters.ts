@@ -1,8 +1,7 @@
 /**
- * Session Analysis helpers: `effectiveSessionAnalysisScopeKey` / `getSessionAnalysisClassKeys` remain
- * taxonomy-aware for other callers. The Overview Session Analysis UI uses LiveRC entry-list class
- * names (`race.className`) plus `raceMatchesLiveRcClassAndSkill` / `getSkillTierOptionsForLiveRcClassName`
- * when `eventHasVehicleDenormalization` is true so chips match the non-vehicle path.
+ * Session Analysis helpers: taxonomy-aware scope keys and optional skill-tier matching for callers
+ * that need them. Overview Session Analysis filters by LiveRC `race.className` only when vehicle
+ * denormalization is active (no tier chips).
  */
 
 import { formatClassName, isPlaceholderClass } from "@/lib/format-class-name"

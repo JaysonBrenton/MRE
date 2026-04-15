@@ -94,11 +94,12 @@ wired to upload → finalise → poll.
 
 ## Phase 3 — v1 + v2-style features — **COMPLETE** (ongoing hardening)
 
-Parsers (CSV, GPX, NMEA, JSON, FIT, UBX NAV-PVT), post-parse pipeline (fusion
-with optional mag gating, laps, segments, quality, optional ClickHouse),
-extended APIs (compare, share, reprocess cooldown, timeseries stride /
-`ds_rate`), admin track SFL updates, and UI (export, compare, share, speed
-chart) are shipped. See
+Parsers (CSV, GPX, NMEA, JSON, UBX NAV-PVT; **Garmin FIT is not a supported
+product format** — see [`docs/telemetry/README.md`](../telemetry/README.md)),
+post-parse pipeline (fusion with optional mag gating, laps, segments, quality,
+optional ClickHouse), extended APIs (compare, share, reprocess cooldown,
+timeseries stride / `ds_rate`), admin track SFL updates, and UI (export,
+compare, share, speed chart) are shipped. See
 [`Telemetry_Implementation_Design.md`](../telemetry/Design/Telemetry_Implementation_Design.md)
 §9 and API reference.
 
@@ -119,22 +120,28 @@ stable failure codes with UI copy, pytest + Vitest coverage.
 | **Versions** | `TELEMETRY_PIPELINE_VERSION` = `telemetry-mvp-0.3.0`, `TELEMETRY_CANONICALISER_VERSION` = `csv-gpx-nmea-parquet-0.3.0` in `src/core/telemetry/telemetry-repo.ts`.                                    |
 | **Tests**    | `ingestion/tests/unit/test_telemetry_parsers.py`; fixture `ingestion/tests/fixtures/telemetry/sample_nmea_rmc_gga.nmea`; Vitest `telemetry-failure-messages.test.ts`.                                |
 
-### Phase 3b — JSON + FIT GNSS parsers — **COMPLETE**
+### Phase 3b — JSON GNSS parser — **COMPLETE**
 
-**Definition of done:** JSON and Garmin FIT exports ingest through `parse_raw`,
-write the same canonical `gnss_pvt.parquet` layout as CSV/GPX/NMEA, set
-`telemetry_artifacts.format_detected` to `json_gnss` / `fit_gnss`, surface
-stable failure codes with UI copy, pytest coverage.
+**Product policy:** MRE does **not** support Garmin devices or Garmin FIT
+(`.fit`) files. Normative supported formats are documented in
+[`Supported Formats and Parser Specification`](../telemetry/Design/Supported%20Formats%20and%20Parser%20Specification.md).
+The worker rejects FIT uploads with `GARMIN_FIT_NOT_SUPPORTED`; FIT parsers and
+`fitparse` were removed from the codebase.
 
-**Delivered:**
+**Definition of done:** JSON exports ingest through `parse_raw`, write the same
+canonical `gnss_pvt.parquet` layout as CSV/GPX/NMEA, set
+`telemetry_artifacts.format_detected` to `json_gnss`, surface stable failure
+codes with UI copy, pytest coverage.
 
-| Area         | What                                                                                                                                                                                           |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Parsers**  | `ingestion/telemetry/parsers/json_gnss.py` (array or `points`/`samples`/`records`/`data`, flexible keys); `fit_gnss.py` (`fitparse`, FIT `.FIT` magic, `record` messages, semicircle→degrees). |
-| **Worker**   | `ingestion/telemetry/worker.py` — sniff: `.json` / UTF-8 `{`/`[`, `.fit` / `.FIT` header; `parse_raw` branches.                                                                                |
-| **Errors**   | `JSON_*`, `FIT_*` (`TelemetryParseError`); user strings in `src/core/telemetry/telemetry-failure-messages.ts`.                                                                                 |
-| **Versions** | `TELEMETRY_PIPELINE_VERSION` = `telemetry-mvp-0.4.0`, `TELEMETRY_CANONICALISER_VERSION` = `csv-gpx-nmea-json-fit-parquet-0.4.0` in `src/core/telemetry/telemetry-repo.ts`.                     |
-| **Tests**    | `ingestion/tests/unit/test_telemetry_parsers.py`; fixtures `sample_gnss.json`, `sample_activity.fit` (upstream FIT test file).                                                                 |
+**Delivered (JSON):**
+
+| Area         | What                                                                                                      |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| **Parsers**  | `ingestion/telemetry/parsers/json_gnss.py` (array or `points`/`samples`/`records`/`data`, flexible keys). |
+| **Worker**   | `ingestion/telemetry/worker.py` — sniff: `.json` / UTF-8 `{`/`[`; `parse_raw` branch for `json_gnss`.     |
+| **Errors**   | `JSON_*` (`TelemetryParseError`); user strings in `src/core/telemetry/telemetry-failure-messages.ts`.     |
+| **Versions** | Pipeline/canonicaliser versions advanced with JSON support (see `src/core/telemetry/telemetry-repo.ts`).  |
+| **Tests**    | `ingestion/tests/unit/test_telemetry_parsers.py`; fixture `sample_gnss.json`.                             |
 
 **Remaining / future:** Apache Arrow IPC export (501), full multi-job
 orchestration as separate queued stages (currently inline in `parse_raw`),

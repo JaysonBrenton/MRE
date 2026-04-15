@@ -17,6 +17,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 import RaceSelector, { type Race } from "./RaceSelector"
 import LapTimeLineChart, { type DriverLapData } from "./LapTimeLineChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
@@ -256,6 +257,11 @@ export default function ComparisonsTab({ selectedClass, eventId, data }: Compari
       id="tabpanel-comparisons"
       aria-labelledby="tab-comparisons"
     >
+      <TabPanelIntro
+        eyebrow="Compare"
+        title="Lap time comparison"
+        description="Pick a race, then read lap-by-lap times in the chart. Races match the class filter above."
+      />
       {/* Race Selector */}
       {filteredRaces.length > 0 ? (
         <RaceSelector

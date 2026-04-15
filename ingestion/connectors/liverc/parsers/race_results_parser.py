@@ -31,6 +31,123 @@ RACE_DURATION_MS_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Default 1-based column indices (thead row: Pos, Driver, Qual, Laps/Time, Behind, …)
+_DEFAULT_RESULT_COLS: Dict[str, int] = {
+    "qual": 3,
+    "laps_time": 4,
+    "behind": 5,
+    "fastest": 6,
+    "avg_lap": 7,
+    "avg_top_5": 8,
+    "avg_top_10": 9,
+    "avg_top_15": 10,
+    "top_3_consecutive": 11,
+    "std_deviation": 12,
+    "consistency": 13,
+}
+_BEHIND_LAP_TEXT_PATTERN = re.compile(r"^\s*(\d+)\s*Laps?\s*$", re.IGNORECASE)
+
+
+def _normalize_th_label(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip()).lower()
+
+
+def _thead_has_pos_and_behind(table) -> bool:
+    """True if a thead row looks like the LiveRC results grid (Pos … Behind …)."""
+    for tr in table.css("thead tr"):
+        ths = tr.css("th")
+        if len(ths) < 5:
+            continue
+        labels = [_normalize_th_label(th.text()) for th in ths]
+        if labels and labels[0] == "pos" and "behind" in labels:
+            return True
+    return False
+
+
+def _find_race_results_table(tree: HTMLParser):
+    """
+    Locate the results table. LiveRC historically used `table.race_result`; newer layouts
+    wrap DataTables output as `table#DataTables_Table_0` (no race_result class on the
+    visible table). Prefer the first table whose thead matches Pos/Behind and tbody has
+    driver rows.
+    """
+    for table in tree.css("table"):
+        if not _thead_has_pos_and_behind(table):
+            continue
+        for row in table.css("tbody tr"):
+            if row.css_first("span.driver_name"):
+                return table
+    # Legacy markup / unit-test snippets: `table.race_result` with tbody only (no thead)
+    legacy = tree.css_first("table.race_result")
+    if legacy and legacy.css("tbody tr"):
+        for row in legacy.css("tbody tr"):
+            if row.css_first("span.driver_name"):
+                return legacy
+    return None
+
+
+def _build_race_result_column_map(table) -> Dict[str, int]:
+    """
+    Map LiveRC table headers to 1-based td indices (survives new columns in the grid).
+    Falls back to _DEFAULT_RESULT_COLS when no matching header row is found.
+    """
+    cols = dict(_DEFAULT_RESULT_COLS)
+    for tr in table.css("thead tr"):
+        ths = tr.css("th")
+        if len(ths) < 10:
+            continue
+        labels = [_normalize_th_label(th.text()) for th in ths]
+        if not labels or labels[0] != "pos":
+            continue
+        found: Dict[str, int] = {}
+        for i, lab in enumerate(labels, start=1):
+            if lab == "qual":
+                found["qual"] = i
+            elif "laps" in lab and "time" in lab:
+                found["laps_time"] = i
+            elif lab == "behind":
+                found["behind"] = i
+            elif "fastest" in lab and "lap" in lab:
+                found["fastest"] = i
+            elif lab.startswith("avg lap"):
+                found["avg_lap"] = i
+            elif "avg top 5" in lab:
+                found["avg_top_5"] = i
+            elif "avg top 10" in lab:
+                found["avg_top_10"] = i
+            elif "avg top 15" in lab:
+                found["avg_top_15"] = i
+            elif "top 3 consecutive" in lab:
+                found["top_3_consecutive"] = i
+            elif "std" in lab and "dev" in lab:
+                found["std_deviation"] = i
+            elif "consistency" in lab:
+                found["consistency"] = i
+        if "behind" in found and "laps_time" in found:
+            cols.update(found)
+            break
+    return cols
+
+
+def _split_behind_cell(text: str) -> tuple[Optional[float], Optional[str]]:
+    """Parse Behind cell: seconds, lap-gap text (e.g. '1 Lap'), or suffixed times like '12.052s'."""
+    raw = text.strip()
+    if not raw:
+        return None, None
+    try:
+        return float(raw), None
+    except ValueError:
+        pass
+    if _BEHIND_LAP_TEXT_PATTERN.match(raw) or "lap" in raw.lower():
+        return None, raw
+    m = re.search(r"[-+]?\d+(?:\.\d+)?", raw.replace(",", "."))
+    if m:
+        try:
+            return float(m.group(0)), None
+        except ValueError:
+            pass
+    return None, raw
+
 
 def parse_race_duration_seconds(html: str) -> Optional[int]:
     """
@@ -99,7 +216,7 @@ class RaceResultsParser:
         Parse race results from HTML.
         
         CSS Selectors:
-        - Results rows: table.race_result tbody tr
+        - Results rows: main results table tbody tr (table.race_result or DataTables `DataTables_Table_*`)
         - Position: td:first-child
         - Driver name: td:nth-child(2) span.driver_name
         - Driver ID: td:nth-child(2) a.driver_laps[data-driver-id] (if present)
@@ -109,7 +226,7 @@ class RaceResultsParser:
         - Consistency: td:nth-child(13) (extract number before "%")
         
         HTML Structure:
-        Results are displayed in a DataTable with class 'race_result'.
+        Results are displayed in a DataTable (`table.race_result` or `id="DataTables_Table_0"`).
         Each row contains position, driver info, laps/time, and statistics.
         Non-starting drivers have "0" in laps/time column and no data-driver-id.
         Driver IDs are matched from racerLaps JavaScript if not in table.
@@ -142,12 +259,20 @@ class RaceResultsParser:
         try:
             tree = HTMLParser(html)
             results = []
-            
+
+            results_table = _find_race_results_table(tree)
+            if not results_table:
+                raise RacePageFormatError(
+                    "No race results table found (expected Pos/Behind headers and driver rows)",
+                    url=url,
+                )
+            cols = _build_race_result_column_map(results_table)
+
             # Extract driver name -> ID mapping from racerLaps JavaScript
             driver_name_to_id = self._extract_racer_laps_mapping(html)
             
             # Find all result rows
-            result_rows = tree.css("table.race_result tbody tr")
+            result_rows = results_table.css("tbody tr")
             
             if not result_rows:
                 raise RacePageFormatError(
@@ -229,16 +354,16 @@ class RaceResultsParser:
 
                         source_driver_id = synthetic_id
                     
-                    # Extract Qual (qualifying position) - td:nth-child(3)
+                    # Extract Qual (qualifying position)
                     qualifying_position = None
-                    qual_elem = row.css_first("td:nth-child(3)")
+                    qual_elem = row.css_first(f"td:nth-child({cols['qual']})")
                     if qual_elem:
                         qual_text = qual_elem.text().strip()
                         if qual_text and qual_text.isdigit():
                             qualifying_position = int(qual_text)
 
-                    # Extract laps/time - td:nth-child(4)
-                    laps_time_elem = row.css_first("td:nth-child(4)")
+                    # Extract laps/time
+                    laps_time_elem = row.css_first(f"td:nth-child({cols['laps_time']})")
                     laps_completed = 0
                     total_time_raw = None
                     total_time_seconds = None
@@ -269,19 +394,17 @@ class RaceResultsParser:
                                 except ValueError:
                                     logger.warning("result_row_invalid_laps", text=laps_time_text, driver_id=source_driver_id, url=url)
 
-                    # Extract Behind (seconds behind winner) - td:nth-child(5)
+                    # Extract Behind (seconds behind winner, or lap gap text)
                     seconds_behind = None
-                    behind_elem = row.css_first("td:nth-child(5)")
+                    behind_display = None
+                    behind_elem = row.css_first(f"td:nth-child({cols['behind']})")
                     if behind_elem:
                         behind_text = behind_elem.text().strip()
                         if behind_text:
-                            try:
-                                seconds_behind = float(behind_text)
-                            except ValueError:
-                                pass  # e.g. "1 Lap" - leave None
+                            seconds_behind, behind_display = _split_behind_cell(behind_text)
 
                     # Extract fastest lap
-                    fast_lap_elem = row.css_first("td:nth-child(6)")
+                    fast_lap_elem = row.css_first(f"td:nth-child({cols['fastest']})")
                     fast_lap_time = None
                     if fast_lap_elem:
                         fast_lap_text = fast_lap_elem.text().strip()
@@ -295,7 +418,7 @@ class RaceResultsParser:
                                     logger.warning("result_row_invalid_fast_lap", text=fast_lap_text, driver_id=source_driver_id, url=url)
                     
                     # Extract avg lap (from hidden div)
-                    avg_lap_elem = row.css_first("td:nth-child(7) div.hidden")
+                    avg_lap_elem = row.css_first(f"td:nth-child({cols['avg_lap']}) div.hidden")
                     avg_lap_time = None
                     if avg_lap_elem:
                         avg_lap_text = avg_lap_elem.text().strip()
@@ -305,8 +428,8 @@ class RaceResultsParser:
                             except ValueError:
                                 logger.warning("result_row_invalid_avg_lap", text=avg_lap_text, driver_id=source_driver_id, url=url)
                     
-                    # Extract consistency - td:nth-child(13)
-                    consistency_elem = row.css_first("td:nth-child(13)")
+                    # Extract consistency
+                    consistency_elem = row.css_first(f"td:nth-child({cols['consistency']})")
                     consistency = None
                     if consistency_elem:
                         consistency_text = consistency_elem.text().strip()
@@ -319,13 +442,15 @@ class RaceResultsParser:
                                 except ValueError:
                                     logger.warning("result_row_invalid_consistency", text=consistency_text, driver_id=source_driver_id, url=url)
 
-                    # Extra stats (Avg Top 5, Avg Top 10, Avg Top 15, Top 3 Consecutive, Std. Deviation) - td 8,9,10,11,12
+                    # Extra stats (Avg Top 5, Avg Top 10, Avg Top 15, Top 3 Consecutive, Std. Deviation)
                     raw_fields_json: Optional[Dict[str, Any]] = None
-                    avg_top_5 = _parse_float_from_cell(row.css_first("td:nth-child(8)"))
-                    avg_top_10 = _parse_float_from_cell(row.css_first("td:nth-child(9)"))
-                    avg_top_15 = _parse_float_from_cell(row.css_first("td:nth-child(10)"))
-                    top_3_consecutive = _parse_float_from_cell(row.css_first("td:nth-child(11)"))
-                    std_deviation = _parse_float_from_cell(row.css_first("td:nth-child(12)"))
+                    avg_top_5 = _parse_float_from_cell(row.css_first(f"td:nth-child({cols['avg_top_5']})"))
+                    avg_top_10 = _parse_float_from_cell(row.css_first(f"td:nth-child({cols['avg_top_10']})"))
+                    avg_top_15 = _parse_float_from_cell(row.css_first(f"td:nth-child({cols['avg_top_15']})"))
+                    top_3_consecutive = _parse_float_from_cell(
+                        row.css_first(f"td:nth-child({cols['top_3_consecutive']})")
+                    )
+                    std_deviation = _parse_float_from_cell(row.css_first(f"td:nth-child({cols['std_deviation']})"))
                     if any(x is not None for x in (avg_top_5, avg_top_10, avg_top_15, top_3_consecutive, std_deviation)):
                         raw_fields_json = {}
                         if avg_top_5 is not None:
@@ -357,6 +482,7 @@ class RaceResultsParser:
                         consistency=consistency,
                         qualifying_position=qualifying_position,
                         seconds_behind=seconds_behind,
+                        behind_display=behind_display,
                         raw_fields_json=raw_fields_json,
                     )
                     results.append(result)

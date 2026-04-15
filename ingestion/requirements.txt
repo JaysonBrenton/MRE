@@ -48,8 +48,5 @@ pyarrow>=14.0.0
 # GNSS/IMU fusion (EKF)
 numpy>=1.26.0
 
-# Garmin FIT (telemetry GNSS records)
-fitparse>=1.2.0
-
 # ClickHouse (optional telemetry query cache)
 clickhouse-connect>=0.7.0

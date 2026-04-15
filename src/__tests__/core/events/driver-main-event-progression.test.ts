@@ -27,6 +27,8 @@ function result(
     fastLapTime: null,
     avgLapTime: null,
     consistency: null,
+    qualifyingPosition: null,
+    secondsBehind: null,
     liveRcStats: null,
   }
 }

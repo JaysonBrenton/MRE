@@ -81,6 +81,7 @@ export async function GET(
           trackSlug: analysisData.event.trackSlug ?? undefined,
         },
         isPracticeDay: analysisData.isPracticeDay ?? false,
+        registrationClassNames: analysisData.registrationClassNames ?? [],
         races: analysisData.races.map((race) => ({
           ...race,
           startTime: race.startTime?.toISOString() || null,

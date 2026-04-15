@@ -16,6 +16,7 @@
 
 "use client"
 
+import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 import EntryList from "./EntryList"
 import ChartContainer from "./ChartContainer"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
@@ -32,6 +33,11 @@ export default function EntryListTab({ data }: EntryListTabProps) {
       id="tabpanel-entry-list"
       aria-labelledby="tab-entry-list"
     >
+      <TabPanelIntro
+        eyebrow="Entry list"
+        title="Drivers and entries"
+        description="Registered drivers, classes, transponders, and car numbers for this event."
+      />
       {data.entryList.length === 0 ? (
         <ChartContainer aria-label="Entry list - no data available">
           <div className="flex items-center justify-center h-64 text-[var(--token-text-secondary)]">

@@ -17,10 +17,11 @@ import { useMemo } from "react"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { formatTimeUTC } from "@/lib/format-session-data"
 import { formatClassName } from "@/lib/format-class-name"
+import { typography } from "@/lib/typography"
 
 const CARD_CLASS =
   "mb-6 w-fit rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2"
-const HEADING_CLASS = "text-sm font-semibold text-[var(--token-text-primary)] mb-2"
+const HEADING_CLASS = `${typography.h6} mb-2`
 const GRID_CLASS =
   "grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-sm text-[var(--token-text-primary)]"
 const LABEL_CLASS = "text-[var(--token-text-secondary)]"

@@ -38,10 +38,8 @@ const TELEMETRY_FAILURE_MESSAGES: Record<string, string> = {
   JSON_AMBIGUOUS_TIME:
     "We couldn't interpret a time value. Use epoch milliseconds or ISO-8601 strings.",
   JSON_UNSUPPORTED_ENCODING: "We couldn't read this file as UTF-8. Save it as UTF-8 and try again.",
-  FIT_EMPTY: "This FIT file is empty.",
-  FIT_NOT_FIT: "This doesn't look like a Garmin FIT activity file.",
-  FIT_PARSE_ERROR: "We couldn't read this FIT file. Try re-exporting from your device or app.",
-  FIT_NO_POSITION: "This FIT file has no position records with timestamps.",
+  GARMIN_FIT_NOT_SUPPORTED:
+    "Garmin FIT files are not supported. Export your session as CSV, GPX, NMEA, or JSON instead.",
   UBX_NO_FIX:
     "This UBX log has no valid NAV-PVT position fixes. Record with a 3D fix and try again.",
 }

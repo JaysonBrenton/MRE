@@ -18,6 +18,6 @@ docker exec -it mre-liverc-ingestion-service python \
   /app/ingestion/scripts/build_multi_lap_full_telemetry_fixtures.py
 ```
 
-For **IMU inside FIT** as ingested by the worker, use `sample_activity.fit` or
-another FIT with accel/gyro records; this bundle exposes IMU as **CSV/JSON
-sidecar-style** columns for tests and analysis.
+This bundle exposes synthetic IMU-related fields as **CSV/JSON sidecar-style**
+columns for tests and analysis. Garmin FIT is not ingested by the worker; use
+those text exports for GNSS-only pipeline tests.

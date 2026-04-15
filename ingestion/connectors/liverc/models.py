@@ -121,6 +121,7 @@ class ConnectorRaceResult(BaseModel):
     consistency: Optional[float] = None
     qualifying_position: Optional[int] = None
     seconds_behind: Optional[float] = None
+    behind_display: Optional[str] = None
     raw_fields_json: Optional[dict] = None
 
 

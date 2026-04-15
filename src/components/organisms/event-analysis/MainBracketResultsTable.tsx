@@ -3,7 +3,8 @@
  *
  * @description Computes overall 1st–3rd from lettered mains (A1-Main, …) via
  * `buildEventMainResultRows`, and falls back to the top 3 from each class main when labels
- * are not lettered. Rows open a modal with the full overall order or full session results.
+ * are not lettered. Rows can expand to list the mains that feed an overall bracket; rows also
+ * open a modal with the full overall order or full session results.
  *
  * @relatedFiles
  * - src/core/events/main-bracket-overall.ts
@@ -12,7 +13,8 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, Fragment } from "react"
+import { ChevronDown } from "lucide-react"
 import {
   StandardTable,
   StandardTableHeader,
@@ -20,23 +22,30 @@ import {
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
 import Modal from "@/components/molecules/Modal"
+import FullRaceResultsTable from "@/components/organisms/event-analysis/FullRaceResultsTable"
 import ListPagination from "@/components/organisms/event-analysis/ListPagination"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import { typography } from "@/lib/typography"
 import {
   buildEventMainResultRows,
   computeBracketFullStandings,
   getSortedRaceResults,
   isEventMainSession,
   resolveMainsForBracketOverallRow,
+  sortBracketRaces,
   type BracketOverallRow,
 } from "@/core/events/main-bracket-overall"
-import { formatLapTime, formatTimeUTC, formatTotalTime } from "@/lib/format-session-data"
+import { formatTimeUTC } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
+import {
+  OVERVIEW_GLASS_SURFACE_CLASS,
+  OVERVIEW_GLASS_SURFACE_STYLE,
+} from "@/components/organisms/event-analysis/overview-glass-surface"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 
 type SortField =
   | "className"
   | "bracketLabel"
-  | "sessionKind"
   | "startTime"
   | "firstName"
   | "secondName"
@@ -55,10 +64,6 @@ function SortIcon({ field, activeField, direction }: SortIconProps) {
     return null
   }
   return <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
-}
-
-function sessionColumnLabel(row: BracketOverallRow): string {
-  return row.sessionKind === "single-main" ? "Main final" : "Main (overall)"
 }
 
 /** Stable order when primary sort keys match (matches `buildEventMainResultRows`). */
@@ -83,15 +88,12 @@ function resolveSortFieldForDisplay(sortField: SortField, showClassColumn: boole
 const HEADER_BUTTON_CLASS =
   "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
 
-const SURFACE_CLASS =
-  "rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
-const SURFACE_STYLE = {
-  backgroundColor: "var(--glass-bg)",
-  backdropFilter: "var(--glass-blur)",
-  borderRadius: 16,
-  border: "1px solid var(--glass-border)",
-  boxShadow: "var(--glass-shadow)",
-} as const
+const SURFACE_CLASS = OVERVIEW_GLASS_SURFACE_CLASS
+const SURFACE_STYLE = OVERVIEW_GLASS_SURFACE_STYLE
+
+function bracketRowKey(row: BracketOverallRow): string {
+  return `${row.className}-${row.bracket}`
+}
 
 export interface MainBracketResultsTableProps {
   races: EventAnalysisData["races"]
@@ -105,6 +107,7 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
   const [detailRow, setDetailRow] = useState<BracketOverallRow | null>(null)
   const [modalPage, setModalPage] = useState(1)
   const [modalItemsPerPage, setModalItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
+  const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null)
 
   const mainsOnly = useMemo(() => races.filter(isEventMainSession), [races])
 
@@ -114,6 +117,8 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
     () => new Set(resultRows.map((r) => r.className)).size > 1,
     [resultRows]
   )
+
+  const tableColumnCount = useMemo(() => (showClassColumn ? 1 : 0) + 1 + 5, [showClassColumn])
 
   const resolvedSortField = useMemo(
     () => resolveSortFieldForDisplay(sortField, showClassColumn),
@@ -130,9 +135,6 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
           break
         case "bracketLabel":
           cmp = a.bracketLabel.localeCompare(b.bracketLabel)
-          break
-        case "sessionKind":
-          cmp = sessionColumnLabel(a).localeCompare(sessionColumnLabel(b))
           break
         case "startTime": {
           const aT = a.startTime?.getTime() ?? Number.POSITIVE_INFINITY
@@ -172,6 +174,10 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
   useEffect(() => {
     queueMicrotask(() => setCurrentPage(1))
   }, [resultRowSignature, sortField, sortDirection])
+
+  useEffect(() => {
+    queueMicrotask(() => setExpandedRowKey(null))
+  }, [currentPage, resultRowSignature, sortField, sortDirection])
 
   const handleSort = useCallback(
     (field: SortField) => {
@@ -284,10 +290,8 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
     return (
       <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
         <div className="px-4 py-3 border-b border-[var(--token-border-default)]">
-          <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-            {`Event Results: ${headerClassLabel}`}
-          </h2>
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+          <h2 className={typography.h4}>{`Event Results: ${headerClassLabel}`}</h2>
+          <p className={`mt-1 ${typography.bodySecondary}`}>
             No main sessions with results in this selection, so event podiums cannot be shown.
           </p>
         </div>
@@ -298,193 +302,272 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
   return (
     <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
       <div className="border-b border-[var(--token-border-default)] px-4 py-3">
-        <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
-          {`Event Results: ${headerClassLabel}`}
-        </h2>
-        <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-          Click a row for full results (overall bracket order or complete main finishing order).
+        <h2 className={typography.h4}>{`Event Results: ${headerClassLabel}`}</h2>
+        <p className={`mt-1 ${typography.bodySecondary}`}>
+          Click a row for full results (overall bracket order or complete main finishing order). Use
+          the first column to expand and see which mains feed an overall bracket.
         </p>
       </div>
       <div className="px-2 py-2 sm:px-4">
-        <StandardTable>
-          <StandardTableHeader>
-            <StandardTableRow className="border-b border-[var(--token-border-default)]">
-              {showClassColumn && (
+        <DataTableFrame>
+          <StandardTable>
+            <StandardTableHeader>
+              <StandardTableRow className="border-b border-[var(--token-border-default)]">
                 <StandardTableCell
                   header
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                  className={`w-10 px-2 py-2 text-left ${typography.tableHeader}`}
+                >
+                  <span className="sr-only">Sessions</span>
+                </StandardTableCell>
+                {showClassColumn && (
+                  <StandardTableCell
+                    header
+                    className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSort("className")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      Class
+                      <SortIcon
+                        field="className"
+                        activeField={resolvedSortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                )}
+                <StandardTableCell
+                  header
+                  className={`px-3 py-2 text-left ${typography.tableHeader}`}
                 >
                   <button
                     type="button"
-                    onClick={() => handleSort("className")}
+                    onClick={() => handleSort("bracketLabel")}
                     className={HEADER_BUTTON_CLASS}
                   >
-                    Class
+                    Main
                     <SortIcon
-                      field="className"
+                      field="bracketLabel"
                       activeField={resolvedSortField}
                       direction={sortDirection}
                     />
                   </button>
                 </StandardTableCell>
-              )}
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSort("bracketLabel")}
-                  className={HEADER_BUTTON_CLASS}
+                <StandardTableCell
+                  header
+                  className={`px-3 py-2 text-left ${typography.tableHeader}`}
                 >
-                  Main
-                  <SortIcon
-                    field="bracketLabel"
-                    activeField={resolvedSortField}
-                    direction={sortDirection}
-                  />
-                </button>
-              </StandardTableCell>
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSort("sessionKind")}
-                  className={HEADER_BUTTON_CLASS}
-                >
-                  Session
-                  <SortIcon
-                    field="sessionKind"
-                    activeField={resolvedSortField}
-                    direction={sortDirection}
-                  />
-                </button>
-              </StandardTableCell>
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSort("startTime")}
-                  className={HEADER_BUTTON_CLASS}
-                >
-                  Start time
-                  <SortIcon
-                    field="startTime"
-                    activeField={resolvedSortField}
-                    direction={sortDirection}
-                  />
-                </button>
-              </StandardTableCell>
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSort("firstName")}
-                  className={HEADER_BUTTON_CLASS}
-                >
-                  1st
-                  <SortIcon
-                    field="firstName"
-                    activeField={resolvedSortField}
-                    direction={sortDirection}
-                  />
-                </button>
-              </StandardTableCell>
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSort("secondName")}
-                  className={HEADER_BUTTON_CLASS}
-                >
-                  2nd
-                  <SortIcon
-                    field="secondName"
-                    activeField={resolvedSortField}
-                    direction={sortDirection}
-                  />
-                </button>
-              </StandardTableCell>
-              <StandardTableCell
-                header
-                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSort("thirdName")}
-                  className={HEADER_BUTTON_CLASS}
-                >
-                  3rd
-                  <SortIcon
-                    field="thirdName"
-                    activeField={resolvedSortField}
-                    direction={sortDirection}
-                  />
-                </button>
-              </StandardTableCell>
-            </StandardTableRow>
-          </StandardTableHeader>
-          <tbody>
-            {paginatedRows.map((row) => (
-              <StandardTableRow
-                key={`${row.className}-${row.bracket}`}
-                tabIndex={0}
-                aria-label={`View full results for ${row.className} ${row.bracketLabel}`}
-                onClick={() => setDetailRow(row)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault()
-                    setDetailRow(row)
-                  }
-                }}
-              >
-                {showClassColumn && (
-                  <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                    {row.className}
-                  </StandardTableCell>
-                )}
-                <StandardTableCell className="px-3 py-2 text-sm font-medium text-[var(--token-text-primary)]">
-                  {row.raceUrl ? (
-                    <a
-                      href={row.raceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[var(--token-accent)] underline-offset-2 hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {row.bracketLabel}
-                    </a>
-                  ) : (
-                    row.bracketLabel
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSort("startTime")}
+                    className={HEADER_BUTTON_CLASS}
+                  >
+                    Start time
+                    <SortIcon
+                      field="startTime"
+                      activeField={resolvedSortField}
+                      direction={sortDirection}
+                    />
+                  </button>
                 </StandardTableCell>
-                <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                  {sessionColumnLabel(row)}
+                <StandardTableCell
+                  header
+                  className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSort("firstName")}
+                    className={HEADER_BUTTON_CLASS}
+                  >
+                    1st
+                    <SortIcon
+                      field="firstName"
+                      activeField={resolvedSortField}
+                      direction={sortDirection}
+                    />
+                  </button>
                 </StandardTableCell>
-                <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                  {formatTimeUTC(row.startTime)}
+                <StandardTableCell
+                  header
+                  className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSort("secondName")}
+                    className={HEADER_BUTTON_CLASS}
+                  >
+                    2nd
+                    <SortIcon
+                      field="secondName"
+                      activeField={resolvedSortField}
+                      direction={sortDirection}
+                    />
+                  </button>
                 </StandardTableCell>
-                <StandardTableCell className="px-3 py-2 text-sm font-semibold text-[var(--token-text-primary)]">
-                  {row.firstName}
-                </StandardTableCell>
-                <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                  {row.secondName ?? "—"}
-                </StandardTableCell>
-                <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                  {row.thirdName ?? "—"}
+                <StandardTableCell
+                  header
+                  className={`px-3 py-2 text-left ${typography.tableHeader}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSort("thirdName")}
+                    className={HEADER_BUTTON_CLASS}
+                  >
+                    3rd
+                    <SortIcon
+                      field="thirdName"
+                      activeField={resolvedSortField}
+                      direction={sortDirection}
+                    />
+                  </button>
                 </StandardTableCell>
               </StandardTableRow>
-            ))}
-          </tbody>
-        </StandardTable>
+            </StandardTableHeader>
+            <tbody>
+              {paginatedRows.map((row) => {
+                const rk = bracketRowKey(row)
+                const expanded = expandedRowKey === rk
+                const legRaces = sortBracketRaces(resolveMainsForBracketOverallRow(row, mainsOnly))
+                const canExpand = legRaces.length > 0
+
+                return (
+                  <Fragment key={rk}>
+                    <StandardTableRow
+                      tabIndex={0}
+                      aria-label={`View full results for ${row.className} ${row.bracketLabel}`}
+                      onClick={() => setDetailRow(row)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          setDetailRow(row)
+                        }
+                      }}
+                    >
+                      <td
+                        className="border-b border-[var(--token-border-default)] w-10 px-1 py-2 align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {canExpand ? (
+                          <button
+                            type="button"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                            aria-expanded={expanded}
+                            aria-controls={`leg-sessions-${rk}`}
+                            aria-label={
+                              expanded
+                                ? `Hide sessions for ${row.className} ${row.bracketLabel}`
+                                : `Show sessions used for ${row.className} ${row.bracketLabel}`
+                            }
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setExpandedRowKey((prev) => (prev === rk ? null : rk))
+                            }}
+                          >
+                            <ChevronDown
+                              className={`h-4 w-4 shrink-0 transition-transform ${expanded ? "rotate-0" : "-rotate-90"}`}
+                              aria-hidden
+                            />
+                          </button>
+                        ) : (
+                          <span className="inline-block h-9 w-9" aria-hidden />
+                        )}
+                      </td>
+                      {showClassColumn && (
+                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                          {row.className}
+                        </StandardTableCell>
+                      )}
+                      <StandardTableCell className="px-3 py-2 text-sm font-medium text-[var(--token-text-primary)]">
+                        {row.bracketLabel}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {formatTimeUTC(row.startTime)}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm font-semibold text-[var(--token-text-primary)]">
+                        {row.firstName}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {row.secondName ?? "—"}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {row.thirdName ?? "—"}
+                      </StandardTableCell>
+                    </StandardTableRow>
+
+                    {expanded && canExpand && (
+                      <StandardTableRow className="bg-[var(--token-surface-raised)]/35 hover:bg-[var(--token-surface-raised)]/45">
+                        <td
+                          id={`leg-sessions-${rk}`}
+                          colSpan={tableColumnCount}
+                          className="border-b border-[var(--token-border-default)] px-3 py-3 align-top"
+                        >
+                          <div className="space-y-2">
+                            {row.sessionKind === "aggregate" ? (
+                              <p className="text-xs text-[var(--token-text-secondary)]">
+                                These mains are combined for overall order (best legs, tie-breaks),
+                                matching the event podium rules.
+                              </p>
+                            ) : (
+                              <p className="text-xs text-[var(--token-text-secondary)]">
+                                This row is based on one main session.
+                              </p>
+                            )}
+                            <div className="overflow-x-auto">
+                              <table className="w-full min-w-[320px] border-collapse text-sm">
+                                <thead>
+                                  <tr className="border-b border-[var(--token-border-default)]">
+                                    <th
+                                      className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}
+                                    >
+                                      Session
+                                    </th>
+                                    <th
+                                      className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}
+                                    >
+                                      Start
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {legRaces.map((race) => (
+                                    <tr
+                                      key={race.id}
+                                      className="border-b border-[var(--token-border-default)]/60"
+                                    >
+                                      <td className="py-1.5 pr-3 text-[var(--token-text-primary)]">
+                                        {race.raceUrl ? (
+                                          <a
+                                            href={race.raceUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-medium text-[var(--token-accent)] underline-offset-2 hover:underline"
+                                          >
+                                            {race.raceLabel.trim() || "—"}
+                                          </a>
+                                        ) : (
+                                          race.raceLabel.trim() || "—"
+                                        )}
+                                      </td>
+                                      <td className="py-1.5 pr-3 tabular-nums text-[var(--token-text-secondary)]">
+                                        {formatTimeUTC(race.startTime)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </StandardTableRow>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </StandardTable>
+        </DataTableFrame>
         <div className="min-w-0 w-full max-w-full">
           <ListPagination
             currentPage={currentPage}
@@ -509,7 +592,7 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
               {detailRow.className} · {detailRow.bracketLabel}
             </span>
           }
-          maxWidth="3xl"
+          maxWidth="4xl"
           footer={
             detailRow.raceUrl ? (
               <a
@@ -541,13 +624,13 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                         <StandardTableRow className="border-b border-[var(--token-border-default)]">
                           <StandardTableCell
                             header
-                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                            className={`px-3 py-2 text-left ${typography.tableHeader}`}
                           >
                             Pos
                           </StandardTableCell>
                           <StandardTableCell
                             header
-                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
+                            className={`px-3 py-2 text-left ${typography.tableHeader}`}
                           >
                             Driver
                           </StandardTableCell>
@@ -591,63 +674,7 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                   </p>
                 ) : (
                   <>
-                    <StandardTable>
-                      <StandardTableHeader>
-                        <StandardTableRow className="border-b border-[var(--token-border-default)]">
-                          <StandardTableCell
-                            header
-                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                          >
-                            Pos
-                          </StandardTableCell>
-                          <StandardTableCell
-                            header
-                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                          >
-                            Driver
-                          </StandardTableCell>
-                          <StandardTableCell
-                            header
-                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                          >
-                            Laps
-                          </StandardTableCell>
-                          <StandardTableCell
-                            header
-                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                          >
-                            Total
-                          </StandardTableCell>
-                          <StandardTableCell
-                            header
-                            className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]"
-                          >
-                            Fast
-                          </StandardTableCell>
-                        </StandardTableRow>
-                      </StandardTableHeader>
-                      <tbody>
-                        {paginatedSingleSessionResults.map((r) => (
-                          <StandardTableRow key={r.raceResultId}>
-                            <StandardTableCell className="px-3 py-2 text-sm tabular-nums text-[var(--token-text-primary)]">
-                              {r.positionFinal}
-                            </StandardTableCell>
-                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                              {r.driverName}
-                            </StandardTableCell>
-                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                              {r.lapsCompleted}
-                            </StandardTableCell>
-                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                              {formatTotalTime(r.totalTimeSeconds)}
-                            </StandardTableCell>
-                            <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                              {formatLapTime(r.fastLapTime)}
-                            </StandardTableCell>
-                          </StandardTableRow>
-                        ))}
-                      </tbody>
-                    </StandardTable>
+                    <FullRaceResultsTable rows={paginatedSingleSessionResults} />
                     <div className="min-w-0 w-full max-w-full pt-2">
                       <ListPagination
                         currentPage={modalPage}

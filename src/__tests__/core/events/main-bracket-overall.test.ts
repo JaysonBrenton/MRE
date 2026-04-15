@@ -34,6 +34,8 @@ function result(
     fastLapTime: 30,
     avgLapTime: null,
     consistency: null,
+    qualifyingPosition: null,
+    secondsBehind: null,
     liveRcStats: null,
   }
 }
@@ -97,6 +99,43 @@ describe("isEventMainSession", () => {
     const r = race("x", "Heat 2/3", [{ id: "a", name: "A", pos: 1 }])
     r.sessionType = "heat"
     r.sectionHeader = "Qualifier Round 1"
+    expect(isEventMainSession(r)).toBe(false)
+  })
+
+  it("rejects main practice even when label contains main", () => {
+    const r = race("x", "Truggy A Main Practice", [{ id: "a", name: "A", pos: 1 }])
+    r.sessionType = "race"
+    r.sectionHeader = "Practice"
+    expect(isEventMainSession(r)).toBe(false)
+  })
+
+  it("rejects LCQ under Main Events", () => {
+    const r = race("x", "Last Chance Qualifier", [{ id: "a", name: "A", pos: 1 }])
+    r.sessionType = "race"
+    r.sectionHeader = "Main Events"
+    expect(isEventMainSession(r)).toBe(false)
+  })
+
+  it("rejects semi split under Main Events when section would otherwise qualify", () => {
+    const r = race("x", "Semi A (Even)", [{ id: "a", name: "A", pos: 1 }])
+    r.sessionType = "race"
+    r.sectionHeader = "Main Events"
+    expect(isEventMainSession(r)).toBe(false)
+  })
+
+  it("rejects schedule break listed under Main Events (Motorama-style className)", () => {
+    const r = race("x", "", [{ id: "a", name: "A", pos: 1 }])
+    r.className = "**** 15 MIN BREAK ****"
+    r.sessionType = "main"
+    r.sectionHeader = "Main Events"
+    expect(isEventMainSession(r)).toBe(false)
+  })
+
+  it("rejects break banner when only raceLabel is set", () => {
+    const r = race("x", "**** 15 MIN BREAK ****", [{ id: "a", name: "A", pos: 1 }])
+    r.className = "1/8 Electric Buggy"
+    r.sessionType = "race"
+    r.sectionHeader = "Main Events"
     expect(isEventMainSession(r)).toBe(false)
   })
 })

@@ -22,6 +22,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { FixedSizeList } from "react-window"
 import Modal from "@/components/molecules/Modal"
 import StandardInput from "@/components/atoms/StandardInput"
+import { typography } from "@/lib/typography"
 
 export interface Driver {
   driverId: string
@@ -179,7 +180,7 @@ const DriverItem = React.memo<{
         style={style}
         className="flex items-center px-3 py-2 bg-[var(--token-surface)] border-b border-[var(--token-border-default)]"
       >
-        <h3 className="text-sm font-semibold text-[var(--token-text-primary)]">
+        <h3 className={typography.h6}>
           {item.data.className} ({item.data.driverCount})
         </h3>
       </div>

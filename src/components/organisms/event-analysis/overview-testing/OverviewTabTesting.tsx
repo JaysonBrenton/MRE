@@ -701,9 +701,7 @@ export default function OverviewTabTesting({
           {weather ? (
             <div className="bg-[var(--token-surface-elevated)] rounded-md border border-[var(--token-border-default)] p-4">
               <p className={`${typography.uppercase} mb-2`}>Track state</p>
-              <h3 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
-                {weather.condition}
-              </h3>
+              <h3 className={`${typography.h4} mb-1`}>{weather.condition}</h3>
               <p className="text-sm text-[var(--token-text-secondary)] mb-4">
                 Wind {weather.wind} • Humidity {weather.humidity}%
               </p>
@@ -773,9 +771,7 @@ export default function OverviewTabTesting({
       <section className="space-y-4">
         <div className="border-b border-[var(--token-border-default)] pb-4">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--token-text-primary)] mb-1">
-              Compare driver performance
-            </h2>
+            <h2 className={`${typography.h4} mb-1`}>Compare driver performance</h2>
             <p className="text-sm text-[var(--token-text-secondary)] mt-2">
               Interactive chart showing selected drivers&rsquo; performance metrics. Chart: compare
               chosen drivers. Cards below: top performers in each category.

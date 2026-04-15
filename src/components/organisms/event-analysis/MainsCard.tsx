@@ -16,10 +16,12 @@
 import { useMemo } from "react"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { formatTimeUTC } from "@/lib/format-session-data"
+import { formatClassName } from "@/lib/format-class-name"
+import { typography } from "@/lib/typography"
 
 const CARD_CLASS =
   "mb-6 w-fit rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2"
-const HEADING_CLASS = "text-sm font-semibold text-[var(--token-text-primary)] mb-2"
+const HEADING_CLASS = `${typography.h6} mb-2`
 const GRID_CLASS =
   "grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-sm text-[var(--token-text-primary)]"
 const LABEL_CLASS = "text-[var(--token-text-secondary)]"
@@ -46,7 +48,10 @@ interface ClassMains {
 }
 
 function computeMainsByClass(races: EventAnalysisData["races"]): ClassMains[] {
-  const byClass = new Map<string, Array<{ raceLabel: string; startTime: Date | null; raceOrder: number | null }>>()
+  const byClass = new Map<
+    string,
+    Array<{ raceLabel: string; startTime: Date | null; raceOrder: number | null }>
+  >()
 
   for (const r of races) {
     if (!isMain(r.raceLabel)) continue
@@ -85,7 +90,7 @@ export default function MainsCard({ races }: MainsCardProps) {
     <>
       {mainsByClass.map(({ className, mains }) => (
         <div key={className} className={CARD_CLASS}>
-          <h3 className={HEADING_CLASS}>{className}</h3>
+          <h3 className={HEADING_CLASS}>{formatClassName(className)}</h3>
           <div className={GRID_CLASS}>
             {mains.flatMap((main, idx) => [
               <span key={`${idx}-main`} className={LABEL_CLASS}>

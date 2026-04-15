@@ -14,6 +14,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 import ListPagination from "./ListPagination"
 import {
   StandardTable,
@@ -21,7 +22,9 @@ import {
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 import { formatClassName } from "@/lib/format-class-name"
+import { typography } from "@/lib/typography"
 
 export type DateRangePreset = "all_time" | "this_year" | "last_12_months"
 
@@ -129,14 +132,15 @@ export default function TrackLeaderboardTab({
       id="tabpanel-track-leader-board"
       aria-labelledby="tab-track-leader-board"
     >
+      <TabPanelIntro
+        eyebrow="Track"
+        title={`Leaderboard — ${trackName}`}
+        description={`Drivers ranked by points from main races at this track. Filter by date range and class, then review points, wins, and podiums.`}
+      />
       <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-        <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
-          Track Leaderboard: {trackName}
-        </h2>
-        <p className="text-sm text-[var(--token-text-secondary)] mb-4">
-          Drivers ranked by points from main races at {trackName}. Points: 1st=25, 2nd=18, 3rd=15,
-          4th=12, 5th=10, then 8–1 for 6th–10th. Points are summed across all main races per driver
-          and class. Ranking order: total points, then wins, then podiums.
+        <p className={`${typography.bodyMuted} mb-4`}>
+          Scoring: 1st=25, 2nd=18, 3rd=15, 4th=12, 5th=10, then 8–1 for 6th–10th. Points sum across
+          mains per driver and class. Tie-break: total points, then wins, then podiums.
         </p>
 
         {/* Filters row */}
@@ -201,7 +205,7 @@ export default function TrackLeaderboardTab({
         )}
         {!isLoading && !error && selectedClass && drivers.length > 0 && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+            <DataTableFrame>
               <StandardTable>
                 <StandardTableHeader>
                   <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -228,7 +232,7 @@ export default function TrackLeaderboardTab({
                   ))}
                 </tbody>
               </StandardTable>
-            </div>
+            </DataTableFrame>
             <ListPagination
               currentPage={currentPage}
               totalPages={totalPages}

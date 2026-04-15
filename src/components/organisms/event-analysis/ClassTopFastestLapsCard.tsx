@@ -20,10 +20,11 @@ import Tooltip from "@/components/molecules/Tooltip"
 import { formatLapTime } from "@/lib/date-utils"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { computeTopFastestLapsPerClass } from "@/core/events/event-top-fastest-laps-per-class"
+import { typography } from "@/lib/typography"
 
 const CARD_CLASS =
   "mb-6 w-fit min-w-[16rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 py-3"
-const TITLE_CLASS = "text-base font-medium text-[var(--token-text-primary)]"
+const TITLE_CLASS = typography.h5
 const SUBTITLE_CLASS = "text-xs text-[var(--token-text-secondary)] mt-0.5"
 const HEADER_CLASS = "border-b border-[var(--token-border-default)] pb-3 mb-3"
 const RANK_BADGE_BASE =

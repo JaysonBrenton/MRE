@@ -17,6 +17,8 @@ import {
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
+import { typography } from "@/lib/typography"
 
 export interface PracticeClassLeaderboardProps {
   data: EventAnalysisData
@@ -75,23 +77,19 @@ export default function PracticeClassLeaderboard({
   if (filtered.length === 0) {
     return (
       <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-        <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
-          Class leaderboard
-        </h2>
-        <p className="text-sm text-[var(--token-text-muted)]">No lap data by class.</p>
+        <h2 className={`${typography.h4} mb-4`}>Class leaderboard</h2>
+        <p className={typography.bodyMuted}>No lap data by class.</p>
       </div>
     )
   }
 
   return (
     <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-6">
-      <h2 className="text-lg font-medium text-[var(--token-text-primary)] mb-4">
-        Class leaderboard
-      </h2>
-      <p className="text-sm text-[var(--token-text-secondary)] mb-3">
+      <h2 className={`${typography.h4} mb-4`}>Class leaderboard</h2>
+      <p className={`${typography.bodySecondary} mb-3`}>
         Fastest lap per class across all sessions.
       </p>
-      <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+      <DataTableFrame>
         <StandardTable>
           <StandardTableHeader>
             <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -114,7 +112,7 @@ export default function PracticeClassLeaderboard({
             ))}
           </tbody>
         </StandardTable>
-      </div>
+      </DataTableFrame>
     </div>
   )
 }

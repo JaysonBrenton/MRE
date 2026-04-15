@@ -29,14 +29,13 @@ options.
 
 ### MVP parser fixtures (required for Phase 3 tests)
 
-| File                     | Purpose                                                                                           |
-| ------------------------ | ------------------------------------------------------------------------------------------------- |
-| sample_gnss_10hz.csv     | Valid 10 Hz GNSS CSV (timestamp_ms, lat, lon, alt_m, speed_mps). Parser must produce gnss_pvt.    |
-| sample_track.gpx         | Valid GPX track with trkpt, ele, time. Parser must produce gnss_pvt.                              |
-| csv_no_time.csv          | CSV with lat, lon, speed_mps but no time column. Parser must emit error code CSV_NO_TIME_COLUMN.  |
-| sample_gnss.json         | Valid JSON array (timestamp_ms, lat, lon, alt_m, speed_mps). Parser must produce gnss_pvt.        |
-| sample_activity.fit      | Small Garmin FIT with `record` messages (python-fitparse test `Activity.fit`). gnss_pvt expected. |
-| sample_nmea_rmc_gga.nmea | NMEA RMC+GGA; parser produces gnss_pvt (see Phase 3a tests).                                      |
+| File                     | Purpose                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| sample_gnss_10hz.csv     | Valid 10 Hz GNSS CSV (timestamp_ms, lat, lon, alt_m, speed_mps). Parser must produce gnss_pvt.   |
+| sample_track.gpx         | Valid GPX track with trkpt, ele, time. Parser must produce gnss_pvt.                             |
+| csv_no_time.csv          | CSV with lat, lon, speed_mps but no time column. Parser must emit error code CSV_NO_TIME_COLUMN. |
+| sample_gnss.json         | Valid JSON array (timestamp_ms, lat, lon, alt_m, speed_mps). Parser must produce gnss_pvt.       |
+| sample_nmea_rmc_gga.nmea | NMEA RMC+GGA; parser produces gnss_pvt (see Phase 3a tests).                                     |
 
 **End-to-end expectation for `csv_no_time.csv`:** the worker fails `parse_raw`
 with `CSV_NO_TIME_COLUMN`; the session ends **`failed`**, there is **no**

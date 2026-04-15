@@ -7,6 +7,8 @@
 
 "use client"
 
+import { typography } from "@/lib/typography"
+
 export interface LinkYourDriverPromptProps {
   className?: string
 }
@@ -18,14 +20,15 @@ export default function LinkYourDriverPrompt({ className = "" }: LinkYourDriverP
       role="region"
       aria-labelledby="link-driver-heading"
     >
-      <h2 id="link-driver-heading" className="text-lg font-medium text-[var(--token-text-primary)]">
+      <h2 id="link-driver-heading" className={typography.h4}>
         Link your driver to see your practice day
       </h2>
-      <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
+      <p className={`mt-2 ${typography.bodySecondary}`}>
         Connect your driver profile to view your lap times, progression, and class comparison.
       </p>
-      <p className="mt-2 text-sm text-[var(--token-text-muted)]">
-        You can still browse all sessions below. Use the driver selector above to view any driver&apos;s data.
+      <p className={`mt-2 ${typography.bodyMuted}`}>
+        You can still browse all sessions below. Use the driver selector above to view any
+        driver&apos;s data.
       </p>
     </div>
   )

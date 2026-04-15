@@ -53,6 +53,11 @@ export const typography = {
   captionSmall: "text-[10px] text-[var(--token-text-muted)]",
   /** Large KPI/display numbers (e.g. lap times, positions) */
   kpi: "text-3xl font-semibold text-[var(--token-text-primary)]",
+
+  /** Data table column headers (secondary); pair with layout classes (padding, text-align) */
+  tableHeader: "text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]",
+  /** Data table column headers on muted / inset surfaces */
+  tableHeaderMuted: "text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]",
 } as const
 
 /**
@@ -66,5 +71,6 @@ export const typography = {
  * - body: base (16px) - Main content
  * - bodySecondary: sm (14px) - Secondary content
  * - caption: xs (12px) - Captions and helper text
+ * - tableHeader / tableHeaderMuted: xs uppercase column titles in data tables
  */
 export type TypographyKey = keyof typeof typography

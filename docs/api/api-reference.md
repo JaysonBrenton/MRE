@@ -23,10 +23,9 @@ relatedFiles:
 # API Reference Documentation
 
 **Last Updated:** 2026-04-12 — Telemetry: session list/detail/map; worker ingest
-for CSV, GPX, NMEA 0183, JSON, and FIT (see
-[`telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md)
-Phases 3a–3b). **2026-04-13:** Venue correction endpoints are **deprecated**
-(see
+for CSV, GPX, NMEA 0183, JSON (Garmin FIT is **not** supported — see
+[`docs/telemetry/README.md`](../telemetry/README.md)). **2026-04-13:** Venue
+correction endpoints are **deprecated** (see
 [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md));
 replacement direction is per-user host track. **2026-04-07:** car taxonomy and
 user car-taxonomy-rules endpoints; event analysis notes `userCarTaxonomy` on
@@ -4206,9 +4205,11 @@ Implementation status:
 **Ingest formats (telemetry-worker `parse_raw`):** UTF-8 CSV with GNSS columns,
 GPX 1.1 track points, NMEA 0183 text (`RMC`/`GGA` sentences, including `GN`
 talker IDs), UTF-8 JSON (array of points or `points`/`samples`/`records`/`data`
-wrapper), and Garmin FIT (`.FIT` header, `record` messages with position).
-Successful runs set `telemetry_artifacts.format_detected` to `csv_gnss`, `gpx`,
-`nmea_gnss`, `json_gnss`, or `fit_gnss` respectively.
+wrapper), and u-blox UBX where enabled. **Garmin FIT (`.fit`) is not supported**
+— uploads are rejected with `GARMIN_FIT_NOT_SUPPORTED` (see
+[`docs/telemetry/README.md`](../telemetry/README.md)). Successful runs set
+`telemetry_artifacts.format_detected` to values such as `csv_gnss`, `gpx`,
+`nmea_gnss`, `json_gnss`, or `ubx_gnss`.
 
 ### POST /api/v1/telemetry/uploads
 

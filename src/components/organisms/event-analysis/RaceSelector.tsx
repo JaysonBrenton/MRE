@@ -25,6 +25,7 @@ import {
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 import ListPagination from "@/components/organisms/event-analysis/ListPagination"
 import { formatDateUTC, formatTimeUTC } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
@@ -141,7 +142,7 @@ export default function RaceSelector({
       {!hideHeading && (
         <h3 className="text-sm font-medium text-[var(--token-text-primary)]">Select a race</h3>
       )}
-      <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+      <DataTableFrame>
         <StandardTable>
           <StandardTableHeader>
             <tr className="border-b border-[var(--token-border-default)]">
@@ -223,7 +224,7 @@ export default function RaceSelector({
             })}
           </tbody>
         </StandardTable>
-      </div>
+      </DataTableFrame>
       <ListPagination
         currentPage={safePage}
         totalPages={totalPages}

@@ -26,6 +26,7 @@ import {
   buildHeatProgression,
 } from "@/core/events/get-sessions-data"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 
 export interface SessionsTabProps {
   data: EventAnalysisData
@@ -85,19 +86,18 @@ export default function SessionsTab({
       id="tabpanel-sessions"
       aria-labelledby="tab-sessions"
     >
-      {/* Header */}
-      <div className="space-y-1.5">
-        <h2 className="text-xl font-semibold text-[var(--token-text-primary)]">
-          Event sessions and heats
-          {selectedClass && typeof selectedClass === "string" && selectedClass.trim() !== ""
-            ? ` — ${selectedClass}`
-            : ""}
-        </h2>
-        <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
-          Race grid and lap analysis for the selected class and drivers. Driver bump-ups are on
-          Event Details → Bump-Ups.
-        </p>
-      </div>
+      <TabPanelIntro
+        eyebrow="Sessions"
+        title={
+          <>
+            Event sessions and heats
+            {selectedClass && typeof selectedClass === "string" && selectedClass.trim() !== ""
+              ? ` — ${selectedClass}`
+              : ""}
+          </>
+        }
+        description="Race grid and lap analysis for the selected class and drivers. Driver bump-ups are on Event Details → Bump-Ups."
+      />
 
       {/* Content - show all sessions when "All Classes" or when a specific class is selected */}
       <SessionChartTabs

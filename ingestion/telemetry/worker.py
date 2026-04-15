@@ -25,9 +25,9 @@ from ingestion.common.metrics import record_telemetry_job
 from ingestion.db.session import engine as _engine
 from ingestion.telemetry.canonical_parquet import write_gnss_parquet
 from ingestion.telemetry.errors import TelemetryParseError
+from ingestion.telemetry.garmin_fit_policy import is_garmin_fit_file
 from ingestion.telemetry.pipeline_v1 import run_v1_postprocess
 from ingestion.telemetry.parsers.csv_gnss import parse_csv_gnss
-from ingestion.telemetry.parsers.fit_gnss import is_fit_magic, parse_fit_gnss
 from ingestion.telemetry.parsers.gpx_gnss import parse_gpx_gnss
 from ingestion.telemetry.parsers.json_gnss import parse_json_gnss
 from ingestion.telemetry.parsers.nmea_gnss import looks_like_nmea_text, parse_nmea_gnss
@@ -229,9 +229,6 @@ def _detect_format(path, original_file_name: str) -> str:
     raw_probe_ubx = path.read_bytes()[:4096]
     if name.endswith(".ubx") or looks_like_ubx(raw_probe_ubx):
         return "ubx"
-    raw_probe = path.read_bytes()[:64]
-    if name.endswith(".fit") or is_fit_magic(raw_probe):
-        return "fit"
     th = text_head.lstrip()
     if name.endswith(".json") or th.startswith("{") or th.startswith("["):
         return "json"
@@ -313,6 +310,12 @@ def _parse_raw(conn: Connection, job: Dict[str, Any]) -> None:
     fmt = _detect_format(path, str(art["original_file_name"]))
     raw_bytes = path.read_bytes()
 
+    if is_garmin_fit_file(raw_bytes, str(art["original_file_name"])):
+        raise TelemetryParseError(
+            "GARMIN_FIT_NOT_SUPPORTED",
+            "Garmin FIT files are not supported. Export as CSV, GPX, NMEA, or JSON.",
+        )
+
     if fmt == "gpx":
         samples, pmeta = parse_gpx_gnss(raw_bytes)
         detected = "gpx"
@@ -321,9 +324,6 @@ def _parse_raw(conn: Connection, job: Dict[str, Any]) -> None:
 
         samples, pmeta = parse_ubx_gnss(raw_bytes)
         detected = "ubx_gnss"
-    elif fmt == "fit":
-        samples, pmeta = parse_fit_gnss(raw_bytes)
-        detected = "fit_gnss"
     elif fmt == "json":
         try:
             decoded_utf8 = raw_bytes.decode("utf-8-sig")
@@ -418,7 +418,6 @@ def _parse_raw(conn: Connection, job: Dict[str, Any]) -> None:
         gnss_dataset_id=dataset_id,
         rel_gnss_parquet=rel_parquet,
         samples=samples,
-        raw_bytes=raw_bytes,
         format_detected=detected,
         parser_meta=pmeta,
     )

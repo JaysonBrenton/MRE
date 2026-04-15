@@ -7,8 +7,7 @@ ingestion/tests/fixtures/telemetry/multi-lap-full/.
 
 GNSS columns match existing parsers (timestamp_ms, lat, lon, alt_m, speed_mps).
 Extra CSV/JSON columns (heading, accel, gyro) are for offline testing and
-documentation; the current CSV parser ignores them. FIT remains the path for
-IMU ingested by the worker.
+documentation; the current CSV parser ignores them.
 
 NMEA is emitted at 1 Hz because the NMEA merger deduplicates by whole-second
 timestamps (see nmea_gnss.py).

@@ -148,3 +148,48 @@ class TestEntryListParser:
         # Should take first line
         assert "LASTNAME" in entries[0].driver_name or "FIRSTNAME" in entries[0].driver_name
 
+    def test_rcra_style_second_nav_tab_cluster_dropped(self):
+        """
+        LiveRC (e.g. 2026 RCRA Nationals) adds session tabs with new tab ID ranges; only the first
+        cluster (registration classes) should remain in entries_by_class.
+        """
+        parser = EntryListParser()
+        html = """
+        <html><body>
+        <ul class="nav nav-pills">
+          <li class="active"><a href="#Buggy_tab_69557" data-toggle="tab">Buggy</a></li>
+          <li><a href="#Truggy_tab_69558" data-toggle="tab">Truggy</a></li>
+          <li><a href="#Semi_A_Even_Practice_tab_71130" data-toggle="tab">Semi A (Even) Practice</a></li>
+          <li><a href="#Last_Chance_Qualifier_tab_71132" data-toggle="tab">Last Chance Qualifier</a></li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="Buggy_tab_69557">
+            <table><thead><tr><th colspan="3"><div class="class_header">Buggy</div>
+              <div class="class_sub_header">Entries: 1</div></th></tr>
+              <tr><th>#</th><th>Driver</th><th>Transponder #</th></tr></thead>
+              <tbody><tr><td>1</td><td>DRIVER A</td><td>111</td></tr></tbody></table>
+          </div>
+          <div class="tab-pane" id="Truggy_tab_69558">
+            <table><thead><tr><th colspan="3"><div class="class_header">Truggy</div>
+              <div class="class_sub_header">Entries: 1</div></th></tr>
+              <tr><th>#</th><th>Driver</th><th>Transponder #</th></tr></thead>
+              <tbody><tr><td>1</td><td>DRIVER B</td><td>222</td></tr></tbody></table>
+          </div>
+          <div class="tab-pane" id="Semi_A_Even_Practice_tab_71130">
+            <table><thead><tr><th colspan="3"><div class="class_header">Semi A (Even) Practice</div>
+              <div class="class_sub_header">Entries: 1</div></th></tr>
+              <tr><th>#</th><th>Driver</th><th>Transponder #</th></tr></thead>
+              <tbody><tr><td>1</td><td>DRIVER C</td><td>333</td></tr></tbody></table>
+          </div>
+          <div class="tab-pane" id="Last_Chance_Qualifier_tab_71132">
+            <table><thead><tr><th colspan="3"><div class="class_header">Last Chance Qualifier</div>
+              <div class="class_sub_header">Entries: 1</div></th></tr>
+              <tr><th>#</th><th>Driver</th><th>Transponder #</th></tr></thead>
+              <tbody><tr><td>1</td><td>DRIVER D</td><td>444</td></tr></tbody></table>
+          </div>
+        </div>
+        </body></html>
+        """
+        result = parser.parse(html, "http://test.com", "491882")
+        assert set(result.entries_by_class.keys()) == {"Buggy", "Truggy"}
+

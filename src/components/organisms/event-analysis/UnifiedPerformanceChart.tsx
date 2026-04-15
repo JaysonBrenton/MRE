@@ -36,6 +36,7 @@ import ChartPagination from "./ChartPagination"
 import ChartColorPicker from "./ChartColorPicker"
 import Tooltip from "@/components/molecules/Tooltip"
 import { useChartColors } from "@/hooks/useChartColors"
+import { typography } from "@/lib/typography"
 
 export type ChartViewType = "column" | "line"
 
@@ -1429,10 +1430,8 @@ export default function UnifiedPerformanceChart({
                                 {metricConfig[metric].label}
                               </div>
                               <div
-                                className={`tabular-nums leading-tight text-[var(--token-text-primary)] ${
-                                  isMonoPrimary
-                                    ? "font-mono text-lg font-semibold"
-                                    : "text-base font-semibold"
+                                className={`tabular-nums leading-tight ${
+                                  isMonoPrimary ? `font-mono ${typography.h4}` : typography.h5
                                 }`}
                               >
                                 {formattedValue}

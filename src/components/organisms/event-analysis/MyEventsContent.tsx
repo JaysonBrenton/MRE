@@ -29,6 +29,7 @@ import {
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 
 interface Event {
   id: string
@@ -578,7 +579,7 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
           aria-label="Events table with similarity scores and status"
         >
           <div className="space-y-4">
-            <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+            <DataTableFrame>
               <StandardTable>
                 <StandardTableHeader>
                   <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -653,7 +654,7 @@ export default function MyEventsContent({ onEventSelect }: MyEventsContentProps)
                   })}
                 </tbody>
               </StandardTable>
-            </div>
+            </DataTableFrame>
 
             <ListPagination
               currentPage={currentPage}

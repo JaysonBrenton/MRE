@@ -20,12 +20,14 @@
 import { useState, useMemo, useEffect } from "react"
 import ListPagination from "./ListPagination"
 import ChartContainer from "./ChartContainer"
+import { getEntryListClassOptions } from "@/core/events/entry-list-class-options"
 import {
   StandardTable,
   StandardTableHeader,
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 
 export interface Entry {
   id: string
@@ -66,14 +68,7 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
   const [classFilter, setClassFilter] = useState("")
   const [driverSearch, setDriverSearch] = useState("")
 
-  const classOptions = useMemo(() => {
-    const set = new Set<string>()
-    entries.forEach((e) => {
-      const c = e.className?.trim()
-      if (c) set.add(c)
-    })
-    return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [entries])
+  const classOptions = useMemo(() => getEntryListClassOptions(entries), [entries])
 
   useEffect(() => {
     if (classFilter && !classOptions.includes(classFilter)) {
@@ -170,7 +165,7 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
             onChange={(e) => setClassFilter(e.target.value)}
             className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
           >
-            <option value="">All classes</option>
+            <option value="">All Classes</option>
             {classOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -210,7 +205,7 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
             No rows match the selected filters.
           </div>
         ) : (
-          <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+          <DataTableFrame>
             <StandardTable>
               <StandardTableHeader>
                 <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -300,7 +295,7 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
                 })}
               </tbody>
             </StandardTable>
-          </div>
+          </DataTableFrame>
         )}
 
         {sortedEntries.length > 0 && (

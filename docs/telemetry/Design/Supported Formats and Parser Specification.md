@@ -11,11 +11,20 @@ License: Proprietary, internal to MRE
 
 ---
 
+## Product exclusion: Garmin FIT
+
+MRE does **not** support Garmin hardware or the **Garmin FIT** binary format
+(`.fit`). Do not document, recommend, or imply FIT as a supported import. Any
+FIT-related parser code that remains in the repository is **not** part of the
+product contract until explicitly removed.
+
+---
+
 ## Executive Summary
 
 This specification defines how MRE ingests telemetry from many real-world
-formats (CSV, GPX, NMEA, FIT, UBX, and vendor-specific exports) and normalises
-them into a single **canonical schema** for track path, lap timing, and advanced
+formats (CSV, GPX, NMEA, UBX, and vendor-specific exports) and normalises them
+into a single **canonical schema** for track path, lap timing, and advanced
 analysis. Support is tiered: **Level 1** (import and display), **Level 2**
 (race-ready with quality scoring and downsampling), and **Level 3** (raw IMU,
 time-aligned streams, and either trusted on-board fusion or server-side Kalman
@@ -29,8 +38,9 @@ measured versus derived or estimated. The document specifies canonical units and
 coordinate frames, stream types (GNSS position, IMU, pose, event, derived
 kinematics), parser versioning and compatibility rules, validation and
 error-handling behaviour, and test strategy. Implementation proceeds from
-CSV/GPX/NMEA baseline parsers through FIT and UBX, with server-side fusion and
-Kalman filter pathway defined for devices that do not provide on-board fusion.
+CSV/GPX/NMEA baseline parsers through UBX (and other non-Garmin binary formats
+as added), with server-side fusion and Kalman filter pathway defined for devices
+that do not provide on-board fusion.
 
 ---
 
@@ -124,10 +134,6 @@ not an exhaustive or guaranteed list.
    Some apps export JSON with nested structures, often includes device metadata
    and multiple streams.
 
-5. **FIT (Garmin style)**  
-   Common in sports telemetry. Often contains time series records. Needs careful
-   mapping to GNSS and sensor fields.
-
 ### 5.2 Binary and semi-binary formats
 
 1. **UBX (u-blox)**  
@@ -137,6 +143,9 @@ not an exhaustive or guaranteed list.
 2. **Vendor proprietary binary**  
    Support can be added via device-family parser plugins, typically requires
    reverse engineering or vendor documentation.
+
+**Not in scope:** Garmin FIT (`.fit`) and other Garmin-specific exports — see
+the product exclusion at the top of this document.
 
 ### 5.3 Multi-file artifact sets
 
@@ -284,15 +293,15 @@ server-fused pose.
 - GNSS position stream (or pose stream) with `t` and position (`lat_deg`,
   `lon_deg` or `x_e_m`, `y_n_m` in local ENU).
 - Monotonic timestamps after `time_align`.
-- Velocity (`speed_mps` or `vx_mps`, `vy_mps`) strongly recommended for
-  crossing validation.
+- Velocity (`speed_mps` or `vx_mps`, `vy_mps`) strongly recommended for crossing
+  validation.
 
 **Quality scoring** requires at minimum:
 
 - Timestamps and at least one of: GNSS quality fields (`fix_type`, `sat_count`,
   `hdop`, `h_acc_m`, etc.) or IMU stream presence.
-- If neither GNSS quality nor IMU is available, quality score is capped and
-  must be disclosed as "limited quality data".
+- If neither GNSS quality nor IMU is available, quality score is capped and must
+  be disclosed as "limited quality data".
 
 ## 8. Parser architecture
 
@@ -554,14 +563,12 @@ Minimum:
 - no IMU Disclosures:
 - likely reduced lap and comparison suitability
 
-### 12.4 FIT parser family
+### 12.4 Garmin FIT — not supported
 
-Minimum:
-
-- position and time records if present Optional:
-- speed, cadence-like fields, device-specific sensors Complexity:
-- message types vary, must map record messages to canonical series Warnings:
-- `FIT_POSITION_SPARSE`, if position intervals are large
+Garmin FIT is **not** a supported format for MRE. Do not extend this
+specification with FIT parser requirements, golden fixtures, or user-facing
+guarantees. If legacy code still accepts `.fit` bytes, treat it as technical
+debt to be removed, not as a documented feature.
 
 ### 12.5 UBX parser family
 
@@ -671,7 +678,8 @@ Do not log raw coordinates or raw sensor values.
       reporting
 - [ ] Implement classifier with score thresholding and tie-break rules
 - [ ] Implement CSV, GPX, and NMEA parsers first as baseline
-- [ ] Add FIT and UBX parsers next, with strict safety constraints
+- [ ] Add UBX parsers next, with strict safety constraints (Garmin FIT excluded;
+      see product exclusion above)
 - [ ] Implement capability map and pose provenance types
 - [ ] Implement server-side fusion module interface and Kalman filter pipeline
       hooks

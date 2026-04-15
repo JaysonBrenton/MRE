@@ -68,11 +68,12 @@ telemetry loop.
 
 - **Purpose:** Poll `telemetry_jobs` using `FOR UPDATE SKIP LOCKED`, run
   **`artifact_validate`** (raw file exists; size matches
-  `telemetry_artifacts.byte_size`), then **`parse_raw`** (CSV/GPX/NMEA/JSON/FIT
-  → canonical Parquet under `canonical/…`, `telemetry_datasets` row, session
-  time range from parsed timestamps, session `READY`). On failure,
-  run/session/job are marked failed with a stable error code (for example
-  `CSV_NO_TIME_COLUMN`).
+  `telemetry_artifacts.byte_size`), then **`parse_raw`** (CSV/GPX/NMEA/JSON; UBX
+  when enabled — **not** Garmin FIT; see
+  [`docs/telemetry/README.md`](../README.md) product policy) → canonical Parquet
+  under `canonical/…`, `telemetry_datasets` row, session time range from parsed
+  timestamps, session `READY`). On failure, run/session/job are marked failed
+  with a stable error code (for example `CSV_NO_TIME_COLUMN`).
 - **Shared volume:** `mre-telemetry-uploads` is mounted at **`/data/telemetry`**
   on **`app`**, **`liverc-ingestion-service`**, and **`telemetry-worker`**. The
   Next.js API writes bytes under `TELEMETRY_UPLOAD_ROOT`; `storagePath` on each
@@ -97,8 +98,8 @@ telemetry loop.
 
 #### Smoke test (upload → ready)
 
-After a code or dependency change (for example new `ingestion/requirements.txt`
-packages such as `fitparse`), rebuild images so **`mre-telemetry-worker`** and
+After a code or dependency change (for example updates to
+`ingestion/requirements.txt`), rebuild images so **`mre-telemetry-worker`** and
 **`mre-liverc-ingestion-service`** match:
 
 ```bash
@@ -114,8 +115,8 @@ Quick validation:
    (for example `ingestion/tests/fixtures/telemetry/sample_gnss_10hz.csv` or
    `sample_gnss.json`). Expect redirect to session detail and status **ready**
    with a path preview, or a clear **failure** message if the file is invalid.
-3. **Optional:** `docker exec mre-telemetry-worker pip show fitparse` — package
-   present after rebuild (confirms the image installed current requirements).
+3. **Optional:** `docker exec mre-telemetry-worker pip show <package>` for a
+   dependency you changed — confirms the image installed current requirements.
 
 ### 2.3 Critical invariants
 

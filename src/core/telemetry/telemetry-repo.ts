@@ -34,8 +34,8 @@ export {
   resolveDatasetParquetRelativePath,
 } from "./telemetry-session-list"
 
-export const TELEMETRY_PIPELINE_VERSION = "telemetry-v1-0.8.0"
-export const TELEMETRY_CANONICALISER_VERSION = "csv-gpx-nmea-json-fit-ubx-parquet-v1-0.8.0"
+export const TELEMETRY_PIPELINE_VERSION = "telemetry-v1-0.9.0"
+export const TELEMETRY_CANONICALISER_VERSION = "csv-gpx-nmea-json-ubx-parquet-v1-0.9.0"
 
 export type CreateUploadIntentInput = {
   originalFileName: string

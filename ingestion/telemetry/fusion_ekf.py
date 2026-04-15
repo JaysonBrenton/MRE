@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from ingestion.telemetry.parsers.csv_gnss import GnssSample
-from ingestion.telemetry.parsers.fit_imu import ImuSample
+from ingestion.telemetry.parsers.imu_sample import ImuSample
 
 
 def _ll_to_xy(lat_deg: float, lon_deg: float, lat0: float, lon0: float) -> Tuple[float, float]:

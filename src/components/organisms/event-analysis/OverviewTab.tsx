@@ -55,16 +55,16 @@ import {
 } from "@/core/events/event-analysis-notices"
 import { clientLogger } from "@/lib/client-logger"
 import { getRaceClassNamesForBumpUpChips, getValidClasses } from "@/core/events/class-validator"
-import {
-  normalizeRaceSessionType,
-  sessionTypeFilterChipLabel,
-  sortSessionTypeFilterKeys,
-} from "@/core/events/session-type-filter"
-import { Facebook, MapPin, Calendar, Phone, Globe, Mail } from "lucide-react"
+import { Facebook, MapPin, Phone, Globe, Mail, ExternalLink } from "lucide-react"
 import { formatDateLong } from "@/lib/date-utils"
-import { formatLapTime, formatTimeUTC } from "@/lib/format-session-data"
+import { formatLapTime } from "@/lib/format-session-data"
+import { typography } from "@/lib/typography"
 import Tooltip from "@/components/molecules/Tooltip"
 import { computeDriverStatsFromRaces } from "@/core/events/compute-driver-stats-from-races"
+import {
+  OVERVIEW_GLASS_SURFACE_CLASS,
+  OVERVIEW_GLASS_SURFACE_STYLE,
+} from "@/components/organisms/event-analysis/overview-glass-surface"
 import {
   type EventAnalysisSubTabId,
   getSubTabLabel,
@@ -74,12 +74,12 @@ import { isPlaceholderClass } from "@/lib/format-class-name"
 import {
   UNCLASSIFIED_CLASS_KEY,
   eventHasVehicleDenormalization,
-  getSkillTierOptionsForLiveRcClassName,
   type RaceAnalysisRow,
-  raceMatchesLiveRcClassAndSkill,
 } from "@/core/events/session-analysis-filters"
+import { getSessionAnalysisNavClassOptions } from "@/core/events/entry-list-class-options"
+import { isEventMainSession } from "@/core/events/main-bracket-overall"
 
-/** Derived session start, else LiveRC Time Completed (matches formatTimeUTC / LiveRC wall clock). */
+/** Derived session start, else LiveRC Time Completed (LiveRC wall clock). */
 function raceScheduleInstant(race: {
   startTime: Date | null
   completedAt?: Date | null
@@ -135,48 +135,16 @@ type SessionRaceOptionFields = {
   sectionHeader: string | null
 }
 
-/**
- * Richer Session dropdown labels: start time, index within the filtered list, optional type/section
- * when "All types" is selected, and shorter labels when a single class is selected.
- */
-function formatSessionAnalysisRaceOptionLabel(
+/** LiveRC-style session title only (no time / index), for nav and chart pills. */
+function liveRcCompactRaceLabel(
   race: SessionRaceOptionFields,
-  index: number,
-  totalInScope: number,
-  selectedClass: string | null,
-  sessionTypeFilter: string | null
+  selectedClass: string | null
 ): string {
-  const coreRaw =
+  const core =
     selectedClass !== null && race.className === selectedClass
       ? trimClassPrefixFromRaceLabel(race.raceLabel, selectedClass)
       : race.raceLabel
-
-  let timeStr: string | null = null
-  const schedule = raceScheduleInstant(race)
-  if (schedule != null) {
-    const t = formatTimeUTC(schedule)
-    if (t !== "—") timeStr = t
-  }
-
-  const segments: string[] = []
-
-  if (sessionTypeFilter === null) {
-    const typeKey = normalizeRaceSessionType(race.sessionType)
-    const typeLabel = sessionTypeFilterChipLabel(typeKey)
-    segments.push(typeLabel)
-    const section = race.sectionHeader?.trim()
-    if (section && section.toLowerCase() !== typeLabel.toLowerCase()) {
-      segments.push(section)
-    }
-  }
-
-  if (timeStr) segments.push(timeStr)
-  segments.push(coreRaw)
-  if (totalInScope > 1) {
-    segments.push(`${index + 1} of ${totalInScope}`)
-  }
-
-  return segments.join(" · ")
+  return core.trim()
 }
 
 export interface OverviewTabProps {
@@ -249,6 +217,7 @@ export default function OverviewTab({
   const [eventClassFilter, setEventClassFilter] = useState<string | null>(null)
   const classFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
   const eventSectionClassFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const liveRcSessionNavChipRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useEffect(() => {
     if (isControlledAnalysisSubTab) return
@@ -275,20 +244,10 @@ export default function OverviewTab({
   const driversPerPage = 25
   const MAX_LAP_TREND_DRIVERS = 8
 
-  /** Session Analysis (vehicle): session type + race scope; drives class chip and driver-analysis charts. */
-  const [sessionAnalysisSessionTypeFilter, setSessionAnalysisSessionTypeFilter] = useState<
-    string | null
-  >(null)
   const [sessionAnalysisSessionRaceId, setSessionAnalysisSessionRaceId] = useState<string | null>(
     null
   )
   const [sessionLapTrendChartDriverIds, setSessionLapTrendChartDriverIds] = useState<string[]>([])
-  const [sessionSkillTierFilter, setSessionSkillTierFilter] = useState<string | null>(null)
-  /** Default session type to first option once per event when multiple types exist (vehicle Session Analysis). */
-  const sessionAnalysisSessionTypeInitRef = useRef<{ eventId: string; applied: boolean }>({
-    eventId: "",
-    applied: false,
-  })
 
   const eventClassFilterTabs: EventAnalysisSubTabId[] = [
     "event-results",
@@ -315,53 +274,26 @@ export default function OverviewTab({
     [data.races]
   )
 
-  /** Distinct session types across the event (not scoped by class) so session controls work before class pick. */
-  const sessionAnalysisSessionTypeKeys = useMemo(() => {
-    const keys = new Set<string>()
-    for (const r of sessionAnalysisBaseRaces) {
-      keys.add(normalizeRaceSessionType(r.sessionType))
-    }
-    return sortSessionTypeFilterKeys(Array.from(keys))
-  }, [sessionAnalysisBaseRaces])
-
-  /** When multiple session types exist, user must pick one before Session / per-chart drivers (no "All types"). */
-  const sessionAnalysisRequiresSessionTypeChoice = sessionAnalysisSessionTypeKeys.length > 1
-
-  const sessionSkillTierOptions = useMemo(() => {
-    if (!vehicleDenormActive) return [] as string[]
-    return getSkillTierOptionsForLiveRcClassName(data, selectedClass)
-  }, [data, vehicleDenormActive, selectedClass])
-
   const sessionClassFilteredRaces = useMemo(() => {
     if (!vehicleDenormActive) return []
-    return filteredRaces.filter((race) =>
-      raceMatchesLiveRcClassAndSkill(race, selectedClass, sessionSkillTierFilter)
-    )
-  }, [vehicleDenormActive, filteredRaces, selectedClass, sessionSkillTierFilter])
+    return filteredRaces
+  }, [vehicleDenormActive, filteredRaces])
 
   const sessionAnalysisRaces = useMemo(() => {
     if (vehicleDenormActive) return sessionClassFilteredRaces
     return filteredRaces
   }, [vehicleDenormActive, sessionClassFilteredRaces, filteredRaces])
 
-  const sessionDriverAnalysisSortedRaces = useMemo(() => {
-    const sorted = sortRacesChronologically(sessionAnalysisRaces)
-    if (sessionAnalysisSessionTypeFilter === null) return sorted
-    return sorted.filter(
-      (r) => normalizeRaceSessionType(r.sessionType) === sessionAnalysisSessionTypeFilter
-    )
-  }, [sessionAnalysisRaces, sessionAnalysisSessionTypeFilter])
+  const sessionDriverAnalysisSortedRaces = useMemo(
+    () => sortRacesChronologically(sessionAnalysisRaces),
+    [sessionAnalysisRaces]
+  )
 
-  const sessionDriverAnalysisScopedRaces = useMemo(() => {
-    if (sessionAnalysisRequiresSessionTypeChoice && sessionAnalysisSessionTypeFilter === null) {
-      return []
-    }
-    return sessionDriverAnalysisSortedRaces
-  }, [
-    sessionAnalysisRequiresSessionTypeChoice,
-    sessionAnalysisSessionTypeFilter,
-    sessionDriverAnalysisSortedRaces,
-  ])
+  /** Same class list / order as Entry List class filter (`getEntryListClassOptions`). */
+  const sessionAnalysisNavClassOptions = useMemo(
+    () => getSessionAnalysisNavClassOptions(data),
+    [data]
+  )
 
   const hasBumpUpsClassSelected =
     selectedClass != null && typeof selectedClass === "string" && selectedClass.trim() !== ""
@@ -447,9 +379,13 @@ export default function OverviewTab({
   ])
 
   const eventLevelFilteredRaces = useMemo(() => {
-    if (!eventClassFilter) return data.races
-    return data.races.filter((race) => race.className === eventClassFilter)
-  }, [data.races, eventClassFilter])
+    const scopeMainsOnly = data.isPracticeDay !== true
+    const mainsScoped = scopeMainsOnly
+      ? data.races.filter((r) => isEventMainSession(r))
+      : data.races
+    if (!eventClassFilter) return mainsScoped
+    return mainsScoped.filter((race) => race.className === eventClassFilter)
+  }, [data.races, data.isPracticeDay, eventClassFilter])
 
   // Calculate driver stats from ALL races (not filtered by class)
   // This ensures ChartControls always has the complete driver list for correct class counts
@@ -573,19 +509,18 @@ export default function OverviewTab({
     if (!inSessionAnalysisSection || eventAnalysisTab !== "driver-analysis") {
       return null
     }
-    if (selectedClass === null || sessionDriverAnalysisScopedRaces.length === 0) return null
+    if (sessionDriverAnalysisSortedRaces.length === 0) return null
     if (
       sessionAnalysisSessionRaceId &&
-      sessionDriverAnalysisScopedRaces.some((r) => r.id === sessionAnalysisSessionRaceId)
+      sessionDriverAnalysisSortedRaces.some((r) => r.id === sessionAnalysisSessionRaceId)
     ) {
       return sessionAnalysisSessionRaceId
     }
-    return sessionDriverAnalysisScopedRaces[0].id
+    return sessionDriverAnalysisSortedRaces[0].id
   }, [
     inSessionAnalysisSection,
     eventAnalysisTab,
-    selectedClass,
-    sessionDriverAnalysisScopedRaces,
+    sessionDriverAnalysisSortedRaces,
     sessionAnalysisSessionRaceId,
   ])
 
@@ -790,40 +725,10 @@ export default function OverviewTab({
   useEffect(() => {
     queueMicrotask(() => {
       setLapTrendChartDriverIds([])
-      setSessionAnalysisSessionTypeFilter(null)
       setSessionAnalysisSessionRaceId(null)
       setSessionLapTrendChartDriverIds([])
-      setSessionSkillTierFilter(null)
     })
   }, [data.event.id])
-
-  useEffect(() => {
-    if (sessionAnalysisSessionTypeFilter === null) return
-    if (!sessionAnalysisSessionTypeKeys.includes(sessionAnalysisSessionTypeFilter)) {
-      queueMicrotask(() => setSessionAnalysisSessionTypeFilter(null))
-    }
-  }, [sessionAnalysisSessionTypeFilter, sessionAnalysisSessionTypeKeys])
-
-  /** Default session type when multiple exist so session scope is non-empty (Session Results, etc.). */
-  useEffect(() => {
-    const eventId = data.event.id
-    if (sessionAnalysisSessionTypeInitRef.current.eventId !== eventId) {
-      sessionAnalysisSessionTypeInitRef.current = { eventId, applied: false }
-    }
-    if (!vehicleDenormActive) return
-    if (!sessionAnalysisRequiresSessionTypeChoice) return
-    if (sessionAnalysisSessionTypeKeys.length <= 1) return
-    if (sessionAnalysisSessionTypeInitRef.current.applied) return
-    const first = sessionAnalysisSessionTypeKeys[0]
-    if (first == null) return
-    sessionAnalysisSessionTypeInitRef.current.applied = true
-    queueMicrotask(() => setSessionAnalysisSessionTypeFilter(first))
-  }, [
-    data.event.id,
-    vehicleDenormActive,
-    sessionAnalysisRequiresSessionTypeChoice,
-    sessionAnalysisSessionTypeKeys,
-  ])
 
   // When class scope changes, clear lap-trend driver selection (user re-picks from filtered list)
   useEffect(() => {
@@ -833,12 +738,6 @@ export default function OverviewTab({
   useEffect(() => {
     queueMicrotask(() => setSessionLapTrendChartDriverIds([]))
   }, [sessionDriverAnalysisPickedRaceId, selectedClass])
-
-  useEffect(() => {
-    if (!sessionAnalysisRequiresSessionTypeChoice) return
-    if (sessionAnalysisSessionTypeFilter !== null) return
-    queueMicrotask(() => setSessionAnalysisSessionRaceId(null))
-  }, [sessionAnalysisRequiresSessionTypeChoice, sessionAnalysisSessionTypeFilter])
 
   // Lap-by-lap trend: Event Analysis → Driver Analysis (event-wide) or Session Analysis → Driver Analysis (one session)
   useEffect(() => {
@@ -858,11 +757,7 @@ export default function OverviewTab({
     }
 
     if (isSessionDriverAnalysis) {
-      if (
-        sessionLapTrendChartDriverIds.length === 0 ||
-        selectedClass === null ||
-        !sessionDriverAnalysisPickedRaceId
-      ) {
+      if (sessionLapTrendChartDriverIds.length === 0 || !sessionDriverAnalysisPickedRaceId) {
         queueMicrotask(() => {
           setLapTrendData(null)
           setLapTrendError(null)
@@ -1216,11 +1111,14 @@ export default function OverviewTab({
   )
 
   // Per-chart: toggle one driver in the unified chart's selection (legend click)
-  const handleUnifiedChartDriverToggle = useCallback((driverId: string) => {
-    setUnifiedChartDriverIds((prev) =>
-      prev.includes(driverId) ? prev.filter((id) => id !== driverId) : [...prev, driverId]
-    )
-  }, [])
+  const handleUnifiedChartDriverToggle = useCallback(
+    (driverId: string) => {
+      setUnifiedChartDriverIds((prev) =>
+        prev.includes(driverId) ? prev.filter((id) => id !== driverId) : [...prev, driverId]
+      )
+    },
+    [setUnifiedChartDriverIds]
+  )
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -1318,21 +1216,54 @@ export default function OverviewTab({
     handleClassChange(null)
   }, [handleClassChange])
 
-  /** LiveRC class scope changed: reset skill tier (tiers are per class). */
-  useEffect(() => {
-    if (!vehicleDenormActive) return
-    queueMicrotask(() => setSessionSkillTierFilter(null))
-  }, [selectedClass, vehicleDenormActive])
+  const handleSessionAnalysisSessionChipSelect = useCallback(
+    (race: RaceAnalysisRow) => {
+      setSessionAnalysisSessionRaceId(race.id)
+      const raw = race.className?.trim()
+      if (!raw || isPlaceholderClass(race.className)) {
+        handleClassChange(null)
+      } else {
+        handleClassChange(raw)
+      }
+    },
+    [handleClassChange]
+  )
 
-  /** Keep session race id in sync with class + session type scope (driver-analysis chart headers). */
-  useEffect(() => {
-    if (!vehicleDenormActive) return
-    const sorted = sessionDriverAnalysisSortedRaces
-    queueMicrotask(() => {
-      if (sessionAnalysisRequiresSessionTypeChoice && sessionAnalysisSessionTypeFilter === null) {
+  const handleLiveRcClassNavSelect = useCallback(
+    (className: string) => {
+      const inClass = sessionAnalysisBaseRaces.filter((r) => r.className?.trim() === className)
+      if (inClass.length === 0) {
         setSessionAnalysisSessionRaceId(null)
+        handleClassChange(className)
         return
       }
+      const sorted = sortRacesChronologically(inClass)
+      const mainPick = sorted.find((r) => isEventMainSession(r)) ?? sorted[0]
+      setSessionAnalysisSessionRaceId(mainPick.id)
+      handleClassChange(className)
+    },
+    [sessionAnalysisBaseRaces, handleClassChange]
+  )
+
+  const handleLiveRcSessionNavChipKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+      const n = sessionAnalysisNavClassOptions.length
+      if (n === 0) return
+      if (event.key === "ArrowRight") {
+        event.preventDefault()
+        liveRcSessionNavChipRefs.current[(index + 1) % n]?.focus()
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault()
+        liveRcSessionNavChipRefs.current[(index - 1 + n) % n]?.focus()
+      }
+    },
+    [sessionAnalysisNavClassOptions.length]
+  )
+
+  /** Keep session race id in sync with class scope (Actions, LiveRC nav). */
+  useEffect(() => {
+    const sorted = sessionDriverAnalysisSortedRaces
+    queueMicrotask(() => {
       if (sorted.length === 0) {
         setSessionAnalysisSessionRaceId(null)
         return
@@ -1342,13 +1273,7 @@ export default function OverviewTab({
         return sorted[0].id
       })
     })
-  }, [
-    vehicleDenormActive,
-    sessionDriverAnalysisSortedRaces,
-    sessionAnalysisRequiresSessionTypeChoice,
-    sessionAnalysisSessionTypeFilter,
-    data.event.id,
-  ])
+  }, [sessionDriverAnalysisSortedRaces, data.event.id])
 
   /** Arrow-key navigation for Bump-Up / Driver Progression class chips (`chipCount` excludes All Classes). */
   const handleSessionToolbarClassKeyDown = useCallback(
@@ -1509,91 +1434,54 @@ export default function OverviewTab({
   const bumpUpsSectionContentId = "bump-ups-section-content"
   const driverProgressionSectionContentId = "driver-progression-section-content"
 
-  /** Session Type + Session selects; `scopedRaces` is either all races after type filter or class-scoped races for charts. */
+  /** Session scope for chart headers: compact LiveRC-style race labels. */
   const renderSessionScopeControls = useCallback(
     (idPrefix: string, scopedRaces: RaceAnalysisRow[], ariaSession: string) => {
-      const typeFilter = sessionAnalysisSessionTypeFilter
       const pickedRaceId =
         sessionAnalysisSessionRaceId &&
         scopedRaces.some((r) => r.id === sessionAnalysisSessionRaceId)
           ? sessionAnalysisSessionRaceId
           : (scopedRaces[0]?.id ?? null)
 
+      if (scopedRaces.length === 0) {
+        return (
+          <p className="text-sm text-[var(--token-text-secondary)]">
+            No sessions in the current class scope.
+          </p>
+        )
+      }
+
       return (
-        <div className="flex min-w-0 flex-wrap items-center gap-3 gap-y-2">
-          {sessionAnalysisSessionTypeKeys.length > 1 && (
-            <div className="flex min-w-0 items-center gap-2">
-              <label
-                className="shrink-0 text-sm text-[var(--token-text-secondary)]"
-                htmlFor={`${idPrefix}-session-type`}
+        <div
+          className="flex min-w-0 max-w-full flex-wrap gap-2"
+          role="toolbar"
+          aria-label={ariaSession}
+        >
+          {scopedRaces.map((race) => {
+            const isActive = pickedRaceId === race.id
+            const chipLabel = liveRcCompactRaceLabel(race, selectedClass)
+            return (
+              <button
+                key={race.id}
+                type="button"
+                id={`${idPrefix}-session-${race.id}`}
+                title={chipLabel}
+                className={`inline-flex max-w-[min(100%,18rem)] items-center rounded-full border px-3 py-1 text-xs font-medium text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                  isActive
+                    ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+                    : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+                }`}
+                onClick={() => handleSessionAnalysisSessionChipSelect(race)}
+                aria-pressed={isActive}
               >
-                Session Type
-              </label>
-              <select
-                id={`${idPrefix}-session-type`}
-                value={typeFilter ?? ""}
-                onChange={(e) =>
-                  setSessionAnalysisSessionTypeFilter(e.target.value ? e.target.value : null)
-                }
-                className="min-w-0 max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
-                aria-label="Choose session type (required before session and driver selection)"
-                required
-              >
-                <option value="" disabled>
-                  Select session type…
-                </option>
-                {sessionAnalysisSessionTypeKeys.map((typeKey) => (
-                  <option key={typeKey} value={typeKey}>
-                    {sessionTypeFilterChipLabel(typeKey)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="flex min-w-0 items-center gap-2">
-            <label
-              className="shrink-0 text-sm text-[var(--token-text-secondary)]"
-              htmlFor={`${idPrefix}-session-race`}
-            >
-              Session
-            </label>
-            <select
-              id={`${idPrefix}-session-race`}
-              value={pickedRaceId ?? ""}
-              onChange={(e) => setSessionAnalysisSessionRaceId(e.target.value || null)}
-              disabled={sessionAnalysisRequiresSessionTypeChoice && typeFilter === null}
-              className="min-w-0 max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label={ariaSession}
-            >
-              {sessionAnalysisRequiresSessionTypeChoice && typeFilter === null ? (
-                <option value="">Select session type first</option>
-              ) : scopedRaces.length === 0 ? (
-                <option value="">No sessions for this type</option>
-              ) : (
-                scopedRaces.map((race, index) => (
-                  <option key={race.id} value={race.id}>
-                    {formatSessionAnalysisRaceOptionLabel(
-                      race,
-                      index,
-                      scopedRaces.length,
-                      selectedClass,
-                      typeFilter
-                    )}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
+                <span className="min-w-0 truncate">{chipLabel}</span>
+              </button>
+            )
+          })}
         </div>
       )
     },
-    [
-      sessionAnalysisSessionTypeKeys,
-      sessionAnalysisSessionTypeFilter,
-      sessionAnalysisSessionRaceId,
-      sessionAnalysisRequiresSessionTypeChoice,
-      selectedClass,
-    ]
+    [sessionAnalysisSessionRaceId, selectedClass, handleSessionAnalysisSessionChipSelect]
   )
 
   const showOtherSections =
@@ -1698,37 +1586,36 @@ export default function OverviewTab({
             className="space-y-3"
           >
             <div
-              className="flex min-w-0 flex-col gap-4 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 px-4 py-4 shadow-sm transition-colors hover:border-[var(--token-accent-soft-border)] hover:bg-[var(--token-surface-elevated)]/80"
-              style={{
-                backgroundColor: "var(--glass-bg)",
-                backdropFilter: "var(--glass-blur)",
-                borderRadius: 16,
-                border: "1px solid var(--glass-border)",
-                boxShadow: "var(--glass-shadow)",
-              }}
+              className={`flex min-w-0 flex-col gap-4 px-4 py-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+              style={OVERVIEW_GLASS_SURFACE_STYLE}
             >
               <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="mt-1 flex items-center gap-3">
                     <div className="min-w-0 max-w-full">
                       {data.event.eventUrl ? (
-                        <Tooltip text="Click to view this event on LiveRC.com" position="top">
-                          <a
-                            href={data.event.eventUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex min-w-0 max-w-full items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)] decoration-[var(--token-accent)]/50 underline-offset-4 transition-colors hover:text-[var(--token-accent)] hover:underline hover:decoration-[var(--token-accent)]"
-                            aria-label="View event on LiveRC (opens in new tab)"
-                          >
+                        <div className="flex min-w-0 max-w-full flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                          <h2 className={`flex min-w-0 items-center gap-1.5 ${typography.h5}`}>
                             <MapPin
                               className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
                               aria-hidden
                             />
                             <span className="truncate">{data.event.trackName}</span>
-                          </a>
-                        </Tooltip>
+                          </h2>
+                          <Tooltip text="Open this event on LiveRC.com" position="top">
+                            <a
+                              href={data.event.eventUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex shrink-0 items-center justify-center rounded-md p-1 text-[var(--token-accent)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]/35"
+                              aria-label="Open event on LiveRC (opens in new tab)"
+                            >
+                              <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+                            </a>
+                          </Tooltip>
+                        </div>
                       ) : (
-                        <h2 className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-[var(--token-text-primary)]">
+                        <h2 className={`flex min-w-0 items-center gap-1.5 ${typography.h5}`}>
                           <MapPin
                             className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
                             aria-hidden
@@ -1766,49 +1653,37 @@ export default function OverviewTab({
                     <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
                       Races
                     </span>
-                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                      {data.summary.totalRaces}
-                    </span>
+                    <span className={typography.h3}>{data.summary.totalRaces}</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
                       Drivers
                     </span>
-                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                      {data.summary.totalDrivers}
-                    </span>
+                    <span className={typography.h3}>{data.summary.totalDrivers}</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
                       Entries
                     </span>
-                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                      {data.entryList.length}
-                    </span>
+                    <span className={typography.h3}>{data.entryList.length}</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
                       Total Laps
                     </span>
-                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                      {data.summary.totalLaps.toLocaleString()}
-                    </span>
+                    <span className={typography.h3}>{data.summary.totalLaps.toLocaleString()}</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
                       Total Classes
                     </span>
-                    <span className="text-xl font-semibold text-[var(--token-text-primary)]">
-                      {data.raceClasses.size}
-                    </span>
+                    <span className={typography.h3}>{data.raceClasses.size}</span>
                   </div>
                 </div>
               </div>
 
               {/* Collapsible Venue info */}
               {(() => {
-                const dr = data.summary.dateRange
-                const hasDateRange = dr && (dr.earliest || dr.latest)
                 const hasAddress = !!(
                   data.event.address &&
                   typeof data.event.address === "string" &&
@@ -1834,17 +1709,8 @@ export default function OverviewTab({
                   typeof data.event.facebookUrl === "string" &&
                   data.event.facebookUrl.trim()
                 )
-                const hasVenueInfo =
-                  hasDateRange || hasAddress || hasPhone || hasWebsite || hasEmail || hasFacebook
+                const hasVenueInfo = hasAddress || hasPhone || hasWebsite || hasEmail || hasFacebook
                 if (!hasVenueInfo) return null
-
-                const dateRangeStr = (() => {
-                  if (!hasDateRange) return null
-                  const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
-                  const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
-                  if (earliestStr && latestStr && earliestStr === latestStr) return earliestStr
-                  return `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
-                })()
 
                 const venueInfoContentId = "venue-info-content"
                 return (
@@ -1871,15 +1737,6 @@ export default function OverviewTab({
                         id={venueInfoContentId}
                         className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2"
                       >
-                        {dateRangeStr && (
-                          <div className="flex items-start gap-2">
-                            <Calendar
-                              className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                              aria-hidden
-                            />
-                            <span className="text-[var(--token-text-primary)]">{dateRangeStr}</span>
-                          </div>
-                        )}
                         {hasAddress && (
                           <div className="flex items-start gap-2">
                             <MapPin
@@ -2180,11 +2037,8 @@ export default function OverviewTab({
             }
             className="space-y-5"
           >
-            <h2
-              id="event-analysis-subview-heading"
-              className="text-xl font-semibold tracking-tight text-[var(--token-text-primary)]"
-            >
-              {`Event Analysis - ${getSubTabLabel(eventAnalysisTab, "event")}`}
+            <h2 id="event-analysis-subview-heading" className={typography.h4}>
+              {getSubTabLabel(eventAnalysisTab, "event")}
             </h2>
             {!isControlledAnalysisSubTab && !ladderInEventAnalysis && (
               <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-2 shadow-sm">
@@ -2490,7 +2344,7 @@ export default function OverviewTab({
                     <div className="space-y-1.5">
                       <h3
                         id="compare-driver-performance-heading"
-                        className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]"
+                        className={`${typography.h4} tracking-tight`}
                       >
                         Compare driver performance
                       </h3>
@@ -2586,7 +2440,7 @@ export default function OverviewTab({
                     <div className="space-y-1.5">
                       <h3
                         id="driver-analysis-overview-heading"
-                        className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]"
+                        className={`${typography.h4} tracking-tight`}
                       >
                         Lap-by-lap trend
                       </h3>
@@ -2603,10 +2457,7 @@ export default function OverviewTab({
                             className="flex items-center justify-center text-[var(--token-text-secondary)] rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] min-h-[400px]"
                             style={{
                               minWidth: 0,
-                              backgroundColor: "var(--glass-bg)",
-                              backdropFilter: "var(--glass-blur)",
-                              borderRadius: 16,
-                              border: "1px solid var(--glass-border)",
+                              ...OVERVIEW_GLASS_SURFACE_STYLE,
                               boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
                             }}
                           >
@@ -2733,9 +2584,7 @@ export default function OverviewTab({
                 )}
                 {eventAnalysisTab === "event-results" && (
                   <div className="space-y-6">
-                    <MainBracketResultsTable
-                      races={eventClassFilter ? eventLevelFilteredRaces : data.races}
-                    />
+                    <MainBracketResultsTable races={eventLevelFilteredRaces} />
                     <MultiMainOverallCard
                       multiMainResults={data.multiMainResults}
                       activeClassLabel={eventClassFilter}
@@ -2743,14 +2592,10 @@ export default function OverviewTab({
                   </div>
                 )}
                 {eventAnalysisTab === "fastest-laps" && (
-                  <EventTopFastestLapsPerClassTable
-                    races={eventClassFilter ? eventLevelFilteredRaces : data.races}
-                  />
+                  <EventTopFastestLapsPerClassTable races={eventLevelFilteredRaces} />
                 )}
                 {eventAnalysisTab === "fastest-average-laps" && (
-                  <EventTopAverageLapsPerClassTable
-                    races={eventClassFilter ? eventLevelFilteredRaces : data.races}
-                  />
+                  <EventTopAverageLapsPerClassTable races={eventLevelFilteredRaces} />
                 )}
               </>
             )}
@@ -2788,11 +2633,8 @@ export default function OverviewTab({
             aria-labelledby="session-analysis-subview-heading"
             className="space-y-3"
           >
-            <h2
-              id="session-analysis-subview-heading"
-              className="text-xl font-semibold tracking-tight text-[var(--token-text-primary)]"
-            >
-              {`Session Analysis - ${getSubTabLabel(eventAnalysisTab, "session")}`}
+            <h2 id="session-analysis-subview-heading" className={typography.h4}>
+              {getSubTabLabel(eventAnalysisTab, "session")}
             </h2>
             {!isControlledAnalysisSubTab && (
               <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-2 shadow-sm">
@@ -2821,112 +2663,39 @@ export default function OverviewTab({
             )}
             {(eventClassFilterTabs.includes(eventAnalysisTab) ||
               eventAnalysisTab === "driver-analysis") &&
-              validClasses.length > 0 && (
+              sessionAnalysisNavClassOptions.length > 0 && (
                 <div className="mt-2 space-y-2">
                   <div
                     className="-mx-1 overflow-x-hidden"
                     role="toolbar"
-                    aria-label="Filter session analysis by class (charts and driver selection). All Classes shows every class; it is the last control."
+                    aria-label="Class and session buckets — same names and order as Entry List class filter."
                   >
                     <div className="flex flex-wrap gap-2 px-1 py-1">
-                      {validClasses.map((className, index) => {
+                      {sessionAnalysisNavClassOptions.map((className, index) => {
                         const isActive = selectedClass === className
                         return (
                           <button
-                            key={className}
+                            key={`nav-class:${className}`}
                             type="button"
-                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+                            title={className}
+                            className={`inline-flex max-w-[min(100%,18rem)] items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
                               isActive
                                 ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
                                 : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
                             }`}
-                            onClick={() => {
-                              handleSessionClassChipClick(className)
-                            }}
+                            onClick={() => handleLiveRcClassNavSelect(className)}
                             aria-pressed={isActive}
-                            onKeyDown={(event) =>
-                              handleEventClassFilterKeyDown(event, index, classFilterButtonRefs)
-                            }
+                            onKeyDown={(event) => handleLiveRcSessionNavChipKeyDown(event, index)}
                             ref={(el) => {
-                              classFilterButtonRefs.current[index] = el
+                              liveRcSessionNavChipRefs.current[index] = el
                             }}
                           >
-                            <span>{className}</span>
+                            <span className="min-w-0 truncate">{className}</span>
                           </button>
                         )
                       })}
-                      <button
-                        key="__all-classes__"
-                        type="button"
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          selectedClass === null
-                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                        }`}
-                        onClick={() => {
-                          handleSessionClassFilterAllClassesClick()
-                        }}
-                        aria-pressed={selectedClass === null}
-                        onKeyDown={(event) =>
-                          handleEventClassFilterKeyDown(
-                            event,
-                            validClasses.length,
-                            classFilterButtonRefs
-                          )
-                        }
-                        ref={(el) => {
-                          classFilterButtonRefs.current[validClasses.length] = el
-                        }}
-                      >
-                        <span>All Classes</span>
-                      </button>
                     </div>
                   </div>
-                  {vehicleDenormActive &&
-                    selectedClass !== null &&
-                    sessionSkillTierOptions.length > 0 && (
-                      <div
-                        className="-mx-1 overflow-x-hidden"
-                        role="toolbar"
-                        aria-label="Filter session analysis by skill tier"
-                      >
-                        <div className="flex flex-wrap items-center gap-2 px-1 py-1">
-                          <span className="text-xs text-[var(--token-text-muted)]">Tier</span>
-                          <button
-                            type="button"
-                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                              sessionSkillTierFilter === null
-                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                            }`}
-                            onClick={() => setSessionSkillTierFilter(null)}
-                            aria-pressed={sessionSkillTierFilter === null}
-                          >
-                            All
-                          </button>
-                          {sessionSkillTierOptions.map((tier) => {
-                            const isTierActive = sessionSkillTierFilter === tier
-                            return (
-                              <button
-                                key={tier}
-                                type="button"
-                                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                                  isTierActive
-                                    ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                                    : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                                }`}
-                                onClick={() =>
-                                  setSessionSkillTierFilter(isTierActive ? null : tier)
-                                }
-                                aria-pressed={isTierActive}
-                              >
-                                {tier}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
                 </div>
               )}
             {eventAnalysisTab === "driver-analysis" && (
@@ -2944,33 +2713,30 @@ export default function OverviewTab({
                     onSelectAllClick={handleSelectAllClick}
                   />
                 </section>
-                {selectedClass === null ? (
+                {sessionAnalysisNavClassOptions.length === 0 ? (
                   <p className="text-sm text-[var(--token-text-secondary)]">
-                    {vehicleDenormActive
-                      ? "Select a race class using the chips above (or Actions → Select drivers) to compare drivers within that class."
-                      : "Select a class using the chips above or in Actions (Select drivers) to compare drivers within a single session."}
+                    No class or session buckets found for this event.
                   </p>
                 ) : sessionDriverAnalysisSortedRaces.length === 0 ? (
                   <p className="text-sm text-[var(--token-text-secondary)]">
-                    No sessions found for this class.
+                    No sessions in scope for the current class filter. Choose another session above
+                    or adjust class in Actions.
                   </p>
                 ) : (
                   <>
                     <div className="space-y-1.5">
                       <h3
                         id="session-compare-driver-performance-heading"
-                        className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]"
+                        className={`${typography.h4} tracking-tight`}
                       >
                         Compare driver performance (this session)
                       </h3>
                       <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
                         Best lap, average lap, gap, and related metrics for the selected session
-                        only. When LiveRC data is ingested, use the{" "}
-                        <span className="whitespace-nowrap">LiveRC</span> dropdown or the legend
-                        below for Avg Top 5–15, consecutive laps, and std. dev. Class comes from the
-                        chips above or Actions; use{" "}
-                        <span className="whitespace-nowrap">Session</span> in the chart header to
-                        pick the race for this class.
+                        only. Use the legend below for Avg Top 5–15, consecutive laps, and std. dev.
+                        Pick a class or session with the pills above; refine class scope in Actions.
+                        Use the session pills in the chart header to switch session without
+                        scrolling.
                       </p>
                     </div>
                     <div className="space-y-4">
@@ -3042,11 +2808,6 @@ export default function OverviewTab({
                           onDriverToggle={handleUnifiedChartDriverToggle}
                           chartInstanceId={`overview-${data.event.id}-session-unified`}
                           chartTitleOverride=""
-                          chartDriverPickerDisabled={
-                            sessionAnalysisRequiresSessionTypeChoice &&
-                            sessionAnalysisSessionTypeFilter === null
-                          }
-                          chartDriverPickerDisabledTooltip="Select a session type first"
                           selectedClass={selectedClass}
                           allDriversInClassSelected={
                             allSessionRaceDriversSelected && selectAllClickedForCurrentClass
@@ -3061,7 +2822,7 @@ export default function OverviewTab({
                           onChartDriverSelectionChange={setUnifiedChartDriverIds}
                           headerAfterClassSelect={renderSessionScopeControls(
                             "session-driver-analysis-compare",
-                            sessionDriverAnalysisScopedRaces,
+                            sessionDriverAnalysisSortedRaces,
                             "Choose session for compare chart"
                           )}
                         />
@@ -3070,7 +2831,7 @@ export default function OverviewTab({
                     <div className="space-y-1.5">
                       <h3
                         id="session-lap-by-lap-heading"
-                        className="text-lg font-semibold tracking-tight text-[var(--token-text-primary)]"
+                        className={`${typography.h4} tracking-tight`}
                       >
                         Lap-by-lap (this session)
                       </h3>
@@ -3087,10 +2848,7 @@ export default function OverviewTab({
                             className="flex items-center justify-center text-[var(--token-text-secondary)] rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] min-h-[400px]"
                             style={{
                               minWidth: 0,
-                              backgroundColor: "var(--glass-bg)",
-                              backdropFilter: "var(--glass-blur)",
-                              borderRadius: 16,
-                              border: "1px solid var(--glass-border)",
+                              ...OVERVIEW_GLASS_SURFACE_STYLE,
                               boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
                             }}
                           >
@@ -3120,7 +2878,7 @@ export default function OverviewTab({
                                 <>
                                   {renderSessionScopeControls(
                                     "session-lap-trend",
-                                    sessionDriverAnalysisScopedRaces,
+                                    sessionDriverAnalysisSortedRaces,
                                     "Choose session for lap-by-lap chart"
                                   )}
                                   {sessionLapTrendDriverOptions.length > 0 && (
@@ -3133,11 +2891,6 @@ export default function OverviewTab({
                                         )
                                       }
                                       label="Select Drivers"
-                                      disabled={
-                                        sessionAnalysisRequiresSessionTypeChoice &&
-                                        sessionAnalysisSessionTypeFilter === null
-                                      }
-                                      disabledTooltip="Select a session type first"
                                     />
                                   )}
                                 </>

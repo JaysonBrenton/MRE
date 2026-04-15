@@ -13,10 +13,11 @@ import asyncio
 import math
 import os
 import re
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, date
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional, Set
 from uuid import UUID
 
 from ingestion.common.logging import get_logger
@@ -155,6 +156,115 @@ class IngestionPipeline:
         # Update activity time directly (thread-safe for our use case)
         # The activity_lock in monitor_activity() ensures safe concurrent access
         self._last_activity_time = time.time()
+
+    def _release_event_lock_safely(self, repo: Repository, event_id: UUID) -> None:
+        """
+        Release event-scoped advisory lock with recovery when transaction state is aborted.
+
+        Advisory locks are connection-scoped. If unlock is attempted while the session is in
+        an aborted transaction, Postgres rejects the command and the lock can remain attached
+        to the pooled connection. We recover by rollback + retry, then invalidate the
+        connection as a final safety valve to force backend disconnect (which drops locks).
+        """
+        pending_exception = sys.exc_info()[0] is not None
+        try:
+            repo.release_event_lock(event_id)
+            return
+        except Exception as exc:
+            logger.error(
+                "lock_release_failed",
+                event_id=str(event_id),
+                error=str(exc),
+                exc_info=True,
+            )
+
+        try:
+            repo.session.rollback()
+        except Exception as rollback_exc:
+            logger.error(
+                "lock_release_rollback_failed",
+                event_id=str(event_id),
+                error=str(rollback_exc),
+                exc_info=True,
+            )
+
+        try:
+            repo.release_event_lock(event_id)
+            logger.warning("lock_release_recovered_after_rollback", event_id=str(event_id))
+            return
+        except Exception as retry_exc:
+            logger.critical(
+                "lock_release_retry_failed_connection_invalidated",
+                event_id=str(event_id),
+                error=str(retry_exc),
+                exc_info=True,
+            )
+            try:
+                repo.session.invalidate()
+            except Exception as invalidate_exc:
+                logger.critical(
+                    "lock_release_invalidate_failed",
+                    event_id=str(event_id),
+                    error=str(invalidate_exc),
+                    exc_info=True,
+                )
+
+            # Avoid masking the original ingestion exception during unwind.
+            if not pending_exception:
+                raise
+
+    def _release_source_event_lock_safely(self, repo: Repository, source_event_id: str) -> None:
+        """
+        Release source-event advisory lock with same recovery semantics as event lock release.
+        """
+        pending_exception = sys.exc_info()[0] is not None
+        try:
+            repo.release_source_event_lock(source_event_id)
+            return
+        except Exception as exc:
+            logger.error(
+                "source_lock_release_failed",
+                source_event_id=source_event_id,
+                error=str(exc),
+                exc_info=True,
+            )
+
+        try:
+            repo.session.rollback()
+        except Exception as rollback_exc:
+            logger.error(
+                "source_lock_release_rollback_failed",
+                source_event_id=source_event_id,
+                error=str(rollback_exc),
+                exc_info=True,
+            )
+
+        try:
+            repo.release_source_event_lock(source_event_id)
+            logger.warning(
+                "source_lock_release_recovered_after_rollback",
+                source_event_id=source_event_id,
+            )
+            return
+        except Exception as retry_exc:
+            logger.critical(
+                "source_lock_release_retry_failed_connection_invalidated",
+                source_event_id=source_event_id,
+                error=str(retry_exc),
+                exc_info=True,
+            )
+            try:
+                repo.session.invalidate()
+            except Exception as invalidate_exc:
+                logger.critical(
+                    "source_lock_release_invalidate_failed",
+                    source_event_id=source_event_id,
+                    error=str(invalidate_exc),
+                    exc_info=True,
+                )
+
+            if not pending_exception:
+                raise
 
     async def _run_with_inactivity_timeout(
         self,
@@ -332,7 +442,7 @@ class IngestionPipeline:
                 return UUID(event.id)
             finally:
                 if lock_held:
-                    repo.release_source_event_lock(source_event_id)
+                    self._release_source_event_lock_safely(repo, source_event_id)
     
     async def _fetch_race_page_with_validation(
         self,
@@ -903,6 +1013,7 @@ class IngestionPipeline:
                     "consistency": normalized_result["consistency"],
                     "qualifying_position": normalized_result.get("qualifying_position"),
                     "seconds_behind": normalized_result.get("seconds_behind"),
+                    "behind_display": normalized_result.get("behind_display"),
                     "raw_fields_json": normalized_result.get("raw_fields_json"),
                     "_source_race_id": normalized_race["source_race_id"],  # Temporary for mapping
                     "_source_driver_id": normalized_result["source_driver_id"],  # Temporary for mapping
@@ -1343,6 +1454,19 @@ class IngestionPipeline:
 
         return (qual_ingested, round_ingested)
 
+    def _sync_race_vehicle_classes(
+        self,
+        repo: Repository,
+        event_id: UUID,
+        registration_class_names: Optional[Set[str]] = None,
+    ) -> None:
+        """Ensure EventRaceClass exists for every race.class_name, then denormalize vehicle fields."""
+        repo.ensure_event_race_classes_for_distinct_race_class_names(
+            event_id,
+            registration_class_names=registration_class_names,
+        )
+        repo.apply_race_vehicle_class_normalization(event_id)
+
     def _process_entry_list(
         self,
         entry_list: ConnectorEntryList,
@@ -1371,6 +1495,16 @@ class IngestionPipeline:
         drivers_created = 0
         drivers_updated = 0
         entries_created = 0
+
+        allowed_class_names = set(entry_list.entries_by_class.keys())
+        if allowed_class_names:
+            removed = repo.delete_event_entries_not_in_class_names(event_id, allowed_class_names)
+            if removed:
+                logger.info(
+                    "event_entries_removed_stale_classes",
+                    event_id=str(event_id),
+                    removed_count=removed,
+                )
         
         # Generate a temporary source_driver_id for entry list drivers
         # We'll use a hash of the driver name + class as a temporary ID
@@ -1421,6 +1555,7 @@ class IngestionPipeline:
                 class_name=class_name,
                 vehicle_type=inferred_vehicle_type if inferred_vehicle_type != "Unknown" else None,
                 vehicle_type_needs_review=True,
+                from_entry_list=True,
             )
             
             # Update all EventEntry records with this className to reference the EventRaceClass
@@ -1724,15 +1859,7 @@ class IngestionPipeline:
                 raise
             finally:
                 if lock_held:
-                    try:
-                        repo.release_event_lock(event_context.event_id)
-                    except Exception as exc:
-                        logger.error(
-                            "lock_release_failed",
-                            event_id=str(event_context.event_id),
-                            error=str(exc),
-                            exc_info=True,
-                        )
+                    self._release_event_lock_safely(repo, event_context.event_id)
 
     async def _persist_event_data(
         self,
@@ -1780,7 +1907,11 @@ class IngestionPipeline:
                 and not new_source_race_ids
             ):
                 self._set_stage("vehicle_class_normalization", event_id)
-                repo.apply_race_vehicle_class_normalization(event_id)
+                self._sync_race_vehicle_classes(
+                    repo,
+                    event_id,
+                    set(entry_list.entries_by_class.keys()),
+                )
                 repo.session.commit()
                 logger.info("ingestion_already_complete", event_id=str(event_id))
                 ingestion_timer.finish("already_complete")
@@ -1900,7 +2031,11 @@ class IngestionPipeline:
             repo.session.commit()
 
             self._set_stage("vehicle_class_normalization", event_id)
-            repo.apply_race_vehicle_class_normalization(event_id)
+            self._sync_race_vehicle_classes(
+                repo,
+                event_id,
+                set(entry_list.entries_by_class.keys()),
+            )
             repo.session.commit()
 
             event.ingest_depth = IngestDepth(depth)
@@ -2263,6 +2398,7 @@ class IngestionPipeline:
                                 "consistency": None,
                                 "qualifying_position": None,
                                 "seconds_behind": None,
+                                "behind_display": None,
                                 "raw_fields_json": None,
                             })
                         
@@ -2276,6 +2412,7 @@ class IngestionPipeline:
                                 class_name,
                                 vehicle_type=None,
                                 vehicle_type_needs_review=True,
+                                from_entry_list=False,
                             )
 
                         repo.apply_race_vehicle_class_normalization(event_id_uuid)
@@ -2358,6 +2495,7 @@ class IngestionPipeline:
                             "consistency": detail.consistency,
                             "qualifying_position": None,
                             "seconds_behind": None,
+                            "behind_display": None,
                             "raw_fields_json": raw_fields_json,
                         }])
                         for lap in detail.laps:
@@ -2440,4 +2578,4 @@ class IngestionPipeline:
             
             finally:
                 # Release advisory lock
-                repo.release_source_event_lock(source_event_id)
+                self._release_source_event_lock_safely(repo, source_event_id)

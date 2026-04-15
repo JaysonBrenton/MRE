@@ -16,6 +16,7 @@
  */
 
 import type { EventAnalysisData } from "./get-event-analysis-data"
+import type { LiveRcRaceResultStats } from "@/core/events/live-rc-race-result-stats"
 import { mergeLcqSessionsForClass } from "./lcq-bump-up-merge"
 
 export interface SessionData {
@@ -50,6 +51,10 @@ export interface SessionData {
     fastLapTime: number | null
     avgLapTime: number | null
     consistency: number | null
+    qualifyingPosition: number | null
+    secondsBehind: number | null
+    behindDisplay?: string | null
+    liveRcStats: LiveRcRaceResultStats | null
   }>
 }
 
@@ -283,6 +288,10 @@ function calculateSessionMetrics(
         fastLapTime: result.fastLapTime,
         avgLapTime: result.avgLapTime,
         consistency: result.consistency,
+        qualifyingPosition: result.qualifyingPosition ?? null,
+        secondsBehind: result.secondsBehind ?? null,
+        behindDisplay: result.behindDisplay ?? null,
+        liveRcStats: result.liveRcStats ?? null,
       }
 
       return resultObj

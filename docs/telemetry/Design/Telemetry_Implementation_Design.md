@@ -54,11 +54,11 @@ to the authoritative sources below.
 
 ### 1.5 Implementation Phase Overview
 
-| Phase         | Scope                              | Key Deliverables                                                                                                                                                               |
-| ------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **MVP**       | Minimal path to import and display | Postgres metadata, CSV/GPX parsers, canonical Parquet write, basic session list                                                                                                |
-| **v1**        | Race-ready with fusion             | All text parsers (CSV, GPX, NMEA, JSON, FIT), server-side GNSS+IMU fusion (Kalman), auto SFL lap detection, ClickHouse materialisation, full quality scoring with reason codes |
-| **v2 / Full** | Advanced capabilities              | UBX/binary parsers, track catalogue SFL, user-defined SFL, extended fusion modes, mag gating                                                                                   |
+| Phase         | Scope                              | Key Deliverables                                                                                                                                                                                                                                                           |
+| ------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MVP**       | Minimal path to import and display | Postgres metadata, CSV/GPX parsers, canonical Parquet write, basic session list                                                                                                                                                                                            |
+| **v1**        | Race-ready with fusion             | Text parsers (CSV, GPX, NMEA, JSON; **not** Garmin FIT — see [Supported Formats](Supported%20Formats%20and%20Parser%20Specification.md)), server-side GNSS+IMU fusion (Kalman), auto SFL lap detection, ClickHouse materialisation, full quality scoring with reason codes |
+| **v2 / Full** | Advanced capabilities              | UBX/binary parsers, track catalogue SFL, user-defined SFL, extended fusion modes, mag gating                                                                                                                                                                               |
 
 ### 1.6 Key Dependencies and Decisions
 
@@ -401,14 +401,14 @@ Reference: [Supported Formats §7](Supported%20Formats%20and%20Parser%20Specific
 
 ### 4.1 Input Format Matrix
 
-| Format  | v1 Support      | Level 1 | Level 2 | Level 3 | Typical Rate | Quality Fields   |
-| ------- | --------------- | ------- | ------- | ------- | ------------ | ---------------- |
-| CSV/TSV | Yes             | Yes     | Yes     | Yes     | 1–200 Hz     | Optional         |
-| GPX     | Yes             | Yes     | Yes     | Limited | Variable     | Extensions       |
-| NMEA    | Yes             | Yes     | Yes     | No      | 1–5 Hz       | GGA fix, sats    |
-| JSON    | Yes             | Yes     | Yes     | Yes     | Varies       | Device-dependent |
-| FIT     | Yes (text-like) | Yes     | Yes     | Yes     | Varies       | Record-dependent |
-| UBX     | v2              | —       | —       | —       | 1–25 Hz      | Rich             |
+| Format     | v1 Support                         | Level 1 | Level 2 | Level 3 | Typical Rate | Quality Fields   |
+| ---------- | ---------------------------------- | ------- | ------- | ------- | ------------ | ---------------- |
+| CSV/TSV    | Yes                                | Yes     | Yes     | Yes     | 1–200 Hz     | Optional         |
+| GPX        | Yes                                | Yes     | Yes     | Limited | Variable     | Extensions       |
+| NMEA       | Yes                                | Yes     | Yes     | No      | 1–5 Hz       | GGA fix, sats    |
+| JSON       | Yes                                | Yes     | Yes     | Yes     | Varies       | Device-dependent |
+| Garmin FIT | **Not supported** (product policy) | —       | —       | —       | —            | —                |
+| UBX        | v2                                 | —       | —       | —       | 1–25 Hz      | Rich             |
 
 **Support levels:** Level 1 = import and display; Level 2 = race-ready (quality
 scoring, lap timing); Level 3 = fusion (raw IMU, time alignment).
@@ -421,7 +421,6 @@ scoring, lap timing); Level 3 = fusion (raw IMU, time alignment).
 | GPX      | trkpt lat/lon, ele, time, extensions                    | Variable    | WGS84                   | Speed often in extensions      |
 | NMEA     | GGA (lat, lon, fix, sats), RMC (course, speed)          | 1–5 Hz      | WGS84                   | Fix type, sat count in GGA     |
 | JSON     | Nested; position, velocity, sensors per device          | Varies      | Device-dependent        | Schema varies by vendor        |
-| FIT      | record messages (position, speed, timestamp)            | Varies      | WGS84                   | Message types vary             |
 | UBX (v2) | NAV-PVT; RXM-RAWX optional                              | 1–25 Hz     | WGS84                   | Binary; rich DOP, accuracy     |
 
 **Parser capability detection:** From parsed streams, infer `has_gnss_position`,
@@ -879,10 +878,11 @@ detection (v1), (7) ClickHouse materialisation (v1).
 
 ### 9.3 Phase v1
 
-1. All text parsers: CSV, GPX, NMEA, JSON, FIT — **NMEA 0183 (Phase 3a)** and
-   **JSON + FIT GNSS (Phase 3b)** shipped in
+1. Text parsers: CSV, GPX, NMEA, JSON — **NMEA 0183 (Phase 3a)** and **JSON GNSS
+   (Phase 3b)** shipped in
    [`telemetry-implementation-plan.md`](../../implimentation_plans/telemetry-implementation-plan.md);
-   broader v1 items below remain
+   **Garmin FIT is not a supported format** (see Supported Formats); broader v1
+   items below remain
 2. Full canonical stream set (GNSS, accel, gyro, mag as present)
 3. Time alignment, unit normalisation
 4. Downsample pyramid (L0, L1, L2)
@@ -935,11 +935,12 @@ API, then pipeline and parsers.
 
 #### Phase v1
 
-- [x] All text parsers: CSV, GPX (**MVP**), **NMEA 0183** (**Phase 3a**),
-      **JSON + FIT GNSS** (**Phase 3b** → canonical GNSS Parquet)
+- [x] Text parsers: CSV, GPX (**MVP**), **NMEA 0183** (**Phase 3a**), **JSON
+      GNSS** (**Phase 3b** → canonical GNSS Parquet); **Garmin FIT excluded**
+      from product scope (see Supported Formats)
 - [x] Time alignment (`time_align_gnss`); unit normalisation per MVP parsers
-- [x] Canonical streams as present (GNSS; IMU accel/gyro/mag from FIT when
-      logged)
+- [x] Canonical streams as present (GNSS; IMU only where provided by supported
+      formats — **not** via Garmin FIT)
 - [x] Downsample GNSS variants + API `stride` / `ds_rate` hints (not full
       L0/L1/L2 product naming everywhere)
 - [x] Server-side GNSS+IMU fusion (EKF) for 6-axis+; optional mag blend when

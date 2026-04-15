@@ -25,7 +25,6 @@ from ingestion.telemetry.fusion_ekf import (
 )
 from ingestion.telemetry.lap_line import detect_laps, version_for_method
 from ingestion.telemetry.parsers.csv_gnss import GnssSample
-from ingestion.telemetry.parsers.fit_imu import parse_fit_imu
 from ingestion.telemetry.quality_v1 import compute_quality_summary
 from ingestion.telemetry.segments_corners import detect_segments_corners
 from ingestion.telemetry.storage_paths import estimate_hz, resolve_artifact_path
@@ -64,7 +63,6 @@ def run_v1_postprocess(
     gnss_dataset_id: str,
     rel_gnss_parquet: str,
     samples: List[GnssSample],
-    raw_bytes: bytes,
     format_detected: str,
     parser_meta: Dict[str, Any],
 ) -> Tuple[Dict[str, Any], List[str], str, str]:
@@ -93,11 +91,6 @@ def run_v1_postprocess(
 
     imu_samples: List[Any] = []
     imu_meta: Dict[str, Any] = {}
-    if format_detected == "fit_gnss":
-        try:
-            imu_samples, imu_meta = parse_fit_imu(raw_bytes)
-        except Exception:  # noqa: BLE001
-            imu_samples, imu_meta = [], {}
 
     fusion_ver = FUSION_VERSION_GNSS
     pose_source = "gnss_only"

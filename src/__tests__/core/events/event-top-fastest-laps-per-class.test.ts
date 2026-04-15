@@ -30,6 +30,8 @@ function result(
     fastLapLapNumber: lapNum,
     avgLapTime: null,
     consistency: null,
+    qualifyingPosition: null,
+    secondsBehind: null,
     liveRcStats: null,
   }
 }

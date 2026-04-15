@@ -22,6 +22,7 @@ import { suggestCarTaxonomyLeaves } from "@/core/car-taxonomy/suggestions"
 import { useAppDispatch } from "@/store/hooks"
 import { fetchEventAnalysisData } from "@/store/slices/dashboardSlice"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
+import { typography } from "@/lib/typography"
 import {
   modalFilterSelectClass,
   modalTableBodyCell,
@@ -565,10 +566,7 @@ export default function CarTaxonomyModal({
         {/* Brief orientation — link to full guide */}
         <section aria-labelledby="car-taxonomy-intro-heading" className="space-y-1.5">
           <div className="flex items-center gap-1.5">
-            <h3
-              id="car-taxonomy-intro-heading"
-              className="text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]"
-            >
+            <h3 id="car-taxonomy-intro-heading" className={typography.tableHeaderMuted}>
               Why do this
             </h3>
             <Link
@@ -597,10 +595,7 @@ export default function CarTaxonomyModal({
           aria-labelledby="car-taxonomy-event-classes-heading"
           className="space-y-2 border-t border-[var(--token-border-subtle)] pt-4"
         >
-          <h3
-            id="car-taxonomy-event-classes-heading"
-            className="text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]"
-          >
+          <h3 id="car-taxonomy-event-classes-heading" className={typography.tableHeaderMuted}>
             Event classes in this event
           </h3>
 
@@ -905,9 +900,7 @@ export default function CarTaxonomyModal({
 
           {otherRulesForThisEvent.length > 0 && !loading && racesLoaded && (
             <div className="space-y-2 border-t border-[var(--token-border-subtle)] pt-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]">
-                Other rules matching this event
-              </h4>
+              <h4 className={typography.tableHeaderMuted}>Other rules matching this event</h4>
               <p className="text-xs text-[var(--token-text-secondary)]">
                 These rules are not class-name mappings for the rows above (for example race label
                 or session matches). Remove only if you intend to change how this event is

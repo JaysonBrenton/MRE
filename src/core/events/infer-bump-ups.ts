@@ -98,6 +98,7 @@ export function isSessionMainForBumpUps(session: SessionData): boolean {
     sessionType: session.sessionType,
     raceLabel: session.raceLabel,
     sectionHeader: session.sectionHeader,
+    className: session.className,
   })
 }
 
@@ -116,6 +117,7 @@ export function raceMightBeBumpUpLadderRace(race: {
     sessionType: race.sessionType,
     raceLabel: race.raceLabel,
     sectionHeader: race.sectionHeader,
+    className: race.className,
   })
 }
 

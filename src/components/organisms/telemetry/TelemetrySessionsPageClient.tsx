@@ -173,7 +173,7 @@ export default function TelemetrySessionsPageClient() {
           My Telemetry
         </h1>
         <p className={`${typography.bodySecondary} mt-2 w-full max-w-none`}>
-          Import GNSS exports (CSV, GPX, NMEA, JSON, or FIT), then review sessions and path previews
+          Import GNSS exports (CSV, GPX, NMEA, JSON, or UBX), then review sessions and path previews
           (desktop).
         </p>
       </header>
@@ -184,14 +184,14 @@ export default function TelemetrySessionsPageClient() {
       >
         <h2 className={`${typography.h3} text-[var(--token-text-primary)]`}>Import</h2>
         <p className={`${typography.bodySecondary} mt-2`}>
-          Supported: CSV, GPX, NMEA 0183, JSON (array or points/samples/records/data), and Garmin
-          FIT. UTF-8 text; one file per import.
+          Supported: CSV, GPX, NMEA 0183, JSON (array or points/samples/records/data), and u-blox
+          UBX. UTF-8 text (except binary UBX); one file per import. Garmin FIT is not supported.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.gpx,.json,.fit,.nmea,text/csv,application/gpx+xml,application/json,application/octet-stream,text/xml,application/xml"
+            accept=".csv,.gpx,.json,.nmea,.ubx,text/csv,application/gpx+xml,application/json,application/octet-stream,text/xml,application/xml"
             className="sr-only"
             aria-hidden
             tabIndex={-1}

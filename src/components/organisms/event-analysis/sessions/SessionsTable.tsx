@@ -27,6 +27,7 @@ import {
   StandardTableRow,
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
+import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
 import StandardButton from "@/components/atoms/StandardButton"
 import type { SessionData } from "@/core/events/get-sessions-data"
 import { formatClassName } from "@/lib/format-class-name"
@@ -278,7 +279,7 @@ export default function SessionsTable({
                 }}
                 className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] shrink-0"
               >
-                <option value="">All classes</option>
+                <option value="">All Classes</option>
                 {availableClasses.map((cls) => (
                   <option key={cls} value={cls}>
                     {cls}
@@ -323,7 +324,7 @@ export default function SessionsTable({
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-[var(--token-border-default)] overflow-hidden bg-[var(--token-surface-elevated)]">
+        <DataTableFrame>
           <StandardTable className={showHybridColumns ? "min-w-[1200px]" : "min-w-[900px]"}>
             <StandardTableHeader>
               <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
@@ -429,7 +430,7 @@ export default function SessionsTable({
               No sessions match your filters
             </div>
           )}
-        </div>
+        </DataTableFrame>
 
         {/* Pagination (only show when not grouped) */}
         {!isGrouped && (
