@@ -81,28 +81,28 @@ function EventOverviewTopQualifiersCards({
         </p>
       ) : null}
 
-      <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-5">
         {cards.map((card) => {
           const isOpen = detailCard?.className === card.className
           return (
             <li key={card.className}>
               <button
                 type="button"
-                className={`flex min-h-0 min-w-0 w-full flex-col gap-3 p-4 text-left transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
+                className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-3 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
                 style={OVERVIEW_GLASS_SURFACE_STYLE}
                 onClick={() => setDetailCard(card)}
                 aria-haspopup="dialog"
                 aria-expanded={isOpen}
                 aria-label={`Open qualifying session list for ${card.driverDisplayName} in ${formatClassName(card.className)}`}
               >
-                <div className="min-w-0">
+                <div className="flex min-w-0 w-full flex-col items-center">
                   <p
-                    className={`text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
+                    className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
                   >
                     {formatClassName(card.className)}
                   </p>
                   <p
-                    className={`mt-1 truncate text-base font-semibold text-[var(--token-text-primary)]`}
+                    className={`mt-1 w-fit max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
                   >
                     {card.driverDisplayName}
                   </p>
