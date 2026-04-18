@@ -19,6 +19,7 @@ import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 import EntryList from "./EntryList"
 import ChartContainer from "./ChartContainer"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
+import { getSessionAnalysisNavClassOptions } from "@/core/events/entry-list-class-options"
 
 export interface DriversTabProps {
   data: EventAnalysisData
@@ -46,6 +47,7 @@ export default function DriversTab({ data }: DriversTabProps) {
             entries={data.entryList}
             raceClasses={data.raceClasses}
             eventId={data.event.id}
+            classFilterOptions={getSessionAnalysisNavClassOptions(data)}
           />
         )}
       </div>

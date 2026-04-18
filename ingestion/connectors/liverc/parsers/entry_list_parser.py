@@ -238,11 +238,16 @@ class EntryListParser:
                         dropped_count=dropped,
                     )
 
-            # Build class_order: nav pill order, then any table classes not in nav (for robustness)
+            # Program bucket order: LiveRC nav pills (registration session types), including tabs with
+            # zero entries, then any parsed table classes missing from nav (robustness).
             class_order: Optional[List[str]] = None
             if class_order_from_nav or entries_by_class:
-                seen = set(class_order_from_nav)
-                order = [c for c in class_order_from_nav if c in entries_by_class]
+                if allowed_nav is not None:
+                    nav_buckets = [c for c in class_order_from_nav if c in allowed_nav]
+                else:
+                    nav_buckets = list(class_order_from_nav)
+                seen = set(nav_buckets)
+                order = list(nav_buckets)
                 for c in entries_by_class:
                     if c not in seen:
                         order.append(c)

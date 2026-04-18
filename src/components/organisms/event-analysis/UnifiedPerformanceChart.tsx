@@ -443,6 +443,40 @@ const TOOLTIP_METRIC_ORDER: MetricType[] = [
   "stdDeviation",
 ]
 
+/** Same validity rules as `availableMetrics` aggregation — per driver row. */
+function driverHasAnyPlottableMetric(d: DriverPerformanceData): boolean {
+  if (d.bestLapTime !== null && d.bestLapTime > 0) return true
+  if (d.averageLapTime !== null && d.averageLapTime > 0) return true
+  if (d.consistency !== null && d.consistency !== undefined && d.consistency > 0) return true
+  if (d.averagePosition !== null && d.averagePosition !== undefined && d.averagePosition > 0) {
+    return true
+  }
+  if (d.gapToFastest !== null && d.gapToFastest !== undefined && isFinite(d.gapToFastest)) {
+    return true
+  }
+  if (d.podiumFinishes !== null && d.podiumFinishes !== undefined && d.podiumFinishes >= 0) {
+    return true
+  }
+  if (d.avgTop5 !== null && d.avgTop5 !== undefined && d.avgTop5 > 0) return true
+  if (d.avgTop10 !== null && d.avgTop10 !== undefined && d.avgTop10 > 0) return true
+  if (d.avgTop15 !== null && d.avgTop15 !== undefined && d.avgTop15 > 0) return true
+  if (d.top2Consecutive !== null && d.top2Consecutive !== undefined && d.top2Consecutive > 0) {
+    return true
+  }
+  if (d.top3Consecutive !== null && d.top3Consecutive !== undefined && d.top3Consecutive > 0) {
+    return true
+  }
+  if (
+    d.stdDeviation !== null &&
+    d.stdDeviation !== undefined &&
+    isFinite(d.stdDeviation) &&
+    d.stdDeviation >= 0
+  ) {
+    return true
+  }
+  return false
+}
+
 function formatUnifiedTooltipMetricValue(metric: MetricType, value: number): string {
   if (metric === "gapToFastest") {
     return formatGapToFastest(value)
@@ -647,28 +681,12 @@ export default function UnifiedPerformanceChart({
     }
   }, [sortBy, availableSortMetrics, effectiveSortBy])
 
-  // Filter data based on visible metrics and validate
+  // Include any driver who has at least one plottable metric (not only the legend-visible set).
+  // Otherwise drivers with e.g. podium/position but missing LiveRC best/avg lap vanish from the
+  // chart while still appearing in the header driver picker (scoped mains / Session filter).
   const validData = useMemo(() => {
-    return data.filter((d) => {
-      // Include driver if at least one visible metric has valid data
-      return Array.from(visibleMetrics).some((metric) => {
-        const key = metricConfig[metric].key
-        const value = d[key]
-        if (value === null || value === undefined || !isFinite(value as number)) {
-          return false
-        }
-        // For gapToFastest and podiumFinishes, 0 is a valid value
-        if (metric === "gapToFastest" || metric === "podiumFinishes") {
-          return (value as number) >= 0
-        }
-        if (metric === "stdDeviation") {
-          return (value as number) >= 0
-        }
-        // For other metrics, require > 0
-        return (value as number) > 0
-      })
-    })
-  }, [data, visibleMetrics])
+    return data.filter((d) => driverHasAnyPlottableMetric(d))
+  }, [data])
 
   // Filter by selected drivers
   const displayData = useMemo(() => {

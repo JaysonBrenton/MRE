@@ -49,6 +49,7 @@ class IngestByEventIdPayload:
     event_id: str
     depth: str
     imported_by_user_id: Optional[str] = None
+    force: bool = False
 
 
 @dataclass
@@ -126,11 +127,17 @@ def enqueue_by_source_id(
 
 
 def enqueue_by_event_id(
-    event_id: str, depth: str = "laps_full", imported_by_user_id: Optional[str] = None
+    event_id: str,
+    depth: str = "laps_full",
+    imported_by_user_id: Optional[str] = None,
+    force: bool = False,
 ) -> str:
     job_id = str(uuid4())
     payload = IngestByEventIdPayload(
-        event_id=event_id, depth=depth, imported_by_user_id=imported_by_user_id
+        event_id=event_id,
+        depth=depth,
+        imported_by_user_id=imported_by_user_id,
+        force=force,
     )
     job = Job(job_id=job_id, job_type=JobType.BY_EVENT_ID, payload=payload)
     _job_store[job_id] = job
@@ -261,6 +268,7 @@ async def _run_job(job: Job) -> None:
             result = await pipeline.ingest_event(
                 event_id=UUID(p.event_id),
                 depth=p.depth,
+                force=p.force,
                 imported_by_user_id=p.imported_by_user_id,
             )
         job.status = JobStatus.COMPLETED

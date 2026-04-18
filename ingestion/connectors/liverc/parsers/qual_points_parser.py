@@ -6,7 +6,7 @@
 # @purpose Extracts driver positions, points, and round breakdown from Qual Points page
 
 import re
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from selectolax.parser import HTMLParser
 
@@ -18,6 +18,55 @@ from ingestion.connectors.liverc.models import (
 from ingestion.ingestion.errors import EventPageFormatError
 
 logger = get_logger(__name__)
+
+
+def _find_qual_points_column_header_row(table) -> tuple:
+    """
+    LiveRC Qual Points tables use either:
+    - Legacy: one thead row with # | Driver | Result | ...
+    - Current: first thead row is class title (often one colspan th); second row is columns.
+
+    Column indices for tbody td must come from the row that actually matches data columns.
+    Returns (list of th nodes, class_name_hint) or ([], "Unknown").
+    """
+    thead = table.css("thead")
+    if not thead:
+        return [], "Unknown"
+
+    class_name = "Unknown"
+    rows = thead[0].css("tr")
+    if not rows:
+        return [], class_name
+
+    # Class label: first row often has span.class_header inside a colspan th
+    first_tr = rows[0]
+    span = first_tr.css_first("span.class_header")
+    if span is not None and span.text().strip():
+        class_name = span.text().strip()
+    else:
+        first_th = first_tr.css_first("th")
+        if first_th is not None:
+            colspan = first_th.attributes.get("colspan", "") or ""
+            try:
+                wide = colspan and int(colspan) > 1
+            except ValueError:
+                wide = False
+            if wide:
+                raw = first_th.text().strip().splitlines()[0].strip()
+                if raw and "tie breaker" not in raw.lower():
+                    class_name = raw
+
+    column_row_ths = []
+    for tr in rows:
+        ths = tr.css("th")
+        if not ths:
+            continue
+        texts = [h.text().strip().lower() for h in ths]
+        if "driver" in texts and "result" in texts and ("#" in texts or "pos" in texts):
+            column_row_ths = ths
+            break
+
+    return column_row_ths, class_name
 
 
 def _parse_round_cell(text: str) -> Optional[Dict[str, Any]]:
@@ -35,6 +84,20 @@ def _parse_round_cell(text: str) -> Optional[Dict[str, Any]]:
         except (ValueError, IndexError):
             pass
     return None
+
+
+def _parse_result_column_to_points(raw: str) -> int:
+    """
+    LiveRC Qual Points "Result" column is either integer championship points,
+    or an aggregate laps/time string (e.g. "11/5:09.946") when standings use total time.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return 0
+    try:
+        return int(text)
+    except ValueError:
+        return 0
 
 
 class QualPointsParser:
@@ -79,14 +142,15 @@ class QualPointsParser:
             # Find all tables - Qual Points page has one table per class
             tables = tree.css("table")
             for table in tables:
-                # Check for Qual Points table structure (has Driver, Result columns)
-                header = table.css("thead tr th") or table.css("tr:first-child th") or table.css("tr th")
-                header_texts = [h.text().strip().lower() for h in header] if header else []
+                header, class_from_thead = _find_qual_points_column_header_row(table)
+                if not header:
+                    continue
+                header_texts = [h.text().strip().lower() for h in header]
                 if "driver" not in header_texts or "result" not in header_texts:
                     continue
 
-                # Find column indices
-                col_idx = {}
+                # Column indices align with tbody td columns (0-based)
+                col_idx: Dict[str, Any] = {}
                 for i, h in enumerate(header):
                     t = h.text().strip().lower()
                     if t == "#" or t == "pos":
@@ -103,21 +167,21 @@ class QualPointsParser:
                 if "position" not in col_idx or "driver" not in col_idx or "result" not in col_idx:
                     continue
 
-                # Get class name from preceding element (e.g. "Buggy Tie Breaker" -> Buggy)
-                class_name = "Unknown"
-                prev = table.prev
-                while prev:
-                    if hasattr(prev, "text"):
-                        prev_text = prev.text()
-                        if prev_text and "tie breaker" in prev_text.lower():
-                            # Extract class: "Buggy Tie Breaker: IFMAR" -> Buggy
-                            match = re.match(r"^([^Tt]+)\s+Tie\s+Breaker", prev_text.strip())
-                            if match:
-                                class_name = match.group(1).strip()
+                class_name = class_from_thead if class_from_thead != "Unknown" else "Unknown"
+                if class_name == "Unknown":
+                    # Legacy: class before table e.g. "Buggy Tie Breaker"
+                    prev = table.prev
+                    while prev:
+                        if hasattr(prev, "text"):
+                            prev_text = prev.text()
+                            if prev_text and "tie breaker" in prev_text.lower():
+                                match = re.match(r"^([^Tt]+)\s+Tie\s+Breaker", prev_text.strip())
+                                if match:
+                                    class_name = match.group(1).strip()
+                                break
+                        prev = getattr(prev, "prev", None) or getattr(prev, "parent", None)
+                        if prev is None:
                             break
-                    prev = getattr(prev, "prev", None) or getattr(prev, "parent", None)
-                    if prev is None:
-                        break
 
                 # Parse data rows
                 rows = table.css("tbody tr") if table.css("tbody tr") else table.css("tr")[1:]
@@ -133,7 +197,7 @@ class QualPointsParser:
                             continue
                         position = int(tds[pos_idx].text().strip())
                         driver_name = tds[driver_idx].text().strip()
-                        points = int(tds[result_idx].text().strip())
+                        points = _parse_result_column_to_points(tds[result_idx].text())
                     except (ValueError, IndexError):
                         continue
                     if not driver_name:

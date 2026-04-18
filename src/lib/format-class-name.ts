@@ -14,7 +14,7 @@ const CLASS_NAME_TYPOS: Record<string, string> = {
 }
 
 /** Class names that are LiveRC scheduling placeholders, not racing classes */
-const PLACEHOLDER_CLASS_NAMES = ["track maintenance", "track maintainance"]
+const PLACEHOLDER_CLASS_NAMES = ["track maintenance", "track maintainance", "track watering"]
 
 /**
  * Returns true if the class name is a known scheduling placeholder (e.g. Track Maintenance).

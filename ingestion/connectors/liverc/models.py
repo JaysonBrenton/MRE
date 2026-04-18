@@ -172,7 +172,10 @@ class ConnectorEntryList(BaseModel):
     )
     class_order: Optional[List[str]] = Field(
         default=None,
-        description="Class names in the order shown on the LiveRC page (nav pills). When set, UI should use this order for class filter.",
+        description=(
+            "LiveRC entry-list program bucket (session type) order from nav pills, including "
+            "buckets with no drivers. When set, UI should use this order for session-type filters."
+        ),
     )
 
 

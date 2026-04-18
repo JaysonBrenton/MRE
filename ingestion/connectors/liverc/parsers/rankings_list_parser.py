@@ -20,6 +20,17 @@ from ingestion.ingestion.errors import EventPageFormatError
 
 logger = get_logger(__name__)
 
+# LiveRC may use view_points or URL-encoded view%5Fpoints in hrefs (underscore as %5F).
+# Substring "view_points" does NOT match "view%5Fpoints" — same pattern as race_list_parser.
+_QUAL_POINTS_LINK_SELECTORS = (
+    'a[href*="view_points"]',
+    'a[href*="view%5Fpoints"]',
+)
+_ROUND_RANKING_LINK_SELECTORS = (
+    'a[href*="view_round_ranking"]',
+    'a[href*="view%5Fround%5Franking"]',
+)
+
 
 def _parse_qual_points_label(label: str) -> Tuple[Optional[int], Optional[int]]:
     """
@@ -65,58 +76,64 @@ class RankingsListParser:
             qual_points: List[ConnectorQualPointsSummary] = []
             round_rankings: List[ConnectorRoundRankingSummary] = []
 
-            # Qual Points: view_points
-            for link in tree.css('a[href*="view_points"]'):
-                href = link.attributes.get("href", "")
-                if not href:
-                    continue
+            seen_qual_hrefs: set[str] = set()
+            # Qual Points: view_points (literal or %5F-encoded underscore)
+            for sel in _QUAL_POINTS_LINK_SELECTORS:
+                for link in tree.css(sel):
+                    href = link.attributes.get("href", "")
+                    if not href or href in seen_qual_hrefs:
+                        continue
+                    seen_qual_hrefs.add(href)
 
-                parsed = urlparse(href)
-                query_params = parse_qs(parsed.query)
-                points_id = query_params.get("id", [None])[0]
-                if not points_id:
-                    continue
+                    parsed = urlparse(href)
+                    query_params = parse_qs(parsed.query)
+                    points_id = query_params.get("id", [None])[0]
+                    if not points_id:
+                        continue
 
-                label = link.text().strip()
-                if not label:
-                    continue
+                    label = link.text().strip()
+                    if not label:
+                        continue
 
-                rounds_completed, total_rounds = _parse_qual_points_label(label)
-                qual_points.append(
-                    ConnectorQualPointsSummary(
-                        source_points_id=str(points_id),
-                        label=label,
-                        rounds_completed=rounds_completed,
-                        total_rounds=total_rounds,
+                    rounds_completed, total_rounds = _parse_qual_points_label(label)
+                    qual_points.append(
+                        ConnectorQualPointsSummary(
+                            source_points_id=str(points_id),
+                            label=label,
+                            rounds_completed=rounds_completed,
+                            total_rounds=total_rounds,
+                        )
                     )
-                )
 
-            # Round Rankings: view_round_ranking
-            for link in tree.css('a[href*="view_round_ranking"]'):
-                href = link.attributes.get("href", "")
-                if not href:
-                    continue
+            seen_rr_hrefs: set[str] = set()
+            # Round Rankings: view_round_ranking (literal or encoded)
+            for sel in _ROUND_RANKING_LINK_SELECTORS:
+                for link in tree.css(sel):
+                    href = link.attributes.get("href", "")
+                    if not href or href in seen_rr_hrefs:
+                        continue
+                    seen_rr_hrefs.add(href)
 
-                parsed = urlparse(href)
-                query_params = parse_qs(parsed.query)
-                round_id = query_params.get("id", [None])[0]
-                if not round_id:
-                    continue
+                    parsed = urlparse(href)
+                    query_params = parse_qs(parsed.query)
+                    round_id = query_params.get("id", [None])[0]
+                    if not round_id:
+                        continue
 
-                # order_type from query param: o=laps_time, o=top_3_consecutive
-                order_type = query_params.get("o", [None])[0]
+                    # order_type from query param: o=laps_time, o=top_3_consecutive
+                    order_type = query_params.get("o", [None])[0]
 
-                label = link.text().strip()
-                if not label:
-                    continue
+                    label = link.text().strip()
+                    if not label:
+                        continue
 
-                round_rankings.append(
-                    ConnectorRoundRankingSummary(
-                        source_round_id=str(round_id),
-                        label=label,
-                        order_type=order_type,
+                    round_rankings.append(
+                        ConnectorRoundRankingSummary(
+                            source_round_id=str(round_id),
+                            label=label,
+                            order_type=order_type,
+                        )
                     )
-                )
 
             logger.debug(
                 "parse_rankings_list_success",

@@ -96,6 +96,7 @@ function transformApiResponseToEventAnalysisData(
     },
     isPracticeDay: apiData.isPracticeDay,
     registrationClassNames: apiData.registrationClassNames,
+    programBucketOrder: apiData.programBucketOrder,
     races: apiData.races.map((race) => ({
       ...race,
       completedAt: race.completedAt ? new Date(race.completedAt) : null,
@@ -112,6 +113,7 @@ function transformApiResponseToEventAnalysisData(
     entryList: apiData.entryList,
     raceClasses: raceClassesMap,
     multiMainResults: apiData.multiMainResults ?? [],
+    qualPointsTopQualifiers: apiData.qualPointsTopQualifiers ?? null,
     summary: {
       totalRaces: apiData.summary.totalRaces,
       totalDrivers: apiData.summary.totalDrivers,
@@ -163,7 +165,9 @@ export default function EventAnalysisSection() {
   const resolvedAnalysisSubTab = useMemo((): EventAnalysisSubTabId => {
     if (
       activeTab === "session-analysis" &&
-      (analysisSubTab === "bump-ups" || analysisSubTab === "driver-progression")
+      (analysisSubTab === "bump-ups" ||
+        analysisSubTab === "driver-progression" ||
+        analysisSubTab === "qualification-results")
     ) {
       return "event-results"
     }
@@ -229,7 +233,9 @@ export default function EventAnalysisSection() {
   const handleTabChange = (tabId: TabId) => {
     if (
       tabId === "session-analysis" &&
-      (analysisSubTab === "bump-ups" || analysisSubTab === "driver-progression")
+      (analysisSubTab === "bump-ups" ||
+        analysisSubTab === "driver-progression" ||
+        analysisSubTab === "qualification-results")
     ) {
       setAnalysisSubTab("event-results")
     }

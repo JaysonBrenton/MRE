@@ -82,6 +82,7 @@ export async function GET(
         },
         isPracticeDay: analysisData.isPracticeDay ?? false,
         registrationClassNames: analysisData.registrationClassNames ?? [],
+        programBucketOrder: analysisData.programBucketOrder ?? [],
         races: analysisData.races.map((race) => ({
           ...race,
           startTime: race.startTime?.toISOString() || null,
@@ -101,6 +102,7 @@ export async function GET(
           },
         },
         multiMainResults: analysisData.multiMainResults ?? [],
+        qualPointsTopQualifiers: analysisData.qualPointsTopQualifiers ?? null,
         userHostTrack: analysisData.userHostTrack ?? null,
       },
       200,

@@ -98,6 +98,7 @@ describe("mergeLcqSessionsForClass", () => {
         totalLaps: 0,
         dateRange: { earliest: null, latest: null },
       },
+      qualPointsTopQualifiers: null,
       userHostTrack: null,
     }
 

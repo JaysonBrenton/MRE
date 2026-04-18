@@ -252,14 +252,14 @@ export default function EventSearchForm({
             {searchMode === "events" && onIngestedEventsOnlyChange && (
               <div>
                 <Tooltip
-                  text="Only show events already in MRE; turn off to discover events from LiveRC."
+                  text="Only show events already imported to MRE; turn off to discover events from LiveRC."
                   position="top"
                 >
                   <label
                     htmlFor="ingested-events-only-trigger"
                     className="block text-sm font-medium text-[var(--token-text-primary)] mb-2"
                   >
-                    Ingested events only
+                    Imported events only
                   </label>
                 </Tooltip>
                 <div className="flex items-center min-h-11">
@@ -270,7 +270,7 @@ export default function EventSearchForm({
                     checked={ingestedEventsOnly}
                     onChange={onIngestedEventsOnlyChange}
                     disabled={isLoading}
-                    aria-label="Search within ingested events only (skip LiveRC discovery)"
+                    aria-label="Search within imported events only (skip LiveRC discovery)"
                   />
                 </div>
               </div>

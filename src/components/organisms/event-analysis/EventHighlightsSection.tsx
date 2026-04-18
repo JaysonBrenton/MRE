@@ -21,6 +21,10 @@ import { buildEventHighlights, formatClosestFinishGap } from "@/core/events/buil
 import { EventHighlightsMixFilteredChart } from "./EventHighlightsMixCharts"
 import { formatLapTime } from "@/lib/format-session-data"
 import { typography } from "@/lib/typography"
+import {
+  OVERVIEW_GLASS_SURFACE_CLASS,
+  OVERVIEW_GLASS_SURFACE_STYLE,
+} from "@/components/organisms/event-analysis/overview-glass-surface"
 
 export interface EventHighlightsSectionProps {
   data: EventAnalysisData
@@ -178,7 +182,10 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
   }
 
   return (
-    <div className="min-w-0 w-full max-w-full shrink-0 basis-full border-t border-[var(--token-border-muted)] pt-3">
+    <div
+      className={`flex min-w-0 flex-col gap-4 px-4 py-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+      style={OVERVIEW_GLASS_SURFACE_STYLE}
+    >
       <button
         type="button"
         className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--token-text-muted)] transition-colors hover:text-[var(--token-text-secondary)]"
@@ -186,7 +193,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
         aria-controls={eventHighlightsContentId}
         onClick={() => setIsOpen((prev) => !prev)}
       >
-        <span>Event highlights</span>
+        <span>Event highlights - OLD</span>
         <span
           className={`shrink-0 transition-transform duration-150 ${isOpen ? "rotate-0" : "-rotate-90"}`}
           aria-hidden
@@ -195,7 +202,7 @@ export default function EventHighlightsSection({ data }: EventHighlightsSectionP
         </span>
       </button>
       {isOpen && (
-        <div id={eventHighlightsContentId} className="mt-3 min-w-0 w-full max-w-full space-y-4">
+        <div id={eventHighlightsContentId} className="min-w-0 w-full max-w-full space-y-4">
           <div className="min-w-0 w-full max-w-full">
             <h4 className={`mb-2 flex items-center gap-2 ${typography.tableHeaderMuted}`}>
               <BarChart3 className="h-3.5 w-3.5 text-[var(--token-chart-series-1)]" aria-hidden />

@@ -7,7 +7,7 @@
  *
  * @description Individual event row/card in the event table
  *
- * @purpose Displays event information with action buttons (Upload, Analyse, Retry).
+ * @purpose Displays event information with action buttons (Import, Analyse, Retry).
  *          Desktop-optimized table row layout.
  *
  * @relatedFiles
@@ -220,7 +220,7 @@ export default function EventRow({
           if (needsImport) {
             return (
               <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
-                Not yet imported — upload to analyse laps.
+                Not yet imported — import to analyse laps.
               </span>
             )
           }
@@ -245,7 +245,7 @@ export default function EventRow({
       <div className="flex items-center justify-center gap-4">
         {/* Action Buttons */}
         <div className="flex gap-2">
-          {/* Upload Button - shown for importable events */}
+          {/* Import Button - shown for importable events */}
           {isImportable && onImport && (
             <button
               type="button"
@@ -253,9 +253,9 @@ export default function EventRow({
               disabled={importButtonDisabled}
               title={importDisabled && !isImporting ? "Finish the current import first" : undefined}
               className="flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
-              aria-label={`Upload ${event.eventName}`}
+              aria-label={`Import ${event.eventName}`}
             >
-              Upload
+              Import
             </button>
           )}
 

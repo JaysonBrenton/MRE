@@ -46,3 +46,21 @@ def test_parse_rankings_list_extracts_round_rankings(parser, event_html):
     assert first.label
     assert "Rankings" in first.label or "ranking" in first.label.lower()
     assert first.order_type == "laps_time"
+
+
+def test_parse_rankings_list_view_points_url_encoded_underscore(parser):
+    """LiveRC uses p=view%5Fpoints in href; substring view_points does not match."""
+    html = """
+    <html><body>
+    <a href="/results/?p=view%5Fpoints&id=7390835">Results (1 of 3)</a>
+    <a href="/results/?p=view%5Fround%5Franking&id=1516678&o=laps%5Ftime">Qualifier Round 1 Rankings</a>
+    </body></html>
+    """
+    url = "https://canberraoffroad.liverc.com/results/?p=view_event&id=499602"
+    qual_points, round_rankings = parser.parse(html, url)
+    assert len(qual_points) == 1
+    assert qual_points[0].source_points_id == "7390835"
+    assert qual_points[0].label == "Results (1 of 3)"
+    assert len(round_rankings) == 1
+    assert round_rankings[0].source_round_id == "1516678"
+    assert round_rankings[0].order_type == "laps_time"

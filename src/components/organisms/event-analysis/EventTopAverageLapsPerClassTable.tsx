@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect, useCallback } from "react"
+import { useMemo, useState, useEffect, useCallback, type ReactNode } from "react"
 import {
   StandardTable,
   StandardTableHeader,
@@ -23,6 +23,8 @@ import DataPanelSurface, {
 
 export interface EventTopAverageLapsPerClassTableProps {
   races: EventAnalysisData["races"]
+  /** Session / Type scope controls (event analysis); shown in panel header before Class. */
+  eventScopeFilters?: ReactNode
 }
 
 interface TableRow {
@@ -61,6 +63,7 @@ function SortIcon({ field, activeField, direction }: SortIconProps) {
 
 export default function EventTopAverageLapsPerClassTable({
   races,
+  eventScopeFilters,
 }: EventTopAverageLapsPerClassTableProps) {
   const headerClassLabel = useMemo(() => {
     const classes = Array.from(
@@ -262,11 +265,9 @@ export default function EventTopAverageLapsPerClassTable({
     <>
       <DataPanelSurface
         title={`Fastest Average Laps Per Class: ${headerClassLabel}`}
-        subtitle={
-          "The table lists the top three distinct event-wide averages per class (ties included). Click a row to see every driver in that class."
-        }
         headerControls={
-          <div className="flex flex-wrap items-center gap-3">
+          <>
+            {eventScopeFilters}
             <div className="flex items-center gap-2">
               <label
                 htmlFor="event-top-avg-class-filter"
@@ -304,7 +305,7 @@ export default function EventTopAverageLapsPerClassTable({
                 className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
               />
             </div>
-          </div>
+          </>
         }
         contentClassName="px-4 py-3"
       >

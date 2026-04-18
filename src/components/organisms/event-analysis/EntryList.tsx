@@ -42,6 +42,11 @@ export interface EntryListProps {
   entries: Entry[]
   raceClasses?: Map<string, { vehicleType: string | null; vehicleTypeNeedsReview: boolean }>
   eventId?: string
+  /**
+   * Program-bucket options for the class filter dropdown. When omitted, options come from `entries`
+   * only. Pass `getSessionAnalysisNavClassOptions(data)` to match Session Analysis pills.
+   */
+  classFilterOptions?: string[]
 }
 
 type SortField = "driverName" | "className" | "transponderNumber" | "carNumber"
@@ -60,7 +65,12 @@ function SortIcon({ field, activeField, direction }: SortIconProps) {
   return <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span>
 }
 
-export default function EntryList({ entries, raceClasses, eventId: _eventId }: EntryListProps) {
+export default function EntryList({
+  entries,
+  raceClasses,
+  eventId: _eventId,
+  classFilterOptions: classFilterOptionsProp,
+}: EntryListProps) {
   const [sortField, setSortField] = useState<SortField>("driverName")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
@@ -68,7 +78,12 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
   const [classFilter, setClassFilter] = useState("")
   const [driverSearch, setDriverSearch] = useState("")
 
-  const classOptions = useMemo(() => getEntryListClassOptions(entries), [entries])
+  const classOptions = useMemo(() => {
+    if (classFilterOptionsProp != null && classFilterOptionsProp.length > 0) {
+      return classFilterOptionsProp
+    }
+    return getEntryListClassOptions(entries)
+  }, [entries, classFilterOptionsProp])
 
   useEffect(() => {
     if (classFilter && !classOptions.includes(classFilter)) {
@@ -157,7 +172,7 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
             htmlFor="entry-list-class-filter"
             className="text-xs font-medium text-[var(--token-text-secondary)]"
           >
-            Class
+            Sessions
           </label>
           <select
             id="entry-list-class-filter"
@@ -165,7 +180,7 @@ export default function EntryList({ entries, raceClasses, eventId: _eventId }: E
             onChange={(e) => setClassFilter(e.target.value)}
             className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
           >
-            <option value="">All Classes</option>
+            <option value="">All Sessions</option>
             {classOptions.map((c) => (
               <option key={c} value={c}>
                 {c}

@@ -109,6 +109,7 @@ export function raceMightBeBumpUpLadderRace(race: {
   raceLabel: string
   sessionType: string | null
   sectionHeader: string | null
+  className?: string | null
 }): boolean {
   const label = race.raceLabel?.trim() ?? ""
   if (labelLooksLikeLcq(label)) return true

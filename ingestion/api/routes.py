@@ -56,6 +56,7 @@ class IngestRequest(BaseModel):
     """Request body for ingestion endpoint."""
     depth: str = "laps_full"
     imported_by_user_id: Optional[str] = None
+    force: bool = False
 
     @field_validator("imported_by_user_id")
     @classmethod
@@ -552,6 +553,7 @@ async def ingest_event(
                 event_id=event_id,
                 depth=request.depth,
                 imported_by_user_id=request.imported_by_user_id,
+                force=request.force,
             )
             return JSONResponse(
                 status_code=202,
@@ -567,6 +569,7 @@ async def ingest_event(
         result = await pipeline.ingest_event(
             event_id=UUID(event_id),
             depth=request.depth,
+            force=request.force,
             imported_by_user_id=request.imported_by_user_id,
         )
 

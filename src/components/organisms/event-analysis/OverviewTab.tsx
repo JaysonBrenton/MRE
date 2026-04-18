@@ -22,6 +22,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import WeatherCard from "./WeatherCard"
 import EventHighlightsSection from "./EventHighlightsSection"
+import EventOverviewTopQualifiers from "./EventOverviewTopQualifiers"
 import EventTopFastestLapsPerClassTable from "./EventTopFastestLapsPerClassTable"
 import EventTopAverageLapsPerClassTable from "./EventTopAverageLapsPerClassTable"
 import EventFastestLapsTable from "./EventFastestLapsTable"
@@ -30,6 +31,7 @@ import ChartControls from "./ChartControls"
 import UnifiedPerformanceChart, { type ChartViewType } from "./UnifiedPerformanceChart"
 import ChartSection from "./ChartSection"
 import ChartDriverPicker from "./ChartDriverPicker"
+import EventAnalysisScopeFilters from "./EventAnalysisScopeFilters"
 import LapByLapTrendChart from "./LapByLapTrendChart"
 import type { DriverPerformanceData } from "./UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
@@ -55,7 +57,7 @@ import {
 } from "@/core/events/event-analysis-notices"
 import { clientLogger } from "@/lib/client-logger"
 import { getRaceClassNamesForBumpUpChips, getValidClasses } from "@/core/events/class-validator"
-import { Facebook, MapPin, Phone, Globe, Mail, ExternalLink } from "lucide-react"
+import { Facebook, MapPin, Phone, Globe, Mail } from "lucide-react"
 import { formatDateLong } from "@/lib/date-utils"
 import { formatLapTime } from "@/lib/format-session-data"
 import { typography } from "@/lib/typography"
@@ -78,6 +80,19 @@ import {
 } from "@/core/events/session-analysis-filters"
 import { getSessionAnalysisNavClassOptions } from "@/core/events/entry-list-class-options"
 import { isEventMainSession } from "@/core/events/main-bracket-overall"
+
+/** Sub-tabs whose tables share Session / Type scope filters (race class + taxonomy). */
+const EVENT_CLASS_FILTER_SUB_TABS: EventAnalysisSubTabId[] = [
+  "event-results",
+  "fastest-laps",
+  "fastest-average-laps",
+]
+
+/** Sub-tabs that show LiveRC program-bucket class nav in Session Analysis (includes driver-analysis). */
+const EVENT_CLASS_SESSION_NAV_TABS: EventAnalysisSubTabId[] = [
+  ...EVENT_CLASS_FILTER_SUB_TABS,
+  "driver-analysis",
+]
 
 /** Derived session start, else LiveRC Time Completed (LiveRC wall clock). */
 function raceScheduleInstant(race: {
@@ -204,6 +219,7 @@ export default function OverviewTab({
   const inSessionAnalysisSection =
     variant === "session-analysis-only" || overviewPrimarySection === "session-analysis"
   const [isVenueInfoOpen, setIsVenueInfoOpen] = useState(true)
+  const [isOverviewEventHighlightsOpen, setIsOverviewEventHighlightsOpen] = useState(true)
   const [isHostTrackOpen, setIsHostTrackOpen] = useState(true)
   const [isEventWeatherDataOpen, setIsEventWeatherDataOpen] = useState(true)
   const isControlledAnalysisSubTab =
@@ -215,14 +231,41 @@ export default function OverviewTab({
     ? onAnalysisSubTabChange!
     : setInternalAnalysisSubTab
   const [eventClassFilter, setEventClassFilter] = useState<string | null>(null)
+  /** Car taxonomy leaf id when user selects a mapping chip (event-scoped: only nodes that appear on this event's races). */
+  const [eventTaxonomyNodeFilter, setEventTaxonomyNodeFilter] = useState<string | null>(null)
+  /** Session/Type scope for Event Analysis → compare chart only (independent of lap-trend + tables). */
+  const [driverCompareEventClassFilter, setDriverCompareEventClassFilter] = useState<string | null>(
+    null
+  )
+  const [driverCompareEventTaxonomyNodeFilter, setDriverCompareEventTaxonomyNodeFilter] = useState<
+    string | null
+  >(null)
+  /** Session/Type scope for Event Analysis → lap-by-lap chart only. */
+  const [driverLapTrendEventClassFilter, setDriverLapTrendEventClassFilter] = useState<
+    string | null
+  >(null)
+  const [driverLapTrendEventTaxonomyNodeFilter, setDriverLapTrendEventTaxonomyNodeFilter] =
+    useState<string | null>(null)
   const classFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const eventSectionClassFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
   const liveRcSessionNavChipRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useEffect(() => {
     if (isControlledAnalysisSubTab) return
     queueMicrotask(() => setInternalAnalysisSubTab("event-results"))
   }, [data.event.id, isControlledAnalysisSubTab])
+
+  useEffect(() => {
+    queueMicrotask(() => setEventTaxonomyNodeFilter(null))
+  }, [data.event.id])
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setDriverCompareEventClassFilter(null)
+      setDriverCompareEventTaxonomyNodeFilter(null)
+      setDriverLapTrendEventClassFilter(null)
+      setDriverLapTrendEventTaxonomyNodeFilter(null)
+    })
+  }, [data.event.id])
 
   const [paginationState, setPaginationState] = useState({
     page: 1,
@@ -249,14 +292,56 @@ export default function OverviewTab({
   )
   const [sessionLapTrendChartDriverIds, setSessionLapTrendChartDriverIds] = useState<string[]>([])
 
-  const eventClassFilterTabs: EventAnalysisSubTabId[] = [
-    "event-results",
-    "fastest-laps",
-    "fastest-average-laps",
-  ]
+  const eventClassFilterTabs = EVENT_CLASS_SESSION_NAV_TABS
 
   // Get race classes from entry list
   const validClasses = useMemo(() => getValidClasses(data), [data])
+
+  /** Distinct user car taxonomy targets that appear on this event (mains scope matches validClasses). */
+  const eventTaxonomyMappingChips = useMemo(() => {
+    const scopeMainsOnly = data.isPracticeDay !== true
+    const candidates = scopeMainsOnly ? data.races.filter((r) => isEventMainSession(r)) : data.races
+    const byNode = new Map<string, string>()
+    for (const r of candidates) {
+      const t = r.userCarTaxonomy
+      if (!t) continue
+      if (!byNode.has(t.taxonomyNodeId)) {
+        byNode.set(t.taxonomyNodeId, t.pathLabel)
+      }
+    }
+    return Array.from(byNode.entries())
+      .map(([taxonomyNodeId, label]) => ({ taxonomyNodeId, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }))
+  }, [data.races, data.isPracticeDay])
+
+  useEffect(() => {
+    if (eventTaxonomyNodeFilter == null) return
+    if (!eventTaxonomyMappingChips.some((c) => c.taxonomyNodeId === eventTaxonomyNodeFilter)) {
+      queueMicrotask(() => setEventTaxonomyNodeFilter(null))
+    }
+  }, [eventTaxonomyNodeFilter, eventTaxonomyMappingChips])
+
+  useEffect(() => {
+    if (driverCompareEventTaxonomyNodeFilter == null) return
+    if (
+      !eventTaxonomyMappingChips.some(
+        (c) => c.taxonomyNodeId === driverCompareEventTaxonomyNodeFilter
+      )
+    ) {
+      queueMicrotask(() => setDriverCompareEventTaxonomyNodeFilter(null))
+    }
+  }, [driverCompareEventTaxonomyNodeFilter, eventTaxonomyMappingChips])
+
+  useEffect(() => {
+    if (driverLapTrendEventTaxonomyNodeFilter == null) return
+    if (
+      !eventTaxonomyMappingChips.some(
+        (c) => c.taxonomyNodeId === driverLapTrendEventTaxonomyNodeFilter
+      )
+    ) {
+      queueMicrotask(() => setDriverLapTrendEventTaxonomyNodeFilter(null))
+    }
+  }, [driverLapTrendEventTaxonomyNodeFilter, eventTaxonomyMappingChips])
 
   // Filter races by selected class (legacy Session Analysis when vehicle denorm is absent)
   const filteredRaces = useMemo(() => {
@@ -289,7 +374,7 @@ export default function OverviewTab({
     [sessionAnalysisRaces]
   )
 
-  /** Same class list / order as Entry List class filter (`getEntryListClassOptions`). */
+  /** Program bucket pills (LiveRC session types); `programBucketOrder` when ingested, else entry list. */
   const sessionAnalysisNavClassOptions = useMemo(
     () => getSessionAnalysisNavClassOptions(data),
     [data]
@@ -383,9 +468,107 @@ export default function OverviewTab({
     const mainsScoped = scopeMainsOnly
       ? data.races.filter((r) => isEventMainSession(r))
       : data.races
+    if (eventTaxonomyNodeFilter != null) {
+      return mainsScoped.filter(
+        (race) => race.userCarTaxonomy?.taxonomyNodeId === eventTaxonomyNodeFilter
+      )
+    }
     if (!eventClassFilter) return mainsScoped
     return mainsScoped.filter((race) => race.className === eventClassFilter)
-  }, [data.races, data.isPracticeDay, eventClassFilter])
+  }, [data.races, data.isPracticeDay, eventClassFilter, eventTaxonomyNodeFilter])
+
+  /** Event Analysis → Driver Analysis: Session/Type/class chip scope (charts use all session types; tables use mains). */
+  const isEventDriverAnalysisContext = useMemo(
+    () =>
+      eventAnalysisTab === "driver-analysis" &&
+      (overviewPrimarySection === "event-analysis" || variant === "event-analysis-only"),
+    [eventAnalysisTab, overviewPrimarySection, variant]
+  )
+
+  /**
+   * Compare chart: Session/Type scope is independent of lap-trend and event tables. When unset, Actions
+   * class applies (same as before for charts). Event tables use {@link eventClassFilter} only.
+   */
+  const driverCompareDriverAnalysisRaces = useMemo(() => {
+    let races = data.races
+    if (driverCompareEventTaxonomyNodeFilter != null) {
+      races = races.filter(
+        (race) => race.userCarTaxonomy?.taxonomyNodeId === driverCompareEventTaxonomyNodeFilter
+      )
+    } else {
+      const effectiveClassScope = driverCompareEventClassFilter ?? selectedClass
+      if (effectiveClassScope) {
+        races = races.filter((race) => race.className === effectiveClassScope)
+      }
+    }
+    return races
+  }, [
+    data.races,
+    driverCompareEventTaxonomyNodeFilter,
+    driverCompareEventClassFilter,
+    selectedClass,
+  ])
+
+  const driverCompareDriverStatsByClass = useMemo(
+    () => computeDriverStatsFromRaces(driverCompareDriverAnalysisRaces),
+    [driverCompareDriverAnalysisRaces]
+  )
+
+  /** Lap-by-lap chart: Session/Type only (no Actions fallback). */
+  const driverLapTrendDriverAnalysisRaces = useMemo(() => {
+    let races = data.races
+    if (driverLapTrendEventTaxonomyNodeFilter != null) {
+      races = races.filter(
+        (race) => race.userCarTaxonomy?.taxonomyNodeId === driverLapTrendEventTaxonomyNodeFilter
+      )
+    } else if (driverLapTrendEventClassFilter) {
+      races = races.filter((race) => race.className === driverLapTrendEventClassFilter)
+    }
+    return races
+  }, [data.races, driverLapTrendEventTaxonomyNodeFilter, driverLapTrendEventClassFilter])
+
+  const driverLapTrendDriverStatsByClass = useMemo(
+    () => computeDriverStatsFromRaces(driverLapTrendDriverAnalysisRaces),
+    [driverLapTrendDriverAnalysisRaces]
+  )
+
+  /** Multi-main card: single class string, or all class names under the active taxonomy chip. */
+  const multiMainEventSectionClassFilter = useMemo(() => {
+    if (eventTaxonomyNodeFilter != null) {
+      const scopeMainsOnly = data.isPracticeDay !== true
+      const mains = scopeMainsOnly ? data.races.filter((r) => isEventMainSession(r)) : data.races
+      const names = new Set<string>()
+      for (const r of mains) {
+        if (r.userCarTaxonomy?.taxonomyNodeId === eventTaxonomyNodeFilter) {
+          const cn = r.className?.trim()
+          if (cn) names.add(cn)
+        }
+      }
+      return Array.from(names)
+    }
+    return eventClassFilter
+  }, [data.races, data.isPracticeDay, eventTaxonomyNodeFilter, eventClassFilter])
+
+  const eventResultsTaxonomyTitle = useMemo(() => {
+    if (eventTaxonomyNodeFilter == null) return null
+    const chip = eventTaxonomyMappingChips.find((c) => c.taxonomyNodeId === eventTaxonomyNodeFilter)
+    return chip?.label ?? null
+  }, [eventTaxonomyNodeFilter, eventTaxonomyMappingChips])
+
+  const driverLapTrendChartTitle = useMemo(() => {
+    if (driverLapTrendEventTaxonomyNodeFilter != null) {
+      const chip = eventTaxonomyMappingChips.find(
+        (c) => c.taxonomyNodeId === driverLapTrendEventTaxonomyNodeFilter
+      )
+      return chip?.label ?? "Type"
+    }
+    if (driverLapTrendEventClassFilter) return driverLapTrendEventClassFilter
+    return "All classes"
+  }, [
+    driverLapTrendEventTaxonomyNodeFilter,
+    driverLapTrendEventClassFilter,
+    eventTaxonomyMappingChips,
+  ])
 
   // Calculate driver stats from ALL races (not filtered by class)
   // This ensures ChartControls always has the complete driver list for correct class counts
@@ -459,9 +642,15 @@ export default function OverviewTab({
     [sessionAnalysisRaces]
   )
 
-  // Prepare unified chart data
+  /** Stats for compare chart notices + “all drivers selected” (compare scope, not lap-trend). */
+  const statsForCompareScope = useMemo(
+    () => (isEventDriverAnalysisContext ? driverCompareDriverStatsByClass : driverStatsByClass),
+    [isEventDriverAnalysisContext, driverCompareDriverStatsByClass, driverStatsByClass]
+  )
+
+  // Prepare unified chart data (Event Analysis driver charts: scoped races + Session/Type filters)
   const unifiedChartData = useMemo<DriverPerformanceData[]>(() => {
-    return driverStatsByClass.map((d) => ({
+    return driverCompareDriverStatsByClass.map((d) => ({
       driverId: d.driverId,
       driverName: d.driverName,
       bestLapTime: d.bestLapTime,
@@ -478,33 +667,9 @@ export default function OverviewTab({
       top3Consecutive: d.top3Consecutive,
       stdDeviation: d.stdDeviation,
     }))
-  }, [driverStatsByClass])
+  }, [driverCompareDriverStatsByClass])
 
-  /** Summary for the compare driver performance chart scope (current class / races). */
-  const compareChartSummaryStrip = useMemo(() => {
-    const bests = driverStatsByClass
-      .map((d) => d.bestLapTime)
-      .filter((t): t is number => t !== null && isFinite(t))
-    const bestLapSeconds = bests.length > 0 ? Math.min(...bests) : null
-
-    const avgs = driverStatsByClass
-      .map((d) => d.avgLapTime)
-      .filter((t): t is number => t !== null && isFinite(t))
-    const avgLapSeconds = avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
-
-    let lapCount = 0
-    for (const race of sessionAnalysisRaces) {
-      for (const result of race.results) {
-        lapCount += result.lapsCompleted ?? 0
-      }
-    }
-
-    const driverCount = driverStatsByClass.length
-
-    return { bestLapSeconds, avgLapSeconds, lapCount, driverCount }
-  }, [driverStatsByClass, sessionAnalysisRaces])
-
-  /** Driver Analysis charts: effective race in class + session type scope (compare + lap-by-lap share selection). */
+  /** Session Analysis → Driver Analysis: picked session race for lap trend (event-wide charts use compare vs lap scopes above). */
   const sessionDriverAnalysisPickedRaceId = useMemo(() => {
     if (!inSessionAnalysisSection || eventAnalysisTab !== "driver-analysis") {
       return null
@@ -627,13 +792,19 @@ export default function OverviewTab({
   const expandDriverIdsByName = useCallback(
     (seedIds: string[]) => {
       if (seedIds.length === 0) return []
+      const statsForExpand = isEventDriverAnalysisContext
+        ? driverCompareDriverStatsByClass
+        : driverStatsByClass
+      const racesForExpand = isEventDriverAnalysisContext
+        ? driverCompareDriverAnalysisRaces
+        : sessionAnalysisRaces
       const selectedNormalizedNames = new Set<string>()
       data.drivers.forEach((driver) => {
         if (seedIds.includes(driver.driverId)) {
           selectedNormalizedNames.add(normalizeDriverName(driver.driverName))
         }
       })
-      driverStatsByClass.forEach((driver) => {
+      statsForExpand.forEach((driver) => {
         if (seedIds.includes(driver.driverId)) {
           selectedNormalizedNames.add(normalizeDriverName(driver.driverName))
         }
@@ -644,12 +815,12 @@ export default function OverviewTab({
           expandedIds.add(driver.driverId)
         }
       })
-      driverStatsByClass.forEach((driver) => {
+      statsForExpand.forEach((driver) => {
         if (selectedNormalizedNames.has(normalizeDriverName(driver.driverName))) {
           expandedIds.add(driver.driverId)
         }
       })
-      sessionAnalysisRaces.forEach((race) => {
+      racesForExpand.forEach((race) => {
         race.results.forEach((result) => {
           if (
             result.lapsCompleted > 0 &&
@@ -669,7 +840,16 @@ export default function OverviewTab({
       const driverNameLookupSnapshot = new Map(driverNameLookup)
       return Array.from(expandedIds).filter((id) => driverNameLookupSnapshot.has(id))
     },
-    [data.drivers, data.races, driverStatsByClass, sessionAnalysisRaces, driverNameLookup]
+    [
+      data.drivers,
+      data.races,
+      isEventDriverAnalysisContext,
+      driverCompareDriverStatsByClass,
+      driverStatsByClass,
+      driverCompareDriverAnalysisRaces,
+      sessionAnalysisRaces,
+      driverNameLookup,
+    ]
   )
 
   // Expand selectedDriverIds to include all driverIds that match by normalized name
@@ -719,7 +899,13 @@ export default function OverviewTab({
     if (eventChanged || classChanged) {
       queueMicrotask(() => setUnifiedChartDriverIds(selectedDriverIds))
     }
-  }, [data.event.id, selectedClass, selectedDriverIds])
+  }, [
+    data.event.id,
+    selectedClass,
+    selectedDriverIds,
+    driverCompareEventClassFilter,
+    driverCompareEventTaxonomyNodeFilter,
+  ])
 
   // When event changes, reset lap trend state and vehicle session scope
   useEffect(() => {
@@ -730,10 +916,10 @@ export default function OverviewTab({
     })
   }, [data.event.id])
 
-  // When class scope changes, clear lap-trend driver selection (user re-picks from filtered list)
+  // When class or event Session/Type scope changes, clear lap-trend driver selection
   useEffect(() => {
     queueMicrotask(() => setLapTrendChartDriverIds([]))
-  }, [selectedClass])
+  }, [driverLapTrendEventClassFilter, driverLapTrendEventTaxonomyNodeFilter])
 
   useEffect(() => {
     queueMicrotask(() => setSessionLapTrendChartDriverIds([]))
@@ -819,7 +1005,11 @@ export default function OverviewTab({
     const params = new URLSearchParams({
       driverIds: lapTrendChartDriverIds.join(","),
     })
-    if (selectedClass) params.set("className", selectedClass)
+    const effectiveClassForEventLapTrend =
+      driverLapTrendEventTaxonomyNodeFilter != null ? null : driverLapTrendEventClassFilter
+    if (effectiveClassForEventLapTrend) {
+      params.set("className", effectiveClassForEventLapTrend)
+    }
     const url = `/api/v1/events/${data.event.id}/lap-trend?${params.toString()}`
     fetch(url, { cache: "no-store", credentials: "include" })
       .then(async (res) => {
@@ -850,22 +1040,44 @@ export default function OverviewTab({
     sessionDriverAnalysisPickedRaceId,
     vehicleDenormActive,
     selectedClass,
+    driverLapTrendEventClassFilter,
+    driverLapTrendEventTaxonomyNodeFilter,
     lapTrendChartDriverIds,
   ])
 
-  // Lap-trend driver options: same class scope as Compare chart (`driverStatsByClass`), in global selection
+  /** When Session/Type scope narrows races, drop laps from sessions outside scope (API returns all class races). */
+  const eventScopedLapTrendData = useMemo((): EventLapTrendResponse | null => {
+    if (!lapTrendData?.drivers?.length) return lapTrendData
+    if (!isEventDriverAnalysisContext) return lapTrendData
+    const allowed = new Set(driverLapTrendDriverAnalysisRaces.map((r) => r.id))
+    return {
+      ...lapTrendData,
+      drivers: lapTrendData.drivers.map((d) => ({
+        ...d,
+        laps: d.laps.filter((lap) => allowed.has(lap.raceId)),
+      })),
+    }
+  }, [lapTrendData, isEventDriverAnalysisContext, driverLapTrendDriverAnalysisRaces])
+
+  const lapTrendStatsForEventCharts = useMemo(
+    () => (isEventDriverAnalysisContext ? driverLapTrendDriverStatsByClass : driverStatsByClass),
+    [isEventDriverAnalysisContext, driverLapTrendDriverStatsByClass, driverStatsByClass]
+  )
+
+  // Lap-trend driver options: same class scope as Compare chart, in global selection
   const lapTrendDriverOptions = useMemo(
     () =>
-      driverStatsByClass
+      lapTrendStatsForEventCharts
         .filter((d) => expandedSelectedDriverIds.includes(d.driverId))
         .map((d) => ({ driverId: d.driverId, driverName: d.driverName })),
-    [driverStatsByClass, expandedSelectedDriverIds]
+    [lapTrendStatsForEventCharts, expandedSelectedDriverIds]
   )
 
   // Sort lap-trend drivers by selected metric (order in chart/legend)
   const sortedLapTrendDrivers = useMemo(() => {
-    if (!lapTrendData?.drivers?.length) return []
-    const statsMap = new Map(driverStatsByClass.map((d) => [d.driverId, d]))
+    const dataForSort = isEventDriverAnalysisContext ? eventScopedLapTrendData : lapTrendData
+    if (!dataForSort?.drivers?.length) return []
+    const statsMap = new Map(lapTrendStatsForEventCharts.map((d) => [d.driverId, d]))
     const key =
       lapTrendSortBy === "bestLap"
         ? "bestLapTime"
@@ -880,7 +1092,7 @@ export default function OverviewTab({
                 : "podiumFinishes"
     const ascending =
       lapTrendSortBy === "consistency" || lapTrendSortBy === "podiumFinishes" ? false : true
-    return [...lapTrendData.drivers].sort((a, b) => {
+    return [...dataForSort.drivers].sort((a, b) => {
       const sa = statsMap.get(a.driverId)
       const sb = statsMap.get(b.driverId)
       const va = sa ? (sa as Record<string, unknown>)[key] : null
@@ -900,7 +1112,13 @@ export default function OverviewTab({
       if (ascending) return aNum - bNum
       return bNum - aNum
     })
-  }, [lapTrendData, driverStatsByClass, lapTrendSortBy])
+  }, [
+    lapTrendData,
+    eventScopedLapTrendData,
+    isEventDriverAnalysisContext,
+    lapTrendStatsForEventCharts,
+    lapTrendSortBy,
+  ])
 
   const sessionLapTrendDriverOptions = useMemo(
     () =>
@@ -952,9 +1170,9 @@ export default function OverviewTab({
   // Only consider selected drivers who are in the current class for "missing best lap" / "missing avg vs fastest"
   // so we don't incorrectly flag drivers from other classes when a class is selected
   const selectedDriverIdsInCurrentClass = useMemo(() => {
-    const statsDriverIds = new Set(driverStatsByClass.map((d) => d.driverId))
+    const statsDriverIds = new Set(statsForCompareScope.map((d) => d.driverId))
     return expandedSelectedDriverIds.filter((id) => statsDriverIds.has(id))
-  }, [expandedSelectedDriverIds, driverStatsByClass])
+  }, [expandedSelectedDriverIds, statsForCompareScope])
 
   const selectedDriverIdsInSessionRace = useMemo(() => {
     const statsDriverIds = new Set(sessionDriverAnalysisDriverStatsFromRace.map((d) => d.driverId))
@@ -965,15 +1183,15 @@ export default function OverviewTab({
     if (!shouldShowSelectionNotices) {
       return []
     }
-    return getDriversMissingBestLap(selectedDriverIdsInCurrentClass, driverStatsByClass)
-  }, [shouldShowSelectionNotices, selectedDriverIdsInCurrentClass, driverStatsByClass])
+    return getDriversMissingBestLap(selectedDriverIdsInCurrentClass, statsForCompareScope)
+  }, [shouldShowSelectionNotices, selectedDriverIdsInCurrentClass, statsForCompareScope])
 
   const missingAvgVsFastestDriverIds = useMemo(() => {
     if (!shouldShowSelectionNotices) {
       return []
     }
-    return getDriversMissingAvgVsFastest(selectedDriverIdsInCurrentClass, driverStatsByClass)
-  }, [shouldShowSelectionNotices, selectedDriverIdsInCurrentClass, driverStatsByClass])
+    return getDriversMissingAvgVsFastest(selectedDriverIdsInCurrentClass, statsForCompareScope)
+  }, [shouldShowSelectionNotices, selectedDriverIdsInCurrentClass, statsForCompareScope])
 
   const mapDriverIdsToNames = useCallback(
     (driverIds: string[]) => {
@@ -1069,11 +1287,11 @@ export default function OverviewTab({
 
   const allDriversInClassSelected = useMemo(() => {
     const classScopeActive = selectedClass != null
-    if (!classScopeActive || driverStatsByClass.length === 0) {
+    if (!classScopeActive || statsForCompareScope.length === 0) {
       return false
     }
-    return driverStatsByClass.every((d) => selectedDriverIds.includes(d.driverId))
-  }, [selectedClass, driverStatsByClass, selectedDriverIds])
+    return statsForCompareScope.every((d) => selectedDriverIds.includes(d.driverId))
+  }, [selectedClass, statsForCompareScope, selectedDriverIds])
 
   const allSessionRaceDriversSelected = useMemo(() => {
     if (!sessionDriverAnalysisRace || sessionDriverAnalysisDriverStatsFromRace.length === 0) {
@@ -1127,36 +1345,126 @@ export default function OverviewTab({
     [unifiedChartSelectionKey]
   )
 
-  const handleEventClassFilterClick = useCallback((className: string) => {
-    setEventClassFilter((prev) => (prev === className ? null : className))
+  const handleTablesEventClassFilterSelect = useCallback((className: string | null) => {
+    setEventTaxonomyNodeFilter(null)
+    setEventClassFilter(className)
   }, [])
 
-  const handleEventClassFilterKeyDown = useCallback(
-    (
-      event: React.KeyboardEvent<HTMLButtonElement>,
-      index: number,
-      refs: React.MutableRefObject<Array<HTMLButtonElement | null>>
-    ) => {
-      if (validClasses.length === 0) return
-      const totalButtons = validClasses.length + 1
-      let nextIndex = index
-      if (event.key === "ArrowRight") {
-        nextIndex = (index + 1) % totalButtons
-      } else if (event.key === "ArrowLeft") {
-        nextIndex = (index - 1 + totalButtons) % totalButtons
-      } else {
-        return
-      }
-      event.preventDefault()
-      const nextButton = refs.current[nextIndex]
-      nextButton?.focus()
+  const handleTablesEventTaxonomyFilterSelect = useCallback((taxonomyNodeId: string | null) => {
+    setEventClassFilter(null)
+    setEventTaxonomyNodeFilter(taxonomyNodeId)
+  }, [])
+
+  const handleDriverCompareClassFilterSelect = useCallback(
+    (className: string | null) => {
+      setDriverCompareEventTaxonomyNodeFilter(null)
+      setDriverCompareEventClassFilter(className)
+      onClassChange(className)
     },
-    [validClasses.length]
+    [onClassChange]
   )
 
-  const handleEventClassFilterAllClassesClick = useCallback(() => {
-    setEventClassFilter(null)
+  const handleDriverCompareTaxonomyFilterSelect = useCallback(
+    (taxonomyNodeId: string | null) => {
+      setDriverCompareEventClassFilter(null)
+      setDriverCompareEventTaxonomyNodeFilter(taxonomyNodeId)
+      if (taxonomyNodeId != null) {
+        onClassChange(null)
+      }
+    },
+    [onClassChange]
+  )
+
+  const handleDriverLapTrendClassFilterSelect = useCallback((className: string | null) => {
+    setDriverLapTrendEventTaxonomyNodeFilter(null)
+    setDriverLapTrendEventClassFilter(className)
   }, [])
+
+  const handleDriverLapTrendTaxonomyFilterSelect = useCallback((taxonomyNodeId: string | null) => {
+    setDriverLapTrendEventClassFilter(null)
+    setDriverLapTrendEventTaxonomyNodeFilter(taxonomyNodeId)
+  }, [])
+
+  const eventResultsScopeFilterToolbar = useMemo(() => {
+    if (
+      !EVENT_CLASS_FILTER_SUB_TABS.includes(eventAnalysisTab) ||
+      (validClasses.length === 0 && eventTaxonomyMappingChips.length === 0)
+    ) {
+      return null
+    }
+    return (
+      <EventAnalysisScopeFilters
+        validClasses={validClasses}
+        eventClassFilter={eventClassFilter}
+        eventTaxonomyNodeFilter={eventTaxonomyNodeFilter}
+        taxonomyOptions={eventTaxonomyMappingChips}
+        onClassFilterChange={handleTablesEventClassFilterSelect}
+        onTaxonomyFilterChange={handleTablesEventTaxonomyFilterSelect}
+      />
+    )
+  }, [
+    eventAnalysisTab,
+    validClasses,
+    eventClassFilter,
+    eventTaxonomyNodeFilter,
+    eventTaxonomyMappingChips,
+    handleTablesEventClassFilterSelect,
+    handleTablesEventTaxonomyFilterSelect,
+  ])
+
+  const driverCompareScopeFilterToolbar = useMemo(() => {
+    if (
+      eventAnalysisTab !== "driver-analysis" ||
+      (validClasses.length === 0 && eventTaxonomyMappingChips.length === 0)
+    ) {
+      return null
+    }
+    return (
+      <EventAnalysisScopeFilters
+        validClasses={validClasses}
+        eventClassFilter={driverCompareEventClassFilter}
+        eventTaxonomyNodeFilter={driverCompareEventTaxonomyNodeFilter}
+        taxonomyOptions={eventTaxonomyMappingChips}
+        onClassFilterChange={handleDriverCompareClassFilterSelect}
+        onTaxonomyFilterChange={handleDriverCompareTaxonomyFilterSelect}
+      />
+    )
+  }, [
+    eventAnalysisTab,
+    validClasses,
+    driverCompareEventClassFilter,
+    driverCompareEventTaxonomyNodeFilter,
+    eventTaxonomyMappingChips,
+    handleDriverCompareClassFilterSelect,
+    handleDriverCompareTaxonomyFilterSelect,
+  ])
+
+  const driverLapTrendScopeFilterToolbar = useMemo(() => {
+    if (
+      eventAnalysisTab !== "driver-analysis" ||
+      (validClasses.length === 0 && eventTaxonomyMappingChips.length === 0)
+    ) {
+      return null
+    }
+    return (
+      <EventAnalysisScopeFilters
+        validClasses={validClasses}
+        eventClassFilter={driverLapTrendEventClassFilter}
+        eventTaxonomyNodeFilter={driverLapTrendEventTaxonomyNodeFilter}
+        taxonomyOptions={eventTaxonomyMappingChips}
+        onClassFilterChange={handleDriverLapTrendClassFilterSelect}
+        onTaxonomyFilterChange={handleDriverLapTrendTaxonomyFilterSelect}
+      />
+    )
+  }, [
+    eventAnalysisTab,
+    validClasses,
+    driverLapTrendEventClassFilter,
+    driverLapTrendEventTaxonomyNodeFilter,
+    eventTaxonomyMappingChips,
+    handleDriverLapTrendClassFilterSelect,
+    handleDriverLapTrendTaxonomyFilterSelect,
+  ])
 
   const handleClassChange = useCallback(
     (className: string | null) => {
@@ -1493,6 +1801,55 @@ export default function OverviewTab({
     variant === "event-overview-only" ||
     (showOtherSections && overviewPrimarySection === "event-overview")
 
+  /** Prefer full event title; optional second line when venue/track label differs (e.g. BRCA series vs track). */
+  const eventOverviewHeading = useMemo(() => {
+    const en = data.event.eventName?.trim() ?? ""
+    const tn = data.event.trackName?.trim() ?? ""
+    const primary = en || tn
+    const trackSubline = en && tn && tn !== en ? tn : null
+    const titleAttr = trackSubline ? `${en} — ${tn}` : primary
+    return { primary, trackSubline, titleAttr }
+  }, [data.event.eventName, data.event.trackName])
+
+  const trackDashboardUrl = data.event.trackDashboardUrl?.trim() || null
+
+  const eventOverviewTrackSublineRow = eventOverviewHeading.trackSubline ? (
+    <span className={`flex min-w-0 flex-wrap items-center font-normal ${typography.bodySecondary}`}>
+      {trackDashboardUrl ? (
+        <Tooltip text="Open this track on LiveRC.com" position="top">
+          <a
+            href={trackDashboardUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0 shrink break-words rounded-sm text-inherit no-underline transition-colors hover:text-[var(--token-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]/35"
+            aria-label={`Open track on LiveRC (opens in new tab): ${eventOverviewHeading.trackSubline}`}
+          >
+            {eventOverviewHeading.trackSubline}
+          </a>
+        </Tooltip>
+      ) : (
+        <span className="min-w-0 shrink break-words">{eventOverviewHeading.trackSubline}</span>
+      )}
+    </span>
+  ) : null
+
+  const eventOverviewDateRangeRow = useMemo(() => {
+    const dr = data.summary.dateRange
+    const hasDateRange = dr && (dr.earliest || dr.latest)
+    if (!hasDateRange) return null
+    const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
+    const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
+    const dateRangeStr =
+      earliestStr && latestStr && earliestStr === latestStr
+        ? earliestStr
+        : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
+    return (
+      <span className={`font-normal ${typography.bodySecondary} min-w-0 shrink break-words`}>
+        {dateRangeStr}
+      </span>
+    )
+  }, [data.summary.dateRange])
+
   const showEventAnalysisSectionBlock =
     variant === "event-analysis-only" ||
     (showOtherSections && overviewPrimarySection === "event-analysis")
@@ -1591,61 +1948,40 @@ export default function OverviewTab({
             >
               <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex-1">
-                  <div className="mt-1 flex items-center gap-3">
-                    <div className="min-w-0 max-w-full">
-                      {data.event.eventUrl ? (
-                        <div className="flex min-w-0 max-w-full flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                          <h2 className={`flex min-w-0 items-center gap-1.5 ${typography.h5}`}>
-                            <MapPin
-                              className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                              aria-hidden
-                            />
-                            <span className="truncate">{data.event.trackName}</span>
-                          </h2>
+                  <div className="mt-1 min-w-0 max-w-full">
+                    {data.event.eventUrl ? (
+                      <h2
+                        className={`min-w-0 ${typography.h5}`}
+                        title={eventOverviewHeading.titleAttr}
+                      >
+                        <span className="flex min-w-0 flex-col gap-0.5 break-words">
                           <Tooltip text="Open this event on LiveRC.com" position="top">
                             <a
                               href={data.event.eventUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex shrink-0 items-center justify-center rounded-md p-1 text-[var(--token-accent)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]/35"
-                              aria-label="Open event on LiveRC (opens in new tab)"
+                              className="inline-block min-w-0 max-w-full break-words rounded-sm text-inherit no-underline transition-colors hover:text-[var(--token-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]/35"
+                              aria-label={`Open event on LiveRC (opens in new tab): ${eventOverviewHeading.primary}`}
                             >
-                              <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+                              {eventOverviewHeading.primary}
                             </a>
                           </Tooltip>
-                        </div>
-                      ) : (
-                        <h2 className={`flex min-w-0 items-center gap-1.5 ${typography.h5}`}>
-                          <MapPin
-                            className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                            aria-hidden
-                          />
-                          <span className="truncate">{data.event.trackName}</span>
-                        </h2>
-                      )}
-                    </div>
-                    {(() => {
-                      const dr = data.summary.dateRange
-                      const hasDateRange = dr && (dr.earliest || dr.latest)
-                      if (!hasDateRange) return null
-                      const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
-                      const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
-                      const dateRangeStr =
-                        earliestStr && latestStr && earliestStr === latestStr
-                          ? earliestStr
-                          : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
-                      return (
-                        <>
-                          <div
-                            className="h-4 w-px shrink-0 bg-[var(--token-border-default)]"
-                            aria-hidden
-                          />
-                          <span className="text-sm text-[var(--token-text-secondary)]">
-                            {dateRangeStr}
-                          </span>
-                        </>
-                      )
-                    })()}
+                          {eventOverviewTrackSublineRow}
+                          {eventOverviewDateRangeRow}
+                        </span>
+                      </h2>
+                    ) : (
+                      <h2
+                        className={`min-w-0 ${typography.h5}`}
+                        title={eventOverviewHeading.titleAttr}
+                      >
+                        <span className="flex min-w-0 flex-col gap-0.5 break-words">
+                          <span>{eventOverviewHeading.primary}</span>
+                          {eventOverviewTrackSublineRow}
+                          {eventOverviewDateRangeRow}
+                        </span>
+                      </h2>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-x-6 gap-y-2 text-right sm:text-left sm:pl-4 sm:border-l sm:border-[var(--token-border-subtle)]">
@@ -1823,7 +2159,7 @@ export default function OverviewTab({
                 )
               })()}
 
-              {/* User-selected host track (catalogue); only when set */}
+              {/* User-selected host track (catalogue); nested below venue in same glass panel */}
               {data.userHostTrack &&
                 (() => {
                   const h = data.userHostTrack
@@ -1968,56 +2304,87 @@ export default function OverviewTab({
                     </div>
                   )
                 })()}
-
-              {/* Collapsible Event Weather Data */}
-              <div className="w-full shrink-0 basis-full border-t border-[var(--token-border-muted)] pt-3">
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--token-text-muted)] transition-colors hover:text-[var(--token-text-secondary)]"
-                  aria-expanded={isEventWeatherDataOpen}
-                  aria-controls="event-weather-data-content"
-                  onClick={() => setIsEventWeatherDataOpen((prev) => !prev)}
-                >
-                  <span>Event Weather Data</span>
-                  <span
-                    className={`shrink-0 transition-transform duration-150 ${
-                      isEventWeatherDataOpen ? "rotate-0" : "-rotate-90"
-                    }`}
-                    aria-hidden
-                  >
-                    ▾
-                  </span>
-                </button>
-                {isEventWeatherDataOpen && (
-                  <div id="event-weather-data-content" className="mt-3 flex flex-wrap gap-4">
-                    {weatherLoading ? (
-                      <WeatherCard weather={null} weatherLoading={true} weatherError={null} />
-                    ) : weatherError ? (
-                      <WeatherCard
-                        weather={null}
-                        weatherLoading={false}
-                        weatherError={weatherError}
-                      />
-                    ) : weatherByDay && weatherByDay.length > 0 ? (
-                      weatherByDay.map(({ date, weather }) => (
-                        <div key={date} className="flex flex-col gap-1">
-                          <span className="text-sm font-medium text-[var(--token-text-secondary)]">
-                            {formatDateLong(date)}
-                          </span>
-                          <WeatherCard
-                            weather={weather}
-                            weatherLoading={false}
-                            weatherError={null}
-                          />
-                        </div>
-                      ))
-                    ) : null}
-                  </div>
-                )}
-              </div>
-
-              <EventHighlightsSection data={data} />
             </div>
+
+            <div
+              className={`flex min-w-0 flex-col gap-4 px-4 py-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+              style={OVERVIEW_GLASS_SURFACE_STYLE}
+            >
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--token-text-muted)] transition-colors hover:text-[var(--token-text-secondary)]"
+                aria-expanded={isOverviewEventHighlightsOpen}
+                aria-controls="overview-event-highlights-content"
+                onClick={() => setIsOverviewEventHighlightsOpen((prev) => !prev)}
+              >
+                <span>Event Highlights</span>
+                <span
+                  className={`shrink-0 transition-transform duration-150 ${
+                    isOverviewEventHighlightsOpen ? "rotate-0" : "-rotate-90"
+                  }`}
+                  aria-hidden
+                >
+                  ▾
+                </span>
+              </button>
+              {isOverviewEventHighlightsOpen && (
+                <div id="overview-event-highlights-content" className="min-w-0 w-full">
+                  <EventOverviewTopQualifiers
+                    variant="overviewCards"
+                    qualPoints={data.qualPointsTopQualifiers}
+                    races={data.races}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Collapsible Event Weather Data */}
+            <div
+              className={`flex min-w-0 flex-col gap-4 px-4 py-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+              style={OVERVIEW_GLASS_SURFACE_STYLE}
+            >
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--token-text-muted)] transition-colors hover:text-[var(--token-text-secondary)]"
+                aria-expanded={isEventWeatherDataOpen}
+                aria-controls="event-weather-data-content"
+                onClick={() => setIsEventWeatherDataOpen((prev) => !prev)}
+              >
+                <span>Event Weather Data</span>
+                <span
+                  className={`shrink-0 transition-transform duration-150 ${
+                    isEventWeatherDataOpen ? "rotate-0" : "-rotate-90"
+                  }`}
+                  aria-hidden
+                >
+                  ▾
+                </span>
+              </button>
+              {isEventWeatherDataOpen && (
+                <div id="event-weather-data-content" className="flex flex-wrap gap-4">
+                  {weatherLoading ? (
+                    <WeatherCard weather={null} weatherLoading={true} weatherError={null} />
+                  ) : weatherError ? (
+                    <WeatherCard
+                      weather={null}
+                      weatherLoading={false}
+                      weatherError={weatherError}
+                    />
+                  ) : weatherByDay && weatherByDay.length > 0 ? (
+                    weatherByDay.map(({ date, weather }) => (
+                      <div key={date} className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-[var(--token-text-secondary)]">
+                          {formatDateLong(date)}
+                        </span>
+                        <WeatherCard weather={weather} weatherLoading={false} weatherError={null} />
+                      </div>
+                    ))
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <EventHighlightsSection data={data} />
           </div>
         </section>
       )}
@@ -2040,6 +2407,43 @@ export default function OverviewTab({
             <h2 id="event-analysis-subview-heading" className={typography.h4}>
               {getSubTabLabel(eventAnalysisTab, "event")}
             </h2>
+            {eventAnalysisTab === "event-results" && !ladderInEventAnalysis && (
+              <div
+                className="w-full max-w-full rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)]"
+                role="note"
+              >
+                Overall podium finishers for main&apos;s results. Expand a row for full standings
+                when multiple legs feed that main.
+              </div>
+            )}
+            {eventAnalysisTab === "fastest-laps" && (
+              <div
+                className="w-full max-w-full rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)]"
+                role="note"
+              >
+                The table lists the top three distinct lap times per class (ties included). Click a
+                row to see every driver&apos;s best lap in that class.
+              </div>
+            )}
+            {eventAnalysisTab === "fastest-average-laps" && (
+              <div
+                className="w-full max-w-full rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)]"
+                role="note"
+              >
+                The table lists the top three distinct event-wide averages per class (ties
+                included). Click a row to see every driver in that class.
+              </div>
+            )}
+            {eventAnalysisTab === "qualification-results" && (
+              <div
+                className="w-full max-w-full rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)]"
+                role="note"
+              >
+                Qual points order per class from LiveRC (same source as Event Overview → Event
+                Highlights). Open the LiveRC link below the table when you need the full page on
+                LiveRC.com.
+              </div>
+            )}
             {!isControlledAnalysisSubTab && !ladderInEventAnalysis && (
               <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-2 shadow-sm">
                 <div className="min-w-0 flex-1 overflow-x-hidden">
@@ -2265,67 +2669,6 @@ export default function OverviewTab({
               </>
             ) : (
               <>
-                {eventAnalysisTab === "driver-analysis" && validClasses.length > 0 && (
-                  <div
-                    className="mt-2 -mx-1 overflow-x-hidden"
-                    role="toolbar"
-                    aria-label="Filter event driver analysis by class. All Classes shows every class; it is the last control."
-                  >
-                    <div className="flex flex-wrap gap-2 px-1 py-1">
-                      {validClasses.map((className, index) => {
-                        const isActive = selectedClass === className
-                        return (
-                          <button
-                            key={className}
-                            type="button"
-                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                              isActive
-                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                            }`}
-                            onClick={() => {
-                              handleSessionClassChipClick(className)
-                            }}
-                            aria-pressed={isActive}
-                            onKeyDown={(event) =>
-                              handleEventClassFilterKeyDown(event, index, classFilterButtonRefs)
-                            }
-                            ref={(el) => {
-                              classFilterButtonRefs.current[index] = el
-                            }}
-                          >
-                            <span>{className}</span>
-                          </button>
-                        )
-                      })}
-                      <button
-                        key="__event-driver-analysis-all-classes__"
-                        type="button"
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          selectedClass === null
-                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                        }`}
-                        onClick={() => {
-                          handleSessionClassFilterAllClassesClick()
-                        }}
-                        aria-pressed={selectedClass === null}
-                        onKeyDown={(event) =>
-                          handleEventClassFilterKeyDown(
-                            event,
-                            validClasses.length,
-                            classFilterButtonRefs
-                          )
-                        }
-                        ref={(el) => {
-                          classFilterButtonRefs.current[validClasses.length] = el
-                        }}
-                      >
-                        <span>All Classes</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
                 {eventAnalysisTab === "driver-analysis" && (
                   <>
                     <section className="space-y-4">
@@ -2348,11 +2691,14 @@ export default function OverviewTab({
                       >
                         Compare driver performance
                       </h3>
-                      <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
-                        Best lap, average lap, gap, and related metrics for the class from the chips
-                        above and drivers in Actions. Switch column or line view and sort from the
-                        chart header.
-                      </p>
+                      <div
+                        className="w-full max-w-full rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)]"
+                        role="note"
+                      >
+                        Best lap, average lap, gap, and related metrics for the scope you set with
+                        Session and Type on the compare chart, and drivers in Actions. Switch column
+                        or line view and sort from the chart header.
+                      </div>
                     </div>
                     <div className="space-y-4">
                       {missingBestLapDriverNames.length > 0 && (
@@ -2373,46 +2719,6 @@ export default function OverviewTab({
                           noticeType="avg-vs-fastest"
                         />
                       )}
-                      <div
-                        className="w-full min-w-0 rounded-lg border border-[var(--token-border-muted)]/90 bg-[var(--token-surface)]/25 px-3 py-2 shadow-sm"
-                        style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
-                        aria-label="Summary for chart scope"
-                      >
-                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                              Best lap
-                            </span>
-                            <span className="font-mono text-sm tabular-nums text-[var(--token-text-secondary)]">
-                              {formatLapTime(compareChartSummaryStrip.bestLapSeconds)}
-                            </span>
-                          </div>
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                              Avg lap
-                            </span>
-                            <span className="font-mono text-sm tabular-nums text-[var(--token-text-secondary)]">
-                              {formatLapTime(compareChartSummaryStrip.avgLapSeconds)}
-                            </span>
-                          </div>
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                              Laps
-                            </span>
-                            <span className="text-sm tabular-nums text-[var(--token-text-secondary)]">
-                              {compareChartSummaryStrip.lapCount.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                              Drivers
-                            </span>
-                            <span className="text-sm tabular-nums text-[var(--token-text-secondary)]">
-                              {compareChartSummaryStrip.driverCount.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
                       <ChartSection>
                         <UnifiedPerformanceChart
                           data={unifiedChartData}
@@ -2428,12 +2734,19 @@ export default function OverviewTab({
                           }
                           chartView={chartViewState}
                           onChartViewChange={setChartViewState}
-                          chartDriverOptions={driverStatsByClass.map((d) => ({
+                          chartDriverOptions={driverCompareDriverStatsByClass.map((d) => ({
                             driverId: d.driverId,
                             driverName: d.driverName,
                           }))}
                           chartSelectedDriverIds={unifiedChartDriverIds}
                           onChartDriverSelectionChange={setUnifiedChartDriverIds}
+                          headerAfterClassSelect={
+                            driverCompareScopeFilterToolbar ? (
+                              <div className="flex flex-wrap items-center gap-3">
+                                {driverCompareScopeFilterToolbar}
+                              </div>
+                            ) : null
+                          }
                         />
                       </ChartSection>
                     </div>
@@ -2445,7 +2758,8 @@ export default function OverviewTab({
                         Lap-by-lap trend
                       </h3>
                       <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
-                        Every lap time for the class and driver you pick below. Use{" "}
+                        Every lap time for the scope you set on the lap chart (Session and Type) and
+                        the driver you pick below. Use{" "}
                         <span className="whitespace-nowrap">Display</span> on the chart for session
                         shading and the regression line.
                       </p>
@@ -2476,19 +2790,23 @@ export default function OverviewTab({
                               )}
                             <LapByLapTrendChart
                               drivers={
-                                lapTrendData?.drivers?.some((d) => d.laps.length > 0)
+                                (isEventDriverAnalysisContext
+                                  ? eventScopedLapTrendData
+                                  : lapTrendData
+                                )?.drivers?.some((d) => d.laps.length > 0)
                                   ? sortedLapTrendDrivers
                                   : []
                               }
                               height={450}
                               chartInstanceId={`overview-${data.event.id}-lap-trend`}
-                              chartTitle={
-                                selectedClass === null
-                                  ? "All Classes"
-                                  : (selectedClass ?? "All Classes")
-                              }
+                              chartTitle={driverLapTrendChartTitle}
                               headerControls={
                                 <div className="flex flex-wrap items-center gap-4">
+                                  {driverLapTrendScopeFilterToolbar ? (
+                                    <div className="flex flex-wrap items-center gap-3">
+                                      {driverLapTrendScopeFilterToolbar}
+                                    </div>
+                                  ) : null}
                                   {lapTrendDriverOptions.length > 0 && (
                                     <ChartDriverPicker
                                       drivers={lapTrendDriverOptions}
@@ -2496,8 +2814,11 @@ export default function OverviewTab({
                                       onSelectionChange={setLapTrendChartDriverIds}
                                       label="Select Drivers"
                                       singleSelect
-                                      disabled={selectedClass === null}
-                                      disabledTooltip="Select a class with the chips above to choose drivers"
+                                      disabled={
+                                        driverLapTrendEventTaxonomyNodeFilter == null &&
+                                        driverLapTrendEventClassFilter == null
+                                      }
+                                      disabledTooltip="Choose Session or Type with the lap chart filters to pick a driver"
                                     />
                                   )}
                                 </div>
@@ -2507,7 +2828,7 @@ export default function OverviewTab({
                                   ? "Loading lap data…"
                                   : (lapTrendError ??
                                     (lapTrendChartDriverIds.length === 0
-                                      ? "Select a class with the chips above, then choose a driver from that class to view lap-by-lap data."
+                                      ? "Choose Session or Type on the lap chart, then pick a driver to view lap-by-lap data."
                                       : "No lap data for selected drivers."))
                               }
                             />
@@ -2517,105 +2838,57 @@ export default function OverviewTab({
                     </div>
                   </>
                 )}
-                {eventClassFilterTabs.includes(eventAnalysisTab) && validClasses.length > 0 && (
-                  <div
-                    className="mt-2 -mx-1 overflow-x-hidden"
-                    role="toolbar"
-                    aria-label="Filter event analysis by class (event section). All Classes shows every class; it is the last control."
-                  >
-                    <div className="flex flex-wrap gap-2 px-1 py-1">
-                      {validClasses.map((className, index) => {
-                        const isActive = eventClassFilter === className
-                        return (
-                          <button
-                            key={className}
-                            type="button"
-                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                              isActive
-                                ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                                : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                            }`}
-                            onClick={() => {
-                              handleEventClassFilterClick(className)
-                            }}
-                            aria-pressed={isActive}
-                            onKeyDown={(event) =>
-                              handleEventClassFilterKeyDown(
-                                event,
-                                index,
-                                eventSectionClassFilterButtonRefs
-                              )
-                            }
-                            ref={(el) => {
-                              eventSectionClassFilterButtonRefs.current[index] = el
-                            }}
-                          >
-                            <span>{className}</span>
-                          </button>
-                        )
-                      })}
-                      <button
-                        key="__event-section-all-classes__"
-                        type="button"
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-                          eventClassFilter === null
-                            ? "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                            : "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
-                        }`}
-                        onClick={() => {
-                          handleEventClassFilterAllClassesClick()
-                        }}
-                        aria-pressed={eventClassFilter === null}
-                        onKeyDown={(event) =>
-                          handleEventClassFilterKeyDown(
-                            event,
-                            validClasses.length,
-                            eventSectionClassFilterButtonRefs
-                          )
-                        }
-                        ref={(el) => {
-                          eventSectionClassFilterButtonRefs.current[validClasses.length] = el
-                        }}
-                      >
-                        <span>All Classes</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
                 {eventAnalysisTab === "event-results" && (
                   <div className="space-y-6">
-                    <MainBracketResultsTable races={eventLevelFilteredRaces} />
+                    <MainBracketResultsTable
+                      races={eventLevelFilteredRaces}
+                      eventResultsTitleOverride={eventResultsTaxonomyTitle}
+                      headerToolbar={eventResultsScopeFilterToolbar}
+                    />
                     <MultiMainOverallCard
                       multiMainResults={data.multiMainResults}
-                      activeClassLabel={eventClassFilter}
+                      activeClassLabel={multiMainEventSectionClassFilter}
                     />
                   </div>
                 )}
+                {eventAnalysisTab === "qualification-results" && (
+                  <div className="w-full min-w-0 max-w-full">
+                    <EventOverviewTopQualifiers qualPoints={data.qualPointsTopQualifiers} />
+                  </div>
+                )}
                 {eventAnalysisTab === "fastest-laps" && (
-                  <EventTopFastestLapsPerClassTable races={eventLevelFilteredRaces} />
+                  <EventTopFastestLapsPerClassTable
+                    races={eventLevelFilteredRaces}
+                    eventScopeFilters={eventResultsScopeFilterToolbar}
+                  />
                 )}
                 {eventAnalysisTab === "fastest-average-laps" && (
-                  <EventTopAverageLapsPerClassTable races={eventLevelFilteredRaces} />
+                  <EventTopAverageLapsPerClassTable
+                    races={eventLevelFilteredRaces}
+                    eventScopeFilters={eventResultsScopeFilterToolbar}
+                  />
                 )}
               </>
             )}
           </div>
 
-          {!ladderInEventAnalysis && eventAnalysisTab !== "driver-analysis" && (
-            <section className="space-y-4">
-              <ChartControls
-                drivers={driverOptions}
-                races={data.races}
-                selectedDriverIds={selectedDriverIds}
-                onDriverSelectionChange={handleSelectionChange}
-                onClassChange={handleClassChange}
-                selectedClass={selectedClass}
-                eventId={data.event.id}
-                raceClasses={data.raceClasses}
-                onSelectAllClick={handleSelectAllClick}
-              />
-            </section>
-          )}
+          {!ladderInEventAnalysis &&
+            eventAnalysisTab !== "driver-analysis" &&
+            eventAnalysisTab !== "qualification-results" && (
+              <section className="space-y-4">
+                <ChartControls
+                  drivers={driverOptions}
+                  races={data.races}
+                  selectedDriverIds={selectedDriverIds}
+                  onDriverSelectionChange={handleSelectionChange}
+                  onClassChange={handleClassChange}
+                  selectedClass={selectedClass}
+                  eventId={data.event.id}
+                  raceClasses={data.raceClasses}
+                  onSelectAllClick={handleSelectAllClick}
+                />
+              </section>
+            )}
         </section>
       )}
       {showSessionAnalysisSectionBlock && (
@@ -2661,14 +2934,13 @@ export default function OverviewTab({
                 </div>
               </div>
             )}
-            {(eventClassFilterTabs.includes(eventAnalysisTab) ||
-              eventAnalysisTab === "driver-analysis") &&
+            {eventClassFilterTabs.includes(eventAnalysisTab) &&
               sessionAnalysisNavClassOptions.length > 0 && (
                 <div className="mt-2 space-y-2">
                   <div
                     className="-mx-1 overflow-x-hidden"
                     role="toolbar"
-                    aria-label="Class and session buckets — same names and order as Entry List class filter."
+                    aria-label="Program buckets (LiveRC session types); nav order when available from ingestion."
                   >
                     <div className="flex flex-wrap gap-2 px-1 py-1">
                       {sessionAnalysisNavClassOptions.map((className, index) => {
@@ -2731,13 +3003,16 @@ export default function OverviewTab({
                       >
                         Compare driver performance (this session)
                       </h3>
-                      <p className="max-w-3xl text-sm text-[var(--token-text-secondary)]">
+                      <div
+                        className="w-full max-w-full rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)]"
+                        role="note"
+                      >
                         Best lap, average lap, gap, and related metrics for the selected session
                         only. Use the legend below for Avg Top 5–15, consecutive laps, and std. dev.
                         Pick a class or session with the pills above; refine class scope in Actions.
                         Use the session pills in the chart header to switch session without
                         scrolling.
-                      </p>
+                      </div>
                     </div>
                     <div className="space-y-4">
                       {sessionMissingBestLapDriverNames.length > 0 && (

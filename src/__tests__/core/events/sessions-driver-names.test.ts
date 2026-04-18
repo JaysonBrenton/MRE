@@ -143,6 +143,7 @@ describe("Sessions Data Driver Names", () => {
           latest: new Date("2025-01-01T10:00:00"),
         },
       },
+      qualPointsTopQualifiers: null,
       userHostTrack: null,
     } as EventAnalysisData
 
@@ -237,6 +238,7 @@ describe("Sessions Data Driver Names", () => {
           latest: new Date("2025-01-01T10:00:00"),
         },
       },
+      qualPointsTopQualifiers: null,
       userHostTrack: null,
     } as EventAnalysisData
 

@@ -117,6 +117,19 @@ async function fetchFastLapLapNumberByRaceResultForEvent(
   return map
 }
 
+const LIVERC_PROGRAM_BUCKET_ORDER_KEY = "livercProgramBucketOrder"
+
+/** LiveRC entry-list nav order persisted by ingestion (`event.metadata`). */
+function extractLivercProgramBucketOrder(metadata: unknown): string[] | undefined {
+  if (metadata == null || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return undefined
+  }
+  const raw = (metadata as Record<string, unknown>)[LIVERC_PROGRAM_BUCKET_ORDER_KEY]
+  if (!Array.isArray(raw)) return undefined
+  const out = raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+  return out.length > 0 ? out : undefined
+}
+
 function findFastLapLapNumber(
   laps: Array<{ lapNumber: number; lapTimeSeconds: number }>,
   fastLapTime: number
@@ -311,6 +324,11 @@ export interface EventAnalysisData {
    * appear when `entryList` is empty or merged display strings drift.
    */
   registrationClassNames?: string[]
+  /**
+   * LiveRC program buckets (session types) in entry-list nav order from last ingestion.
+   * When set, Session Analysis uses this for pills (includes empty buckets).
+   */
+  programBucketOrder?: string[]
   races: Array<{
     id: string
     raceId: string
@@ -419,6 +437,25 @@ export interface EventAnalysisData {
     address?: string | null
     phone?: string | null
     email?: string | null
+  } | null
+  /**
+   * LiveRC qual-points snapshot: full standings per class (same order as view_points # column)
+   * when ingested `event_qual_points` rows exist. Null when none or empty.
+   */
+  qualPointsTopQualifiers: {
+    /** e.g. "Qual Points (2 of 5)" from LiveRC */
+    label: string
+    sourcePointsId: string
+    /** https://{trackSlug}.liverc.com/results/?p=view_points&id=... when slug known */
+    viewPointsUrl: string | null
+    /** All drivers per class, ordered by qualification position (LiveRC # column) */
+    standings: Array<{
+      className: string
+      position: number
+      driverId: string
+      driverDisplayName: string
+      points: number
+    }>
   } | null
 }
 
@@ -1139,6 +1176,96 @@ function mergeEventEntriesForDisplayList<
   return out
 }
 
+function buildLivercViewPointsUrl(
+  trackSlug: string | null | undefined,
+  sourcePointsId: string
+): string | null {
+  const slug = trackSlug?.trim()
+  if (!slug) return null
+  return `https://${slug}.liverc.com/results/?p=view_points&id=${encodeURIComponent(sourcePointsId)}`
+}
+
+type EventQualPointsRecordLite = {
+  id: string
+  label: string
+  sourcePointsId: string
+  roundsCompleted: number | null
+  totalRounds: number | null
+  updatedAt: Date
+  entries: Array<{
+    className: string
+    position: number
+    points: number
+    driver: { displayName: string }
+    driverId: string
+  }>
+}
+
+/** Prefer a completed rounds snapshot; else most progress; else latest update. */
+function pickBestEventQualPointsRecord(
+  records: EventQualPointsRecordLite[]
+): EventQualPointsRecordLite | null {
+  if (records.length === 0) return null
+  const complete = records.filter(
+    (r) => r.roundsCompleted != null && r.totalRounds != null && r.roundsCompleted === r.totalRounds
+  )
+  const pool: EventQualPointsRecordLite[] = complete.length > 0 ? complete : [...records]
+  const sorted = [...pool].sort((a, b) => {
+    const rcA = a.roundsCompleted ?? -1
+    const rcB = b.roundsCompleted ?? -1
+    if (rcB !== rcA) return rcB - rcA
+    return b.updatedAt.getTime() - a.updatedAt.getTime()
+  })
+  return sorted[0] ?? null
+}
+
+/** Sort by registration class order when known, then class name, then # within class. */
+function sortQualStandingsByClassOrder(
+  rows: Array<{ className: string; position: number }>,
+  registrationClassOrder: string[] | undefined
+): void {
+  const index = registrationClassOrder?.length
+    ? new Map(registrationClassOrder.map((c, i) => [c, i]))
+    : null
+  rows.sort((a, b) => {
+    if (index?.size) {
+      const ia = index.get(a.className)
+      const ib = index.get(b.className)
+      if (ia !== undefined && ib !== undefined && ia !== ib) return ia - ib
+      if (ia !== undefined && ib === undefined) return -1
+      if (ib !== undefined && ia === undefined) return 1
+    }
+    const cmp = a.className.localeCompare(b.className)
+    if (cmp !== 0) return cmp
+    return a.position - b.position
+  })
+}
+
+function buildQualPointsTopQualifiersPayload(
+  records: EventQualPointsRecordLite[],
+  trackSlug: string | null | undefined,
+  registrationClassOrder: string[] | undefined
+): EventAnalysisData["qualPointsTopQualifiers"] {
+  const picked = pickBestEventQualPointsRecord(records)
+  if (!picked || picked.entries.length === 0) return null
+
+  const standings = picked.entries.map((e) => ({
+    className: e.className,
+    position: e.position,
+    driverId: e.driverId,
+    driverDisplayName: e.driver.displayName.trim() || e.driverId,
+    points: e.points,
+  }))
+  sortQualStandingsByClassOrder(standings, registrationClassOrder)
+
+  return {
+    label: picked.label,
+    sourcePointsId: picked.sourcePointsId,
+    viewPointsUrl: buildLivercViewPointsUrl(trackSlug, picked.sourcePointsId),
+    standings,
+  }
+}
+
 /**
  * Get comprehensive event analysis data
  *
@@ -1206,6 +1333,8 @@ export async function getEventAnalysisData(
     return null
   }
 
+  const programBucketOrder = extractLivercProgramBucketOrder(event.metadata)
+
   // Exclude LiveRC scheduling placeholders (e.g. Track Maintenance) - not real races
   const racesToProcess = event.races.filter((race) => !isPlaceholderClass(race.className))
 
@@ -1233,43 +1362,62 @@ export async function getEventAnalysisData(
     }
   }
 
-  const [totalLaps, lapsByRaceResultId, fastLapLapNumberFromJoin, eventEntries, eventRaceClasses] =
-    await Promise.all([
-      prisma.lap.count({
-        where: {
-          raceResult: {
-            race: {
-              eventId: eventId,
-            },
+  const [
+    totalLaps,
+    lapsByRaceResultId,
+    fastLapLapNumberFromJoin,
+    eventEntries,
+    eventRaceClasses,
+    eventQualPointsRecords,
+  ] = await Promise.all([
+    prisma.lap.count({
+      where: {
+        raceResult: {
+          race: {
+            eventId: eventId,
           },
         },
-      }),
-      needsDerivationIds.length > 0
-        ? loadLapsGroupedByRaceResultId(needsDerivationIds)
-        : Promise.resolve(new Map<string, LapRowLite[]>()),
-      fetchFastLapLapNumberByRaceResultForEvent(eventId),
-      prisma.eventEntry.findMany({
-        where: { eventId },
-        include: {
-          driver: {
-            select: {
-              id: true,
-              displayName: true,
-            },
+      },
+    }),
+    needsDerivationIds.length > 0
+      ? loadLapsGroupedByRaceResultId(needsDerivationIds)
+      : Promise.resolve(new Map<string, LapRowLite[]>()),
+    fetchFastLapLapNumberByRaceResultForEvent(eventId),
+    prisma.eventEntry.findMany({
+      where: { eventId },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            displayName: true,
           },
         },
-        orderBy: { className: "asc" },
-      }),
-      prisma.eventRaceClass.findMany({
-        where: { eventId },
-        select: {
-          className: true,
-          fromEntryList: true,
-          vehicleType: true,
-          vehicleTypeNeedsReview: true,
+      },
+      orderBy: { className: "asc" },
+    }),
+    prisma.eventRaceClass.findMany({
+      where: { eventId },
+      select: {
+        className: true,
+        fromEntryList: true,
+        vehicleType: true,
+        vehicleTypeNeedsReview: true,
+      },
+    }),
+    prisma.eventQualPoints.findMany({
+      where: { eventId },
+      include: {
+        entries: {
+          include: {
+            driver: {
+              select: { displayName: true },
+            },
+          },
+          orderBy: [{ className: "asc" }, { position: "asc" }],
         },
-      }),
-    ])
+      },
+    }),
+  ])
 
   // Aggregate driver data across all races using normalized Driver ID
   const driverMap = new Map<
@@ -1522,19 +1670,44 @@ export async function getEventAnalysisData(
 
   const ercByClassName = new Map(eventRaceClasses.map((rc) => [rc.className, rc] as const))
 
-  const registrationClassNames = Array.from(
+  const registrationClassNamesFromEntries = Array.from(
     new Set(
       eventEntries
         .map((e) => e.className?.trim())
         .filter((cn): cn is string => Boolean(cn && cn.length > 0))
     )
-  )
-    .filter((cn) => {
-      const erc = ercByClassName.get(cn)
-      // Session-bucket ERC rows (LCQ, semi practice, etc.) are not registration classes.
-      return erc?.fromEntryList !== false
-    })
-    .sort((a, b) => a.localeCompare(b))
+  ).filter((cn) => {
+    const erc = ercByClassName.get(cn)
+    // Session-bucket ERC rows (LCQ, semi practice, etc.) are not registration classes.
+    return erc?.fromEntryList !== false
+  })
+
+  const registrationClassNames = (() => {
+    if (programBucketOrder?.length) {
+      const seen = new Set<string>()
+      const out: string[] = []
+      const isRegistrationBucket = (cn: string) => {
+        const erc = ercByClassName.get(cn)
+        return erc?.fromEntryList !== false
+      }
+      for (const raw of programBucketOrder) {
+        const cn = raw.trim()
+        if (!cn || isPlaceholderClass(raw)) continue
+        if (!isRegistrationBucket(cn)) continue
+        if (seen.has(cn)) continue
+        seen.add(cn)
+        out.push(cn)
+      }
+      for (const cn of registrationClassNamesFromEntries) {
+        const t = cn.trim()
+        if (seen.has(t)) continue
+        seen.add(t)
+        out.push(t)
+      }
+      return out.sort((a, b) => a.localeCompare(b))
+    }
+    return registrationClassNamesFromEntries.sort((a, b) => a.localeCompare(b))
+  })()
 
   // Sort by className first, then by driver name
   const sortedEntries = [...eventEntries].sort((a, b) => {
@@ -1563,6 +1736,12 @@ export async function getEventAnalysisData(
   }))
 
   const isPracticeDay = event.sourceEventId?.includes("-practice-") ?? false
+
+  const qualPointsTopQualifiers = buildQualPointsTopQualifiersPayload(
+    eventQualPointsRecords,
+    event.track.sourceTrackSlug,
+    registrationClassNames
+  )
 
   const multiMainResultsData = (event.multiMainResults ?? []).map((mm) => ({
     id: mm.id,
@@ -1637,11 +1816,13 @@ export async function getEventAnalysisData(
     },
     isPracticeDay,
     registrationClassNames,
+    programBucketOrder,
     races: racesData,
     drivers: driversData,
     entryList: entryListData,
     raceClasses: raceClassesMap,
     multiMainResults: multiMainResultsData,
+    qualPointsTopQualifiers,
     summary: {
       totalRaces: racesData.length,
       totalDrivers: driversData.length,

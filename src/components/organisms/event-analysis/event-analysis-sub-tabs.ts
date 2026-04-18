@@ -14,7 +14,9 @@ export const CORE_ANALYSIS_SUB_TAB_IDS = [
 
 /** Event Analysis only: includes mains-ladder views (not applicable per-session). */
 export const EVENT_ANALYSIS_SUB_TAB_IDS = [
-  ...CORE_ANALYSIS_SUB_TAB_IDS,
+  CORE_ANALYSIS_SUB_TAB_IDS[0],
+  "qualification-results",
+  ...CORE_ANALYSIS_SUB_TAB_IDS.slice(1),
   "bump-ups",
   "driver-progression",
 ] as const
@@ -25,7 +27,10 @@ export type EventAnalysisSubTabId = (typeof EVENT_ANALYSIS_SUB_TAB_IDS)[number]
 export type AnalysisSubTabScope = "event" | "session"
 
 const STATIC_SUB_TAB_LABELS: Record<
-  Exclude<EventAnalysisSubTabId, "event-results" | "bump-ups" | "driver-progression">,
+  Exclude<
+    EventAnalysisSubTabId,
+    "event-results" | "qualification-results" | "bump-ups" | "driver-progression"
+  >,
   string
 > = {
   "fastest-laps": "Fastest Laps",
@@ -38,6 +43,7 @@ export function getSubTabLabel(id: EventAnalysisSubTabId, scope: AnalysisSubTabS
   if (id === "event-results") {
     return scope === "session" ? "Session Results" : "Event Results"
   }
+  if (id === "qualification-results") return "Qualification Results"
   if (id === "bump-ups") return "Bump-Up"
   if (id === "driver-progression") return "Driver Progression"
   return STATIC_SUB_TAB_LABELS[id]

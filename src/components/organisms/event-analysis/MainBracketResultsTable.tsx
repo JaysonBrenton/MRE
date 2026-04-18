@@ -3,8 +3,9 @@
  *
  * @description Computes overall 1st–3rd from lettered mains (A1-Main, …) via
  * `buildEventMainResultRows`, and falls back to the top 3 from each class main when labels
- * are not lettered. Rows can expand to list the mains that feed an overall bracket; rows also
- * open a modal with the full overall order or full session results.
+ * are not lettered. Expand lists feeding mains when there are multiple legs; the chevron is
+ * disabled when only one main session backs the row (including single-main and one-leg letter
+ * brackets). Rows also open a modal with the full overall order or full session results.
  *
  * @relatedFiles
  * - src/core/events/main-bracket-overall.ts
@@ -13,7 +14,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useCallback, Fragment } from "react"
+import { useState, useEffect, useMemo, useCallback, Fragment, type ReactNode } from "react"
 import { ChevronDown } from "lucide-react"
 import {
   StandardTable,
@@ -97,9 +98,23 @@ function bracketRowKey(row: BracketOverallRow): string {
 
 export interface MainBracketResultsTableProps {
   races: EventAnalysisData["races"]
+  /**
+   * When set, used as the heading after "Event Results:" instead of inferring from class names
+   * (e.g. car taxonomy leaf label when filtering by mapped car type).
+   */
+  eventResultsTitleOverride?: string | null
+  /**
+   * Optional Session / Type scope controls; rendered in the panel header (same layout as
+   * `SessionRaceResultsTable`).
+   */
+  headerToolbar?: ReactNode
 }
 
-export default function MainBracketResultsTable({ races }: MainBracketResultsTableProps) {
+export default function MainBracketResultsTable({
+  races,
+  eventResultsTitleOverride,
+  headerToolbar,
+}: MainBracketResultsTableProps) {
   const [sortField, setSortField] = useState<SortField>("className")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [currentPage, setCurrentPage] = useState(1)
@@ -272,6 +287,8 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
   }, [])
 
   const headerClassLabel = useMemo(() => {
+    const override = eventResultsTitleOverride?.trim()
+    if (override) return override
     const classes = Array.from(
       new Set(
         mainsOnly
@@ -282,18 +299,25 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
     if (classes.length === 0) return "All Classes"
     if (classes.length === 1) return classes[0]
     return "Multiple Classes"
-  }, [mainsOnly])
+  }, [mainsOnly, eventResultsTitleOverride])
 
   const closeDetail = useCallback(() => setDetailRow(null), [])
 
   if (resultRows.length === 0) {
     return (
       <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
-        <div className="px-4 py-3 border-b border-[var(--token-border-default)]">
-          <h2 className={typography.h4}>{`Event Results: ${headerClassLabel}`}</h2>
-          <p className={`mt-1 ${typography.bodySecondary}`}>
-            No main sessions with results in this selection, so event podiums cannot be shown.
-          </p>
+        <div className="border-b border-[var(--token-border-default)] px-4 py-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className={typography.h4}>{`Event Results: ${headerClassLabel}`}</h2>
+              <p className={`mt-1 ${typography.bodySecondary}`}>
+                No main sessions with results in this selection, so event podiums cannot be shown.
+              </p>
+            </div>
+            {headerToolbar ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">{headerToolbar}</div>
+            ) : null}
+          </div>
         </div>
       </div>
     )
@@ -302,11 +326,14 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
   return (
     <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
       <div className="border-b border-[var(--token-border-default)] px-4 py-3">
-        <h2 className={typography.h4}>{`Event Results: ${headerClassLabel}`}</h2>
-        <p className={`mt-1 ${typography.bodySecondary}`}>
-          Click a row for full results (overall bracket order or complete main finishing order). Use
-          the first column to expand and see which mains feed an overall bracket.
-        </p>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className={typography.h4}>{`Event Results: ${headerClassLabel}`}</h2>
+          </div>
+          {headerToolbar ? (
+            <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">{headerToolbar}</div>
+          ) : null}
+        </div>
       </div>
       <div className="px-2 py-2 sm:px-4">
         <DataTableFrame>
@@ -430,7 +457,9 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                 const rk = bracketRowKey(row)
                 const expanded = expandedRowKey === rk
                 const legRaces = sortBracketRaces(resolveMainsForBracketOverallRow(row, mainsOnly))
-                const canExpand = legRaces.length > 0
+                const hasLegSessions = legRaces.length > 0
+                const expandDisabled = legRaces.length <= 1
+                const canToggleExpand = hasLegSessions && !expandDisabled
 
                 return (
                   <Fragment key={rk}>
@@ -449,16 +478,19 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                         className="border-b border-[var(--token-border-default)] w-10 px-1 py-2 align-middle"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {canExpand ? (
+                        {hasLegSessions ? (
                           <button
                             type="button"
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-                            aria-expanded={expanded}
-                            aria-controls={`leg-sessions-${rk}`}
+                            disabled={expandDisabled}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[var(--token-text-secondary)]"
+                            aria-expanded={expandDisabled ? false : expanded}
+                            aria-controls={expandDisabled ? undefined : `leg-sessions-${rk}`}
                             aria-label={
-                              expanded
-                                ? `Hide sessions for ${row.className} ${row.bracketLabel}`
-                                : `Show sessions used for ${row.className} ${row.bracketLabel}`
+                              expandDisabled
+                                ? `Session breakdown not available; only one main for ${row.className} ${row.bracketLabel}`
+                                : expanded
+                                  ? `Hide sessions for ${row.className} ${row.bracketLabel}`
+                                  : `Show sessions used for ${row.className} ${row.bracketLabel}`
                             }
                             onClick={(e) => {
                               e.stopPropagation()
@@ -466,7 +498,7 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                             }}
                           >
                             <ChevronDown
-                              className={`h-4 w-4 shrink-0 transition-transform ${expanded ? "rotate-0" : "-rotate-90"}`}
+                              className={`h-4 w-4 shrink-0 transition-transform ${expanded && !expandDisabled ? "rotate-0" : "-rotate-90"}`}
                               aria-hidden
                             />
                           </button>
@@ -496,42 +528,41 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                       </StandardTableCell>
                     </StandardTableRow>
 
-                    {expanded && canExpand && (
+                    {expanded && canToggleExpand && (
                       <StandardTableRow className="bg-[var(--token-surface-raised)]/35 hover:bg-[var(--token-surface-raised)]/45">
                         <td
                           id={`leg-sessions-${rk}`}
                           colSpan={tableColumnCount}
                           className="border-b border-[var(--token-border-default)] px-3 py-3 align-top"
                         >
-                          <div className="space-y-2">
-                            {row.sessionKind === "aggregate" ? (
-                              <p className="text-xs text-[var(--token-text-secondary)]">
-                                These mains are combined for overall order (best legs, tie-breaks),
-                                matching the event podium rules.
-                              </p>
-                            ) : (
-                              <p className="text-xs text-[var(--token-text-secondary)]">
-                                This row is based on one main session.
-                              </p>
-                            )}
-                            <div className="overflow-x-auto">
-                              <table className="w-full min-w-[320px] border-collapse text-sm">
-                                <thead>
-                                  <tr className="border-b border-[var(--token-border-default)]">
-                                    <th
-                                      className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}
-                                    >
-                                      Session
-                                    </th>
-                                    <th
-                                      className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}
-                                    >
-                                      Start
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {legRaces.map((race) => (
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[640px] border-collapse text-sm">
+                              <thead>
+                                <tr className="border-b border-[var(--token-border-default)]">
+                                  <th className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}>
+                                    Session
+                                  </th>
+                                  <th className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}>
+                                    Start
+                                  </th>
+                                  <th className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}>
+                                    1st
+                                  </th>
+                                  <th className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}>
+                                    2nd
+                                  </th>
+                                  <th className={`py-1.5 pr-3 text-left ${typography.tableHeader}`}>
+                                    3rd
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {legRaces.map((race) => {
+                                  const legPodium = getSortedRaceResults(race)
+                                  const p1 = legPodium[0]?.driverName ?? null
+                                  const p2 = legPodium[1]?.driverName ?? null
+                                  const p3 = legPodium[2]?.driverName ?? null
+                                  return (
                                     <tr
                                       key={race.id}
                                       className="border-b border-[var(--token-border-default)]/60"
@@ -553,11 +584,20 @@ export default function MainBracketResultsTable({ races }: MainBracketResultsTab
                                       <td className="py-1.5 pr-3 tabular-nums text-[var(--token-text-secondary)]">
                                         {formatTimeUTC(race.startTime)}
                                       </td>
+                                      <td className="py-1.5 pr-3 text-sm font-semibold text-[var(--token-text-primary)]">
+                                        {p1 ?? "—"}
+                                      </td>
+                                      <td className="py-1.5 pr-3 text-sm text-[var(--token-text-secondary)]">
+                                        {p2 ?? "—"}
+                                      </td>
+                                      <td className="py-1.5 pr-3 text-sm text-[var(--token-text-secondary)]">
+                                        {p3 ?? "—"}
+                                      </td>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
                           </div>
                         </td>
                       </StandardTableRow>

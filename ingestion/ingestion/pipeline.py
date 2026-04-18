@@ -40,11 +40,11 @@ from ingestion.connectors.liverc.models import (
 from ingestion.connectors.liverc.utils import build_event_url
 from ingestion.db.models import (
     IngestDepth,
+    Event,
     EventEntry,
     UserDriverLinkStatus,
     EventDriverLinkMatchType,
     Track,
-    Event,
 )
 from ingestion.ingestion.practice_driver_identity import get_practice_source_driver_id
 from ingestion.db.repository import Repository
@@ -65,6 +65,15 @@ from ingestion.ingestion.auto_confirm import check_and_confirm_links
 from ingestion.ingestion.derived_laps import run_derivation_for_race
 
 logger = get_logger(__name__)
+
+LIVERC_PROGRAM_BUCKET_ORDER_KEY = "livercProgramBucketOrder"
+
+
+def _registration_program_bucket_names(entry_list: ConnectorEntryList) -> Set[str]:
+    """LiveRC registration program buckets: full nav order when present, else classes with entries."""
+    if entry_list.class_order:
+        return {c.strip() for c in entry_list.class_order if c and str(c).strip()}
+    return set(entry_list.entries_by_class.keys())
 
 
 def _get_event_entries_for_race_class(
@@ -1544,8 +1553,13 @@ class IngestionPipeline:
                 )
                 entries_created += 1
         
-        # Second pass: Create EventRaceClass records and link entries
-        for class_name in entry_list.entries_by_class.keys():
+        # Second pass: EventRaceClass for every program bucket (including empty nav tabs), link entries
+        class_names_for_erc = (
+            list(entry_list.class_order)
+            if entry_list.class_order
+            else list(entry_list.entries_by_class.keys())
+        )
+        for class_name in class_names_for_erc:
             # Infer vehicle type from race class name
             inferred_vehicle_type = infer_vehicle_type(class_name)
             
@@ -1566,6 +1580,13 @@ class IngestionPipeline:
                     entry.event_race_class_id = event_race_class.id
                     entry.updated_at = datetime.utcnow()
             # Session flush will happen when the transaction commits
+
+        event_row = repo.get_event_by_id(event_id)
+        if event_row is not None and entry_list.class_order:
+            raw_meta = event_row.event_metadata
+            meta = dict(raw_meta) if isinstance(raw_meta, dict) else {}
+            meta[LIVERC_PROGRAM_BUCKET_ORDER_KEY] = list(entry_list.class_order)
+            event_row.event_metadata = meta
         
         logger.info(
             "entry_list_processed",
@@ -1910,7 +1931,7 @@ class IngestionPipeline:
                 self._sync_race_vehicle_classes(
                     repo,
                     event_id,
-                    set(entry_list.entries_by_class.keys()),
+                    _registration_program_bucket_names(entry_list),
                 )
                 repo.session.commit()
                 logger.info("ingestion_already_complete", event_id=str(event_id))
@@ -2034,7 +2055,7 @@ class IngestionPipeline:
             self._sync_race_vehicle_classes(
                 repo,
                 event_id,
-                set(entry_list.entries_by_class.keys()),
+                _registration_program_bucket_names(entry_list),
             )
             repo.session.commit()
 

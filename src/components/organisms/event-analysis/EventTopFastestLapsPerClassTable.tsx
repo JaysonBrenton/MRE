@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect, useCallback } from "react"
+import { useMemo, useState, useEffect, useCallback, type ReactNode } from "react"
 import {
   StandardTable,
   StandardTableHeader,
@@ -23,6 +23,8 @@ import DataPanelSurface, {
 
 export interface EventTopFastestLapsPerClassTableProps {
   races: EventAnalysisData["races"]
+  /** Session / Type scope controls (event analysis); shown in panel header before Driver. */
+  eventScopeFilters?: ReactNode
 }
 
 interface TableRow {
@@ -61,6 +63,7 @@ function SortIcon({ field, activeField, direction }: SortIconProps) {
 
 export default function EventTopFastestLapsPerClassTable({
   races,
+  eventScopeFilters,
 }: EventTopFastestLapsPerClassTableProps) {
   const headerClassLabel = useMemo(() => {
     const classes = Array.from(
@@ -234,7 +237,7 @@ export default function EventTopFastestLapsPerClassTable({
   if (rows.length === 0) {
     return (
       <DataPanelSurface
-        title="Fastest Laps Per Class"
+        title="Fastest Laps for Event"
         subtitle="No fastest lap data available for this event."
         contentClassName="px-4 py-3"
       />
@@ -244,12 +247,10 @@ export default function EventTopFastestLapsPerClassTable({
   return (
     <>
       <DataPanelSurface
-        title={`Fastest Laps Per Class: ${headerClassLabel}`}
-        subtitle={
-          "The table lists the top three distinct lap times per class (ties included). Click a row to see every driver's best lap in that class."
-        }
+        title={`Fastest Laps for Event: ${headerClassLabel}`}
         headerControls={
-          <div className="flex flex-wrap items-center gap-3">
+          <>
+            {eventScopeFilters}
             <div className="flex items-center gap-2">
               <label
                 htmlFor="event-top-fastest-driver-filter"
@@ -266,7 +267,7 @@ export default function EventTopFastestLapsPerClassTable({
                 className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
               />
             </div>
-          </div>
+          </>
         }
         contentClassName="px-4 py-3"
       >

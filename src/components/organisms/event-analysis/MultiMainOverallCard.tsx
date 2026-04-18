@@ -36,9 +36,10 @@ export interface MultiMainOverallCardProps {
   multiMainResults: EventAnalysisData["multiMainResults"]
   /**
    * Class chip selection: only multi-main blocks whose `classLabel` matches are shown.
-   * Null/undefined/empty = show every class that has multi-main data.
+   * Null/undefined/empty string = show every class that has multi-main data.
+   * Non-empty array = show blocks whose label matches any entry (car taxonomy grouping).
    */
-  activeClassLabel?: string | null
+  activeClassLabel?: string | string[] | null
 }
 
 type MultiMainBlock = EventAnalysisData["multiMainResults"][number]

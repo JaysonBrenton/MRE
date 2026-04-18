@@ -193,3 +193,26 @@ class TestEntryListParser:
         result = parser.parse(html, "http://test.com", "491882")
         assert set(result.entries_by_class.keys()) == {"Buggy", "Truggy"}
 
+    def test_class_order_includes_nav_buckets_with_no_entries(self):
+        """Nav pills list all program buckets; empty tabs still appear in class_order."""
+        parser = EntryListParser()
+        html = """
+        <html><body>
+        <ul class="nav nav-pills">
+          <li><a href="#Buggy_tab_6040" data-toggle="tab">Buggy</a></li>
+          <li><a href="#Nitro_tab_6041" data-toggle="tab">Nitro</a></li>
+        </ul>
+        <table>
+          <thead>
+            <tr><th colspan="3"><div class="class_header">Buggy</div>
+              <div class="class_sub_header">Entries: 1</div></th></tr>
+            <tr><th>#</th><th>Driver</th><th>Transponder #</th></tr>
+          </thead>
+          <tbody><tr><td>1</td><td>DRIVER A</td><td>111</td></tr></tbody>
+        </table>
+        </body></html>
+        """
+        result = parser.parse(html, "http://test.com", "123")
+        assert set(result.entries_by_class.keys()) == {"Buggy"}
+        assert result.class_order == ["Buggy", "Nitro"]
+

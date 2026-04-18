@@ -23,4 +23,14 @@ describe("multiMainResultMatchesClassFilter", () => {
   it("returns false when labels differ", () => {
     expect(multiMainResultMatchesClassFilter("1/8 Electric Buggy", "1/10 Open")).toBe(false)
   })
+
+  it("matches when filter is a non-empty array and label equals any entry", () => {
+    expect(multiMainResultMatchesClassFilter("Junior", ["Buggy", "Junior", "Sportsman"])).toBe(true)
+    expect(multiMainResultMatchesClassFilter("junior", ["Buggy", "Junior", "Sportsman"])).toBe(true)
+    expect(multiMainResultMatchesClassFilter("Mod", ["Buggy", "Junior", "Sportsman"])).toBe(false)
+  })
+
+  it("returns false for empty array filter", () => {
+    expect(multiMainResultMatchesClassFilter("1/8 Electric Buggy", [])).toBe(false)
+  })
 })

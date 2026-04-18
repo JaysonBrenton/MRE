@@ -55,7 +55,9 @@ export default function DataPanelSurface({
               {title && <h2 className={typography.h4}>{title}</h2>}
               {subtitle && <div className={`mt-1 ${typography.bodySecondary}`}>{subtitle}</div>}
             </div>
-            {headerControls && <div className="mt-3 sm:mt-0">{headerControls}</div>}
+            {headerControls && (
+              <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">{headerControls}</div>
+            )}
           </div>
         </div>
       )}

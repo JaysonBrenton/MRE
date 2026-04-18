@@ -7,7 +7,7 @@
  *              - DB events with ingest_depth = none (metadata only, no race/lap data)
  *
  * @purpose Ensures the EventSearchContainer displayedEvents filter works correctly
- *          so users only see events with imported race/lap data when "Ingested events only" is ON.
+ *          so users only see events with imported race/lap data when "Imported events only" is ON.
  */
 
 import { describe, it, expect } from "vitest"
