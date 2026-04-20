@@ -23,7 +23,7 @@ import DataPanelSurface, {
 
 export interface EventTopAverageLapsPerClassTableProps {
   races: EventAnalysisData["races"]
-  /** Session / Type scope controls (event analysis); shown in panel header before Class. */
+  /** Session / Type scope controls (event analysis); shown in panel header. */
   eventScopeFilters?: ReactNode
 }
 
@@ -105,13 +105,6 @@ export default function EventTopAverageLapsPerClassTable({
     return flat
   }, [races])
 
-  const classOptions = useMemo(() => {
-    const set = new Set<string>()
-    rows.forEach((row) => set.add(row.className))
-    return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [rows])
-
-  const [classFilter, setClassFilter] = useState<string>("")
   const [driverSearch, setDriverSearch] = useState<string>("")
   const [sortField, setSortField] = useState<SortField>("className")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
@@ -153,24 +146,14 @@ export default function EventTopAverageLapsPerClassTable({
 
   const closeDetailModal = useCallback(() => setDetailClassName(null), [])
 
-  useEffect(() => {
-    if (classFilter && !classOptions.includes(classFilter)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync filter to new dataset
-      setClassFilter("")
-    }
-  }, [classOptions, classFilter])
-
   const filteredRows = useMemo(() => {
     let r = rows
-    if (classFilter) {
-      r = r.filter((row) => row.className === classFilter)
-    }
     const search = driverSearch.trim().toLowerCase()
     if (search) {
       r = r.filter((row) => row.driverName.toLowerCase().includes(search))
     }
     return r
-  }, [rows, classFilter, driverSearch])
+  }, [rows, driverSearch])
 
   const sortedRows = useMemo(() => {
     const list = [...filteredRows]
@@ -236,7 +219,7 @@ export default function EventTopAverageLapsPerClassTable({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1)
-  }, [classFilter, driverSearch, itemsPerPage, sortField, sortDirection])
+  }, [driverSearch, itemsPerPage, sortField, sortDirection])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -268,27 +251,6 @@ export default function EventTopAverageLapsPerClassTable({
         headerControls={
           <>
             {eventScopeFilters}
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="event-top-avg-class-filter"
-                className="text-xs font-medium text-[var(--token-text-secondary)]"
-              >
-                Class
-              </label>
-              <select
-                id="event-top-avg-class-filter"
-                value={classFilter}
-                onChange={(e) => setClassFilter(e.target.value)}
-                className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              >
-                <option value="">All Classes</option>
-                {classOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
             <div className="flex items-center gap-2">
               <label
                 htmlFor="event-top-avg-driver-filter"

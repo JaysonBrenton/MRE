@@ -55,6 +55,11 @@ export interface ModalProps {
    */
   resizable?: boolean
   /**
+   * When `resizable` is true, optional starting width/height (CSS lengths, e.g. `"42rem"` or `"720px"`).
+   * Overrides the default width from `maxWidth`; sets an initial height (otherwise content-driven).
+   */
+  resizableDefaultSize?: { width: string; height: string }
+  /**
    * When true, double-clicking the header (not the close button) toggles the panel between normal
    * layout and filling the viewport. Opt-in so most modals keep the default behavior.
    */
@@ -101,6 +106,7 @@ export default function Modal({
   ariaLabel,
   resizable = true,
   doubleClickHeaderFullscreen = false,
+  resizableDefaultSize,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -199,7 +205,17 @@ export default function Modal({
       ? fullscreenPanel
       : resizable
         ? {
-            ...getModalResizableContainerStyles(maxWidthInRem[maxWidth]),
+            ...(resizableDefaultSize
+              ? {
+                  width: resizableDefaultSize.width,
+                  height: resizableDefaultSize.height,
+                  maxWidth: "min(96vw, 100vw - 2rem)",
+                  minWidth: "20rem",
+                  boxSizing: "border-box" as const,
+                  flexShrink: 0,
+                  flexGrow: 0,
+                }
+              : getModalResizableContainerStyles(maxWidthInRem[maxWidth])),
             resize: "both",
             overflow: "hidden",
             minHeight: "12rem",

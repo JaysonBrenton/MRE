@@ -22,14 +22,15 @@ export async function GET(request: NextRequest) {
   const requestId = generateRequestId()
   const requestLogger = createRequestLogger(request, requestId)
 
-  // Check authentication
-  const session = await auth()
-  if (!session) {
-    requestLogger.warn("Unauthorized tracks request")
-    return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
-  }
-
   try {
+    // Keep auth() inside try so JWT/session failures return JSON instead of an HTML error page
+    // (clients parse JSON via parseApiResponse; HTML triggers "Failed to parse API response").
+    const session = await auth()
+    if (!session) {
+      requestLogger.warn("Unauthorized tracks request")
+      return errorResponse("UNAUTHORIZED", "Authentication required", {}, 401)
+    }
+
     const searchParams = request.nextUrl.searchParams
     const followedParam = searchParams.get("followed")
     const activeParam = searchParams.get("active")

@@ -131,8 +131,11 @@ async def startup_event():
     # Start ingestion queue workers when queue mode is enabled
     from ingestion.api.job_queue import is_queue_enabled, start_workers
     if is_queue_enabled():
-        start_workers(num_workers=1)
-        logger.info("ingestion_queue_enabled", workers=1)
+        # Must match INGESTION_QUEUE_MAX_CONCURRENT (default 2). Passing num_workers=1
+        # caused a single asyncio loop to drain the queue serially, so one long import
+        # blocked all other queued jobs until it finished.
+        start_workers()
+        logger.info("ingestion_queue_enabled")
 
 
 @app.on_event("shutdown")

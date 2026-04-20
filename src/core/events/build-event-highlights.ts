@@ -5,15 +5,22 @@
  */
 
 import type { EventAnalysisData } from "./get-event-analysis-data"
+import {
+  baseClassFromMultiMainLabel,
+  listMultiMainBlocksForCanonicalClass,
+  pickBestMultiMainBlockForClass,
+} from "./class-winners-multi-main"
 import { formatClassName } from "@/lib/format-class-name"
 import { getLadderRank } from "./infer-bump-ups"
 import { isEventMainSession } from "./main-bracket-overall"
+import { compareP1P2FinishMetrics, computeP1P2FinishMetrics } from "./event-closest-battles"
 import {
   sessionTypeFilterChipLabel,
   sessionTypeFilterKeyForRace,
   sortSessionTypeFilterKeys,
 } from "./session-type-filter"
-import { formatLapTime } from "@/lib/format-session-data"
+import { formatLapTime, formatLapsSlashTime } from "@/lib/format-session-data"
+import { countDriverParticipatedMains } from "./multi-main-participation"
 
 const CHART_COLOR_VARS = [
   "var(--token-chart-series-1)",
@@ -31,10 +38,6 @@ const CHART_COLOR_VARS = [
 ] as const
 
 function lapTimeValid(t: number | null | undefined): t is number {
-  return typeof t === "number" && Number.isFinite(t) && t > 0
-}
-
-function totalTimeValid(t: number | null | undefined): t is number {
   return typeof t === "number" && Number.isFinite(t) && t > 0
 }
 
@@ -61,11 +64,6 @@ function sortRacesChronologically<T extends { startTime: Date | null; raceOrder:
     const orderB = b.raceOrder ?? 0
     return orderA - orderB
   })
-}
-
-function findMultiMainBlock(data: EventAnalysisData, className: string) {
-  const want = className.trim().toLowerCase()
-  return data.multiMainResults.find((m) => m.classLabel.trim().toLowerCase() === want) ?? null
 }
 
 function pickFeaturedMainRace(
@@ -98,9 +96,151 @@ export interface SessionMixSegment {
 }
 
 export interface ClassWinnerHighlight {
+  /** Raw class name from schedule / results (stable key). */
+  className: string
   classDisplay: string
   winnerName: string
   raceLabel: string
+}
+
+/** Body content for the Event Overview class-winner detail modal (imported results). */
+export type ClassWinnerModalDetail =
+  | {
+      kind: "multiMain"
+      classLabel: string
+      combinedPoints: number
+      /** Event-level: LiveRC “Completed: X of Y” for the class (all mains run for the schedule). */
+      completedMains: number
+      totalMains: number
+      /** This driver: mains with a non–sit-out result (`multi-main-participation.ts`). */
+      driverMainsParticipated: number
+      tieBreaker: string | null
+      mainRows: Array<{ label: string; position: number; lapsTime: string }>
+      /** LiveRC Overall Final Ranking–style string when per-main cells exist */
+      resultSummaryLine: string | null
+    }
+  | {
+      kind: "featuredMain"
+      raceLabel: string
+      positionFinal: number
+      lapsCompleted: number
+      lapsTimeLine: string | null
+      fastLapFormatted: string | null
+    }
+
+/** Same normalization as class-winner modal / LiveRC name matching. */
+export function driverNamesMatchForClassWinner(a: string, b: string): boolean {
+  const na = a.trim().replace(/\s+/g, " ").toLowerCase()
+  const nb = b.trim().replace(/\s+/g, " ").toLowerCase()
+  return na === nb
+}
+
+function sortMultiMainColumnLabels(labels: string[]): string[] {
+  return [...labels].sort((a, b) => {
+    const ma = /(\d+)\s*$/.exec(a)
+    const mb = /(\d+)\s*$/.exec(b)
+    const na = ma ? parseInt(ma[1]!, 10) : 0
+    const nb = mb ? parseInt(mb[1]!, 10) : 0
+    if (na !== nb) return na - nb
+    return a.localeCompare(b, undefined, { sensitivity: "base" })
+  })
+}
+
+function buildMultiMainResultSummaryLine(args: {
+  combinedPoints: number
+  mainRows: Array<{ position: number; lapsTime: string }>
+  totalMains: number
+}): string | null {
+  const { combinedPoints, mainRows, totalMains } = args
+  if (mainRows.length === 0) return null
+  const positions = mainRows.map((r) => r.position).filter((p) => Number.isFinite(p))
+  if (positions.length === 0) return null
+  const bestPos = Math.min(...positions)
+  const pickRow = mainRows.find((r) => r.position === bestPos) ?? mainRows[0]!
+  const lapsTail = pickRow.lapsTime.trim() || "—"
+  const useDoubleBracket = totalMains > 1 && mainRows.length > 1
+  if (useDoubleBracket) {
+    return `[${combinedPoints}] [${bestPos}] ${lapsTail}`
+  }
+  return `[${bestPos}] ${lapsTail}`
+}
+
+/**
+ * Resolve imported standings for the class-winner modal: multi-main block (same selection as
+ * {@link buildClassWinners}) or featured main P1 race result.
+ */
+export function resolveClassWinnerModalDetail(
+  highlight: ClassWinnerHighlight,
+  data: Pick<EventAnalysisData, "races" | "multiMainResults">
+): ClassWinnerModalDetail | null {
+  const mmCandidates = listMultiMainBlocksForCanonicalClass(
+    data.multiMainResults,
+    highlight.className
+  )
+  const mm = pickBestMultiMainBlockForClass(mmCandidates, highlight.className)
+  if (mm && mm.entries.length > 0) {
+    const sorted = [...mm.entries].sort((a, b) => a.position - b.position)
+    const atFirst = sorted.filter((e) => e.position === 1)
+    const entry =
+      atFirst.find((e) => driverNamesMatchForClassWinner(e.driverName, highlight.winnerName)) ??
+      atFirst[0]
+    if (entry && entry.position === 1) {
+      const breakdown = entry.mainBreakdown
+      const labels = breakdown ? sortMultiMainColumnLabels(Object.keys(breakdown)) : []
+      const mainRows = labels.map((label) => {
+        const cell = breakdown![label]!
+        return {
+          label,
+          position: cell.position,
+          lapsTime: cell.lapsTime?.trim() || "—",
+        }
+      })
+      const resultSummaryLine = buildMultiMainResultSummaryLine({
+        combinedPoints: entry.points,
+        mainRows,
+        totalMains: mm.totalMains,
+      })
+      const rawLapsList = labels.map((label) => breakdown![label]!.lapsTime)
+      const driverMainsParticipated = countDriverParticipatedMains(rawLapsList)
+      return {
+        kind: "multiMain",
+        classLabel: mm.classLabel,
+        combinedPoints: entry.points,
+        completedMains: mm.completedMains,
+        totalMains: mm.totalMains,
+        driverMainsParticipated,
+        tieBreaker: mm.tieBreaker,
+        mainRows,
+        resultSummaryLine,
+      }
+    }
+  }
+
+  const mainRace = pickFeaturedMainRace(data.races, highlight.className)
+  if (!mainRace) return null
+  const sortedResults = [...mainRace.results].sort((a, b) => a.positionFinal - b.positionFinal)
+  const atFirst = sortedResults.filter((r) => r.positionFinal === 1)
+  const winner =
+    atFirst.find((r) => driverNamesMatchForClassWinner(r.driverName, highlight.winnerName)) ??
+    atFirst[0]
+  if (!winner || winner.positionFinal !== 1) return null
+
+  const lapsTimeLine =
+    winner.lapsCompleted > 0 || winner.totalTimeSeconds != null
+      ? formatLapsSlashTime(winner.lapsCompleted, winner.totalTimeSeconds)
+      : null
+
+  return {
+    kind: "featuredMain",
+    raceLabel: mainRace.raceLabel,
+    positionFinal: winner.positionFinal,
+    lapsCompleted: winner.lapsCompleted,
+    lapsTimeLine,
+    fastLapFormatted:
+      winner.fastLapTime != null && Number.isFinite(winner.fastLapTime)
+        ? formatLapTime(winner.fastLapTime)
+        : null,
+  }
 }
 
 export interface ClosestFinishHighlight {
@@ -108,7 +248,10 @@ export interface ClosestFinishHighlight {
   classDisplay: string
   p1Name: string
   p2Name: string
-  gapSeconds: number
+  /** Same-lap clock gap in seconds, or null when 2nd is down lap(s). */
+  gapSeconds: number | null
+  /** Pre-formatted gap for UI (seconds or e.g. “1 lap”). */
+  gapDisplay: string
 }
 
 export interface EventHighlightsModel {
@@ -160,8 +303,14 @@ export interface EventHighlightsModel {
   }>
 }
 
-function uniqueClassesForWinners(data: EventAnalysisData): string[] {
-  const fromMm = data.multiMainResults.map((m) => m.classLabel.trim()).filter(Boolean)
+function uniqueClassesForWinners(
+  data: Pick<EventAnalysisData, "races" | "multiMainResults">
+): string[] {
+  const fromMm = new Set<string>()
+  for (const m of data.multiMainResults) {
+    const base = baseClassFromMultiMainLabel(m.classLabel)
+    if (base) fromMm.add(base)
+  }
   const fromRaces = new Set<string>()
   data.races.forEach((r) => {
     if (isEventMainSession(r) && r.className?.trim()) {
@@ -174,16 +323,37 @@ function uniqueClassesForWinners(data: EventAnalysisData): string[] {
   )
 }
 
-function buildClassWinners(data: EventAnalysisData): ClassWinnerHighlight[] {
+function canonicalClassesForClassWinners(
+  data: Pick<EventAnalysisData, "races" | "multiMainResults" | "registrationClassNames">
+): string[] {
+  const reg = (data.registrationClassNames ?? []).map((c) => c.trim()).filter(Boolean)
+  if (reg.length > 0) {
+    return [...new Set(reg)].sort((a, b) =>
+      formatClassName(a).localeCompare(formatClassName(b), undefined, { sensitivity: "base" })
+    )
+  }
+  return uniqueClassesForWinners(data)
+}
+
+/**
+ * Per-class overall class champion: prefers combined LiveRC multi-main standings when present
+ * (registration class list + best matching block; B-main-only splits excluded), else P1 of the
+ * featured main for that class. See docs/architecture/event-overview-class-winners-liverc-overall-final-ranking.md
+ */
+export function buildClassWinners(
+  data: Pick<EventAnalysisData, "races" | "multiMainResults" | "registrationClassNames">
+): ClassWinnerHighlight[] {
   const out: ClassWinnerHighlight[] = []
-  for (const rawClass of uniqueClassesForWinners(data)) {
+  for (const rawClass of canonicalClassesForClassWinners(data)) {
     const display = formatClassName(rawClass)
-    const mm = findMultiMainBlock(data, rawClass)
+    const mmCandidates = listMultiMainBlocksForCanonicalClass(data.multiMainResults, rawClass)
+    const mm = pickBestMultiMainBlockForClass(mmCandidates, rawClass)
     if (mm && mm.entries.length > 0) {
       const sorted = [...mm.entries].sort((a, b) => a.position - b.position)
       const first = sorted[0]
       if (first) {
         out.push({
+          className: rawClass,
           classDisplay: display,
           winnerName: first.driverName,
           raceLabel:
@@ -199,6 +369,7 @@ function buildClassWinners(data: EventAnalysisData): ClassWinnerHighlight[] {
     const winner = mainRace.results.find((x) => x.positionFinal === 1)
     if (!winner) continue
     out.push({
+      className: rawClass,
       classDisplay: display,
       winnerName: winner.driverName,
       raceLabel: mainRace.raceLabel,
@@ -405,37 +576,31 @@ function buildTopFastLaps(data: EventAnalysisData): EventHighlightsModel["topFas
 }
 
 function buildClosestFinishes(data: EventAnalysisData): ClosestFinishHighlight[] {
-  const candidates: ClosestFinishHighlight[] = []
+  type Cand = ClosestFinishHighlight & {
+    lapsDown: number
+    p2SecondsBehind: number | null
+  }
+  const candidates: Cand[] = []
   for (const race of data.races) {
     const sorted = [...race.results].sort((a, b) => a.positionFinal - b.positionFinal)
     const p1 = sorted.find((x) => x.positionFinal === 1)
     const p2 = sorted.find((x) => x.positionFinal === 2)
     if (!p1 || !p2) continue
-    if (!totalTimeValid(p1.totalTimeSeconds) || !totalTimeValid(p2.totalTimeSeconds)) continue
-    const gap = p2.totalTimeSeconds! - p1.totalTimeSeconds!
-    if (!Number.isFinite(gap) || gap < 0) continue
+    const metrics = computeP1P2FinishMetrics(p1, p2)
+    if (!metrics) continue
     candidates.push({
       raceLabel: race.raceLabel,
       classDisplay: formatClassName(race.className),
       p1Name: p1.driverName,
       p2Name: p2.driverName,
-      gapSeconds: gap,
+      gapSeconds: metrics.gapSeconds,
+      gapDisplay: metrics.gapDisplay,
+      lapsDown: metrics.lapsDown,
+      p2SecondsBehind: metrics.p2SecondsBehind,
     })
   }
-  candidates.sort((a, b) => a.gapSeconds - b.gapSeconds)
-  return candidates.slice(0, 3)
-}
-
-function formatGapSeconds(gap: number): string {
-  if (gap < 1) {
-    return `${Math.round(gap * 1000)} ms`
-  }
-  if (gap < 60) {
-    return `${gap.toFixed(2)} s`
-  }
-  const m = Math.floor(gap / 60)
-  const s = gap - m * 60
-  return `${m}m ${s.toFixed(1)}s`
+  candidates.sort((a, b) => compareP1P2FinishMetrics(a, b))
+  return candidates.slice(0, 3).map(({ lapsDown: _ld, p2SecondsBehind: _sb, ...pub }) => pub)
 }
 
 function progressionSummaryLines(posDelta: number, lapDeltaPositive: number | null): string | null {
@@ -547,9 +712,6 @@ export function buildEventHighlights(data: EventAnalysisData): EventHighlightsMo
   const topFastLaps = buildTopFastLaps(data)
 
   const hasHighlights =
-    sessionMix.length > 0 ||
-    classMixByDrivers.length > 0 ||
-    classMixByLaps.length > 0 ||
     classWinners.length > 0 ||
     mostConsistentDriver != null ||
     fastestAvgLapDriver != null ||
@@ -577,5 +739,5 @@ export function buildEventHighlights(data: EventAnalysisData): EventHighlightsMo
 }
 
 export function formatClosestFinishGap(h: ClosestFinishHighlight): string {
-  return formatGapSeconds(h.gapSeconds)
+  return h.gapDisplay
 }

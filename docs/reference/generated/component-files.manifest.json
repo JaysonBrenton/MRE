@@ -465,11 +465,6 @@
       "featureArea": "event-analysis"
     },
     {
-      "file": "src/components/organisms/event-analysis/EventHighlightsSection.tsx",
-      "tier": "organism:event-analysis",
-      "featureArea": "event-analysis"
-    },
-    {
       "file": "src/components/organisms/event-analysis/EventMostImprovedTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"

@@ -105,12 +105,52 @@ _job_retention_seconds = int(os.getenv("INGESTION_QUEUE_JOB_TTL_SECONDS", "3600"
 _workers_started = False
 
 
+def _active_job_for_source(source_event_id: str, track_id: str) -> Job | None:
+    """Return queued/running by-source job for the same LiveRC event + track, if any."""
+    for job in _job_store.values():
+        if job.status not in (JobStatus.QUEUED, JobStatus.RUNNING):
+            continue
+        if job.job_type != JobType.BY_SOURCE_ID:
+            continue
+        p = job.payload
+        if not isinstance(p, IngestBySourceIdPayload):
+            continue
+        if p.source_event_id == source_event_id and p.track_id == track_id:
+            return job
+    return None
+
+
+def _active_job_for_event_id(event_id: str) -> Job | None:
+    """Return queued/running by-event-id job for the same DB event, if any."""
+    for job in _job_store.values():
+        if job.status not in (JobStatus.QUEUED, JobStatus.RUNNING):
+            continue
+        if job.job_type != JobType.BY_EVENT_ID:
+            continue
+        p = job.payload
+        if not isinstance(p, IngestByEventIdPayload):
+            continue
+        if p.event_id == event_id:
+            return job
+    return None
+
+
 def enqueue_by_source_id(
     source_event_id: str,
     track_id: str,
     depth: str = "laps_full",
     imported_by_user_id: Optional[str] = None,
 ) -> str:
+    existing = _active_job_for_source(source_event_id, track_id)
+    if existing:
+        logger.info(
+            "ingestion_job_dedupe_by_source",
+            returning_job_id=existing.job_id,
+            source_event_id=source_event_id,
+            track_id=track_id,
+        )
+        return existing.job_id
+
     job_id = str(uuid4())
     payload = IngestBySourceIdPayload(
         source_event_id=source_event_id,
@@ -132,6 +172,15 @@ def enqueue_by_event_id(
     imported_by_user_id: Optional[str] = None,
     force: bool = False,
 ) -> str:
+    existing = _active_job_for_event_id(event_id)
+    if existing:
+        logger.info(
+            "ingestion_job_dedupe_by_event",
+            returning_job_id=existing.job_id,
+            event_id=event_id,
+        )
+        return existing.job_id
+
     job_id = str(uuid4())
     payload = IngestByEventIdPayload(
         event_id=event_id,
@@ -316,6 +365,11 @@ def start_workers(num_workers: int | None = None) -> None:
         asyncio.create_task(_worker())
         logger.info("ingestion_queue_worker_started", worker_index=i)
     _workers_started = True
+    logger.info(
+        "ingestion_queue_workers_ready",
+        worker_loops=worker_count,
+        max_concurrent_jobs=_max_concurrent,
+    )
 
 
 def _reset_queue_state_for_tests() -> None:  # pragma: no cover - used in unit tests only

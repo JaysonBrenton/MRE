@@ -1,7 +1,7 @@
 ---
 created: 2026-01-31
 creator: Implementation
-lastModified: 2026-03-22
+lastModified: 2026-04-19
 description: Atomic design system for MRE UI components
 purpose:
   Defines the component tier structure, import rules, and folder map for the MRE
@@ -12,6 +12,8 @@ relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
   - docs/design/compact-label-value-card.md
   - docs/frontend/component-catalog.md (full file list)
+  - src/components/organisms/event-analysis/EventOverviewTopQualifiers.tsx
+    (contextual info pattern)
 ---
 
 # MRE Atomic Design System
@@ -126,6 +128,12 @@ src/components/
    named imports). New components must not introduce custom inline SVG icons
    when an equivalent Lucide icon exists. Existing inline SVGs should be
    migrated opportunistically to Lucide as files are touched.
+8. **Contextual info callouts:** Bordered “what this section shows” blurbs must
+   follow
+   [Contextual info callouts (design rule)](#contextual-info-callouts-design-rule)
+   (plain language, no em dashes, single `<p>`, one typography path,
+   `aria-label` matches visible copy). Reference:
+   `EventOverviewTopQualifiers.tsx`.
 
 ### Icon Mapping (Dashboard + Event Analysis)
 
@@ -146,6 +154,38 @@ Use the following canonical icon mappings in dashboard/event-analysis scope:
 Icons should generally use `w-4 h-4` for inline controls and `w-5 h-5` for
 primary buttons, with `strokeWidth` left at the Lucide default unless a specific
 design call requires otherwise.
+
+---
+
+## Contextual info callouts (design rule)
+
+**Applies to:** Bordered hint / education boxes in **organisms** (dashboard,
+event analysis, and similar) that explain _what a section actually shows_ (e.g.
+tab footnotes, “Class winners” disclaimers, scope notes). Not a new component
+tier: a **content and markup pattern** every contributor must follow when adding
+or editing this UI.
+
+1. **Audience:** Write for mixed literacy (novice drivers, parents, casual
+   viewers). Prefer plain language over insider or data-pipeline jargon.
+2. **Jargon:** Do not expose unexplained race-admin or ingestion terms in
+   user-visible copy (e.g. “P1”, “featured main”, “multi-main”, “per-main
+   split”). Rephrase in everyday terms and, when helpful, point to **where** in
+   the app to find the other concept (tab names, navigation path).
+3. **Punctuation:** Do **not** use the em dash (—). Use periods, commas, or
+   colons to join or break sentences.
+4. **Markup:** One contiguous explanation uses a **single** `<p>`. Do not use
+   multiple `<p>` elements for copy that reads as one continuous note (reduces
+   visual noise and duplicate typography).
+5. **Typography:** Use **one** font-size path. For secondary explanatory text,
+   prefer `leading-relaxed` plus `typography.bodySecondary` (or another single
+   typography token). Do **not** combine `text-xs` with
+   `typography.bodySecondary` when `bodySecondary` already applies `text-sm`,
+   which produces conflicting sizes in the DOM.
+6. **Accessibility:** When the wrapper has `aria-label`, reuse the **same string
+   constant** as the visible paragraph so the accessible name matches what
+   sighted users read.
+7. **Reference:** `EventOverviewTopQualifiers.tsx` (container
+   `event-overview-class-winners-info`, constant `CLASS_WINNERS_INFO_TEXT`).
 
 ---
 

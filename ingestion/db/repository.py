@@ -1634,7 +1634,10 @@ class Repository:
             qual_points.updated_at = now
             metrics.record_db_update("event_qual_points")
 
-        upserted = 0
+        # Deduplicate entries by (driver_id, class_name) — keep best position per driver/class.
+        # Same pattern as upsert_event_round_ranking: source HTML can list a driver twice for one
+        # class; unflushed rows are invisible to SELECT, so duplicates cause UniqueViolation on flush.
+        seen: Dict[Tuple[str, str], Dict[str, Any]] = {}
         for entry in entries:
             driver_name = entry.get("driver_name", "")
             driver_id = driver_name_to_id.get(driver_name.strip().upper())
@@ -1644,6 +1647,25 @@ class Repository:
                     driver_name=driver_name,
                     message="Skipping - driver not in event",
                 )
+                continue
+
+            class_name = entry.get("class_name") or "Unknown"
+            if isinstance(class_name, str) and not class_name.strip():
+                class_name = "Unknown"
+            key = (driver_id, class_name)
+            pos = entry.get("position")
+            curr = seen.get(key)
+            curr_pos = curr.get("position") if curr else None
+            if curr is None or (pos is not None and (curr_pos is None or pos < curr_pos)):
+                entry_copy = dict(entry)
+                entry_copy["class_name"] = class_name
+                seen[key] = entry_copy
+
+        upserted = 0
+        for entry in seen.values():
+            driver_name = entry.get("driver_name", "")
+            driver_id = driver_name_to_id.get(driver_name.strip().upper())
+            if not driver_id:
                 continue
 
             class_name = entry.get("class_name", "Unknown")

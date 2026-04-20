@@ -33,6 +33,7 @@ import { calculateMostImprovedDrivers } from "./calculate-driver-improvement"
 import { getUserEventHostTrackRow } from "./user-event-host-track"
 import { type LiveRcRaceResultStats, parseLiveRcRaceResultStats } from "./live-rc-race-result-stats"
 import { withDerivedBehindSeconds } from "./derive-race-behind"
+import { normalizeMultiMainBreakdownJson } from "./normalize-multi-main-breakdown"
 import {
   indexUserCarTaxonomyRules,
   resolveUserCarTaxonomyForRace,
@@ -1755,10 +1756,7 @@ export async function getEventAnalysisData(
       driverId: e.driverId,
       driverName: e.driver.displayName,
       points: e.points,
-      mainBreakdown: e.mainBreakdownJson as Record<
-        string,
-        { position: number; points: number; lapsTime: string }
-      > | null,
+      mainBreakdown: normalizeMultiMainBreakdownJson(e.mainBreakdownJson),
     })),
   }))
 

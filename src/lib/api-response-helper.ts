@@ -43,17 +43,51 @@ export type ApiResult<T = unknown> = ApiSuccessResult<T> | ApiErrorResult
  * @returns ApiResult with success flag and data or error
  */
 export async function parseApiResponse<T = unknown>(response: Response): Promise<ApiResult<T>> {
-  let json: unknown
+  const contentType = response.headers.get("content-type") ?? ""
 
+  let text: string
   try {
-    json = await response.json()
+    text = await response.text()
   } catch (error) {
     return {
       success: false,
       error: {
         code: "PARSE_ERROR",
-        message: "Failed to parse API response",
+        message: "Failed to read API response",
         details: error instanceof Error ? error.message : String(error),
+      },
+    }
+  }
+
+  if (!text.trim()) {
+    return {
+      success: false,
+      error: {
+        code: "PARSE_ERROR",
+        message: "Empty response from server",
+        details: { status: response.status, contentType },
+      },
+    }
+  }
+
+  let json: unknown
+  try {
+    json = JSON.parse(text) as unknown
+  } catch (error) {
+    const trimmed = text.trimStart()
+    const looksHtml = trimmed.startsWith("<") || contentType.includes("text/html")
+    return {
+      success: false,
+      error: {
+        code: "PARSE_ERROR",
+        message: looksHtml
+          ? "Server returned HTML instead of JSON (often an auth or server error page)"
+          : "Failed to parse API response",
+        details: {
+          parseError: error instanceof Error ? error.message : String(error),
+          status: response.status,
+          contentType,
+        },
       },
     }
   }

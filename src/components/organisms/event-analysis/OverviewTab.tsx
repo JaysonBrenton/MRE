@@ -20,8 +20,6 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
-import WeatherCard from "./WeatherCard"
-import EventHighlightsSection from "./EventHighlightsSection"
 import EventOverviewTopQualifiers from "./EventOverviewTopQualifiers"
 import EventTopFastestLapsPerClassTable from "./EventTopFastestLapsPerClassTable"
 import EventTopAverageLapsPerClassTable from "./EventTopAverageLapsPerClassTable"
@@ -80,6 +78,7 @@ import {
 } from "@/core/events/session-analysis-filters"
 import { getSessionAnalysisNavClassOptions } from "@/core/events/entry-list-class-options"
 import { isEventMainSession } from "@/core/events/main-bracket-overall"
+import { buildEventHighlights } from "@/core/events/build-event-highlights"
 
 /** Sub-tabs whose tables share Session / Type scope filters (race class + taxonomy). */
 const EVENT_CLASS_FILTER_SUB_TABS: EventAnalysisSubTabId[] = [
@@ -219,9 +218,7 @@ export default function OverviewTab({
   const inSessionAnalysisSection =
     variant === "session-analysis-only" || overviewPrimarySection === "session-analysis"
   const [isVenueInfoOpen, setIsVenueInfoOpen] = useState(true)
-  const [isOverviewEventHighlightsOpen, setIsOverviewEventHighlightsOpen] = useState(true)
   const [isHostTrackOpen, setIsHostTrackOpen] = useState(true)
-  const [isEventWeatherDataOpen, setIsEventWeatherDataOpen] = useState(true)
   const isControlledAnalysisSubTab =
     analysisSubTabProp !== undefined && onAnalysisSubTabChange !== undefined
   const [internalAnalysisSubTab, setInternalAnalysisSubTab] =
@@ -296,6 +293,8 @@ export default function OverviewTab({
 
   // Get race classes from entry list
   const validClasses = useMemo(() => getValidClasses(data), [data])
+
+  const eventHighlightsModel = useMemo(() => buildEventHighlights(data), [data])
 
   /** Distinct user car taxonomy targets that appear on this event (mains scope matches validClasses). */
   const eventTaxonomyMappingChips = useMemo(() => {
@@ -2310,81 +2309,27 @@ export default function OverviewTab({
               className={`flex min-w-0 flex-col gap-4 px-4 py-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
               style={OVERVIEW_GLASS_SURFACE_STYLE}
             >
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--token-text-muted)] transition-colors hover:text-[var(--token-text-secondary)]"
-                aria-expanded={isOverviewEventHighlightsOpen}
-                aria-controls="overview-event-highlights-content"
-                onClick={() => setIsOverviewEventHighlightsOpen((prev) => !prev)}
-              >
-                <span>Event Highlights</span>
-                <span
-                  className={`shrink-0 transition-transform duration-150 ${
-                    isOverviewEventHighlightsOpen ? "rotate-0" : "-rotate-90"
-                  }`}
-                  aria-hidden
-                >
-                  ▾
-                </span>
-              </button>
-              {isOverviewEventHighlightsOpen && (
-                <div id="overview-event-highlights-content" className="min-w-0 w-full">
-                  <EventOverviewTopQualifiers
-                    variant="overviewCards"
-                    qualPoints={data.qualPointsTopQualifiers}
-                    races={data.races}
-                  />
-                </div>
-              )}
+              <div id="overview-event-highlights-content" className="min-w-0 w-full">
+                <EventOverviewTopQualifiers
+                  variant="overviewCards"
+                  qualPoints={data.qualPointsTopQualifiers}
+                  races={data.races}
+                  multiMainResults={data.multiMainResults}
+                  registrationClassNames={data.registrationClassNames}
+                  isPracticeDay={data.isPracticeDay}
+                  eventMixChart={{
+                    sessionMix: eventHighlightsModel.sessionMix,
+                    classMixByDrivers: eventHighlightsModel.classMixByDrivers,
+                    classMixByLaps: eventHighlightsModel.classMixByLaps,
+                  }}
+                  eventWeather={{
+                    weatherByDay,
+                    weatherLoading,
+                    weatherError,
+                  }}
+                />
+              </div>
             </div>
-
-            {/* Collapsible Event Weather Data */}
-            <div
-              className={`flex min-w-0 flex-col gap-4 px-4 py-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-              style={OVERVIEW_GLASS_SURFACE_STYLE}
-            >
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--token-text-muted)] transition-colors hover:text-[var(--token-text-secondary)]"
-                aria-expanded={isEventWeatherDataOpen}
-                aria-controls="event-weather-data-content"
-                onClick={() => setIsEventWeatherDataOpen((prev) => !prev)}
-              >
-                <span>Event Weather Data</span>
-                <span
-                  className={`shrink-0 transition-transform duration-150 ${
-                    isEventWeatherDataOpen ? "rotate-0" : "-rotate-90"
-                  }`}
-                  aria-hidden
-                >
-                  ▾
-                </span>
-              </button>
-              {isEventWeatherDataOpen && (
-                <div id="event-weather-data-content" className="flex flex-wrap gap-4">
-                  {weatherLoading ? (
-                    <WeatherCard weather={null} weatherLoading={true} weatherError={null} />
-                  ) : weatherError ? (
-                    <WeatherCard
-                      weather={null}
-                      weatherLoading={false}
-                      weatherError={weatherError}
-                    />
-                  ) : weatherByDay && weatherByDay.length > 0 ? (
-                    weatherByDay.map(({ date, weather }) => (
-                      <div key={date} className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-[var(--token-text-secondary)]">
-                          {formatDateLong(date)}
-                        </span>
-                        <WeatherCard weather={weather} weatherLoading={false} weatherError={null} />
-                      </div>
-                    ))
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-            <EventHighlightsSection data={data} />
           </div>
         </section>
       )}

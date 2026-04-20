@@ -108,8 +108,30 @@ interface DiscoveredPracticeDaySummary {
 const JOB_POLL_INTERVAL_MS = 2000
 const JOB_POLL_MAX_ATTEMPTS = 450 // ~15 min at 2s
 
+/**
+ * GET /api/v1/events/:id polling after starting import. Large events (e.g. multi-day championships)
+ * can exceed a few minutes; keep in line with queued job polling so we do not stop early and leave
+ * the UI stuck on "Importing" with no updates.
+ */
+const EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS = JOB_POLL_MAX_ATTEMPTS
+const EVENT_IMPORT_STATUS_POLL_INTERVAL_MS = 2500
+const EVENT_IMPORT_STATUS_POLL_MAX_MS = 20 * 60 * 1000
+
 /** Default lookback (days) for practice discover when no date filter is set (12 months). */
 const PRACTICE_DISCOVER_DEFAULT_DAYS = 365
+
+/**
+ * Job failed only because another run holds the DB ingestion lock (e.g. overlapping queue jobs).
+ * Caller should poll event GET until ingest completes — same idea as 409 on the ingest POST.
+ */
+class IngestionSupersededError extends Error {
+  declare readonly code: "INGESTION_IN_PROGRESS"
+  constructor(message: string) {
+    super(message)
+    this.name = "IngestionSupersededError"
+    this.code = "INGESTION_IN_PROGRESS"
+  }
+}
 
 async function pollIngestionJobUntilComplete(
   jobId: string,
@@ -127,13 +149,17 @@ async function pollIngestionJobUntilComplete(
     if (!parsed.success || !parsed.data) {
       throw new Error(parsed.success ? "No data" : (parsed.error?.message ?? "Job status failed"))
     }
-    const { status, result, error_message } = parsed.data
+    const { status, result, error_code, error_message } = parsed.data
     onStatus?.(status)
     if (status === "completed" && result) {
       return result
     }
     if (status === "failed") {
-      throw new Error(error_message ?? "Import failed")
+      const msg = error_message ?? "Import failed"
+      if (error_code === "INGESTION_IN_PROGRESS" || /ingestion already in progress/i.test(msg)) {
+        throw new IngestionSupersededError(msg)
+      }
+      throw new Error(msg)
     }
     await new Promise((r) => setTimeout(r, JOB_POLL_INTERVAL_MS))
   }
@@ -637,7 +663,13 @@ export default function EventSearchContainer({
             if (isInProgress) {
               updateEventStatusOverride(event.id, "importing")
               // Start polling to track progress
-              pollEventImportStatus(event.id, 100, 2500, event.id, event.sourceEventId)
+              pollEventImportStatus(
+                event.id,
+                EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS,
+                EVENT_IMPORT_STATUS_POLL_INTERVAL_MS,
+                event.id,
+                event.sourceEventId
+              )
             }
           } catch (error) {
             // Log but continue checking other events
@@ -2015,10 +2047,10 @@ export default function EventSearchContainer({
 
   const pollEventImportStatus = (
     eventId: string,
-    maxAttempts = 100,
-    pollIntervalMs = 2500,
+    maxAttempts = EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS,
+    pollIntervalMs = EVENT_IMPORT_STATUS_POLL_INTERVAL_MS,
     displayEventId?: string,
-    _sourceEventId?: string
+    sourceEventId?: string
   ) => {
     // Stop any existing polling for this event
     stopPollingEventStatus(eventId)
@@ -2026,11 +2058,47 @@ export default function EventSearchContainer({
     // Use displayEventId for progress lookup (the ID currently in events list), fallback to eventId
     const progressKey = displayEventId || eventId
 
+    const affectedOverrideKeys = new Set<string>([eventId, progressKey])
+    if (sourceEventId) {
+      affectedOverrideKeys.add(`liverc-${sourceEventId}`)
+    }
+
+    /** Polling ended without seeing laps_full — clear progress and unblock the row (was stuck "Importing"). */
+    const finishPollWithoutComplete = (reason: "timeout" | "errors") => {
+      stopPollingEventStatus(eventId)
+      if (!isMountedRef.current) {
+        return
+      }
+      setEventImportProgress((prev) => {
+        const next = { ...prev }
+        delete next[progressKey]
+        delete next[eventId]
+        if (sourceEventId) {
+          delete next[`liverc-${sourceEventId}`]
+        }
+        return next
+      })
+      const msg =
+        reason === "timeout"
+          ? "Import is taking longer than expected. It may still be running in the background—refresh this list or use Retry."
+          : "Could not confirm import status. Check your connection, refresh the list, or use Retry."
+      for (const key of affectedOverrideKeys) {
+        updateEventStatusOverride(key, "failed")
+        updateEventErrorMessage(key, msg)
+      }
+      clientLogger.warn(
+        reason === "timeout"
+          ? "Event import status polling timed out"
+          : "Event import status polling stopped after repeated errors",
+        { eventId, progressKey, sourceEventId }
+      )
+    }
+
     let attempts = 0
     let consecutiveErrors = 0
     const maxConsecutiveErrors = 3
     const startTime = Date.now()
-    const maxDurationMs = 5 * 60 * 1000 // 5 minutes max
+    const maxDurationMs = EVENT_IMPORT_STATUS_POLL_MAX_MS
     let isMounted = true
 
     // Update progress immediately to show we're polling (replaces "Starting import...")
@@ -2072,34 +2140,13 @@ export default function EventSearchContainer({
 
       // Stop polling if we've exceeded max attempts or duration
       if (attempts > maxAttempts || elapsedMs > maxDurationMs) {
-        stopPollingEventStatus(eventId)
-        // Clear progress state if polling timed out (only if mounted)
-        if (isMountedRef.current) {
-          setEventImportProgress((prev) => {
-            const next = { ...prev }
-            delete next[progressKey]
-            delete next[eventId] // Also clean up by eventId in case it's different
-            return next
-          })
-        }
+        finishPollWithoutComplete("timeout")
         return
       }
 
       // Stop polling after too many consecutive errors
       if (consecutiveErrors >= maxConsecutiveErrors) {
-        stopPollingEventStatus(eventId)
-        if (isMountedRef.current) {
-          setEventImportProgress((prev) => {
-            const next = { ...prev }
-            delete next[progressKey]
-            delete next[eventId]
-            return next
-          })
-        }
-        clientLogger.warn("Stopped polling due to consecutive errors", {
-          eventId,
-          consecutiveErrors,
-        })
+        finishPollWithoutComplete("errors")
         return
       }
 
@@ -2140,6 +2187,12 @@ export default function EventSearchContainer({
         }>(response)
 
         if (!result.success) {
+          // LiveRC-only rows use id `liverc-*` until ingest creates the Event row. GET by that id
+          // returns 404 until then — expected, not a failure. Counting it triggered
+          // finishPollWithoutComplete("errors") in ~7s and blocked all imports (see #ingestion).
+          if (eventId.startsWith("liverc-") && response.status === 404) {
+            return
+          }
           consecutiveErrors++
           return
         }
@@ -2269,7 +2322,13 @@ export default function EventSearchContainer({
     // Start polling immediately (before API call) so status updates right away
     // We'll use a temporary event ID for polling until we get the real one from the API
     const tempPollingId = event.id
-    pollEventImportStatus(tempPollingId, 100, 2500, event.id, event.sourceEventId)
+    pollEventImportStatus(
+      tempPollingId,
+      EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS,
+      EVENT_IMPORT_STATUS_POLL_INTERVAL_MS,
+      event.id,
+      event.sourceEventId
+    )
 
     try {
       let ingestionResponse: ApiIngestionResult | null = null
@@ -2509,7 +2568,13 @@ export default function EventSearchContainer({
 
         // Stop old polling and start new polling with the correct event ID
         stopPollingEventStatus(event.id)
-        pollEventImportStatus(finalEventId, 100, 2500, event.id, event.sourceEventId)
+        pollEventImportStatus(
+          finalEventId,
+          EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS,
+          EVENT_IMPORT_STATUS_POLL_INTERVAL_MS,
+          event.id,
+          event.sourceEventId
+        )
       }
 
       const clearLiveRcPlaceholder = () => {
@@ -2561,7 +2626,13 @@ export default function EventSearchContainer({
           // Already handled above when we detected the new event ID
         } else {
           // Ensure polling is running with the correct ID
-          pollEventImportStatus(finalEventId, 100, 2500, event.id, event.sourceEventId)
+          pollEventImportStatus(
+            finalEventId,
+            EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS,
+            EVENT_IMPORT_STATUS_POLL_INTERVAL_MS,
+            event.id,
+            event.sourceEventId
+          )
         }
 
         // Polling will handle the update when import completes
@@ -2719,6 +2790,91 @@ export default function EventSearchContainer({
 
       return true
     } catch (error) {
+      // Queued job lost the DB lock race (duplicate job or overlapping imports). Do not mark failed:
+      // mirror POST /ingest handling of INGESTION_IN_PROGRESS — keep polling event status.
+      const isSuperseded =
+        error instanceof IngestionSupersededError ||
+        (error instanceof Error && /ingestion already in progress/i.test(error.message))
+
+      if (isSuperseded && selectedTrack) {
+        clientLogger.warn("Import superseded by another run — continuing to poll event status", {
+          eventId: event.id,
+          sourceEventId: event.sourceEventId,
+          eventName: event.eventName,
+        })
+
+        if (event.id && !event.id.startsWith("liverc-")) {
+          pollEventImportStatus(
+            event.id,
+            EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS,
+            EVENT_IMPORT_STATUS_POLL_INTERVAL_MS,
+            event.id,
+            event.sourceEventId
+          )
+          return true
+        }
+
+        if (event.sourceEventId) {
+          try {
+            const checkParams = new URLSearchParams({
+              track_id: selectedTrack.id,
+            })
+            if (useDateFilter) {
+              if (startDate && startDate.trim() !== "") {
+                checkParams.append("start_date", startDate)
+              }
+              if (endDate && endDate.trim() !== "") {
+                checkParams.append("end_date", endDate)
+              }
+            }
+
+            const checkResponse = await fetch(`/api/v1/events/search?${checkParams.toString()}`)
+            const checkResult = await parseApiResponse<{
+              events: ApiEvent[]
+            }>(checkResponse)
+
+            if (checkResult.success && checkResult.data.events) {
+              const foundEvent = checkResult.data.events.find(
+                (e) =>
+                  e.sourceEventId === event.sourceEventId ||
+                  ("source_event_id" in e &&
+                    (e as { source_event_id?: string }).source_event_id === event.sourceEventId)
+              )
+
+              if (foundEvent?.id && !foundEvent.id.startsWith("liverc-")) {
+                if (foundEvent.id !== event.id) {
+                  updateEventStatusOverride(event.id)
+                  updateEventStatusOverride(foundEvent.id, "importing")
+                  stopPollingEventStatus(event.id)
+                }
+                pollEventImportStatus(
+                  foundEvent.id,
+                  EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS,
+                  EVENT_IMPORT_STATUS_POLL_INTERVAL_MS,
+                  event.id,
+                  event.sourceEventId
+                )
+                return true
+              }
+            }
+          } catch (recoveryErr) {
+            clientLogger.warn("Could not resolve DB event after superseded import", {
+              sourceEventId: event.sourceEventId,
+              error: recoveryErr instanceof Error ? recoveryErr.message : String(recoveryErr),
+            })
+          }
+        }
+
+        pollEventImportStatus(
+          event.id,
+          EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS,
+          EVENT_IMPORT_STATUS_POLL_INTERVAL_MS,
+          event.id,
+          event.sourceEventId
+        )
+        return true
+      }
+
       // Determine error message first to check if it's an expected error
       let errorMessage = `Import failed. Please try again.`
       let isExpectedError = false

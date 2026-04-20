@@ -74,6 +74,7 @@ describe("buildEventHighlights", () => {
               consistency: 0.9,
               qualifyingPosition: null,
               secondsBehind: null,
+              behindDisplay: null,
               liveRcStats: null,
             },
             {
@@ -89,6 +90,7 @@ describe("buildEventHighlights", () => {
               consistency: 0.88,
               qualifyingPosition: null,
               secondsBehind: null,
+              behindDisplay: null,
               liveRcStats: null,
             },
           ],
@@ -118,6 +120,7 @@ describe("buildEventHighlights", () => {
     expect(m.sessionMix.reduce((s, x) => s + x.pct, 0)).toBeCloseTo(100, 5)
     expect(m.closestFinishes).toHaveLength(1)
     expect(m.closestFinishes[0]!.gapSeconds).toBeCloseTo(0.5, 5)
+    expect(m.closestFinishes[0]!.gapDisplay).toBe("500 ms")
     expect(m.mostConsistentDriver?.driverName).toBe("Alice")
     expect(m.mostConsistentDriver?.consistency).toBeCloseTo(0.9, 5)
     expect(m.topConsistentDrivers).toHaveLength(2)
@@ -449,6 +452,7 @@ describe("buildEventHighlights", () => {
         p1Name: "a",
         p2Name: "b",
         gapSeconds: 0.042,
+        gapDisplay: "42 ms",
       })
     ).toMatch(/42/)
   })
