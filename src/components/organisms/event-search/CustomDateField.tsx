@@ -1,32 +1,21 @@
 /**
- * @fileoverview Date field: native `type="date"` on narrow viewports; desktop month calendar
- * popover (date-fns + CSS grid) with MRE tokens, portaled above modals. No extra dependencies.
+ * @fileoverview Date field: native `type="date"` on narrow viewports; desktop calendar popover
+ * (react-day-picker) with MRE tokens, portaled above modals.
  */
 
 "use client"
 
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  startOfMonth,
-  startOfWeek,
-  subMonths,
-} from "date-fns"
 import { enAU } from "date-fns/locale"
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react"
+import { Calendar } from "lucide-react"
 import type { CSSProperties } from "react"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { DayPicker } from "react-day-picker"
 
 import { toLocalDateString } from "@/lib/date-utils"
 import { DATE_INPUT_CALENDAR_Z_INDEX } from "@/lib/modal-styles"
 
-const WEEK_STARTS_ON = 0 as const // Sunday (en-AU–friendly)
+import "react-day-picker/style.css"
 
 function parseYmdLocal(ymd: string): Date {
   const parts = ymd.split("-").map(Number)
@@ -35,14 +24,6 @@ function parseYmdLocal(ymd: string): Date {
   const d = parts[2]
   if (!y || !m || !d) return new Date(NaN)
   return new Date(y, m - 1, d)
-}
-
-function getMonthGrid(visibleMonth: Date): Date[] {
-  const mStart = startOfMonth(visibleMonth)
-  const mEnd = endOfMonth(visibleMonth)
-  const calStart = startOfWeek(mStart, { weekStartsOn: WEEK_STARTS_ON })
-  const calEnd = endOfWeek(mEnd, { weekStartsOn: WEEK_STARTS_ON })
-  return eachDayOfInterval({ start: calStart, end: calEnd })
 }
 
 function useDesktopDateCalendar(): boolean {
@@ -64,16 +45,6 @@ function formatButtonDate(ymd: string): string {
     day: "numeric",
     month: "short",
     year: "numeric",
-  })
-}
-
-function weekdayShortLabels(): string[] {
-  const ref = new Date(2024, 5, 2) // Sunday
-  const start = startOfWeek(ref, { weekStartsOn: WEEK_STARTS_ON })
-  return Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(start)
-    day.setDate(start.getDate() + i)
-    return format(day, "EEE", { locale: enAU })
   })
 }
 
@@ -105,7 +76,6 @@ export default function CustomDateField({
 }: CustomDateFieldProps) {
   const useCalendarUi = useDesktopDateCalendar()
   const [open, setOpen] = useState(false)
-  const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
@@ -125,14 +95,8 @@ export default function CustomDateField({
     setPosition(null)
   }, [])
 
-  const handleOpen = () => {
+  const openPopover = () => {
     if (disabled) return
-    if (open) {
-      closePopover()
-      return
-    }
-    const m = value && value.length >= 8 ? parseYmdLocal(value) : new Date()
-    setVisibleMonth(isNaN(m.getTime()) ? new Date() : m)
     const el = triggerRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
@@ -232,82 +196,51 @@ export default function CustomDateField({
   }
 
   const selected = value ? parseYmdLocal(value) : undefined
-  const selectedValid = selected && !isNaN(selected.getTime()) ? selected : undefined
-  const monthDays = getMonthGrid(visibleMonth)
-  const wkLabels = weekdayShortLabels()
+  const defaultMonth = selected && !isNaN(selected.getTime()) ? selected : new Date()
 
   const popoverContent = open && position && (
     <div
       ref={popoverRef}
-      className="w-[min(100vw-2rem,20rem)] rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-3 shadow-lg"
+      className="rdp-root rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-2 shadow-lg"
       style={
         {
           position: "fixed",
           top: `${position.top}px`,
           left: `${position.left}px`,
           zIndex: DATE_INPUT_CALENDAR_Z_INDEX,
+          ["--rdp-accent-color" as string]: "var(--token-accent)",
+          ["--rdp-accent-background-color" as string]:
+            "color-mix(in srgb, var(--token-accent) 22%, transparent)",
+          ["--rdp-range_start-date-background-color" as string]: "var(--token-accent)",
+          ["--rdp-range_end-date-background-color" as string]: "var(--token-accent)",
         } as CSSProperties
       }
-      role="dialog"
+      role="application"
       aria-label={`${label} calendar`}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => setVisibleMonth((d) => subMonths(d, 1))}
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-          aria-label="Previous month"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div className="min-w-0 flex-1 text-center text-sm font-semibold capitalize text-[var(--token-text-primary)]">
-          {format(visibleMonth, "MMMM yyyy", { locale: enAU })}
-        </div>
-        <button
-          type="button"
-          onClick={() => setVisibleMonth((d) => addMonths(d, 1))}
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-          aria-label="Next month"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
-      </div>
-      <div className="mb-1 grid grid-cols-7 gap-0.5 text-center text-[0.7rem] font-medium text-[var(--token-text-secondary)]">
-        {wkLabels.map((w) => (
-          <div key={w} className="px-0 py-1">
-            {w}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-0.5">
-        {monthDays.map((day) => {
-          const ymd = toLocalDateString(day)
-          const inMonth = isSameMonth(day, visibleMonth)
-          const dis = isDateDisabled(day)
-          const isSel = selectedValid && isSameDay(day, selectedValid)
-          return (
-            <button
-              key={ymd}
-              type="button"
-              disabled={dis}
-              onClick={() => {
-                onChange(ymd)
-                closePopover()
-              }}
-              className={`flex h-10 min-w-0 items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] ${
-                isSel
-                  ? "bg-[var(--token-accent)] text-white"
-                  : inMonth
-                    ? "text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)]"
-                    : "text-[var(--token-text-secondary)] opacity-60 hover:bg-[var(--token-surface-raised)]"
-              } ${dis ? "cursor-not-allowed opacity-30 hover:bg-transparent" : ""} `}
-            >
-              {format(day, "d")}
-            </button>
-          )
-        })}
-      </div>
+      <DayPicker
+        mode="single"
+        locale={enAU}
+        selected={selected && !isNaN(selected.getTime()) ? selected : undefined}
+        onSelect={(d) => {
+          if (d) {
+            onChange(toLocalDateString(d))
+            closePopover()
+          }
+        }}
+        disabled={isDateDisabled}
+        defaultMonth={defaultMonth}
+        className="text-[var(--token-text-primary)]"
+        classNames={{
+          month_caption: "text-[var(--token-text-primary)] font-medium capitalize",
+          button_next:
+            "text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] rounded-md p-1",
+          button_previous:
+            "text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] rounded-md p-1",
+          weekday: "text-[var(--token-text-secondary)] text-xs",
+        }}
+      />
     </div>
   )
 
@@ -325,7 +258,7 @@ export default function CustomDateField({
           type="button"
           id={id}
           disabled={disabled}
-          onClick={handleOpen}
+          onClick={() => (open ? closePopover() : openPopover())}
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-describedby={describedById}
