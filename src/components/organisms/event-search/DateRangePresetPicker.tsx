@@ -10,14 +10,9 @@
 
 import { useState, useEffect } from "react"
 import { toLocalDateString } from "@/lib/date-utils"
+import CustomDateField from "./CustomDateField"
 
-export type DateRangePreset =
-  | "none"
-  | "last3"
-  | "last6"
-  | "last12"
-  | "thisYear"
-  | "custom"
+export type DateRangePreset = "none" | "last3" | "last6" | "last12" | "thisYear" | "custom"
 
 export interface DateRangePresetPickerProps {
   preset: DateRangePreset
@@ -103,13 +98,11 @@ export default function DateRangePresetPicker({
     }
   }
 
-  const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value
+  const handleStartChange = (v: string) => {
     setLocalStart(v)
     onStartDateChange(v)
   }
-  const handleEndChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value
+  const handleEndChange = (v: string) => {
     setLocalEnd(v)
     onEndDateChange(v)
   }
@@ -152,50 +145,46 @@ export default function DateRangePresetPicker({
       {preset === "custom" && (
         <div className="space-y-4 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-4">
           <div>
-            <label
-              htmlFor="preset-start-date"
-              className="block text-sm font-medium text-[var(--token-text-primary)] mb-1"
-            >
-              Start date
-            </label>
-            <input
+            <CustomDateField
               id="preset-start-date"
-              type="date"
+              label="Start date"
               value={localStart}
               onChange={handleStartChange}
-              max={today()}
+              maxDate={today()}
               disabled={disabled}
-              className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              aria-invalid={Boolean(errors?.startDate)}
-              aria-describedby={startErrorId}
+              errorMessage={errors?.startDate}
+              describedById={startErrorId}
+              placeholder="Select start date"
             />
             {errors?.startDate && (
-              <p id={startErrorId} className="mt-1 text-sm text-[var(--token-error-text)]" role="alert">
+              <p
+                id={startErrorId}
+                className="mt-1 text-sm text-[var(--token-error-text)]"
+                role="alert"
+              >
                 {errors.startDate}
               </p>
             )}
           </div>
           <div>
-            <label
-              htmlFor="preset-end-date"
-              className="block text-sm font-medium text-[var(--token-text-primary)] mb-1"
-            >
-              End date
-            </label>
-            <input
+            <CustomDateField
               id="preset-end-date"
-              type="date"
+              label="End date"
               value={localEnd}
               onChange={handleEndChange}
-              min={localStart || undefined}
-              max={maxEndDate()}
+              minDate={localStart || undefined}
+              maxDate={maxEndDate()}
               disabled={disabled}
-              className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
-              aria-invalid={Boolean(errors?.endDate)}
-              aria-describedby={endErrorId}
+              errorMessage={errors?.endDate}
+              describedById={endErrorId}
+              placeholder="Select end date"
             />
             {errors?.endDate && (
-              <p id={endErrorId} className="mt-1 text-sm text-[var(--token-error-text)]" role="alert">
+              <p
+                id={endErrorId}
+                className="mt-1 text-sm text-[var(--token-error-text)]"
+                role="alert"
+              >
                 {errors.endDate}
               </p>
             )}

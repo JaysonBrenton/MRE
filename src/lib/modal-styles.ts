@@ -195,3 +195,9 @@ export const MODAL_PORTAL_Z_INDEX = 200
  * z-index than {@link MODAL_PORTAL_Z_INDEX}.
  */
 export const NESTED_MODAL_OVERLAY_Z_INDEX = 220
+
+/**
+ * Portaled date-calendar popovers (e.g. above {@link NESTED_MODAL_OVERLAY_Z_INDEX} dialogs) so the
+ * grid appears above modal backdrops and nested modals.
+ */
+export const DATE_INPUT_CALENDAR_Z_INDEX = 230

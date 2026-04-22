@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-12T05:58:57.537Z",
+  "generatedAt": "2026-04-22T05:23:17.962Z",
   "source": "src/components",
   "exclusions": "Excludes: *.test.ts, *.test.tsx, __tests__/**, organisms/**/overview-testing/**",
-  "count": 172,
+  "count": 178,
   "components": [
     {
       "file": "src/components/AdminNav.tsx",
@@ -141,6 +141,11 @@
     },
     {
       "file": "src/components/molecules/Stepper.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/TabPanelIntro.tsx",
       "tier": "molecule",
       "featureArea": "molecules"
     },
@@ -395,6 +400,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/DataPanelSurface.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/DriverCard.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -440,6 +450,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/EventAnalysisScopeFilters.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/EventAnalysisSidebar.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -470,6 +485,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/EventOverviewTopQualifiers.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/EventStats.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -486,6 +506,11 @@
     },
     {
       "file": "src/components/organisms/event-analysis/EventTopMostImprovedPerClassTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/FullRaceResultsTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -645,6 +670,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/overview-glass-surface.ts",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/sessions/DriverBumpUpsTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -711,6 +741,11 @@
     },
     {
       "file": "src/components/organisms/event-search/CheckLiveRCButton.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/CustomDateField.tsx",
       "tier": "organism:event-search",
       "featureArea": "event-search"
     },

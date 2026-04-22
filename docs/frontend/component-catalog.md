@@ -11,8 +11,8 @@ relatedFiles:
 
 # MRE component catalog
 
-**Generated:** 2026-03-22T10:14:33.213Z  
-**Count:** 155 files  
+**Generated:** 2026-04-22T05:23:17.962Z  
+**Count:** 178 files  
 **Exclusions:** Excludes: _.test.ts, _.test.tsx, **tests**/**,
 organisms/**/overview-testing/\*\*
 
@@ -54,107 +54,127 @@ source file for behavior and props.
 
 ## dashboard
 
-| File                                                                   | Tier                 | Purpose                         |
-| ---------------------------------------------------------------------- | -------------------- | ------------------------------- |
-| `src/components/organisms/dashboard/DashboardClient.tsx`               | organism (dashboard) | Dashboard Client                |
-| `src/components/organisms/dashboard/DashboardEventSearchProvider.tsx`  | organism (dashboard) | Dashboard Event Search Provider |
-| `src/components/organisms/dashboard/DashboardEventSelector.tsx`        | organism (dashboard) | Dashboard Event Selector        |
-| `src/components/organisms/dashboard/DriverCardsAndWeatherGrid.tsx`     | organism (dashboard) | Driver Cards And Weather Grid   |
-| `src/components/organisms/dashboard/EventActionsContext.tsx`           | organism (dashboard) | Event Actions Context           |
-| `src/components/organisms/dashboard/EventActionsProvider.tsx`          | organism (dashboard) | Event Actions Provider          |
-| `src/components/organisms/dashboard/EventAnalysisHeaderWrapper.tsx`    | organism (dashboard) | Event Analysis Header Wrapper   |
-| `src/components/organisms/dashboard/EventAnalysisSection.tsx`          | organism (dashboard) | Event Analysis Section          |
-| `src/components/organisms/dashboard/ImprovementDriverCard.tsx`         | organism (dashboard) | Improvement Driver Card         |
-| `src/components/organisms/dashboard/shell/AdaptiveNavigationRail.tsx`  | organism (dashboard) | Adaptive Navigation Rail        |
-| `src/components/organisms/dashboard/shell/CommandPalette.tsx`          | organism (dashboard) | Command Palette                 |
-| `src/components/organisms/dashboard/shell/ContextRibbon.tsx`           | organism (dashboard) | Context Ribbon                  |
-| `src/components/organisms/dashboard/shell/DashboardActionsPopover.tsx` | organism (dashboard) | Dashboard Actions Popover       |
-| `src/components/organisms/dashboard/shell/EventSearchModal.tsx`        | organism (dashboard) | Event Search Modal              |
-| `src/components/organisms/dashboard/shell/TopStatusBar.tsx`            | organism (dashboard) | Top Status Bar                  |
-| `src/components/organisms/dashboard/shell/UserProfileModal.tsx`        | organism (dashboard) | User Profile Modal              |
+| File                                                                                                | Tier                 | Purpose                         |
+| --------------------------------------------------------------------------------------------------- | -------------------- | ------------------------------- |
+| `src/components/organisms/dashboard/DashboardClient.tsx`                                            | organism (dashboard) | Dashboard Client                |
+| `src/components/organisms/dashboard/DashboardEventSearchProvider.tsx`                               | organism (dashboard) | Dashboard Event Search Provider |
+| `src/components/organisms/dashboard/DashboardEventSelector.tsx`                                     | organism (dashboard) | Dashboard Event Selector        |
+| `src/components/organisms/dashboard/DriverCardsAndWeatherGrid.tsx`                                  | organism (dashboard) | Driver Cards And Weather Grid   |
+| `src/components/organisms/dashboard/EventActionsContext.tsx`                                        | organism (dashboard) | Event Actions Context           |
+| `src/components/organisms/dashboard/EventActionsProvider.tsx`                                       | organism (dashboard) | Event Actions Provider          |
+| `src/components/organisms/dashboard/EventAnalysisHeaderWrapper.tsx`                                 | organism (dashboard) | Event Analysis Header Wrapper   |
+| `src/components/organisms/dashboard/EventAnalysisSection.tsx`                                       | organism (dashboard) | Event Analysis Section          |
+| `src/components/organisms/dashboard/ImprovementDriverCard.tsx`                                      | organism (dashboard) | Improvement Driver Card         |
+| `src/components/organisms/dashboard/shell/adaptive-navigation-rail/MyClubNavSection.tsx`            | organism (dashboard) | My Club Nav Section             |
+| `src/components/organisms/dashboard/shell/adaptive-navigation-rail/navigationRailConfig.tsx`        | organism (dashboard) | navigation Rail Config          |
+| `src/components/organisms/dashboard/shell/adaptive-navigation-rail/NavigationRailGuidesSection.tsx` | organism (dashboard) | Navigation Rail Guides Section  |
+| `src/components/organisms/dashboard/shell/adaptive-navigation-rail/NavigationRailNavItems.tsx`      | organism (dashboard) | Navigation Rail Nav Items       |
+| `src/components/organisms/dashboard/shell/adaptive-navigation-rail/useMobileNavFocusTrap.ts`        | organism (dashboard) | use Mobile Nav Focus Trap       |
+| `src/components/organisms/dashboard/shell/AdaptiveNavigationRail.tsx`                               | organism (dashboard) | Adaptive Navigation Rail        |
+| `src/components/organisms/dashboard/shell/CommandPalette.tsx`                                       | organism (dashboard) | Command Palette                 |
+| `src/components/organisms/dashboard/shell/ContextRibbon.tsx`                                        | organism (dashboard) | Context Ribbon                  |
+| `src/components/organisms/dashboard/shell/DashboardActionsPopover.tsx`                              | organism (dashboard) | Dashboard Actions Popover       |
+| `src/components/organisms/dashboard/shell/EventSearchModal.tsx`                                     | organism (dashboard) | Event Search Modal              |
+| `src/components/organisms/dashboard/shell/TopStatusBar.tsx`                                         | organism (dashboard) | Top Status Bar                  |
+| `src/components/organisms/dashboard/shell/UserProfileModal.tsx`                                     | organism (dashboard) | User Profile Modal              |
 
 ## event-analysis
 
-| File                                                                          | Tier                      | Purpose                          |
-| ----------------------------------------------------------------------------- | ------------------------- | -------------------------------- |
-| `src/components/organisms/event-analysis/AvgVsFastestChart.tsx`               | organism (event-analysis) | Avg Vs Fastest Chart             |
-| `src/components/organisms/event-analysis/BestLapBarChart.tsx`                 | organism (event-analysis) | Best Lap Bar Chart               |
-| `src/components/organisms/event-analysis/ChartColorPicker.tsx`                | organism (event-analysis) | Chart Color Picker               |
-| `src/components/organisms/event-analysis/ChartContainer.tsx`                  | organism (event-analysis) | Chart Container                  |
-| `src/components/organisms/event-analysis/ChartControls.tsx`                   | organism (event-analysis) | Chart Controls                   |
-| `src/components/organisms/event-analysis/ChartDataNotice.tsx`                 | organism (event-analysis) | Chart Data Notice                |
-| `src/components/organisms/event-analysis/ChartDriverPicker.tsx`               | organism (event-analysis) | Chart Driver Picker              |
-| `src/components/organisms/event-analysis/ChartPagination.tsx`                 | organism (event-analysis) | Chart Pagination                 |
-| `src/components/organisms/event-analysis/ChartSection.tsx`                    | organism (event-analysis) | Chart Section                    |
-| `src/components/organisms/event-analysis/ChartTypeSelector.tsx`               | organism (event-analysis) | Chart Type Selector              |
-| `src/components/organisms/event-analysis/ClassMostImprovedCard.tsx`           | organism (event-analysis) | Class Most Improved Card         |
-| `src/components/organisms/event-analysis/ClassTopAverageLapsCard.tsx`         | organism (event-analysis) | Class Top Average Laps Card      |
-| `src/components/organisms/event-analysis/ClassTopFastestLapsCard.tsx`         | organism (event-analysis) | Class Top Fastest Laps Card      |
-| `src/components/organisms/event-analysis/CollapsibleDriverPanel.tsx`          | organism (event-analysis) | Collapsible Driver Panel         |
-| `src/components/organisms/event-analysis/CombinedDriversTable.tsx`            | organism (event-analysis) | Combined Drivers Table           |
-| `src/components/organisms/event-analysis/ComparisonsTab.tsx`                  | organism (event-analysis) | Comparisons Tab                  |
-| `src/components/organisms/event-analysis/ComparisonTest.tsx`                  | organism (event-analysis) | Comparison Test                  |
-| `src/components/organisms/event-analysis/CorrectVenueModal.tsx`               | organism (event-analysis) | Correct Venue Modal              |
-| `src/components/organisms/event-analysis/CountryLeaderboardCard.tsx`          | organism (event-analysis) | Country Leaderboard Card         |
-| `src/components/organisms/event-analysis/DriverCard.tsx`                      | organism (event-analysis) | Driver Card                      |
-| `src/components/organisms/event-analysis/DriverList.tsx`                      | organism (event-analysis) | Driver List                      |
-| `src/components/organisms/event-analysis/DriverSelectionHeader.tsx`           | organism (event-analysis) | Driver Selection Header          |
-| `src/components/organisms/event-analysis/DriversTab.tsx`                      | organism (event-analysis) | Drivers Tab                      |
-| `src/components/organisms/event-analysis/EntryList.tsx`                       | organism (event-analysis) | Entry List                       |
-| `src/components/organisms/event-analysis/EntryListTab.tsx`                    | organism (event-analysis) | Entry List Tab                   |
-| `src/components/organisms/event-analysis/EventAnalysisActionsMenu.tsx`        | organism (event-analysis) | Event Analysis Actions Menu      |
-| `src/components/organisms/event-analysis/EventAnalysisHeader.tsx`             | organism (event-analysis) | Event Analysis Header            |
-| `src/components/organisms/event-analysis/EventAnalysisSidebar.tsx`            | organism (event-analysis) | Event Analysis Sidebar           |
-| `src/components/organisms/event-analysis/EventAnalysisToolbar.tsx`            | organism (event-analysis) | Event Analysis Toolbar           |
-| `src/components/organisms/event-analysis/EventFastestAverageLapsTable.tsx`    | organism (event-analysis) | Event Fastest Average Laps Table |
-| `src/components/organisms/event-analysis/EventFastestLapsTable.tsx`           | organism (event-analysis) | Event Fastest Laps Table         |
-| `src/components/organisms/event-analysis/EventMostImprovedTable.tsx`          | organism (event-analysis) | Event Most Improved Table        |
-| `src/components/organisms/event-analysis/EventStats.tsx`                      | organism (event-analysis) | Event Stats                      |
-| `src/components/organisms/event-analysis/HeatsCard.tsx`                       | organism (event-analysis) | Heats Card                       |
-| `src/components/organisms/event-analysis/LapByLapTrendChart.tsx`              | organism (event-analysis) | Lap By Lap Trend Chart           |
-| `src/components/organisms/event-analysis/LapTimeLineChart.tsx`                | organism (event-analysis) | Lap Time Line Chart              |
-| `src/components/organisms/event-analysis/LapTimeTrendCard.tsx`                | organism (event-analysis) | Lap Time Trend Card              |
-| `src/components/organisms/event-analysis/LinkYourDriverPrompt.tsx`            | organism (event-analysis) | Link Your Driver Prompt          |
-| `src/components/organisms/event-analysis/ListPagination.tsx`                  | organism (event-analysis) | List Pagination                  |
-| `src/components/organisms/event-analysis/LiveRCEntryListTable.tsx`            | organism (event-analysis) | Live RC Entry List Table         |
-| `src/components/organisms/event-analysis/MainPodiumCard.tsx`                  | organism (event-analysis) | Main Podium Card                 |
-| `src/components/organisms/event-analysis/MainsCard.tsx`                       | organism (event-analysis) | Mains Card                       |
-| `src/components/organisms/event-analysis/MainBracketResultsTable.tsx`         | organism (event-analysis) | Main Bracket Results Table       |
-| `src/components/organisms/event-analysis/SessionRaceResultsTable.tsx`         | organism (event-analysis) | Session Race Results Table       |
-| `src/components/organisms/event-analysis/MultiMainOverallCard.tsx`            | organism (event-analysis) | Multi Main Overall Card          |
-| `src/components/organisms/event-analysis/MyEventsContent.tsx`                 | organism (event-analysis) | My Events Content                |
-| `src/components/organisms/event-analysis/MyLapsContent.tsx`                   | organism (event-analysis) | My Laps Content                  |
-| `src/components/organisms/event-analysis/OverviewTab.tsx`                     | organism (event-analysis) | Overview Tab                     |
-| `src/components/organisms/event-analysis/PracticeClassLeaderboard.tsx`        | organism (event-analysis) | Practice Class Leaderboard       |
-| `src/components/organisms/event-analysis/PracticeDriverSelector.tsx`          | organism (event-analysis) | Practice Driver Selector         |
-| `src/components/organisms/event-analysis/PracticeMyDayTab.tsx`                | organism (event-analysis) | Practice My Day Tab              |
-| `src/components/organisms/event-analysis/PracticeMySessionsTab.tsx`           | organism (event-analysis) | Practice My Sessions Tab         |
-| `src/components/organisms/event-analysis/RaceSelector.tsx`                    | organism (event-analysis) | Race Selector                    |
-| `src/components/organisms/event-analysis/sessions/DriverNameFilter.tsx`       | organism (event-analysis) | Driver Name Filter               |
-| `src/components/organisms/event-analysis/sessions/DriverPerformanceChart.tsx` | organism (event-analysis) | Driver Performance Chart         |
-| `src/components/organisms/event-analysis/sessions/HeatProgressionChart.tsx`   | organism (event-analysis) | Heat Progression Chart           |
-| `src/components/organisms/event-analysis/sessions/LapDataTable.tsx`           | organism (event-analysis) | Lap Data Table                   |
-| `src/components/organisms/event-analysis/sessions/OverviewChart.tsx`          | organism (event-analysis) | Overview Chart                   |
-| `src/components/organisms/event-analysis/sessions/SessionChartTabs.tsx`       | organism (event-analysis) | Session Chart Tabs               |
-| `src/components/organisms/event-analysis/sessions/SessionControls.tsx`        | organism (event-analysis) | Session Controls                 |
-| `src/components/organisms/event-analysis/sessions/SessionLapDataModal.tsx`    | organism (event-analysis) | Session Lap Data Modal           |
-| `src/components/organisms/event-analysis/sessions/SessionsTable.tsx`          | organism (event-analysis) | Sessions Table                   |
-| `src/components/organisms/event-analysis/sessions/SessionsTableResults.tsx`   | organism (event-analysis) | Sessions Table Results           |
-| `src/components/organisms/event-analysis/sessions/SessionsTableRow.tsx`       | organism (event-analysis) | Sessions Table Row               |
-| `src/components/organisms/event-analysis/sessions/ViewModeToggle.tsx`         | organism (event-analysis) | View Mode Toggle                 |
-| `src/components/organisms/event-analysis/SessionsTab.tsx`                     | organism (event-analysis) | Sessions Tab                     |
-| `src/components/organisms/event-analysis/SidebarAction.tsx`                   | organism (event-analysis) | Sidebar Action                   |
-| `src/components/organisms/event-analysis/TabNavigation.tsx`                   | organism (event-analysis) | Tab Navigation                   |
-| `src/components/organisms/event-analysis/TemperatureSparkline.tsx`            | organism (event-analysis) | Temperature Sparkline            |
-| `src/components/organisms/event-analysis/TrackLeaderboardTab.tsx`             | organism (event-analysis) | Track Leaderboard Tab            |
-| `src/components/organisms/event-analysis/UnifiedPerformanceChart.tsx`         | organism (event-analysis) | Unified Performance Chart        |
-| `src/components/organisms/event-analysis/WeatherCard.tsx`                     | organism (event-analysis) | Weather Card                     |
+| File                                                                                     | Tier                      | Purpose                                 |
+| ---------------------------------------------------------------------------------------- | ------------------------- | --------------------------------------- |
+| `src/components/organisms/event-analysis/AvgVsFastestChart.tsx`                          | organism (event-analysis) | Avg Vs Fastest Chart                    |
+| `src/components/organisms/event-analysis/BestLapBarChart.tsx`                            | organism (event-analysis) | Best Lap Bar Chart                      |
+| `src/components/organisms/event-analysis/car-taxonomy-modal/carTaxonomyModalStyles.ts`   | organism (event-analysis) | car Taxonomy Modal Styles               |
+| `src/components/organisms/event-analysis/car-taxonomy-modal/humanizeSuggestionReason.ts` | organism (event-analysis) | humanize Suggestion Reason              |
+| `src/components/organisms/event-analysis/CarTaxonomyModal.tsx`                           | organism (event-analysis) | Car Taxonomy Modal                      |
+| `src/components/organisms/event-analysis/ChartColorPicker.tsx`                           | organism (event-analysis) | Chart Color Picker                      |
+| `src/components/organisms/event-analysis/ChartContainer.tsx`                             | organism (event-analysis) | Chart Container                         |
+| `src/components/organisms/event-analysis/ChartControls.tsx`                              | organism (event-analysis) | Chart Controls                          |
+| `src/components/organisms/event-analysis/ChartDataNotice.tsx`                            | organism (event-analysis) | Chart Data Notice                       |
+| `src/components/organisms/event-analysis/ChartDriverPicker.tsx`                          | organism (event-analysis) | Chart Driver Picker                     |
+| `src/components/organisms/event-analysis/ChartPagination.tsx`                            | organism (event-analysis) | Chart Pagination                        |
+| `src/components/organisms/event-analysis/ChartSection.tsx`                               | organism (event-analysis) | Chart Section                           |
+| `src/components/organisms/event-analysis/ChartTypeSelector.tsx`                          | organism (event-analysis) | Chart Type Selector                     |
+| `src/components/organisms/event-analysis/ClassTopFastestLapsCard.tsx`                    | organism (event-analysis) | Class Top Fastest Laps Card             |
+| `src/components/organisms/event-analysis/ClubHighlightsTab.tsx`                          | organism (event-analysis) | Club Highlights Tab                     |
+| `src/components/organisms/event-analysis/CollapsibleDriverPanel.tsx`                     | organism (event-analysis) | Collapsible Driver Panel                |
+| `src/components/organisms/event-analysis/CombinedDriversTable.tsx`                       | organism (event-analysis) | Combined Drivers Table                  |
+| `src/components/organisms/event-analysis/ComparisonsTab.tsx`                             | organism (event-analysis) | Comparisons Tab                         |
+| `src/components/organisms/event-analysis/ComparisonTest.tsx`                             | organism (event-analysis) | Comparison Test                         |
+| `src/components/organisms/event-analysis/CountryLeaderboardCard.tsx`                     | organism (event-analysis) | Country Leaderboard Card                |
+| `src/components/organisms/event-analysis/DataPanelSurface.tsx`                           | organism (event-analysis) | Data Panel Surface                      |
+| `src/components/organisms/event-analysis/DriverCard.tsx`                                 | organism (event-analysis) | Driver Card                             |
+| `src/components/organisms/event-analysis/DriverList.tsx`                                 | organism (event-analysis) | Driver List                             |
+| `src/components/organisms/event-analysis/DriverProgressionTable.tsx`                     | organism (event-analysis) | Driver Progression Table                |
+| `src/components/organisms/event-analysis/DriverSelectionHeader.tsx`                      | organism (event-analysis) | Driver Selection Header                 |
+| `src/components/organisms/event-analysis/DriversTab.tsx`                                 | organism (event-analysis) | Drivers Tab                             |
+| `src/components/organisms/event-analysis/EntryList.tsx`                                  | organism (event-analysis) | Entry List                              |
+| `src/components/organisms/event-analysis/EntryListTab.tsx`                               | organism (event-analysis) | Entry List Tab                          |
+| `src/components/organisms/event-analysis/event-analysis-sub-tabs.ts`                     | organism (event-analysis) | event-analysis-sub-tabs                 |
+| `src/components/organisms/event-analysis/EventAnalysisActionsMenu.tsx`                   | organism (event-analysis) | Event Analysis Actions Menu             |
+| `src/components/organisms/event-analysis/EventAnalysisHeader.tsx`                        | organism (event-analysis) | Event Analysis Header                   |
+| `src/components/organisms/event-analysis/EventAnalysisScopeFilters.tsx`                  | organism (event-analysis) | Event Analysis Scope Filters            |
+| `src/components/organisms/event-analysis/EventAnalysisSidebar.tsx`                       | organism (event-analysis) | Event Analysis Sidebar                  |
+| `src/components/organisms/event-analysis/EventAnalysisToolbar.tsx`                       | organism (event-analysis) | Event Analysis Toolbar                  |
+| `src/components/organisms/event-analysis/EventFastestAverageLapsTable.tsx`               | organism (event-analysis) | Event Fastest Average Laps Table        |
+| `src/components/organisms/event-analysis/EventFastestLapsTable.tsx`                      | organism (event-analysis) | Event Fastest Laps Table                |
+| `src/components/organisms/event-analysis/EventHighlightsMixCharts.tsx`                   | organism (event-analysis) | Event Highlights Mix Charts             |
+| `src/components/organisms/event-analysis/EventMostImprovedTable.tsx`                     | organism (event-analysis) | Event Most Improved Table               |
+| `src/components/organisms/event-analysis/EventOverviewTopQualifiers.tsx`                 | organism (event-analysis) | Event Overview Top Qualifiers           |
+| `src/components/organisms/event-analysis/EventStats.tsx`                                 | organism (event-analysis) | Event Stats                             |
+| `src/components/organisms/event-analysis/EventTopAverageLapsPerClassTable.tsx`           | organism (event-analysis) | Event Top Average Laps Per Class Table  |
+| `src/components/organisms/event-analysis/EventTopFastestLapsPerClassTable.tsx`           | organism (event-analysis) | Event Top Fastest Laps Per Class Table  |
+| `src/components/organisms/event-analysis/EventTopMostImprovedPerClassTable.tsx`          | organism (event-analysis) | Event Top Most Improved Per Class Table |
+| `src/components/organisms/event-analysis/FullRaceResultsTable.tsx`                       | organism (event-analysis) | Full Race Results Table                 |
+| `src/components/organisms/event-analysis/HeatsCard.tsx`                                  | organism (event-analysis) | Heats Card                              |
+| `src/components/organisms/event-analysis/HostTrackModal.tsx`                             | organism (event-analysis) | Host Track Modal                        |
+| `src/components/organisms/event-analysis/LapByLapTrendChart.tsx`                         | organism (event-analysis) | Lap By Lap Trend Chart                  |
+| `src/components/organisms/event-analysis/LapTimeLineChart.tsx`                           | organism (event-analysis) | Lap Time Line Chart                     |
+| `src/components/organisms/event-analysis/LapTimeTrendCard.tsx`                           | organism (event-analysis) | Lap Time Trend Card                     |
+| `src/components/organisms/event-analysis/LinkYourDriverPrompt.tsx`                       | organism (event-analysis) | Link Your Driver Prompt                 |
+| `src/components/organisms/event-analysis/ListPagination.tsx`                             | organism (event-analysis) | List Pagination                         |
+| `src/components/organisms/event-analysis/LiveRCEntryListTable.tsx`                       | organism (event-analysis) | Live RC Entry List Table                |
+| `src/components/organisms/event-analysis/MainBracketResultsTable.tsx`                    | organism (event-analysis) | Main Bracket Results Table              |
+| `src/components/organisms/event-analysis/MainPodiumCard.tsx`                             | organism (event-analysis) | Main Podium Card                        |
+| `src/components/organisms/event-analysis/MainsCard.tsx`                                  | organism (event-analysis) | Mains Card                              |
+| `src/components/organisms/event-analysis/MultiMainOverallCard.tsx`                       | organism (event-analysis) | Multi Main Overall Card                 |
+| `src/components/organisms/event-analysis/MyEventsContent.tsx`                            | organism (event-analysis) | My Events Content                       |
+| `src/components/organisms/event-analysis/MyLapsContent.tsx`                              | organism (event-analysis) | My Laps Content                         |
+| `src/components/organisms/event-analysis/overview-glass-surface.ts`                      | organism (event-analysis) | overview-glass-surface                  |
+| `src/components/organisms/event-analysis/OverviewTab.tsx`                                | organism (event-analysis) | Overview Tab                            |
+| `src/components/organisms/event-analysis/PracticeClassLeaderboard.tsx`                   | organism (event-analysis) | Practice Class Leaderboard              |
+| `src/components/organisms/event-analysis/PracticeDriverSelector.tsx`                     | organism (event-analysis) | Practice Driver Selector                |
+| `src/components/organisms/event-analysis/PracticeMyDayTab.tsx`                           | organism (event-analysis) | Practice My Day Tab                     |
+| `src/components/organisms/event-analysis/PracticeMySessionsTab.tsx`                      | organism (event-analysis) | Practice My Sessions Tab                |
+| `src/components/organisms/event-analysis/RaceSelector.tsx`                               | organism (event-analysis) | Race Selector                           |
+| `src/components/organisms/event-analysis/SessionRaceResultsTable.tsx`                    | organism (event-analysis) | Session Race Results Table              |
+| `src/components/organisms/event-analysis/sessions/DriverBumpUpsTable.tsx`                | organism (event-analysis) | Driver Bump Ups Table                   |
+| `src/components/organisms/event-analysis/sessions/DriverNameFilter.tsx`                  | organism (event-analysis) | Driver Name Filter                      |
+| `src/components/organisms/event-analysis/sessions/DriverPerformanceChart.tsx`            | organism (event-analysis) | Driver Performance Chart                |
+| `src/components/organisms/event-analysis/sessions/HeatProgressionChart.tsx`              | organism (event-analysis) | Heat Progression Chart                  |
+| `src/components/organisms/event-analysis/sessions/LapDataTable.tsx`                      | organism (event-analysis) | Lap Data Table                          |
+| `src/components/organisms/event-analysis/sessions/OverviewChart.tsx`                     | organism (event-analysis) | Overview Chart                          |
+| `src/components/organisms/event-analysis/sessions/SessionChartTabs.tsx`                  | organism (event-analysis) | Session Chart Tabs                      |
+| `src/components/organisms/event-analysis/sessions/SessionControls.tsx`                   | organism (event-analysis) | Session Controls                        |
+| `src/components/organisms/event-analysis/sessions/SessionLapDataModal.tsx`               | organism (event-analysis) | Session Lap Data Modal                  |
+| `src/components/organisms/event-analysis/sessions/SessionsTable.tsx`                     | organism (event-analysis) | Sessions Table                          |
+| `src/components/organisms/event-analysis/sessions/SessionsTableResults.tsx`              | organism (event-analysis) | Sessions Table Results                  |
+| `src/components/organisms/event-analysis/sessions/SessionsTableRow.tsx`                  | organism (event-analysis) | Sessions Table Row                      |
+| `src/components/organisms/event-analysis/sessions/ViewModeToggle.tsx`                    | organism (event-analysis) | View Mode Toggle                        |
+| `src/components/organisms/event-analysis/SessionsTab.tsx`                                | organism (event-analysis) | Sessions Tab                            |
+| `src/components/organisms/event-analysis/SidebarAction.tsx`                              | organism (event-analysis) | Sidebar Action                          |
+| `src/components/organisms/event-analysis/TabNavigation.tsx`                              | organism (event-analysis) | Tab Navigation                          |
+| `src/components/organisms/event-analysis/TemperatureSparkline.tsx`                       | organism (event-analysis) | Temperature Sparkline                   |
+| `src/components/organisms/event-analysis/TrackLeaderboardTab.tsx`                        | organism (event-analysis) | Track Leaderboard Tab                   |
+| `src/components/organisms/event-analysis/UnifiedPerformanceChart.tsx`                    | organism (event-analysis) | Unified Performance Chart               |
+| `src/components/organisms/event-analysis/WeatherCard.tsx`                                | organism (event-analysis) | Weather Card                            |
 
 ## event-search
 
 | File                                                                | Tier                    | Purpose                    |
 | ------------------------------------------------------------------- | ----------------------- | -------------------------- |
 | `src/components/organisms/event-search/CheckLiveRCButton.tsx`       | organism (event-search) | Check Live RC Button       |
+| `src/components/organisms/event-search/CustomDateField.tsx`         | organism (event-search) | Custom Date Field          |
 | `src/components/organisms/event-search/DateRangeModal.tsx`          | organism (event-search) | Date Range Modal           |
 | `src/components/organisms/event-search/DateRangePicker.tsx`         | organism (event-search) | Date Range Picker          |
 | `src/components/organisms/event-search/DateRangePresetPicker.tsx`   | organism (event-search) | Date Range Preset Picker   |
@@ -186,6 +206,7 @@ source file for behavior and props.
 | `src/components/molecules/PageContainer.tsx`    | molecule | Page Container     |
 | `src/components/molecules/StandardTable.tsx`    | molecule | Standard Table     |
 | `src/components/molecules/Stepper.tsx`          | molecule | Stepper            |
+| `src/components/molecules/TabPanelIntro.tsx`    | molecule | Tab Panel Intro    |
 | `src/components/molecules/Tooltip.tsx`          | molecule | Tooltip            |
 
 ## practice-days
@@ -224,6 +245,13 @@ source file for behavior and props.
 | File                                     | Tier  | Purpose        |
 | ---------------------------------------- | ----- | -------------- |
 | `src/components/store/ReduxProvider.tsx` | store | Redux Provider |
+
+## telemetry
+
+| File                                                                  | Tier                 | Purpose                         |
+| --------------------------------------------------------------------- | -------------------- | ------------------------------- |
+| `src/components/organisms/telemetry/TelemetrySessionDetailClient.tsx` | organism (telemetry) | Telemetry Session Detail Client |
+| `src/components/organisms/telemetry/TelemetrySessionsPageClient.tsx`  | organism (telemetry) | Telemetry Sessions Page Client  |
 
 ## templates
 

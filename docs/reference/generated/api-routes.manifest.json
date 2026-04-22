@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-04-12T05:58:57.523Z",
+  "generatedAt": "2026-04-22T05:23:17.947Z",
   "source": "src/app/api",
-  "count": 77,
+  "count": 88,
   "routes": [
     {
       "file": "src/app/api/auth/[...nextauth]/route.ts",
@@ -269,18 +269,73 @@
       "methods": ["GET"]
     },
     {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/coaching/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/coaching",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/export/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/export",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/laps/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/laps",
+      "methods": ["GET"]
+    },
+    {
       "file": "src/app/api/v1/telemetry/sessions/[sessionId]/map/route.ts",
       "urlPath": "/api/v1/telemetry/sessions/[sessionId]/map",
       "methods": ["GET"]
     },
     {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/quality/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/quality",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/reprocess/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/reprocess",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/retry/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/retry",
+      "methods": ["POST"]
+    },
+    {
       "file": "src/app/api/v1/telemetry/sessions/[sessionId]/route.ts",
       "urlPath": "/api/v1/telemetry/sessions/[sessionId]",
+      "methods": ["DELETE", "GET", "PATCH"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/share/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/share",
+      "methods": ["DELETE", "POST"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/[sessionId]/timeseries/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/[sessionId]/timeseries",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/sessions/compare/route.ts",
+      "urlPath": "/api/v1/telemetry/sessions/compare",
       "methods": ["GET"]
     },
     {
       "file": "src/app/api/v1/telemetry/sessions/route.ts",
       "urlPath": "/api/v1/telemetry/sessions",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/share/[token]/map/route.ts",
+      "urlPath": "/api/v1/telemetry/share/[token]/map",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/telemetry/share/[token]/route.ts",
+      "urlPath": "/api/v1/telemetry/share/[token]",
       "methods": ["GET"]
     },
     {
