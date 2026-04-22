@@ -96,11 +96,11 @@ function DashboardEmptyState({
           aria-label="What becomes available after you select an event"
         >
           <li>
-            <span className="font-medium text-[var(--token-text-primary)]">Overview</span> — summary
+            <span className="font-medium text-[var(--token-text-primary)]">Overview</span>: summary
             stats, charts, and lap trends
           </li>
           <li>
-            <span className="font-medium text-[var(--token-text-primary)]">Event sessions</span> —
+            <span className="font-medium text-[var(--token-text-primary)]">Event sessions</span>:
             race grid, lap analysis, and bump-ups when they apply
           </li>
           <li>

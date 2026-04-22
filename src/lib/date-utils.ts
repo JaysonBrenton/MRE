@@ -83,6 +83,29 @@ export function formatDateLong(dateValue: string | Date | null | undefined): str
 }
 
 /**
+ * Format an ISO datetime for display (date + time, user locale AU).
+ * @returns Formatted string, or null if missing/invalid
+ */
+export function formatDateTimeDisplay(dateValue: string | Date | null | undefined): string | null {
+  if (!dateValue) {
+    return null
+  }
+
+  const date = new Date(dateValue)
+  if (isNaN(date.getTime())) {
+    return null
+  }
+
+  return date.toLocaleString("en-AU", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+/**
  * Format a Date as YYYY-MM-DD in the local timezone.
  * Use for date range presets and "today" so boundaries match the user's calendar
  * (e.g. "This year" = Jan 1 through today in local time; avoids UTC shifting dates).

@@ -31,6 +31,21 @@ import Tooltip from "@/components/molecules/Tooltip"
 
 export type EventStatus = "stored" | "imported" | "new" | "importing" | "failed" | "scheduled"
 
+/** Inline fixed width so chips stay equal even if `w-*` utilities are missing and `%` width would shrink-wrap. */
+const BADGE_TRACK_STYLE: React.CSSProperties = {
+  width: "8rem",
+  minWidth: "8rem",
+  maxWidth: "8rem",
+  flexShrink: 0,
+  boxSizing: "border-box",
+}
+
+const BADGE_CHIP_LAYOUT_STYLE: React.CSSProperties = {
+  width: "100%",
+  minWidth: 0,
+  boxSizing: "border-box",
+}
+
 export interface EventStatusBadgeProps {
   status: EventStatus
   progress?: number // Optional progress percentage (0-100) for importing status
@@ -264,12 +279,16 @@ export default function EventStatusBadge({
     }
   }
 
+  const badgeSizeClass =
+    "flex shrink-0 items-center px-2 py-1 rounded text-xs font-medium box-border"
+
   const className = useDynamicColors
-    ? "inline-flex items-center px-2 py-1 rounded text-xs font-medium relative overflow-hidden"
-    : `inline-flex items-center px-2 py-1 rounded text-xs font-medium ${config.bgColor} ${config.textColor}`
+    ? `${badgeSizeClass} relative w-full overflow-hidden`
+    : `${badgeSizeClass} w-full ${config.bgColor} ${config.textColor}`
 
   const containerStyle = useDynamicColors ? buildContainerStyle() : {}
   const progressBarStyle = useDynamicColors ? buildProgressBarStyle() : {}
+  const badgeElStyle: React.CSSProperties = { ...BADGE_CHIP_LAYOUT_STYLE, ...containerStyle }
 
   const progressText = progress !== undefined ? ` (${Math.round(progress)}% complete)` : ""
 
@@ -291,19 +310,21 @@ export default function EventStatusBadge({
     <span
       ref={badgeRef}
       className={className}
-      style={containerStyle}
+      style={badgeElStyle}
       aria-label={badgeAriaLabel}
       title={badgeTitle}
     >
       {/* Progress bar fill element */}
       <span style={progressBarStyle} aria-hidden="true" />
       {/* Label text */}
-      <span className="relative z-10">{displayLabel}</span>
+      <span className="relative z-10 min-w-0 flex-1 basis-0 text-center truncate">
+        {displayLabel}
+      </span>
     </span>
   )
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-stretch gap-1" style={BADGE_TRACK_STYLE}>
       {status === "failed" && failedHintTooltip ? (
         <Tooltip text={failedHintTooltip} position="top">
           {badgeEl}

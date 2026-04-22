@@ -2,15 +2,16 @@
  * @fileoverview Date range preset picker for Event Search
  *
  * @description Single "When" control: preset chips (No filter, Last 3/6/12 months,
- * This year, Custom) with optional custom start/end inputs. Replaces the
- * "Filter by date range" checkbox + conditional date inputs.
+ * This year, Custom). Custom opens a nested modal (Select date) with From/To pickers;
+ * choosing Custom again reopens the same modal to edit. When Custom is selected, a
+ * read-only line shows the current range (after at least one Done) or a short hint.
  */
 
 "use client"
 
 import { useState, useEffect } from "react"
 import { toLocalDateString } from "@/lib/date-utils"
-import CustomDateField from "./CustomDateField"
+import CustomDateRangeModal, { formatCustomRangeSummary } from "./CustomDateRangeModal"
 
 export type DateRangePreset = "none" | "last3" | "last6" | "last12" | "thisYear" | "custom"
 
@@ -26,8 +27,6 @@ export interface DateRangePresetPickerProps {
   /** When true, omit the "Date range" label (e.g. when used inside a modal that has its own title) */
   hideLabel?: boolean
 }
-
-const today = () => toLocalDateString(new Date())
 
 function getRangeForPreset(preset: DateRangePreset): { startDate: string; endDate: string } {
   const end = new Date()
@@ -79,6 +78,13 @@ export default function DateRangePresetPicker({
 }: DateRangePresetPickerProps) {
   const [localStart, setLocalStart] = useState(startDate)
   const [localEnd, setLocalEnd] = useState(endDate)
+  const [customRangeModalOpen, setCustomRangeModalOpen] = useState(false)
+  const [customModalKey, setCustomModalKey] = useState(0)
+
+  const openCustomRangeModal = () => {
+    setCustomModalKey((k) => k + 1)
+    setCustomRangeModalOpen(true)
+  }
 
   useEffect(() => {
     setLocalStart(startDate)
@@ -87,8 +93,17 @@ export default function DateRangePresetPicker({
     setLocalEnd(endDate)
   }, [endDate])
 
+  useEffect(() => {
+    if (preset !== "custom" && customRangeModalOpen) {
+      setCustomRangeModalOpen(false)
+    }
+  }, [preset, customRangeModalOpen])
+
   const handlePresetClick = (value: DateRangePreset) => {
     onPresetChange(value)
+    if (value === "custom") {
+      openCustomRangeModal()
+    }
     if (value !== "custom" && value !== "none") {
       const range = getRangeForPreset(value)
       onStartDateChange(range.startDate)
@@ -98,40 +113,30 @@ export default function DateRangePresetPicker({
     }
   }
 
-  const handleStartChange = (v: string) => {
-    setLocalStart(v)
-    onStartDateChange(v)
+  const applyCustomRange = (start: string, end: string) => {
+    setLocalStart(start)
+    setLocalEnd(end)
+    onStartDateChange(start)
+    onEndDateChange(end)
   }
-  const handleEndChange = (v: string) => {
-    setLocalEnd(v)
-    onEndDateChange(v)
-  }
-
-  const maxEndDate = (): string => {
-    if (!localStart) return today()
-    const start = new Date(localStart)
-    const max = new Date(start)
-    max.setDate(max.getDate() + 90)
-    const maxStr = max.toISOString().split("T")[0]
-    return maxStr < today() ? maxStr : today()
-  }
-
-  const startErrorId = errors?.startDate ? "preset-start-error" : undefined
-  const endErrorId = errors?.endDate ? "preset-end-error" : undefined
 
   return (
     <div className="space-y-4">
       {!hideLabel && (
         <p className="text-sm font-medium text-[var(--token-text-primary)]">Date range</p>
       )}
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Date range presets">
+      <div
+        className="flex min-w-0 flex-nowrap gap-2 overflow-x-auto overscroll-x-contain"
+        role="group"
+        aria-label="Date range presets"
+      >
         {PRESETS.map(({ value, label }) => (
           <button
             key={value}
             type="button"
             onClick={() => handlePresetClick(value)}
             disabled={disabled}
-            className={`min-h-[44px] min-w-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 ${
+            className={`shrink-0 min-h-[44px] min-w-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 ${
               preset === value
                 ? "border-[var(--token-accent)] bg-[var(--token-accent)]/20 text-[var(--token-text-primary)]"
                 : "border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] hover:bg-[var(--token-surface-raised)]"
@@ -143,53 +148,25 @@ export default function DateRangePresetPicker({
       </div>
 
       {preset === "custom" && (
-        <div className="space-y-4 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-4">
-          <div>
-            <CustomDateField
-              id="preset-start-date"
-              label="Start date"
-              value={localStart}
-              onChange={handleStartChange}
-              maxDate={today()}
-              disabled={disabled}
-              errorMessage={errors?.startDate}
-              describedById={startErrorId}
-              placeholder="Select start date"
-            />
-            {errors?.startDate && (
-              <p
-                id={startErrorId}
-                className="mt-1 text-sm text-[var(--token-error-text)]"
-                role="alert"
-              >
-                {errors.startDate}
-              </p>
-            )}
+        <>
+          <div className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2.5">
+            <p className="text-sm text-[var(--token-text-secondary)]" aria-live="polite">
+              {localStart && localEnd
+                ? formatCustomRangeSummary(localStart, localEnd)
+                : "No date range set yet. Tap Custom to open the picker."}
+            </p>
           </div>
-          <div>
-            <CustomDateField
-              id="preset-end-date"
-              label="End date"
-              value={localEnd}
-              onChange={handleEndChange}
-              minDate={localStart || undefined}
-              maxDate={maxEndDate()}
-              disabled={disabled}
-              errorMessage={errors?.endDate}
-              describedById={endErrorId}
-              placeholder="Select end date"
-            />
-            {errors?.endDate && (
-              <p
-                id={endErrorId}
-                className="mt-1 text-sm text-[var(--token-error-text)]"
-                role="alert"
-              >
-                {errors.endDate}
-              </p>
-            )}
-          </div>
-        </div>
+          <CustomDateRangeModal
+            key={customModalKey}
+            isOpen={customRangeModalOpen}
+            onClose={() => setCustomRangeModalOpen(false)}
+            onApply={applyCustomRange}
+            startDate={localStart}
+            endDate={localEnd}
+            errors={errors}
+            disabled={disabled}
+          />
+        </>
       )}
     </div>
   )

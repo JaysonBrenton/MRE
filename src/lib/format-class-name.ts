@@ -17,15 +17,49 @@ const CLASS_NAME_TYPOS: Record<string, string> = {
 const PLACEHOLDER_CLASS_NAMES = ["track maintenance", "track maintainance", "track watering"]
 
 /**
- * Returns true if the class name is a known scheduling placeholder (e.g. Track Maintenance).
- * LiveRC uses these for time blocks between races, not actual races with drivers.
+ * Heuristics for banner text LiveRC sometimes stores in the class field or as the
+ * “race” label (align with `labelLooksLikeScheduleBreakOrPlaceholder` in
+ * main-bracket-overall.ts).
+ */
+function textLooksLikeLiveRcScheduleBreakOrBanner(text: string): boolean {
+  if (/\*{3,}/.test(text)) return true
+  const L = text.toLowerCase()
+  if (/\bintermission\b/.test(L)) return true
+  if (/\b(?:\d+\s*)?min(?:ute)?s?\s*break\b/.test(L)) return true
+  return false
+}
+
+/**
+ * True when a race row is a schedule placeholder (time block / intermission), not a
+ * session with drivers. Checks both `className` and `raceLabel` so banner text in
+ * either field is excluded from session chips and class lists.
+ */
+export function isSchedulePlaceholderLiveRcRow(
+  className: string | null | undefined,
+  raceLabel: string | null | undefined
+): boolean {
+  if (isPlaceholderClass(className)) return true
+  const rl = (raceLabel ?? "").trim()
+  if (rl.length > 0 && textLooksLikeLiveRcScheduleBreakOrBanner(rl)) return true
+  return false
+}
+
+/**
+ * Returns true if the class name is a known scheduling placeholder (e.g. Track Maintenance
+ * or "**** 15 MIN BREAK ****"). LiveRC uses these for time blocks between races, not
+ * actual races with drivers.
  */
 export function isPlaceholderClass(className: string | null | undefined): boolean {
   if (className == null || typeof className !== "string") {
     return false
   }
-  const normalized = className.trim().toLowerCase()
-  return PLACEHOLDER_CLASS_NAMES.includes(normalized)
+  const raw = className.trim()
+  if (raw.length === 0) {
+    return false
+  }
+  const normalized = raw.toLowerCase()
+  if (PLACEHOLDER_CLASS_NAMES.includes(normalized)) return true
+  return textLooksLikeLiveRcScheduleBreakOrBanner(raw)
 }
 
 /**

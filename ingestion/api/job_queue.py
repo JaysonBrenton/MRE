@@ -15,7 +15,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Final
 from uuid import UUID, uuid4
 
 from ingestion.common.logging import get_logger
@@ -63,6 +63,9 @@ class Job:
     result: Dict[str, Any] | None = None
     error_code: str | None = None
     error_message: str | None = None
+    # Set while status is RUNNING — mirrors IngestionPipeline._current_stage (user-facing label below).
+    pipeline_stage: Optional[str] = None
+    pipeline_stage_label: Optional[str] = None
 
     def to_response(self, queue_position: int | None = None) -> Dict[str, Any]:
         out: Dict[str, Any] = {
@@ -73,12 +76,48 @@ class Job:
         }
         if queue_position is not None:
             out["queue_position"] = queue_position
+        if self.status == JobStatus.RUNNING:
+            if self.pipeline_stage is not None:
+                out["pipeline_stage"] = self.pipeline_stage
+            if self.pipeline_stage_label is not None:
+                out["pipeline_stage_label"] = self.pipeline_stage_label
         if self.status == JobStatus.COMPLETED and self.result:
             out["result"] = self.result
         if self.status == JobStatus.FAILED:
             out["error_code"] = self.error_code
             out["error_message"] = self.error_message
         return out
+
+
+# Keys match IngestionPipeline._set_stage(...) values — used for GET /ingestion/jobs/{id} UX.
+PIPELINE_STAGE_LABELS: Final[Dict[str, str]] = {
+    "idle": "Starting…",
+    "fetch_event_page": "Fetching event page from LiveRC…",
+    "fetch_entry_list": "Fetching entry list…",
+    "await_event_lock": "Waiting for import lock…",
+    "persist_event": "Saving event…",
+    "persist_entry_list": "Saving entries and drivers…",
+    "persist_races": "Importing races…",
+    "fetch_race_pages": "Fetching race pages from LiveRC…",
+    "ingest_laps": "Importing lap times…",
+    "persist_multi_main": "Importing multi-main results…",
+    "persist_rankings": "Importing qualifying points and rankings…",
+    "driver_matching": "Matching drivers to accounts…",
+    "vehicle_class_normalization": "Normalizing vehicle classes…",
+}
+
+
+def update_job_pipeline_stage(job_id: str, stage_key: str) -> None:
+    """Update in-memory job record while the worker runs IngestionPipeline (queue mode only)."""
+    job = _job_store.get(job_id)
+    if not job or job.status != JobStatus.RUNNING:
+        return
+    job.pipeline_stage = stage_key
+    job.pipeline_stage_label = PIPELINE_STAGE_LABELS.get(
+        stage_key,
+        stage_key.replace("_", " ").title() + "…",
+    )
+    job.updated_at = datetime.utcnow()
 
 
 def _queue_enabled() -> bool:
@@ -298,7 +337,7 @@ def _cleanup_jobs() -> None:
 async def _run_job(job: Job) -> None:
     job.status = JobStatus.RUNNING
     job.updated_at = datetime.utcnow()
-    pipeline = IngestionPipeline()
+    pipeline = IngestionPipeline(ingestion_job_id=job.job_id)
     try:
         if job.job_type == JobType.BY_SOURCE_ID:
             p = job.payload

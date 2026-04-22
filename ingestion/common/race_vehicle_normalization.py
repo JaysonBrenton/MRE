@@ -16,16 +16,27 @@ from ingestion.common.logging import get_logger
 
 logger = get_logger(__name__)
 
-PLACEHOLDER_CLASS_NAMES = frozenset({"track maintenance", "track maintainance"})
+PLACEHOLDER_CLASS_NAMES = frozenset({"track maintenance", "track maintainance", "track watering"})
 
-# Canonical skill tier labels stored in Race.skill_tier
-SKILL_TIERS = ("Junior", "Senior", "Sportsman")
+# LiveRC: banner rows (class field or label), aligned with src/lib/format-class-name.ts
+_BREAK_ASTERISKS = re.compile(r"\*{3,}")
+_MIN_BREAK = re.compile(r"\b(?:\d+\s*)?min(?:ute)?s?\s*break\b", re.I)
+_INTERMISSION = re.compile(r"\bintermission\b", re.I)
 
 
 def is_placeholder_class(class_name: Optional[str]) -> bool:
     if not class_name or not str(class_name).strip():
         return False
-    return class_name.strip().lower() in PLACEHOLDER_CLASS_NAMES
+    raw = str(class_name).strip()
+    if raw.lower() in PLACEHOLDER_CLASS_NAMES:
+        return True
+    if _BREAK_ASTERISKS.search(raw):
+        return True
+    if _INTERMISSION.search(raw):
+        return True
+    if _MIN_BREAK.search(raw):
+        return True
+    return False
 
 
 def label_looks_like_lcq(label: str) -> bool:

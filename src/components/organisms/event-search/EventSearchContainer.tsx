@@ -51,10 +51,19 @@ interface ApiEvent {
   event_date?: string
   ingestDepth?: string
   ingest_depth?: string
+  lastIngestedAt?: string | null
+  last_ingested_at?: string | null
   sourceEventId?: string
   source_event_id?: string
   eventUrl?: string
   event_url?: string
+}
+
+function apiEventLastIngestedAt(event: ApiEvent): string | undefined {
+  const raw = event.lastIngestedAt ?? event.last_ingested_at
+  if (raw == null || typeof raw !== "string") return undefined
+  const t = raw.trim()
+  return t === "" ? undefined : t
 }
 
 /** API response type for discovered event */
@@ -117,6 +126,20 @@ const EVENT_IMPORT_STATUS_POLL_MAX_ATTEMPTS = JOB_POLL_MAX_ATTEMPTS
 const EVENT_IMPORT_STATUS_POLL_INTERVAL_MS = 2500
 const EVENT_IMPORT_STATUS_POLL_MAX_MS = 20 * 60 * 1000
 
+/**
+ * Stages while polling GET /events/:id — elapsed time only (no real pipeline signal until the
+ * event row exists). Avoid "Importing lap times" in the first minute: LiveRC import often blocks
+ * on one long HTTP POST, so that label looked like a hang at ~85% when work was still mid-flight.
+ */
+function getEventImportPollStage(elapsedMs: number): string {
+  if (elapsedMs < 8_000) return "Starting import..."
+  if (elapsedMs < 45_000) return "Fetching event data..."
+  if (elapsedMs < 120_000) return "Importing races..."
+  if (elapsedMs < 300_000) return "Importing results..."
+  if (elapsedMs < 600_000) return "Importing lap times..."
+  return "Still finishing import…"
+}
+
 /** Default lookback (days) for practice discover when no date filter is set (12 months). */
 const PRACTICE_DISCOVER_DEFAULT_DAYS = 365
 
@@ -133,9 +156,15 @@ class IngestionSupersededError extends Error {
   }
 }
 
+type IngestionJobPollUpdate = {
+  status: string
+  pipeline_stage?: string
+  pipeline_stage_label?: string
+}
+
 async function pollIngestionJobUntilComplete(
   jobId: string,
-  onStatus?: (status: string) => void
+  onUpdate?: (u: IngestionJobPollUpdate) => void
 ): Promise<ApiIngestionResult> {
   for (let attempt = 0; attempt < JOB_POLL_MAX_ATTEMPTS; attempt++) {
     const res = await fetch(`/api/v1/ingestion/jobs/${jobId}`)
@@ -145,12 +174,15 @@ async function pollIngestionJobUntilComplete(
       result?: ApiIngestionResult
       error_code?: string
       error_message?: string
+      pipeline_stage?: string
+      pipeline_stage_label?: string
     }>(res)
     if (!parsed.success || !parsed.data) {
       throw new Error(parsed.success ? "No data" : (parsed.error?.message ?? "Job status failed"))
     }
-    const { status, result, error_code, error_message } = parsed.data
-    onStatus?.(status)
+    const { status, result, error_code, error_message, pipeline_stage, pipeline_stage_label } =
+      parsed.data
+    onUpdate?.({ status, pipeline_stage, pipeline_stage_label })
     if (status === "completed" && result) {
       return result
     }
@@ -240,15 +272,27 @@ function getRangeForPreset(preset: string): { startDate: string; endDate: string
   }
 }
 
+export type EventSearchTracksCatalog = {
+  tracks: Track[]
+  isLoading: boolean
+  error: string | null
+}
+
 interface EventSearchContainerProps {
   onSelectForDashboard?: (eventId: string) => void
+  /**
+   * When set (e.g. from dashboard prefetch), skips mount-time track fetch and uses this data.
+   */
+  tracksCatalog?: EventSearchTracksCatalog
 }
 
 export type DateRangePreset = "none" | "last3" | "last6" | "last12" | "thisYear" | "custom"
 
 export default function EventSearchContainer({
   onSelectForDashboard,
+  tracksCatalog,
 }: EventSearchContainerProps = {}) {
+  const usesExternalTracksCatalog = tracksCatalog !== undefined
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
@@ -263,9 +307,13 @@ export default function EventSearchContainer({
   const [practiceMonth, setPracticeMonth] = useState<number>(currentDate.getMonth() + 1)
   const [practiceDaysSearchTrigger, setPracticeDaysSearchTrigger] = useState<number>(0)
   const [favourites, setFavourites] = useState<string[]>([])
-  const [tracks, setTracks] = useState<Track[]>([])
+  const [internalTracks, setInternalTracks] = useState<Track[]>([])
+  const [internalIsLoadingTracks, setInternalIsLoadingTracks] = useState(!usesExternalTracksCatalog)
+  const tracks = usesExternalTracksCatalog ? tracksCatalog.tracks : internalTracks
+  const isLoadingTracks = usesExternalTracksCatalog
+    ? tracksCatalog.isLoading
+    : internalIsLoadingTracks
   const [events, setEvents] = useState<Event[]>([])
-  const [isLoadingTracks, setIsLoadingTracks] = useState(true)
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
   const [isCheckingLiveRC, setIsCheckingLiveRC] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
@@ -791,8 +839,10 @@ export default function EventSearchContainer({
       })
     }
 
-    // Load tracks from API
-    loadTracks()
+    // Load tracks from API (dashboard path prefetches via tracksCatalog instead)
+    if (!usesExternalTracksCatalog) {
+      loadTracks()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: load track list once; loadTracks closes over initial selectedTrack
   }, [])
 
@@ -842,7 +892,7 @@ export default function EventSearchContainer({
 
   const loadTracks = async () => {
     try {
-      setIsLoadingTracks(true)
+      setInternalIsLoadingTracks(true)
       const response = await fetch("/api/v1/tracks?followed=false&active=true", {
         cache: "no-store",
       })
@@ -863,7 +913,7 @@ export default function EventSearchContainer({
         country: track.country ?? undefined,
       }))
 
-      setTracks(loadedTracks)
+      setInternalTracks(loadedTracks)
 
       // Validate that the stored selected track still exists in the loaded tracks
       // If not, clear it to prevent "Track not found" errors
@@ -898,7 +948,7 @@ export default function EventSearchContainer({
       })
       setErrors({ track: "Unable to load tracks. Please try again." })
     } finally {
-      setIsLoadingTracks(false)
+      setInternalIsLoadingTracks(false)
     }
   }
 
@@ -1173,6 +1223,7 @@ export default function EventSearchContainer({
         eventName: event.eventName,
         eventDate: event.eventDate || event.event_date || "",
         ingestDepth: (event.ingestDepth || event.ingest_depth || "").trim(),
+        lastIngestedAt: apiEventLastIngestedAt(event),
         sourceEventId: event.sourceEventId || event.source_event_id, // Include for matching
         eventUrl: event.eventUrl || event.event_url,
       }))
@@ -2034,6 +2085,7 @@ export default function EventSearchContainer({
         eventName: newDbEvent.eventName,
         eventDate: newDbEvent.eventDate || newDbEvent.event_date || "",
         ingestDepth: (newDbEvent.ingestDepth || newDbEvent.ingest_depth || "").trim(),
+        lastIngestedAt: apiEventLastIngestedAt(newDbEvent),
         sourceEventId: newDbEvent.sourceEventId || newDbEvent.source_event_id,
         eventUrl:
           newDbEvent.eventUrl ||
@@ -2110,18 +2162,7 @@ export default function EventSearchContainer({
     // Update status immediately on first tick (before waiting for interval)
     const updateStatusImmediately = () => {
       const elapsedMs = Date.now() - startTime
-      let stage = "Starting import..."
-      if (elapsedMs < 5000) {
-        stage = "Starting import..."
-      } else if (elapsedMs < 15000) {
-        stage = "Fetching event data..."
-      } else if (elapsedMs < 45000) {
-        stage = "Importing races..."
-      } else if (elapsedMs < 90000) {
-        stage = "Importing results..."
-      } else {
-        stage = "Importing laps..."
-      }
+      const stage = getEventImportPollStage(elapsedMs)
       setEventImportProgress((prev) => ({
         ...prev,
         [progressKey]: { stage },
@@ -2150,17 +2191,7 @@ export default function EventSearchContainer({
         return
       }
 
-      // Update stage based on elapsed time (simple heuristic)
-      let stage = "Importing..."
-      if (elapsedMs < 10000) {
-        stage = "Fetching event data..."
-      } else if (elapsedMs < 30000) {
-        stage = "Importing races..."
-      } else if (elapsedMs < 60000) {
-        stage = "Importing results..."
-      } else {
-        stage = "Importing laps..."
-      }
+      const stage = getEventImportPollStage(elapsedMs)
 
       // Only update state if component is still mounted
       if (isMountedRef.current) {
@@ -2233,6 +2264,9 @@ export default function EventSearchContainer({
               id: result.data.id,
               ingestDepth: result.data.ingest_depth,
               sourceEventId: result.data.source_event_id,
+              ...(result.data.last_ingested_at != null && result.data.last_ingested_at.trim() !== ""
+                ? { lastIngestedAt: result.data.last_ingested_at }
+                : {}),
             }
 
             // If the event ID changed (LiveRC -> DB), replace the event
@@ -2356,13 +2390,19 @@ export default function EventSearchContainer({
         }
         const data = result.data
         if (data && "job_id" in data) {
+          stopPollingEventStatus(event.id)
           setEventImportProgress((prev) => ({ ...prev, [event.id]: { stage: "Queued..." } }))
-          ingestionResponse = await pollIngestionJobUntilComplete(data.job_id, (status) =>
+          ingestionResponse = await pollIngestionJobUntilComplete(data.job_id, (u) => {
+            const stage =
+              u.status === "queued"
+                ? "Queued…"
+                : (u.pipeline_stage_label ??
+                  (u.status === "running" ? "Starting import…" : "Importing…"))
             setEventImportProgress((prev) => ({
               ...prev,
-              [event.id]: { stage: status === "queued" ? "Queued..." : "Importing..." },
+              [event.id]: { stage, pipelineStageKey: u.pipeline_stage },
             }))
-          )
+          })
         } else {
           ingestionResponse = data as ApiIngestionResult
         }
@@ -2414,13 +2454,19 @@ export default function EventSearchContainer({
           }
           const data = result.data
           if (data && "job_id" in data) {
-            setEventImportProgress((prev) => ({ ...prev, [event.id]: { stage: "Queued..." } }))
-            ingestionResponse = await pollIngestionJobUntilComplete(data.job_id, (status) =>
+            stopPollingEventStatus(event.id)
+            setEventImportProgress((prev) => ({ ...prev, [event.id]: { stage: "Queued…" } }))
+            ingestionResponse = await pollIngestionJobUntilComplete(data.job_id, (u) => {
+              const stage =
+                u.status === "queued"
+                  ? "Queued…"
+                  : (u.pipeline_stage_label ??
+                    (u.status === "running" ? "Starting import…" : "Importing…"))
               setEventImportProgress((prev) => ({
                 ...prev,
-                [event.id]: { stage: status === "queued" ? "Queued..." : "Importing..." },
+                [event.id]: { stage, pipelineStageKey: u.pipeline_stage },
               }))
-            )
+            })
           } else {
             ingestionResponse = data as ApiIngestionResult
           }
@@ -2687,6 +2733,7 @@ export default function EventSearchContainer({
               eventName: updatedEvent.eventName,
               eventDate: updatedEvent.eventDate || updatedEvent.event_date || "",
               ingestDepth: (updatedEvent.ingestDepth || updatedEvent.ingest_depth || "").trim(),
+              lastIngestedAt: apiEventLastIngestedAt(updatedEvent),
               sourceEventId: updatedEvent.sourceEventId || updatedEvent.source_event_id,
               eventUrl: updatedEvent.eventUrl || updatedEvent.event_url,
             }
@@ -2714,12 +2761,13 @@ export default function EventSearchContainer({
           finalEventId &&
           ingestionResponse
         ) {
-          const syntheticEvent = {
+          const syntheticEvent: ApiEvent = {
             id: finalEventId,
             eventName: event.eventName,
             eventDate: event.eventDate ?? "",
             ingest_depth: ingestionResponse.ingest_depth,
             ingestDepth: ingestionResponse.ingest_depth,
+            last_ingested_at: ingestionResponse.last_ingested_at,
             source_event_id: event.sourceEventId,
             sourceEventId: event.sourceEventId,
             eventUrl: event.eventUrl,
@@ -2751,12 +2799,13 @@ export default function EventSearchContainer({
         ingestionResponse &&
         !didUpdateListFromSearch
       ) {
-        const syntheticEvent = {
+        const syntheticEvent: ApiEvent = {
           id: finalEventId,
           eventName: event.eventName,
           eventDate: event.eventDate ?? "",
           ingest_depth: ingestionResponse.ingest_depth,
           ingestDepth: ingestionResponse.ingest_depth,
+          last_ingested_at: ingestionResponse.last_ingested_at,
           source_event_id: event.sourceEventId,
           sourceEventId: event.sourceEventId,
           eventUrl: event.eventUrl,
@@ -3321,7 +3370,7 @@ export default function EventSearchContainer({
         {isLoadingEvents
           ? "Loading events..."
           : isCheckingLiveRC || isCheckingPracticeDays
-            ? "Checking LiveRC for events and practice days..."
+            ? "Searching LiveRC."
             : ""}
       </div>
 
@@ -3358,7 +3407,10 @@ export default function EventSearchContainer({
           dateRangePreset={dateRangePreset}
           favourites={favourites}
           tracks={tracks}
-          errors={errors}
+          errors={{
+            ...errors,
+            track: errors.track ?? tracksCatalog?.error ?? undefined,
+          }}
           isLoading={isLoadingEvents}
           isSearchingInFlight={isStartingSearch || isCheckingLiveRC || isCheckingPracticeDays}
           onTrackSelect={handleTrackSelect}
@@ -3501,7 +3553,7 @@ export default function EventSearchContainer({
                       />
                     </svg>
                     <p className="text-[var(--token-text-primary)] font-medium m-0">
-                      Checking LiveRC for events and practice days…
+                      Searching LiveRC.
                     </p>
                   </div>
                 )}

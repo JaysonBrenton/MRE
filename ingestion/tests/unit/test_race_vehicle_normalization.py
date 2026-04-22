@@ -21,6 +21,8 @@ class _Race:
 def test_is_placeholder_class():
     assert is_placeholder_class("Track Maintenance")
     assert is_placeholder_class("Track Maintainance")
+    assert is_placeholder_class("**** 15 MIN BREAK ****")
+    assert is_placeholder_class("5 minute break")
     assert not is_placeholder_class("Buggy")
 
 

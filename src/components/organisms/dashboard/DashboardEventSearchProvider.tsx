@@ -8,13 +8,30 @@
 
 "use client"
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { selectEvent } from "@/store/slices/dashboardSlice"
 import EventSearchModal from "@/components/organisms/dashboard/shell/EventSearchModal"
+import { type Track } from "@/components/organisms/event-search/TrackRow"
+import { fetchActiveTracksCatalog } from "@/lib/fetch-tracks-catalog"
+import { clientLogger } from "@/lib/client-logger"
 
 type ActionId = "refresh" | "select-drivers" | "clear-event"
 type ActionRegistry = Partial<Record<ActionId, () => void>>
+
+export type DashboardTracksCatalog = {
+  tracks: Track[]
+  isLoading: boolean
+  error: string | null
+}
 
 interface DashboardEventSearchContextValue {
   openEventSearch: () => void
@@ -22,6 +39,8 @@ interface DashboardEventSearchContextValue {
   isEventSearchOpen: boolean
   registerAction: (id: ActionId, handler: () => void) => void
   unregisterAction: (id: ActionId) => void
+  /** Loaded when the dashboard mounts so Event Search opens without waiting on tracks. */
+  tracksCatalog: DashboardTracksCatalog
 }
 
 const DashboardEventSearchContext = createContext<DashboardEventSearchContextValue | null>(null)
@@ -46,9 +65,44 @@ export default function DashboardEventSearchProvider({
   children,
 }: DashboardEventSearchProviderProps) {
   const [isEventSearchOpen, setIsEventSearchOpen] = useState(false)
+  const [tracksCatalogTracks, setTracksCatalogTracks] = useState<Track[]>([])
+  const [tracksCatalogLoading, setTracksCatalogLoading] = useState(true)
+  const [tracksCatalogError, setTracksCatalogError] = useState<string | null>(null)
   const actionsRef = useRef<ActionRegistry>({})
   const dispatch = useAppDispatch()
   const selectedEventId = useAppSelector((state) => state.dashboard.selectedEventId)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setTracksCatalogLoading(true)
+      setTracksCatalogError(null)
+      const result = await fetchActiveTracksCatalog()
+      if (cancelled) return
+      if (result.success) {
+        setTracksCatalogTracks(result.tracks)
+      } else {
+        clientLogger.error("Dashboard tracks catalog prefetch failed", {
+          error: result.errorMessage,
+        })
+        setTracksCatalogTracks([])
+        setTracksCatalogError(result.errorMessage)
+      }
+      setTracksCatalogLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const tracksCatalog = useMemo<DashboardTracksCatalog>(
+    () => ({
+      tracks: tracksCatalogTracks,
+      isLoading: tracksCatalogLoading,
+      error: tracksCatalogError,
+    }),
+    [tracksCatalogTracks, tracksCatalogLoading, tracksCatalogError]
+  )
 
   const openEventSearch = useCallback(() => setIsEventSearchOpen(true), [])
   const closeEventSearch = useCallback(() => setIsEventSearchOpen(false), [])
@@ -123,6 +177,7 @@ export default function DashboardEventSearchProvider({
     isEventSearchOpen,
     registerAction,
     unregisterAction,
+    tracksCatalog,
   }
 
   return (
@@ -133,6 +188,7 @@ export default function DashboardEventSearchProvider({
         onClose={closeEventSearch}
         onSelectEvent={handleSelectEvent}
         selectedEventId={selectedEventId}
+        tracksCatalog={tracksCatalog}
       />
     </DashboardEventSearchContext.Provider>
   )

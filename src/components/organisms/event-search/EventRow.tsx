@@ -16,18 +16,38 @@
 
 "use client"
 
+import { useMemo, useState } from "react"
 import { CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import EventStatusBadge, { type EventStatus } from "@/components/molecules/EventStatusBadge"
-import { formatDateDisplay, isEventInFuture } from "@/lib/date-utils"
+import { formatDateDisplay, formatDateTimeDisplay, isEventInFuture } from "@/lib/date-utils"
 
 export interface Event {
   id: string
   eventName: string
   eventDate: string | null | undefined // ISO string, may be null/undefined
   ingestDepth: string
+  /** ISO string from DB when laps are imported; optional for LiveRC-only rows */
+  lastIngestedAt?: string | null
   sourceEventId?: string // Optional: for unimported events from LiveRC
   eventUrl?: string // Optional: LiveRC event page URL for linking
+}
+
+/** Progress bar fill when GET /ingestion/jobs returns pipeline_stage (queued ingest). */
+const PIPELINE_STAGE_PROGRESS: Record<string, number> = {
+  idle: 5,
+  fetch_event_page: 12,
+  fetch_entry_list: 20,
+  await_event_lock: 24,
+  persist_event: 28,
+  persist_entry_list: 38,
+  persist_races: 48,
+  fetch_race_pages: 52,
+  ingest_laps: 86,
+  persist_multi_main: 78,
+  persist_rankings: 80,
+  driver_matching: 90,
+  vehicle_class_normalization: 94,
 }
 
 export interface EventRowProps {
@@ -36,7 +56,12 @@ export interface EventRowProps {
   statusOverride?: EventStatus
   errorMessage?: string // Optional error message for failed imports
   containsDriver?: boolean // Whether the driver name was found in the entry list
-  importProgress?: { stage?: string; counts?: { races: number; results: number; laps: number } } // Progress information for ongoing imports
+  importProgress?: {
+    stage?: string
+    /** Machine stage from GET /ingestion/jobs (queue mode) — drives real progress % */
+    pipelineStageKey?: string
+    counts?: { races: number; results: number; laps: number }
+  } // Progress information for ongoing imports
   onSelectForDashboard?: (eventId: string) => void // Callback for selecting an event for dashboard context
   /** When true, Import/Retry buttons are disabled (e.g. another import is in progress) */
   importDisabled?: boolean
@@ -133,42 +158,63 @@ export default function EventRow({
     }
   }
 
-  // Calculate progress percentage for importing status
-  // Progress is estimated based on typical ingestion stages:
-  // - Fetching event data: 0-20%
-  // - Importing races: 20-50%
-  // - Importing results: 50-80%
-  // - Importing laps: 80-100%
-  const calculateProgress = (): number | undefined => {
+  const rawImportProgress = useMemo(() => {
     if (!isImporting || !importProgress) {
       return undefined
     }
 
-    const { stage } = importProgress
-
-    // Stage-based progress estimation
-    if (stage) {
-      const stageLower = stage.toLowerCase()
-      if (stageLower.includes("connecting") || stageLower.includes("starting")) {
-        return 5
-      } else if (stageLower.includes("fetching")) {
-        return 15
-      } else if (stageLower.includes("race")) {
-        return 35
-      } else if (stageLower.includes("result")) {
-        return 65
-      } else if (stageLower.includes("lap")) {
-        return 85
-      } else if (stageLower.includes("importing")) {
-        return 50 // Generic importing stage
+    let raw: number | undefined
+    const key = importProgress.pipelineStageKey
+    if (key && PIPELINE_STAGE_PROGRESS[key] !== undefined) {
+      raw = PIPELINE_STAGE_PROGRESS[key]
+    } else {
+      const { stage } = importProgress
+      if (stage) {
+        const stageLower = stage.toLowerCase()
+        if (stageLower.includes("connecting") || stageLower.includes("starting")) {
+          raw = 5
+        } else if (stageLower.includes("fetching")) {
+          raw = 15
+        } else if (stageLower.includes("race")) {
+          raw = 35
+        } else if (stageLower.includes("result")) {
+          raw = 65
+        } else if (
+          stageLower.includes("still finishing") ||
+          stageLower.includes("finishing import")
+        ) {
+          raw = 92
+        } else if (stageLower.includes("lap")) {
+          raw = 85
+        } else if (stageLower.includes("importing")) {
+          raw = 50
+        }
+      }
+      if (raw === undefined) {
+        raw = 25
       }
     }
 
-    // Default progress for importing status without specific stage info
-    return isImporting ? 25 : undefined
+    return raw
+  }, [isImporting, importProgress])
+
+  const [importProgressPeak, setImportProgressPeak] = useState(0)
+
+  if (!isImporting) {
+    if (importProgressPeak !== 0) {
+      setImportProgressPeak(0)
+    }
+  } else if (rawImportProgress !== undefined) {
+    const next = Math.max(importProgressPeak, rawImportProgress)
+    if (next !== importProgressPeak) {
+      setImportProgressPeak(next)
+    }
   }
 
-  const progress = calculateProgress()
+  const progress =
+    !isImporting || rawImportProgress === undefined
+      ? undefined
+      : Math.max(importProgressPeak, rawImportProgress)
 
   return (
     <div className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr] items-center gap-4 px-4 py-4 border-b transition-colors duration-200 border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]">
@@ -206,14 +252,15 @@ export default function EventRow({
           if (isLiveRCOnly) {
             return (
               <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
-                LiveRC event — upload to add it to MRE.
+                LiveRC event. Upload to add it to MRE.
               </span>
             )
           }
           if (isImported) {
+            const ingestedAtLabel = formatDateTimeDisplay(event.lastIngestedAt)
             return (
               <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
-                Laps imported — ready to analyse.
+                {ingestedAtLabel ? `Event imported on ${ingestedAtLabel}.` : "Event imported."}
               </span>
             )
           }

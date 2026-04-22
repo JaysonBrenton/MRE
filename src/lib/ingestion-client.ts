@@ -762,6 +762,9 @@ export class IngestionClient {
     error_message?: string
     created_at: string
     updated_at: string
+    /** Present when status is running — mirrors IngestionPipeline stage */
+    pipeline_stage?: string
+    pipeline_stage_label?: string
   }> {
     const url = `${this.baseUrl}/api/v1/ingestion/jobs/${jobId}`
     const response = await fetch(url)

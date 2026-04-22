@@ -20,7 +20,9 @@ import { X } from "lucide-react"
 import type { CSSProperties } from "react"
 import { useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import EventSearchContainer from "@/components/organisms/event-search/EventSearchContainer"
+import EventSearchContainer, {
+  type EventSearchTracksCatalog,
+} from "@/components/organisms/event-search/EventSearchContainer"
 import { useModalPanelDrag } from "@/hooks/useModalPanelDrag"
 import {
   getModalResizableContainerStyles,
@@ -33,6 +35,7 @@ interface EventSearchModalProps {
   onClose: () => void
   onSelectEvent: (eventId: string) => void
   selectedEventId: string | null
+  tracksCatalog: EventSearchTracksCatalog
 }
 
 export default function EventSearchModal({
@@ -40,6 +43,7 @@ export default function EventSearchModal({
   onClose,
   onSelectEvent,
   selectedEventId: _selectedEventId,
+  tracksCatalog,
 }: EventSearchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
@@ -178,7 +182,10 @@ export default function EventSearchModal({
             className="flex-1 min-h-0 flex flex-col p-6"
             style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
           >
-            <EventSearchContainer onSelectForDashboard={handleSelectForDashboard} />
+            <EventSearchContainer
+              onSelectForDashboard={handleSelectForDashboard}
+              tracksCatalog={tracksCatalog}
+            />
           </div>
         </div>
       </div>

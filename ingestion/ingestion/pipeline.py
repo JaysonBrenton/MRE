@@ -1,13 +1,22 @@
-# @fileoverview Ingestion pipeline orchestrator
-# 
+# @fileoverview LiveRC ingestion pipeline orchestrator
+#
 # @created 2025-01-27
 # @creator Jayson Brenton
-# @lastModified 2025-01-27
-# 
-# @description Main pipeline orchestrator for event ingestion
-# 
-# @purpose Coordinates connector calls, validation, normalization, and
-#          database persistence with proper locking and transaction management.
+# @lastModified 2026-04-21
+#
+# @description Orchestrates end-to-end ingestion: LiveRCConnector fetches event
+#              and practice pages; Validator and Normalizer prepare domain-shaped
+#              payloads; Repository persists under PostgreSQL advisory locks
+#              (event-scoped and source-event-scoped). Handles race result and
+#              lap batching, multi-main and ranking side-data, driver/entry list
+#              processing, user–driver matching, and lap annotation derivation.
+#              When ingestion_job_id is set, pipeline stages are mirrored to the
+#              in-process job queue for client polling. Timeouts are inactivity-
+#              based (_run_with_inactivity_timeout); HTTP race fetch uses adaptive
+#              concurrency (RACE_FETCH_CONCURRENCY).
+#
+# @see docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
+# @see docs/architecture/liverc-ingestion/08-ingestion-pipeline-internals.md
 
 import asyncio
 import math
@@ -66,6 +75,7 @@ from ingestion.ingestion.derived_laps import run_derivation_for_race
 
 logger = get_logger(__name__)
 
+# Persisted on Event.event_metadata: LiveRC program bucket nav order from entry list.
 LIVERC_PROGRAM_BUCKET_ORDER_KEY = "livercProgramBucketOrder"
 
 
@@ -124,8 +134,19 @@ class TrackContext:
 
 
 class IngestionPipeline:
-    """Main ingestion pipeline orchestrator."""
-    
+    """Orchestrates LiveRC event and practice-day ingestion.
+
+    Public entry points:
+    - ``ingest_event``: load event by MRE ``event_id`` (fetch event + entry list, then persist).
+    - ``ingest_event_by_source_id``: resolve/create event from LiveRC ``source_event_id`` + track, then persist.
+    - ``ingest_practice_day``: ingest all practice sessions for a track/date under a source-event lock.
+
+    Persistence runs inside ``_persist_with_lock`` (advisory lock + optional inactivity timeout).
+    Core work is ``_persist_event_data`` (state machine, entry list, parallel race processing,
+    rankings, driver matching, vehicle class sync). Race pages are fetched concurrently
+    (``_process_races_parallel``) while DB writes stay on the async thread's session.
+    """
+
     # Race fetch concurrency - adaptive, starts conservative and adjusts based on performance
     # Initial value: 8 (conservative to avoid rate limiting)
     # Will increase if network is fast and no errors, decrease if rate limited
@@ -144,9 +165,15 @@ class IngestionPipeline:
     # Practice day session detail fetch concurrency (cap to avoid hammering LiveRC)
     PRACTICE_DAY_DETAIL_CONCURRENCY = 5
 
-    def __init__(self):
-        """Initialize pipeline."""
+    def __init__(self, ingestion_job_id: Optional[str] = None):
+        """Initialize pipeline.
+
+        Args:
+            ingestion_job_id: When set (queued ingest worker), pipeline stages are mirrored to
+                the in-memory job record for GET /ingestion/jobs/{id} polling.
+        """
         self.connector = LiveRCConnector()
+        self._ingestion_job_id = ingestion_job_id
         self._current_stage: str = "idle"
         self._last_activity_time: Optional[float] = None
         # Adaptive concurrency tracking
@@ -159,6 +186,17 @@ class IngestionPipeline:
         self._current_stage = stage
         if event_id:
             logger.debug("ingestion_stage", event_id=str(event_id), stage=stage)
+        if self._ingestion_job_id:
+            try:
+                from ingestion.api.job_queue import update_job_pipeline_stage
+
+                update_job_pipeline_stage(self._ingestion_job_id, stage)
+            except Exception as exc:  # noqa: BLE001 — never fail ingestion on progress wiring
+                logger.warning(
+                    "job_pipeline_stage_update_failed",
+                    stage=stage,
+                    error=str(exc),
+                )
 
     def _record_activity(self) -> None:
         """Record that activity/progress has occurred. Call this whenever progress is made."""
@@ -468,8 +506,8 @@ class IngestionPipeline:
             shared_client: Optional HTTPXClient instance to reuse
         
         Returns:
-            ConnectorRacePackage with race data
-        
+            ``(race_package, duration_seconds)`` for metrics and adaptive concurrency.
+
         Raises:
             ValidationError: If race validation fails
             ConnectorHTTPError: On network errors
@@ -573,6 +611,7 @@ class IngestionPipeline:
 
     @staticmethod
     def _calculate_percentile(observations: List[float], percentile: float) -> float:
+        """Linear interpolation percentile in [0, 1] over ``observations`` (adaptive concurrency)."""
         if not observations:
             return 0.0
         sorted_values = sorted(observations)
@@ -1152,9 +1191,8 @@ class IngestionPipeline:
             race_summaries: List of race summaries to process
             event_id: Event ID
             repo: Repository instance for database operations
-            depth: Ingestion depth
-            entry_list: Optional entry list for transponder number matching
-        
+            depth: Ingestion depth (passed for API consistency; race processing does not branch on it here)
+
         Returns:
             Tuple of (races_ingested, results_ingested, laps_ingested)
         """
@@ -1203,6 +1241,7 @@ class IngestionPipeline:
         async with HTTPXClient(self.connector._site_policy) as shared_client:
             batch_index = 0
             while batch_index < total_races:
+                self._set_stage("fetch_race_pages", event_id)
                 batch_size = max(1, self.RACE_FETCH_CONCURRENCY)
                 batch = race_summaries[batch_index:batch_index + batch_size]
                 batch_index += len(batch)
@@ -1266,6 +1305,7 @@ class IngestionPipeline:
                     is_last_batch = batch_index >= total_races
                     if races_since_commit >= COMMIT_BATCH_SIZE or is_last_batch:
                         if accumulated_laps:
+                            self._set_stage("ingest_laps", event_id)
                             repo.bulk_upsert_laps(accumulated_laps)
                             accumulated_laps = []  # Clear for next commit batch
                         repo.session.commit()
@@ -1278,6 +1318,7 @@ class IngestionPipeline:
             # Final bulk upsert for any remaining accumulated laps (safety check)
             # This is inside the HTTPXClient context to ensure all fetches are complete
             if accumulated_laps:
+                self._set_stage("ingest_laps", event_id)
                 repo.bulk_upsert_laps(accumulated_laps)
                 repo.session.commit()
                 self._run_lap_annotation_derivation(repo, race_ids_for_derivation)
@@ -1758,7 +1799,20 @@ class IngestionPipeline:
         force: bool = False,
         imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Ingest event data from LiveRC while limiting lock scope."""
+        """Ingest event data from LiveRC for an existing MRE event row.
+
+        Fetches event page and entry list before acquiring the per-event advisory lock,
+        so the lock only covers persistence (see ``_persist_with_lock``).
+
+        Args:
+            event_id: MRE event UUID
+            depth: Target ingest depth (e.g. ``laps_full``)
+            force: When True, re-process all races (e.g. refresh ordering); skips incremental short-circuit
+            imported_by_user_id: Optional user id recorded on the event when ingestion succeeds
+
+        Returns:
+            Result dict (e.g. ``event_id``, ``ingest_depth``, ``status``, counts, timestamps)
+        """
         logger.info("ingestion_start", event_id=str(event_id), depth=depth, force=force)
 
         event_context = self._load_event_context(event_id)
@@ -1894,6 +1948,12 @@ class IngestionPipeline:
         force: bool = False,
         imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Apply state transitions and persist races/results/laps while the event lock is held.
+
+        Caller must already hold the advisory lock on ``event_context.event_id``. Runs entry list
+        processing, parallel race ingest, optional multi-main and ranking ingest, driver matching,
+        vehicle class sync, and final depth/metadata updates.
+        """
         event_id = event_context.event_id
         try:
             event = repo.get_event_by_id(event_id)
@@ -1983,7 +2043,6 @@ class IngestionPipeline:
                 races_to_process = [r for r in event_data.races if r.source_race_id in new_source_race_ids]
 
             if races_to_process:
-                self._set_stage("persist_races", event_id)
                 races_ingested, results_ingested, laps_ingested = await self._process_races_parallel(
                     race_summaries=races_to_process,
                     event_id=event_id,
@@ -2089,7 +2148,20 @@ class IngestionPipeline:
         depth: str = "laps_full",
         imported_by_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Ingest an event by discovering it from LiveRC and persisting it."""
+        """Ingest from LiveRC ``source_event_id``: ensure an MRE Event exists, then same path as ``ingest_event``.
+
+        Uses ``_ensure_event_record`` (source-event advisory lock) to create the event row if missing,
+        then delegates to ``_persist_with_lock`` with the resolved ``EventContext``.
+
+        Args:
+            source_event_id: LiveRC event id string
+            track_id: MRE track UUID (must match the track hosting this event)
+            depth: Target ingest depth
+            imported_by_user_id: Optional user id stored on the event when ingestion succeeds
+
+        Returns:
+            Same shape as ``ingest_event`` / ``_persist_event_data`` (counts and status fields)
+        """
         logger.info(
             "ingestion_by_source_id_start",
             source_event_id=source_event_id,

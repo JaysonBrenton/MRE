@@ -48,3 +48,15 @@ def test_completed_jobs_are_cleaned_up(job_queue):
     job_queue._cleanup_jobs()
 
     assert job_queue.get_job(job_id) is None
+
+
+def test_running_job_includes_pipeline_stage_in_response(job_queue):
+    job_id = job_queue.enqueue_by_event_id("00000000-0000-0000-0000-000000000020", "laps_full")
+    job = job_queue.get_job(job_id)
+    job.status = job_queue.JobStatus.RUNNING
+    job.pipeline_stage = "ingest_laps"
+    job.pipeline_stage_label = "Importing lap times…"
+
+    body = job.to_response(queue_position=None)
+    assert body["pipeline_stage"] == "ingest_laps"
+    assert body["pipeline_stage_label"] == "Importing lap times…"

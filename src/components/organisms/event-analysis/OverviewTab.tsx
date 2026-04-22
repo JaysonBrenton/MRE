@@ -70,7 +70,7 @@ import {
   getSubTabLabel,
   getSubTabOptions,
 } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
-import { isPlaceholderClass } from "@/lib/format-class-name"
+import { isPlaceholderClass, isSchedulePlaceholderLiveRcRow } from "@/lib/format-class-name"
 import {
   UNCLASSIFIED_CLASS_KEY,
   eventHasVehicleDenormalization,
@@ -369,7 +369,10 @@ export default function OverviewTab({
   }, [vehicleDenormActive, sessionClassFilteredRaces, filteredRaces])
 
   const sessionDriverAnalysisSortedRaces = useMemo(
-    () => sortRacesChronologically(sessionAnalysisRaces),
+    () =>
+      sortRacesChronologically(sessionAnalysisRaces).filter(
+        (r) => !isSchedulePlaceholderLiveRcRow(r.className, r.raceLabel)
+      ),
     [sessionAnalysisRaces]
   )
 
@@ -2012,7 +2015,13 @@ export default function OverviewTab({
                     <span className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]">
                       Total Classes
                     </span>
-                    <span className={typography.h3}>{data.raceClasses.size}</span>
+                    <span className={typography.h3}>
+                      {data.registrationClassNames && data.registrationClassNames.length > 0
+                        ? data.registrationClassNames.length
+                        : validClasses.length > 0
+                          ? validClasses.length
+                          : data.raceClasses.size}
+                    </span>
                   </div>
                 </div>
               </div>
