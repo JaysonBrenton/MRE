@@ -27,6 +27,8 @@ export interface EventAnalysisToolbarProps {
   onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
   /** Trailing column when set; sizes to show the full name (one line when it fits). */
   eventTitle?: string | null
+  /** When set, the title opens this URL in a new tab (e.g. LiveRC event page). */
+  eventTitleHref?: string | null
   /** Shown to the right of the title, separated by a vertical divider, when set (e.g. event date range). */
   eventDateRange?: string | null
 }
@@ -38,12 +40,19 @@ export default function EventAnalysisToolbar({
   analysisSubTab,
   onAnalysisSubTabChange,
   eventTitle,
+  eventTitleHref,
   eventDateRange,
 }: EventAnalysisToolbarProps) {
   const trimmedTitle = eventTitle?.trim() ?? ""
   const trimmedDateRange = eventDateRange?.trim() ?? ""
   const showTitle = trimmedTitle.length > 0
   const showDateRange = trimmedDateRange.length > 0
+  const titleHref = eventTitleHref?.trim() ?? ""
+
+  const titleClassName =
+    "block min-w-0 max-w-full truncate text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base"
+  const titleLinkExtraClass =
+    " underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
 
   return (
     <div
@@ -68,9 +77,19 @@ export default function EventAnalysisToolbar({
       </div>
       {showTitle ? (
         <div className="flex min-w-0 max-w-full items-center justify-center justify-self-center self-center gap-2 px-2 sm:gap-2.5 sm:px-2.5">
-          <span className="block min-w-0 max-w-full truncate text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base">
-            {trimmedTitle}
-          </span>
+          {titleHref ? (
+            <a
+              href={titleHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${titleClassName}${titleLinkExtraClass}`}
+              aria-label="View event on LiveRC (opens in new tab)"
+            >
+              {trimmedTitle}
+            </a>
+          ) : (
+            <span className={titleClassName}>{trimmedTitle}</span>
+          )}
           {showDateRange ? (
             <>
               <span

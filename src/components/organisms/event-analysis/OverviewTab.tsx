@@ -197,7 +197,7 @@ const EVENT_OVERVIEW_WEATHER_INFO_TEXT =
   "Forecast and conditions for the event venue by calendar day, when available from the weather service."
 
 const EVENT_OVERVIEW_EVENT_MIX_INFO_TEXT =
-  "Session mix (percent of sessions by type) and class share by entry count or laps completed. Use the toggles on the chart to switch metrics. Main events are detected from labels as well as session type."
+  "Session mix (percent of sessions by type) and class share by entry count or laps completed. Use the toggles below the summary cards to switch the breakdown list. Main events are detected from labels as well as session type."
 
 export default function OverviewTab({
   data,

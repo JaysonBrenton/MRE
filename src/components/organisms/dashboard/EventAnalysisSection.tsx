@@ -279,6 +279,20 @@ export default function EventAnalysisSection() {
     return label.length > 0 ? label : null
   }, [transformedData])
 
+  /** LiveRC event page: stored URL or canonical view_event link from slug + source id. */
+  const eventAnalysisToolbarTitleHref = useMemo(() => {
+    if (!transformedData) return null
+    const e = transformedData.event
+    const fromDb = e.eventUrl?.trim()
+    if (fromDb) return fromDb
+    const slug = e.trackSlug?.trim()
+    const sid = e.sourceEventId?.trim()
+    if (slug && sid) {
+      return `https://${slug}.liverc.com/results/?p=view_event&id=${encodeURIComponent(sid)}`
+    }
+    return null
+  }, [transformedData])
+
   /** Same range string as Event Overview “Event date” row (earliest – latest, or single day). */
   const eventAnalysisToolbarDateRange = useMemo(() => {
     if (!transformedData) return null
@@ -406,6 +420,7 @@ export default function EventAnalysisSection() {
                     analysisSubTab={resolvedAnalysisSubTab}
                     onAnalysisSubTabChange={setAnalysisSubTab}
                     eventTitle={eventAnalysisToolbarTitle}
+                    eventTitleHref={eventAnalysisToolbarTitleHref}
                     eventDateRange={eventAnalysisToolbarDateRange}
                   />
                 )}
