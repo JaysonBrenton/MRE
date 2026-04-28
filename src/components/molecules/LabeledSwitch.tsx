@@ -1,8 +1,9 @@
 /**
  * @fileoverview LabeledSwitch molecule - switch with left/right labels
  *
- * @description Composes Switch atom with two text labels. Active label uses
- *              primary text, inactive uses secondary (matches EventSearchForm pattern).
+ * @description Composes Switch atom with two text labels. Active option uses
+ *              primary text, inactive uses secondary. Optional `labelOrder="onFirst"`
+ *              puts the "on" label before the switch (e.g. Yes | switch | No).
  *
  * @purpose Reusable "label | switch | label" pattern for binary toggles.
  *
@@ -15,8 +16,13 @@
 
 import Switch from "@/components/atoms/Switch"
 
+/** offFirst: No | switch | Yes (off left, on right). onFirst: Yes | switch | No. */
+export type LabeledSwitchLabelOrder = "offFirst" | "onFirst"
+
 export interface LabeledSwitchProps {
+  /** Left label: "off" / false state when two labels. */
   leftLabel: string
+  /** Right label: "on" / true state. */
   rightLabel?: string
   checked: boolean
   onChange: (checked: boolean) => void
@@ -24,11 +30,19 @@ export interface LabeledSwitchProps {
   id?: string
   "aria-label"?: string
   className?: string
+  /**
+   * Visual order only; semantics stay left=off, right=on. Default: off on the left, on on the right.
+   * Use `onFirst` to show "Yes" before the switch and "No" after (e.g. event search).
+   */
+  labelOrder?: LabeledSwitchLabelOrder
 }
 
+const primary = "text-[var(--token-text-primary)]"
+const secondary = "text-[var(--token-text-secondary)]"
+
 /**
- * Switch with left and right labels. When checked, right is "on" (primary text);
- * when unchecked, left is "on".
+ * Switch with two labels: left = off, right = on. Active label is primary.
+ * `labelOrder="onFirst"` shows the on label before the switch (e.g. Yes | switch | No).
  */
 export default function LabeledSwitch({
   leftLabel,
@@ -39,16 +53,52 @@ export default function LabeledSwitch({
   id,
   "aria-label": ariaLabel,
   className = "",
+  labelOrder = "offFirst",
 }: LabeledSwitchProps) {
-  const switchAriaLabel = ariaLabel ?? `Switch to ${checked ? leftLabel : rightLabel || leftLabel}`
+  const hasRight = Boolean(rightLabel)
+  const selectedLabel = hasRight && rightLabel ? (checked ? rightLabel : leftLabel) : leftLabel
+  const switchAriaLabel = ariaLabel ?? selectedLabel
+
+  if (!hasRight) {
+    return (
+      <div className={`flex items-center gap-3 ${className}`}>
+        <span className={`text-sm font-medium transition-colors ${!checked ? primary : secondary}`}>
+          {leftLabel}
+        </span>
+        <Switch
+          id={id}
+          checked={checked}
+          onChange={onChange}
+          disabled={disabled}
+          aria-label={switchAriaLabel}
+        />
+      </div>
+    )
+  }
+
+  if (labelOrder === "onFirst") {
+    return (
+      <div className={`flex items-center gap-3 ${className}`}>
+        <span className={`text-sm font-medium transition-colors ${checked ? primary : secondary}`}>
+          {rightLabel}
+        </span>
+        <Switch
+          id={id}
+          checked={checked}
+          onChange={onChange}
+          disabled={disabled}
+          aria-label={switchAriaLabel}
+        />
+        <span className={`text-sm font-medium transition-colors ${!checked ? primary : secondary}`}>
+          {leftLabel}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <span
-        className={`text-sm font-medium transition-colors ${
-          !checked ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"
-        }`}
-      >
+      <span className={`text-sm font-medium transition-colors ${!checked ? primary : secondary}`}>
         {leftLabel}
       </span>
       <Switch
@@ -58,15 +108,9 @@ export default function LabeledSwitch({
         disabled={disabled}
         aria-label={switchAriaLabel}
       />
-      {rightLabel ? (
-        <span
-          className={`text-sm font-medium transition-colors ${
-            checked ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"
-          }`}
-        >
-          {rightLabel}
-        </span>
-      ) : null}
+      <span className={`text-sm font-medium transition-colors ${checked ? primary : secondary}`}>
+        {rightLabel}
+      </span>
     </div>
   )
 }

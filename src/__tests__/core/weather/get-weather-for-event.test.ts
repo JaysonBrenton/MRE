@@ -18,6 +18,8 @@ import * as fetchWeatherModule from "@/core/weather/fetch-weather"
 import * as weatherRepoModule from "@/core/weather/repo"
 import * as resolveCandidatesModule from "@/core/weather/resolve-geocode-candidates"
 import * as eventsRepoModule from "@/core/events/repo"
+import * as userEventHostTrackModule from "@/core/events/user-event-host-track"
+import { prisma } from "@/lib/prisma"
 
 // Mock dependencies
 vi.mock("@/core/weather/geocode-track")
@@ -25,11 +27,22 @@ vi.mock("@/core/weather/fetch-weather")
 vi.mock("@/core/weather/repo")
 vi.mock("@/core/weather/resolve-geocode-candidates")
 vi.mock("@/core/events/repo")
+vi.mock("@/core/events/user-event-host-track", () => ({
+  getUserEventHostTrackRow: vi.fn(),
+}))
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    track: {
+      findUnique: vi.fn(),
+    },
+  },
+}))
 
 describe("getWeatherForEvent", () => {
   const eventId = "event-123"
   const mockEvent = {
     id: eventId,
+    trackId: "venue-track-id",
     eventName: "Test Event",
     eventDate: new Date("2025-06-15T12:00:00Z"),
     track: {
@@ -39,6 +52,8 @@ describe("getWeatherForEvent", () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(userEventHostTrackModule.getUserEventHostTrackRow).mockResolvedValue(null)
+    vi.mocked(prisma.track.findUnique).mockResolvedValue(null)
   })
 
   describe("cache hit scenarios", () => {
@@ -71,6 +86,7 @@ describe("getWeatherForEvent", () => {
       vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(
         mockCachedWeather as never
       )
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
 
       const result = await getWeatherForEvent(eventId)
 
@@ -83,6 +99,73 @@ describe("getWeatherForEvent", () => {
       // Should not call geocoding or API
       expect(geocodeTrackModule.geocodeTrack).not.toHaveBeenCalled()
       expect(fetchWeatherModule.fetchWeather).not.toHaveBeenCalled()
+    })
+
+    it("when user host track differs from venue, skips shared cache and uses host coordinates", async () => {
+      const mockCachedWeather = {
+        id: "weather-1",
+        eventId,
+        latitude: -35.2809,
+        longitude: 149.13,
+        timestamp: new Date(),
+        airTemperature: 99,
+        humidity: 62,
+        windSpeed: 12,
+        windDirection: 180,
+        precipitation: 18,
+        condition: "Should not use cached",
+        trackTemperature: 32,
+        forecast: [],
+        isHistorical: false,
+        cachedAt: new Date(),
+        expiresAt: new Date(Date.now() + 3600000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(
+        mockCachedWeather as never
+      )
+      vi.mocked(userEventHostTrackModule.getUserEventHostTrackRow).mockResolvedValue({
+        hostTrackId: "host-track-id",
+      } as never)
+      vi.mocked(prisma.track.findUnique).mockResolvedValue({
+        id: "host-track-id",
+        trackName: "Host Facility",
+        latitude: -33.8688,
+        longitude: 151.2093,
+        address: null,
+        city: null,
+        state: null,
+        country: null,
+      } as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+      vi.mocked(fetchWeatherModule.fetchWeather).mockResolvedValue({
+        current: {
+          condition: "Clear sky",
+          windSpeed: 12,
+          windDirection: 180,
+          humidity: 62,
+          airTemperature: 24,
+          precipitation: 18,
+          timestamp: new Date(),
+        },
+        forecast: [],
+      })
+
+      const result = await getWeatherForEvent(eventId, { userId: "user-1" })
+
+      expect(weatherRepoModule.getCachedWeatherForEvent).not.toHaveBeenCalled()
+      expect(result.condition).toBe("Clear sky")
+      expect(result.air).toBe(24)
+      expect(result.isCached).toBe(false)
+      expect(geocodeTrackModule.geocodeTrack).not.toHaveBeenCalled()
+      expect(fetchWeatherModule.fetchWeather).toHaveBeenCalledWith(
+        -33.8688,
+        151.2093,
+        expect.any(Date)
+      )
+      expect(weatherRepoModule.cacheWeatherData).not.toHaveBeenCalled()
     })
   })
 

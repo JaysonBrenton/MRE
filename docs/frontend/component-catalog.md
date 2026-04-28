@@ -171,22 +171,21 @@ source file for behavior and props.
 
 ## event-search
 
-| File                                                                | Tier                    | Purpose                    |
-| ------------------------------------------------------------------- | ----------------------- | -------------------------- |
-| `src/components/organisms/event-search/CheckLiveRCButton.tsx`       | organism (event-search) | Check Live RC Button       |
-| `src/components/organisms/event-search/CustomDateField.tsx`         | organism (event-search) | Custom Date Field          |
-| `src/components/organisms/event-search/DateRangeModal.tsx`          | organism (event-search) | Date Range Modal           |
-| `src/components/organisms/event-search/DateRangePicker.tsx`         | organism (event-search) | Date Range Picker          |
-| `src/components/organisms/event-search/DateRangePresetPicker.tsx`   | organism (event-search) | Date Range Preset Picker   |
-| `src/components/organisms/event-search/EventRow.tsx`                | organism (event-search) | Event Row                  |
-| `src/components/organisms/event-search/EventSearchContainer.tsx`    | organism (event-search) | Event Search Container     |
-| `src/components/organisms/event-search/EventSearchForm.tsx`         | organism (event-search) | Event Search Form          |
-| `src/components/organisms/event-search/EventSearchTableHeader.tsx`  | organism (event-search) | Event Search Table Header  |
-| `src/components/organisms/event-search/EventTable.tsx`              | organism (event-search) | Event Table                |
-| `src/components/organisms/event-search/ImportPrompt.tsx`            | organism (event-search) | Import Prompt              |
-| `src/components/organisms/event-search/TrackAndFavouritesModal.tsx` | organism (event-search) | Track And Favourites Modal |
-| `src/components/organisms/event-search/TrackRow.tsx`                | organism (event-search) | Track Row                  |
-| `src/components/organisms/event-search/TrackSelectionModal.tsx`     | organism (event-search) | Track Selection Modal      |
+| File                                                               | Tier                    | Purpose                   |
+| ------------------------------------------------------------------ | ----------------------- | ------------------------- |
+| `src/components/organisms/event-search/CheckLiveRCButton.tsx`      | organism (event-search) | Check Live RC Button      |
+| `src/components/organisms/event-search/CustomDateField.tsx`        | organism (event-search) | Custom Date Field         |
+| `src/components/organisms/event-search/DateRangeModal.tsx`         | organism (event-search) | Date Range Modal          |
+| `src/components/organisms/event-search/DateRangePicker.tsx`        | organism (event-search) | Date Range Picker         |
+| `src/components/organisms/event-search/DateRangePresetPicker.tsx`  | organism (event-search) | Date Range Preset Picker  |
+| `src/components/organisms/event-search/EventRow.tsx`               | organism (event-search) | Event Row                 |
+| `src/components/organisms/event-search/EventSearchContainer.tsx`   | organism (event-search) | Event Search Container    |
+| `src/components/organisms/event-search/EventSearchForm.tsx`        | organism (event-search) | Event Search Form         |
+| `src/components/organisms/event-search/EventSearchTableHeader.tsx` | organism (event-search) | Event Search Table Header |
+| `src/components/organisms/event-search/EventTable.tsx`             | organism (event-search) | Event Table               |
+| `src/components/organisms/event-search/ImportPrompt.tsx`           | organism (event-search) | Import Prompt             |
+| `src/components/organisms/event-search/TrackRow.tsx`               | organism (event-search) | Track Row                 |
+| `src/components/organisms/event-search/TrackSelectionModal.tsx`    | organism (event-search) | Track Selection Modal     |
 
 ## events
 

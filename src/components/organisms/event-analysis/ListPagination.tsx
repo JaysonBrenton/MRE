@@ -23,6 +23,7 @@
 
 "use client"
 
+import { useId } from "react"
 import { TABLE_ROWS_PER_PAGE_OPTIONS } from "@/lib/table-pagination"
 
 export interface ListPaginationProps {
@@ -52,6 +53,7 @@ export default function ListPagination({
   onRowsPerPageChange,
   embedded = false,
 }: ListPaginationProps) {
+  const pageSizeSelectId = useId()
   const startItem = (currentPage - 1) * itemsPerPage + 1
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)
 
@@ -99,11 +101,14 @@ export default function ListPagination({
       <div className="flex items-center gap-2">
         {onRowsPerPageChange && (
           <>
-            <label htmlFor="pageSize" className="text-sm text-[var(--token-text-secondary)]">
+            <label
+              htmlFor={pageSizeSelectId}
+              className="text-sm text-[var(--token-text-secondary)]"
+            >
               Rows per page:
             </label>
             <select
-              id="pageSize"
+              id={pageSizeSelectId}
               value={itemsPerPage}
               onChange={handleRowsPerPageChange}
               className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"

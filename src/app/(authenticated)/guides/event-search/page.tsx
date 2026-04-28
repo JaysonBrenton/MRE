@@ -91,8 +91,9 @@ export default async function EventSearchGuidePage() {
           </p>
           <ul className="list-disc space-y-2 pl-6 text-[var(--token-text-secondary)]">
             <li>
-              Date ranges cannot exceed{" "}
-              <strong className="text-[var(--token-text-primary)]">3 months</strong> (90 days)
+              Custom start and end dates must fall within{" "}
+              <strong className="text-[var(--token-text-primary)]">the last 7 years</strong> through
+              today (the full span between your chosen dates is allowed)
             </li>
             <li>
               You cannot select{" "}

@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect } from "vitest"
+import { getEventSearchEarliestSelectableDate, toLocalDateString } from "@/lib/date-utils"
 import { validateEventSearchParams } from "@/core/events/validate"
 
 const VALID_TRACK_ID = "a1b2c3d4-e5f6-4789-a012-345678901234"
@@ -32,7 +33,7 @@ describe("validateEventSearchParams", () => {
       expect(result).toBeNull()
     })
 
-    it("should accept date range at maximum 90 days", () => {
+    it("should accept a 90-day span within the lookback window", () => {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const startDate = new Date(today)
@@ -133,6 +134,26 @@ describe("validateEventSearchParams", () => {
     })
   })
 
+  describe("7 year lookback", () => {
+    it("should reject when start is before the earliest allowed day", () => {
+      const earliest = getEventSearchEarliestSelectableDate()
+      const before = new Date(earliest)
+      before.setDate(before.getDate() - 1)
+      const ymd = toLocalDateString(before)
+      const result = validateEventSearchParams(VALID_TRACK_ID, ymd, ymd)
+      expect(result).not.toBeNull()
+      expect(result?.code).toBe("VALIDATION_ERROR")
+      expect(result?.message).toContain("7 year")
+      expect(result?.field).toBe("start_date")
+    })
+
+    it("should accept start and end on the earliest allowed day", () => {
+      const ymd = toLocalDateString(getEventSearchEarliestSelectableDate())
+      const result = validateEventSearchParams(VALID_TRACK_ID, ymd, ymd)
+      expect(result).toBeNull()
+    })
+  })
+
   describe("future date rejection", () => {
     it("should return error when startDate is in the future", () => {
       const today = new Date()
@@ -184,54 +205,30 @@ describe("validateEventSearchParams", () => {
     })
   })
 
-  describe("max date range validation", () => {
-    it("should return error when date range exceeds 366 days", () => {
+  describe("wide date range within lookback", () => {
+    it("should accept range from earliest selectable day through today", () => {
+      const startYmd = toLocalDateString(getEventSearchEarliestSelectableDate())
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      const startDate = new Date(today)
-      startDate.setDate(today.getDate() - 367) // 367 days ago (exceeds limit)
-      const endDate = new Date(today)
+      const endYmd = toLocalDateString(today)
 
-      const result = validateEventSearchParams(
-        VALID_TRACK_ID,
-        startDate.toISOString(),
-        endDate.toISOString()
-      )
-
-      expect(result).not.toBeNull()
-      expect(result?.code).toBe("VALIDATION_ERROR")
-      expect(result?.message).toContain("366 days")
-      expect(result?.message).toContain("12 months")
-      expect(result?.field).toBe("end_date")
-    })
-
-    it("should accept exactly 90 days", () => {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const startDate = new Date(today)
-      startDate.setDate(today.getDate() - 90) // Exactly 90 days
-      const endDate = new Date(today)
-
-      const result = validateEventSearchParams(
-        VALID_TRACK_ID,
-        startDate.toISOString(),
-        endDate.toISOString()
-      )
+      const result = validateEventSearchParams(VALID_TRACK_ID, startYmd, endYmd)
 
       expect(result).toBeNull()
     })
 
-    it("should accept exactly 366 days (12 months)", () => {
+    it("should accept a multi-year span when both dates are within the lookback window", () => {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const startDate = new Date(today)
-      startDate.setDate(today.getDate() - 366) // Exactly 366 days
+      startDate.setDate(today.getDate() - 500)
       const endDate = new Date(today)
+      endDate.setDate(today.getDate() - 100)
 
       const result = validateEventSearchParams(
         VALID_TRACK_ID,
-        startDate.toISOString(),
-        endDate.toISOString()
+        toLocalDateString(startDate),
+        toLocalDateString(endDate)
       )
 
       expect(result).toBeNull()

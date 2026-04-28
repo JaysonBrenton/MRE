@@ -1,5 +1,5 @@
 export const OVERVIEW_GLASS_SURFACE_CLASS =
-  "rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/60 shadow-sm"
+  "rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 shadow-sm"
 
 export const OVERVIEW_GLASS_SURFACE_STYLE = {
   backgroundColor: "var(--glass-bg)",

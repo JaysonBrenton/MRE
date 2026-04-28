@@ -20,7 +20,6 @@ import {
   sortSessionTypeFilterKeys,
 } from "./session-type-filter"
 import { formatLapTime, formatLapsSlashTime } from "@/lib/format-session-data"
-import { countDriverParticipatedMains } from "./multi-main-participation"
 
 const CHART_COLOR_VARS = [
   "var(--token-chart-series-1)",
@@ -100,6 +99,10 @@ export interface ClassWinnerHighlight {
   className: string
   classDisplay: string
   winnerName: string
+  /** P2 in the same result set as the class winner (null if not in data). */
+  secondPlaceName: string | null
+  /** P3 in the same result set as the class winner (null if not in data). */
+  thirdPlaceName: string | null
   raceLabel: string
 }
 
@@ -108,24 +111,35 @@ export type ClassWinnerModalDetail =
   | {
       kind: "multiMain"
       classLabel: string
-      combinedPoints: number
       /** Event-level: LiveRC “Completed: X of Y” for the class (all mains run for the schedule). */
       completedMains: number
       totalMains: number
-      /** This driver: mains with a non–sit-out result (`multi-main-participation.ts`). */
-      driverMainsParticipated: number
       tieBreaker: string | null
-      mainRows: Array<{ label: string; position: number; lapsTime: string }>
-      /** LiveRC Overall Final Ranking–style string when per-main cells exist */
-      resultSummaryLine: string | null
+      /** Sorted per-main column keys (A1, A2, A3, …) from all entries’ `mainBreakdown`. */
+      mainColumnLabels: string[]
+      /** Full class table: overall finishing order with one column per final / main. */
+      standingsRows: Array<{
+        position: number
+        driverName: string
+        points: number
+        seededPosition: number | null
+        mainCells: string[]
+        /** True when this row is the class winner the user opened from. */
+        highlight: boolean
+      }>
     }
   | {
       kind: "featuredMain"
-      raceLabel: string
-      positionFinal: number
-      lapsCompleted: number
-      lapsTimeLine: string | null
-      fastLapFormatted: string | null
+      /** Featured main / final name for this class. */
+      sessionRaceLabel: string
+      /** All drivers in that main, in finishing order. */
+      standingsRows: Array<{
+        position: number
+        driverName: string
+        lapsTimeLine: string | null
+        fastLapFormatted: string | null
+        highlight: boolean
+      }>
     }
 
 /** Same normalization as class-winner modal / LiveRC name matching. */
@@ -146,23 +160,63 @@ function sortMultiMainColumnLabels(labels: string[]): string[] {
   })
 }
 
-function buildMultiMainResultSummaryLine(args: {
-  combinedPoints: number
-  mainRows: Array<{ position: number; lapsTime: string }>
-  totalMains: number
-}): string | null {
-  const { combinedPoints, mainRows, totalMains } = args
-  if (mainRows.length === 0) return null
-  const positions = mainRows.map((r) => r.position).filter((p) => Number.isFinite(p))
-  if (positions.length === 0) return null
-  const bestPos = Math.min(...positions)
-  const pickRow = mainRows.find((r) => r.position === bestPos) ?? mainRows[0]!
-  const lapsTail = pickRow.lapsTime.trim() || "—"
-  const useDoubleBracket = totalMains > 1 && mainRows.length > 1
-  if (useDoubleBracket) {
-    return `[${combinedPoints}] [${bestPos}] ${lapsTail}`
+/** LiveRC-style sit-out or empty result cell. */
+function isMultiMainCellSitOutOrEmpty(lapsTime: string): boolean {
+  const t = lapsTime.trim()
+  if (t === "" || t === "—") return true
+  return /^0\/0(\.0+)?$/.test(t) || t === "0/0.000"
+}
+
+/**
+ * One per-main cell for the class standings table: prefer imported laps/total time string;
+ * if missing or 0/0, show "—" (sit-out) instead of a misleading P-value.
+ */
+function formatMultiMainStandingsCell(
+  cell: { position: number; points: number; lapsTime: string } | undefined
+): string {
+  if (!cell) return "—"
+  const raw = (cell.lapsTime ?? "").trim()
+  if (raw && !isMultiMainCellSitOutOrEmpty(raw)) {
+    return raw
   }
-  return `[${bestPos}] ${lapsTail}`
+  if (isMultiMainCellSitOutOrEmpty(raw)) {
+    return "—"
+  }
+  if (Number.isFinite(cell.position) && cell.position > 0) {
+    return `P${cell.position}`
+  }
+  return "—"
+}
+
+function buildMultiMainStandings(
+  entries: Array<{
+    position: number
+    seededPosition: number | null
+    driverName: string
+    points: number
+    mainBreakdown: Record<string, { position: number; points: number; lapsTime: string }> | null
+  }>,
+  mainColumnLabels: string[],
+  highlightName: string
+): Array<{
+  position: number
+  driverName: string
+  points: number
+  seededPosition: number | null
+  mainCells: string[]
+  highlight: boolean
+}> {
+  const byPlace = [...entries].sort((a, b) => a.position - b.position)
+  return byPlace.map((e) => ({
+    position: e.position,
+    driverName: e.driverName,
+    points: e.points,
+    seededPosition: e.seededPosition,
+    mainCells: mainColumnLabels.map((label) =>
+      formatMultiMainStandingsCell(e.mainBreakdown?.[label])
+    ),
+    highlight: driverNamesMatchForClassWinner(e.driverName, highlightName),
+  }))
 }
 
 /**
@@ -185,33 +239,28 @@ export function resolveClassWinnerModalDetail(
       atFirst.find((e) => driverNamesMatchForClassWinner(e.driverName, highlight.winnerName)) ??
       atFirst[0]
     if (entry && entry.position === 1) {
-      const breakdown = entry.mainBreakdown
-      const labels = breakdown ? sortMultiMainColumnLabels(Object.keys(breakdown)) : []
-      const mainRows = labels.map((label) => {
-        const cell = breakdown![label]!
-        return {
-          label,
-          position: cell.position,
-          lapsTime: cell.lapsTime?.trim() || "—",
+      const labelSet = new Set<string>()
+      for (const e of mm.entries) {
+        if (e.mainBreakdown) {
+          for (const k of Object.keys(e.mainBreakdown)) {
+            labelSet.add(k)
+          }
         }
-      })
-      const resultSummaryLine = buildMultiMainResultSummaryLine({
-        combinedPoints: entry.points,
-        mainRows,
-        totalMains: mm.totalMains,
-      })
-      const rawLapsList = labels.map((label) => breakdown![label]!.lapsTime)
-      const driverMainsParticipated = countDriverParticipatedMains(rawLapsList)
+      }
+      const mainColumnLabels = sortMultiMainColumnLabels([...labelSet])
+      const standingsRows = buildMultiMainStandings(
+        mm.entries,
+        mainColumnLabels,
+        highlight.winnerName
+      )
       return {
         kind: "multiMain",
         classLabel: mm.classLabel,
-        combinedPoints: entry.points,
         completedMains: mm.completedMains,
         totalMains: mm.totalMains,
-        driverMainsParticipated,
         tieBreaker: mm.tieBreaker,
-        mainRows,
-        resultSummaryLine,
+        mainColumnLabels,
+        standingsRows,
       }
     }
   }
@@ -225,21 +274,22 @@ export function resolveClassWinnerModalDetail(
     atFirst[0]
   if (!winner || winner.positionFinal !== 1) return null
 
-  const lapsTimeLine =
-    winner.lapsCompleted > 0 || winner.totalTimeSeconds != null
-      ? formatLapsSlashTime(winner.lapsCompleted, winner.totalTimeSeconds)
-      : null
+  const standingsRows = sortedResults.map((r) => ({
+    position: r.positionFinal,
+    driverName: r.driverName,
+    lapsTimeLine:
+      r.lapsCompleted > 0 || r.totalTimeSeconds != null
+        ? formatLapsSlashTime(r.lapsCompleted, r.totalTimeSeconds)
+        : null,
+    fastLapFormatted:
+      r.fastLapTime != null && Number.isFinite(r.fastLapTime) ? formatLapTime(r.fastLapTime) : null,
+    highlight: driverNamesMatchForClassWinner(r.driverName, highlight.winnerName),
+  }))
 
   return {
     kind: "featuredMain",
-    raceLabel: mainRace.raceLabel,
-    positionFinal: winner.positionFinal,
-    lapsCompleted: winner.lapsCompleted,
-    lapsTimeLine,
-    fastLapFormatted:
-      winner.fastLapTime != null && Number.isFinite(winner.fastLapTime)
-        ? formatLapTime(winner.fastLapTime)
-        : null,
+    sessionRaceLabel: mainRace.raceLabel,
+    standingsRows,
   }
 }
 
@@ -323,7 +373,39 @@ function uniqueClassesForWinners(
   )
 }
 
-function canonicalClassesForClassWinners(
+/**
+ * Counts entry-list rows per trimmed class name (event registration).
+ * Used to order highlight cards: most entries first, then class name.
+ */
+export function classEntryCountByClassName(
+  entryList: EventAnalysisData["entryList"] | undefined
+): Map<string, number> {
+  const counts = new Map<string, number>()
+  if (!entryList) return counts
+  for (const e of entryList) {
+    const c = e.className?.trim()
+    if (!c) continue
+    counts.set(c, (counts.get(c) ?? 0) + 1)
+  }
+  return counts
+}
+
+function sortClassNamesByEntryCountDesc(
+  classNames: string[],
+  entryCounts: Map<string, number>
+): string[] {
+  return [...classNames].sort((a, b) => {
+    const ca = entryCounts.get(a.trim()) ?? 0
+    const cb = entryCounts.get(b.trim()) ?? 0
+    if (cb !== ca) return cb - ca
+    return formatClassName(a).localeCompare(formatClassName(b), undefined, {
+      sensitivity: "base",
+    })
+  })
+}
+
+/** Same class list as Class Winners (registration classes, or derived from multi-main / mains). */
+export function canonicalClassesForClassWinners(
   data: Pick<EventAnalysisData, "races" | "multiMainResults" | "registrationClassNames">
 ): string[] {
   const reg = (data.registrationClassNames ?? []).map((c) => c.trim()).filter(Boolean)
@@ -339,9 +421,14 @@ function canonicalClassesForClassWinners(
  * Per-class overall class champion: prefers combined LiveRC multi-main standings when present
  * (registration class list + best matching block; B-main-only splits excluded), else P1 of the
  * featured main for that class. See docs/architecture/event-overview-class-winners-liverc-overall-final-ranking.md
+ *
+ * When `entryList` is non-empty, cards are ordered by most class entries to fewest, then
+ * `classDisplay` (same as Event mix “by entries”).
  */
 export function buildClassWinners(
-  data: Pick<EventAnalysisData, "races" | "multiMainResults" | "registrationClassNames">
+  data: Pick<EventAnalysisData, "races" | "multiMainResults" | "registrationClassNames"> & {
+    entryList?: EventAnalysisData["entryList"]
+  }
 ): ClassWinnerHighlight[] {
   const out: ClassWinnerHighlight[] = []
   for (const rawClass of canonicalClassesForClassWinners(data)) {
@@ -356,6 +443,8 @@ export function buildClassWinners(
           className: rawClass,
           classDisplay: display,
           winnerName: first.driverName,
+          secondPlaceName: sorted[1]?.driverName ?? null,
+          thirdPlaceName: sorted[2]?.driverName ?? null,
           raceLabel:
             mm.totalMains > 1
               ? `Overall (${mm.completedMains}/${mm.totalMains} mains)`
@@ -368,12 +457,25 @@ export function buildClassWinners(
     if (!mainRace) continue
     const winner = mainRace.results.find((x) => x.positionFinal === 1)
     if (!winner) continue
+    const second = mainRace.results.find((x) => x.positionFinal === 2)
+    const third = mainRace.results.find((x) => x.positionFinal === 3)
     out.push({
       className: rawClass,
       classDisplay: display,
       winnerName: winner.driverName,
+      secondPlaceName: second?.driverName ?? null,
+      thirdPlaceName: third?.driverName ?? null,
       raceLabel: mainRace.raceLabel,
     })
+  }
+  if (out.length > 0 && data.entryList && data.entryList.length > 0) {
+    const counts = classEntryCountByClassName(data.entryList)
+    if (counts.size > 0) {
+      return sortClassNamesByEntryCountDesc(
+        out.map((h) => h.className),
+        counts
+      ).map((cn) => out.find((h) => h.className === cn)!)
+    }
   }
   return out
 }

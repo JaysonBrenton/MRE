@@ -1,13 +1,13 @@
 /**
  * @fileoverview Tests for ingested-events-only filter logic
  *
- * @description Verifies that when ingestedEventsOnly is true, only fully-ingested
- *              events (ingest_depth = laps_full) are shown. Excludes:
+ * @description Verifies that when database-only mode is active (Search LiveRC off),
+ *              only fully-ingested events (ingest_depth = laps_full) are shown. Excludes:
  *              - LiveRC-only events (id starts with "liverc-")
  *              - DB events with ingest_depth = none (metadata only, no race/lap data)
  *
  * @purpose Ensures the EventSearchContainer displayedEvents filter works correctly
- *          so users only see events with imported race/lap data when "Imported events only" is ON.
+ *          so users only see events with imported race/lap data when Search LiveRC is off.
  */
 
 import { describe, it, expect } from "vitest"
@@ -21,9 +21,9 @@ function isEventFullyIngested(e: { id: string; ingestDepth?: string }): boolean 
 
 function filterDisplayedEvents(
   events: Array<{ id: string; eventName: string; ingestDepth?: string }>,
-  ingestedEventsOnly: boolean
+  databaseOnly: boolean
 ): typeof events {
-  return ingestedEventsOnly ? events.filter((e) => isEventFullyIngested(e)) : events
+  return databaseOnly ? events.filter((e) => isEventFullyIngested(e)) : events
 }
 
 describe("ingested-events-only filter", () => {
@@ -43,7 +43,7 @@ describe("ingested-events-only filter", () => {
     ingestDepth: "none",
   }
 
-  it("returns all events when ingestedEventsOnly is false", () => {
+  it("returns all events when databaseOnly is false (Search LiveRC on)", () => {
     const events = [dbEventFullyIngested, dbEventNotIngested, livercEvent]
     const result = filterDisplayedEvents(events, false)
     expect(result).toHaveLength(3)
@@ -52,7 +52,7 @@ describe("ingested-events-only filter", () => {
     expect(result).toContainEqual(livercEvent)
   })
 
-  it("filters out LiveRC-only and DB events with ingest_depth=none when ingestedEventsOnly is true", () => {
+  it("filters out LiveRC-only and DB events with ingest_depth=none when databaseOnly is true", () => {
     const events = [dbEventFullyIngested, dbEventNotIngested, livercEvent]
     const result = filterDisplayedEvents(events, true)
     expect(result).toHaveLength(1)
@@ -61,13 +61,13 @@ describe("ingested-events-only filter", () => {
     expect(result).not.toContainEqual(livercEvent)
   })
 
-  it("returns empty when no events are fully ingested and ingestedEventsOnly is true", () => {
+  it("returns empty when no events are fully ingested and databaseOnly is true", () => {
     const events = [dbEventNotIngested, livercEvent]
     const result = filterDisplayedEvents(events, true)
     expect(result).toHaveLength(0)
   })
 
-  it("returns only fully-ingested events when mixed and ingestedEventsOnly is true", () => {
+  it("returns only fully-ingested events when mixed and databaseOnly is true", () => {
     const events = [
       dbEventFullyIngested,
       livercEvent,

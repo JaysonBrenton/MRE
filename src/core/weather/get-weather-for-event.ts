@@ -31,7 +31,9 @@ import {
 } from "./repo"
 import { utcCalendarDayStart } from "./utc-calendar-day"
 import { getEventWithTrack } from "@/core/events/repo"
-import { resolveGeocodeCandidates } from "./resolve-geocode-candidates"
+import { getUserEventHostTrackRow } from "@/core/events/user-event-host-track"
+import { prisma } from "@/lib/prisma"
+import { resolveGeocodeCandidates, type EventWithTrack } from "./resolve-geocode-candidates"
 
 export interface WeatherForEvent {
   condition: string
@@ -53,6 +55,118 @@ const CURRENT_WEATHER_TTL_HOURS = 1 // 1 hour for current/forecast
 const HISTORICAL_WEATHER_TTL_HOURS = 24 * 7 // 7 days for historical (since it won't change)
 
 /**
+ * LiveRC venue + optional per-user host track. When the user picks a different catalogue track,
+ * weather must use those coordinates; shared `weather_data` rows are keyed only by event + day
+ * so we bypass DB cache read/write for that case.
+ */
+async function buildWeatherEventContext(
+  eventId: string,
+  userId?: string | null
+): Promise<{ weatherEvent: EventWithTrack; bypassSharedCache: boolean }> {
+  const event = await getEventWithTrack(eventId)
+
+  if (!event) {
+    throw new Error(`Event not found: ${eventId}`)
+  }
+
+  if (!event.track) {
+    throw new Error(`Event track not found for event: ${eventId}`)
+  }
+
+  if (userId) {
+    const row = await getUserEventHostTrackRow(userId, eventId)
+    if (row?.hostTrackId && row.hostTrackId !== event.trackId) {
+      const hostTrack = await prisma.track.findUnique({ where: { id: row.hostTrackId } })
+      if (hostTrack) {
+        return {
+          weatherEvent: { ...event, track: hostTrack },
+          bypassSharedCache: true,
+        }
+      }
+    }
+  }
+
+  return { weatherEvent: event, bypassSharedCache: false }
+}
+
+async function geocodeForWeatherEvent(
+  weatherEvent: EventWithTrack
+): Promise<{ latitude: number; longitude: number; displayName: string }> {
+  let geocodeResult: { latitude: number; longitude: number; displayName: string } | null = null
+  let lastError: Error | null = null
+  const attemptedCandidates: string[] = []
+
+  const trackForCoords = {
+    latitude: weatherEvent.track.latitude,
+    longitude: weatherEvent.track.longitude,
+    trackName: weatherEvent.track.trackName,
+    address: weatherEvent.track.address,
+  }
+
+  const hasStoredCoordinates =
+    trackForCoords.latitude !== null &&
+    trackForCoords.latitude !== undefined &&
+    trackForCoords.longitude !== null &&
+    trackForCoords.longitude !== undefined
+
+  if (hasStoredCoordinates) {
+    geocodeResult = {
+      latitude: trackForCoords.latitude as number,
+      longitude: trackForCoords.longitude as number,
+      displayName: trackForCoords.trackName,
+    }
+  } else if (trackForCoords.address) {
+    try {
+      geocodeResult = await geocodeTrack(trackForCoords.address)
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e))
+    }
+  }
+
+  if (!geocodeResult) {
+    const candidates = resolveGeocodeCandidates(weatherEvent)
+    const addressToUse = trackForCoords.address || weatherEvent.track.address
+    if (addressToUse && candidates[0] !== "Canberra Airport, Australia") {
+      candidates.unshift(addressToUse)
+    }
+
+    for (const candidate of candidates) {
+      attemptedCandidates.push(candidate)
+      try {
+        geocodeResult = await geocodeTrack(candidate)
+        break
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+
+        if (lastError.message.includes("No geocoding results found")) {
+          continue
+        }
+
+        if (lastError.message.includes("Geocoding API returned status")) {
+          throw lastError
+        }
+
+        continue
+      }
+    }
+
+    if (!geocodeResult) {
+      const errorMessage = lastError?.message || "Unknown geocoding error"
+      const priorityInfo = weatherEvent.track.address
+        ? " (tried stored address, then name-based geocoding)"
+        : " (used name-based geocoding)"
+      throw new Error(
+        `Failed to geocode location for event "${weatherEvent.eventName}" (track: "${weatherEvent.track.trackName}")${priorityInfo}. ` +
+          `Attempted candidates: ${attemptedCandidates.join(", ")}. ` +
+          `Last error: ${errorMessage}`
+      )
+    }
+  }
+
+  return geocodeResult
+}
+
+/**
  * Gets weather data for an event
  *
  * This function:
@@ -69,125 +183,40 @@ const HISTORICAL_WEATHER_TTL_HOURS = 24 * 7 // 7 days for historical (since it w
  * If API calls fail, attempts to return last cached data (even if expired).
  *
  * @param eventId - The event ID to get weather for
- * @param options - Optional: skipCache to force a fresh fetch (e.g. to get daily temperature summary)
+ * @param options - Optional: skipCache to force a fresh fetch; userId to apply per-user host track for coordinates
  * @returns Weather data for the event
  * @throws Error if event not found, or if no cache available and API fails
  */
 export async function getWeatherForEvent(
   eventId: string,
-  options?: { skipCache?: boolean }
+  options?: { skipCache?: boolean; userId?: string | null }
 ): Promise<WeatherForEvent> {
+  const { weatherEvent, bypassSharedCache } = await buildWeatherEventContext(
+    eventId,
+    options?.userId
+  )
+
   // Check for valid cached data unless skipCache requested (keyed by event start UTC day)
-  if (!options?.skipCache) {
+  if (!options?.skipCache && !bypassSharedCache) {
     const cached = await getCachedWeatherForEvent(eventId)
     if (cached) {
       return formatWeatherResponse(cached)
     }
   }
 
-  // Cache miss, expired, or skipCache - fetch fresh data
+  // Cache miss, expired, skipCache, or per-user host track — fetch fresh data
   try {
-    // Get event with track information
-    const event = await getEventWithTrack(eventId)
-
-    if (!event) {
-      throw new Error(`Event not found: ${eventId}`)
-    }
-
-    if (!event.track) {
-      throw new Error(`Event track not found for event: ${eventId}`)
-    }
-
-    let geocodeResult = null
-    let lastError: Error | null = null
-    const attemptedCandidates: string[] = []
-
-    /** Geocode using LiveRC-linked event track (see per-user host track in event analysis only). */
-    const trackForCoords = {
-      latitude: event.track.latitude,
-      longitude: event.track.longitude,
-      trackName: event.track.trackName,
-      address: event.track.address,
-    }
-
-    const hasStoredCoordinates =
-      trackForCoords.latitude !== null &&
-      trackForCoords.latitude !== undefined &&
-      trackForCoords.longitude !== null &&
-      trackForCoords.longitude !== undefined
-
-    if (hasStoredCoordinates) {
-      const storedLat = trackForCoords.latitude as number
-      const storedLng = trackForCoords.longitude as number
-      geocodeResult = {
-        latitude: storedLat,
-        longitude: storedLng,
-        displayName: trackForCoords.trackName,
-      }
-    } else if (trackForCoords.address) {
-      try {
-        geocodeResult = await geocodeTrack(trackForCoords.address)
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e))
-      }
-    }
-
-    if (!geocodeResult) {
-      // Priority 2: Try stored address as geocoding candidate (from venue track or event track)
-      // Priority 3: Fall back to existing name-based geocoding strategy
-      const candidates = resolveGeocodeCandidates(event)
-      const addressToUse = trackForCoords.address || event.track.address
-      if (addressToUse && candidates[0] !== "Canberra Airport, Australia") {
-        candidates.unshift(addressToUse)
-      }
-
-      for (const candidate of candidates) {
-        attemptedCandidates.push(candidate)
-        try {
-          geocodeResult = await geocodeTrack(candidate)
-          break // Success, exit loop
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error))
-
-          // Check if this is a "no results" error - continue to next candidate
-          if (lastError.message.includes("No geocoding results found")) {
-            continue
-          }
-
-          // For HTTP errors (429, 5xx) or other non-retryable errors, fail fast
-          // because the next candidate will likely hit the same rate limit/outage
-          if (lastError.message.includes("Geocoding API returned status")) {
-            throw lastError
-          }
-
-          // For other errors, continue to next candidate
-          continue
-        }
-      }
-
-      // If all candidates failed, throw a comprehensive error
-      if (!geocodeResult) {
-        const errorMessage = lastError?.message || "Unknown geocoding error"
-        const priorityInfo = event.track.address
-          ? " (tried stored address, then name-based geocoding)"
-          : " (used name-based geocoding)"
-        throw new Error(
-          `Failed to geocode location for event "${event.eventName}" (track: "${event.track.trackName}")${priorityInfo}. ` +
-            `Attempted candidates: ${attemptedCandidates.join(", ")}. ` +
-            `Last error: ${errorMessage}`
-        )
-      }
-    }
+    const geocodeResult = await geocodeForWeatherEvent(weatherEvent)
 
     // Fetch weather from API
     const weatherResponse = await fetchWeather(
       geocodeResult.latitude,
       geocodeResult.longitude,
-      event.eventDate
+      weatherEvent.eventDate
     )
 
     // Calculate track temperature
-    const hourOfDay = event.eventDate.getHours()
+    const hourOfDay = weatherEvent.eventDate.getHours()
     const trackTemperature = calculateTrackTemperature(
       weatherResponse.current.airTemperature,
       hourOfDay
@@ -195,13 +224,13 @@ export async function getWeatherForEvent(
 
     // Determine TTL based on whether this is historical
     const now = new Date()
-    const isHistorical = event.eventDate < now
+    const isHistorical = weatherEvent.eventDate < now
     const ttlHours = isHistorical ? HISTORICAL_WEATHER_TTL_HOURS : CURRENT_WEATHER_TTL_HOURS
     const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000)
 
-    // Cache the data
+    // Cache the data (shared venue weather only — host-track weather is not stored to avoid overwriting venue cache)
     const cacheData: WeatherCacheData = {
-      weatherDate: utcCalendarDayStart(event.eventDate),
+      weatherDate: utcCalendarDayStart(weatherEvent.eventDate),
       latitude: geocodeResult.latitude,
       longitude: geocodeResult.longitude,
       timestamp: weatherResponse.current.timestamp,
@@ -218,7 +247,9 @@ export async function getWeatherForEvent(
       expiresAt,
     }
 
-    await cacheWeatherData(eventId, cacheData)
+    if (!bypassSharedCache) {
+      await cacheWeatherData(eventId, cacheData)
+    }
 
     // Format and return the response
     const result: WeatherForEvent = {
@@ -239,14 +270,16 @@ export async function getWeatherForEvent(
 
     return result
   } catch (error) {
-    // If API calls fail, try to return last cached data (even if expired)
-    const ev = await getEventWithTrack(eventId)
-    const lastCached = ev
-      ? ((await getLastWeatherData(eventId, utcCalendarDayStart(ev.eventDate))) ??
-        (await getLastWeatherData(eventId)))
-      : null
-    if (lastCached) {
-      return formatWeatherResponse(lastCached)
+    // If API calls fail, try to return last cached data (even if expired) for shared venue cache only
+    if (!bypassSharedCache) {
+      const ev = await getEventWithTrack(eventId)
+      const lastCached = ev
+        ? ((await getLastWeatherData(eventId, utcCalendarDayStart(ev.eventDate))) ??
+          (await getLastWeatherData(eventId)))
+        : null
+      if (lastCached) {
+        return formatWeatherResponse(lastCached)
+      }
     }
 
     // No cache available and API failed
@@ -330,24 +363,22 @@ export interface WeatherForEventDay {
  * Gets weather data for each day of a multi-day event
  *
  * @param eventId - The event ID to get weather for
+ * @param userId - When set, coordinates follow the user's host track override when it differs from the LiveRC venue
  * @returns Array of { date, weather } for each day from eventDate to eventDateEnd (inclusive)
  * @throws Error if event not found, or if geocoding/API fails
  */
-export async function getWeatherForEventDays(eventId: string): Promise<WeatherForEventDay[]> {
-  const event = await getEventWithTrack(eventId)
-
-  if (!event) {
-    throw new Error(`Event not found: ${eventId}`)
-  }
-
-  if (!event.track) {
-    throw new Error(`Event track not found for event: ${eventId}`)
-  }
+export async function getWeatherForEventDays(
+  eventId: string,
+  userId?: string | null
+): Promise<WeatherForEventDay[]> {
+  const { weatherEvent, bypassSharedCache } = await buildWeatherEventContext(eventId, userId)
 
   // Build list of dates to fetch (eventDate through eventDateEnd, or single day)
-  const startDate = new Date(event.eventDate)
+  const startDate = new Date(weatherEvent.eventDate)
   startDate.setUTCHours(12, 0, 0, 0)
-  const endDate = event.eventDateEnd ? new Date(event.eventDateEnd) : new Date(event.eventDate)
+  const endDate = weatherEvent.eventDateEnd
+    ? new Date(weatherEvent.eventDateEnd)
+    : new Date(weatherEvent.eventDate)
   endDate.setUTCHours(12, 0, 0, 0)
 
   const dates: Date[] = []
@@ -361,12 +392,14 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
 
   for (const date of dates) {
     const dateStr = date.toISOString().split("T")[0]
-    const cached = await getCachedWeather(eventId, date)
-    if (cached) {
-      byDateStr.set(dateStr, {
-        date: dateStr,
-        weather: formatWeatherResponse(cached),
-      })
+    if (!bypassSharedCache) {
+      const cached = await getCachedWeather(eventId, date)
+      if (cached) {
+        byDateStr.set(dateStr, {
+          date: dateStr,
+          weather: formatWeatherResponse(cached),
+        })
+      }
     }
   }
 
@@ -376,59 +409,7 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
     return dates.map((d) => byDateStr.get(d.toISOString().split("T")[0])!)
   }
 
-  // Geocode once when any day needs a fresh fetch (LiveRC-linked track)
-  let geocodeResult: { latitude: number; longitude: number; displayName: string } | null = null
-
-  const trackForCoords = {
-    latitude: event.track.latitude,
-    longitude: event.track.longitude,
-    trackName: event.track.trackName,
-    address: event.track.address,
-  }
-
-  const hasStoredCoordinates =
-    trackForCoords.latitude !== null &&
-    trackForCoords.latitude !== undefined &&
-    trackForCoords.longitude !== null &&
-    trackForCoords.longitude !== undefined
-
-  if (hasStoredCoordinates) {
-    geocodeResult = {
-      latitude: trackForCoords.latitude as number,
-      longitude: trackForCoords.longitude as number,
-      displayName: trackForCoords.trackName,
-    }
-  } else if (trackForCoords.address) {
-    try {
-      geocodeResult = await geocodeTrack(trackForCoords.address)
-    } catch {
-      // Fall through to candidates
-    }
-  }
-
-  if (!geocodeResult) {
-    const candidates = resolveGeocodeCandidates(event)
-    const addressToUse = trackForCoords.address || event.track.address
-    if (addressToUse && candidates[0] !== "Canberra Airport, Australia") {
-      candidates.unshift(addressToUse)
-    }
-    for (const candidate of candidates) {
-      try {
-        geocodeResult = await geocodeTrack(candidate)
-        break
-      } catch (error) {
-        const lastError = error instanceof Error ? error : new Error(String(error))
-        if (!lastError.message.includes("No geocoding results found")) {
-          throw lastError
-        }
-      }
-    }
-    if (!geocodeResult) {
-      throw new Error(
-        `Failed to geocode location for event "${event.eventName}" (track: "${event.track.trackName}")`
-      )
-    }
-  }
+  const geocodeResult = await geocodeForWeatherEvent(weatherEvent)
 
   const now = new Date()
 
@@ -451,23 +432,25 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
       const ttlHours = isHistorical ? HISTORICAL_WEATHER_TTL_HOURS : CURRENT_WEATHER_TTL_HOURS
       const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000)
 
-      await cacheWeatherData(eventId, {
-        weatherDate: utcCalendarDayStart(date),
-        latitude: geocodeResult.latitude,
-        longitude: geocodeResult.longitude,
-        timestamp: weatherResponse.current.timestamp,
-        airTemperature: weatherResponse.current.airTemperature,
-        humidity: weatherResponse.current.humidity,
-        windSpeed: weatherResponse.current.windSpeed,
-        windDirection: weatherResponse.current.windDirection,
-        precipitation: weatherResponse.current.precipitation,
-        condition: weatherResponse.current.condition,
-        trackTemperature,
-        forecast: weatherResponse.forecast,
-        dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
-        isHistorical,
-        expiresAt,
-      })
+      if (!bypassSharedCache) {
+        await cacheWeatherData(eventId, {
+          weatherDate: utcCalendarDayStart(date),
+          latitude: geocodeResult.latitude,
+          longitude: geocodeResult.longitude,
+          timestamp: weatherResponse.current.timestamp,
+          airTemperature: weatherResponse.current.airTemperature,
+          humidity: weatherResponse.current.humidity,
+          windSpeed: weatherResponse.current.windSpeed,
+          windDirection: weatherResponse.current.windDirection,
+          precipitation: weatherResponse.current.precipitation,
+          condition: weatherResponse.current.condition,
+          trackTemperature,
+          forecast: weatherResponse.forecast,
+          dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
+          isHistorical,
+          expiresAt,
+        })
+      }
 
       byDateStr.set(dateStr, {
         date: dateStr,
@@ -488,17 +471,20 @@ export async function getWeatherForEventDays(eventId: string): Promise<WeatherFo
         },
       })
     } catch (err) {
-      const last = await getLastWeatherData(eventId, utcCalendarDayStart(date))
-      if (last) {
-        byDateStr.set(dateStr, {
-          date: dateStr,
-          weather: formatWeatherResponse(last),
-        })
-      } else if (err instanceof Error) {
-        throw err
-      } else {
-        throw new Error(String(err))
+      if (!bypassSharedCache) {
+        const last = await getLastWeatherData(eventId, utcCalendarDayStart(date))
+        if (last) {
+          byDateStr.set(dateStr, {
+            date: dateStr,
+            weather: formatWeatherResponse(last),
+          })
+          continue
+        }
       }
+      if (err instanceof Error) {
+        throw err
+      }
+      throw new Error(String(err))
     }
   }
 

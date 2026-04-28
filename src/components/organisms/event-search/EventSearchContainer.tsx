@@ -33,7 +33,12 @@ import { parseApiResponse } from "@/lib/api-response-helper"
 import { clientLogger } from "@/lib/client-logger"
 import { normalizeTableRowsPerPage } from "@/lib/table-pagination"
 import { isPracticeDaysEnabled } from "@/lib/feature-flags"
-import { isEventInFuture, formatDateLong, toLocalDateString } from "@/lib/date-utils"
+import {
+  formatDateLong,
+  getEventSearchEarliestSelectableDate,
+  isEventInFuture,
+  toLocalDateString,
+} from "@/lib/date-utils"
 
 /** API response type for track data */
 interface ApiTrack {
@@ -351,8 +356,10 @@ export default function EventSearchContainer({
 
   // Include practice days (events mode): combined list state
   const [includePracticeDays, setIncludePracticeDays] = useState(false)
-  // Ingested events only: skip LiveRC discovery, show only DB events
-  const [ingestedEventsOnly, setIngestedEventsOnly] = useState(true)
+  // Search LiveRC: when false, skip LiveRC discovery and restrict results to fully-ingested DB events
+  const [includeLiveRC, setIncludeLiveRC] = useState(false)
+  // Search Everlaps: reserved for a future pipeline; UI only until wired
+  const [includeEverlaps, setIncludeEverlaps] = useState(false)
   const [practiceDaysFromDb, setPracticeDaysFromDb] = useState<ApiIngestedPracticeDay[]>([])
   const [discoveredPracticeDays, setDiscoveredPracticeDays] = useState<
     DiscoveredPracticeDaySummary[]
@@ -369,22 +376,22 @@ export default function EventSearchContainer({
   // Abort in-flight practice discover when user starts a new search or toggles off include practice days
   const discoverAbortControllerRef = useRef<AbortController | null>(null)
   // Run ID for LiveRC check - when a new search starts, we increment this so stale checkLiveRC
-  // callbacks from a previous search don't merge their results over an "ingested only" result
+  // callbacks from a previous search don't merge their results over a database-only result
   const liveRCSearchRunIdRef = useRef(0)
-  // Capture ingestedEventsOnly at search start (avoids stale closure after async fetch)
-  const ingestedEventsOnlyRef = useRef(ingestedEventsOnly)
+  // Capture includeLiveRC at search start (avoids stale closure after async fetch)
+  const includeLiveRCRef = useRef(includeLiveRC)
   useEffect(() => {
-    ingestedEventsOnlyRef.current = ingestedEventsOnly
-  }, [ingestedEventsOnly])
+    includeLiveRCRef.current = includeLiveRC
+  }, [includeLiveRC])
 
-  // When user toggles "Ingested events only" ON, immediately filter to only fully-ingested events
+  // When user turns Search LiveRC off, immediately filter to only fully-ingested events
   // (laps_full). Excludes LiveRC-only and DB events with ingest_depth = none.
   useEffect(() => {
-    if (ingestedEventsOnly) {
+    if (!includeLiveRC) {
       setEvents((prev) => {
         const filtered = prev.filter((e) => isEventFullyIngested(e))
         if (filtered.length !== prev.length) {
-          clientLogger.debug("Ingested-only: filtered to fully-ingested events only", {
+          clientLogger.debug("Database-only: filtered to fully-ingested events only", {
             before: prev.length,
             after: filtered.length,
           })
@@ -393,7 +400,7 @@ export default function EventSearchContainer({
         return prev
       })
     }
-  }, [ingestedEventsOnly])
+  }, [includeLiveRC])
 
   const ensureDbEventsVisible = () => {
     // Prevent infinite loops by checking if already executing
@@ -999,6 +1006,14 @@ export default function EventSearchContainer({
             newErrors.startDate = "Start date must be before or equal to end date"
           }
 
+          const earliest = getEventSearchEarliestSelectableDate()
+          if (start < earliest) {
+            newErrors.startDate = "Start date cannot be more than 7 years in the past"
+          }
+          if (end < earliest) {
+            newErrors.endDate = "End date cannot be more than 7 years in the past"
+          }
+
           // Check each date individually for future date validation
           if (start > today) {
             newErrors.startDate =
@@ -1006,11 +1021,6 @@ export default function EventSearchContainer({
           }
           if (end > today) {
             newErrors.endDate = "End date cannot be in the future. Please select today or earlier."
-          }
-
-          const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))
-          if (daysDiff > 90) {
-            newErrors.endDate = "Date range cannot exceed 3 months. Please select a shorter range."
           }
         }
       }
@@ -1055,9 +1065,10 @@ export default function EventSearchContainer({
       return
     }
 
-    if (!validateForm(trackOverride) || !trackToUse) {
+    const formValid = validateForm(trackOverride)
+    if (!formValid || !trackToUse) {
       clientLogger.debug("EventSearchContainer: Validation failed or no track selected", {
-        validationPassed: validateForm(trackOverride),
+        validationPassed: formValid,
         hasSelectedTrack: !!trackToUse,
       })
       return
@@ -1092,9 +1103,9 @@ export default function EventSearchContainer({
       }
 
       // Increment run ID immediately so any in-flight checkLiveRC from a prior search
-      // will skip merging when its callback runs (prevents stale LiveRC overwriting ingested-only)
+      // will skip merging when its callback runs (prevents stale LiveRC overwriting database-only results)
       liveRCSearchRunIdRef.current = (liveRCSearchRunIdRef.current + 1) | 0
-      ingestedEventsOnlyRef.current = ingestedEventsOnly
+      includeLiveRCRef.current = includeLiveRC
 
       // Stop all polling intervals from previous searches to prevent them from
       // competing with the new search request. Any importing events in the new
@@ -1228,10 +1239,10 @@ export default function EventSearchContainer({
         eventUrl: event.eventUrl || event.event_url,
       }))
 
-      // When ingested-only mode, show only fully-ingested events (laps_full).
+      // When Search LiveRC is off, show only fully-ingested events (laps_full).
       // Excludes LiveRC-only and DB events with ingest_depth = none.
-      const ingestedOnly = ingestedEventsOnlyRef.current
-      const eventsToSet = ingestedOnly ? dbEvents.filter((e) => isEventFullyIngested(e)) : dbEvents
+      const databaseOnly = !includeLiveRCRef.current
+      const eventsToSet = databaseOnly ? dbEvents.filter((e) => isEventFullyIngested(e)) : dbEvents
 
       const practiceDaysFromResponse =
         searchMode === "events" && includePracticeDays
@@ -1309,7 +1320,7 @@ export default function EventSearchContainer({
           }
         )
 
-        // Start LiveRC check in background - don't block UI (skip if ingested-only mode)
+        // Start LiveRC check in background - don't block UI (skip if database-only mode)
         // Reduced timeout to 60 seconds (matching client timeout) for better UX
         const liveRCTimeout = setTimeout(() => {
           clientLogger.warn("LiveRC check timed out after 60 seconds", {
@@ -1318,7 +1329,7 @@ export default function EventSearchContainer({
           setIsCheckingLiveRC(false)
         }, 60 * 1000) // 60 second timeout (matches client timeout)
 
-        if (!ingestedEventsOnlyRef.current) {
+        if (includeLiveRCRef.current) {
           checkLiveRC(trackDataFromSearch, [])
             .catch((error) => {
               clientLogger.error("Error in auto-check LiveRC", {
@@ -1492,10 +1503,10 @@ export default function EventSearchContainer({
           })
         })
 
-        // Start LiveRC check in background - don't block UI rendering (skip if ingested-only mode)
+        // Start LiveRC check in background - don't block UI rendering (skip if database-only mode)
         // Pass track data and event source IDs to avoid duplicate queries
         // Removed setTimeout delay - start immediately for better performance
-        if (!ingestedEventsOnlyRef.current) {
+        if (includeLiveRCRef.current) {
           checkLiveRC(
             trackDataFromSearch,
             dbEvents.map((e) => e.sourceEventId).filter((id): id is string => id !== undefined)
@@ -1845,10 +1856,8 @@ export default function EventSearchContainer({
             )
             return prevEvents
           }
-          if (ingestedEventsOnlyRef.current) {
-            clientLogger.debug(
-              "EventSearchContainer: Skipping LiveRC merge - ingested-only mode is ON"
-            )
+          if (!includeLiveRCRef.current) {
+            clientLogger.debug("EventSearchContainer: Skipping LiveRC merge - Search LiveRC is off")
             return prevEvents
           }
           clientLogger.debug("EventSearchContainer: Adding LiveRC events to existing events", {
@@ -3206,11 +3215,11 @@ export default function EventSearchContainer({
     }
   }
 
-  // When ingested-only mode, show only fully-ingested events (laps_full).
+  // When Search LiveRC is off, show only fully-ingested events (laps_full).
   // Excludes LiveRC-only and DB events with ingest_depth = none.
   const displayedEvents = useMemo(
-    () => (ingestedEventsOnly ? events.filter((e) => isEventFullyIngested(e)) : events),
-    [ingestedEventsOnly, events]
+    () => (!includeLiveRC ? events.filter((e) => isEventFullyIngested(e)) : events),
+    [includeLiveRC, events]
   )
 
   // Combined list (events + practice days) when include practice days is on.
@@ -3243,8 +3252,8 @@ export default function EventSearchContainer({
       ingested: v.ingested,
       discovered: v.discovered,
     }))
-    // When ingested-only mode, exclude discovered-only and partially-ingested practice days
-    if (ingestedEventsOnly) {
+    // When Search LiveRC is off, exclude discovered-only and partially-ingested practice days
+    if (!includeLiveRC) {
       practiceItems = practiceItems.filter((item) => {
         if (item.kind !== "practice") return false
         const ing = item.ingested
@@ -3272,7 +3281,7 @@ export default function EventSearchContainer({
     displayedEvents,
     practiceDaysFromDb,
     discoveredPracticeDays,
-    ingestedEventsOnly,
+    includeLiveRC,
   ])
 
   const filteredCombinedList =
@@ -3366,18 +3375,10 @@ export default function EventSearchContainer({
       aria-live="polite"
       aria-atomic="true"
     >
-      <div className="sr-only" aria-live="polite">
-        {isLoadingEvents
-          ? "Loading events..."
-          : isCheckingLiveRC || isCheckingPracticeDays
-            ? "Searching LiveRC."
-            : ""}
-      </div>
-
       {/* Form section: fixed, does not scroll */}
       <section
         className="flex-shrink-0 pb-6 border-b border-[var(--token-border-accent-soft)]"
-        aria-label="Search filters"
+        aria-labelledby="event-search-filters-heading"
       >
         {apiError && (
           <div className="mb-4">
@@ -3426,8 +3427,10 @@ export default function EventSearchContainer({
           onPracticeMonthChange={setPracticeMonth}
           includePracticeDays={includePracticeDays}
           onIncludePracticeDaysChange={setIncludePracticeDays}
-          ingestedEventsOnly={ingestedEventsOnly}
-          onIngestedEventsOnlyChange={setIngestedEventsOnly}
+          includeLiveRC={includeLiveRC}
+          onIncludeLiveRCChange={setIncludeLiveRC}
+          includeEverlaps={includeEverlaps}
+          onIncludeEverlapsChange={setIncludeEverlaps}
         />
       </section>
 
@@ -3469,14 +3472,37 @@ export default function EventSearchContainer({
             </div>
           )}
 
-        {isStartingSearch && (
+        {(isStartingSearch ||
+          isLoadingEvents ||
+          (hasSearched && (isCheckingLiveRC || isCheckingPracticeDays))) && (
           <div
-            className="text-center py-8"
+            className="rounded-lg border border-[var(--token-border-accent-soft)] bg-[var(--token-surface-elevated)] px-4 py-3 mb-4 flex items-center justify-center gap-3"
             style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
             role="status"
             aria-live="polite"
           >
-            <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
+            <svg
+              className="animate-spin h-5 w-5 flex-shrink-0 text-[var(--token-accent)]"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            <p className="text-[var(--token-text-primary)] font-medium m-0">Searching</p>
           </div>
         )}
 
@@ -3524,40 +3550,6 @@ export default function EventSearchContainer({
 
             {hasSearched && (
               <>
-                {(isCheckingLiveRC || isCheckingPracticeDays) && (
-                  <div
-                    className="rounded-lg border border-[var(--token-border-accent-soft)] bg-[var(--token-surface-elevated)] px-4 py-3 mb-4 flex items-center gap-3"
-                    style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <svg
-                      className="animate-spin h-5 w-5 flex-shrink-0 text-[var(--token-accent)]"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      aria-hidden
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    <p className="text-[var(--token-text-primary)] font-medium m-0">
-                      Searching LiveRC.
-                    </p>
-                  </div>
-                )}
-
                 {totalItems === 0 && !isCheckingLiveRC && !isCheckingPracticeDays && (
                   <div className="py-8 text-center">
                     <p className="text-[var(--token-text-primary)] font-medium mb-1">
@@ -3587,7 +3579,7 @@ export default function EventSearchContainer({
 
                 {totalItems > 0 && includePracticeDays && searchMode === "events" ? (
                   <>
-                    <div className="mt-8 w-full min-w-0">
+                    <div className="w-full min-w-0">
                       <EventSearchTableHeader />
                       <div className="divide-y divide-[var(--token-border-default)]">
                         {paginatedCombinedItems.map((item, idx) => {
@@ -3689,10 +3681,6 @@ export default function EventSearchContainer({
                   </>
                 ) : totalItems > 0 ? (
                   <>
-                    <p className="text-sm text-[var(--token-text-secondary)] mb-3">
-                      {totalItems} event{totalItems === 1 ? "" : "s"} found
-                    </p>
-
                     <EventTable
                       key={searchKey}
                       events={paginatedEvents}

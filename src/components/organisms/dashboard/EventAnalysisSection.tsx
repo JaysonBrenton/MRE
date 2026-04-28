@@ -42,6 +42,7 @@ import TrackLeaderboardTab from "@/components/organisms/event-analysis/TrackLead
 import ClubHighlightsTab from "@/components/organisms/event-analysis/ClubHighlightsTab"
 import CountryLeaderboardCard from "@/components/organisms/event-analysis/CountryLeaderboardCard"
 import StandardButton from "@/components/atoms/StandardButton"
+import { formatDateLong } from "@/lib/date-utils"
 import { typography } from "@/lib/typography"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import type { EventAnalysisDataApiResponse } from "@/types/event-analysis-api"
@@ -269,6 +270,30 @@ export default function EventAnalysisSection() {
         null)
       : null
 
+  /** Title between tab strip and Actions in the fixed toolbar (event name, else track). */
+  const eventAnalysisToolbarTitle = useMemo(() => {
+    if (!transformedData) return null
+    const name = transformedData.event.eventName?.trim() ?? ""
+    const track = transformedData.event.trackName?.trim() ?? ""
+    const label = name || track
+    return label.length > 0 ? label : null
+  }, [transformedData])
+
+  /** Same range string as Event Overview “Event date” row (earliest – latest, or single day). */
+  const eventAnalysisToolbarDateRange = useMemo(() => {
+    if (!transformedData) return null
+    const dr = transformedData.summary.dateRange
+    if (!dr || (!dr.earliest && !dr.latest)) return null
+    const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
+    const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
+    if (!earliestStr && !latestStr) return null
+    const s =
+      earliestStr && latestStr && earliestStr === latestStr
+        ? earliestStr
+        : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
+    return s.length > 0 ? s : null
+  }, [transformedData])
+
   // When data switches between practice day and event, sync active tab
   useEffect(() => {
     const practiceTabIds: TabId[] = ["my-day", "my-sessions", "class-reference", "all-sessions"]
@@ -380,6 +405,8 @@ export default function EventAnalysisSection() {
                     onTabChange={handleTabChange}
                     analysisSubTab={resolvedAnalysisSubTab}
                     onAnalysisSubTabChange={setAnalysisSubTab}
+                    eventTitle={eventAnalysisToolbarTitle}
+                    eventDateRange={eventAnalysisToolbarDateRange}
                   />
                 )}
               </div>

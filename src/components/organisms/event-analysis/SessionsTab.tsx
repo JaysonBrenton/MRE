@@ -27,6 +27,7 @@ import {
 } from "@/core/events/get-sessions-data"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import TabPanelIntro from "@/components/molecules/TabPanelIntro"
+import { isPlaceholderClass, isSchedulePlaceholderLiveRcRow } from "@/lib/format-class-name"
 
 export interface SessionsTabProps {
   data: EventAnalysisData
@@ -52,6 +53,16 @@ export default function SessionsTab({
     () => getSessionsData(data, selectedDriverIds, selectedClass),
     [data, selectedDriverIds, selectedClass]
   )
+
+  /** All classes, no driver filter — [race#/total] matches LiveRC within each round. */
+  const sessionLabelContextSessions = useMemo(() => {
+    const all = getSessionsData(data, [], null).sessions
+    return all.filter(
+      (s) =>
+        !isPlaceholderClass(s.className) &&
+        !isSchedulePlaceholderLiveRcRow(s.className, s.raceLabel)
+    )
+  }, [data])
 
   // Class list with driver count per class (same semantics as Overview tab for consistency)
   const allClassesWithCounts = useMemo(() => {
@@ -102,6 +113,7 @@ export default function SessionsTab({
       {/* Content - show all sessions when "All Classes" or when a specific class is selected */}
       <SessionChartTabs
         sessions={sessionsData.sessions}
+        sessionLabelContextSessions={sessionLabelContextSessions}
         allClassesWithCounts={allClassesWithCounts}
         driverLapTrends={driverLapTrends}
         heatProgression={heatProgression}

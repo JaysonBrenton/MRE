@@ -3,7 +3,7 @@
  *
  * @created 2025-01-28
  * @creator System
- * @lastModified 2025-01-28
+ * @lastModified 2026-04-27
  *
  * @description Reusable modal component that enforces proper width constraints
  *              to prevent horizontal compression issues in flex layouts.
@@ -55,10 +55,11 @@ export interface ModalProps {
    */
   resizable?: boolean
   /**
-   * When `resizable` is true, optional starting width/height (CSS lengths, e.g. `"42rem"` or `"720px"`).
-   * Overrides the default width from `maxWidth`; sets an initial height (otherwise content-driven).
+   * When `resizable` is true, optional starting size (CSS lengths, e.g. `"42rem"` or `"720px"`).
+   * Overrides the default width from `maxWidth`. If `height` is omitted, the panel grows to fit
+   * content (capped at `maxHeight`) instead of a fixed default height with inner scroll.
    */
-  resizableDefaultSize?: { width: string; height: string }
+  resizableDefaultSize?: { width: string; height?: string }
   /**
    * When true, double-clicking the header (not the close button) toggles the panel between normal
    * layout and filling the viewport. Opt-in so most modals keep the default behavior.
@@ -184,6 +185,13 @@ export default function Modal({
 
   if (!isOpen || !portalTarget) return null
 
+  const resizableDefaultHeight = resizableDefaultSize?.height?.trim()
+  const hasExplicitResizableHeight = Boolean(
+    resizable && resizableDefaultSize && resizableDefaultHeight && resizableDefaultHeight.length > 0
+  )
+  /** With a fixed resizable height, the body should fill remaining space; otherwise it sizes to content. */
+  const bodyFillsResizablePanel = !resizable || hasExplicitResizableHeight
+
   const fullscreenPanel =
     doubleClickHeaderFullscreen && isFullscreen
       ? ({
@@ -208,7 +216,9 @@ export default function Modal({
             ...(resizableDefaultSize
               ? {
                   width: resizableDefaultSize.width,
-                  height: resizableDefaultSize.height,
+                  ...(hasExplicitResizableHeight && resizableDefaultHeight
+                    ? { height: resizableDefaultHeight }
+                    : {}),
                   maxWidth: "min(96vw, 100vw - 2rem)",
                   minWidth: "20rem",
                   boxSizing: "border-box" as const,
@@ -306,7 +316,9 @@ export default function Modal({
 
         {/* Body */}
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4"
+          className={`min-h-0 ${
+            bodyFillsResizablePanel ? "flex-1" : "flex-auto"
+          } overflow-y-auto overflow-x-hidden px-4 py-4`}
           style={{
             minWidth: 0,
             width: "100%",

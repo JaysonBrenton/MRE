@@ -18,6 +18,8 @@ import * as fetchWeatherModule from "@/core/weather/fetch-weather"
 import * as weatherRepoModule from "@/core/weather/repo"
 import * as eventsRepoModule from "@/core/events/repo"
 import * as resolveCandidatesModule from "@/core/weather/resolve-geocode-candidates"
+import * as userEventHostTrackModule from "@/core/events/user-event-host-track"
+import { prisma } from "@/lib/prisma"
 
 // Mock dependencies
 vi.mock("@/core/weather/geocode-track")
@@ -25,11 +27,22 @@ vi.mock("@/core/weather/fetch-weather")
 vi.mock("@/core/weather/repo")
 vi.mock("@/core/events/repo")
 vi.mock("@/core/weather/resolve-geocode-candidates")
+vi.mock("@/core/events/user-event-host-track", () => ({
+  getUserEventHostTrackRow: vi.fn(),
+}))
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    track: {
+      findUnique: vi.fn(),
+    },
+  },
+}))
 
 describe("Weather Data Display Integration", () => {
   const eventId = "event-123"
   const mockEvent = {
     id: eventId,
+    trackId: "venue-track-id",
     eventName: "Test Race Event",
     eventDate: new Date("2025-06-15T14:00:00Z"),
     track: {
@@ -39,6 +52,8 @@ describe("Weather Data Display Integration", () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(userEventHostTrackModule.getUserEventHostTrackRow).mockResolvedValue(null)
+    vi.mocked(prisma.track.findUnique).mockResolvedValue(null)
   })
 
   describe("weather data format for UI display", () => {

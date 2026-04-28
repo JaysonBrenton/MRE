@@ -7,7 +7,7 @@
  *
  * @description Individual event row/card in the event table
  *
- * @purpose Displays event information with action buttons (Import, Analyse, Retry).
+ * @purpose Displays event information with action buttons (Download, Open, Retry import).
  *          Desktop-optimized table row layout.
  *
  * @relatedFiles
@@ -21,6 +21,9 @@ import { CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import EventStatusBadge, { type EventStatus } from "@/components/molecules/EventStatusBadge"
 import { formatDateDisplay, formatDateTimeDisplay, isEventInFuture } from "@/lib/date-utils"
+
+/** Matches primary action button width (Download / Open) in the event search table (~104px). */
+const EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS = "w-[6.5rem] min-w-[6.5rem] shrink-0"
 
 export interface Event {
   id: string
@@ -226,7 +229,7 @@ export default function EventRow({
               href={event.eventUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block min-w-0 text-[var(--token-text-primary)] font-medium underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
+              className="inline-block min-w-0 text-sm text-[var(--token-text-primary)] font-normal underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
               aria-label={`View event on LiveRC (opens in new tab)`}
             >
               {event.eventName}
@@ -234,7 +237,9 @@ export default function EventRow({
           </div>
         ) : (
           <div className="min-w-0 max-w-full overflow-hidden">
-            <h3 className="text-[var(--token-text-primary)] font-medium">{event.eventName}</h3>
+            <h3 className="text-sm font-normal text-[var(--token-text-primary)]">
+              {event.eventName}
+            </h3>
           </div>
         )}
         {containsDriver && (
@@ -249,13 +254,6 @@ export default function EventRow({
         )}
         {/* Optional metadata subtitle (similar to practice days) */}
         {(() => {
-          if (isLiveRCOnly) {
-            return (
-              <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
-                LiveRC event. Upload to add it to MRE.
-              </span>
-            )
-          }
           if (isImported) {
             const ingestedAtLabel = formatDateTimeDisplay(event.lastIngestedAt)
             return (
@@ -292,17 +290,17 @@ export default function EventRow({
       <div className="flex items-center justify-center gap-4">
         {/* Action Buttons */}
         <div className="flex gap-2">
-          {/* Import Button - shown for importable events */}
+          {/* Download — fetches event data into MRE (same action as import pipeline) */}
           {isImportable && onImport && (
             <button
               type="button"
               onClick={handleImport}
               disabled={importButtonDisabled}
               title={importDisabled && !isImporting ? "Finish the current import first" : undefined}
-              className="flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
-              aria-label={`Import ${event.eventName}`}
+              className={`flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
+              aria-label={`Download ${event.eventName}`}
             >
-              Import
+              Download
             </button>
           )}
 
@@ -320,15 +318,15 @@ export default function EventRow({
             </button>
           )}
 
-          {/* Analyse Button - shown for imported events */}
+          {/* Open — open event in analysis / dashboard context */}
           {canSelect && (
             <button
               type="button"
               onClick={handleSelect}
-              className="flex items-center justify-center rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-text)]/10 px-5 text-sm font-medium text-[var(--token-status-success-text)] transition-colors hover:bg-[var(--token-status-success-text)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
-              aria-label={`Analyse ${event.eventName}`}
+              className={`flex items-center justify-center rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-text)]/10 px-5 text-sm font-medium text-[var(--token-status-success-text)] transition-colors hover:bg-[var(--token-status-success-text)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
+              aria-label={`Open ${event.eventName}`}
             >
-              Analyse
+              Open
             </button>
           )}
         </div>

@@ -193,24 +193,16 @@ export default function EventTable({
     return sortDirection === "asc" ? comparison : -comparison
   })
 
-  // Don't render anything if we're loading or haven't searched yet
-  // This prevents any flash of old data during state transitions
-  // Show loading state while checking database or LiveRC
-  if (isLoading || isCheckingLiveRC || !hasSearched) {
-    if (isLoading || isCheckingLiveRC) {
-      return (
-        <div className="mt-8 text-center py-8 w-full min-w-0" role="status" aria-live="polite">
-          <p className="text-[var(--token-text-secondary)]">Searching for events...</p>
-        </div>
-      )
-    }
+  // Parent EventSearchContainer shows a single "Searching" banner; avoid duplicate status here.
+  if (!hasSearched) return null
+  if (events.length === 0 && (isLoading || isCheckingLiveRC)) {
     return null
   }
 
   // Only show empty state after both database and LiveRC checks have completed
   if (events.length === 0 && !isCheckingLiveRC && !isLoading && hasSearched) {
     return (
-      <div className="mt-8 py-8 w-full min-w-0 flex-shrink-0">
+      <div className="py-8 w-full min-w-0 flex-shrink-0">
         <div className="mx-auto max-w-2xl min-w-[320px] px-4 space-y-3">
           <p className="text-center text-[var(--token-text-primary)] font-medium">
             No events found
@@ -231,7 +223,7 @@ export default function EventTable({
   }
 
   return (
-    <div className="mt-8 w-full min-w-0">
+    <div className="w-full min-w-0">
       <EventSearchTableHeader
         sortField={sortField}
         sortDirection={sortDirection}

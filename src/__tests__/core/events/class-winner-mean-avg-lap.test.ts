@@ -48,6 +48,8 @@ describe("event-class-winner-mean-avg-lap", () => {
         className: "Stock",
         classDisplay: "Stock",
         winnerName: "Ann Alpha",
+        secondPlaceName: null,
+        thirdPlaceName: null,
         raceLabel: "Final",
       },
     ]
@@ -73,6 +75,8 @@ describe("event-class-winner-mean-avg-lap", () => {
         className: "Stock",
         classDisplay: "Stock",
         winnerName: "Ann Alpha",
+        secondPlaceName: null,
+        thirdPlaceName: null,
         raceLabel: "Final",
       },
     ]

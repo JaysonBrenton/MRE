@@ -73,6 +73,17 @@
   --token-status-error-bg: rgba(239, 68, 68, 0.2);
   --token-status-error-text: #ef4444;
 
+  /* Switch off track: neutral slot above surface-elevated; border + inset keep it from blending in */
+  --token-switch-off-track: #18191c;
+  --token-switch-off-border: #3a3b42;
+  --token-switch-off-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.4);
+
+  /* Switch on: high-luminance green (toggle only; use via Switch inline style) */
+  --token-switch-on-track: rgba(140, 255, 0, 0.68);
+  --token-switch-on-border: #d8ff4d;
+  --token-switch-on-glow: 0 0 18px rgba(150, 255, 50, 1), 0 0 5px rgba(200, 255, 100, 0.95);
+
   /* Chart series palette (for line/bar charts - LapByLapTrendChart, etc.) */
   --token-chart-series-1: #3a8eff;
   --token-chart-series-2: #4ecdc4;
@@ -123,7 +134,7 @@
   --token-font-size-5xl: 3rem; /* 48px */
 
   /* Glass effect tokens for chart containers */
-  --glass-bg: rgba(17, 18, 20, 0.6); /* --token-surface-elevated with 60% opacity */
+  --glass-bg: rgba(17, 18, 20, 0.8); /* --token-surface-elevated (#111214) at 80% — matches toolbar strip */
   --glass-border: rgba(38, 39, 46, 0.3); /* --token-border-default with 30% opacity */
   --glass-blur: blur(12px) saturate(180%);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
@@ -186,8 +197,19 @@
   --token-status-error-bg: rgba(239, 68, 68, 0.12);
   --token-status-error-text: #dc2626;
 
+  /* Switch off track: darker than elevated parent so the rail reads as a slot */
+  --token-switch-off-track: #e5e5e5;
+  --token-switch-off-border: #b4b4b4;
+  --token-switch-off-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
+    inset 0 1px 2px rgba(0, 0, 0, 0.12);
+
+  /* Switch on: bright green on light UI */
+  --token-switch-on-track: rgba(0, 255, 100, 0.55);
+  --token-switch-on-border: #00dd55;
+  --token-switch-on-glow: 0 0 14px rgba(0, 255, 120, 0.7), 0 0 4px rgba(0, 220, 90, 0.85);
+
   /* Glass effect tokens for light theme */
-  --glass-bg: rgba(245, 245, 245, 0.7); /* --token-surface-elevated with 70% opacity */
+  --glass-bg: rgba(245, 245, 245, 0.8); /* --token-surface-elevated (#f5f5f5) at 80% — matches toolbar strip */
   --glass-border: rgba(212, 212, 212, 0.3); /* --token-border-default with 30% opacity */
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
   --glass-shadow-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);

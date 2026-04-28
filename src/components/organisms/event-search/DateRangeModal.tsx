@@ -1,8 +1,8 @@
 /**
  * @fileoverview Date range preset modal for Event Search
  *
- * @description Modal that contains the date range preset picker (preset chips + optional
- * custom start/end). Header bar is draggable to reposition the panel. Opens from a
+ * @description Modal that contains the date range preset picker (preset chips + inline
+ * custom From/To when Custom is selected). Header bar is draggable to reposition the panel. Opens from a
  * trigger in the form; Apply closes and keeps current selection; Cancel closes without
  * reverting (state may have changed). Rendered with createPortal(document.body) so
  * position:fixed is viewport-relative and the panel is not clipped when opened inside

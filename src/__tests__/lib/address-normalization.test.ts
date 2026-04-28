@@ -9,6 +9,7 @@ import {
   isSegmentAlreadyInAddress,
   normalizeAddressForDisplay,
   normalizePostalCodeField,
+  splitAddressForDisplay,
 } from "@/lib/address-normalization"
 
 describe("address-normalization", () => {
@@ -85,6 +86,46 @@ describe("address-normalization", () => {
 
     it("dedupes exact comma-separated segments", () => {
       expect(normalizeAddressForDisplay("Venue, Venue, City")).toBe("Venue, City")
+    })
+
+    it("removes a trailing E.164 phone segment from concatenated address text", () => {
+      expect(
+        normalizeAddressForDisplay(
+          "Asian Buggy Championship, Asia-Australia Regioin, WI 53149, United States, +1 414-617-0436"
+        )
+      ).toBe("Asian Buggy Championship, Asia-Australia Regioin, WI 53149, United States")
+    })
+
+    it("removes US-formatted phone-only segments", () => {
+      expect(normalizeAddressForDisplay("Club Hall, (414) 617-0436, Milwaukee, WI")).toBe(
+        "Club Hall, Milwaukee, WI"
+      )
+    })
+
+    it("removes P:-labelled phone segments (LiveRC-style)", () => {
+      expect(normalizeAddressForDisplay("Cormcc, P: +1 555-0100, Canberra, Australia")).toBe(
+        "Cormcc, Canberra, Australia"
+      )
+    })
+
+    it("removes Australian mobile-style 10-digit segments", () => {
+      expect(normalizeAddressForDisplay("Track, 0412345678, Sydney, NSW")).toBe(
+        "Track, Sydney, NSW"
+      )
+    })
+
+    it("does not remove street lines that mention numbers", () => {
+      expect(normalizeAddressForDisplay("5320 US 301, Florida")).toBe("5320 US 301, Florida")
+    })
+  })
+
+  describe("splitAddressForDisplay", () => {
+    it("splits on commas and trims", () => {
+      expect(splitAddressForDisplay("A, B, C")).toEqual(["A", "B", "C"])
+    })
+
+    it("returns an empty array for empty input", () => {
+      expect(splitAddressForDisplay("")).toEqual([])
     })
   })
 })

@@ -14,6 +14,7 @@ import SessionsTable from "./sessions/SessionsTable"
 import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 import LinkYourDriverPrompt from "./LinkYourDriverPrompt"
 import { typography } from "@/lib/typography"
+import { isPlaceholderClass, isSchedulePlaceholderLiveRcRow } from "@/lib/format-class-name"
 
 export interface PracticeMySessionsTabProps {
   data: EventAnalysisData
@@ -44,6 +45,15 @@ export default function PracticeMySessionsTab({
       return ta - tb
     })
   }, [sessionsData.sessions])
+
+  const sessionLabelContextSessions = useMemo(() => {
+    const all = getSessionsData(data, [], null).sessions
+    return all.filter(
+      (s) =>
+        !isPlaceholderClass(s.className) &&
+        !isSchedulePlaceholderLiveRcRow(s.className, s.raceLabel)
+    )
+  }, [data])
 
   if (!selectedDriverId) {
     return (
@@ -78,6 +88,7 @@ export default function PracticeMySessionsTab({
       />
       <SessionsTable
         sessions={sessionsChronological}
+        sessionLabelContextSessions={sessionLabelContextSessions}
         selectedDriverIds={driverIds}
         showHybridColumns
         eventId={eventId}

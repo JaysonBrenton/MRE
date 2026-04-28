@@ -187,6 +187,14 @@ export const MODAL_MAX_WIDTHS = {
   "4xl": "56rem",
 } as const
 
+/** Event Search (resizable) modal: default open size; 931×662px at 16px root */
+export const EVENT_SEARCH_MODAL_DEFAULT_WIDTH_REM = "58.1875rem"
+export const EVENT_SEARCH_MODAL_DEFAULT_HEIGHT_REM = "41.375rem"
+
+/** Track Selection (resizable) modal: default open size; 845×819px at 16px root */
+export const TRACK_SELECTION_MODAL_DEFAULT_WIDTH_REM = "52.8125rem"
+export const TRACK_SELECTION_MODAL_DEFAULT_HEIGHT_REM = "51.1875rem"
+
 /** Shared with `Modal` backdrop (`z-[200]`). */
 export const MODAL_PORTAL_Z_INDEX = 200
 

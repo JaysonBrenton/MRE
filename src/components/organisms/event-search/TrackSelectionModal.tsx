@@ -5,10 +5,10 @@
  * @creator Jayson Brenton
  * @lastModified 2025-01-28
  *
- * @description Searchable modal for selecting tracks with favourites (star-first ordering, single list)
+ * @description Searchable modal for selecting tracks with favourites (single list, same order as non-favourites)
  *
  * @purpose Provides a modal interface for track selection with typeahead search
- *          and favourites (star toggles; favourites sort first in one list). Full-screen on mobile, centered on desktop.
+ *          and favourites (star toggles; list order follows column sort only). Full-screen on mobile, centered on desktop.
  *          Includes keyboard accessibility and focus trap. Renders via createPortal(document.body)
  *          so fixed positioning is not clipped by ancestor transform/overflow (nested modals).
  *
@@ -21,9 +21,17 @@
 
 import { useState, useEffect, useRef, useMemo, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
-import TrackRow, { type Track } from "./TrackRow"
+import FavouriteTracksChips from "./FavouriteTracksChips"
+import TrackRow, { TRACK_SELECTION_TABLE_CLASS, type Track } from "./TrackRow"
+import ListPagination from "@/components/organisms/event-analysis/ListPagination"
 import { clientLogger } from "@/lib/client-logger"
-import { getModalResizableContainerStyles, MODAL_MAX_WIDTHS } from "@/lib/modal-styles"
+import {
+  getModalResizableContainerStyles,
+  NESTED_MODAL_OVERLAY_Z_INDEX,
+  TRACK_SELECTION_MODAL_DEFAULT_HEIGHT_REM,
+  TRACK_SELECTION_MODAL_DEFAULT_WIDTH_REM,
+} from "@/lib/modal-styles"
+import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 import { useModalPanelDrag } from "@/hooks/useModalPanelDrag"
 
 export interface TrackSelectionModalProps {
@@ -33,7 +41,9 @@ export interface TrackSelectionModalProps {
   onClose: () => void
   onSelect: (track: Track) => void
   onToggleFavourite: (trackId: string) => void
-  /** When nesting inside the shared Modal (portal z-index 200), pass `NESTED_MODAL_OVERLAY_Z_INDEX` from `@/lib/modal-styles` or higher */
+  /** Event-search current track (highlights matching favourite chip). */
+  selectedTrack?: Track | null
+  /** Default stacks above `MODAL_PORTAL_Z_INDEX` (200) shells such as Event Search modal; override if needed. */
   overlayZIndex?: number
   /** When nesting inside another modal, disable the second dimmed overlay */
   backdropVariant?: "dim" | "none"
@@ -43,18 +53,32 @@ const FAVOURITES_STORAGE_KEY = "mre_favourite_tracks"
 
 const ALL_COUNTRIES = ""
 
-/** Next 00:00:00.000 UTC — matches daily track catalogue cron (`ingestion/crontab`: `0 0 * * *`). */
-function getNextUtcMidnightMs(fromMs: number): number {
-  const d = new Date(fromMs)
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 0, 0, 0, 0)
-}
+type TrackSortField = "trackName" | "country"
+type TrackSortDirection = "asc" | "desc"
 
-function formatRemainingHms(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000))
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
+function compareTracksForSort(
+  a: Track,
+  b: Track,
+  field: TrackSortField,
+  direction: TrackSortDirection
+): number {
+  const dir = direction === "asc" ? 1 : -1
+  if (field === "trackName") {
+    const c = a.trackName.localeCompare(b.trackName, undefined, { sensitivity: "base" })
+    if (c !== 0) return c * dir
+    const c2 = (a.country?.trim() || "").localeCompare(b.country?.trim() || "", undefined, {
+      sensitivity: "base",
+    })
+    if (c2 !== 0) return c2 * dir
+    return a.id.localeCompare(b.id) * dir
+  }
+  const ac = (a.country?.trim() || "").toLowerCase()
+  const bc = (b.country?.trim() || "").toLowerCase()
+  const c = ac.localeCompare(bc, undefined, { sensitivity: "base" })
+  if (c !== 0) return c * dir
+  const nt = a.trackName.localeCompare(b.trackName, undefined, { sensitivity: "base" })
+  if (nt !== 0) return nt * dir
+  return a.id.localeCompare(b.id) * dir
 }
 
 export default function TrackSelectionModal({
@@ -64,34 +88,34 @@ export default function TrackSelectionModal({
   onClose,
   onSelect,
   onToggleFavourite,
-  overlayZIndex = 50,
+  selectedTrack = null,
+  overlayZIndex = NESTED_MODAL_OVERLAY_Z_INDEX,
   backdropVariant = "dim",
 }: TrackSelectionModalProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCountry, setSelectedCountry] = useState<string>(ALL_COUNTRIES)
   const [favourites, setFavourites] = useState<string[]>(initialFavourites)
   const [isVisible, setIsVisible] = useState(false)
+
+  // Props load after first paint (e.g. parent reads localStorage); keep picker stars in sync.
+  useEffect(() => {
+    if (!isOpen) return
+    queueMicrotask(() => setFavourites(initialFavourites))
+  }, [isOpen, initialFavourites])
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const listScrollRef = useRef<HTMLDivElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
+  const [trackListPage, setTrackListPage] = useState(1)
+  const [tracksPerPage, setTracksPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
+  const [trackSortField, setTrackSortField] = useState<TrackSortField>("trackName")
+  const [trackSortDirection, setTrackSortDirection] = useState<TrackSortDirection>("asc")
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
-  const [nowMs, setNowMs] = useState(() => Date.now())
+  const prevIsOpenForTrackPageRef = useRef(isOpen)
   const { offset: dragOffset, isDragging, headerPointerDown } = useModalPanelDrag(isOpen, modalRef)
 
   useEffect(() => {
     queueMicrotask(() => setPortalTarget(document.body))
   }, [])
-
-  useEffect(() => {
-    if (!isOpen) return
-    queueMicrotask(() => setNowMs(Date.now()))
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
-    return () => window.clearInterval(id)
-  }, [isOpen])
-
-  const nextSyncCountdownHms = useMemo(
-    () => formatRemainingHms(getNextUtcMidnightMs(nowMs) - nowMs),
-    [nowMs]
-  )
 
   // Distinct countries from tracks (sorted). Exclude values that are clearly not countries (e.g. emails).
   const countries = useMemo(() => {
@@ -111,6 +135,10 @@ export default function TrackSelectionModal({
       searchInputRef.current.focus()
     }
   }, [isOpen])
+
+  useEffect(() => {
+    queueMicrotask(() => setTrackListPage(1))
+  }, [searchQuery, selectedCountry])
 
   // Animate in after mount (avoids "pop in" feel)
   useEffect(() => {
@@ -167,19 +195,67 @@ export default function TrackSelectionModal({
     }
   }, [isOpen])
 
-  // Filter tracks based on search query and country
-  const filteredTracks = tracks.filter((track) => {
-    const matchesSearch = track.trackName.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCountry =
-      selectedCountry === ALL_COUNTRIES || (track.country?.trim() ?? "") === selectedCountry
-    return matchesSearch && matchesCountry
-  })
+  const filteredTracks = useMemo(() => {
+    const q = searchQuery.toLowerCase()
+    return tracks.filter((track) => {
+      const matchesSearch = track.trackName.toLowerCase().includes(q)
+      const matchesCountry =
+        selectedCountry === ALL_COUNTRIES || (track.country?.trim() ?? "") === selectedCountry
+      return matchesSearch && matchesCountry
+    })
+  }, [tracks, searchQuery, selectedCountry])
 
-  // Favourites first, then others — single list (no section headers)
-  const orderedTracks = [
-    ...filteredTracks.filter((track) => favourites.includes(track.id)),
-    ...filteredTracks.filter((track) => !favourites.includes(track.id)),
-  ]
+  const orderedTracks = useMemo(() => {
+    const cmp = (a: Track, b: Track) =>
+      compareTracksForSort(a, b, trackSortField, trackSortDirection)
+    return [...filteredTracks].sort(cmp)
+  }, [filteredTracks, trackSortField, trackSortDirection])
+
+  const handleTrackColumnSort = (field: TrackSortField) => {
+    if (field === trackSortField) {
+      setTrackSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setTrackSortField(field)
+      setTrackSortDirection("asc")
+    }
+  }
+
+  useEffect(() => {
+    queueMicrotask(() => setTrackListPage(1))
+  }, [trackSortField, trackSortDirection])
+
+  const totalTrackListItems = orderedTracks.length
+  const trackListTotalPages = Math.max(
+    1,
+    totalTrackListItems > 0 ? Math.ceil(totalTrackListItems / tracksPerPage) : 1
+  )
+
+  // Reset page when the dialog opens; clamp while open if the last page no longer exists.
+  // Dev-only: React warns if this dependency array ever changes *length* between renders (e.g. Fast Refresh after editing deps).
+  useEffect(() => {
+    const wasOpen = prevIsOpenForTrackPageRef.current
+    prevIsOpenForTrackPageRef.current = isOpen
+
+    if (!isOpen) {
+      return
+    }
+
+    if (!wasOpen) {
+      queueMicrotask(() => setTrackListPage(1))
+      return
+    }
+
+    queueMicrotask(() => setTrackListPage((p) => Math.min(p, trackListTotalPages)))
+  }, [isOpen, trackListTotalPages])
+
+  const paginatedTracks = orderedTracks.slice(
+    (trackListPage - 1) * tracksPerPage,
+    trackListPage * tracksPerPage
+  )
+
+  useEffect(() => {
+    listScrollRef.current?.scrollTo({ top: 0, behavior: "auto" })
+  }, [trackListPage, tracksPerPage])
 
   const handleToggleFavourite = (trackId: string) => {
     const newFavourites = favourites.includes(trackId)
@@ -207,12 +283,14 @@ export default function TrackSelectionModal({
 
   if (!isOpen || !portalTarget) return null
 
+  const panelMaxHeight = "min(92dvh, calc(100dvh - 2rem))"
   const panelStyles: CSSProperties = {
-    ...getModalResizableContainerStyles(MODAL_MAX_WIDTHS["2xl"]),
+    ...getModalResizableContainerStyles(TRACK_SELECTION_MODAL_DEFAULT_WIDTH_REM),
+    height: `min(${TRACK_SELECTION_MODAL_DEFAULT_HEIGHT_REM}, ${panelMaxHeight})`,
     resize: "both",
     overflow: "hidden",
     minHeight: "12rem",
-    maxHeight: "calc(100vh - 2rem)",
+    maxHeight: panelMaxHeight,
     transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
   }
 
@@ -294,38 +372,26 @@ export default function TrackSelectionModal({
                 boxShadow: "var(--glass-shadow)",
               }}
             >
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <label
-                  htmlFor="track-search-filter"
-                  className="shrink-0 text-xs font-medium text-[var(--token-text-secondary)]"
-                >
-                  Search
-                </label>
+              <div className="min-w-0 shrink-0 w-[min(100vw-4rem,18rem)]">
                 <input
                   ref={searchInputRef}
                   id="track-search-filter"
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Track name"
-                  className="min-w-0 flex-1 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  placeholder="Filter track names"
+                  className="w-full min-w-0 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
                   aria-label="Search tracks"
                   style={{ boxSizing: "border-box" }}
                 />
               </div>
               {countries.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="track-country-filter"
-                    className="text-xs font-medium text-[var(--token-text-secondary)]"
-                  >
-                    Country
-                  </label>
+                <div className="shrink-0 w-[min(100vw-4rem,18rem)]">
                   <select
                     id="track-country-filter"
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(e.target.value)}
-                    className="max-w-[min(100vw-4rem,18rem)] min-w-[8rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="w-full min-w-0 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
                     aria-label="Filter tracks by country"
                   >
                     <option value={ALL_COUNTRIES}>All countries</option>
@@ -338,52 +404,142 @@ export default function TrackSelectionModal({
                 </div>
               )}
             </div>
-            <p className="mt-2 text-xs text-[var(--token-text-secondary)]" style={{ minWidth: 0 }}>
-              Total tracks:{" "}
-              <span className="font-medium tabular-nums text-[var(--token-text-primary)]">
-                {tracks.length}
-              </span>{" "}
-              <span className="text-[var(--token-text-tertiary)]">·</span> Next sync in{" "}
-              <span
-                className="font-medium tabular-nums text-[var(--token-text-primary)]"
-                title="Time until 00:00 UTC (daily scheduled catalogue sync)"
-              >
-                {nextSyncCountdownHms}
-              </span>
-            </p>
+            <FavouriteTracksChips
+              variant="modal"
+              favourites={favourites}
+              tracks={tracks}
+              selectedTrack={selectedTrack}
+              onTrackSelect={handleSelect}
+              onToggleFavourite={handleToggleFavourite}
+            />
           </div>
         </div>
 
-        {/* Track List — inset from panel edges so native resize (bottom/right) is not over the scroller;
-            overflow-anchor off avoids scrollTop jumps when the flex scroller height changes during resize */}
+        {/* Track list + pagination — inset from panel edges so native resize (bottom/right) is not over the scroller */}
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden mx-3 mb-3"
-          style={{
-            minWidth: 0,
-            boxSizing: "border-box",
-            overflowAnchor: "none",
-            overscrollBehavior: "contain",
-          }}
+          className="min-h-0 flex-1 flex flex-col mx-3 mb-3"
+          style={{ minWidth: 0, boxSizing: "border-box" }}
         >
-          {orderedTracks.map((track) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              isFavourite={favourites.includes(track.id)}
-              onSelect={handleSelect}
-              onToggleFavourite={handleToggleFavourite}
-            />
-          ))}
+          <div
+            ref={listScrollRef}
+            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+            style={{
+              minWidth: 0,
+              boxSizing: "border-box",
+              overflowAnchor: "none",
+              overscrollBehavior: "contain",
+            }}
+          >
+            {filteredTracks.length > 0 && (
+              <table
+                className={TRACK_SELECTION_TABLE_CLASS}
+                style={{ minWidth: 0, tableLayout: "fixed" }}
+              >
+                <colgroup>
+                  <col style={{ width: "2.5rem" }} />
+                  <col />
+                  <col style={{ width: "13rem" }} />
+                </colgroup>
+                <thead className="sticky top-0 z-10 bg-[var(--token-surface-raised)]">
+                  <tr className="border-b border-[var(--token-border-default)]">
+                    <th scope="col" className="w-10 py-2 pl-3 pr-0 align-middle">
+                      <span className="sr-only">Favourite</span>
+                    </th>
+                    <th
+                      scope="col"
+                      className="max-w-0 px-2 py-2 text-left align-middle text-sm font-medium text-[var(--token-text-secondary)]"
+                      aria-sort={
+                        trackSortField === "trackName"
+                          ? trackSortDirection === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleTrackColumnSort("trackName")}
+                        className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+                        aria-label={`Sort by track name, ${trackSortField === "trackName" ? (trackSortDirection === "asc" ? "ascending" : "descending") : "not sorted"}`}
+                      >
+                        Track name
+                        {trackSortField === "trackName" && (
+                          <span className="ml-1.5 tabular-nums" aria-hidden="true">
+                            {trackSortDirection === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </button>
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-2 py-2 text-left align-middle text-sm font-medium text-[var(--token-text-secondary)]"
+                      style={{ width: "13rem" }}
+                      aria-sort={
+                        trackSortField === "country"
+                          ? trackSortDirection === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleTrackColumnSort("country")}
+                        className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+                        aria-label={`Sort by country, ${trackSortField === "country" ? (trackSortDirection === "asc" ? "ascending" : "descending") : "not sorted"}`}
+                      >
+                        Country
+                        {trackSortField === "country" && (
+                          <span className="ml-1.5 tabular-nums" aria-hidden="true">
+                            {trackSortDirection === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedTracks.map((track) => (
+                    <TrackRow
+                      key={track.id}
+                      track={track}
+                      isFavourite={favourites.includes(track.id)}
+                      onSelect={handleSelect}
+                      onToggleFavourite={handleToggleFavourite}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            )}
 
-          {/* Empty State */}
-          {filteredTracks.length === 0 && (
-            <div className="px-4 py-12 text-center w-full min-w-0">
-              <p className="text-[var(--token-text-primary)] font-medium">No tracks found</p>
-              <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-                {countries.length > 0
-                  ? "Try a different search term or country"
-                  : "Try a different search term"}
-              </p>
+            {/* Empty State */}
+            {filteredTracks.length === 0 && (
+              <div className="px-4 py-12 text-center w-full min-w-0">
+                <p className="text-[var(--token-text-primary)] font-medium">No tracks found</p>
+                <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+                  {countries.length > 0
+                    ? "Try a different search term or country"
+                    : "Try a different search term"}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {totalTrackListItems > 0 && (
+            <div className="shrink-0 pt-3 border-t border-[var(--token-border-accent-soft)]">
+              <ListPagination
+                embedded
+                currentPage={trackListPage}
+                totalPages={trackListTotalPages}
+                onPageChange={setTrackListPage}
+                itemsPerPage={tracksPerPage}
+                totalItems={totalTrackListItems}
+                itemLabel="tracks"
+                onRowsPerPageChange={(n) => {
+                  setTracksPerPage(n)
+                  setTrackListPage(1)
+                }}
+              />
             </div>
           )}
         </div>

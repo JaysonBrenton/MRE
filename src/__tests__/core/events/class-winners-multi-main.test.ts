@@ -243,7 +243,84 @@ describe("buildClassWinners", () => {
     const ep = winners.find((w) => w.className === "Ep Buggy")
     const ic = winners.find((w) => w.className === "Ic Buggy")
     expect(ep?.winnerName).toBe("Perry")
+    expect(ep?.secondPlaceName).toBe("Other")
+    expect(ep?.thirdPlaceName).toBeNull()
     expect(ic?.winnerName).toBe("Zac")
+    expect(ic?.secondPlaceName).toBeNull()
+    expect(ic?.thirdPlaceName).toBeNull()
+  })
+
+  it("orders winners by class entry count when entryList is provided (most entries first)", () => {
+    const races: EventAnalysisData["races"] = []
+    const multiMain: EventAnalysisData["multiMainResults"] = [
+      {
+        id: "m-ep",
+        classLabel: "Ep Buggy A-Main",
+        tieBreaker: null,
+        completedMains: 1,
+        totalMains: 1,
+        entries: [
+          {
+            position: 1,
+            seededPosition: null,
+            driverId: "a",
+            driverName: "EpWinner",
+            points: 1,
+            mainBreakdown: null,
+          },
+        ],
+      },
+      {
+        id: "m-ic",
+        classLabel: "Ic Buggy A-Main",
+        tieBreaker: null,
+        completedMains: 1,
+        totalMains: 1,
+        entries: [
+          {
+            position: 1,
+            seededPosition: null,
+            driverId: "z",
+            driverName: "IcWinner",
+            points: 1,
+            mainBreakdown: null,
+          },
+        ],
+      },
+    ]
+    const entryList: EventAnalysisData["entryList"] = [
+      {
+        id: "1",
+        driverId: "1",
+        driverName: "A",
+        className: "Ep Buggy",
+        transponderNumber: null,
+        carNumber: null,
+      },
+      {
+        id: "2",
+        driverId: "2",
+        driverName: "B",
+        className: "Ic Buggy",
+        transponderNumber: null,
+        carNumber: null,
+      },
+      {
+        id: "3",
+        driverId: "3",
+        driverName: "C",
+        className: "Ic Buggy",
+        transponderNumber: null,
+        carNumber: null,
+      },
+    ]
+    const winners = buildClassWinners({
+      races,
+      multiMainResults: multiMain,
+      registrationClassNames: ["Ep Buggy", "Ic Buggy"],
+      entryList,
+    })
+    expect(winners.map((w) => w.className)).toEqual(["Ic Buggy", "Ep Buggy"])
   })
 
   it("matches multi-main overall when registration class has a scale prefix (1/8 …)", () => {
@@ -312,5 +389,7 @@ describe("buildClassWinners", () => {
     })
     expect(winners).toHaveLength(1)
     expect(winners[0]?.winnerName).toBe("MATTHEW COUPER")
+    expect(winners[0]?.secondPlaceName).toBe("RILEY LANDER-WEST")
+    expect(winners[0]?.thirdPlaceName).toBeNull()
   })
 })

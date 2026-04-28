@@ -795,11 +795,6 @@
       "featureArea": "event-search"
     },
     {
-      "file": "src/components/organisms/event-search/TrackAndFavouritesModal.tsx",
-      "tier": "organism:event-search",
-      "featureArea": "event-search"
-    },
-    {
       "file": "src/components/organisms/event-search/TrackRow.tsx",
       "tier": "organism:event-search",
       "featureArea": "event-search"

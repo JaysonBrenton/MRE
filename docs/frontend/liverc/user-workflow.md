@@ -42,7 +42,8 @@ The complete Driver workflow follows this sequence:
 1. **Driver logs into MRE** (authentication required)
 2. **Driver navigates to Event Search** (top-level navigation item)
 3. **Driver selects a track** via searchable track modal with favourites support
-4. **Driver selects a date range** (preset or Custom; Custom max 90 days, API accepts up to 12 months; no future dates)
+4. **Driver selects a date range** (preset or Custom; Custom allows any span
+   where start/end fall within the last 7 years through today; no future dates)
 5. **Driver clicks Search** → System queries MRE database for matching events
 6. **If no DB results** → System automatically queries LiveRC for events
 7. **Driver views event list** with status indicators (Stored, New, Importing,
@@ -234,9 +235,12 @@ For detailed technical implementation, see
 
 **When / date range (Events mode):**
 
-- A **"When"** section with **date range presets**: No filter, Last 3/6/12 months, This year, Custom.
-- Preset chips set start/end in the user's **local timezone** (e.g. "This year" = 1 Jan–today locally).
-- **Custom** shows two date inputs: "Start date" and "End date"; same validation and tokens as below.
+- A **"When"** section with **date range presets**: No filter, Last 3/6/12
+  months, This year, Custom.
+- Preset chips set start/end in the user's **local timezone** (e.g. "This year"
+  = 1 Jan–today locally).
+- **Custom** shows two date inputs: "Start date" and "End date"; same validation
+  and tokens as below.
 - Labels appear directly above each input per
   [UX Principles](../../design/mre-ux-principles.md) Section 4.1
 
@@ -253,9 +257,10 @@ For detailed technical implementation, see
 
 **Date Range Validation:**
 
-- **Maximum range:**
-  - **API:** Date range may be up to **12 months** (366 days). Presets (e.g. "Last 12 months", "This year") can use this full range.
-  - **Custom preset:** When the user chooses "Custom", the UI enforces a maximum of **90 days** between start and end. Error message: "Date range cannot exceed 3 months. Please select a shorter range." (appears beneath end date field).
+- **Bounds:** Start and end must each fall between **7 years ago** (local
+  calendar) and **today**. The span between them may be up to the full width of
+  that window. Presets (e.g. "Last 12 months", "This year") set start/end within
+  that same rule set.
 - **No Future Dates:** Do not allow selecting a **future date**
   - If user attempts to select future date: Validate and show clear error
     message
@@ -277,15 +282,18 @@ For detailed technical implementation, see
 
 **Default date range:**
 
-- **Initial load:** "Last 12 months" preset (if no persisted values), with start/end set accordingly.
+- **Initial load:** "Last 12 months" preset (if no persisted values), with
+  start/end set accordingly.
 - **After reset:** Preset and range reset to "Last 12 months".
 
 **Date range persistence:**
 
 - Persist **last selected preset** and **last date range** per user.
 - **Phase 1 (Alpha):** localStorage
-  - `mre_date_range_preset` — selected preset (e.g. `"last12"`, `"thisYear"`, `"custom"`).
-  - `mre_last_date_range` — object with `startDate` and `endDate` (YYYY-MM-DD, local date semantics).
+  - `mre_date_range_preset` — selected preset (e.g. `"last12"`, `"thisYear"`,
+    `"custom"`).
+  - `mre_last_date_range` — object with `startDate` and `endDate` (YYYY-MM-DD,
+    local date semantics).
   - Persist on form submission (Search); load on page load.
 - **Future phase:** Server-side user preferences (do not design DB schema yet).
 
@@ -334,7 +342,8 @@ For detailed technical implementation, see
 1. **Validate Form:**
    - Track must be selected
    - Start date and end date must be valid
-   - Date range must be <= 3 months
+   - Date range must stay within the lookback window (no dates before 7 years
+     ago, no future dates)
    - No future dates
    - If validation fails: Show field-level errors, do not proceed
 

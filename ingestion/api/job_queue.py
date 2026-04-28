@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -137,6 +138,11 @@ _queue_order: deque[str] = deque()
 _max_concurrent = max(1, int(os.getenv("INGESTION_QUEUE_MAX_CONCURRENT", "2")))
 _semaphore = asyncio.Semaphore(_max_concurrent)
 
+# Serialize check-then-enqueue. Without this, two concurrent HTTP handlers can interleave
+# and enqueue duplicate jobs for the same event; workers then race on pg_try_advisory_lock
+# and the second raises IngestionInProgressError (409 to the client).
+_enqueue_mutex = threading.Lock()
+
 # Completed/failed jobs retention (seconds)
 _job_retention_seconds = int(os.getenv("INGESTION_QUEUE_JOB_TTL_SECONDS", "3600"))
 
@@ -180,29 +186,30 @@ def enqueue_by_source_id(
     depth: str = "laps_full",
     imported_by_user_id: Optional[str] = None,
 ) -> str:
-    existing = _active_job_for_source(source_event_id, track_id)
-    if existing:
-        logger.info(
-            "ingestion_job_dedupe_by_source",
-            returning_job_id=existing.job_id,
+    with _enqueue_mutex:
+        existing = _active_job_for_source(source_event_id, track_id)
+        if existing:
+            logger.info(
+                "ingestion_job_dedupe_by_source",
+                returning_job_id=existing.job_id,
+                source_event_id=source_event_id,
+                track_id=track_id,
+            )
+            return existing.job_id
+
+        job_id = str(uuid4())
+        payload = IngestBySourceIdPayload(
             source_event_id=source_event_id,
             track_id=track_id,
+            depth=depth,
+            imported_by_user_id=imported_by_user_id,
         )
-        return existing.job_id
-
-    job_id = str(uuid4())
-    payload = IngestBySourceIdPayload(
-        source_event_id=source_event_id,
-        track_id=track_id,
-        depth=depth,
-        imported_by_user_id=imported_by_user_id,
-    )
-    job = Job(job_id=job_id, job_type=JobType.BY_SOURCE_ID, payload=payload)
-    _job_store[job_id] = job
-    _queue.put_nowait(job)
-    _queue_order.append(job_id)
-    logger.info("ingestion_job_queued", job_id=job_id, job_type=JobType.BY_SOURCE_ID.value)
-    return job_id
+        job = Job(job_id=job_id, job_type=JobType.BY_SOURCE_ID, payload=payload)
+        _job_store[job_id] = job
+        _queue.put_nowait(job)
+        _queue_order.append(job_id)
+        logger.info("ingestion_job_queued", job_id=job_id, job_type=JobType.BY_SOURCE_ID.value)
+        return job_id
 
 
 def enqueue_by_event_id(
@@ -211,28 +218,29 @@ def enqueue_by_event_id(
     imported_by_user_id: Optional[str] = None,
     force: bool = False,
 ) -> str:
-    existing = _active_job_for_event_id(event_id)
-    if existing:
-        logger.info(
-            "ingestion_job_dedupe_by_event",
-            returning_job_id=existing.job_id,
-            event_id=event_id,
-        )
-        return existing.job_id
+    with _enqueue_mutex:
+        existing = _active_job_for_event_id(event_id)
+        if existing:
+            logger.info(
+                "ingestion_job_dedupe_by_event",
+                returning_job_id=existing.job_id,
+                event_id=event_id,
+            )
+            return existing.job_id
 
-    job_id = str(uuid4())
-    payload = IngestByEventIdPayload(
-        event_id=event_id,
-        depth=depth,
-        imported_by_user_id=imported_by_user_id,
-        force=force,
-    )
-    job = Job(job_id=job_id, job_type=JobType.BY_EVENT_ID, payload=payload)
-    _job_store[job_id] = job
-    _queue.put_nowait(job)
-    _queue_order.append(job_id)
-    logger.info("ingestion_job_queued", job_id=job_id, job_type=JobType.BY_EVENT_ID.value)
-    return job_id
+        job_id = str(uuid4())
+        payload = IngestByEventIdPayload(
+            event_id=event_id,
+            depth=depth,
+            imported_by_user_id=imported_by_user_id,
+            force=force,
+        )
+        job = Job(job_id=job_id, job_type=JobType.BY_EVENT_ID, payload=payload)
+        _job_store[job_id] = job
+        _queue.put_nowait(job)
+        _queue_order.append(job_id)
+        logger.info("ingestion_job_queued", job_id=job_id, job_type=JobType.BY_EVENT_ID.value)
+        return job_id
 
 
 def get_job(job_id: str) -> Job | None:
@@ -320,7 +328,13 @@ def _user_friendly_error_message(exc: BaseException) -> str:
 
 def _cleanup_jobs() -> None:
     if _job_retention_seconds <= 0:
-        to_delete = [job_id for job_id, job in _job_store.items() if job.status != JobStatus.QUEUED]
+        # Immediate eviction of terminal jobs only. Must not drop RUNNING — another worker's
+        # finish triggers cleanup while peers still hold RUNNING (e.g. TTL=0 for tests or ops).
+        to_delete = [
+            job_id
+            for job_id, job in _job_store.items()
+            if job.status in (JobStatus.COMPLETED, JobStatus.FAILED)
+        ]
     else:
         cutoff = datetime.utcnow() - timedelta(seconds=_job_retention_seconds)
         to_delete = [

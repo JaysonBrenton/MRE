@@ -25,8 +25,9 @@ import EventSearchContainer, {
 } from "@/components/organisms/event-search/EventSearchContainer"
 import { useModalPanelDrag } from "@/hooks/useModalPanelDrag"
 import {
+  EVENT_SEARCH_MODAL_DEFAULT_HEIGHT_REM,
+  EVENT_SEARCH_MODAL_DEFAULT_WIDTH_REM,
   getModalResizableContainerStyles,
-  MODAL_MAX_WIDTHS,
   MODAL_PORTAL_Z_INDEX,
 } from "@/lib/modal-styles"
 
@@ -116,12 +117,14 @@ export default function EventSearchModal({
   // without being trapped under a parent stacking context.
   if (typeof document === "undefined") return null
 
+  const panelMaxHeight = "min(92dvh, calc(100dvh - 7rem))"
   const panelStyles: CSSProperties = {
-    ...getModalResizableContainerStyles(MODAL_MAX_WIDTHS["4xl"]),
+    ...getModalResizableContainerStyles(EVENT_SEARCH_MODAL_DEFAULT_WIDTH_REM),
+    height: `min(${EVENT_SEARCH_MODAL_DEFAULT_HEIGHT_REM}, ${panelMaxHeight})`,
     resize: "both",
     overflow: "hidden",
     minHeight: "12rem",
-    maxHeight: "min(92dvh, calc(100dvh - 7rem))",
+    maxHeight: panelMaxHeight,
     transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
   }
 

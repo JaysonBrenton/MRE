@@ -117,6 +117,46 @@ export function toLocalDateString(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
+/** Event search custom range: wall-calendar years a user can reach into the past (inclusive of today). */
+export const EVENT_SEARCH_CUSTOM_LOOKBACK_YEARS = 7
+
+/**
+ * First calendar day the user can pick for event custom date (local midnight, today − N years).
+ */
+export function getEventSearchEarliestSelectableDate(): Date {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setFullYear(d.getFullYear() - EVENT_SEARCH_CUSTOM_LOOKBACK_YEARS)
+  return d
+}
+
+export function getEventSearchEarliestSelectableYmd(): string {
+  return toLocalDateString(getEventSearchEarliestSelectableDate())
+}
+
+function parseYmdLocalForSummary(ymd: string): Date {
+  const p = ymd.split("-").map(Number)
+  const y = p[0]
+  const m = p[1]
+  const d = p[2]
+  if (!y || !m || !d) return new Date(NaN)
+  return new Date(y, m - 1, d)
+}
+
+/** Long en-AU range line for event search custom date summaries (e.g. aria-live, helper text). */
+export function formatCustomRangeSummary(start: string, end: string): string {
+  if (!start || !end) return ""
+  const a = parseYmdLocalForSummary(start)
+  const b = parseYmdLocalForSummary(end)
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return ""
+  const opts: Intl.DateTimeFormatOptions = {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }
+  return `${a.toLocaleDateString("en-AU", opts)} – ${b.toLocaleDateString("en-AU", opts)}`
+}
+
 /**
  * Format a date for input field (YYYY-MM-DD)
  * @param dateString - ISO date string or date object
@@ -350,4 +390,16 @@ function getOrdinalSuffix(num: number): string {
     return "rd"
   }
   return "th"
+}
+
+/**
+ * Finishing place as an English ordinal (1st, 2nd, 3rd, 4th, …).
+ * Non-finite or sub-1 values fall back to a plain string of the value.
+ */
+export function formatPlaceOrdinal(pos: number): string {
+  if (!Number.isFinite(pos) || pos < 1) {
+    return String(pos)
+  }
+  const n = Math.floor(pos)
+  return `${n}${getOrdinalSuffix(n)}`
 }

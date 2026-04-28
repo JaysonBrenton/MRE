@@ -10,7 +10,7 @@ import {
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 
 describe("resolveClassWinnerModalDetail", () => {
-  it("returns multi-main detail with result summary and per-main rows", () => {
+  it("returns multi-main class standings and per-main columns", () => {
     const races: EventAnalysisData["races"] = []
     const multiMain: EventAnalysisData["multiMainResults"] = [
       {
@@ -39,19 +39,26 @@ describe("resolveClassWinnerModalDetail", () => {
       className: "Ep Buggy",
       classDisplay: "Ep Buggy",
       winnerName: "DARREN PERRY",
+      secondPlaceName: null,
+      thirdPlaceName: null,
       raceLabel: "Overall (3/3 mains)",
     }
     const d = resolveClassWinnerModalDetail(highlight, { races, multiMainResults: multiMain })
     expect(d?.kind).toBe("multiMain")
     if (d?.kind !== "multiMain") return
-    expect(d.combinedPoints).toBe(2)
-    expect(d.resultSummaryLine).toBe("[2] [1] 16/10:01.000")
-    expect(d.mainRows.map((r) => r.label)).toEqual(["A1", "A2", "A3"])
+    expect(d.mainColumnLabels).toEqual(["A1", "A2", "A3"])
+    expect(d.standingsRows).toHaveLength(1)
+    const row = d.standingsRows[0]!
+    expect(row.driverName).toBe("DARREN PERRY")
+    expect(row.highlight).toBe(true)
+    expect(row.points).toBe(2)
+    expect(row.mainCells[0]).toBe("17/10:02.843")
+    expect(row.mainCells[1]).toBe("16/10:01.000")
+    expect(row.mainCells[2]).toBe("18/10:03.000")
     expect(d.tieBreaker).toBe("Best finish in A3")
-    expect(d.driverMainsParticipated).toBe(3)
   })
 
-  it("counts driver mains participated when a main is sit-out (0/0.000)", () => {
+  it("shows an em dash for a sit-out main (0/0.000) in the standings table", () => {
     const races: EventAnalysisData["races"] = []
     const multiMain: EventAnalysisData["multiMainResults"] = [
       {
@@ -80,6 +87,8 @@ describe("resolveClassWinnerModalDetail", () => {
       className: "Ep Buggy",
       classDisplay: "Ep Buggy",
       winnerName: "DARREN PERRY",
+      secondPlaceName: null,
+      thirdPlaceName: null,
       raceLabel: "Overall (3/3 mains)",
     }
     const d = resolveClassWinnerModalDetail(highlight, { races, multiMainResults: multiMain })
@@ -87,7 +96,10 @@ describe("resolveClassWinnerModalDetail", () => {
     if (d?.kind !== "multiMain") return
     expect(d.completedMains).toBe(3)
     expect(d.totalMains).toBe(3)
-    expect(d.driverMainsParticipated).toBe(2)
+    const row = d.standingsRows[0]!
+    expect(row.mainCells[0]).toBe("17/10:02.843")
+    expect(row.mainCells[1]).toBe("16/10:01.000")
+    expect(row.mainCells[2]).toBe("—")
   })
 
   it("uses featured main when no multi-main block", () => {
@@ -120,6 +132,21 @@ describe("resolveClassWinnerModalDetail", () => {
             secondsBehind: null,
             liveRcStats: null,
           },
+          {
+            raceResultId: "rr2",
+            raceDriverId: "rd2",
+            driverId: "d2",
+            driverName: "ALICE BETA",
+            positionFinal: 2,
+            lapsCompleted: 50,
+            totalTimeSeconds: 30 * 60 + 10.5,
+            fastLapTime: 46.0,
+            avgLapTime: null,
+            consistency: null,
+            qualifyingPosition: null,
+            secondsBehind: null,
+            liveRcStats: null,
+          },
         ],
       },
     ]
@@ -128,16 +155,23 @@ describe("resolveClassWinnerModalDetail", () => {
       className: "Ic Buggy",
       classDisplay: "Ic Buggy",
       winnerName: "ZAC RYAN",
+      secondPlaceName: null,
+      thirdPlaceName: null,
       raceLabel: "Ic Buggy A-Main",
     }
     const d = resolveClassWinnerModalDetail(highlight, { races, multiMainResults: multiMain })
     expect(d?.kind).toBe("featuredMain")
     if (d?.kind !== "featuredMain") return
-    expect(d.raceLabel).toBe("Ic Buggy A-Main")
-    expect(d.positionFinal).toBe(1)
-    expect(d.lapsCompleted).toBe(50)
-    expect(d.lapsTimeLine).toBe("50 / 30:07")
-    expect(d.fastLapFormatted).toBe("0:45.200")
+    expect(d.sessionRaceLabel).toBe("Ic Buggy A-Main")
+    expect(d.standingsRows).toHaveLength(2)
+    const z = d.standingsRows.find((r) => r.driverName === "ZAC RYAN")
+    const a = d.standingsRows.find((r) => r.driverName === "ALICE BETA")
+    expect(z?.position).toBe(1)
+    expect(z?.highlight).toBe(true)
+    expect(z?.lapsTimeLine).toBe("50 / 30:07")
+    expect(z?.fastLapFormatted).toBe("0:45.200")
+    expect(a?.position).toBe(2)
+    expect(a?.highlight).toBe(false)
   })
 
   it("matches buildClassWinners highlight for multi-main winner", () => {
@@ -173,8 +207,7 @@ describe("resolveClassWinnerModalDetail", () => {
     const d = resolveClassWinnerModalDetail(w!, { races, multiMainResults: multiMain })
     expect(d?.kind).toBe("multiMain")
     if (d?.kind !== "multiMain") return
-    expect(d.combinedPoints).toBe(2)
-    expect(d.resultSummaryLine).toBe("[1] 10/5:00.000")
-    expect(d.driverMainsParticipated).toBe(1)
+    expect(d.standingsRows[0]!.points).toBe(2)
+    expect(d.standingsRows[0]!.mainCells[0]).toBe("10/5:00.000")
   })
 })

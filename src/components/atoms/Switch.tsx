@@ -3,6 +3,8 @@
  *
  * @description Pill-shaped switch with sliding knob. Uses role="switch" and
  *              keyboard support (Enter/Space to toggle, ArrowLeft/ArrowRight for values).
+ *              Off state: neutral stepped track + border + inset (tokens); on state: bright green.
+ *              Thumb uses accent blue.
  *
  * @purpose Reusable toggle for binary choices; follows MRE design tokens.
  *
@@ -12,6 +14,8 @@
  */
 
 "use client"
+
+import type { CSSProperties } from "react"
 
 export interface SwitchProps {
   checked: boolean
@@ -40,6 +44,18 @@ export default function Switch({
     }
   }
 
+  const trackStyle: CSSProperties = checked
+    ? {
+        background: "var(--token-switch-on-track)",
+        borderColor: "var(--token-switch-on-border)",
+        boxShadow: "var(--token-switch-on-glow)",
+      }
+    : {
+        background: "var(--token-switch-off-track)",
+        borderColor: "var(--token-switch-off-border)",
+        boxShadow: "var(--token-switch-off-inset)",
+      }
+
   return (
     <button
       type="button"
@@ -50,14 +66,11 @@ export default function Switch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       onKeyDown={handleKeyDown}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] focus:ring-offset-[var(--token-surface)] disabled:opacity-50 disabled:cursor-not-allowed ${className} ${
-        checked
-          ? "bg-[var(--token-accent)]/30 border-[var(--token-accent)]/50"
-          : "bg-[var(--token-surface-elevated)] border-[var(--token-border-default)]"
-      }`}
+      style={trackStyle}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full border border-solid transition-all duration-200 ease-in-out focus:outline-none focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-[var(--token-surface)] border border-[var(--token-border-default)] shadow-sm transition-transform duration-200 ease-in-out ${
+        className={`inline-block h-4 w-4 transform rounded-full bg-[var(--token-accent)] border border-white/30 shadow-sm transition-transform duration-200 ease-in-out ${
           checked ? "translate-x-6" : "translate-x-1"
         }`}
         aria-hidden

@@ -5,15 +5,14 @@
  *             combined session time), per-class most consistent drivers (mean session score), and
  *             per-class fastest lap (best single lap time in the class for the event), each
  *             class winner’s mean session average lap (same winners as Class Winners), and
- *             per-class biggest movers (first-to-last session gains; shared math with Top improved),
- *             closest battles (tightest P1–P2 per class on mains; per-driver adjacent gaps in modal),
- *             and event mix (stacked session-type chart plus class mix by entries or laps; same
- *             as the former Event highlights mix chart), and event weather (per-day venue forecast).
+ *             Lap Stats (placeholder tab until content is defined),
+ *             closest battles (tightest P1–P2 per class on mains; per-driver adjacent gaps in modal).
+ *             Event weather and Event mix live under Event details.
  */
 
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import {
   computeClosestP1P2PerClass,
   computeDriverClosestBattles,
@@ -34,12 +33,8 @@ import {
   computeFastestLapRankedForClass,
 } from "@/core/events/event-fastest-lap-per-class"
 import { computeClassWinnerMeanAvgLapCards } from "@/core/events/event-class-winner-mean-avg-lap"
-import {
-  computeMostImprovedPerClass,
-  type ClassMostImprovedGroup,
-  type EventMostImprovedEntry,
-} from "@/core/events/event-most-improved-per-class"
-import type { ClassWinnerHighlight, SessionMixSegment } from "@/core/events/build-event-highlights"
+import type { ClassWinnerHighlight } from "@/core/events/build-event-highlights"
+import { isEventMainSession } from "@/core/events/main-bracket-overall"
 import {
   buildClassWinners,
   resolveClassWinnerModalDetail,
@@ -60,46 +55,78 @@ import {
   OVERVIEW_GLASS_SURFACE_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
 } from "@/components/organisms/event-analysis/overview-glass-surface"
-import {
-  formatDateLong,
-  formatPositionImprovement,
-  formatLapTimeImprovement,
-} from "@/lib/date-utils"
 import { formatClassName } from "@/lib/format-class-name"
+import { formatPlaceOrdinal } from "@/lib/date-utils"
 import { formatLapTime, formatTotalTime } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE, normalizeTableRowsPerPage } from "@/lib/table-pagination"
 import { typography } from "@/lib/typography"
 import ListPagination from "./ListPagination"
-import { EventHighlightsMixFilteredChart } from "./EventHighlightsMixCharts"
-import WeatherCard from "./WeatherCard"
-import type { WeatherDayRow } from "@/hooks/useEventWeather"
+import {
+  EventOverviewHighlightsTabList,
+  HIGHLIGHT_TAB_META,
+  type EventHighlightsSubTab,
+} from "./EventOverviewHighlightsTabs"
 
 type QualPayload = EventAnalysisData["qualPointsTopQualifiers"]
 
-/** Ingestion uses LiveRC phrasing ("Qual Points (2 of 4)"); overview shows "Best (2 of 4)". */
-function formatOverviewQualPointsCaption(label: string): string {
-  return label.replace(/^Qual\s+Points\s*/i, "Best ")
+/** One-line podium name: native `title` + help cursor when CSS truncation hides the full string. */
+function HighlightPodiumName({ name, className }: { name: string; className: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [truncated, setTruncated] = useState(false)
+  const measure = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    setTruncated(el.scrollWidth > el.clientWidth + 0.5)
+  }, [])
+
+  useLayoutEffect(() => {
+    measure()
+  }, [name, measure])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      measure()
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [measure])
+
+  return (
+    <span
+      ref={ref}
+      className={truncated ? `${className} cursor-help` : className}
+      title={truncated ? name : undefined}
+    >
+      {name}
+    </span>
+  )
 }
 
-type EventHighlightsSubTab =
-  | "classWinners"
-  | "topQualifiers"
-  | "lapHeroes"
-  | "mostConsistentDrivers"
-  | "fastestLaps"
-  | "fastestAverageLaps"
-  | "biggestMovers"
-  | "eventMix"
-  | "podiums"
-  | "closestBattles"
-  | "eventWeather"
-
-const HIGHLIGHTS_TAB_BTN =
-  "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
-const HIGHLIGHTS_TAB_BTN_ACTIVE =
-  "border-[var(--token-accent)] bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-const HIGHLIGHTS_TAB_BTN_IDLE =
-  "border-[var(--token-border-subtle)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)] bg-[var(--token-surface)]/45"
+/** 2nd/3rd slots: driver name or em dash when standings have no row (keeps podium height consistent). */
+function PodiumSlotName({
+  name,
+  filledClassName,
+  emptyHint,
+}: {
+  name: string | null
+  filledClassName: string
+  emptyHint: string
+}) {
+  if (name) {
+    return <HighlightPodiumName name={name} className={filledClassName} />
+  }
+  return (
+    <span
+      className="min-w-0 text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
+      title={emptyHint}
+      aria-label={emptyHint}
+    >
+      —
+    </span>
+  )
+}
 
 const LAP_HEROES_INFO_TEXT = "Most laps · shortest combined time wins ties"
 
@@ -112,24 +139,32 @@ const FASTEST_LAPS_INFO_TEXT =
 const FASTEST_AVG_LAPS_INFO_TEXT =
   "Overall class winner from Class Winners, with their mean session average lap in that class (lower time is faster). Same drivers as the Class Winners tab."
 
-const BIGGEST_MOVERS_INFO_TEXT =
-  "Largest gains from a driver's first session to their last in each class. Race days blend finishing position and fast lap; practice days use fast lap only. Open a class for the top three movers."
-
-const EVENT_MIX_INFO_TEXT =
-  "Session mix (percent of sessions by type) and class share by entry count or laps completed. Use the toggles on the chart to switch metrics. Main events are detected from labels as well as session type."
-
-const EVENT_WEATHER_INFO_TEXT =
-  "Forecast and conditions for the event venue by calendar day, when available from the weather service."
-
 const CLOSEST_BATTLES_INFO_TEXT =
   "Main events only. Each card is the tightest P1–P2 finish on total time in that class. Open a card to see every driver’s tightest adjacent gap in a main (vs the next car ahead or behind in the results)."
 
 /** Initial resizable panel size for Closest battles (header + body area from layout tuning). */
 const CLOSEST_BATTLES_MODAL_DEFAULT_SIZE = { width: "927px", height: "705px" } as const
 
-/** Visible + aria: plain-language; avoid “multi-main”, “P1”, “featured main”. */
-const CLASS_WINNERS_INFO_TEXT =
-  "These names are the overall winners for each class after all finals. Winners of each separate final, for example the A Main or B Main, are not listed here. To see those, open Event Analysis and use the Event Results tab."
+/** Class winner: default width; height follows content (capped by viewport) unless the user resizes. */
+const CLASS_WINNER_MODAL_RESIZABLE_DEFAULT = { width: "48rem" } as const
+
+const CLASS_WINNERS_EMPTY_TEXT =
+  "No overall class winners to show yet. They appear after final results are imported for this event."
+
+/** Shown in Event Highlights tabs that require a main except Top Qualifiers (qual-only data allowed). */
+const HIGHLIGHTS_NEED_MAIN_TEXT =
+  "Main event results aren’t available for this event yet. This highlight appears after at least one main or final is imported."
+
+const QUAL_STANDINGS_UNAVAILABLE_TEXT =
+  "Qual points standings are not available for this event yet. Re-run ingestion after qual results are published, or open the event on LiveRC to view qual standings."
+
+const TQ_CARDS_UNRESOLVED_TEXT = "Could not resolve top qualifiers per class from the current data."
+
+const SEEDING_PLACEHOLDER_TEXT = "We're in the garage working on this feature right now!!"
+
+/** Shrink-to-content width for short single-line messages (caps at parent width, scroll if needed). */
+const OVERVIEW_INFO_BOX_INLINE_CLASS =
+  "mx-auto w-fit max-w-full min-w-0 overflow-x-auto rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
 
 function formatLapHeroCardLapsLine(
   totalLaps: number,
@@ -168,19 +203,6 @@ function formatWinnerMeanAvgLapLine(
   return `${formatLapTime(meanAvgLapSeconds)} mean · ${sessionsWithAvgLap} ${sessWord}`
 }
 
-function formatBiggestMoverCardLine(e: EventMostImprovedEntry, isPracticeDay?: boolean): string {
-  if (isPracticeDay) {
-    return e.lapTimeImprovement != null && e.lapTimeImprovement > 0
-      ? formatLapTimeImprovement(e.lapTimeImprovement)
-      : formatPositionImprovement(e.firstRacePosition, e.lastRacePosition)
-  }
-  const pos = formatPositionImprovement(e.firstRacePosition, e.lastRacePosition)
-  if (e.lapTimeImprovement != null && e.lapTimeImprovement > 0) {
-    return `${pos} · ${formatLapTimeImprovement(e.lapTimeImprovement)}`
-  }
-  return pos
-}
-
 export type EventOverviewTopQualifiersProps =
   | { qualPoints: QualPayload; variant?: "table" }
   | {
@@ -190,19 +212,8 @@ export type EventOverviewTopQualifiersProps =
       multiMainResults: EventAnalysisData["multiMainResults"]
       /** Distinct entry-list classes; drives one class-winner card per class (see buildClassWinners). */
       registrationClassNames?: string[]
-      isPracticeDay?: boolean
-      /** From `buildEventHighlights`; powers Event Mix tab chart. */
-      eventMixChart?: {
-        sessionMix: SessionMixSegment[]
-        classMixByDrivers: SessionMixSegment[]
-        classMixByLaps: SessionMixSegment[]
-      }
-      /** From `useEventWeather` in Overview; powers Event Weather tab. */
-      eventWeather?: {
-        weatherByDay: WeatherDayRow[] | null
-        weatherLoading: boolean
-        weatherError: string | null
-      }
+      /** When non-empty, Class Winners and Top Qualifiers card order: most class entries first. */
+      entryList?: EventAnalysisData["entryList"]
     }
 
 export default function EventOverviewTopQualifiers(props: EventOverviewTopQualifiersProps) {
@@ -213,9 +224,7 @@ export default function EventOverviewTopQualifiers(props: EventOverviewTopQualif
         races={props.races}
         multiMainResults={props.multiMainResults}
         registrationClassNames={props.registrationClassNames}
-        isPracticeDay={props.isPracticeDay}
-        eventMixChart={props.eventMixChart}
-        eventWeather={props.eventWeather}
+        entryList={props.entryList}
       />
     )
   }
@@ -227,25 +236,13 @@ function EventOverviewTopQualifiersCards({
   races,
   multiMainResults,
   registrationClassNames,
-  isPracticeDay = false,
-  eventMixChart,
-  eventWeather,
+  entryList,
 }: {
   qualPoints: QualPayload
   races: EventAnalysisData["races"]
   multiMainResults: EventAnalysisData["multiMainResults"]
   registrationClassNames?: string[]
-  isPracticeDay?: boolean
-  eventMixChart?: {
-    sessionMix: SessionMixSegment[]
-    classMixByDrivers: SessionMixSegment[]
-    classMixByLaps: SessionMixSegment[]
-  }
-  eventWeather?: {
-    weatherByDay: WeatherDayRow[] | null
-    weatherLoading: boolean
-    weatherError: string | null
-  }
+  entryList?: EventAnalysisData["entryList"]
 }) {
   const [detailCard, setDetailCard] = useState<TopQualifierCardModel | null>(null)
   const [lapHeroDetailClass, setLapHeroDetailClass] = useState<string | null>(null)
@@ -254,8 +251,11 @@ function EventOverviewTopQualifiersCards({
   const [winnerMeanAvgLapDetailClass, setWinnerMeanAvgLapDetailClass] = useState<string | null>(
     null
   )
-  const [biggestMoversDetailClass, setBiggestMoversDetailClass] = useState<string | null>(null)
   const [classWinnerDetail, setClassWinnerDetail] = useState<ClassWinnerHighlight | null>(null)
+  const [classWinnerStandingsPage, setClassWinnerStandingsPage] = useState(1)
+  const [classWinnerStandingsRowsPerPage, setClassWinnerStandingsRowsPerPage] = useState(
+    DEFAULT_TABLE_ROWS_PER_PAGE
+  )
   const [closestBattlesModalOpen, setClosestBattlesModalOpen] = useState(false)
   /** Raw class from the Closest Battles card; scopes the modal table to that class. */
   const [closestBattlesModalClass, setClosestBattlesModalClass] = useState<string | null>(null)
@@ -264,11 +264,37 @@ function EventOverviewTopQualifiersCards({
     DEFAULT_TABLE_ROWS_PER_PAGE
   )
   const [highlightsTab, setHighlightsTab] = useState<EventHighlightsSubTab>("classWinners")
+  const defaultHighlightsTabApplied = useRef(false)
+
+  const eventHasMain = useMemo(() => races.some((r) => isEventMainSession(r)), [races])
 
   const cards = useMemo(() => {
     if (!qualPoints || (qualPoints.standings?.length ?? 0) === 0) return []
-    return buildTopQualifierOverviewCards(qualPoints, races)
-  }, [qualPoints, races])
+    return buildTopQualifierOverviewCards(qualPoints, races, {
+      entryList,
+      multiMainResults,
+      registrationClassNames,
+    })
+  }, [qualPoints, races, entryList, multiMainResults, registrationClassNames])
+
+  const hasQualStandings = Boolean(qualPoints?.standings?.length)
+
+  useEffect(() => {
+    if (defaultHighlightsTabApplied.current) return
+    if (eventHasMain) {
+      defaultHighlightsTabApplied.current = true
+      return
+    }
+    if (qualPoints === null) {
+      defaultHighlightsTabApplied.current = true
+      return
+    }
+    const hasTq = (qualPoints.standings?.length ?? 0) > 0 || cards.length > 0
+    if (hasTq) {
+      queueMicrotask(() => setHighlightsTab("topQualifiers"))
+    }
+    defaultHighlightsTabApplied.current = true
+  }, [eventHasMain, qualPoints, cards.length])
 
   /** Class cards: most laps completed first (class lap hero), then fewer. */
   const lapHeroPerClass = useMemo(() => {
@@ -360,13 +386,50 @@ function EventOverviewTopQualifiersCards({
   }, [fastestLapDetailClass, races])
 
   const classWinnerRows = useMemo(() => {
-    return buildClassWinners({ races, multiMainResults, registrationClassNames })
-  }, [races, multiMainResults, registrationClassNames])
+    return buildClassWinners({ races, multiMainResults, registrationClassNames, entryList })
+  }, [races, multiMainResults, registrationClassNames, entryList])
 
   const classWinnerModalResolved = useMemo(() => {
     if (!classWinnerDetail) return null
     return resolveClassWinnerModalDetail(classWinnerDetail, { races, multiMainResults })
   }, [classWinnerDetail, races, multiMainResults])
+
+  const classWinnerStandingsCount = useMemo(() => {
+    if (classWinnerModalResolved?.kind === "multiMain")
+      return classWinnerModalResolved.standingsRows.length
+    if (classWinnerModalResolved?.kind === "featuredMain")
+      return classWinnerModalResolved.standingsRows.length
+    return 0
+  }, [classWinnerModalResolved])
+
+  const classWinnerStandingsTotalPages = Math.max(
+    1,
+    Math.ceil(classWinnerStandingsCount / classWinnerStandingsRowsPerPage)
+  )
+  const classWinnerStandingsEffectivePage = Math.min(
+    Math.max(1, classWinnerStandingsPage),
+    classWinnerStandingsTotalPages
+  )
+  const classWinnerMultiMainPageRows = useMemo(() => {
+    if (classWinnerModalResolved?.kind !== "multiMain") return []
+    const start = (classWinnerStandingsEffectivePage - 1) * classWinnerStandingsRowsPerPage
+    return classWinnerModalResolved.standingsRows.slice(
+      start,
+      start + classWinnerStandingsRowsPerPage
+    )
+  }, [classWinnerModalResolved, classWinnerStandingsEffectivePage, classWinnerStandingsRowsPerPage])
+  const classWinnerFeaturedPageRows = useMemo(() => {
+    if (classWinnerModalResolved?.kind !== "featuredMain") return []
+    const start = (classWinnerStandingsEffectivePage - 1) * classWinnerStandingsRowsPerPage
+    return classWinnerModalResolved.standingsRows.slice(
+      start,
+      start + classWinnerStandingsRowsPerPage
+    )
+  }, [classWinnerModalResolved, classWinnerStandingsEffectivePage, classWinnerStandingsRowsPerPage])
+
+  useEffect(() => {
+    queueMicrotask(() => setClassWinnerStandingsPage(1))
+  }, [classWinnerDetail])
 
   /** Same class order as Top Qualifiers / Lap Heroes when possible. */
   const closestBattleSummaries = useMemo(() => computeClosestP1P2PerClass(races), [races])
@@ -441,7 +504,6 @@ function EventOverviewTopQualifiersCards({
     setMostConsistentDetailClass(null)
     setFastestLapDetailClass(null)
     setWinnerMeanAvgLapDetailClass(null)
-    setBiggestMoversDetailClass(null)
     setClassWinnerDetail(null)
     setClosestBattlesModalClass(className)
     setClosestBattlesModalOpen(true)
@@ -497,39 +559,6 @@ function EventOverviewTopQualifiersCards({
     return winnerMeanAvgLapCards.find((c) => c.className === winnerMeanAvgLapDetailClass) ?? null
   }, [winnerMeanAvgLapDetailClass, winnerMeanAvgLapCards])
 
-  const biggestMoversPerClass = useMemo(
-    () => computeMostImprovedPerClass(races, isPracticeDay),
-    [races, isPracticeDay]
-  )
-
-  const biggestMoversOrdered = useMemo(() => {
-    if (biggestMoversPerClass.length === 0) return []
-    const byClass = new Map(biggestMoversPerClass.map((g) => [g.className.trim(), g]))
-    const ordered: ClassMostImprovedGroup[] = []
-    const seen = new Set<string>()
-    for (const card of cards) {
-      const cn = card.className.trim()
-      const g = byClass.get(cn)
-      if (g && !seen.has(cn)) {
-        ordered.push(g)
-        seen.add(cn)
-      }
-    }
-    for (const g of biggestMoversPerClass) {
-      const cn = g.className.trim()
-      if (!seen.has(cn)) {
-        ordered.push(g)
-        seen.add(cn)
-      }
-    }
-    return ordered
-  }, [cards, biggestMoversPerClass])
-
-  const biggestMoversModalGroup = useMemo(() => {
-    if (!biggestMoversDetailClass) return null
-    return biggestMoversPerClass.find((g) => g.className === biggestMoversDetailClass) ?? null
-  }, [biggestMoversDetailClass, biggestMoversPerClass])
-
   const selectHighlightsTab = (next: EventHighlightsSubTab) => {
     setHighlightsTab(next)
     setDetailCard(null)
@@ -537,235 +566,29 @@ function EventOverviewTopQualifiersCards({
     setMostConsistentDetailClass(null)
     setFastestLapDetailClass(null)
     setWinnerMeanAvgLapDetailClass(null)
-    setBiggestMoversDetailClass(null)
     setClassWinnerDetail(null)
     setClosestBattlesModalOpen(false)
     setClosestBattlesModalClass(null)
     setClosestBattlesDriverFilter("")
   }
 
-  if (!qualPoints || (qualPoints.standings?.length ?? 0) === 0) {
-    return (
-      <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-        Qual points standings are not available for this event yet. Re-run ingestion after qual
-        results are published, or open the event on LiveRC to view qual standings.
-      </p>
-    )
-  }
-
-  if (cards.length === 0) {
-    return (
-      <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-        Could not resolve top qualifiers per class from the current data.
-      </p>
-    )
-  }
-
-  const cwTabId = "event-overview-highlights-tab-cw"
-  const tqTabId = "event-overview-highlights-tab-tq"
-  const lhTabId = "event-overview-highlights-tab-lh"
-  const mcTabId = "event-overview-highlights-tab-mc"
-  const flTabId = "event-overview-highlights-tab-fl"
-  const falTabId = "event-overview-highlights-tab-fal"
-  const bmTabId = "event-overview-highlights-tab-bm"
-  const emTabId = "event-overview-highlights-tab-em"
-  const pdTabId = "event-overview-highlights-tab-pd"
-  const cbTabId = "event-overview-highlights-tab-cb"
-  const ewTabId = "event-overview-highlights-tab-ew"
-  const cwPanelId = "event-overview-highlights-panel-cw"
-  const tqPanelId = "event-overview-highlights-panel-tq"
-  const lhPanelId = "event-overview-highlights-panel-lh"
-  const mcPanelId = "event-overview-highlights-panel-mc"
-  const flPanelId = "event-overview-highlights-panel-fl"
-  const falPanelId = "event-overview-highlights-panel-fal"
-  const bmPanelId = "event-overview-highlights-panel-bm"
-  const emPanelId = "event-overview-highlights-panel-em"
-  const pdPanelId = "event-overview-highlights-panel-pd"
-  const cbPanelId = "event-overview-highlights-panel-cb"
-  const ewPanelId = "event-overview-highlights-panel-ew"
-  const topQualifiersInfoCaption = qualPoints.label
-    ? formatOverviewQualPointsCaption(qualPoints.label)
-    : null
+  const {
+    classWinners: { tabId: cwTabId, panelId: cwPanelId },
+    topQualifiers: { tabId: tqTabId, panelId: tqPanelId },
+    seeding: { tabId: seedingTabId, panelId: seedingPanelId },
+    lapHeroes: { tabId: lhTabId, panelId: lhPanelId },
+    mostConsistentDrivers: { tabId: mcTabId, panelId: mcPanelId },
+    fastestLaps: { tabId: flTabId, panelId: flPanelId },
+    fastestAverageLaps: { tabId: falTabId, panelId: falPanelId },
+    lapStats: { tabId: lsTabId, panelId: lsPanelId },
+    closestBattles: { tabId: cbTabId, panelId: cbPanelId },
+  } = HIGHLIGHT_TAB_META
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Event overview highlights">
-        <button
-          id={cwTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "classWinners"}
-          aria-controls={cwPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "classWinners" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("classWinners")}
-        >
-          Class Winners
-        </button>
-        <button
-          id={tqTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "topQualifiers"}
-          aria-controls={tqPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "topQualifiers" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("topQualifiers")}
-        >
-          Top Qualifiers
-        </button>
-        <button
-          id={lhTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "lapHeroes"}
-          aria-controls={lhPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "lapHeroes" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("lapHeroes")}
-        >
-          Lap Heroes
-        </button>
-        <button
-          id={mcTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "mostConsistentDrivers"}
-          aria-controls={mcPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "mostConsistentDrivers"
-              ? HIGHLIGHTS_TAB_BTN_ACTIVE
-              : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("mostConsistentDrivers")}
-        >
-          Most Consistent Drivers
-        </button>
-        <button
-          id={flTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "fastestLaps"}
-          aria-controls={flPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "fastestLaps" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("fastestLaps")}
-        >
-          Fastest Laps
-        </button>
-        <button
-          id={falTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "fastestAverageLaps"}
-          aria-controls={falPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "fastestAverageLaps"
-              ? HIGHLIGHTS_TAB_BTN_ACTIVE
-              : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("fastestAverageLaps")}
-        >
-          Fastest Average Laps
-        </button>
-        <button
-          id={bmTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "biggestMovers"}
-          aria-controls={bmPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "biggestMovers" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("biggestMovers")}
-        >
-          Biggest Movers
-        </button>
-        <button
-          id={emTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "eventMix"}
-          aria-controls={emPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "eventMix" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("eventMix")}
-        >
-          Event Mix
-        </button>
-        <button
-          id={pdTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "podiums"}
-          aria-controls={pdPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "podiums" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("podiums")}
-        >
-          Podiums
-        </button>
-        <button
-          id={cbTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "closestBattles"}
-          aria-controls={cbPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "closestBattles" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("closestBattles")}
-        >
-          Closest Battles
-        </button>
-        <button
-          id={ewTabId}
-          type="button"
-          role="tab"
-          aria-selected={highlightsTab === "eventWeather"}
-          aria-controls={ewPanelId}
-          className={`${HIGHLIGHTS_TAB_BTN} ${
-            highlightsTab === "eventWeather" ? HIGHLIGHTS_TAB_BTN_ACTIVE : HIGHLIGHTS_TAB_BTN_IDLE
-          }`}
-          onClick={() => selectHighlightsTab("eventWeather")}
-        >
-          Event Weather
-        </button>
-      </div>
+      <EventOverviewHighlightsTabList selected={highlightsTab} onSelect={selectHighlightsTab} />
 
-      {highlightsTab === "classWinners" ? (
-        <div
-          id="event-overview-class-winners-info"
-          className="w-full max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
-          aria-label={CLASS_WINNERS_INFO_TEXT}
-        >
-          <p className={`max-w-full leading-relaxed ${typography.bodySecondary}`}>
-            {CLASS_WINNERS_INFO_TEXT}
-          </p>
-        </div>
-      ) : null}
-
-      {highlightsTab === "topQualifiers" && topQualifiersInfoCaption ? (
-        <div
-          id="event-overview-top-qualifiers-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
-          aria-label={topQualifiersInfoCaption}
-        >
-          <p
-            className={`whitespace-nowrap text-xs text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-          >
-            {topQualifiersInfoCaption}
-          </p>
-        </div>
-      ) : null}
-
-      {highlightsTab === "lapHeroes" ? (
+      {highlightsTab === "lapHeroes" && eventHasMain ? (
         <div
           id="event-overview-lap-heroes-info"
           className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
@@ -779,7 +602,7 @@ function EventOverviewTopQualifiersCards({
         </div>
       ) : null}
 
-      {highlightsTab === "mostConsistentDrivers" ? (
+      {highlightsTab === "mostConsistentDrivers" && eventHasMain ? (
         <div
           id="event-overview-most-consistent-info"
           className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
@@ -793,7 +616,7 @@ function EventOverviewTopQualifiersCards({
         </div>
       ) : null}
 
-      {highlightsTab === "fastestLaps" ? (
+      {highlightsTab === "fastestLaps" && eventHasMain ? (
         <div
           id="event-overview-fastest-laps-info"
           className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
@@ -807,7 +630,7 @@ function EventOverviewTopQualifiersCards({
         </div>
       ) : null}
 
-      {highlightsTab === "fastestAverageLaps" ? (
+      {highlightsTab === "fastestAverageLaps" && eventHasMain ? (
         <div
           id="event-overview-fastest-avg-laps-info"
           className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
@@ -821,49 +644,7 @@ function EventOverviewTopQualifiersCards({
         </div>
       ) : null}
 
-      {highlightsTab === "biggestMovers" ? (
-        <div
-          id="event-overview-biggest-movers-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
-          aria-label={BIGGEST_MOVERS_INFO_TEXT}
-        >
-          <p
-            className={`max-w-full text-xs text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-          >
-            {BIGGEST_MOVERS_INFO_TEXT}
-          </p>
-        </div>
-      ) : null}
-
-      {highlightsTab === "eventMix" ? (
-        <div
-          id="event-overview-event-mix-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
-          aria-label={EVENT_MIX_INFO_TEXT}
-        >
-          <p
-            className={`max-w-full text-xs text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-          >
-            {EVENT_MIX_INFO_TEXT}
-          </p>
-        </div>
-      ) : null}
-
-      {highlightsTab === "eventWeather" ? (
-        <div
-          id="event-overview-event-weather-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
-          aria-label={EVENT_WEATHER_INFO_TEXT}
-        >
-          <p
-            className={`max-w-full text-xs text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-          >
-            {EVENT_WEATHER_INFO_TEXT}
-          </p>
-        </div>
-      ) : null}
-
-      {highlightsTab === "closestBattles" ? (
+      {highlightsTab === "closestBattles" && eventHasMain ? (
         <div
           id="event-overview-closest-battles-info"
           className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
@@ -879,11 +660,22 @@ function EventOverviewTopQualifiersCards({
 
       {highlightsTab === "classWinners" ? (
         <div id={cwPanelId} role="tabpanel" aria-labelledby={cwTabId} className="space-y-3">
-          {classWinnerCardsOrdered.length === 0 ? (
+          {!eventHasMain ? (
             <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-              No overall class winners to show yet. They appear after final results are imported for
-              this event.
+              {HIGHLIGHTS_NEED_MAIN_TEXT}
             </p>
+          ) : classWinnerCardsOrdered.length === 0 ? (
+            <div
+              id="event-overview-class-winners-empty"
+              className={OVERVIEW_INFO_BOX_INLINE_CLASS}
+              aria-label={CLASS_WINNERS_EMPTY_TEXT}
+            >
+              <p
+                className={`whitespace-nowrap text-sm text-[var(--token-text-secondary)] ${typography.body}`}
+              >
+                {CLASS_WINNERS_EMPTY_TEXT}
+              </p>
+            </div>
           ) : (
             <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-5">
               {classWinnerCardsOrdered.map((cw) => {
@@ -894,24 +686,63 @@ function EventOverviewTopQualifiersCards({
                   <li key={cw.className}>
                     <button
                       type="button"
-                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-3 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
+                      className={`flex min-h-0 min-w-0 w-full flex-col items-stretch p-3 text-left transition-colors sm:p-3.5 ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
                       style={OVERVIEW_GLASS_SURFACE_STYLE}
                       onClick={() => setClassWinnerDetail(cw)}
                       aria-haspopup="dialog"
                       aria-expanded={isOpen}
-                      aria-label={`Open details: overall class winner ${cw.winnerName} in ${cw.classDisplay}`}
+                      aria-label={`Open class results: 1st ${cw.winnerName}${
+                        cw.secondPlaceName ? `, 2nd ${cw.secondPlaceName}` : ""
+                      }${cw.thirdPlaceName ? `, 3rd ${cw.thirdPlaceName}` : ""} · ${cw.classDisplay}`}
                     >
-                      <div className="flex min-w-0 w-full flex-col items-center">
+                      <div className="flex min-w-0 w-full flex-col">
                         <p
-                          className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
+                          className={`w-full text-center text-[0.7rem] font-medium uppercase leading-snug tracking-wide text-[var(--token-text-tertiary)]`}
                         >
                           {cw.classDisplay}
                         </p>
-                        <p
-                          className={`mt-1 w-fit max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
-                        >
-                          {cw.winnerName}
-                        </p>
+                        <div className="mt-2.5 w-full min-w-0 rounded-xl border border-[var(--token-border-default)]/70 bg-[var(--token-surface)]/35 px-2 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:px-2.5 sm:py-2.5">
+                          <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+                            <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
+                              <span
+                                className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-status-warning-bg)] text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-status-warning-text)] ring-1 ring-inset ring-[var(--token-status-warning-text)]/20"
+                                aria-hidden
+                              >
+                                1st
+                              </span>
+                              <HighlightPodiumName
+                                name={cw.winnerName}
+                                className="min-w-0 truncate text-sm font-semibold leading-tight text-[var(--token-text-primary)] sm:text-[0.95rem]"
+                              />
+                            </li>
+                            <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
+                              <span
+                                className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-surface-raised)]/80 text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-text-secondary)] ring-1 ring-inset ring-[var(--token-border-default)]/80"
+                                aria-hidden
+                              >
+                                2nd
+                              </span>
+                              <PodiumSlotName
+                                name={cw.secondPlaceName}
+                                filledClassName="min-w-0 truncate text-xs font-medium leading-tight text-[var(--token-text-primary)] sm:text-sm"
+                                emptyHint="No 2nd place in imported results for this class"
+                              />
+                            </li>
+                            <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
+                              <span
+                                className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-surface-raised)]/60 text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-text-secondary)] ring-1 ring-inset ring-[var(--token-border-default)]/80"
+                                aria-hidden
+                              >
+                                3rd
+                              </span>
+                              <PodiumSlotName
+                                name={cw.thirdPlaceName}
+                                filledClassName="min-w-0 truncate text-xs font-medium leading-tight text-[var(--token-text-primary)]/95 sm:text-sm"
+                                emptyHint="No 3rd place in imported results for this class"
+                              />
+                            </li>
+                          </ol>
+                        </div>
                       </div>
                     </button>
                   </li>
@@ -924,43 +755,108 @@ function EventOverviewTopQualifiersCards({
 
       {highlightsTab === "topQualifiers" ? (
         <div id={tqPanelId} role="tabpanel" aria-labelledby={tqTabId} className="space-y-3">
-          <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-5">
-            {cards.map((card) => {
-              const isOpen = detailCard?.className === card.className
-              return (
-                <li key={card.className}>
-                  <button
-                    type="button"
-                    className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-3 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
-                    style={OVERVIEW_GLASS_SURFACE_STYLE}
-                    onClick={() => setDetailCard(card)}
-                    aria-haspopup="dialog"
-                    aria-expanded={isOpen}
-                    aria-label={`Open qualifying session list for ${card.driverDisplayName} in ${formatClassName(card.className)}`}
-                  >
-                    <div className="flex min-w-0 w-full flex-col items-center">
-                      <p
-                        className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
-                      >
-                        {formatClassName(card.className)}
-                      </p>
-                      <p
-                        className={`mt-1 w-fit max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
-                      >
-                        {card.driverDisplayName}
-                      </p>
-                    </div>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+          {!hasQualStandings ? (
+            <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+              {QUAL_STANDINGS_UNAVAILABLE_TEXT}
+            </p>
+          ) : cards.length === 0 ? (
+            <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+              {TQ_CARDS_UNRESOLVED_TEXT}
+            </p>
+          ) : (
+            <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-5">
+              {cards.map((card) => {
+                const isOpen = detailCard?.className === card.className
+                const tqClassLine = formatClassName(card.className)
+                return (
+                  <li key={card.className}>
+                    <button
+                      type="button"
+                      className={`flex min-h-0 min-w-0 w-full flex-col items-stretch p-3 text-left transition-colors sm:p-3.5 ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
+                      style={OVERVIEW_GLASS_SURFACE_STYLE}
+                      onClick={() => setDetailCard(card)}
+                      aria-haspopup="dialog"
+                      aria-expanded={isOpen}
+                      aria-label={`Open qualifying details: 1st ${card.driverDisplayName}${
+                        card.secondPlaceName ? `, 2nd ${card.secondPlaceName}` : ""
+                      }${card.thirdPlaceName ? `, 3rd ${card.thirdPlaceName}` : ""} · ${tqClassLine}`}
+                    >
+                      <div className="flex min-w-0 w-full flex-col">
+                        <p
+                          className={`w-full text-center text-[0.7rem] font-medium uppercase leading-snug tracking-wide text-[var(--token-text-tertiary)]`}
+                        >
+                          {tqClassLine}
+                        </p>
+                        <div className="mt-2.5 w-full min-w-0 rounded-xl border border-[var(--token-border-default)]/70 bg-[var(--token-surface)]/35 px-2 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:px-2.5 sm:py-2.5">
+                          <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+                            <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
+                              <span
+                                className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-status-warning-bg)] text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-status-warning-text)] ring-1 ring-inset ring-[var(--token-status-warning-text)]/20"
+                                aria-hidden
+                              >
+                                1st
+                              </span>
+                              <HighlightPodiumName
+                                name={card.driverDisplayName}
+                                className="min-w-0 truncate text-sm font-semibold leading-tight text-[var(--token-text-primary)] sm:text-[0.95rem]"
+                              />
+                            </li>
+                            <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
+                              <span
+                                className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-surface-raised)]/80 text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-text-secondary)] ring-1 ring-inset ring-[var(--token-border-default)]/80"
+                                aria-hidden
+                              >
+                                2nd
+                              </span>
+                              <PodiumSlotName
+                                name={card.secondPlaceName}
+                                filledClassName="min-w-0 truncate text-xs font-medium leading-tight text-[var(--token-text-primary)] sm:text-sm"
+                                emptyHint="No 2nd place in qual standings for this class"
+                              />
+                            </li>
+                            <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
+                              <span
+                                className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-surface-raised)]/60 text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-text-secondary)] ring-1 ring-inset ring-[var(--token-border-default)]/80"
+                                aria-hidden
+                              >
+                                3rd
+                              </span>
+                              <PodiumSlotName
+                                name={card.thirdPlaceName}
+                                filledClassName="min-w-0 truncate text-xs font-medium leading-tight text-[var(--token-text-primary)]/95 sm:text-sm"
+                                emptyHint="No 3rd place in qual standings for this class"
+                              />
+                            </li>
+                          </ol>
+                        </div>
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      ) : null}
+
+      {highlightsTab === "seeding" ? (
+        <div id={seedingPanelId} role="tabpanel" aria-labelledby={seedingTabId} className="min-w-0">
+          <div
+            className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)] shadow-sm"
+            role="status"
+          >
+            {SEEDING_PLACEHOLDER_TEXT}
+          </div>
         </div>
       ) : null}
 
       {highlightsTab === "lapHeroes" ? (
         <div id={lhPanelId} role="tabpanel" aria-labelledby={lhTabId} className="space-y-3">
-          {lapHeroPerClass.length === 0 ? (
+          {!eventHasMain ? (
+            <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+              {HIGHLIGHTS_NEED_MAIN_TEXT}
+            </p>
+          ) : lapHeroPerClass.length === 0 ? (
             <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
               No lap counts are available yet for this event. They appear after session results with
               laps completed are ingested.
@@ -979,7 +875,7 @@ function EventOverviewTopQualifiersCards({
                     <li key={className}>
                       <button
                         type="button"
-                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
+                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
                         style={OVERVIEW_GLASS_SURFACE_STYLE}
                         onClick={() => setLapHeroDetailClass(className)}
                         aria-haspopup="dialog"
@@ -1013,7 +909,11 @@ function EventOverviewTopQualifiersCards({
 
       {highlightsTab === "mostConsistentDrivers" ? (
         <div id={mcPanelId} role="tabpanel" aria-labelledby={mcTabId} className="space-y-3">
-          {mostConsistentPerClass.length === 0 ? (
+          {!eventHasMain ? (
+            <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+              {HIGHLIGHTS_NEED_MAIN_TEXT}
+            </p>
+          ) : mostConsistentPerClass.length === 0 ? (
             <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
               No consistency scores are available yet for this event. They appear after session
               results with consistency data are ingested.
@@ -1028,7 +928,7 @@ function EventOverviewTopQualifiersCards({
                     <li key={className}>
                       <button
                         type="button"
-                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
+                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
                         style={OVERVIEW_GLASS_SURFACE_STYLE}
                         onClick={() => setMostConsistentDetailClass(className)}
                         aria-haspopup="dialog"
@@ -1062,7 +962,11 @@ function EventOverviewTopQualifiersCards({
 
       {highlightsTab === "fastestLaps" ? (
         <div id={flPanelId} role="tabpanel" aria-labelledby={flTabId} className="space-y-3">
-          {fastestLapPerClass.length === 0 ? (
+          {!eventHasMain ? (
+            <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+              {HIGHLIGHTS_NEED_MAIN_TEXT}
+            </p>
+          ) : fastestLapPerClass.length === 0 ? (
             <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
               No fast lap times are available yet for this event. They appear after session results
               with fast lap data are ingested.
@@ -1077,7 +981,7 @@ function EventOverviewTopQualifiersCards({
                     <li key={className}>
                       <button
                         type="button"
-                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
+                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
                         style={OVERVIEW_GLASS_SURFACE_STYLE}
                         onClick={() => setFastestLapDetailClass(className)}
                         aria-haspopup="dialog"
@@ -1111,11 +1015,22 @@ function EventOverviewTopQualifiersCards({
 
       {highlightsTab === "fastestAverageLaps" ? (
         <div id={falPanelId} role="tabpanel" aria-labelledby={falTabId} className="space-y-3">
-          {winnerMeanAvgLapCards.length === 0 ? (
+          {!eventHasMain ? (
             <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-              No overall class winners to show yet. They appear after final results are imported for
-              this event.
+              {HIGHLIGHTS_NEED_MAIN_TEXT}
             </p>
+          ) : winnerMeanAvgLapCards.length === 0 ? (
+            <div
+              id="event-overview-fastest-avg-laps-empty"
+              className={OVERVIEW_INFO_BOX_INLINE_CLASS}
+              aria-label={CLASS_WINNERS_EMPTY_TEXT}
+            >
+              <p
+                className={`whitespace-nowrap text-sm text-[var(--token-text-secondary)] ${typography.body}`}
+              >
+                {CLASS_WINNERS_EMPTY_TEXT}
+              </p>
+            </div>
           ) : (
             <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-5">
               {winnerMeanAvgLapCards.map((c) => {
@@ -1125,7 +1040,7 @@ function EventOverviewTopQualifiersCards({
                   <li key={c.className}>
                     <button
                       type="button"
-                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
+                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
                       style={OVERVIEW_GLASS_SURFACE_STYLE}
                       onClick={() => setWinnerMeanAvgLapDetailClass(c.className)}
                       aria-haspopup="dialog"
@@ -1156,87 +1071,23 @@ function EventOverviewTopQualifiersCards({
         </div>
       ) : null}
 
-      {highlightsTab === "biggestMovers" ? (
-        <div id={bmPanelId} role="tabpanel" aria-labelledby={bmTabId} className="space-y-3">
-          {biggestMoversOrdered.length === 0 ? (
+      {highlightsTab === "lapStats" ? (
+        <div id={lsPanelId} role="tabpanel" aria-labelledby={lsTabId} className="min-w-0">
+          {!eventHasMain ? (
             <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-              No mover data yet. It appears when a driver has at least two sessions in a class and
-              improves their finish or fast lap from the first to the last.
+              {HIGHLIGHTS_NEED_MAIN_TEXT}
             </p>
-          ) : (
-            <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-5">
-              {biggestMoversOrdered.map((group) => {
-                const top = group.entries[0]
-                if (!top) return null
-                const isOpen = biggestMoversDetailClass === group.className
-                const line = formatBiggestMoverCardLine(top, isPracticeDay)
-                return (
-                  <li key={group.className}>
-                    <button
-                      type="button"
-                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
-                      style={OVERVIEW_GLASS_SURFACE_STYLE}
-                      onClick={() => setBiggestMoversDetailClass(group.className)}
-                      aria-haspopup="dialog"
-                      aria-expanded={isOpen}
-                      aria-label={`Open biggest movers for ${formatClassName(group.className)}`}
-                    >
-                      <div className="flex min-w-0 w-full flex-col items-center">
-                        <p
-                          className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
-                        >
-                          {formatClassName(group.className)}
-                        </p>
-                        <p
-                          className={`mt-1 w-full max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
-                        >
-                          {top.driverName}
-                        </p>
-                        <p className="mt-0.5 text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)]">
-                          {line}
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-      ) : null}
-
-      {highlightsTab === "eventMix" ? (
-        <div id={emPanelId} role="tabpanel" aria-labelledby={emTabId} className="min-w-0 w-full">
-          {eventMixChart &&
-          (eventMixChart.sessionMix.length > 0 ||
-            eventMixChart.classMixByDrivers.length > 0 ||
-            eventMixChart.classMixByLaps.length > 0) ? (
-            <div className="min-w-0 w-full max-w-full">
-              <EventHighlightsMixFilteredChart
-                sessionMix={eventMixChart.sessionMix}
-                classMixByDrivers={eventMixChart.classMixByDrivers}
-                classMixByLaps={eventMixChart.classMixByLaps}
-              />
-            </div>
-          ) : (
-            <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-              No session or class mix data is available for this event yet.
-            </p>
-          )}
-        </div>
-      ) : null}
-
-      {highlightsTab === "podiums" ? (
-        <div id={pdPanelId} role="tabpanel" aria-labelledby={pdTabId} className="min-w-0 w-full">
-          <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-            Podium details will appear here.
-          </p>
+          ) : null}
         </div>
       ) : null}
 
       {highlightsTab === "closestBattles" ? (
         <div id={cbPanelId} role="tabpanel" aria-labelledby={cbTabId} className="space-y-3">
-          {closestBattleCardsOrdered.length === 0 ? (
+          {!eventHasMain ? (
+            <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+              {HIGHLIGHTS_NEED_MAIN_TEXT}
+            </p>
+          ) : closestBattleCardsOrdered.length === 0 ? (
             <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
               No main-event results with P1 and P2 times are available yet. Closest battles appear
               after total race times are imported for mains.
@@ -1251,7 +1102,7 @@ function EventOverviewTopQualifiersCards({
                   <li key={c.className}>
                     <button
                       type="button"
-                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/75`}
+                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
                       style={OVERVIEW_GLASS_SURFACE_STYLE}
                       onClick={() => openClosestBattlesModalForClass(c.className)}
                       aria-haspopup="dialog"
@@ -1284,41 +1135,6 @@ function EventOverviewTopQualifiersCards({
         </div>
       ) : null}
 
-      {highlightsTab === "eventWeather" ? (
-        <div id={ewPanelId} role="tabpanel" aria-labelledby={ewTabId} className="min-w-0 w-full">
-          {eventWeather ? (
-            <div id="event-weather-data-content" className="flex flex-wrap gap-4">
-              {eventWeather.weatherLoading ? (
-                <WeatherCard weather={null} weatherLoading={true} weatherError={null} />
-              ) : eventWeather.weatherError ? (
-                <WeatherCard
-                  weather={null}
-                  weatherLoading={false}
-                  weatherError={eventWeather.weatherError}
-                />
-              ) : eventWeather.weatherByDay && eventWeather.weatherByDay.length > 0 ? (
-                eventWeather.weatherByDay.map(({ date, weather }) => (
-                  <div key={date} className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-[var(--token-text-secondary)]">
-                      {formatDateLong(date)}
-                    </span>
-                    <WeatherCard weather={weather} weatherLoading={false} weatherError={null} />
-                  </div>
-                ))
-              ) : (
-                <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-                  No weather data is available for this event yet.
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-              Weather is not configured for this view.
-            </p>
-          )}
-        </div>
-      ) : null}
-
       <Modal
         isOpen={detailCard !== null}
         onClose={() => setDetailCard(null)}
@@ -1346,7 +1162,7 @@ function EventOverviewTopQualifiersCards({
                   {s.raceLabel}
                 </span>
                 <span className="shrink-0 tabular-nums font-medium text-[var(--token-text-primary)]">
-                  P{s.positionFinal}
+                  {formatPlaceOrdinal(s.positionFinal)}
                 </span>
               </li>
             ))}
@@ -1570,53 +1386,6 @@ function EventOverviewTopQualifiersCards({
       </Modal>
 
       <Modal
-        isOpen={biggestMoversDetailClass !== null}
-        onClose={() => setBiggestMoversDetailClass(null)}
-        title={
-          biggestMoversDetailClass ? formatClassName(biggestMoversDetailClass) : "Biggest movers"
-        }
-        subtitle="First vs last session · top three in class"
-        maxWidth="md"
-        resizable={false}
-      >
-        {biggestMoversModalGroup && biggestMoversModalGroup.entries.length === 0 ? (
-          <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-            No mover data for this class.
-          </p>
-        ) : biggestMoversModalGroup ? (
-          <ul className="flex list-none flex-col gap-3 p-0">
-            {biggestMoversModalGroup.entries.map((e) => (
-              <li
-                key={`${biggestMoversModalGroup.className}-${e.driverId}-${e.rank}`}
-                className="flex min-w-0 items-start justify-between gap-3 text-sm"
-              >
-                <span className="shrink-0 tabular-nums text-[var(--token-text-tertiary)]">
-                  {e.rank}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-[var(--token-text-primary)]">{e.driverName}</p>
-                  <p className="mt-0.5 text-xs text-[var(--token-text-secondary)]">
-                    {e.firstRaceLabel} → {e.lastRaceLabel}
-                  </p>
-                  <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-[var(--token-text-secondary)]">
-                    <span>
-                      Position: {formatPositionImprovement(e.firstRacePosition, e.lastRacePosition)}
-                    </span>
-                    <span>
-                      Lap Δ:{" "}
-                      {e.lapTimeImprovement != null
-                        ? formatLapTimeImprovement(e.lapTimeImprovement)
-                        : "—"}
-                    </span>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </Modal>
-
-      <Modal
         isOpen={lapHeroDetailClass !== null}
         onClose={() => setLapHeroDetailClass(null)}
         title={lapHeroDetailClass ? formatClassName(lapHeroDetailClass) : "Lap heroes"}
@@ -1664,8 +1433,9 @@ function EventOverviewTopQualifiersCards({
             ? `${classWinnerDetail.classDisplay} · ${classWinnerDetail.raceLabel}`
             : undefined
         }
-        maxWidth="md"
-        resizable={false}
+        maxWidth="lg"
+        resizable
+        resizableDefaultSize={CLASS_WINNER_MODAL_RESIZABLE_DEFAULT}
       >
         {classWinnerDetail ? (
           <div
@@ -1677,174 +1447,199 @@ function EventOverviewTopQualifiersCards({
                 Detailed result breakdown is not available for this import.
               </p>
             ) : classWinnerModalResolved.kind === "multiMain" ? (
-              <>
-                {classWinnerModalResolved.resultSummaryLine ? (
-                  <div>
-                    <p
-                      className={`text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                    >
-                      Result (summary)
-                    </p>
-                    <p className="mt-1 break-all font-mono text-sm text-[var(--token-text-primary)]">
-                      {classWinnerModalResolved.resultSummaryLine}
-                    </p>
-                    <p
-                      className={`mt-1 text-xs text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                    >
-                      Same style as LiveRC overall final ranking when per-main laps and times are
-                      imported.
-                    </p>
-                  </div>
-                ) : null}
-                <div>
-                  <p
-                    className={`text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                  >
-                    Combined points
-                  </p>
-                  <p className="mt-1 tabular-nums text-[var(--token-text-primary)]">
-                    {classWinnerModalResolved.combinedPoints}
+              <div className="flex min-w-0 flex-col gap-3">
+                <div
+                  className="rounded-lg border border-[var(--token-border-default)]/80 bg-[var(--token-surface)]/30 px-3 py-2.5 text-xs leading-relaxed"
+                  role="status"
+                >
+                  <p className="text-[var(--token-text-primary)]">
                     <span
-                      className={`ml-2 font-normal text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
+                      className={`font-medium text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
                     >
-                      Lower is better (sum of finishing places across mains).
-                    </span>
-                  </p>
-                  <p
-                    className={`mt-0.5 text-xs text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                  >
-                    <span className="font-medium text-[var(--token-text-primary)]">
-                      Class schedule:{" "}
+                      Schedule:{" "}
                     </span>
                     {classWinnerModalResolved.completedMains} of{" "}
-                    {classWinnerModalResolved.totalMains} mains run
-                    <span className="text-[var(--token-text-tertiary)]"> (event)</span>
+                    {classWinnerModalResolved.totalMains} mains in this class (event). Combined
+                    points: lower is better.
                   </p>
-                  {classWinnerModalResolved.mainRows.length > 0 ? (
-                    <>
-                      <p
-                        className={`mt-1 text-xs text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                      >
-                        <span className="font-medium text-[var(--token-text-primary)]">
-                          This driver:{" "}
-                        </span>
-                        {classWinnerModalResolved.driverMainsParticipated} of{" "}
-                        {classWinnerModalResolved.totalMains} mains
-                      </p>
-                      {classWinnerModalResolved.driverMainsParticipated <
-                      classWinnerModalResolved.totalMains ? (
-                        <p
-                          className={`mt-1 text-xs text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                        >
-                          The overall title can be decided before every main is run; a driver may
-                          sit out a later main. A cell such as{" "}
-                          <span className="font-mono text-[var(--token-text-primary)]">
-                            0/0.000
-                          </span>{" "}
-                          usually means they did not start that main.
-                        </p>
-                      ) : null}
-                    </>
+                  {classWinnerModalResolved.tieBreaker ? (
+                    <p
+                      className={`mt-1.5 text-[var(--token-text-primary)] ${typography.bodySecondary}`}
+                    >
+                      <span className="font-medium text-[var(--token-text-tertiary)]">
+                        Tie-break:{" "}
+                      </span>
+                      {classWinnerModalResolved.tieBreaker}
+                    </p>
                   ) : null}
                 </div>
-                {classWinnerModalResolved.mainRows.length > 0 ? (
-                  <div>
-                    <p
-                      className={`text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                    >
-                      Per main
-                    </p>
-                    <table className="mt-2 w-full border-collapse text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-[var(--token-border-subtle)]">
-                          <th className="py-1.5 pr-3 font-medium text-[var(--token-text-tertiary)]">
-                            Main
-                          </th>
-                          <th className="py-1.5 pr-3 font-medium text-[var(--token-text-tertiary)]">
-                            Finish
-                          </th>
-                          <th className="py-1.5 font-medium text-[var(--token-text-tertiary)]">
-                            Laps / time
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {classWinnerModalResolved.mainRows.map((row) => (
-                          <tr
-                            key={row.label}
-                            className="border-b border-[var(--token-border-subtle)]/60"
-                          >
-                            <td className="py-1.5 pr-3 text-[var(--token-text-primary)]">
-                              {row.label}
-                            </td>
-                            <td className="py-1.5 pr-3 tabular-nums text-[var(--token-text-primary)]">
-                              {row.position}
-                            </td>
-                            <td className="py-1.5 font-mono text-xs text-[var(--token-text-primary)]">
-                              {row.lapsTime}
-                            </td>
+                {classWinnerModalResolved.standingsRows.length === 0 ? (
+                  <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+                    No standings rows in the imported multi-main table for this class.
+                  </p>
+                ) : (
+                  <>
+                    <DataTableFrame className="max-w-full overflow-x-auto">
+                      <StandardTable>
+                        <StandardTableHeader>
+                          <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                            <StandardTableCell header className="w-10 whitespace-nowrap">
+                              Pl.
+                            </StandardTableCell>
+                            <StandardTableCell header>Driver</StandardTableCell>
+                            <StandardTableCell
+                              header
+                              className="w-12 whitespace-nowrap text-right tabular-nums"
+                            >
+                              Pts
+                            </StandardTableCell>
+                            <StandardTableCell
+                              header
+                              className="w-12 whitespace-nowrap text-right tabular-nums"
+                            >
+                              Sd
+                            </StandardTableCell>
+                            {classWinnerModalResolved.mainColumnLabels.map((label) => (
+                              <StandardTableCell
+                                key={label}
+                                header
+                                className="min-w-[6.5rem] max-w-[10rem] whitespace-nowrap"
+                              >
+                                {label}
+                              </StandardTableCell>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : null}
-                {classWinnerModalResolved.tieBreaker ? (
-                  <p
-                    className={`text-xs text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-                  >
-                    <span className="font-medium text-[var(--token-text-primary)]">
-                      Tie-break:{" "}
-                    </span>
-                    {classWinnerModalResolved.tieBreaker}
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <div>
-                  <p
-                    className={`text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                  >
-                    Session
-                  </p>
-                  <p className="mt-1 text-[var(--token-text-primary)]">
-                    {classWinnerModalResolved.raceLabel}
-                  </p>
-                </div>
-                <div>
-                  <p
-                    className={`text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                  >
-                    Finish
-                  </p>
-                  <p className="mt-1 tabular-nums text-[var(--token-text-primary)]">
-                    P{classWinnerModalResolved.positionFinal}
-                  </p>
-                </div>
-                {classWinnerModalResolved.lapsTimeLine ? (
-                  <div>
-                    <p
-                      className={`text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
+                        </StandardTableHeader>
+                        <tbody>
+                          {classWinnerMultiMainPageRows.map((row) => (
+                            <StandardTableRow
+                              key={`${row.position}-${row.driverName}`}
+                              className={
+                                row.highlight ? "bg-[var(--token-accent-soft-bg)]/50" : undefined
+                              }
+                            >
+                              <StandardTableCell className="tabular-nums text-[var(--token-text-secondary)]">
+                                {row.position}
+                              </StandardTableCell>
+                              <StandardTableCell className="min-w-0 break-words font-medium text-[var(--token-text-primary)]">
+                                {row.driverName}
+                              </StandardTableCell>
+                              <StandardTableCell className="text-right tabular-nums text-[var(--token-text-primary)]">
+                                {row.points}
+                              </StandardTableCell>
+                              <StandardTableCell className="text-right tabular-nums text-[var(--token-text-secondary)]">
+                                {row.seededPosition != null ? row.seededPosition : "—"}
+                              </StandardTableCell>
+                              {row.mainCells.map((cell, i) => (
+                                <StandardTableCell
+                                  key={classWinnerModalResolved.mainColumnLabels[i]!}
+                                  className="min-w-0 max-w-[10rem] break-all font-mono text-xs text-[var(--token-text-primary)]"
+                                >
+                                  {cell}
+                                </StandardTableCell>
+                              ))}
+                            </StandardTableRow>
+                          ))}
+                        </tbody>
+                      </StandardTable>
+                    </DataTableFrame>
+                    <ListPagination
+                      embedded
+                      currentPage={classWinnerStandingsEffectivePage}
+                      totalPages={classWinnerStandingsTotalPages}
+                      onPageChange={setClassWinnerStandingsPage}
+                      itemsPerPage={classWinnerStandingsRowsPerPage}
+                      totalItems={classWinnerStandingsCount}
+                      itemLabel="drivers"
+                      onRowsPerPageChange={(n) => {
+                        setClassWinnerStandingsRowsPerPage(normalizeTableRowsPerPage(n))
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+            ) : classWinnerModalResolved.kind === "featuredMain" ? (
+              <div className="flex min-w-0 flex-col gap-3">
+                <div
+                  className="rounded-lg border border-[var(--token-border-default)]/80 bg-[var(--token-surface)]/30 px-3 py-2.5 text-xs leading-relaxed"
+                  role="status"
+                >
+                  <p className="text-[var(--token-text-primary)]">
+                    <span
+                      className={`font-medium text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
                     >
-                      Result (laps / time)
-                    </p>
-                    <p className="mt-1 font-mono text-sm text-[var(--token-text-primary)]">
-                      [{classWinnerModalResolved.positionFinal}]{" "}
-                      {classWinnerModalResolved.lapsTimeLine}
-                    </p>
-                  </div>
-                ) : null}
-                {classWinnerModalResolved.fastLapFormatted ? (
-                  <p
-                    className={`text-xs text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-                  >
-                    <span className="font-medium text-[var(--token-text-primary)]">Fast lap: </span>
-                    {classWinnerModalResolved.fastLapFormatted}
+                      Final:{" "}
+                    </span>
+                    {classWinnerModalResolved.sessionRaceLabel}
+                    <span className="text-[var(--token-text-tertiary)]">
+                      {" "}
+                      — full finishing order for this class (imported main).
+                    </span>
                   </p>
-                ) : null}
-              </>
-            )}
+                </div>
+                {classWinnerModalResolved.standingsRows.length === 0 ? (
+                  <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+                    No result rows in this main for the class.
+                  </p>
+                ) : (
+                  <>
+                    <DataTableFrame className="max-w-full overflow-x-auto">
+                      <StandardTable>
+                        <StandardTableHeader>
+                          <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                            <StandardTableCell header className="w-10 whitespace-nowrap">
+                              Pl.
+                            </StandardTableCell>
+                            <StandardTableCell header>Driver</StandardTableCell>
+                            <StandardTableCell header className="min-w-[5rem]">
+                              Laps / time
+                            </StandardTableCell>
+                            <StandardTableCell header className="min-w-[4rem] whitespace-nowrap">
+                              Fast lap
+                            </StandardTableCell>
+                          </tr>
+                        </StandardTableHeader>
+                        <tbody>
+                          {classWinnerFeaturedPageRows.map((row) => (
+                            <StandardTableRow
+                              key={`${row.position}-${row.driverName}`}
+                              className={
+                                row.highlight ? "bg-[var(--token-accent-soft-bg)]/50" : undefined
+                              }
+                            >
+                              <StandardTableCell className="tabular-nums text-[var(--token-text-secondary)]">
+                                {row.position}
+                              </StandardTableCell>
+                              <StandardTableCell className="min-w-0 break-words font-medium text-[var(--token-text-primary)]">
+                                {row.driverName}
+                              </StandardTableCell>
+                              <StandardTableCell className="min-w-0 break-words font-mono text-xs text-[var(--token-text-primary)]">
+                                {row.lapsTimeLine ?? "—"}
+                              </StandardTableCell>
+                              <StandardTableCell className="tabular-nums text-xs text-[var(--token-text-primary)]">
+                                {row.fastLapFormatted ?? "—"}
+                              </StandardTableCell>
+                            </StandardTableRow>
+                          ))}
+                        </tbody>
+                      </StandardTable>
+                    </DataTableFrame>
+                    <ListPagination
+                      embedded
+                      currentPage={classWinnerStandingsEffectivePage}
+                      totalPages={classWinnerStandingsTotalPages}
+                      onPageChange={setClassWinnerStandingsPage}
+                      itemsPerPage={classWinnerStandingsRowsPerPage}
+                      totalItems={classWinnerStandingsCount}
+                      itemLabel="drivers"
+                      onRowsPerPageChange={(n) => {
+                        setClassWinnerStandingsRowsPerPage(normalizeTableRowsPerPage(n))
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+            ) : null}
             <p className={`text-xs text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}>
               For each final (A Main, B Main, …), open{" "}
               <span className="font-medium text-[var(--token-text-primary)]">Event analysis</span> →{" "}

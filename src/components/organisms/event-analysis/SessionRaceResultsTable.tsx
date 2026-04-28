@@ -28,6 +28,10 @@ import {
   sessionTypeFilterChipLabel,
 } from "@/core/events/session-type-filter"
 import { formatTimeUTC } from "@/lib/format-session-data"
+import {
+  buildSessionDisplayLabelLookup,
+  type SessionLabelInput,
+} from "@/lib/format-session-race-display-label"
 import { typography } from "@/lib/typography"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 import {
@@ -135,6 +139,11 @@ function podiumFromRaceResults(race: EventAnalysisData["races"][number]): {
 
 export interface SessionRaceResultsTableProps {
   races: EventAnalysisData["races"]
+  /**
+   * All classes (and usually full event) for LiveRC [race#/total] within each round.
+   * When omitted, `races` is used — totals shrink when `races` is class-filtered.
+   */
+  raceLabelContextRaces?: EventAnalysisData["races"]
 }
 
 function rowMatchesDriverSearch(row: Row, searchLower: string): boolean {
@@ -145,7 +154,23 @@ function rowMatchesDriverSearch(row: Row, searchLower: string): boolean {
   return names.some((n) => n.toLowerCase().includes(searchLower))
 }
 
-export default function SessionRaceResultsTable({ races }: SessionRaceResultsTableProps) {
+export default function SessionRaceResultsTable({
+  races,
+  raceLabelContextRaces,
+}: SessionRaceResultsTableProps) {
+  const raceDisplayLabelById = useMemo(() => {
+    const ctx = raceLabelContextRaces ?? races
+    const inputs: SessionLabelInput[] = ctx.map((r) => ({
+      id: r.id,
+      raceLabel: r.raceLabel,
+      className: r.className,
+      sectionHeader: r.sectionHeader ?? null,
+      startTime: r.startTime,
+      raceOrder: r.raceOrder,
+    }))
+    return buildSessionDisplayLabelLookup(inputs)
+  }, [races, raceLabelContextRaces])
+
   const [sessionTypeFilter, setSessionTypeFilter] = useState("")
   const [driverSearch, setDriverSearch] = useState("")
   const [sortField, setSortField] = useState<SortField>("className")
@@ -367,18 +392,17 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
     if (!detailRace) return null
     const sessionLabel = sessionLabelForRace(detailRace)
     const timeLabel = formatTimeUTC(detailRace.startTime)
+    const titleRace = raceDisplayLabelById.get(detailRace.id) ?? detailRace.raceLabel
     return (
       <span className="block space-y-0.5">
-        <span className="block truncate">
-          {detailRace.className} · {detailRace.raceLabel}
-        </span>
+        <span className="block truncate">{titleRace}</span>
         <span className="block truncate text-sm font-normal text-[var(--token-text-secondary)]">
           {sessionLabel}
           {timeLabel ? ` · ${timeLabel}` : ""}
         </span>
       </span>
     )
-  }, [detailRace])
+  }, [detailRace, raceDisplayLabelById])
 
   if (races.length === 0) {
     return (
@@ -588,56 +612,59 @@ export default function SessionRaceResultsTable({ races }: SessionRaceResultsTab
                 </StandardTableRow>
               </StandardTableHeader>
               <tbody>
-                {paginatedRows.map((row) => (
-                  <StandardTableRow
-                    key={row.raceId}
-                    tabIndex={0}
-                    aria-label={`View full session results for ${row.className} ${row.raceLabel}`}
-                    onClick={() => setDetailRaceId(row.raceId)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        setDetailRaceId(row.raceId)
-                      }
-                    }}
-                  >
-                    {showClassColumn && (
-                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                        {row.className}
-                      </StandardTableCell>
-                    )}
-                    <StandardTableCell className="px-3 py-2 text-sm font-medium text-[var(--token-text-primary)]">
-                      {row.raceUrl ? (
-                        <a
-                          href={row.raceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[var(--token-accent)] underline-offset-2 hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {row.raceLabel}
-                        </a>
-                      ) : (
-                        row.raceLabel
+                {paginatedRows.map((row) => {
+                  const displayRaceLabel = raceDisplayLabelById.get(row.raceId) ?? row.raceLabel
+                  return (
+                    <StandardTableRow
+                      key={row.raceId}
+                      tabIndex={0}
+                      aria-label={`View full session results for ${displayRaceLabel}`}
+                      onClick={() => setDetailRaceId(row.raceId)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          setDetailRaceId(row.raceId)
+                        }
+                      }}
+                    >
+                      {showClassColumn && (
+                        <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                          {row.className}
+                        </StandardTableCell>
                       )}
-                    </StandardTableCell>
-                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                      {row.sessionLabel}
-                    </StandardTableCell>
-                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                      {formatTimeUTC(row.startTime)}
-                    </StandardTableCell>
-                    <StandardTableCell className="px-3 py-2 text-sm font-semibold text-[var(--token-text-primary)]">
-                      {row.firstName}
-                    </StandardTableCell>
-                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                      {row.secondName ?? "—"}
-                    </StandardTableCell>
-                    <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                      {row.thirdName ?? "—"}
-                    </StandardTableCell>
-                  </StandardTableRow>
-                ))}
+                      <StandardTableCell className="px-3 py-2 text-sm font-medium text-[var(--token-text-primary)]">
+                        {row.raceUrl ? (
+                          <a
+                            href={row.raceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--token-accent)] underline-offset-2 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {displayRaceLabel}
+                          </a>
+                        ) : (
+                          displayRaceLabel
+                        )}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {row.sessionLabel}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {formatTimeUTC(row.startTime)}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm font-semibold text-[var(--token-text-primary)]">
+                        {row.firstName}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {row.secondName ?? "—"}
+                      </StandardTableCell>
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {row.thirdName ?? "—"}
+                      </StandardTableCell>
+                    </StandardTableRow>
+                  )
+                })}
               </tbody>
             </StandardTable>
           </DataTableFrame>

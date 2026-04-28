@@ -2,8 +2,8 @@
  * @fileoverview Client-side weather for event analysis with session cache
  *
  * @description Fetches per-day weather for an event. Successful responses are cached
- *              by event id so switching tabs (which unmounts OverviewTab) does not
- *              refetch or flash loading state.
+ *              by event id and optional user host track id so tab switches do not refetch,
+ *              and updating the host track invalidates cache for a fresh location.
  */
 
 "use client"
@@ -17,18 +17,28 @@ export type WeatherDayRow = { date: string; weather: EventWeatherData }
 
 const weatherByEventCache = new Map<string, WeatherDayRow[]>()
 
-export function useEventWeather(eventId: string | undefined) {
+function weatherCacheKey(eventId: string, hostTrackId: string | null | undefined) {
+  return `${eventId}:${hostTrackId ?? "venue"}`
+}
+
+export function useEventWeather(
+  eventId: string | undefined,
+  /** When the user sets a per-event host track, weather must refetch for that location */
+  hostTrackId?: string | null
+) {
+  const cacheKey = eventId ? weatherCacheKey(eventId, hostTrackId ?? null) : ""
+
   const [weatherByDay, setWeatherByDay] = useState<WeatherDayRow[] | null>(() =>
-    eventId ? (weatherByEventCache.get(eventId) ?? null) : null
+    cacheKey ? (weatherByEventCache.get(cacheKey) ?? null) : null
   )
   const [weatherLoading, setWeatherLoading] = useState(() => {
-    if (!eventId) return false
-    return !weatherByEventCache.has(eventId)
+    if (!cacheKey) return false
+    return !weatherByEventCache.has(cacheKey)
   })
   const [weatherError, setWeatherError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!eventId) {
+    if (!eventId || !cacheKey) {
       queueMicrotask(() => {
         setWeatherByDay(null)
         setWeatherError(null)
@@ -36,7 +46,7 @@ export function useEventWeather(eventId: string | undefined) {
       })
       return
     }
-    const cached = weatherByEventCache.get(eventId)
+    const cached = weatherByEventCache.get(cacheKey)
     if (cached) {
       queueMicrotask(() => {
         setWeatherByDay(cached)
@@ -74,7 +84,7 @@ export function useEventWeather(eventId: string | undefined) {
       .then((days) => {
         if (cancelled) return
         if (days) {
-          weatherByEventCache.set(eventId, days)
+          weatherByEventCache.set(cacheKey, days)
           setWeatherByDay(days)
           setWeatherError(null)
         }
@@ -91,7 +101,7 @@ export function useEventWeather(eventId: string | undefined) {
     return () => {
       cancelled = true
     }
-  }, [eventId])
+  }, [eventId, cacheKey])
 
   return { weatherByDay, weatherLoading, weatherError }
 }

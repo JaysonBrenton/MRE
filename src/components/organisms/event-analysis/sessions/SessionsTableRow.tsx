@@ -27,6 +27,8 @@ import type { SessionData } from "@/core/events/get-sessions-data"
 
 export interface SessionsTableRowProps {
   session: SessionData
+  /** Rich label (round, [i/n], class, heat) for the Session Name cell */
+  raceDisplayLabel: string
   selectedDriverIds?: string[]
   onNavigate?: (sessionId: string) => void
   showHybridColumns?: boolean
@@ -58,6 +60,7 @@ function computeLapSummary(session: SessionData) {
 
 export default function SessionsTableRow({
   session,
+  raceDisplayLabel,
   selectedDriverIds = [],
   onNavigate: _onNavigate,
   showHybridColumns = false,
@@ -98,7 +101,7 @@ export default function SessionsTableRow({
         tabIndex={0}
         role="button"
         aria-expanded={isExpanded}
-        aria-label={`${session.raceLabel} - Click to ${isExpanded ? "collapse" : "expand"} results`}
+        aria-label={`${raceDisplayLabel} - Click to ${isExpanded ? "collapse" : "expand"} results`}
       >
         <StandardTableCell>
           <div className="flex items-center gap-2">
@@ -112,7 +115,7 @@ export default function SessionsTableRow({
             >
               ▶
             </span>
-            <span>{session.raceLabel}</span>
+            <span>{raceDisplayLabel}</span>
           </div>
         </StandardTableCell>
         <StandardTableCell>{formatClassName(session.className)}</StandardTableCell>
@@ -139,7 +142,7 @@ export default function SessionsTableRow({
                 type="button"
                 onClick={handleViewLapDetails}
                 className="!px-2 !py-1 !text-xs !bg-transparent !border-0 text-[var(--token-accent)] hover:!bg-[var(--token-accent)]/10"
-                aria-label={`View lap data for ${session.raceLabel}`}
+                aria-label={`View lap data for ${raceDisplayLabel}`}
                 title="View lap data"
               >
                 View Details

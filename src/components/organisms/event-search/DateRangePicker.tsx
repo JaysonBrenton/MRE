@@ -5,10 +5,10 @@
  * @creator Jayson Brenton
  * @lastModified 2025-01-27
  *
- * @description Date range picker with validation (max 3 months, no future dates)
+ * @description Date range picker with validation (7 year lookback, no future dates)
  *
  * @purpose Provides a date range selection interface for Event Search. Includes
- *          client-side validation for maximum range (3 months) and no future dates.
+ *          client-side bounds (lookback) and no future dates.
  *          Uses native date input on mobile for best UX.
  *
  * @relatedFiles
@@ -19,6 +19,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getEventSearchEarliestSelectableYmd, toLocalDateString } from "@/lib/date-utils"
 
 export interface DateRangePickerProps {
   startDate: string
@@ -54,18 +55,11 @@ export default function DateRangePicker({
     setLocalEndDate(endDate)
   }, [endDate])
 
-  // Get today's date in YYYY-MM-DD format (for max attribute)
-  const today = new Date().toISOString().split("T")[0]
+  const minSelectable = getEventSearchEarliestSelectableYmd()
+  const today = toLocalDateString(new Date())
 
-  // Calculate max end date (3 months from start date)
-  const getMaxEndDate = (start: string): string => {
-    if (!start) return today
-    const startDateObj = new Date(start)
-    const maxDate = new Date(startDateObj)
-    maxDate.setDate(maxDate.getDate() + 90) // 3 months = 90 days
-    const maxDateStr = maxDate.toISOString().split("T")[0]
-    return maxDateStr < today ? maxDateStr : today
-  }
+  // End date may run through today; start/end must stay within the lookback window
+  const getMaxEndDate = (_start: string): string => today
 
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newStartDate = e.target.value
@@ -82,6 +76,12 @@ export default function DateRangePicker({
   const startErrorId = errors?.startDate ? "start-date-error" : undefined
   const endErrorId = errors?.endDate ? "end-date-error" : undefined
 
+  const endInputMin = !localStartDate
+    ? minSelectable
+    : localStartDate < minSelectable
+      ? minSelectable
+      : localStartDate
+
   return (
     <div className="space-y-4">
       {/* Start Date */}
@@ -97,6 +97,7 @@ export default function DateRangePicker({
           type="date"
           value={localStartDate}
           onChange={handleStartDateChange}
+          min={minSelectable}
           max={today}
           disabled={disabled}
           className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -123,7 +124,7 @@ export default function DateRangePicker({
           type="date"
           value={localEndDate}
           onChange={handleEndDateChange}
-          min={localStartDate || undefined}
+          min={endInputMin}
           max={getMaxEndDate(localStartDate)}
           disabled={disabled}
           className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

@@ -18,6 +18,9 @@ logger = get_logger(__name__)
 
 PLACEHOLDER_CLASS_NAMES = frozenset({"track maintenance", "track maintainance", "track watering"})
 
+# LiveRC: entry / schedule class name prefixes, aligned with infer_skill_tier_from_text
+SKILL_TIERS: Tuple[str, ...] = ("Junior", "Senior", "Sportsman")
+
 # LiveRC: banner rows (class field or label), aligned with src/lib/format-class-name.ts
 _BREAK_ASTERISKS = re.compile(r"\*{3,}")
 _MIN_BREAK = re.compile(r"\b(?:\d+\s*)?min(?:ute)?s?\s*break\b", re.I)

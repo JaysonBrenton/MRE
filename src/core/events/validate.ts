@@ -8,7 +8,7 @@
  * @description Validation logic for event search parameters
  *
  * @purpose Provides validation for event search operations, including date range
- *          validation (max 3 months, no future dates). This validation is
+ *          validation (7 year lookback, no future dates). This validation is
  *          framework-agnostic and can be used by API routes, server actions, or
  *          mobile clients.
  *
@@ -16,14 +16,13 @@
  * - src/core/events/search-events.ts (uses this validation)
  */
 
+import { getEventSearchEarliestSelectableDate } from "@/lib/date-utils"
+
 export interface ValidationError {
   code: string
   message: string
   field?: string
 }
-
-const MAX_DATE_RANGE_DAYS = 366 // Allow up to 12 months for presets (Last 12 months, This year)
-const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
 /**
  * UUID v4 validation regex
@@ -126,22 +125,28 @@ export function validateEventSearchParams(
       }
     }
 
+    const earliest = getEventSearchEarliestSelectableDate()
+    if (start < earliest) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "start_date cannot be more than 7 years in the past",
+        field: "start_date",
+      }
+    }
+    if (end < earliest) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "end_date cannot be more than 7 years in the past",
+        field: "end_date",
+      }
+    }
+
     // Validate no future dates (using >= to allow today)
     if (start > today || end > today) {
       return {
         code: "VALIDATION_ERROR",
         message: "Cannot select future dates. Please select today or earlier.",
         field: end > today ? "end_date" : "start_date",
-      }
-    }
-
-    // Validate max date range (3 months)
-    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / MILLISECONDS_PER_DAY)
-    if (daysDiff > MAX_DATE_RANGE_DAYS) {
-      return {
-        code: "VALIDATION_ERROR",
-        message: `Date range cannot exceed ${MAX_DATE_RANGE_DAYS} days (12 months). Please select a shorter range.`,
-        field: "end_date",
       }
     }
   }

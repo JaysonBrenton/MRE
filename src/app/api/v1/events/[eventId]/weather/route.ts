@@ -44,9 +44,10 @@ export async function GET(
     const { eventId } = await params
     const refresh = request.nextUrl.searchParams.get("refresh") === "true"
     const perDay = request.nextUrl.searchParams.get("perDay") === "true"
+    const userId = session.user?.id ?? null
 
     if (perDay) {
-      const days = await getWeatherForEventDays(eventId)
+      const days = await getWeatherForEventDays(eventId, userId)
       requestLogger.info("Weather data (per day) fetched successfully", {
         eventId,
         dayCount: days.length,
@@ -54,7 +55,7 @@ export async function GET(
       return successResponse({ days })
     }
 
-    const weatherData = await getWeatherForEvent(eventId, { skipCache: refresh })
+    const weatherData = await getWeatherForEvent(eventId, { skipCache: refresh, userId })
 
     requestLogger.info("Weather data fetched successfully", {
       eventId,

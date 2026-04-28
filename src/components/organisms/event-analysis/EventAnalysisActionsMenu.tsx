@@ -11,7 +11,15 @@
 
 "use client"
 
-import { useRef, useEffect, useCallback, useState, type KeyboardEvent } from "react"
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useState,
+  type KeyboardEvent,
+} from "react"
+import { createPortal } from "react-dom"
 import { useEventActionsOptional } from "@/components/organisms/dashboard/EventActionsContext"
 import { useAppSelector } from "@/store/hooks"
 import CarTaxonomyModal from "@/components/organisms/event-analysis/CarTaxonomyModal"
@@ -116,7 +124,24 @@ const iconClass = "h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
 const itemClass =
   "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)]/70 hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-accent)] disabled:opacity-50 disabled:cursor-not-allowed"
 
-export default function EventAnalysisActionsMenu() {
+/** Matches TabNavigation / SubmenuTab strip controls (px-6 py-3, chevron size). */
+const tabStripTriggerClass =
+  "inline-flex shrink-0 items-center gap-1 px-6 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:text-[var(--token-text-secondary)]"
+
+const toolbarTriggerClass =
+  "flex items-center gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-[var(--token-surface-elevated)]"
+
+const MENU_PANEL_WIDTH_PX = 220
+const MENU_VIEWPORT_MARGIN_PX = 8
+
+export interface EventAnalysisActionsMenuProps {
+  /** Strip styling next to primary tabs (no bordered chip). */
+  tabStripTrigger?: boolean
+}
+
+export default function EventAnalysisActionsMenu({
+  tabStripTrigger = false,
+}: EventAnalysisActionsMenuProps) {
   const eventActions = useEventActionsOptional()
   const analysisData = useAppSelector((s) => s.dashboard.analysisData)
   const selectedEventId = useAppSelector((s) => s.dashboard.selectedEventId)
@@ -125,6 +150,7 @@ export default function EventAnalysisActionsMenu() {
   const [hostTrackOpen, setHostTrackOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const [menuFixedPos, setMenuFixedPos] = useState<{ top: number; left: number } | null>(null)
 
   const hasEventSelected = eventActions?.hasEventSelected ?? false
 
@@ -138,6 +164,31 @@ export default function EventAnalysisActionsMenu() {
       queueMicrotask(() => close())
     }
   }, [eventActions?.isRefreshing, close])
+
+  useLayoutEffect(() => {
+    if (!open) {
+      queueMicrotask(() => setMenuFixedPos(null))
+      return
+    }
+    const update = () => {
+      const btn = buttonRef.current
+      if (!btn) return
+      const r = btn.getBoundingClientRect()
+      let left = r.right - MENU_PANEL_WIDTH_PX
+      left = Math.min(
+        Math.max(left, MENU_VIEWPORT_MARGIN_PX),
+        window.innerWidth - MENU_PANEL_WIDTH_PX - MENU_VIEWPORT_MARGIN_PX
+      )
+      setMenuFixedPos({ top: r.bottom + 4, left })
+    }
+    update()
+    window.addEventListener("scroll", update, true)
+    window.addEventListener("resize", update)
+    return () => {
+      window.removeEventListener("scroll", update, true)
+      window.removeEventListener("resize", update)
+    }
+  }, [open])
 
   // Click outside to close
   useEffect(() => {
@@ -183,15 +234,109 @@ export default function EventAnalysisActionsMenu() {
 
   const isRefreshing = eventActions.isRefreshing
 
+  const chevronClass = `${tabStripTrigger ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0 text-[var(--token-text-muted)] transition-transform ${open ? "rotate-180" : ""}`
+  const refreshIconClass = `${tabStripTrigger ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0 text-[var(--token-text-muted)]`
+
+  const menuPanel =
+    open && menuFixedPos && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={panelRef}
+            data-event-actions-menu-panel
+            role="menu"
+            aria-label="Event actions"
+            style={{
+              position: "fixed",
+              top: menuFixedPos.top,
+              left: menuFixedPos.left,
+              zIndex: 100,
+              width: MENU_PANEL_WIDTH_PX,
+            }}
+            className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg"
+          >
+            <div className="space-y-1 p-2">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleItemClick(eventActions.openEventSearch)}
+                className={itemClass}
+                aria-label="Find and Import Events (⌘E)"
+              >
+                <SearchIcon className={iconClass} />
+                <span>Find and Import Events</span>
+              </button>
+
+              {hasEventSelected && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleItemClick(eventActions.handleRefreshEventData)}
+                  disabled={eventActions.isRefreshing}
+                  className={itemClass}
+                  aria-label="Refresh event data (⌘⌥R)"
+                >
+                  {eventActions.isRefreshing ? (
+                    <RefreshIcon className={iconClass} spin />
+                  ) : (
+                    <RefreshIcon className={iconClass} />
+                  )}
+                  <span>Refresh Event Data</span>
+                </button>
+              )}
+
+              {hasEventSelected && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleItemClick(() => setCarTaxonomyOpen(true))}
+                  className={itemClass}
+                  aria-label="Map car types for session analysis"
+                >
+                  <CarTaxonomyIcon className={iconClass} />
+                  <span>Map car types</span>
+                </button>
+              )}
+
+              {hasEventSelected && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleItemClick(() => setHostTrackOpen(true))}
+                  className={itemClass}
+                  aria-label="Update host track for this event"
+                >
+                  <HostTrackIcon className={iconClass} />
+                  <span>Update host track</span>
+                </button>
+              )}
+
+              {hasEventSelected && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleItemClick(eventActions.clearEvent)}
+                  className={itemClass}
+                  aria-label="Clear selected event (⌘⇧E)"
+                >
+                  <ClearEventIcon className={iconClass} />
+                  <span>Clear Event</span>
+                </button>
+              )}
+            </div>
+          </div>,
+          document.body
+        )
+      : null
+
   return (
-    <div className="relative flex shrink-0">
+    <div className="flex shrink-0 items-stretch">
       <button
         ref={buttonRef}
         type="button"
         onClick={() => !isRefreshing && setOpen((prev) => !prev)}
         onKeyDown={handleButtonKeyDown}
         disabled={isRefreshing}
-        className="flex items-center gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-[var(--token-surface-elevated)]"
+        className={tabStripTrigger ? tabStripTriggerClass : toolbarTriggerClass}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-busy={isRefreshing}
@@ -199,103 +344,18 @@ export default function EventAnalysisActionsMenu() {
       >
         {isRefreshing ? (
           <>
-            <RefreshIcon className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]" spin />
+            <RefreshIcon className={refreshIconClass} spin />
             <span>Refreshing...</span>
           </>
         ) : (
           <>
             <span>Actions</span>
-            <ChevronDownIcon
-              className={`h-4 w-4 text-[var(--token-text-muted)] transition-transform ${open ? "rotate-180" : ""}`}
-            />
+            <ChevronDownIcon className={chevronClass} />
           </>
         )}
       </button>
 
-      {open && (
-        <div
-          ref={panelRef}
-          role="menu"
-          aria-label="Event actions"
-          className="absolute right-0 top-full z-50 mt-1 w-[220px] rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg"
-        >
-          <div className="space-y-1 p-2">
-            {/* Find and Import Events - always */}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => handleItemClick(eventActions.openEventSearch)}
-              className={itemClass}
-              aria-label="Find and Import Events (⌘E)"
-            >
-              <SearchIcon className={iconClass} />
-              <span>Find and Import Events</span>
-            </button>
-
-            {/* Refresh Event Data - when event selected */}
-            {hasEventSelected && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => handleItemClick(eventActions.handleRefreshEventData)}
-                disabled={eventActions.isRefreshing}
-                className={itemClass}
-                aria-label="Refresh event data (⌘⌥R)"
-              >
-                {eventActions.isRefreshing ? (
-                  <RefreshIcon className={iconClass} spin />
-                ) : (
-                  <RefreshIcon className={iconClass} />
-                )}
-                <span>Refresh Event Data</span>
-              </button>
-            )}
-
-            {/* Select a Class and Select Drivers buttons removed per design */}
-
-            {/* Map car types — global per-user rules; opens modal */}
-            {hasEventSelected && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => handleItemClick(() => setCarTaxonomyOpen(true))}
-                className={itemClass}
-                aria-label="Map car types for session analysis"
-              >
-                <CarTaxonomyIcon className={iconClass} />
-                <span>Map car types</span>
-              </button>
-            )}
-
-            {hasEventSelected && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => handleItemClick(() => setHostTrackOpen(true))}
-                className={itemClass}
-                aria-label="Update host track for this event"
-              >
-                <HostTrackIcon className={iconClass} />
-                <span>Update host track</span>
-              </button>
-            )}
-
-            {/* Clear Event - when event selected */}
-            {hasEventSelected && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => handleItemClick(eventActions.clearEvent)}
-                className={itemClass}
-                aria-label="Clear selected event (⌘⇧E)"
-              >
-                <ClearEventIcon className={iconClass} />
-                <span>Clear Event</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      {menuPanel}
 
       <CarTaxonomyModal
         isOpen={carTaxonomyOpen}

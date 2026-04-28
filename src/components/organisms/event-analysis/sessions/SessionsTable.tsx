@@ -31,9 +31,15 @@ import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelS
 import StandardButton from "@/components/atoms/StandardButton"
 import type { SessionData } from "@/core/events/get-sessions-data"
 import { formatClassName } from "@/lib/format-class-name"
+import { buildSessionDisplayLabelLookup } from "@/lib/format-session-race-display-label"
 
 export interface SessionsTableProps {
   sessions: SessionData[]
+  /**
+   * Driver-unfiltered, all-class sessions for LiveRC-style [race#/total] within each round.
+   * When omitted, `sessions` is used (may undercount totals when rows are class- or driver-filtered).
+   */
+  sessionLabelContextSessions?: SessionData[]
   selectedDriverIds?: string[]
   className?: string
   onNavigate?: (sessionId: string) => void
@@ -57,6 +63,7 @@ const HYBRID_COLUMNS = 4 // Best Lap, Avg Lap, Total Laps, Fastest Driver
 
 export default function SessionsTable({
   sessions,
+  sessionLabelContextSessions,
   selectedDriverIds = [],
   className = "",
   onNavigate,
@@ -75,6 +82,11 @@ export default function SessionsTable({
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [lapModalSession, setLapModalSession] = useState<SessionData | null>(null)
+
+  const labelLookup = useMemo(() => {
+    const ctx = sessionLabelContextSessions ?? sessions
+    return buildSessionDisplayLabelLookup(ctx)
+  }, [sessionLabelContextSessions, sessions])
 
   // Round headings from LiveRC (e.g. "Qualifier Round 1", "Seeding Round 2", "Main Events") - for filter dropdown
   const availableRoundHeadings = useMemo(() => {
@@ -394,6 +406,7 @@ export default function SessionsTable({
                           <SessionsTableRow
                             key={session.id}
                             session={session}
+                            raceDisplayLabel={labelLookup.get(session.id) ?? session.raceLabel}
                             selectedDriverIds={selectedDriverIds}
                             onNavigate={onNavigate}
                             showHybridColumns={showHybridColumns}
@@ -411,6 +424,7 @@ export default function SessionsTable({
                     <SessionsTableRow
                       key={session.id}
                       session={session}
+                      raceDisplayLabel={labelLookup.get(session.id) ?? session.raceLabel}
                       selectedDriverIds={selectedDriverIds}
                       onNavigate={onNavigate}
                       showHybridColumns={showHybridColumns}

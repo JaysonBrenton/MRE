@@ -30,6 +30,10 @@ export type ChartTabId = "overview" | "my-laps"
 
 export interface SessionChartTabsProps {
   sessions: SessionData[]
+  /**
+   * Full-event sessions (typically all classes, no driver filter) for [race#/total] labels.
+   */
+  sessionLabelContextSessions?: SessionData[]
   /** Full list of [className, driverCount] for dropdown; when provided, dropdown shows all classes regardless of filter */
   allClassesWithCounts?: Array<[string, number]>
   driverLapTrends: DriverLapTrend[]
@@ -53,6 +57,7 @@ const defaultTabs: Array<{ id: ChartTabId; label: string }> = [
 
 export default function SessionChartTabs({
   sessions,
+  sessionLabelContextSessions,
   allClassesWithCounts: _allClassesWithCounts,
   driverLapTrends,
   heatProgression: _heatProgression,
@@ -146,6 +151,7 @@ export default function SessionChartTabs({
         {activeTab === "overview" && (
           <SessionsTable
             sessions={sessions}
+            sessionLabelContextSessions={sessionLabelContextSessions}
             selectedDriverIds={driverLapTrends.map((trend) => trend.driverId)}
             showHybridColumns
             eventId={eventId}

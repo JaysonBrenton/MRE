@@ -18,6 +18,7 @@
 
 import {
   Fragment,
+  type ReactNode,
   KeyboardEvent,
   useCallback,
   useEffect,
@@ -81,6 +82,8 @@ export interface TabNavigationProps {
   /** Event Analysis / Session Analysis sub-views (menus under those tab buttons). */
   analysisSubTab?: EventAnalysisSubTabId
   onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
+  /** After the last tab in the scrollable strip (not part of the tablist). */
+  tabListTrailing?: ReactNode
 }
 
 const defaultTabs: Tab[] = [
@@ -194,7 +197,7 @@ function SubmenuTab({
       : null
 
   const tabButton = (
-    <div data-analysis-submenu-root className="relative inline-block">
+    <div data-analysis-submenu-root className="relative inline-block shrink-0">
       <button
         ref={anchorRef}
         type="button"
@@ -232,6 +235,7 @@ export default function TabNavigation({
   embedded = false,
   analysisSubTab,
   onAnalysisSubTabChange,
+  tabListTrailing,
 }: TabNavigationProps) {
   const [subMenuOpenFor, setSubMenuOpenFor] = useState<TabId | null>(null)
   const baseId = useId()
@@ -304,97 +308,102 @@ export default function TabNavigation({
   }
 
   const tabButtonClass = (isActive: boolean) =>
-    `px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
+    `shrink-0 px-6 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
       isActive
-        ? "border-[var(--token-accent)] text-[var(--token-accent)]"
-        : "border-transparent text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:border-[var(--token-border-default)]"
+        ? "text-[var(--token-accent)]"
+        : "text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)]"
     }`
 
   const submenuTabButtonClass = (isActive: boolean) =>
-    `inline-flex items-center gap-1 ${tabButtonClass(isActive)}`
+    `inline-flex shrink-0 items-center gap-1 ${tabButtonClass(isActive)}`
+
+  const tabButtons = tabs.map((tab) => {
+    const isActive = activeTab === tab.id
+
+    if (tab.id === "event-analysis" && hasAnalysisSubmenus) {
+      const menuOpen = subMenuOpenFor === tab.id
+      const menuId = `${baseId}-menu-${tab.id}`
+      return (
+        <Fragment key={tab.id}>
+          <SubmenuTab
+            tab={tab}
+            isActive={isActive}
+            menuOpen={menuOpen}
+            menuOptions={getSubTabOptions("event")}
+            selectedMenuId={analysisSubTab!}
+            onMenuItemSelect={(id) => {
+              changeTab(tab.id)
+              onAnalysisSubTabChange!(id as EventAnalysisSubTabId)
+            }}
+            onTabButtonClick={() => {
+              setSubMenuOpenFor((prev) => (prev === tab.id ? null : tab.id))
+            }}
+            onKeyDown={(e) => handleKeyDown(e, tab.id)}
+            tabButtonClass={submenuTabButtonClass}
+            menuId={menuId}
+            menuAriaLabel="Event Analysis views"
+            onCloseMenu={closeSubMenu}
+          />
+        </Fragment>
+      )
+    }
+
+    if (tab.id === "session-analysis" && hasAnalysisSubmenus) {
+      const menuOpen = subMenuOpenFor === tab.id
+      const menuId = `${baseId}-menu-${tab.id}`
+      return (
+        <Fragment key={tab.id}>
+          <SubmenuTab
+            tab={tab}
+            isActive={isActive}
+            menuOpen={menuOpen}
+            menuOptions={getSubTabOptions("session")}
+            selectedMenuId={analysisSubTab!}
+            onMenuItemSelect={(id) => {
+              changeTab(tab.id)
+              onAnalysisSubTabChange!(id as EventAnalysisSubTabId)
+            }}
+            onTabButtonClick={() => {
+              setSubMenuOpenFor((prev) => (prev === tab.id ? null : tab.id))
+            }}
+            onKeyDown={(e) => handleKeyDown(e, tab.id)}
+            tabButtonClass={submenuTabButtonClass}
+            menuId={menuId}
+            menuAriaLabel="Session Analysis views"
+            onCloseMenu={closeSubMenu}
+          />
+        </Fragment>
+      )
+    }
+
+    const tabButton = (
+      <button
+        type="button"
+        role="tab"
+        aria-selected={isActive}
+        aria-controls={`tabpanel-${tab.id}`}
+        id={`tab-${tab.id}`}
+        onClick={() => changeTab(tab.id)}
+        onKeyDown={(e) => handleKeyDown(e, tab.id)}
+        className={tabButtonClass(isActive)}
+      >
+        {tab.label}
+      </button>
+    )
+    return <Fragment key={tab.id}>{tabButton}</Fragment>
+  })
 
   return (
     <div
-      className={`overflow-x-hidden ${embedded ? "" : "border-b border-[var(--token-border-default)]"}`}
-      role="tablist"
-      aria-label="Event analysis tabs"
+      className={`min-w-0 overflow-x-auto overscroll-x-contain ${embedded ? "w-max max-w-full" : "w-full border-b border-[var(--token-border-default)]"}`}
     >
-      <div className="flex min-w-0 flex-wrap">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id
-
-          if (tab.id === "event-analysis" && hasAnalysisSubmenus) {
-            const menuOpen = subMenuOpenFor === tab.id
-            const menuId = `${baseId}-menu-${tab.id}`
-            return (
-              <Fragment key={tab.id}>
-                <SubmenuTab
-                  tab={tab}
-                  isActive={isActive}
-                  menuOpen={menuOpen}
-                  menuOptions={getSubTabOptions("event")}
-                  selectedMenuId={analysisSubTab!}
-                  onMenuItemSelect={(id) => {
-                    changeTab(tab.id)
-                    onAnalysisSubTabChange!(id as EventAnalysisSubTabId)
-                  }}
-                  onTabButtonClick={() => {
-                    setSubMenuOpenFor((prev) => (prev === tab.id ? null : tab.id))
-                  }}
-                  onKeyDown={(e) => handleKeyDown(e, tab.id)}
-                  tabButtonClass={submenuTabButtonClass}
-                  menuId={menuId}
-                  menuAriaLabel="Event Analysis views"
-                  onCloseMenu={closeSubMenu}
-                />
-              </Fragment>
-            )
-          }
-
-          if (tab.id === "session-analysis" && hasAnalysisSubmenus) {
-            const menuOpen = subMenuOpenFor === tab.id
-            const menuId = `${baseId}-menu-${tab.id}`
-            return (
-              <Fragment key={tab.id}>
-                <SubmenuTab
-                  tab={tab}
-                  isActive={isActive}
-                  menuOpen={menuOpen}
-                  menuOptions={getSubTabOptions("session")}
-                  selectedMenuId={analysisSubTab!}
-                  onMenuItemSelect={(id) => {
-                    changeTab(tab.id)
-                    onAnalysisSubTabChange!(id as EventAnalysisSubTabId)
-                  }}
-                  onTabButtonClick={() => {
-                    setSubMenuOpenFor((prev) => (prev === tab.id ? null : tab.id))
-                  }}
-                  onKeyDown={(e) => handleKeyDown(e, tab.id)}
-                  tabButtonClass={submenuTabButtonClass}
-                  menuId={menuId}
-                  menuAriaLabel="Session Analysis views"
-                  onCloseMenu={closeSubMenu}
-                />
-              </Fragment>
-            )
-          }
-
-          const tabButton = (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              aria-controls={`tabpanel-${tab.id}`}
-              id={`tab-${tab.id}`}
-              onClick={() => changeTab(tab.id)}
-              onKeyDown={(e) => handleKeyDown(e, tab.id)}
-              className={tabButtonClass(isActive)}
-            >
-              {tab.label}
-            </button>
-          )
-          return <Fragment key={tab.id}>{tabButton}</Fragment>
-        })}
+      <div className="flex w-max min-w-0 flex-nowrap items-stretch">
+        <div role="tablist" aria-label="Event analysis tabs" className="flex min-w-0 flex-nowrap">
+          {tabButtons}
+        </div>
+        {tabListTrailing ? (
+          <div className="flex shrink-0 items-stretch">{tabListTrailing}</div>
+        ) : null}
       </div>
     </div>
   )
