@@ -397,7 +397,7 @@ export default function EventAnalysisSection() {
             {/* Fixed header+toolbar - stays visible when scrolling */}
             <div
               ref={headerRef}
-              className="fixed left-0 top-16 right-0 z-20 bg-[var(--token-surface)] px-1 shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:px-2 md:px-2 lg:left-[calc(var(--nav-width)_+_var(--nav-content-gutter))] lg:pl-0 lg:pr-2 xl:pl-0 xl:pr-4 2xl:pl-0 2xl:pr-6"
+              className="fixed left-0 top-16 right-0 z-20 border-b border-[var(--token-border-muted)] bg-[color-mix(in_oklab,var(--token-surface)_92%,transparent)] px-1 shadow-[var(--token-analysis-fixed-header-shadow)] backdrop-blur-md supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--token-surface)_88%,transparent)] sm:px-2 md:px-2 lg:left-[calc(var(--nav-width)_+_var(--nav-content-gutter))] lg:pl-0 lg:pr-2 xl:pl-0 xl:pr-4 2xl:pl-0 2xl:pr-6"
             >
               <div
                 className="content-wrapper mx-auto flex w-full min-w-0 max-w-full flex-col pb-2 pt-2 sm:pb-3 sm:pt-3"
@@ -422,6 +422,7 @@ export default function EventAnalysisSection() {
                     eventTitle={eventAnalysisToolbarTitle}
                     eventTitleHref={eventAnalysisToolbarTitleHref}
                     eventDateRange={eventAnalysisToolbarDateRange}
+                    titleEmphasis={activeTab === "event-overview" ? "page" : "default"}
                   />
                 )}
               </div>

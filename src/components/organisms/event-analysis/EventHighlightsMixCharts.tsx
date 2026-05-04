@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react"
 import type { SessionMixSegment } from "@/core/events/build-event-highlights"
 import { resolveColorToHex } from "@/lib/chart-color-utils"
-import { OVERVIEW_GLASS_SURFACE_CLASS } from "@/components/organisms/event-analysis/overview-glass-surface"
+import { OVERVIEW_INNER_WELL_SURFACE_CLASS } from "@/components/organisms/event-analysis/overview-glass-surface"
 import type { MixInsightMetric } from "@/lib/event-mix-analytics"
 import {
   dominantLineForSessionSummary,
@@ -31,7 +31,7 @@ const METRIC_LABELS: Record<MixMetric, string> = {
 
 function metricToggleButtonClass(active: boolean): string {
   return [
-    "rounded-lg px-3 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)]",
+    "rounded-lg px-2.5 py-1.5 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)]",
     active
       ? "bg-[var(--token-surface-raised)] text-[var(--token-text-primary)] border border-[var(--token-border-default)] shadow-sm"
       : "border border-transparent text-[var(--token-text-secondary)] hover:bg-[var(--token-surface-raised)]/60",
@@ -66,7 +66,7 @@ function MetricRowSession({ segment, maxCount }: { segment: SessionMixSegment; m
           }}
         />
       </div>
-      <div className="tabular-nums text-sm text-[var(--token-text-secondary)]">
+      <div className="tabular-nums text-sm font-semibold text-[var(--token-text-primary)]">
         {sessionsWord(segment.count)}, {formatPctOneDecimal(segment.pct)}
       </div>
     </div>
@@ -94,7 +94,7 @@ function MetricRowClassRanked({
   return (
     <div className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(140px,1.2fr)_auto] sm:items-center sm:gap-3">
       <div
-        className={`min-w-0 truncate text-sm ${isTop ? "font-semibold text-[var(--token-text-primary)]" : "font-medium text-[var(--token-text-primary)]"}`}
+        className={`min-w-0 truncate text-sm ${isTop ? "font-bold text-[var(--token-text-primary)]" : "font-medium text-[var(--token-text-primary)]"}`}
       >
         {displayLabel(segment)}
       </div>
@@ -111,7 +111,9 @@ function MetricRowClassRanked({
           }}
         />
       </div>
-      <div className="tabular-nums text-sm text-[var(--token-text-secondary)]">{valueLine}</div>
+      <div className="tabular-nums text-sm font-semibold text-[var(--token-text-primary)]">
+        {valueLine}
+      </div>
     </div>
   )
 }
@@ -150,7 +152,7 @@ function EventMixSummaryCards({
       >
         <h3
           id="event-mix-summary-session-heading"
-          className="text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]"
+          className="text-[11px] font-semibold leading-snug text-[var(--token-text-muted)]"
         >
           Session mix
         </h3>
@@ -158,7 +160,7 @@ function EventMixSummaryCards({
           <p className="mt-1 text-sm text-[var(--token-text-secondary)]">No session breakdown.</p>
         ) : (
           <>
-            <p className="mt-1 text-sm font-medium text-[var(--token-text-primary)]">
+            <p className="mt-1 text-sm font-semibold text-[var(--token-text-primary)]">
               {dominantLineForSessionSummary(sessionMix)}
             </p>
             <ul className="mt-2 space-y-1 text-xs text-[var(--token-text-secondary)]">
@@ -181,7 +183,7 @@ function EventMixSummaryCards({
       >
         <h3
           id="event-mix-summary-drivers-heading"
-          className="text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]"
+          className="text-[11px] font-semibold leading-snug text-[var(--token-text-muted)]"
         >
           Largest class by drivers
         </h3>
@@ -194,10 +196,10 @@ function EventMixSummaryCards({
             const top = driversRanked[0]!
             return (
               <>
-                <p className="mt-1 truncate text-base font-semibold text-[var(--token-text-primary)]">
+                <p className="mt-1 truncate text-base font-bold text-[var(--token-text-primary)]">
                   {displayLabel(top)}
                 </p>
-                <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+                <p className="mt-1 text-xs leading-snug text-[var(--token-text-secondary)]">
                   {driversWord(top.count)} <span className="text-[var(--token-text-muted)]">·</span>{" "}
                   {formatPctOneDecimal(top.pct)} of drivers entered
                 </p>
@@ -213,7 +215,7 @@ function EventMixSummaryCards({
       >
         <h3
           id="event-mix-summary-laps-heading"
-          className="text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]"
+          className="text-[11px] font-semibold leading-snug text-[var(--token-text-muted)]"
         >
           Most active class by laps
         </h3>
@@ -224,10 +226,10 @@ function EventMixSummaryCards({
             const top = lapsRanked[0]!
             return (
               <>
-                <p className="mt-1 truncate text-base font-semibold text-[var(--token-text-primary)]">
+                <p className="mt-1 truncate text-base font-bold text-[var(--token-text-primary)]">
                   {displayLabel(top)}
                 </p>
-                <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+                <p className="mt-1 text-xs leading-snug text-[var(--token-text-secondary)]">
                   {lapsWord(top.count)} <span className="text-[var(--token-text-muted)]">·</span>{" "}
                   {formatPctOneDecimal(top.pct)} of total laps completed
                 </p>
@@ -341,7 +343,7 @@ export function EventHighlightsMixFilteredChart({
 
   return (
     <div
-      className={`${OVERVIEW_GLASS_SURFACE_CLASS} p-4 ${className}`}
+      className={`${OVERVIEW_INNER_WELL_SURFACE_CLASS} p-4 ${className}`}
       role="region"
       aria-label="Event mix analytics"
     >
@@ -353,14 +355,12 @@ export function EventHighlightsMixFilteredChart({
 
       <div className="flex justify-start">{headerControls}</div>
 
-      <p className="mt-3 text-sm leading-snug text-[var(--token-text-primary)]">{insight}</p>
+      <p className="mt-3 text-sm leading-snug text-[var(--token-text-secondary)]">{insight}</p>
 
       <div className="mt-4 max-h-[min(24rem,70vh)] space-y-3 overflow-y-auto pr-1">
         {effectiveMetric === "session" && hasSession ? (
           <>
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-              Session types
-            </p>
+            <p className="text-[11px] font-medium text-[var(--token-text-muted)]">Session types</p>
             {rankedSession.map((seg) => (
               <MetricRowSession key={seg.key} segment={seg} maxCount={maxSessionCount} />
             ))}
@@ -368,7 +368,7 @@ export function EventHighlightsMixFilteredChart({
         ) : null}
         {effectiveMetric === "drivers" && hasDrivers ? (
           <>
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
+            <p className="text-[11px] font-medium text-[var(--token-text-muted)]">
               Drivers entered by class
             </p>
             {rankedDrivers.map((seg, index) => (
@@ -384,7 +384,7 @@ export function EventHighlightsMixFilteredChart({
         ) : null}
         {effectiveMetric === "laps" && hasLaps ? (
           <>
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
+            <p className="text-[11px] font-medium text-[var(--token-text-muted)]">
               Total laps completed by class
             </p>
             {rankedLaps.map((seg, index) => (

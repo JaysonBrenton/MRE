@@ -3,7 +3,7 @@
  *
  * @created 2025-01-27
  * @creator UI Review Implementation
- * @lastModified 2025-01-27
+ * @lastModified 2026-05-04
  *
  * @description Typography utility classes and constants for consistent typography hierarchy
  *
@@ -58,6 +58,18 @@ export const typography = {
   tableHeader: "text-xs font-semibold uppercase tracking-wide text-[var(--token-text-secondary)]",
   /** Data table column headers on muted / inset surfaces */
   tableHeaderMuted: "text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]",
+
+  /** Event Overview: small eyebrow above section titles (minimal tracking, no all-caps) */
+  overviewEyebrow: "text-[11px] font-medium tracking-[0.04em] text-[var(--token-text-muted)]",
+  /** Event Overview: grid metric label (Races, Drivers, …) */
+  overviewMetricLabel: "text-xs font-medium leading-tight text-[var(--token-text-muted)] shrink-0",
+  /** Event Overview: primary stat values beside labels */
+  overviewMetricValue:
+    "text-base font-bold tabular-nums leading-snug text-[var(--token-text-primary)]",
+  /** Event Overview highlights: class / race name above driver on cards */
+  overviewCardClassLabel: "text-[11px] font-medium leading-snug text-[var(--token-text-muted)]",
+  /** Event Overview highlights: emphasized driver / winner line */
+  overviewCardDriverName: "text-base font-bold leading-snug text-[var(--token-text-primary)]",
 } as const
 
 /**
@@ -72,5 +84,7 @@ export const typography = {
  * - bodySecondary: sm (14px) - Secondary content
  * - caption: xs (12px) - Captions and helper text
  * - tableHeader / tableHeaderMuted: xs uppercase column titles in data tables
+ * - overviewEyebrow / overviewCardClassLabel / overviewCardDriverName: Event Overview hierarchy
+ * - overviewMetricLabel (xs) / overviewMetricValue (base): Event Overview stat grid
  */
 export type TypographyKey = keyof typeof typography

@@ -33,6 +33,10 @@ import {
   type EventAnalysisSubTabId,
   getSubTabOptions,
 } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
+import {
+  OVERVIEW_GLASS_SURFACE_CLASS,
+  OVERVIEW_GLASS_SURFACE_STYLE,
+} from "@/components/organisms/event-analysis/overview-glass-surface"
 
 export type TabId =
   | "event-overview"
@@ -197,7 +201,7 @@ function SubmenuTab({
       : null
 
   const tabButton = (
-    <div data-analysis-submenu-root className="relative inline-block shrink-0">
+    <div data-analysis-submenu-root className="relative inline-block shrink-0 snap-start">
       <button
         ref={anchorRef}
         type="button"
@@ -307,12 +311,25 @@ export default function TabNavigation({
     }
   }
 
-  const tabButtonClass = (isActive: boolean) =>
-    `shrink-0 px-6 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
-      isActive
+  const tabButtonClass = (isActive: boolean) => {
+    const focusRing = embedded
+      ? "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+      : "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+    if (embedded) {
+      return (
+        `shrink-0 snap-start rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${focusRing} ` +
+        (isActive
+          ? "bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+          : "text-[var(--token-text-secondary)] hover:bg-[var(--token-surface)]/35 hover:text-[var(--token-text-primary)]")
+      )
+    }
+    return (
+      `shrink-0 snap-start px-6 py-3 text-sm font-medium transition-colors ${focusRing} ` +
+      (isActive
         ? "text-[var(--token-accent)]"
-        : "text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)]"
-    }`
+        : "text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)]")
+    )
+  }
 
   const submenuTabButtonClass = (isActive: boolean) =>
     `inline-flex shrink-0 items-center gap-1 ${tabButtonClass(isActive)}`
@@ -393,16 +410,33 @@ export default function TabNavigation({
     return <Fragment key={tab.id}>{tabButton}</Fragment>
   })
 
+  const tabList = (
+    <div
+      role="tablist"
+      aria-label="Event analysis tabs"
+      className={`flex min-w-0 flex-nowrap ${embedded ? "gap-1 px-1 py-1" : ""}`}
+    >
+      {tabButtons}
+    </div>
+  )
+
   return (
     <div
-      className={`min-w-0 overflow-x-auto overscroll-x-contain ${embedded ? "w-max max-w-full" : "w-full border-b border-[var(--token-border-default)]"}`}
+      className={`scrollbar-none snap-x snap-mandatory scroll-smooth min-w-0 overflow-x-auto overscroll-x-contain ${embedded ? "w-max max-w-full" : "w-full border-b border-[var(--token-border-default)]"}`}
     >
-      <div className="flex w-max min-w-0 flex-nowrap items-stretch">
-        <div role="tablist" aria-label="Event analysis tabs" className="flex min-w-0 flex-nowrap">
-          {tabButtons}
-        </div>
+      <div className={`flex w-max min-w-0 flex-nowrap items-stretch ${embedded ? "gap-2" : ""}`}>
+        {embedded ? (
+          <div
+            className={`inline-flex min-w-0 max-w-full overflow-hidden ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+            style={OVERVIEW_GLASS_SURFACE_STYLE}
+          >
+            {tabList}
+          </div>
+        ) : (
+          tabList
+        )}
         {tabListTrailing ? (
-          <div className="flex shrink-0 items-stretch">{tabListTrailing}</div>
+          <div className="flex shrink-0 snap-none items-center self-stretch">{tabListTrailing}</div>
         ) : null}
       </div>
     </div>

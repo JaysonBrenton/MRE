@@ -154,8 +154,6 @@ export default function ChartContainer({
       style={{
         minHeight: `${height}px`,
         ...OVERVIEW_GLASS_SURFACE_STYLE,
-        WebkitBackdropFilter: "var(--glass-blur)",
-        boxShadow: "var(--glass-shadow), var(--glass-shadow-inset)",
         padding: "20px",
         overflow: "visible",
       }}

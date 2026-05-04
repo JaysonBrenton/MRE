@@ -1,10 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
-import {
-  OVERVIEW_GLASS_SURFACE_CLASS,
-  OVERVIEW_GLASS_SURFACE_STYLE,
-} from "./overview-glass-surface"
+import { OVERVIEW_INNER_WELL_SURFACE_CLASS } from "./overview-glass-surface"
 
 export type VenueHostSubTab = "eventHost" | "hostTrack" | "eventWeather" | "eventMix"
 
@@ -152,24 +149,21 @@ export function EventOverviewVenueHostTabList({
   if (visibleTabs.length === 0) return null
 
   return (
-    <div className="relative min-w-0 w-full">
+    <div className="relative min-w-0 w-fit max-w-full">
       {fade.left ? (
         <div
-          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 rounded-l-[inherit] bg-gradient-to-r from-[var(--token-surface-elevated)] to-transparent"
+          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 rounded-l-[inherit] bg-gradient-to-r from-[var(--token-surface-alt)] to-transparent"
           aria-hidden
         />
       ) : null}
       {fade.right ? (
         <div
-          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 rounded-r-[inherit] bg-gradient-to-l from-[var(--token-surface-elevated)] to-transparent"
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 rounded-r-[inherit] bg-gradient-to-l from-[var(--token-surface-alt)] to-transparent"
           aria-hidden
         />
       ) : null}
 
-      <div
-        className={`min-w-0 overflow-hidden ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-        style={OVERVIEW_GLASS_SURFACE_STYLE}
-      >
+      <div className={`min-w-0 overflow-hidden ${OVERVIEW_INNER_WELL_SURFACE_CLASS}`}>
         <div
           ref={scrollRef}
           role="tablist"
@@ -193,10 +187,10 @@ export function EventOverviewVenueHostTabList({
                 tabIndex={isSelected ? 0 : -1}
                 className={[
                   TAB_FOCUS_RING,
-                  "relative min-h-9 shrink-0 snap-start whitespace-nowrap rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors",
+                  "relative min-h-8 shrink-0 snap-start whitespace-nowrap rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors",
                   isSelected
                     ? "bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-                    : "text-[var(--token-text-secondary)] hover:bg-[var(--token-surface)]/35 hover:text-[var(--token-text-primary)]",
+                    : "text-[var(--token-text-secondary)] hover:bg-[var(--token-surface-raised)]/35 hover:text-[var(--token-text-primary)]",
                 ].join(" ")}
                 onClick={() => onSelect(tabKey)}
                 onKeyDown={(e) => onTabKeyDown(e, index)}

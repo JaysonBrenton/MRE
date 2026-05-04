@@ -11,6 +11,7 @@
 
 "use client"
 
+import { ExternalLink } from "lucide-react"
 import TabNavigation, {
   type TabId,
   type Tab,
@@ -31,6 +32,8 @@ export interface EventAnalysisToolbarProps {
   eventTitleHref?: string | null
   /** Shown to the right of the title, separated by a vertical divider, when set (e.g. event date range). */
   eventDateRange?: string | null
+  /** Stronger title treatment when Event Overview is active (page-scoped hierarchy). */
+  titleEmphasis?: "default" | "page"
 }
 
 export default function EventAnalysisToolbar({
@@ -42,6 +45,7 @@ export default function EventAnalysisToolbar({
   eventTitle,
   eventTitleHref,
   eventDateRange,
+  titleEmphasis = "default",
 }: EventAnalysisToolbarProps) {
   const trimmedTitle = eventTitle?.trim() ?? ""
   const trimmedDateRange = eventDateRange?.trim() ?? ""
@@ -50,19 +54,27 @@ export default function EventAnalysisToolbar({
   const titleHref = eventTitleHref?.trim() ?? ""
 
   const titleClassName =
-    "block min-w-0 max-w-full truncate text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base"
-  const titleLinkExtraClass =
-    " underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
+    titleEmphasis === "page"
+      ? "block min-w-0 max-w-full truncate text-center text-lg font-semibold leading-snug tracking-tight text-[var(--token-text-primary)] md:text-xl"
+      : "block min-w-0 max-w-full truncate text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base"
+  const titleLinkUnderlineClass =
+    "underline decoration-[var(--token-accent)]/50 underline-offset-2 hover:decoration-[var(--token-accent)]"
+  const titleLinkRowClassName =
+    titleEmphasis === "page"
+      ? `inline-flex min-w-0 max-w-full items-center justify-center gap-1 text-center text-lg font-semibold leading-snug tracking-tight text-[var(--token-text-primary)] transition-colors hover:text-[var(--token-accent)] md:text-xl`
+      : `inline-flex min-w-0 max-w-full items-center justify-center gap-1 text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] transition-colors hover:text-[var(--token-accent)] md:text-base`
 
   return (
     <div
-      className={`items-stretch gap-0 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 px-2.5 py-1.5 shadow-sm sm:px-3 ${
+      className={`items-stretch gap-0 rounded-xl border border-[var(--token-border-default)] bg-[color-mix(in_oklab,var(--token-surface-elevated)_94%,transparent)] px-2.5 py-1.5 shadow-md backdrop-blur-sm supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--token-surface-elevated)_88%,transparent)] sm:px-3 sm:py-2 ${
         showTitle ? "grid w-full grid-cols-[minmax(0,1fr)_auto]" : "flex w-full"
       }`}
     >
       <div
-        className={`min-w-0 overflow-x-hidden pr-2 sm:pr-3 ${
-          showTitle ? "w-max max-w-full justify-self-start" : "flex-1"
+        className={`min-w-0 overflow-x-hidden sm:pr-3 ${
+          showTitle
+            ? "w-max max-w-full justify-self-start border-r border-[var(--token-border-muted)] pr-2.5 sm:pr-4"
+            : "flex-1 pr-2 sm:pr-3"
         }`}
       >
         <TabNavigation
@@ -76,16 +88,17 @@ export default function EventAnalysisToolbar({
         />
       </div>
       {showTitle ? (
-        <div className="flex min-w-0 max-w-full items-center justify-center justify-self-center self-center gap-2 px-2 sm:gap-2.5 sm:px-2.5">
+        <div className="flex min-w-0 max-w-full items-center justify-center justify-self-center self-center gap-2 pl-2.5 sm:gap-2.5 sm:pl-3">
           {titleHref ? (
             <a
               href={titleHref}
               target="_blank"
               rel="noopener noreferrer"
-              className={`${titleClassName}${titleLinkExtraClass}`}
+              className={titleLinkRowClassName}
               aria-label="View event on LiveRC (opens in new tab)"
             >
-              {trimmedTitle}
+              <span className={`min-w-0 truncate ${titleLinkUnderlineClass}`}>{trimmedTitle}</span>
+              <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
             </a>
           ) : (
             <span className={titleClassName}>{trimmedTitle}</span>
@@ -96,7 +109,13 @@ export default function EventAnalysisToolbar({
                 className="h-4 w-px shrink-0 self-center bg-[var(--token-border-default)]"
                 aria-hidden
               />
-              <span className="shrink-0 whitespace-nowrap text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base">
+              <span
+                className={
+                  titleEmphasis === "page"
+                    ? "shrink-0 whitespace-nowrap text-center text-sm font-medium leading-snug text-[var(--token-text-secondary)]"
+                    : "shrink-0 whitespace-nowrap text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base"
+                }
+              >
                 {trimmedDateRange}
               </span>
             </>

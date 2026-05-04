@@ -69,8 +69,8 @@ import { formatLapTime } from "@/lib/format-session-data"
 import { typography } from "@/lib/typography"
 import { computeDriverStatsFromRaces } from "@/core/events/compute-driver-stats-from-races"
 import {
-  OVERVIEW_GLASS_SURFACE_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
+  OVERVIEW_SECTION_SURFACE_CLASS,
 } from "@/components/organisms/event-analysis/overview-glass-surface"
 import {
   type EventAnalysisSubTabId,
@@ -196,9 +196,6 @@ const overviewPrimarySectionTabs: readonly {
 const EVENT_OVERVIEW_WEATHER_INFO_TEXT =
   "Forecast and conditions for the event venue by calendar day, when available from the weather service."
 
-const EVENT_OVERVIEW_EVENT_MIX_INFO_TEXT =
-  "Session mix (percent of sessions by type) and class share by entry count or laps completed. Use the toggles below the summary cards to switch the breakdown list. Main events are detected from labels as well as session type."
-
 export default function OverviewTab({
   data,
   selectedDriverIds,
@@ -309,50 +306,68 @@ export default function OverviewTab({
   // Get race classes from entry list
   const validClasses = useMemo(() => getValidClasses(data), [data])
 
-  const overviewEventDetailLabelClass =
-    "text-[0.7rem] font-medium uppercase tracking-wide text-[var(--token-text-tertiary)] shrink-0"
-  const overviewEventDetailRowClass =
-    "flex min-w-0 flex-row flex-wrap items-baseline gap-x-2 gap-y-0.5"
+  /** Label above value/link (Event host / host club headlines). */
+  const overviewVenueHeadlineStackClass =
+    "flex min-w-0 w-full max-w-full flex-col gap-1 items-stretch"
 
-  /** Races / drivers / entries / laps / classes — beside Host track host-club row (divider in parent). */
+  /** Host name with LiveRC link — match Event Overview KPI value typography (`overviewMetricValue`). */
+  const overviewVenueHostLinkClass = `${typography.overviewMetricValue} inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-1.5 break-words no-underline transition-colors rounded-sm hover:text-[var(--token-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]/35`
+
+  /** Host name plain text — same KPI value sizing/weight when no dashboard URL. */
+  const overviewVenueHostPlainClass = `${typography.overviewMetricValue} block min-w-0 max-w-full break-words`
+
+  const totalClassesCount = useMemo(
+    () =>
+      data.registrationClassNames && data.registrationClassNames.length > 0
+        ? data.registrationClassNames.length
+        : validClasses.length > 0
+          ? validClasses.length
+          : data.raceClasses.size,
+    [data.registrationClassNames, data.raceClasses, validClasses]
+  )
+
+  /** Races / drivers / entries / laps / classes — paired with venue sub-tabs in Event details. */
   const eventOverviewStatsGrid = useMemo(
     () => (
       <div
-        className="min-w-0 w-full flex-1 grid grid-cols-2 min-[400px]:grid-cols-3 sm:grid-cols-5 gap-x-2.5 gap-y-2.5 min-[400px]:gap-x-2 sm:gap-x-1.5 sm:gap-y-0 text-left"
-        aria-label="Event summary"
+        className={[
+          "grid min-w-0 w-full max-w-full shrink-0 justify-items-start",
+          "grid-cols-2 gap-x-4 gap-y-2 rounded-lg px-3 py-2",
+          "sm:grid-cols-3 sm:gap-x-5",
+          "md:grid-cols-5 md:gap-x-6 md:gap-y-1",
+          "border border-[var(--token-border-muted)]/70 bg-[var(--token-surface-raised)]/25",
+          "lg:w-max lg:max-w-full",
+          "text-left",
+        ].join(" ")}
       >
-        <div className="flex min-w-0 flex-col">
-          <span className={overviewEventDetailLabelClass}>Races</span>
-          <span className="text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
-            {data.summary.totalRaces}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className={typography.overviewMetricLabel}>Races</span>
+          <span className={typography.overviewMetricValue}>
+            {data.summary.totalRaces.toLocaleString()}
           </span>
         </div>
-        <div className="flex min-w-0 flex-col">
-          <span className={overviewEventDetailLabelClass}>Drivers</span>
-          <span className="text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
-            {data.summary.totalDrivers}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className={typography.overviewMetricLabel}>Drivers</span>
+          <span className={typography.overviewMetricValue}>
+            {data.summary.totalDrivers.toLocaleString()}
           </span>
         </div>
-        <div className="flex min-w-0 flex-col">
-          <span className={overviewEventDetailLabelClass}>Entries</span>
-          <span className="text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
-            {data.entryList.length}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className={typography.overviewMetricLabel}>Entries</span>
+          <span className={typography.overviewMetricValue}>
+            {data.entryList.length.toLocaleString()}
           </span>
         </div>
-        <div className="flex min-w-0 flex-col">
-          <span className={overviewEventDetailLabelClass}>Total Laps</span>
-          <span className="text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className={typography.overviewMetricLabel}>Total Laps</span>
+          <span className={typography.overviewMetricValue}>
             {data.summary.totalLaps.toLocaleString()}
           </span>
         </div>
-        <div className="col-span-2 flex min-w-0 flex-col min-[400px]:col-span-1">
-          <span className={overviewEventDetailLabelClass}>Total Classes</span>
-          <span className="text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
-            {data.registrationClassNames && data.registrationClassNames.length > 0
-              ? data.registrationClassNames.length
-              : validClasses.length > 0
-                ? validClasses.length
-                : data.raceClasses.size}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className={typography.overviewMetricLabel}>Total Classes</span>
+          <span className={typography.overviewMetricValue}>
+            {totalClassesCount.toLocaleString()}
           </span>
         </div>
       </div>
@@ -362,9 +377,7 @@ export default function OverviewTab({
       data.summary.totalDrivers,
       data.summary.totalLaps,
       data.entryList.length,
-      data.registrationClassNames,
-      data.raceClasses,
-      validClasses,
+      totalClassesCount,
     ]
   )
 
@@ -1980,6 +1993,112 @@ export default function OverviewTab({
 
   const trackDashboardUrl = data.event.trackDashboardUrl?.trim() || null
 
+  /** Shown left of event stats when the venue/host tab strip is visible (lg: beside stats). */
+  const venueHostTabHeadlineBesideStats = useMemo(() => {
+    if (!venueHostShowsTabStrip) return null
+    if (resolvedVenueHostTab === "eventHost") {
+      const eventHostSectionName = eventOverviewTrackSubline ?? data.event.trackName?.trim() ?? null
+      if (!eventHostSectionName) return null
+      return (
+        <div className={overviewVenueHeadlineStackClass}>
+          <span className={typography.overviewMetricLabel}>Host:</span>
+          <div className="m-0 min-w-0 w-full max-w-full">
+            {trackDashboardUrl ? (
+              <a
+                href={trackDashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={overviewVenueHostLinkClass}
+              >
+                <span>{eventHostSectionName}</span>
+                <ExternalLink
+                  className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                  aria-hidden
+                />
+                <span className="sr-only"> (opens in a new tab on LiveRC)</span>
+              </a>
+            ) : (
+              <span className={overviewVenueHostPlainClass}>{eventHostSectionName}</span>
+            )}
+          </div>
+        </div>
+      )
+    }
+    if (resolvedVenueHostTab === "hostTrack" && venueHostSection?.host) {
+      const host = venueHostSection.host
+      const h = host.h
+      const hostClubName =
+        h.trackName?.trim() ||
+        (host.hostHasAddress && h.address?.trim()
+          ? (splitAddressForDisplay(h.address!)[0]?.trim() ?? null)
+          : null)
+      const hostTrackDashboardUrl = h.trackDashboardUrl?.trim() || null
+      if (!hostClubName) return null
+      return (
+        <div className={overviewVenueHeadlineStackClass}>
+          <span className={typography.overviewMetricLabel}>Host club:</span>
+          <div className="m-0 min-w-0 w-full max-w-full">
+            {hostTrackDashboardUrl ? (
+              <a
+                href={hostTrackDashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={overviewVenueHostLinkClass}
+              >
+                <span>{hostClubName}</span>
+                <ExternalLink
+                  className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                  aria-hidden
+                />
+                <span className="sr-only"> (opens in a new tab on LiveRC)</span>
+              </a>
+            ) : (
+              <span className={overviewVenueHostPlainClass}>{hostClubName}</span>
+            )}
+          </div>
+        </div>
+      )
+    }
+    return null
+  }, [
+    venueHostShowsTabStrip,
+    resolvedVenueHostTab,
+    eventOverviewTrackSubline,
+    data.event.trackName,
+    trackDashboardUrl,
+    venueHostSection,
+    overviewVenueHeadlineStackClass,
+    overviewVenueHostLinkClass,
+    overviewVenueHostPlainClass,
+  ])
+
+  const venueHostStatsHeadlineRow = useMemo(
+    () => (
+      <div
+        className="mb-4 border-b border-[var(--token-border-muted)] pb-4"
+        role="region"
+        aria-labelledby="overview-event-summary-title"
+      >
+        <span id="overview-event-summary-title" className="sr-only">
+          Event summary
+        </span>
+        <div className="flex min-w-0 flex-col gap-3 md:gap-4 lg:flex-row lg:items-start lg:gap-6">
+          <div className="min-w-0 w-full shrink-0 pt-px lg:min-w-0 lg:flex-1">
+            {venueHostTabHeadlineBesideStats}
+          </div>
+          <div
+            className="h-px w-full shrink-0 bg-[var(--token-border-muted)] lg:hidden"
+            aria-hidden
+          />
+          <div className="min-w-0 w-full shrink-0 lg:flex lg:min-w-0 lg:flex-1 lg:justify-end">
+            {eventOverviewStatsGrid}
+          </div>
+        </div>
+      </div>
+    ),
+    [venueHostTabHeadlineBesideStats, eventOverviewStatsGrid]
+  )
+
   const showEventAnalysisSectionBlock =
     variant === "event-analysis-only" ||
     (showOtherSections && overviewPrimarySection === "event-analysis")
@@ -2059,7 +2178,7 @@ export default function OverviewTab({
 
       {showEventOverviewSection && (
         <section
-          className="space-y-3"
+          className="space-y-4"
           aria-labelledby={
             variant === "event-overview-only" ? "tab-event-overview" : "event-overview-heading"
           }
@@ -2070,31 +2189,45 @@ export default function OverviewTab({
             aria-labelledby={
               variant === "event-overview-only" ? "tab-event-overview" : "event-overview-heading"
             }
-            className="space-y-3"
+            className="space-y-5"
           >
-            <div className="space-y-2">
-              <h3
-                id="event-overview-event-details-heading"
-                className={`min-w-0 ${typography.h4} tracking-tight text-[var(--token-text-primary)]`}
-              >
-                Event details
-              </h3>
+            <div className="space-y-4">
+              <header className="space-y-1">
+                <h3
+                  id="event-overview-event-details-heading"
+                  className={`min-w-0 ${typography.h3} tracking-tight text-[var(--token-text-primary)]`}
+                >
+                  Event details
+                </h3>
+              </header>
               <div
-                className={`flex min-w-0 flex-col gap-4 px-4 py-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                className={`flex min-w-0 flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 ${OVERVIEW_SECTION_SURFACE_CLASS}`}
                 aria-labelledby="event-overview-event-details-heading"
               >
-                <div className="flex w-full shrink-0 basis-full flex-col gap-4">
+                <div className="flex w-full shrink-0 basis-full flex-col gap-5">
                   {venueHostShowsTabStrip ? (
-                    <EventOverviewVenueHostTabList
-                      selected={resolvedVenueHostTab}
-                      onSelect={setVenueHostTab}
-                      showEventHostTab={!!venueHostSection?.hasVenueInfo}
-                      showHostTrackTab={!!venueHostSection?.hasHostBlock}
-                      showEventWeatherTab
-                      showEventMixTab
-                    />
-                  ) : null}
+                    <div className="flex min-w-0 w-full flex-col gap-3 md:gap-4">
+                      <div className="min-w-0 w-fit max-w-full shrink-0">
+                        <EventOverviewVenueHostTabList
+                          selected={resolvedVenueHostTab}
+                          onSelect={setVenueHostTab}
+                          showEventHostTab={!!venueHostSection?.hasVenueInfo}
+                          showHostTrackTab={!!venueHostSection?.hasHostBlock}
+                          showEventWeatherTab
+                          showEventMixTab
+                        />
+                      </div>
+                      <div
+                        className="h-px w-full shrink-0 bg-[var(--token-border-muted)] lg:hidden"
+                        aria-hidden
+                      />
+                      {(resolvedVenueHostTab === "eventWeather" ||
+                        resolvedVenueHostTab === "eventMix") &&
+                        venueHostStatsHeadlineRow}
+                    </div>
+                  ) : (
+                    <div className="min-w-0 w-full">{eventOverviewStatsGrid}</div>
+                  )}
                   {venueHostSection?.hasVenueInfo &&
                     (!venueHostShowsTabStrip || resolvedVenueHostTab === "eventHost") && (
                       <div
@@ -2110,37 +2243,43 @@ export default function OverviewTab({
                         aria-label={venueHostShowsTabStrip ? undefined : "Event host"}
                         className="min-w-0 text-sm"
                       >
+                        {venueHostShowsTabStrip &&
+                          resolvedVenueHostTab === "eventHost" &&
+                          venueHostStatsHeadlineRow}
                         {(() => {
+                          if (venueHostShowsTabStrip) return null
                           const eventHostSectionName =
                             eventOverviewTrackSubline ?? data.event.trackName?.trim() ?? null
                           if (!eventHostSectionName) return null
                           return (
-                            <div className="mb-4 min-w-0 border-b border-[var(--token-border-muted)] pb-4">
-                              <div className={overviewEventDetailRowClass}>
-                                <span className={overviewEventDetailLabelClass}>Host: </span>
-                                <div className="m-0 min-w-0 w-fit max-w-full">
-                                  {trackDashboardUrl ? (
-                                    <a
-                                      href={trackDashboardUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-1.5 break-words leading-snug text-[var(--token-text-primary)] no-underline transition-colors rounded-sm hover:text-[var(--token-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]/35"
-                                    >
-                                      <span>{eventHostSectionName}</span>
-                                      <ExternalLink
-                                        className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                        aria-hidden
-                                      />
-                                      <span className="sr-only">
-                                        {" "}
-                                        (opens in a new tab on LiveRC)
+                            <div className="mb-4 flex min-w-0 flex-col gap-4 border-b border-[var(--token-border-muted)] pb-4 sm:flex-row sm:items-stretch sm:gap-5 lg:gap-6">
+                              <div className="min-w-0 w-fit max-w-full shrink-0 self-start sm:self-stretch">
+                                <div className={overviewVenueHeadlineStackClass}>
+                                  <span className={typography.overviewMetricLabel}>Host:</span>
+                                  <div className="m-0 min-w-0 w-full max-w-full">
+                                    {trackDashboardUrl ? (
+                                      <a
+                                        href={trackDashboardUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={overviewVenueHostLinkClass}
+                                      >
+                                        <span>{eventHostSectionName}</span>
+                                        <ExternalLink
+                                          className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
+                                          aria-hidden
+                                        />
+                                        <span className="sr-only">
+                                          {" "}
+                                          (opens in a new tab on LiveRC)
+                                        </span>
+                                      </a>
+                                    ) : (
+                                      <span className={overviewVenueHostPlainClass}>
+                                        {eventHostSectionName}
                                       </span>
-                                    </a>
-                                  ) : (
-                                    <span className="block min-w-0 w-fit max-w-full break-words leading-snug text-[var(--token-text-primary)]">
-                                      {eventHostSectionName}
-                                    </span>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -2283,7 +2422,11 @@ export default function OverviewTab({
                         aria-label={venueHostShowsTabStrip ? undefined : "Host track"}
                         className="min-w-0 text-sm"
                       >
+                        {venueHostShowsTabStrip &&
+                          resolvedVenueHostTab === "hostTrack" &&
+                          venueHostStatsHeadlineRow}
                         {(() => {
+                          if (venueHostShowsTabStrip) return null
                           const host = venueHostSection.host
                           const h = host.h
                           const hostClubName =
@@ -2296,15 +2439,15 @@ export default function OverviewTab({
                           return (
                             <div className="mb-4 flex min-w-0 flex-col gap-4 border-b border-[var(--token-border-muted)] pb-4 sm:flex-row sm:items-stretch sm:gap-5 lg:gap-6">
                               <div className="min-w-0 w-fit max-w-full shrink-0 self-start sm:self-stretch">
-                                <div className={overviewEventDetailRowClass}>
-                                  <span className={overviewEventDetailLabelClass}>Host club: </span>
-                                  <div className="m-0 min-w-0 w-fit max-w-full">
+                                <div className={overviewVenueHeadlineStackClass}>
+                                  <span className={typography.overviewMetricLabel}>Host club:</span>
+                                  <div className="m-0 min-w-0 w-full max-w-full">
                                     {hostTrackDashboardUrl ? (
                                       <a
                                         href={hostTrackDashboardUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-1.5 break-words leading-snug text-[var(--token-text-primary)] no-underline transition-colors rounded-sm hover:text-[var(--token-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]/35"
+                                        className={overviewVenueHostLinkClass}
                                       >
                                         <span>{hostClubName}</span>
                                         <ExternalLink
@@ -2317,18 +2460,13 @@ export default function OverviewTab({
                                         </span>
                                       </a>
                                     ) : (
-                                      <span className="block min-w-0 w-fit max-w-full break-words leading-snug text-[var(--token-text-primary)]">
+                                      <span className={overviewVenueHostPlainClass}>
                                         {hostClubName}
                                       </span>
                                     )}
                                   </div>
                                 </div>
                               </div>
-                              <div
-                                className="hidden w-px shrink-0 self-stretch bg-[var(--token-border-default)] sm:block"
-                                aria-hidden
-                              />
-                              {eventOverviewStatsGrid}
                             </div>
                           )
                         })()}
@@ -2490,7 +2628,7 @@ export default function OverviewTab({
                   {resolvedVenueHostTab === "eventWeather" ? (
                     <div
                       id="event-overview-event-weather-info"
-                      className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
+                      className="w-fit max-w-full rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_75%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
                       aria-label={EVENT_OVERVIEW_WEATHER_INFO_TEXT}
                     >
                       <p
@@ -2526,7 +2664,7 @@ export default function OverviewTab({
                         ) : weatherByDay && weatherByDay.length > 0 ? (
                           weatherByDay.map(({ date, weather }) => (
                             <div key={date} className="flex flex-col gap-1">
-                              <span className="text-sm font-medium text-[var(--token-text-secondary)]">
+                              <span className="text-xs font-medium text-[var(--token-text-muted)]">
                                 {formatDateLong(date)}
                               </span>
                               <WeatherCard
@@ -2546,19 +2684,6 @@ export default function OverviewTab({
                       </div>
                     </div>
                   )}
-                  {resolvedVenueHostTab === "eventMix" ? (
-                    <div
-                      id="event-overview-event-mix-info"
-                      className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
-                      aria-label={EVENT_OVERVIEW_EVENT_MIX_INFO_TEXT}
-                    >
-                      <p
-                        className={`max-w-full text-xs text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-                      >
-                        {EVENT_OVERVIEW_EVENT_MIX_INFO_TEXT}
-                      </p>
-                    </div>
-                  ) : null}
                   {(!venueHostShowsTabStrip || resolvedVenueHostTab === "eventMix") && (
                     <div
                       id={
@@ -2594,16 +2719,17 @@ export default function OverviewTab({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3
-                id="event-overview-highlights-section-heading"
-                className={`min-w-0 ${typography.h4} tracking-tight text-[var(--token-text-primary)]`}
-              >
-                Event highlights
-              </h3>
+            <div className="space-y-4">
+              <header className="space-y-1">
+                <h3
+                  id="event-overview-highlights-section-heading"
+                  className={`min-w-0 ${typography.h3} tracking-tight text-[var(--token-text-primary)]`}
+                >
+                  Event highlights
+                </h3>
+              </header>
               <div
-                className={`flex min-w-0 flex-col gap-4 px-4 py-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                className={`flex min-w-0 flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 ${OVERVIEW_SECTION_SURFACE_CLASS}`}
                 aria-labelledby="event-overview-highlights-section-heading"
               >
                 <div id="overview-event-highlights-content" className="min-w-0 w-full">
@@ -3005,7 +3131,7 @@ export default function OverviewTab({
                             style={{
                               minWidth: 0,
                               ...OVERVIEW_GLASS_SURFACE_STYLE,
-                              boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
+                              boxShadow: "var(--glass-shadow-stack)",
                             }}
                           >
                             Choose drivers in Actions (class or Select Drivers), then pick a class
@@ -3357,7 +3483,7 @@ export default function OverviewTab({
                             style={{
                               minWidth: 0,
                               ...OVERVIEW_GLASS_SURFACE_STYLE,
-                              boxShadow: "var(--glass-shadow), var(--glass-shadow-lg)",
+                              boxShadow: "var(--glass-shadow-stack)",
                             }}
                           >
                             Choose drivers in Actions (class or Select Drivers), then pick drivers

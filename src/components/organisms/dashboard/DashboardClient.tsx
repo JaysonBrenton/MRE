@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { Loader2 } from "lucide-react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchEventData, fetchRecentEvents } from "@/store/slices/dashboardSlice"
 import { useDashboardEventSearch } from "./DashboardEventSearchProvider"
@@ -44,24 +45,12 @@ export default function DashboardClient() {
 
   // Show loading state during rehydration (prevents empty state flash on hard reload)
   if (!isRehydrated) {
-    return (
-      <div className="mt-6 flex flex-col" style={{ gap: "var(--dashboard-gap)" }}>
-        <div className="rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.15),0_0_1px_rgba(255,255,255,0.05)]">
-          <p className={typography.bodySecondary}>Loading dashboard...</p>
-        </div>
-      </div>
-    )
+    return <DashboardLoadingRow label="Loading dashboard..." />
   }
 
   // Show loading state when event is selected but data is still loading
   if (selectedEventId && !selectedEvent && isEventLoading) {
-    return (
-      <div className="mt-6 flex flex-col" style={{ gap: "var(--dashboard-gap)" }}>
-        <div className="rounded-3xl border border-[var(--token-border-default)] bg-gradient-to-br from-[var(--token-surface-elevated)] to-[var(--token-surface-raised)] p-8 text-center shadow-[0_4px_12px_rgba(0,0,0,0.15),0_0_1px_rgba(255,255,255,0.05)]">
-          <p className={typography.bodySecondary}>Loading event data...</p>
-        </div>
-      </div>
-    )
+    return <DashboardLoadingRow label="Loading event data..." />
   }
 
   // Empty state - no event selected
@@ -71,6 +60,22 @@ export default function DashboardClient() {
 
   // Event selected: EventAnalysisSection (sibling) renders the content
   return null
+}
+
+function DashboardLoadingRow({ label }: { label: string }) {
+  return (
+    <div
+      className="mt-6 flex items-center justify-center gap-3 py-6"
+      role="status"
+      aria-live="polite"
+    >
+      <Loader2
+        className="h-5 w-5 shrink-0 animate-spin text-[var(--token-text-secondary)]"
+        aria-hidden
+      />
+      <p className={`${typography.bodySecondary} m-0`}>{label}</p>
+    </div>
+  )
 }
 
 function DashboardEmptyState({

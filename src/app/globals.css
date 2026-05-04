@@ -122,6 +122,9 @@
   --dashboard-card-padding: 1.25rem;
   --dashboard-font-scale: 1;
 
+  /* Event analysis sticky chrome (fixed toolbar strip below top bar) */
+  --token-analysis-fixed-header-shadow: 0 8px 28px -6px rgba(0, 0, 0, 0.38);
+
   /* Typography scale tokens */
   --token-font-size-xs: 0.75rem; /* 12px */
   --token-font-size-sm: 0.875rem; /* 14px */
@@ -133,12 +136,14 @@
   --token-font-size-4xl: 2.25rem; /* 36px */
   --token-font-size-5xl: 3rem; /* 48px */
 
-  /* Glass effect tokens for chart containers */
-  --glass-bg: rgba(17, 18, 20, 0.8); /* --token-surface-elevated (#111214) at 80% — matches toolbar strip */
-  --glass-border: rgba(38, 39, 46, 0.3); /* --token-border-default with 30% opacity */
-  --glass-blur: blur(12px) saturate(180%);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --glass-shadow-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  /* Glass effect tokens (overview cards, charts); combined with inset reads as floating above canvas */
+  --glass-bg: rgba(17, 18, 20, 0.88);
+  --glass-border: rgba(60, 62, 72, 0.85); /* Visible rim without competing with accents */
+  --glass-blur: blur(14px) saturate(180%);
+  --glass-shadow: 0 10px 36px 0 rgba(0, 0, 0, 0.42);
+  --glass-shadow-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+  /** Full stack for composited box-shadow */
+  --glass-shadow-stack: var(--glass-shadow), var(--glass-shadow-inset);
 }
 
 /* Light theme overrides */
@@ -208,11 +213,15 @@
   --token-switch-on-border: #00dd55;
   --token-switch-on-glow: 0 0 14px rgba(0, 255, 120, 0.7), 0 0 4px rgba(0, 220, 90, 0.85);
 
+  --token-analysis-fixed-header-shadow: 0 8px 28px -6px rgba(0, 0, 0, 0.12);
+
   /* Glass effect tokens for light theme */
-  --glass-bg: rgba(245, 245, 245, 0.8); /* --token-surface-elevated (#f5f5f5) at 80% — matches toolbar strip */
-  --glass-border: rgba(212, 212, 212, 0.3); /* --token-border-default with 30% opacity */
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-  --glass-shadow-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  --glass-bg: rgba(245, 245, 245, 0.92);
+  --glass-border: rgba(212, 212, 212, 0.85);
+  --glass-blur: blur(14px) saturate(140%);
+  --glass-shadow: 0 10px 36px 0 rgba(0, 0, 0, 0.08), 0 2px 8px 0 rgba(0, 0, 0, 0.04);
+  --glass-shadow-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+  --glass-shadow-stack: var(--glass-shadow), var(--glass-shadow-inset);
 }
 
 /* ============================================================================

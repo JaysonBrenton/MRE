@@ -51,10 +51,7 @@ import {
   StandardTableCell,
 } from "@/components/molecules/StandardTable"
 import { DataTableFrame } from "@/components/organisms/event-analysis/DataPanelSurface"
-import {
-  OVERVIEW_GLASS_SURFACE_CLASS,
-  OVERVIEW_GLASS_SURFACE_STYLE,
-} from "@/components/organisms/event-analysis/overview-glass-surface"
+import { OVERVIEW_INNER_WELL_SURFACE_CLASS } from "@/components/organisms/event-analysis/overview-glass-surface"
 import { formatClassName } from "@/lib/format-class-name"
 import { formatPlaceOrdinal } from "@/lib/date-utils"
 import { formatLapTime, formatTotalTime } from "@/lib/format-session-data"
@@ -164,7 +161,7 @@ const SEEDING_PLACEHOLDER_TEXT = "We're in the garage working on this feature ri
 
 /** Shrink-to-content width for short single-line messages (caps at parent width, scroll if needed). */
 const OVERVIEW_INFO_BOX_INLINE_CLASS =
-  "mx-auto w-fit max-w-full min-w-0 overflow-x-auto rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
+  "mx-auto w-fit max-w-full min-w-0 overflow-x-auto rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_72%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
 
 function formatLapHeroCardLapsLine(
   totalLaps: number,
@@ -585,13 +582,13 @@ function EventOverviewTopQualifiersCards({
   } = HIGHLIGHT_TAB_META
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <EventOverviewHighlightsTabList selected={highlightsTab} onSelect={selectHighlightsTab} />
 
       {highlightsTab === "lapHeroes" && eventHasMain ? (
         <div
           id="event-overview-lap-heroes-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
+          className="w-fit max-w-full rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_72%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
           aria-label={LAP_HEROES_INFO_TEXT}
         >
           <p
@@ -605,7 +602,7 @@ function EventOverviewTopQualifiersCards({
       {highlightsTab === "mostConsistentDrivers" && eventHasMain ? (
         <div
           id="event-overview-most-consistent-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
+          className="w-fit max-w-full rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_72%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
           aria-label={MOST_CONSISTENT_INFO_TEXT}
         >
           <p
@@ -619,7 +616,7 @@ function EventOverviewTopQualifiersCards({
       {highlightsTab === "fastestLaps" && eventHasMain ? (
         <div
           id="event-overview-fastest-laps-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
+          className="w-fit max-w-full rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_72%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
           aria-label={FASTEST_LAPS_INFO_TEXT}
         >
           <p
@@ -633,7 +630,7 @@ function EventOverviewTopQualifiersCards({
       {highlightsTab === "fastestAverageLaps" && eventHasMain ? (
         <div
           id="event-overview-fastest-avg-laps-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
+          className="w-fit max-w-full rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_72%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
           aria-label={FASTEST_AVG_LAPS_INFO_TEXT}
         >
           <p
@@ -647,7 +644,7 @@ function EventOverviewTopQualifiersCards({
       {highlightsTab === "closestBattles" && eventHasMain ? (
         <div
           id="event-overview-closest-battles-info"
-          className="w-fit max-w-full rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-2 shadow-sm"
+          className="w-fit max-w-full rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_72%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
           aria-label={CLOSEST_BATTLES_INFO_TEXT}
         >
           <p
@@ -686,8 +683,7 @@ function EventOverviewTopQualifiersCards({
                   <li key={cw.className}>
                     <button
                       type="button"
-                      className={`flex min-h-0 min-w-0 w-full flex-col items-stretch p-3 text-left transition-colors sm:p-3.5 ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
-                      style={OVERVIEW_GLASS_SURFACE_STYLE}
+                      className={`flex min-h-0 min-w-0 w-full flex-col items-stretch p-3 text-left transition-colors sm:p-3.5 ${OVERVIEW_INNER_WELL_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface-elevated)] hover:bg-[color-mix(in_oklab,var(--token-surface-raised)_42%,var(--token-surface-alt))]`}
                       onClick={() => setClassWinnerDetail(cw)}
                       aria-haspopup="dialog"
                       aria-expanded={isOpen}
@@ -696,12 +692,10 @@ function EventOverviewTopQualifiersCards({
                       }${cw.thirdPlaceName ? `, 3rd ${cw.thirdPlaceName}` : ""} · ${cw.classDisplay}`}
                     >
                       <div className="flex min-w-0 w-full flex-col">
-                        <p
-                          className={`w-full text-center text-[0.7rem] font-medium uppercase leading-snug tracking-wide text-[var(--token-text-tertiary)]`}
-                        >
+                        <p className={`w-full text-center ${typography.overviewCardClassLabel}`}>
                           {cw.classDisplay}
                         </p>
-                        <div className="mt-2.5 w-full min-w-0 rounded-xl border border-[var(--token-border-default)]/70 bg-[var(--token-surface)]/35 px-2 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:px-2.5 sm:py-2.5">
+                        <div className="mt-2.5 w-full min-w-0 rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_58%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-raised)_30%,var(--token-surface))] px-2 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.035)] sm:px-2.5 sm:py-2.5">
                           <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
                             <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
                               <span
@@ -712,7 +706,7 @@ function EventOverviewTopQualifiersCards({
                               </span>
                               <HighlightPodiumName
                                 name={cw.winnerName}
-                                className="min-w-0 truncate text-sm font-semibold leading-tight text-[var(--token-text-primary)] sm:text-[0.95rem]"
+                                className="min-w-0 truncate text-sm font-bold leading-tight text-[var(--token-text-primary)] sm:text-[0.95rem]"
                               />
                             </li>
                             <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
@@ -724,7 +718,7 @@ function EventOverviewTopQualifiersCards({
                               </span>
                               <PodiumSlotName
                                 name={cw.secondPlaceName}
-                                filledClassName="min-w-0 truncate text-xs font-medium leading-tight text-[var(--token-text-primary)] sm:text-sm"
+                                filledClassName="min-w-0 truncate text-xs font-semibold leading-tight text-[var(--token-text-primary)] sm:text-sm"
                                 emptyHint="No 2nd place in imported results for this class"
                               />
                             </li>
@@ -737,7 +731,7 @@ function EventOverviewTopQualifiersCards({
                               </span>
                               <PodiumSlotName
                                 name={cw.thirdPlaceName}
-                                filledClassName="min-w-0 truncate text-xs font-medium leading-tight text-[var(--token-text-primary)]/95 sm:text-sm"
+                                filledClassName="min-w-0 truncate text-xs font-semibold leading-tight text-[var(--token-text-primary)]/95 sm:text-sm"
                                 emptyHint="No 3rd place in imported results for this class"
                               />
                             </li>
@@ -772,8 +766,7 @@ function EventOverviewTopQualifiersCards({
                   <li key={card.className}>
                     <button
                       type="button"
-                      className={`flex min-h-0 min-w-0 w-full flex-col items-stretch p-3 text-left transition-colors sm:p-3.5 ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
-                      style={OVERVIEW_GLASS_SURFACE_STYLE}
+                      className={`flex min-h-0 min-w-0 w-full flex-col items-stretch p-3 text-left transition-colors sm:p-3.5 ${OVERVIEW_INNER_WELL_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface-elevated)] hover:bg-[color-mix(in_oklab,var(--token-surface-raised)_42%,var(--token-surface-alt))]`}
                       onClick={() => setDetailCard(card)}
                       aria-haspopup="dialog"
                       aria-expanded={isOpen}
@@ -782,12 +775,10 @@ function EventOverviewTopQualifiersCards({
                       }${card.thirdPlaceName ? `, 3rd ${card.thirdPlaceName}` : ""} · ${tqClassLine}`}
                     >
                       <div className="flex min-w-0 w-full flex-col">
-                        <p
-                          className={`w-full text-center text-[0.7rem] font-medium uppercase leading-snug tracking-wide text-[var(--token-text-tertiary)]`}
-                        >
+                        <p className={`w-full text-center ${typography.overviewCardClassLabel}`}>
                           {tqClassLine}
                         </p>
-                        <div className="mt-2.5 w-full min-w-0 rounded-xl border border-[var(--token-border-default)]/70 bg-[var(--token-surface)]/35 px-2 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:px-2.5 sm:py-2.5">
+                        <div className="mt-2.5 w-full min-w-0 rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_58%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-raised)_30%,var(--token-surface))] px-2 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.035)] sm:px-2.5 sm:py-2.5">
                           <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
                             <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
                               <span
@@ -798,7 +789,7 @@ function EventOverviewTopQualifiersCards({
                               </span>
                               <HighlightPodiumName
                                 name={card.driverDisplayName}
-                                className="min-w-0 truncate text-sm font-semibold leading-tight text-[var(--token-text-primary)] sm:text-[0.95rem]"
+                                className="min-w-0 truncate text-sm font-bold leading-tight text-[var(--token-text-primary)] sm:text-[0.95rem]"
                               />
                             </li>
                             <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
@@ -810,7 +801,7 @@ function EventOverviewTopQualifiersCards({
                               </span>
                               <PodiumSlotName
                                 name={card.secondPlaceName}
-                                filledClassName="min-w-0 truncate text-xs font-medium leading-tight text-[var(--token-text-primary)] sm:text-sm"
+                                filledClassName="min-w-0 truncate text-xs font-semibold leading-tight text-[var(--token-text-primary)] sm:text-sm"
                                 emptyHint="No 2nd place in qual standings for this class"
                               />
                             </li>
@@ -823,7 +814,7 @@ function EventOverviewTopQualifiersCards({
                               </span>
                               <PodiumSlotName
                                 name={card.thirdPlaceName}
-                                filledClassName="min-w-0 truncate text-xs font-medium leading-tight text-[var(--token-text-primary)]/95 sm:text-sm"
+                                filledClassName="min-w-0 truncate text-xs font-semibold leading-tight text-[var(--token-text-primary)]/95 sm:text-sm"
                                 emptyHint="No 3rd place in qual standings for this class"
                               />
                             </li>
@@ -842,7 +833,7 @@ function EventOverviewTopQualifiersCards({
       {highlightsTab === "seeding" ? (
         <div id={seedingPanelId} role="tabpanel" aria-labelledby={seedingTabId} className="min-w-0">
           <div
-            className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)] shadow-sm"
+            className="rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_72%,var(--token-surface))] px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
             role="status"
           >
             {SEEDING_PLACEHOLDER_TEXT}
@@ -875,8 +866,7 @@ function EventOverviewTopQualifiersCards({
                     <li key={className}>
                       <button
                         type="button"
-                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
-                        style={OVERVIEW_GLASS_SURFACE_STYLE}
+                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_INNER_WELL_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface-elevated)] hover:bg-[color-mix(in_oklab,var(--token-surface-raised)_42%,var(--token-surface-alt))]`}
                         onClick={() => setLapHeroDetailClass(className)}
                         aria-haspopup="dialog"
                         aria-expanded={isOpen}
@@ -884,16 +874,16 @@ function EventOverviewTopQualifiersCards({
                       >
                         <div className="flex min-w-0 w-full flex-col items-center">
                           <p
-                            className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
+                            className={`w-fit max-w-full text-center ${typography.overviewCardClassLabel}`}
                           >
                             {formatClassName(className)}
                           </p>
                           <p
-                            className={`mt-1 w-full max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
+                            className={`mt-1 w-full max-w-full truncate text-center ${typography.overviewCardDriverName}`}
                           >
                             {driverName}
                           </p>
-                          <p className="mt-0.5 text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)]">
+                          <p className="mt-0.5 text-center text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
                             {lapsTimeLine}
                           </p>
                         </div>
@@ -928,8 +918,7 @@ function EventOverviewTopQualifiersCards({
                     <li key={className}>
                       <button
                         type="button"
-                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
-                        style={OVERVIEW_GLASS_SURFACE_STYLE}
+                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_INNER_WELL_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface-elevated)] hover:bg-[color-mix(in_oklab,var(--token-surface-raised)_42%,var(--token-surface-alt))]`}
                         onClick={() => setMostConsistentDetailClass(className)}
                         aria-haspopup="dialog"
                         aria-expanded={isOpen}
@@ -937,16 +926,16 @@ function EventOverviewTopQualifiersCards({
                       >
                         <div className="flex min-w-0 w-full flex-col items-center">
                           <p
-                            className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
+                            className={`w-fit max-w-full text-center ${typography.overviewCardClassLabel}`}
                           >
                             {formatClassName(className)}
                           </p>
                           <p
-                            className={`mt-1 w-full max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
+                            className={`mt-1 w-full max-w-full truncate text-center ${typography.overviewCardDriverName}`}
                           >
                             {driverName}
                           </p>
-                          <p className="mt-0.5 text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)]">
+                          <p className="mt-0.5 text-center text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
                             {line}
                           </p>
                         </div>
@@ -981,8 +970,7 @@ function EventOverviewTopQualifiersCards({
                     <li key={className}>
                       <button
                         type="button"
-                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
-                        style={OVERVIEW_GLASS_SURFACE_STYLE}
+                        className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_INNER_WELL_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface-elevated)] hover:bg-[color-mix(in_oklab,var(--token-surface-raised)_42%,var(--token-surface-alt))]`}
                         onClick={() => setFastestLapDetailClass(className)}
                         aria-haspopup="dialog"
                         aria-expanded={isOpen}
@@ -990,16 +978,16 @@ function EventOverviewTopQualifiersCards({
                       >
                         <div className="flex min-w-0 w-full flex-col items-center">
                           <p
-                            className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
+                            className={`w-fit max-w-full text-center ${typography.overviewCardClassLabel}`}
                           >
                             {formatClassName(className)}
                           </p>
                           <p
-                            className={`mt-1 w-full max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
+                            className={`mt-1 w-full max-w-full truncate text-center ${typography.overviewCardDriverName}`}
                           >
                             {driverName}
                           </p>
-                          <p className="mt-0.5 text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)]">
+                          <p className="mt-0.5 text-center text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
                             {line}
                           </p>
                         </div>
@@ -1040,8 +1028,7 @@ function EventOverviewTopQualifiersCards({
                   <li key={c.className}>
                     <button
                       type="button"
-                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
-                      style={OVERVIEW_GLASS_SURFACE_STYLE}
+                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_INNER_WELL_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface-elevated)] hover:bg-[color-mix(in_oklab,var(--token-surface-raised)_42%,var(--token-surface-alt))]`}
                       onClick={() => setWinnerMeanAvgLapDetailClass(c.className)}
                       aria-haspopup="dialog"
                       aria-expanded={isOpen}
@@ -1049,16 +1036,16 @@ function EventOverviewTopQualifiersCards({
                     >
                       <div className="flex min-w-0 w-full flex-col items-center">
                         <p
-                          className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
+                          className={`w-fit max-w-full text-center ${typography.overviewCardClassLabel}`}
                         >
                           {c.classDisplay}
                         </p>
                         <p
-                          className={`mt-1 w-full max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
+                          className={`mt-1 w-full max-w-full truncate text-center ${typography.overviewCardDriverName}`}
                         >
                           {c.winnerName}
                         </p>
-                        <p className="mt-0.5 text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)]">
+                        <p className="mt-0.5 text-center text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
                           {line}
                         </p>
                       </div>
@@ -1102,8 +1089,7 @@ function EventOverviewTopQualifiersCards({
                   <li key={c.className}>
                     <button
                       type="button"
-                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_GLASS_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)] hover:bg-[var(--token-surface-elevated)]/90`}
-                      style={OVERVIEW_GLASS_SURFACE_STYLE}
+                      className={`flex min-h-0 min-w-0 w-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors ${OVERVIEW_INNER_WELL_SURFACE_CLASS} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface-elevated)] hover:bg-[color-mix(in_oklab,var(--token-surface-raised)_42%,var(--token-surface-alt))]`}
                       onClick={() => openClosestBattlesModalForClass(c.className)}
                       aria-haspopup="dialog"
                       aria-expanded={isOpen}
@@ -1111,18 +1097,18 @@ function EventOverviewTopQualifiersCards({
                     >
                       <div className="flex min-w-0 w-full flex-col items-center">
                         <p
-                          className={`w-fit max-w-full text-center text-xs font-medium uppercase tracking-wide text-[var(--token-text-tertiary)]`}
+                          className={`w-fit max-w-full text-center ${typography.overviewCardClassLabel}`}
                         >
                           {c.classDisplay}
                         </p>
                         <p
-                          className={`mt-1 w-full max-w-full truncate text-center text-base font-semibold text-[var(--token-text-primary)]`}
+                          className={`mt-1 w-full max-w-full min-w-0 text-center text-base font-bold leading-snug text-[var(--token-text-primary)]`}
                         >
-                          {c.p1Name}
-                          <span className="text-[var(--token-text-muted)]"> vs </span>
-                          {c.p2Name}
+                          <span className="inline min-w-0 break-words">{c.p1Name}</span>
+                          <span className="font-normal text-[var(--token-text-muted)]"> vs </span>
+                          <span className="inline min-w-0 break-words">{c.p2Name}</span>
                         </p>
-                        <p className="mt-0.5 text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)]">
+                        <p className="mt-0.5 text-center text-sm font-semibold tabular-nums leading-snug text-[var(--token-text-primary)]">
                           {gapLine}
                         </p>
                       </div>

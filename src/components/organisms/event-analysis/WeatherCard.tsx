@@ -29,10 +29,10 @@ function WeatherConditionIcon({ condition, className }: { condition: string; cla
 }
 
 const CARD_CLASS =
-  "mb-6 w-fit rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2"
+  "mb-6 w-fit rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_72%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_85%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.045)]"
 const GRID_CLASS =
-  "grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-sm text-[var(--token-text-primary)]"
-const LABEL_CLASS = "text-[var(--token-text-secondary)]"
+  "grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-sm text-[var(--token-text-primary)] [&>span:nth-child(even)]:font-medium"
+const LABEL_CLASS = "text-xs font-medium text-[var(--token-text-muted)]"
 
 export interface WeatherCardProps {
   weather: EventWeatherData | null
