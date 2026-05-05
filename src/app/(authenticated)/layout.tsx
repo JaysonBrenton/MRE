@@ -44,11 +44,11 @@ export default async function AuthenticatedLayout({ children }: { children: Reac
       <DashboardEventSearchProvider>
         <EventActionsProvider>
           <DashboardLayout user={session.user} userId={session.user.id}>
-            <div className="flex w-full flex-1 flex-col">
+            <div className="flex w-full flex-1 flex-col items-stretch">
               <EventAnalysisHeaderWrapper />
               <main
                 id="main-content"
-                className="page-container flex min-h-0 w-full flex-1 flex-col"
+                className="page-container flex min-h-0 w-full flex-1 flex-col items-stretch"
                 tabIndex={-1}
               >
                 {children}

@@ -92,7 +92,7 @@ export default function SessionsTab({
 
   return (
     <div
-      className="space-y-6"
+      className="dashboard-shell-tabpanel space-y-6"
       role="tabpanel"
       id="tabpanel-sessions"
       aria-labelledby="tab-sessions"

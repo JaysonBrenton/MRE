@@ -2,6 +2,7 @@
 
 import { useAppSelector } from "@/store/hooks"
 import AdaptiveNavigationRail from "@/components/organisms/dashboard/shell/AdaptiveNavigationRail"
+import { DASHBOARD_NAV_SCROLL_PADDING_TRANSITION_CLASS } from "@/components/organisms/dashboard/shell/dashboard-shell-nav-transition"
 import TopStatusBar from "@/components/organisms/dashboard/shell/TopStatusBar"
 import CommandPalette from "@/components/organisms/dashboard/shell/CommandPalette"
 
@@ -41,7 +42,7 @@ function DashboardShell({
   // to tens of px). Nav offset uses padding-left: nav width + gutter on lg+ (see --nav-content-gutter).
   return (
     <div
-      className="relative min-h-screen w-full bg-[var(--token-surface)] text-[var(--token-text-primary)]"
+      className="dashboard-shell-canvas relative min-h-screen w-full text-[var(--token-text-primary)]"
       data-density={density}
       style={
         {
@@ -55,7 +56,7 @@ function DashboardShell({
       <TopStatusBar user={user ?? null} userId={userId} />
       <div
         data-scroll-container
-        className="scrollbar-none fixed left-0 right-0 top-16 bottom-0 z-0 flex min-h-0 flex-col overflow-y-auto overflow-x-hidden px-1 py-6 transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none motion-reduce:duration-0 sm:px-2 md:px-2 lg:px-2 lg:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] xl:pr-4 xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] 2xl:pr-6 2xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))]"
+        className={`scrollbar-none fixed left-0 right-0 top-16 bottom-0 z-0 flex min-h-0 flex-col items-stretch overflow-y-auto overflow-x-hidden px-1 pt-2 pb-6 sm:px-2 md:px-2 lg:px-2 lg:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] xl:pr-4 xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] 2xl:pr-6 2xl:pl-[calc(var(--nav-width)_+_var(--nav-content-gutter))] ${DASHBOARD_NAV_SCROLL_PADDING_TRANSITION_CLASS}`}
       >
         {children}
       </div>

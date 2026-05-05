@@ -62,19 +62,19 @@ export default function MyClubNavSection({
       <div className="flex items-center gap-2">
         <Link
           href={item.href}
-          className={`group flex flex-1 flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
+          className={`group flex min-w-0 flex-1 flex-col items-stretch rounded-lg px-3 py-2 transition hover:bg-[var(--token-surface-raised)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]`}
           aria-current={myClubActive ? "page" : undefined}
           aria-label={item.label}
         >
           <div className="flex items-center gap-3">
             {item.icon(myClubActive)}
             <span
-              className={`text-sm font-medium transition-opacity duration-200 ease-in-out ${myClubActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
+              className={`whitespace-nowrap text-sm font-medium transition-opacity duration-150 ease-out motion-reduce:transition-none ${myClubActive ? "text-[var(--token-text-primary)]" : "text-[var(--token-text-secondary)]"}`}
             >
               {item.label}
             </span>
           </div>
-          <p className="mt-1 text-xs text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out">
+          <p className="mt-1 line-clamp-2 text-xs text-[var(--token-text-muted)] transition-opacity duration-150 ease-out motion-reduce:transition-none">
             {item.description}
           </p>
         </Link>

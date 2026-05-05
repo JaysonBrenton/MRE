@@ -14,9 +14,7 @@ import {
   STORAGE_KEY_MY_CLUB_EXPANDED,
 } from "./adaptive-navigation-rail/navigationRailConfig"
 import { useMobileNavFocusTrap } from "./adaptive-navigation-rail/useMobileNavFocusTrap"
-
-const RAIL_TRANSITION =
-  "transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none motion-reduce:duration-0"
+import { DASHBOARD_NAV_RAIL_TRANSITION_CLASS } from "./dashboard-shell-nav-transition"
 
 interface AdaptiveNavigationRailProps {
   user?: {
@@ -177,7 +175,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
         ref={railRef}
         id="dashboard-navigation-rail"
         aria-label="Primary navigation"
-        className={`${navWidth} fixed left-0 top-16 z-50 flex h-[calc(100vh-4rem)] flex-col border-r border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/90 backdrop-blur-lg ${RAIL_TRANSITION} will-change-[width] motion-reduce:will-change-auto lg:top-0 lg:z-10 lg:h-screen ${
+        className={`${navWidth} fixed left-0 top-16 z-50 flex h-[calc(100vh-4rem)] flex-col overflow-hidden border-r border-[var(--token-border-muted)] bg-[color-mix(in_oklab,var(--token-surface-elevated)_82%,var(--token-surface-page))]/92 backdrop-blur-lg supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--token-surface-elevated)_74%,var(--token-surface-page))]/88 ${DASHBOARD_NAV_RAIL_TRANSITION_CLASS} will-change-[width] motion-reduce:will-change-auto lg:top-0 lg:z-10 lg:h-screen ${
           isMobileNavOpen ? "translate-x-0" : "-translate-x-full max-lg:pointer-events-none"
         } lg:translate-x-0`}
       >
@@ -185,7 +183,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
           className={`flex h-16 shrink-0 items-center ${isNavCollapsed ? "justify-center px-2" : "justify-between px-4"}`}
         >
           {!isNavCollapsed && (
-            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)] transition-opacity duration-200 ease-in-out motion-reduce:transition-none">
+            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--token-text-muted)] transition-opacity duration-150 ease-out motion-reduce:transition-none">
               MRE
             </div>
           )}
@@ -208,7 +206,7 @@ export default function AdaptiveNavigationRail({ user }: AdaptiveNavigationRailP
         </div>
 
         <nav
-          className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 py-4"
+          className="min-h-0 min-w-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 py-4"
           aria-label="Application sections"
         >
           <NavigationRailNavItems

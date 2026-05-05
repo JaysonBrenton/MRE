@@ -19,13 +19,18 @@
 
 "use client"
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from "react"
 import EventOverviewTopQualifiers from "./EventOverviewTopQualifiers"
 import {
   EventOverviewVenueHostTabList,
   type VenueHostSubTab,
 } from "./EventOverviewVenueHostTabList"
+import { OverviewEventDetailsSectionHeading } from "./OverviewEventDetailsSectionHeading"
+import { OverviewTriColumnSummary } from "./OverviewTriColumnSummary"
+import { OverviewVenueContactFields, OverviewVenueDetailPanel } from "./OverviewVenueDetailPanel"
+import { MapSearchAddressLink } from "@/components/molecules/MapSearchAddressLink"
 import WeatherCard from "./WeatherCard"
+import { EventWeatherAtAGlance } from "./EventWeatherAtAGlance"
 import { EventHighlightsMixFilteredChart } from "./EventHighlightsMixCharts"
 import EventTopFastestLapsPerClassTable from "./EventTopFastestLapsPerClassTable"
 import EventTopAverageLapsPerClassTable from "./EventTopAverageLapsPerClassTable"
@@ -61,14 +66,18 @@ import {
 } from "@/core/events/event-analysis-notices"
 import { clientLogger } from "@/lib/client-logger"
 import { getRaceClassNamesForBumpUpChips, getValidClasses } from "@/core/events/class-validator"
-import { ExternalLink, Facebook, MapPin, Phone, Globe, Mail } from "lucide-react"
-import { MapSearchAddressLink } from "@/components/molecules/MapSearchAddressLink"
 import { splitAddressForDisplay } from "@/lib/address-normalization"
 import { formatDateLong } from "@/lib/date-utils"
 import { formatLapTime } from "@/lib/format-session-data"
 import { typography } from "@/lib/typography"
 import { computeDriverStatsFromRaces } from "@/core/events/compute-driver-stats-from-races"
 import {
+  EVENT_DETAILS_EMPTY_STATE_CLASS,
+  EVENT_DETAILS_SECTION_SURFACE_CLASS,
+  EVENT_DETAILS_STATS_GRID_CLASS,
+  EVENT_DETAILS_STATS_STRIP_WELL_CLASS,
+  EVENT_DETAILS_TAB_PANEL_WELL_CLASS,
+  EVENT_DETAILS_WEATHER_INFO_CALLOUT_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
   OVERVIEW_SECTION_SURFACE_CLASS,
 } from "@/components/organisms/event-analysis/overview-glass-surface"
@@ -86,6 +95,12 @@ import {
 import { getSessionAnalysisNavClassOptions } from "@/core/events/entry-list-class-options"
 import { isEventMainSession } from "@/core/events/main-bracket-overall"
 import { buildEventHighlights } from "@/core/events/build-event-highlights"
+
+/** Shared chrome for Host / Track / Weather / Mix tab panels in Event details. */
+const EVENT_DETAILS_TABPANEL_CHROME = [
+  "min-w-0 w-full max-w-full text-sm",
+  EVENT_DETAILS_TAB_PANEL_WELL_CLASS,
+].join(" ")
 
 /** Sub-tabs whose tables share Session / Type scope filters (race class + taxonomy). */
 const EVENT_CLASS_FILTER_SUB_TABS: EventAnalysisSubTabId[] = [
@@ -175,10 +190,17 @@ export interface OverviewTabProps {
   selectedClass: string | null
   onClassChange: (className: string | null) => void
   /** Top-level dashboard tab: only that section’s content (no inner overview subsection strip). */
-  variant?: "default" | "event-overview-only" | "event-analysis-only" | "session-analysis-only"
+  variant?:
+    | "default"
+    | "event-overview-minimal"
+    | "event-overview-only"
+    | "event-analysis-only"
+    | "session-analysis-only"
   /** Controlled sub-view when parent owns toolbar dropdown (`event-analysis-only` / `session-analysis-only`). */
   analysisSubTab?: EventAnalysisSubTabId
   onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
+  /** Renders above the “Event details” heading (e.g. dashboard tab strip for Event Overview tabs). */
+  toolbarAboveEventDetails?: ReactNode
 }
 
 type OverviewPrimarySection = "event-overview" | "session-analysis" | "event-analysis"
@@ -205,6 +227,7 @@ export default function OverviewTab({
   variant = "default",
   analysisSubTab: analysisSubTabProp,
   onAnalysisSubTabChange,
+  toolbarAboveEventDetails,
 }: OverviewTabProps) {
   const lastLoggedMissingState = useRef<string | null>(null)
   const lastLoggedUnselectedInClassState = useRef<string | null>(null)
@@ -216,6 +239,7 @@ export default function OverviewTab({
   const [overviewPrimarySection, setOverviewPrimarySection] = useState<OverviewPrimarySection>(
     () => {
       switch (variant) {
+        case "event-overview-minimal":
         case "event-overview-only":
           return "event-overview"
         case "event-analysis-only":
@@ -306,16 +330,6 @@ export default function OverviewTab({
   // Get race classes from entry list
   const validClasses = useMemo(() => getValidClasses(data), [data])
 
-  /** Label above value/link (Event host / host club headlines). */
-  const overviewVenueHeadlineStackClass =
-    "flex min-w-0 w-full max-w-full flex-col gap-1 items-stretch"
-
-  /** Host name with LiveRC link — match Event Overview KPI value typography (`overviewMetricValue`). */
-  const overviewVenueHostLinkClass = `${typography.overviewMetricValue} inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-1.5 break-words no-underline transition-colors rounded-sm hover:text-[var(--token-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]/35`
-
-  /** Host name plain text — same KPI value sizing/weight when no dashboard URL. */
-  const overviewVenueHostPlainClass = `${typography.overviewMetricValue} block min-w-0 max-w-full break-words`
-
   const totalClassesCount = useMemo(
     () =>
       data.registrationClassNames && data.registrationClassNames.length > 0
@@ -326,49 +340,56 @@ export default function OverviewTab({
     [data.registrationClassNames, data.raceClasses, validClasses]
   )
 
-  /** Races / drivers / entries / laps / classes — paired with venue sub-tabs in Event details. */
-  const eventOverviewStatsGrid = useMemo(
+  /** Full-width persistent summary under Event details tabs (same metrics on every tab). */
+  const eventDetailsPersistentStatsStrip = useMemo(
     () => (
       <div
-        className={[
-          "grid min-w-0 w-full max-w-full shrink-0 justify-items-start",
-          "grid-cols-2 gap-x-4 gap-y-2 rounded-lg px-3 py-2",
-          "sm:grid-cols-3 sm:gap-x-5",
-          "md:grid-cols-5 md:gap-x-6 md:gap-y-1",
-          "border border-[var(--token-border-muted)]/70 bg-[var(--token-surface-raised)]/25",
-          "lg:w-max lg:max-w-full",
-          "text-left",
-        ].join(" ")}
+        className={`min-w-0 w-full shrink-0 ${EVENT_DETAILS_STATS_STRIP_WELL_CLASS}`}
+        role="region"
+        aria-labelledby="overview-event-summary-title"
       >
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className={typography.overviewMetricLabel}>Races</span>
-          <span className={typography.overviewMetricValue}>
-            {data.summary.totalRaces.toLocaleString()}
-          </span>
-        </div>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className={typography.overviewMetricLabel}>Drivers</span>
-          <span className={typography.overviewMetricValue}>
-            {data.summary.totalDrivers.toLocaleString()}
-          </span>
-        </div>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className={typography.overviewMetricLabel}>Entries</span>
-          <span className={typography.overviewMetricValue}>
-            {data.entryList.length.toLocaleString()}
-          </span>
-        </div>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className={typography.overviewMetricLabel}>Total Laps</span>
-          <span className={typography.overviewMetricValue}>
-            {data.summary.totalLaps.toLocaleString()}
-          </span>
-        </div>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className={typography.overviewMetricLabel}>Total Classes</span>
-          <span className={typography.overviewMetricValue}>
-            {totalClassesCount.toLocaleString()}
-          </span>
+        <span id="overview-event-summary-title" className="sr-only">
+          Event summary
+        </span>
+        <div
+          className={[
+            "grid min-w-0 w-full max-w-full justify-items-start text-left",
+            "grid-cols-2 gap-x-4 gap-y-3",
+            "sm:grid-cols-3 sm:gap-x-5",
+            "md:grid-cols-5 md:gap-x-4 md:gap-y-2",
+            EVENT_DETAILS_STATS_GRID_CLASS,
+          ].join(" ")}
+        >
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className={typography.overviewMetricLabel}>Races</span>
+            <span className={typography.overviewMetricValue}>
+              {data.summary.totalRaces.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className={typography.overviewMetricLabel}>Drivers</span>
+            <span className={typography.overviewMetricValue}>
+              {data.summary.totalDrivers.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className={typography.overviewMetricLabel}>Entries</span>
+            <span className={typography.overviewMetricValue}>
+              {data.entryList.length.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className={typography.overviewMetricLabel}>Total Laps</span>
+            <span className={typography.overviewMetricValue}>
+              {data.summary.totalLaps.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className={typography.overviewMetricLabel}>Total Classes</span>
+            <span className={typography.overviewMetricValue}>
+              {totalClassesCount.toLocaleString()}
+            </span>
+          </div>
         </div>
       </div>
     ),
@@ -449,6 +470,65 @@ export default function OverviewTab({
           : null,
     }
   }, [data.event, data.userHostTrack])
+
+  /** Contact lines for minimal event overview tri-column (event host preferred, then host track). */
+  const eventOverviewMinimalContactSlot = useMemo(() => {
+    const livercTrackUrl = data.event.trackDashboardUrl?.trim() || null
+
+    const fieldsWithLiverc = (params: {
+      phone?: string | null
+      website?: string | null
+      email?: string | null
+      facebookUrl?: string | null
+    }) => (
+      <OverviewVenueContactFields
+        phone={params.phone}
+        website={params.website}
+        email={params.email}
+        facebookUrl={params.facebookUrl}
+        livercTrackUrl={livercTrackUrl}
+      />
+    )
+
+    const v = venueHostSection
+    if (!v) {
+      if (!livercTrackUrl) return null
+      return fieldsWithLiverc({})
+    }
+
+    const e = v.venue.event
+    const hasEventContact =
+      v.venue.hasPhone || v.venue.hasWebsite || v.venue.hasEmail || v.venue.hasFacebook
+    if (hasEventContact) {
+      return fieldsWithLiverc({
+        phone: v.venue.hasPhone ? e.phone : null,
+        website: v.venue.hasWebsite ? e.website : null,
+        email: v.venue.hasEmail ? e.email : null,
+        facebookUrl: v.venue.hasFacebook ? e.facebookUrl : null,
+      })
+    }
+
+    const host = v.host
+    if (!host) {
+      if (!livercTrackUrl) return null
+      return fieldsWithLiverc({})
+    }
+
+    const hasHostContact =
+      host.hostHasPhone || host.hostHasWebsite || host.hostHasEmail || host.hostHasFacebook
+    if (!hasHostContact) {
+      if (!livercTrackUrl) return null
+      return fieldsWithLiverc({})
+    }
+
+    const h = host.h
+    return fieldsWithLiverc({
+      phone: host.hostHasPhone ? h.phone : null,
+      website: host.hostHasWebsite ? h.website : null,
+      email: host.hostHasEmail ? h.email : null,
+      facebookUrl: host.hostHasFacebook ? h.facebookUrl : null,
+    })
+  }, [venueHostSection, data.event.trackDashboardUrl])
 
   const visibleVenueHostWeatherTabs = useMemo(() => {
     const tabs: VenueHostSubTab[] = []
@@ -1976,11 +2056,14 @@ export default function OverviewTab({
   )
 
   const showOtherSections =
+    variant !== "event-overview-minimal" &&
     variant !== "event-overview-only" &&
     variant !== "event-analysis-only" &&
     variant !== "session-analysis-only"
+  const isEventOverviewMinimal = variant === "event-overview-minimal"
   /** Event overview hero/stats: only on the Event Overview top tab, or in default mode when that subsection is active. */
   const showEventOverviewSection =
+    variant === "event-overview-minimal" ||
     variant === "event-overview-only" ||
     (showOtherSections && overviewPrimarySection === "event-overview")
 
@@ -1992,112 +2075,6 @@ export default function OverviewTab({
   }, [data.event.eventName, data.event.trackName])
 
   const trackDashboardUrl = data.event.trackDashboardUrl?.trim() || null
-
-  /** Shown left of event stats when the venue/host tab strip is visible (lg: beside stats). */
-  const venueHostTabHeadlineBesideStats = useMemo(() => {
-    if (!venueHostShowsTabStrip) return null
-    if (resolvedVenueHostTab === "eventHost") {
-      const eventHostSectionName = eventOverviewTrackSubline ?? data.event.trackName?.trim() ?? null
-      if (!eventHostSectionName) return null
-      return (
-        <div className={overviewVenueHeadlineStackClass}>
-          <span className={typography.overviewMetricLabel}>Host:</span>
-          <div className="m-0 min-w-0 w-full max-w-full">
-            {trackDashboardUrl ? (
-              <a
-                href={trackDashboardUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={overviewVenueHostLinkClass}
-              >
-                <span>{eventHostSectionName}</span>
-                <ExternalLink
-                  className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                  aria-hidden
-                />
-                <span className="sr-only"> (opens in a new tab on LiveRC)</span>
-              </a>
-            ) : (
-              <span className={overviewVenueHostPlainClass}>{eventHostSectionName}</span>
-            )}
-          </div>
-        </div>
-      )
-    }
-    if (resolvedVenueHostTab === "hostTrack" && venueHostSection?.host) {
-      const host = venueHostSection.host
-      const h = host.h
-      const hostClubName =
-        h.trackName?.trim() ||
-        (host.hostHasAddress && h.address?.trim()
-          ? (splitAddressForDisplay(h.address!)[0]?.trim() ?? null)
-          : null)
-      const hostTrackDashboardUrl = h.trackDashboardUrl?.trim() || null
-      if (!hostClubName) return null
-      return (
-        <div className={overviewVenueHeadlineStackClass}>
-          <span className={typography.overviewMetricLabel}>Host club:</span>
-          <div className="m-0 min-w-0 w-full max-w-full">
-            {hostTrackDashboardUrl ? (
-              <a
-                href={hostTrackDashboardUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={overviewVenueHostLinkClass}
-              >
-                <span>{hostClubName}</span>
-                <ExternalLink
-                  className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                  aria-hidden
-                />
-                <span className="sr-only"> (opens in a new tab on LiveRC)</span>
-              </a>
-            ) : (
-              <span className={overviewVenueHostPlainClass}>{hostClubName}</span>
-            )}
-          </div>
-        </div>
-      )
-    }
-    return null
-  }, [
-    venueHostShowsTabStrip,
-    resolvedVenueHostTab,
-    eventOverviewTrackSubline,
-    data.event.trackName,
-    trackDashboardUrl,
-    venueHostSection,
-    overviewVenueHeadlineStackClass,
-    overviewVenueHostLinkClass,
-    overviewVenueHostPlainClass,
-  ])
-
-  const venueHostStatsHeadlineRow = useMemo(
-    () => (
-      <div
-        className="mb-4 border-b border-[var(--token-border-muted)] pb-4"
-        role="region"
-        aria-labelledby="overview-event-summary-title"
-      >
-        <span id="overview-event-summary-title" className="sr-only">
-          Event summary
-        </span>
-        <div className="flex min-w-0 flex-col gap-3 md:gap-4 lg:flex-row lg:items-start lg:gap-6">
-          <div className="min-w-0 w-full shrink-0 pt-px lg:min-w-0 lg:flex-1">
-            {venueHostTabHeadlineBesideStats}
-          </div>
-          <div
-            className="h-px w-full shrink-0 bg-[var(--token-border-muted)] lg:hidden"
-            aria-hidden
-          />
-          <div className="min-w-0 w-full shrink-0 lg:flex lg:min-w-0 lg:flex-1 lg:justify-end">
-            {eventOverviewStatsGrid}
-          </div>
-        </div>
-      </div>
-    ),
-    [venueHostTabHeadlineBesideStats, eventOverviewStatsGrid]
-  )
 
   const showEventAnalysisSectionBlock =
     variant === "event-analysis-only" ||
@@ -2113,6 +2090,7 @@ export default function OverviewTab({
 
   const overviewPrimarySectionTabsVisible = useMemo(() => {
     if (
+      variant === "event-overview-minimal" ||
       variant === "event-overview-only" ||
       variant === "event-analysis-only" ||
       variant === "session-analysis-only"
@@ -2122,25 +2100,41 @@ export default function OverviewTab({
     return overviewPrimarySectionTabs
   }, [variant])
 
-  const tabPanelId =
-    variant === "event-overview-only"
-      ? "tabpanel-event-overview"
-      : variant === "event-analysis-only"
-        ? "tabpanel-event-analysis"
-        : variant === "session-analysis-only"
-          ? "tabpanel-session-analysis"
-          : "tabpanel-overview"
-  const tabAriaLabelledBy =
-    variant === "event-overview-only"
+  const eventOverviewToolbarTabId =
+    variant === "event-overview-minimal"
       ? "tab-event-overview"
-      : variant === "event-analysis-only"
-        ? "tab-event-analysis"
-        : variant === "session-analysis-only"
-          ? "tab-session-analysis"
-          : "tab-overview"
+      : variant === "event-overview-only"
+        ? "tab-event-overview-old"
+        : null
+
+  const tabPanelId =
+    variant === "event-overview-minimal"
+      ? "tabpanel-event-overview"
+      : variant === "event-overview-only"
+        ? "tabpanel-event-overview-old"
+        : variant === "event-analysis-only"
+          ? "tabpanel-event-analysis"
+          : variant === "session-analysis-only"
+            ? "tabpanel-session-analysis"
+            : "tabpanel-overview"
+  const tabAriaLabelledBy =
+    variant === "event-overview-minimal"
+      ? "tab-event-overview"
+      : variant === "event-overview-only"
+        ? "tab-event-overview-old"
+        : variant === "event-analysis-only"
+          ? "tab-event-analysis"
+          : variant === "session-analysis-only"
+            ? "tab-session-analysis"
+            : "tab-overview"
 
   return (
-    <div className="space-y-6" role="tabpanel" id={tabPanelId} aria-labelledby={tabAriaLabelledBy}>
+    <div
+      className="flex min-h-0 w-full min-w-full shrink-0 flex-col items-stretch gap-6"
+      role="tabpanel"
+      id={tabPanelId}
+      aria-labelledby={tabAriaLabelledBy}
+    >
       {showOtherSections && overviewPrimarySectionTabsVisible.length > 0 && (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 px-3 py-2 shadow-sm">
           <div className="min-w-0 flex-1 overflow-x-hidden">
@@ -2178,572 +2172,296 @@ export default function OverviewTab({
 
       {showEventOverviewSection && (
         <section
-          className="space-y-4"
-          aria-labelledby={
-            variant === "event-overview-only" ? "tab-event-overview" : "event-overview-heading"
-          }
+          className="flex min-h-0 w-full min-w-full flex-col items-stretch gap-4"
+          aria-labelledby={eventOverviewToolbarTabId ?? "event-overview-heading"}
         >
           <div
             id={eventOverviewSectionContentId}
             role="tabpanel"
-            aria-labelledby={
-              variant === "event-overview-only" ? "tab-event-overview" : "event-overview-heading"
-            }
-            className="space-y-5"
+            aria-labelledby={eventOverviewToolbarTabId ?? "event-overview-heading"}
+            className={`flex min-h-0 w-full min-w-full flex-col items-stretch ${toolbarAboveEventDetails ? "gap-3" : "gap-5"}`}
           >
-            <div className="space-y-4">
-              <header className="space-y-1">
-                <h3
-                  id="event-overview-event-details-heading"
-                  className={`min-w-0 ${typography.h3} tracking-tight text-[var(--token-text-primary)]`}
-                >
-                  Event details
-                </h3>
-              </header>
+            {toolbarAboveEventDetails ? (
+              <div className="flex min-w-0 w-full flex-col gap-3">{toolbarAboveEventDetails}</div>
+            ) : null}
+            <div className={toolbarAboveEventDetails ? "min-w-0 w-full" : "w-full min-w-0"}>
               <div
-                className={`flex min-w-0 flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 ${OVERVIEW_SECTION_SURFACE_CLASS}`}
-                aria-labelledby="event-overview-event-details-heading"
+                className={`grid w-full min-w-0 grid-cols-1 gap-5${
+                  toolbarAboveEventDetails
+                    ? ""
+                    : " mx-auto max-w-[min(100%,80rem)] xl:max-w-[90rem]"
+                }`}
               >
-                <div className="flex w-full shrink-0 basis-full flex-col gap-5">
-                  {venueHostShowsTabStrip ? (
-                    <div className="flex min-w-0 w-full flex-col gap-3 md:gap-4">
-                      <div className="min-w-0 w-fit max-w-full shrink-0">
-                        <EventOverviewVenueHostTabList
-                          selected={resolvedVenueHostTab}
-                          onSelect={setVenueHostTab}
-                          showEventHostTab={!!venueHostSection?.hasVenueInfo}
-                          showHostTrackTab={!!venueHostSection?.hasHostBlock}
-                          showEventWeatherTab
-                          showEventMixTab
+                {!isEventOverviewMinimal ? <OverviewEventDetailsSectionHeading /> : null}
+                {isEventOverviewMinimal ? (
+                  <OverviewTriColumnSummary
+                    trackLocationSlot={
+                      venueHostSection?.venue.hasAddress &&
+                      typeof data.event.address === "string" &&
+                      data.event.address.trim().length > 0 ? (
+                        <MapSearchAddressLink
+                          address={data.event.address.trim()}
+                          showMapLink={false}
+                          linkFullAddress
+                          linkClassName="text-sm font-normal leading-snug"
                         />
-                      </div>
-                      <div
-                        className="h-px w-full shrink-0 bg-[var(--token-border-muted)] lg:hidden"
-                        aria-hidden
-                      />
-                      {(resolvedVenueHostTab === "eventWeather" ||
-                        resolvedVenueHostTab === "eventMix") &&
-                        venueHostStatsHeadlineRow}
-                    </div>
-                  ) : (
-                    <div className="min-w-0 w-full">{eventOverviewStatsGrid}</div>
-                  )}
-                  {venueHostSection?.hasVenueInfo &&
-                    (!venueHostShowsTabStrip || resolvedVenueHostTab === "eventHost") && (
-                      <div
-                        id={
-                          venueHostShowsTabStrip
-                            ? "overview-venue-host-panel-event-host"
-                            : undefined
-                        }
-                        role={venueHostShowsTabStrip ? "tabpanel" : "region"}
-                        aria-labelledby={
-                          venueHostShowsTabStrip ? "overview-venue-host-tab-event-host" : undefined
-                        }
-                        aria-label={venueHostShowsTabStrip ? undefined : "Event host"}
-                        className="min-w-0 text-sm"
-                      >
-                        {venueHostShowsTabStrip &&
-                          resolvedVenueHostTab === "eventHost" &&
-                          venueHostStatsHeadlineRow}
-                        {(() => {
-                          if (venueHostShowsTabStrip) return null
-                          const eventHostSectionName =
-                            eventOverviewTrackSubline ?? data.event.trackName?.trim() ?? null
-                          if (!eventHostSectionName) return null
-                          return (
-                            <div className="mb-4 flex min-w-0 flex-col gap-4 border-b border-[var(--token-border-muted)] pb-4 sm:flex-row sm:items-stretch sm:gap-5 lg:gap-6">
-                              <div className="min-w-0 w-fit max-w-full shrink-0 self-start sm:self-stretch">
-                                <div className={overviewVenueHeadlineStackClass}>
-                                  <span className={typography.overviewMetricLabel}>Host:</span>
-                                  <div className="m-0 min-w-0 w-full max-w-full">
-                                    {trackDashboardUrl ? (
-                                      <a
-                                        href={trackDashboardUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={overviewVenueHostLinkClass}
-                                      >
-                                        <span>{eventHostSectionName}</span>
-                                        <ExternalLink
-                                          className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                          aria-hidden
-                                        />
-                                        <span className="sr-only">
-                                          {" "}
-                                          (opens in a new tab on LiveRC)
-                                        </span>
-                                      </a>
-                                    ) : (
-                                      <span className={overviewVenueHostPlainClass}>
-                                        {eventHostSectionName}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                        {(() => {
-                          const v = venueHostSection.venue
-                          const hasAddress = v.hasAddress
-                          const hasContact =
-                            v.hasPhone || v.hasWebsite || v.hasFacebook || v.hasEmail
-                          const eventHostLocation = hasAddress && (
-                            <div className="min-w-0" role="group" aria-label="Event host location">
-                              <div className="flex min-w-0 max-w-full items-start gap-2">
-                                <MapPin
-                                  className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                  aria-hidden
-                                />
-                                <div className="min-w-0 w-max max-w-full shrink-0">
-                                  <MapSearchAddressLink address={v.event.address!} />
-                                </div>
-                              </div>
-                            </div>
-                          )
-                          const eventHostContactItems = hasContact && (
-                            <>
-                              {v.hasPhone && (
-                                <li className="flex min-w-0 items-start gap-2">
-                                  <Phone
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <a
-                                    href={`tel:${v.event.phone!.replace(/\s/g, "")}`}
-                                    className="min-w-0 break-words text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                                  >
-                                    {v.event.phone}
-                                  </a>
-                                </li>
-                              )}
-                              {v.hasWebsite && (
-                                <li className="flex min-w-0 items-start gap-2">
-                                  <Globe
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <a
-                                    href={
-                                      v.event.website!.startsWith("http")
-                                        ? v.event.website!
-                                        : `https://${v.event.website}`
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="min-w-0 break-words text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                                  >
-                                    {v.event.website}
-                                  </a>
-                                </li>
-                              )}
-                              {v.hasFacebook && (
-                                <li className="flex min-w-0 items-start gap-2">
-                                  <Facebook
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <a
-                                    href={v.event.facebookUrl!}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="min-w-0 break-words text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                                  >
-                                    View on Facebook
-                                  </a>
-                                </li>
-                              )}
-                              {v.hasEmail && (
-                                <li className="flex min-w-0 items-start gap-2">
-                                  <Mail
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <a
-                                    href={`mailto:${v.event.email}`}
-                                    className="min-w-0 break-words text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                                  >
-                                    {v.event.email}
-                                  </a>
-                                </li>
-                              )}
-                            </>
-                          )
-                          const eventHostContactList = hasContact && (
-                            <ul
-                              className={[
-                                "m-0 list-none p-0",
-                                hasAddress
-                                  ? "grid w-full max-w-full grid-cols-1 gap-2.5 md:min-w-0 md:flex-1 md:self-start"
-                                  : "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-2.5",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              aria-label="Event host contact"
-                            >
-                              {eventHostContactItems}
-                            </ul>
-                          )
-                          if (hasAddress && hasContact) {
-                            return (
-                              <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-stretch md:gap-8 lg:gap-10">
-                                <div className="w-full min-w-0 max-w-full shrink-0 md:w-fit">
-                                  {eventHostLocation}
-                                </div>
-                                <div
-                                  className="hidden w-px shrink-0 self-stretch bg-[var(--token-border-default)] md:block"
-                                  aria-hidden
-                                />
-                                {eventHostContactList}
-                              </div>
-                            )
-                          }
-                          if (hasAddress)
-                            return <div className="space-y-4">{eventHostLocation}</div>
-                          if (hasContact) return eventHostContactList
-                          return null
-                        })()}
-                      </div>
-                    )}
-                  {venueHostSection?.host &&
-                    (!venueHostShowsTabStrip || resolvedVenueHostTab === "hostTrack") && (
-                      <div
-                        id={
-                          venueHostShowsTabStrip
-                            ? "overview-venue-host-panel-host-track"
-                            : undefined
-                        }
-                        role={venueHostShowsTabStrip ? "tabpanel" : "region"}
-                        aria-labelledby={
-                          venueHostShowsTabStrip ? "overview-venue-host-tab-host-track" : undefined
-                        }
-                        aria-label={venueHostShowsTabStrip ? undefined : "Host track"}
-                        className="min-w-0 text-sm"
-                      >
-                        {venueHostShowsTabStrip &&
-                          resolvedVenueHostTab === "hostTrack" &&
-                          venueHostStatsHeadlineRow}
-                        {(() => {
-                          if (venueHostShowsTabStrip) return null
-                          const host = venueHostSection.host
-                          const h = host.h
-                          const hostClubName =
-                            h.trackName?.trim() ||
-                            (host.hostHasAddress && h.address?.trim()
-                              ? (splitAddressForDisplay(h.address!)[0]?.trim() ?? null)
-                              : null)
-                          const hostTrackDashboardUrl = h.trackDashboardUrl?.trim() || null
-                          if (!hostClubName) return null
-                          return (
-                            <div className="mb-4 flex min-w-0 flex-col gap-4 border-b border-[var(--token-border-muted)] pb-4 sm:flex-row sm:items-stretch sm:gap-5 lg:gap-6">
-                              <div className="min-w-0 w-fit max-w-full shrink-0 self-start sm:self-stretch">
-                                <div className={overviewVenueHeadlineStackClass}>
-                                  <span className={typography.overviewMetricLabel}>Host club:</span>
-                                  <div className="m-0 min-w-0 w-full max-w-full">
-                                    {hostTrackDashboardUrl ? (
-                                      <a
-                                        href={hostTrackDashboardUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={overviewVenueHostLinkClass}
-                                      >
-                                        <span>{hostClubName}</span>
-                                        <ExternalLink
-                                          className="h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                          aria-hidden
-                                        />
-                                        <span className="sr-only">
-                                          {" "}
-                                          (opens in a new tab on LiveRC)
-                                        </span>
-                                      </a>
-                                    ) : (
-                                      <span className={overviewVenueHostPlainClass}>
-                                        {hostClubName}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                        {(() => {
-                          const host = venueHostSection.host
-                          const h = host.h
-                          const hasLocation = !!(h.trackName || host.hostHasAddress)
-                          const hasContact =
-                            host.hostHasPhone ||
-                            host.hostHasWebsite ||
-                            host.hostHasFacebook ||
-                            host.hostHasEmail
-                          /** LiveRC often repeats the track name as the first comma segment of `address`. */
-                          const hostTrackNameRedundantWithAddress =
-                            Boolean(h.trackName?.trim()) &&
-                            host.hostHasAddress &&
-                            Boolean(h.address?.trim()) &&
-                            (() => {
-                              const first = splitAddressForDisplay(h.address!)[0]
-                                ?.trim()
-                                .toLowerCase()
-                              if (!first) return false
-                              return first === h.trackName!.trim().toLowerCase()
-                            })()
-                          const hostTrackLocation = hasLocation && (
-                            <div
-                              className="min-w-0 space-y-3"
-                              role="group"
-                              aria-label="Host track location"
-                            >
-                              {h.trackName && !hostTrackNameRedundantWithAddress && (
-                                <div className="flex min-w-0 items-start gap-2">
-                                  <MapPin
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <span className="font-medium text-[var(--token-text-primary)]">
-                                    {h.trackName}
-                                  </span>
-                                </div>
-                              )}
-                              {host.hostHasAddress && (
-                                <div className="flex min-w-0 max-w-full items-start gap-2">
-                                  <MapPin
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <div className="min-w-0 w-max max-w-full shrink-0">
-                                    <MapSearchAddressLink address={h.address!} />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )
-                          const hostTrackContactItems = hasContact && (
-                            <>
-                              {host.hostHasPhone && (
-                                <li className="flex min-w-0 items-start gap-2">
-                                  <Phone
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <a
-                                    href={`tel:${h.phone!.replace(/\s/g, "")}`}
-                                    className="min-w-0 break-words text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                                  >
-                                    {h.phone}
-                                  </a>
-                                </li>
-                              )}
-                              {host.hostHasWebsite && (
-                                <li className="flex min-w-0 items-start gap-2">
-                                  <Globe
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <a
-                                    href={
-                                      h.website!.startsWith("http")
-                                        ? h.website!
-                                        : `https://${h.website}`
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="min-w-0 break-words text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                                  >
-                                    {h.website}
-                                  </a>
-                                </li>
-                              )}
-                              {host.hostHasFacebook && (
-                                <li className="flex min-w-0 items-start gap-2">
-                                  <Facebook
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <a
-                                    href={h.facebookUrl!}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="min-w-0 break-words text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                                  >
-                                    View on Facebook
-                                  </a>
-                                </li>
-                              )}
-                              {host.hostHasEmail && (
-                                <li className="flex min-w-0 items-start gap-2">
-                                  <Mail
-                                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--token-text-muted)]"
-                                    aria-hidden
-                                  />
-                                  <a
-                                    href={`mailto:${h.email}`}
-                                    className="min-w-0 break-words text-[var(--token-text-primary)] text-[var(--token-accent)] underline-offset-2 hover:underline"
-                                  >
-                                    {h.email}
-                                  </a>
-                                </li>
-                              )}
-                            </>
-                          )
-                          const hostTrackContactList = hasContact && (
-                            <ul
-                              className={[
-                                "m-0 list-none p-0",
-                                hasLocation
-                                  ? "grid w-full max-w-full grid-cols-1 gap-2.5 md:min-w-0 md:flex-1 md:self-start"
-                                  : "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-2.5",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              aria-label="Host track contact"
-                            >
-                              {hostTrackContactItems}
-                            </ul>
-                          )
-                          if (hasLocation && hasContact) {
-                            return (
-                              <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-stretch md:gap-8 lg:gap-10">
-                                <div className="w-full min-w-0 max-w-full shrink-0 md:w-fit">
-                                  {hostTrackLocation}
-                                </div>
-                                <div
-                                  className="hidden w-px shrink-0 self-stretch bg-[var(--token-border-default)] md:block"
-                                  aria-hidden
-                                />
-                                {hostTrackContactList}
-                              </div>
-                            )
-                          }
-                          if (hasLocation)
-                            return <div className="space-y-4">{hostTrackLocation}</div>
-                          if (hasContact) return hostTrackContactList
-                          return null
-                        })()}
-                      </div>
-                    )}
-                  {resolvedVenueHostTab === "eventWeather" ? (
-                    <div
-                      id="event-overview-event-weather-info"
-                      className="w-fit max-w-full rounded-xl border border-[color-mix(in_oklab,var(--token-border-muted)_75%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-alt)_75%,var(--token-surface))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
-                      aria-label={EVENT_OVERVIEW_WEATHER_INFO_TEXT}
-                    >
-                      <p
-                        className={`max-w-full text-xs text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-                      >
-                        {EVENT_OVERVIEW_WEATHER_INFO_TEXT}
-                      </p>
-                    </div>
-                  ) : null}
-                  {(!venueHostShowsTabStrip || resolvedVenueHostTab === "eventWeather") && (
-                    <div
-                      id={
-                        venueHostShowsTabStrip
-                          ? "overview-venue-host-panel-event-weather"
-                          : undefined
-                      }
-                      role={venueHostShowsTabStrip ? "tabpanel" : "region"}
-                      aria-labelledby={
-                        venueHostShowsTabStrip ? "overview-venue-host-tab-event-weather" : undefined
-                      }
-                      aria-label={venueHostShowsTabStrip ? undefined : "Event weather"}
-                      className="min-w-0 w-full"
-                    >
-                      <div id="event-weather-data-content" className="flex flex-wrap gap-4">
-                        {weatherLoading ? (
-                          <WeatherCard weather={null} weatherLoading={true} weatherError={null} />
-                        ) : weatherError ? (
-                          <WeatherCard
-                            weather={null}
-                            weatherLoading={false}
-                            weatherError={weatherError}
-                          />
-                        ) : weatherByDay && weatherByDay.length > 0 ? (
-                          weatherByDay.map(({ date, weather }) => (
-                            <div key={date} className="flex flex-col gap-1">
-                              <span className="text-xs font-medium text-[var(--token-text-muted)]">
-                                {formatDateLong(date)}
-                              </span>
-                              <WeatherCard
-                                weather={weather}
-                                weatherLoading={false}
-                                weatherError={null}
-                              />
-                            </div>
-                          ))
-                        ) : (
-                          <p
-                            className={`text-sm text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
-                          >
-                            No weather data is available for this event yet.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {(!venueHostShowsTabStrip || resolvedVenueHostTab === "eventMix") && (
-                    <div
-                      id={
-                        venueHostShowsTabStrip ? "overview-venue-host-panel-event-mix" : undefined
-                      }
-                      role={venueHostShowsTabStrip ? "tabpanel" : "region"}
-                      aria-labelledby={
-                        venueHostShowsTabStrip ? "overview-venue-host-tab-event-mix" : undefined
-                      }
-                      aria-label={venueHostShowsTabStrip ? undefined : "Event mix"}
-                      className="min-w-0 w-full"
-                    >
-                      {eventHighlightsModel.sessionMix.length > 0 ||
-                      eventHighlightsModel.classMixByDrivers.length > 0 ||
-                      eventHighlightsModel.classMixByLaps.length > 0 ? (
-                        <div className="min-w-0 w-full max-w-full">
-                          <EventHighlightsMixFilteredChart
-                            sessionMix={eventHighlightsModel.sessionMix}
-                            classMixByDrivers={eventHighlightsModel.classMixByDrivers}
-                            classMixByLaps={eventHighlightsModel.classMixByLaps}
+                      ) : null
+                    }
+                    contactDetailsSlot={eventOverviewMinimalContactSlot}
+                  />
+                ) : null}
+                {!isEventOverviewMinimal ? (
+                  <div
+                    className={`grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 px-5 py-5 sm:gap-5 sm:px-6 sm:py-6 ${EVENT_DETAILS_SECTION_SURFACE_CLASS}`}
+                    aria-labelledby="event-overview-event-details-heading"
+                    aria-describedby="event-overview-event-details-subtitle"
+                  >
+                    <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5">
+                      {venueHostShowsTabStrip ? (
+                        <div className="grid min-w-0 grid-cols-1 gap-4">
+                          <div className="min-w-0 w-full shrink-0">
+                            <EventOverviewVenueHostTabList
+                              selected={resolvedVenueHostTab}
+                              onSelect={setVenueHostTab}
+                              showEventHostTab={!!venueHostSection?.hasVenueInfo}
+                              showHostTrackTab={!!venueHostSection?.hasHostBlock}
+                              showEventWeatherTab
+                              showEventMixTab
+                            />
+                          </div>
+                          <div
+                            className="h-px w-full shrink-0 bg-[var(--token-border-muted)] lg:hidden"
+                            aria-hidden
                           />
                         </div>
-                      ) : (
-                        <p
-                          className={`text-sm text-[var(--token-text-secondary)] ${typography.bodySecondary}`}
+                      ) : null}
+                      {eventDetailsPersistentStatsStrip}
+                      {venueHostSection?.hasVenueInfo &&
+                        (!venueHostShowsTabStrip || resolvedVenueHostTab === "eventHost") && (
+                          <div
+                            id={
+                              venueHostShowsTabStrip
+                                ? "overview-venue-host-panel-event-host"
+                                : undefined
+                            }
+                            role={venueHostShowsTabStrip ? "tabpanel" : "region"}
+                            aria-labelledby={
+                              venueHostShowsTabStrip
+                                ? "overview-venue-host-tab-event-host"
+                                : undefined
+                            }
+                            aria-label={venueHostShowsTabStrip ? undefined : "Event host"}
+                            className={EVENT_DETAILS_TABPANEL_CHROME}
+                          >
+                            <OverviewVenueDetailPanel
+                              idPrefix="event-host"
+                              variant="host"
+                              primaryTitle={
+                                eventOverviewTrackSubline ??
+                                venueHostSection.venue.event.trackName?.trim() ??
+                                null
+                              }
+                              primaryDashboardUrl={trackDashboardUrl}
+                              address={venueHostSection.venue.event.address}
+                              phone={venueHostSection.venue.event.phone}
+                              website={venueHostSection.venue.event.website}
+                              email={venueHostSection.venue.event.email}
+                              facebookUrl={venueHostSection.venue.event.facebookUrl}
+                            />
+                          </div>
+                        )}
+                      {venueHostSection?.host &&
+                        (!venueHostShowsTabStrip || resolvedVenueHostTab === "hostTrack") && (
+                          <div
+                            id={
+                              venueHostShowsTabStrip
+                                ? "overview-venue-host-panel-host-track"
+                                : undefined
+                            }
+                            role={venueHostShowsTabStrip ? "tabpanel" : "region"}
+                            aria-labelledby={
+                              venueHostShowsTabStrip
+                                ? "overview-venue-host-tab-host-track"
+                                : undefined
+                            }
+                            aria-label={venueHostShowsTabStrip ? undefined : "Host track"}
+                            className={EVENT_DETAILS_TABPANEL_CHROME}
+                          >
+                            {(() => {
+                              const host = venueHostSection.host
+                              const h = host.h
+                              const hostClubName =
+                                h.trackName?.trim() ||
+                                (host.hostHasAddress && h.address?.trim()
+                                  ? (splitAddressForDisplay(h.address!)[0]?.trim() ?? null)
+                                  : null)
+                              const hostTrackNameRedundantWithAddress =
+                                Boolean(h.trackName?.trim()) &&
+                                host.hostHasAddress &&
+                                Boolean(h.address?.trim()) &&
+                                (() => {
+                                  const first = splitAddressForDisplay(h.address!)[0]
+                                    ?.trim()
+                                    .toLowerCase()
+                                  if (!first) return false
+                                  return first === h.trackName!.trim().toLowerCase()
+                                })()
+                              return (
+                                <OverviewVenueDetailPanel
+                                  idPrefix="host-track"
+                                  variant="track"
+                                  primaryTitle={hostClubName}
+                                  primaryDashboardUrl={h.trackDashboardUrl?.trim() || null}
+                                  address={host.hostHasAddress ? h.address : null}
+                                  locationTrackName={h.trackName?.trim() || null}
+                                  showLocationTrackName={
+                                    Boolean(h.trackName?.trim()) &&
+                                    !hostTrackNameRedundantWithAddress
+                                  }
+                                  phone={host.hostHasPhone ? h.phone : null}
+                                  website={host.hostHasWebsite ? h.website : null}
+                                  email={host.hostHasEmail ? h.email : null}
+                                  facebookUrl={host.hostHasFacebook ? h.facebookUrl : null}
+                                />
+                              )
+                            })()}
+                          </div>
+                        )}
+                      {(!venueHostShowsTabStrip || resolvedVenueHostTab === "eventWeather") && (
+                        <div
+                          id={
+                            venueHostShowsTabStrip
+                              ? "overview-venue-host-panel-event-weather"
+                              : undefined
+                          }
+                          role={venueHostShowsTabStrip ? "tabpanel" : "region"}
+                          aria-labelledby={
+                            venueHostShowsTabStrip
+                              ? "overview-venue-host-tab-event-weather"
+                              : undefined
+                          }
+                          aria-label={venueHostShowsTabStrip ? undefined : "Event weather"}
+                          aria-busy={weatherLoading}
+                          className={EVENT_DETAILS_TABPANEL_CHROME}
                         >
-                          No session or class mix data is available for this event yet.
-                        </p>
+                          {resolvedVenueHostTab === "eventWeather" ? (
+                            <div
+                              id="event-overview-event-weather-info"
+                              className={`mb-4 w-full max-w-2xl ${EVENT_DETAILS_WEATHER_INFO_CALLOUT_CLASS}`}
+                              aria-label={EVENT_OVERVIEW_WEATHER_INFO_TEXT}
+                            >
+                              <p className="text-sm leading-relaxed text-[var(--token-text-secondary)]">
+                                {EVENT_OVERVIEW_WEATHER_INFO_TEXT}
+                              </p>
+                            </div>
+                          ) : null}
+                          <div
+                            id="event-weather-data-content"
+                            className="grid min-w-0 w-full grid-cols-1 gap-4"
+                            aria-live="polite"
+                          >
+                            {weatherLoading ? (
+                              <WeatherCard
+                                weather={null}
+                                weatherLoading={true}
+                                weatherError={null}
+                              />
+                            ) : weatherError ? (
+                              <WeatherCard
+                                weather={null}
+                                weatherLoading={false}
+                                weatherError={weatherError}
+                              />
+                            ) : weatherByDay && weatherByDay.length > 0 ? (
+                              <>
+                                <EventWeatherAtAGlance weatherByDay={weatherByDay} />
+                                <div className="grid min-h-0 min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                  {weatherByDay.map(({ date, weather }) => (
+                                    <div key={date} className="flex h-full min-h-[16.5rem] min-w-0">
+                                      <WeatherCard
+                                        weather={weather}
+                                        weatherLoading={false}
+                                        weatherError={null}
+                                        headingDate={formatDateLong(date)}
+                                        className="h-full w-full min-w-0"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <p className={EVENT_DETAILS_EMPTY_STATE_CLASS} role="status">
+                                No weather data is available for this event yet.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {(!venueHostShowsTabStrip || resolvedVenueHostTab === "eventMix") && (
+                        <div
+                          id={
+                            venueHostShowsTabStrip
+                              ? "overview-venue-host-panel-event-mix"
+                              : undefined
+                          }
+                          role={venueHostShowsTabStrip ? "tabpanel" : "region"}
+                          aria-labelledby={
+                            venueHostShowsTabStrip ? "overview-venue-host-tab-event-mix" : undefined
+                          }
+                          aria-label={venueHostShowsTabStrip ? undefined : "Event mix"}
+                          className={EVENT_DETAILS_TABPANEL_CHROME}
+                        >
+                          {eventHighlightsModel.sessionMix.length > 0 ||
+                          eventHighlightsModel.classMixByDrivers.length > 0 ||
+                          eventHighlightsModel.classMixByLaps.length > 0 ? (
+                            <div className="min-w-0 w-full">
+                              <EventHighlightsMixFilteredChart
+                                sessionMix={eventHighlightsModel.sessionMix}
+                                classMixByDrivers={eventHighlightsModel.classMixByDrivers}
+                                classMixByLaps={eventHighlightsModel.classMixByLaps}
+                                embeddedInEventDetails
+                              />
+                            </div>
+                          ) : (
+                            <p className={EVENT_DETAILS_EMPTY_STATE_CLASS} role="status">
+                              No session or class mix data is available for this event yet.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            <div className="space-y-4">
-              <header className="space-y-1">
-                <h3
-                  id="event-overview-highlights-section-heading"
-                  className={`min-w-0 ${typography.h3} tracking-tight text-[var(--token-text-primary)]`}
+            {!isEventOverviewMinimal ? (
+              <div className="space-y-4">
+                <header className="space-y-1">
+                  <h3
+                    id="event-overview-highlights-section-heading"
+                    className={`min-w-0 ${typography.h3} tracking-tight text-[var(--token-text-primary)]`}
+                  >
+                    Event highlights
+                  </h3>
+                </header>
+                <div
+                  className={`flex min-w-0 flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 ${OVERVIEW_SECTION_SURFACE_CLASS}`}
+                  aria-labelledby="event-overview-highlights-section-heading"
                 >
-                  Event highlights
-                </h3>
-              </header>
-              <div
-                className={`flex min-w-0 flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 ${OVERVIEW_SECTION_SURFACE_CLASS}`}
-                aria-labelledby="event-overview-highlights-section-heading"
-              >
-                <div id="overview-event-highlights-content" className="min-w-0 w-full">
-                  <EventOverviewTopQualifiers
-                    variant="overviewCards"
-                    qualPoints={data.qualPointsTopQualifiers}
-                    races={data.races}
-                    multiMainResults={data.multiMainResults}
-                    registrationClassNames={data.registrationClassNames}
-                    entryList={data.entryList}
-                  />
+                  <div id="overview-event-highlights-content" className="min-w-0 w-full">
+                    <EventOverviewTopQualifiers
+                      variant="overviewCards"
+                      qualPoints={data.qualPointsTopQualifiers}
+                      races={data.races}
+                      multiMainResults={data.multiMainResults}
+                      registrationClassNames={data.registrationClassNames}
+                      entryList={data.entryList}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </section>
       )}

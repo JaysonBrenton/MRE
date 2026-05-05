@@ -6,6 +6,8 @@ import UserProfileModal from "@/components/organisms/dashboard/shell/UserProfile
 import Tooltip from "@/components/molecules/Tooltip"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { toggleMobileNav } from "@/store/slices/uiSlice"
+import { DASHBOARD_SHELL_CONTENT_HORIZONTAL_PADDING } from "@/components/organisms/dashboard/shell/dashboard-shell-content-horizontal-padding"
+import { DASHBOARD_NAV_FIXED_LEFT_TRANSITION_CLASS } from "@/components/organisms/dashboard/shell/dashboard-shell-nav-transition"
 
 interface TopStatusBarProps {
   user?: {
@@ -23,7 +25,9 @@ export default function TopStatusBar({ user, userId }: TopStatusBarProps) {
 
   return (
     <>
-      <header className="fixed left-0 right-0 top-0 z-40 h-16 border-b border-[var(--token-border-muted)] bg-[var(--token-surface)]/95 backdrop-blur-xl lg:left-[calc(var(--nav-width)_+_var(--nav-content-gutter))]">
+      <header
+        className={`fixed left-0 right-0 top-0 z-40 h-16 bg-[color-mix(in_oklab,var(--token-surface-page)_96%,transparent)] backdrop-blur-xl supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--token-surface-page)_88%,transparent)] lg:left-[calc(var(--nav-width)_+_var(--nav-content-gutter))] ${DASHBOARD_NAV_FIXED_LEFT_TRANSITION_CLASS}`}
+      >
         <div className="flex h-full w-full items-center px-3 sm:px-6">
           <div className="flex flex-1 items-center">
             <button
@@ -63,6 +67,12 @@ export default function TopStatusBar({ user, userId }: TopStatusBarProps) {
               </Tooltip>
             </div>
           </div>
+        </div>
+        <div
+          className={`pointer-events-none absolute inset-x-0 bottom-0 ${DASHBOARD_SHELL_CONTENT_HORIZONTAL_PADDING}`}
+          aria-hidden
+        >
+          <div className="h-px w-full bg-[var(--token-border-muted)]" />
         </div>
       </header>
 

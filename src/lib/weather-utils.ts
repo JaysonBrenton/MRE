@@ -37,3 +37,14 @@ export function getWeatherErrorMessage(errorMsg: string): string {
   }
   return firstSentence
 }
+
+/**
+ * Parses leading wind speed from API/UI strings such as "12 km/h NE" or "12 km/h".
+ */
+export function parseWindSpeedKmhFromDisplay(wind: string): number | null {
+  if (!wind?.trim()) return null
+  const m = wind.trim().match(/^(\d+(?:\.\d+)?)\s*km\/h/i)
+  if (!m) return null
+  const n = Number(m[1])
+  return Number.isNaN(n) ? null : n
+}

@@ -19,14 +19,16 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import {
   fetchEventAnalysisData,
   selectEvent,
   setActiveEventAnalysisTab,
 } from "@/store/slices/dashboardSlice"
-import EventAnalysisToolbar from "@/components/organisms/event-analysis/EventAnalysisToolbar"
+import EventAnalysisToolbar, {
+  EventAnalysisToolbarAboveEventDetailsStrip,
+} from "@/components/organisms/event-analysis/EventAnalysisToolbar"
 import type { EventAnalysisSubTabId } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
 import { type TabId } from "@/components/organisms/event-analysis/TabNavigation"
 import OverviewTab from "@/components/organisms/event-analysis/OverviewTab"
@@ -55,6 +57,7 @@ const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
 ]
 const EVENT_TABS: { id: TabId; label: string }[] = [
   { id: "event-overview", label: "Event Overview" },
+  { id: "event-overview-old", label: "Event Overview - OLD" },
   { id: "event-analysis", label: "Event Analysis" },
   { id: "session-analysis", label: "Session Analysis" },
   { id: "drivers", label: "Entry List" },
@@ -158,8 +161,6 @@ export default function EventAnalysisSection() {
   const selectedClass = eventActions.selectedClass
   const sectionRef = useRef<HTMLElement>(null)
   const lastFetchedEventId = useRef<string | null>(null)
-  const headerRef = useRef<HTMLDivElement>(null)
-  const [headerHeight, setHeaderHeight] = useState(0)
   const [analysisSubTab, setAnalysisSubTab] = useState<EventAnalysisSubTabId>("event-results")
 
   /** Ladder sub-views apply to Event Analysis only; Session Analysis ignores them. */
@@ -313,6 +314,7 @@ export default function EventAnalysisSection() {
     const practiceTabIds: TabId[] = ["my-day", "my-sessions", "class-reference", "all-sessions"]
     const eventTabIds: TabId[] = [
       "event-overview",
+      "event-overview-old",
       "event-analysis",
       "session-analysis",
       "my-events",
@@ -328,17 +330,27 @@ export default function EventAnalysisSection() {
     queueMicrotask(sync)
   }, [isPracticeDay, activeTab, dispatch])
 
-  // Measure fixed header height for spacer (must run after transformedData/isPracticeDay are defined)
-  useLayoutEffect(() => {
-    if (!headerRef.current) return
-    const el = headerRef.current
-    const observer = new ResizeObserver(() => {
-      setHeaderHeight(el.offsetHeight)
-    })
-    observer.observe(el)
-    setHeaderHeight(el.offsetHeight)
-    return () => observer.disconnect()
-  }, [transformedData?.event.id, activeTab, isPracticeDay])
+  const isToolbarInlineWithEventDetails =
+    activeTab === "event-overview" || activeTab === "event-overview-old"
+
+  /** Practice day always shows EventAnalysisHeader; else toolbar may render above tab panels (not inline in OverviewTab). */
+  const showStackedHeaderToolbar =
+    isPracticeDay || (activeTab !== "my-events" && !isToolbarInlineWithEventDetails)
+
+  const eventAnalysisToolbarCommonProps = {
+    tabs: availableTabs,
+    activeTab,
+    onTabChange: handleTabChange,
+    analysisSubTab: resolvedAnalysisSubTab,
+    onAnalysisSubTabChange: setAnalysisSubTab,
+    eventTitle: eventAnalysisToolbarTitle,
+    eventTitleHref: eventAnalysisToolbarTitleHref,
+    eventDateRange: eventAnalysisToolbarDateRange,
+    titleEmphasis:
+      activeTab === "event-overview" || activeTab === "event-overview-old"
+        ? ("page" as const)
+        : ("default" as const),
+  }
 
   // Hide section entirely during rehydration to avoid duplicate loading messages
   // DashboardClient handles the initial loading state
@@ -356,8 +368,8 @@ export default function EventAnalysisSection() {
   // This ensures the section is visible and can start fetching analysis data
 
   return (
-    <section ref={sectionRef}>
-      <div className="space-y-[var(--dashboard-gap)]">
+    <section ref={sectionRef} className="min-h-0 w-full min-w-full">
+      <div className="flex min-h-0 w-full min-w-full flex-col items-stretch gap-[var(--dashboard-gap)]">
         {/* Error state */}
         {selectedEventId && analysisError && (
           <div className="text-center py-12 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]">
@@ -389,18 +401,12 @@ export default function EventAnalysisSection() {
             </div>
           )}
 
-        {/* Render analysis content - header+toolbar fixed with position:fixed */}
+        {/* Render analysis content — header + toolbar in normal flow (overview tabs tuck toolbar in OverviewTab) */}
         {selectedEventId && transformedData && (
           <>
-            {/* Spacer - reserves space so content doesn't jump (height matches fixed header) */}
-            <div style={{ height: Math.max(0, (headerHeight || 180) - 32) }} aria-hidden />
-            {/* Fixed header+toolbar - stays visible when scrolling */}
-            <div
-              ref={headerRef}
-              className="fixed left-0 top-16 right-0 z-20 border-b border-[var(--token-border-muted)] bg-[color-mix(in_oklab,var(--token-surface)_92%,transparent)] px-1 shadow-[var(--token-analysis-fixed-header-shadow)] backdrop-blur-md supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--token-surface)_88%,transparent)] sm:px-2 md:px-2 lg:left-[calc(var(--nav-width)_+_var(--nav-content-gutter))] lg:pl-0 lg:pr-2 xl:pl-0 xl:pr-4 2xl:pl-0 2xl:pr-6"
-            >
+            {showStackedHeaderToolbar ? (
               <div
-                className="content-wrapper mx-auto flex w-full min-w-0 max-w-full flex-col pb-2 pt-2 sm:pb-3 sm:pt-3"
+                className="content-wrapper relative mx-auto flex w-full min-w-0 max-w-full flex-col pb-2 pt-2 sm:pb-3 sm:pt-3"
                 style={{ gap: "var(--token-spacing-md)" }}
               >
                 <EventAnalysisHeader
@@ -412,23 +418,13 @@ export default function EventAnalysisSection() {
                   viewingDriverName={viewingDriverName}
                   isMyEventsSection={activeTab === "my-events"}
                 />
-                {activeTab !== "my-events" && (
-                  <EventAnalysisToolbar
-                    tabs={availableTabs}
-                    activeTab={activeTab}
-                    onTabChange={handleTabChange}
-                    analysisSubTab={resolvedAnalysisSubTab}
-                    onAnalysisSubTabChange={setAnalysisSubTab}
-                    eventTitle={eventAnalysisToolbarTitle}
-                    eventTitleHref={eventAnalysisToolbarTitleHref}
-                    eventDateRange={eventAnalysisToolbarDateRange}
-                    titleEmphasis={activeTab === "event-overview" ? "page" : "default"}
-                  />
+                {activeTab !== "my-events" && !isToolbarInlineWithEventDetails && (
+                  <EventAnalysisToolbar {...eventAnalysisToolbarCommonProps} />
                 )}
               </div>
-            </div>
-            {/* Tab content - scrolls normally */}
-            <div className="space-y-[var(--dashboard-gap)]">
+            ) : null}
+            {/* Tab panels */}
+            <div className="flex min-h-0 w-full min-w-full shrink-0 flex-col items-stretch gap-[var(--dashboard-gap)]">
               {activeTab === "event-overview" && (
                 <OverviewTab
                   data={transformedData}
@@ -436,7 +432,28 @@ export default function EventAnalysisSection() {
                   onDriverSelectionChange={eventActions.onDriverSelectionChange}
                   selectedClass={selectedClass}
                   onClassChange={eventActions.onClassChange}
+                  variant="event-overview-minimal"
+                  toolbarAboveEventDetails={
+                    <EventAnalysisToolbarAboveEventDetailsStrip
+                      {...eventAnalysisToolbarCommonProps}
+                    />
+                  }
+                />
+              )}
+
+              {activeTab === "event-overview-old" && (
+                <OverviewTab
+                  data={transformedData}
+                  selectedDriverIds={selectedDriverIds}
+                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                  selectedClass={selectedClass}
+                  onClassChange={eventActions.onClassChange}
                   variant="event-overview-only"
+                  toolbarAboveEventDetails={
+                    <EventAnalysisToolbarAboveEventDetailsStrip
+                      {...eventAnalysisToolbarCommonProps}
+                    />
+                  }
                 />
               )}
 

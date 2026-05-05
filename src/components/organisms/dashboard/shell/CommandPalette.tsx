@@ -82,7 +82,7 @@ function PaletteDialog({ onRequestClose }: { onRequestClose: () => void }) {
           flexGrow: 0,
         }}
       >
-        <div className="flex items-center gap-2 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2">
+        <div className="flex items-center gap-2 rounded-2xl border border-[var(--token-border-default)] bg-[var(--token-surface-page)] px-3 py-2">
           <Search className="h-4 w-4 text-[var(--token-text-muted)]" aria-hidden="true" />
           <input
             ref={inputRef}

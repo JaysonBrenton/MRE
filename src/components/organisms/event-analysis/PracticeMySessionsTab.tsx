@@ -58,7 +58,7 @@ export default function PracticeMySessionsTab({
   if (!selectedDriverId) {
     return (
       <div
-        className="space-y-6"
+        className="dashboard-shell-tabpanel space-y-6"
         role="tabpanel"
         id="tabpanel-my-sessions"
         aria-labelledby="tab-my-sessions"
@@ -76,7 +76,7 @@ export default function PracticeMySessionsTab({
 
   return (
     <div
-      className="space-y-6"
+      className="dashboard-shell-tabpanel space-y-6"
       role="tabpanel"
       id="tabpanel-my-sessions"
       aria-labelledby="tab-my-sessions"

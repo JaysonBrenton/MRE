@@ -123,7 +123,7 @@ export default function NavigationRailGuidesSection({
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="text-sm font-medium text-[var(--token-text-secondary)] transition-opacity duration-200 ease-in-out motion-reduce:transition-none">
+              <span className="text-sm font-medium text-[var(--token-text-secondary)] transition-opacity duration-150 ease-out motion-reduce:transition-none">
                 User Guides
               </span>
             </div>

@@ -24,6 +24,18 @@
   --token-surface-elevated: #111214;
   --token-surface-raised: #18191c;
 
+  /*
+   * Dashboard shell canvas only (.dashboard-shell-canvas): lifted cool-neutral floor plus soft
+   * radial wash so the authenticated layout reads lighter than flat --token-surface (body / mixes).
+   */
+  --token-surface-page: #0e1219;
+  --dashboard-shell-bg: radial-gradient(
+    ellipse 125% 72% at 50% -14%,
+    color-mix(in oklab, var(--token-accent) 8%, var(--token-surface-page)) 0%,
+    var(--token-surface-page) 42%,
+    color-mix(in oklab, var(--token-surface-page) 90%, black) 100%
+  );
+
   /* Text colors */
   --token-text-primary: #f2f2f3;
   --token-text-secondary: #b8bbc2;
@@ -152,6 +164,14 @@
   --token-surface: #ffffff;
   --token-surface-alt: #fafafa;
   --token-surface-elevated: #f5f5f5;
+
+  --token-surface-page: #f5f7fa;
+  --dashboard-shell-bg: radial-gradient(
+    ellipse 125% 72% at 50% -14%,
+    color-mix(in oklab, var(--token-accent) 6%, var(--token-surface-page)) 0%,
+    var(--token-surface-page) 46%,
+    var(--token-surface) 100%
+  );
 
   /* Text colors */
   --token-text-primary: #171717;
@@ -328,6 +348,15 @@ body {
   height: 0;
 }
 
+/* Authenticated dashboard shell — see --token-surface-page / --dashboard-shell-bg in :root / .light */
+.dashboard-shell-canvas {
+  background-color: var(--token-surface-page);
+  background-image: var(--dashboard-shell-bg);
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
+}
+
 [data-density="compact"] {
   --dashboard-gap: 0.75rem;
   --dashboard-card-padding: 0.75rem;
@@ -379,6 +408,18 @@ nextjs-portal > *,
   box-sizing: border-box;
 }
 
+/* Bottom edge rule: width matches positioned parent (use on inner content-wrapper with Toolbar). */
+.shell-bottom-muted-rule::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--token-border-muted);
+}
+
 /* Form inputs - prevent width expansion issues */
 input[type="text"],
 input[type="email"],
@@ -402,4 +443,22 @@ select {
    Do NOT add width rules to [data-scroll-container] — fixed + left/right conflicts with padding. */
 #main-content.flex.flex-col > section.content-wrapper {
   flex-basis: auto;
+}
+
+/*
+ * Dashboard → Event Overview: nested flex + cyclic percentage bases can resolve `width: 100%`
+ * to min-content (~24px) on overview copy blocks. Stretch the shell (see layout +
+ * DashboardLayout items-stretch) and cap with a floor so text wraps normally if % fails.
+ */
+#event-overview-event-details-subtitle {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* Same cyclic-percent / flex min-content issue as #event-overview-event-details-subtitle. */
+#event-overview-event-weather-info {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 42rem;
+  min-width: 12rem;
 }

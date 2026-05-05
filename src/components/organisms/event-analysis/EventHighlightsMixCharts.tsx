@@ -7,13 +7,16 @@
 import { useMemo, useState } from "react"
 import type { SessionMixSegment } from "@/core/events/build-event-highlights"
 import { resolveColorToHex } from "@/lib/chart-color-utils"
-import { OVERVIEW_INNER_WELL_SURFACE_CLASS } from "@/components/organisms/event-analysis/overview-glass-surface"
+import {
+  EVENT_DETAILS_NESTED_SURFACE_CLASS,
+  OVERVIEW_INNER_WELL_SURFACE_CLASS,
+} from "@/components/organisms/event-analysis/overview-glass-surface"
+import { typography } from "@/lib/typography"
 import type { MixInsightMetric } from "@/lib/event-mix-analytics"
 import {
   dominantLineForSessionSummary,
   driversWord,
   formatPctOneDecimal,
-  insightForMetric,
   lapsWord,
   rankSegmentsDesc,
   safePctPart,
@@ -23,18 +26,60 @@ import {
 
 type MixMetric = MixInsightMetric
 
+const MIX_SUMMARY_CARD_BASE = "flex h-full min-h-0 min-w-0 flex-col rounded-xl p-3 sm:p-3.5"
+
+const MIX_SUMMARY_CARD_SURFACE_DEFAULT =
+  "border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/50"
+
+function mixSummaryCardClass(layeredSurfaces: boolean): string {
+  return [
+    MIX_SUMMARY_CARD_BASE,
+    layeredSurfaces ? EVENT_DETAILS_NESTED_SURFACE_CLASS : MIX_SUMMARY_CARD_SURFACE_DEFAULT,
+  ].join(" ")
+}
+
+const MIX_CHART_PANEL_BASE_LAYOUT = "mt-5 flex min-w-0 flex-col p-3 sm:p-4"
+
+const MIX_CHART_PANEL_STANDALONE =
+  "mt-5 flex min-w-0 flex-col rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/45 p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:p-4"
+
+function mixChartPanelClass(layeredSurfaces: boolean): string {
+  return layeredSurfaces
+    ? `${EVENT_DETAILS_NESTED_SURFACE_CLASS} ${MIX_CHART_PANEL_BASE_LAYOUT}`
+    : MIX_CHART_PANEL_STANDALONE
+}
+
+const MIX_SUMMARY_META_LINE_CLASS =
+  "mt-1 text-xs leading-snug tabular-nums text-[var(--token-text-secondary)]"
+
 const METRIC_LABELS: Record<MixMetric, string> = {
   session: "Session mix",
   drivers: "Drivers by class",
   laps: "Laps by class",
 }
 
+/** Framing copy for the chart panel only — avoids repeating the summary cards / top table row. */
+const MIX_CHART_CAPTION: Record<MixMetric, string> = {
+  session:
+    "Each row is a session type. Bar length is relative to the busiest type in this list; values show count and share of all event sessions.",
+  drivers:
+    "Each row is a class. Bar length is relative to the largest class below; values are driver entries and share of all drivers entered.",
+  laps: "Each row is a class. Bar length is relative to the class with the most laps; values are lap totals and share of all laps completed.",
+}
+
+/** Label · bar · value; fixed-ish label width and right-aligned figures for scanability. */
+const MIX_BAR_ROW_GRID =
+  "grid min-w-0 grid-cols-1 items-center gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,15rem)_minmax(5rem,1fr)_auto]"
+
+const MIX_CHART_COLUMN_HEADERS =
+  "mb-2 hidden min-w-0 gap-x-3 text-[11px] font-medium leading-tight text-[var(--token-text-muted)] sm:grid sm:grid-cols-[minmax(0,15rem)_minmax(5rem,1fr)_auto]"
+
 function metricToggleButtonClass(active: boolean): string {
   return [
-    "rounded-lg px-2.5 py-1.5 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)]",
+    "rounded-lg px-2.5 py-1.5 text-xs transition-[colors,border-color] outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)]",
     active
-      ? "bg-[var(--token-surface-raised)] text-[var(--token-text-primary)] border border-[var(--token-border-default)] shadow-sm"
-      : "border border-transparent text-[var(--token-text-secondary)] hover:bg-[var(--token-surface-raised)]/60",
+      ? "border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] text-[var(--token-text-primary)] shadow-sm"
+      : "border border-transparent text-[var(--token-text-secondary)] hover:border-[color-mix(in_oklab,var(--token-border-muted)_52%,transparent)] hover:bg-[var(--token-surface-raised)]/60",
   ].join(" ")
 }
 
@@ -47,14 +92,18 @@ function MetricRowSession({ segment, maxCount }: { segment: SessionMixSegment; m
   const fillVar = sessionTypeColorVar(segment.key)
   const fill = resolveColorToHex(fillVar, "#8ab4ff")
   const widthPct = maxCount <= 0 ? 0 : safePctPart(segment.count, maxCount)
+  const label = displayLabel(segment)
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(140px,1.2fr)_auto] sm:items-center sm:gap-3">
-      <div className="min-w-0 truncate text-sm font-medium text-[var(--token-text-primary)]">
-        {displayLabel(segment)}
+    <div className={MIX_BAR_ROW_GRID}>
+      <div
+        className="min-w-0 truncate text-sm font-medium text-[var(--token-text-primary)]"
+        title={label}
+      >
+        {label}
       </div>
       <div
-        className="h-2 w-full overflow-hidden rounded-sm bg-[var(--token-surface-raised)]"
+        className="h-2 min-w-0 w-full overflow-hidden rounded-sm bg-[var(--token-surface-raised)]"
         role="presentation"
       >
         <div
@@ -66,7 +115,7 @@ function MetricRowSession({ segment, maxCount }: { segment: SessionMixSegment; m
           }}
         />
       </div>
-      <div className="tabular-nums text-sm font-semibold text-[var(--token-text-primary)]">
+      <div className="shrink-0 whitespace-nowrap text-right tabular-nums text-sm font-semibold text-[var(--token-text-primary)] sm:pl-2">
         {sessionsWord(segment.count)}, {formatPctOneDecimal(segment.pct)}
       </div>
     </div>
@@ -90,16 +139,18 @@ function MetricRowClassRanked({
     valueUnit === "drivers"
       ? `${driversWord(segment.count)}, ${formatPctOneDecimal(segment.pct)}`
       : `${lapsWord(segment.count)}, ${formatPctOneDecimal(segment.pct)}`
+  const label = displayLabel(segment)
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(140px,1.2fr)_auto] sm:items-center sm:gap-3">
+    <div className={MIX_BAR_ROW_GRID}>
       <div
         className={`min-w-0 truncate text-sm ${isTop ? "font-bold text-[var(--token-text-primary)]" : "font-medium text-[var(--token-text-primary)]"}`}
+        title={label}
       >
-        {displayLabel(segment)}
+        {label}
       </div>
       <div
-        className="h-2 w-full overflow-hidden rounded-sm bg-[var(--token-surface-raised)]"
+        className="h-2 min-w-0 w-full overflow-hidden rounded-sm bg-[var(--token-surface-raised)]"
         role="presentation"
       >
         <div
@@ -111,7 +162,7 @@ function MetricRowClassRanked({
           }}
         />
       </div>
-      <div className="tabular-nums text-sm font-semibold text-[var(--token-text-primary)]">
+      <div className="shrink-0 whitespace-nowrap text-right tabular-nums text-sm font-semibold text-[var(--token-text-primary)] sm:pl-2">
         {valueLine}
       </div>
     </div>
@@ -122,10 +173,12 @@ function EventMixSummaryCards({
   sessionMix,
   classMixByDrivers,
   classMixByLaps,
+  layeredSurfaces = false,
 }: {
   sessionMix: SessionMixSegment[]
   classMixByDrivers: SessionMixSegment[]
   classMixByLaps: SessionMixSegment[]
+  layeredSurfaces?: boolean
 }) {
   const sessionRanked = useMemo(() => rankSegmentsDesc(sessionMix), [sessionMix])
   const driversRanked = useMemo(() => rankSegmentsDesc(classMixByDrivers), [classMixByDrivers])
@@ -145,28 +198,35 @@ function EventMixSummaryCards({
   )
 
   return (
-    <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+    <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <article
-        className="rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/50 px-3 py-2.5"
+        className={mixSummaryCardClass(layeredSurfaces)}
         aria-labelledby="event-mix-summary-session-heading"
       >
-        <h3
-          id="event-mix-summary-session-heading"
-          className="text-[11px] font-semibold leading-snug text-[var(--token-text-muted)]"
-        >
+        <p id="event-mix-summary-session-heading" className={typography.overviewEyebrow}>
           Session mix
-        </h3>
+        </p>
         {sessionMix.length === 0 || sessionTotal === 0 ? (
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">No session breakdown.</p>
+          <p className="mt-2 text-sm text-[var(--token-text-secondary)]">No session breakdown.</p>
         ) : (
           <>
-            <p className="mt-1 text-sm font-semibold text-[var(--token-text-primary)]">
+            <p className={`mt-2 min-w-0 ${typography.overviewCardDriverName}`}>
               {dominantLineForSessionSummary(sessionMix)}
             </p>
-            <ul className="mt-2 space-y-1 text-xs text-[var(--token-text-secondary)]">
+            <p className={MIX_SUMMARY_META_LINE_CLASS}>
+              {sessionsWord(sessionRanked[0]!.count)}{" "}
+              <span className="text-[var(--token-text-muted)]">·</span>{" "}
+              {formatPctOneDecimal(sessionRanked[0]!.pct)} of event sessions
+            </p>
+            <ul
+              className="mt-3 flex-1 space-y-1 border-t border-[var(--token-border-muted)]/60 pt-3 text-xs text-[var(--token-text-secondary)]"
+              aria-label="Session type breakdown"
+            >
               {sessionRanked.slice(0, 6).map((seg) => (
                 <li key={seg.key} className="flex justify-between gap-2 tabular-nums">
-                  <span className="min-w-0 truncate font-medium">{displayLabel(seg)}</span>
+                  <span className="min-w-0 truncate font-medium text-[var(--token-text-primary)]">
+                    {displayLabel(seg)}
+                  </span>
                   <span className="shrink-0">
                     {sessionsWord(seg.count)} · {formatPctOneDecimal(seg.pct)}
                   </span>
@@ -178,17 +238,14 @@ function EventMixSummaryCards({
       </article>
 
       <article
-        className="rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/50 px-3 py-2.5"
+        className={mixSummaryCardClass(layeredSurfaces)}
         aria-labelledby="event-mix-summary-drivers-heading"
       >
-        <h3
-          id="event-mix-summary-drivers-heading"
-          className="text-[11px] font-semibold leading-snug text-[var(--token-text-muted)]"
-        >
+        <p id="event-mix-summary-drivers-heading" className={typography.overviewEyebrow}>
           Largest class by drivers
-        </h3>
+        </p>
         {classMixByDrivers.length === 0 || driverEntryTotal === 0 ? (
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+          <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
             No drivers entered data.
           </p>
         ) : (
@@ -196,10 +253,10 @@ function EventMixSummaryCards({
             const top = driversRanked[0]!
             return (
               <>
-                <p className="mt-1 truncate text-base font-bold text-[var(--token-text-primary)]">
+                <p className={`mt-2 min-w-0 truncate ${typography.overviewCardDriverName}`}>
                   {displayLabel(top)}
                 </p>
-                <p className="mt-1 text-xs leading-snug text-[var(--token-text-secondary)]">
+                <p className={MIX_SUMMARY_META_LINE_CLASS}>
                   {driversWord(top.count)} <span className="text-[var(--token-text-muted)]">·</span>{" "}
                   {formatPctOneDecimal(top.pct)} of drivers entered
                 </p>
@@ -210,26 +267,23 @@ function EventMixSummaryCards({
       </article>
 
       <article
-        className="rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/50 px-3 py-2.5"
+        className={mixSummaryCardClass(layeredSurfaces)}
         aria-labelledby="event-mix-summary-laps-heading"
       >
-        <h3
-          id="event-mix-summary-laps-heading"
-          className="text-[11px] font-semibold leading-snug text-[var(--token-text-muted)]"
-        >
+        <p id="event-mix-summary-laps-heading" className={typography.overviewEyebrow}>
           Most active class by laps
-        </h3>
+        </p>
         {classMixByLaps.length === 0 || lapTotal === 0 ? (
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">No lap totals.</p>
+          <p className="mt-2 text-sm text-[var(--token-text-secondary)]">No lap totals.</p>
         ) : (
           (() => {
             const top = lapsRanked[0]!
             return (
               <>
-                <p className="mt-1 truncate text-base font-bold text-[var(--token-text-primary)]">
+                <p className={`mt-2 min-w-0 truncate ${typography.overviewCardDriverName}`}>
                   {displayLabel(top)}
                 </p>
-                <p className="mt-1 text-xs leading-snug text-[var(--token-text-secondary)]">
+                <p className={MIX_SUMMARY_META_LINE_CLASS}>
                   {lapsWord(top.count)} <span className="text-[var(--token-text-muted)]">·</span>{" "}
                   {formatPctOneDecimal(top.pct)} of total laps completed
                 </p>
@@ -247,11 +301,14 @@ export function EventHighlightsMixFilteredChart({
   classMixByDrivers,
   classMixByLaps,
   className = "",
+  embeddedInEventDetails = false,
 }: {
   sessionMix: SessionMixSegment[]
   classMixByDrivers: SessionMixSegment[]
   classMixByLaps: SessionMixSegment[]
   className?: string
+  /** When true, omits the outer well (parent Event details tab panel already provides a floor). */
+  embeddedInEventDetails?: boolean
 }) {
   const hasSession = sessionMix.length > 0
   const hasDrivers = classMixByDrivers.length > 0
@@ -268,11 +325,6 @@ export function EventHighlightsMixFilteredChart({
     if (hasLaps) return "laps"
     return null
   }, [userMetric, hasSession, hasDrivers, hasLaps])
-
-  const insight =
-    effectiveMetric != null
-      ? insightForMetric(effectiveMetric, sessionMix, classMixByDrivers, classMixByLaps)
-      : ""
 
   const rankedSession = useMemo(() => rankSegmentsDesc(sessionMix), [sessionMix])
   const rankedDrivers = useMemo(() => rankSegmentsDesc(classMixByDrivers), [classMixByDrivers])
@@ -293,7 +345,7 @@ export function EventHighlightsMixFilteredChart({
 
   const headerControls = effectiveMetric !== null && (hasSession || hasDrivers || hasLaps) && (
     <div
-      className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface)]/30 p-1"
+      className="inline-flex w-full min-w-0 shrink-0 flex-wrap items-center gap-1 rounded-lg border border-[color-mix(in_oklab,var(--token-border-muted)_85%,transparent)] bg-[var(--token-surface)]/50 p-1 sm:w-auto"
       role="radiogroup"
       aria-label="Event mix breakdown"
     >
@@ -343,7 +395,14 @@ export function EventHighlightsMixFilteredChart({
 
   return (
     <div
-      className={`${OVERVIEW_INNER_WELL_SURFACE_CLASS} p-4 ${className}`}
+      className={[
+        embeddedInEventDetails
+          ? "flex min-w-0 w-full flex-col gap-5"
+          : `${OVERVIEW_INNER_WELL_SURFACE_CLASS} p-4`,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="region"
       aria-label="Event mix analytics"
     >
@@ -351,54 +410,82 @@ export function EventHighlightsMixFilteredChart({
         sessionMix={sessionMix}
         classMixByDrivers={classMixByDrivers}
         classMixByLaps={classMixByLaps}
+        layeredSurfaces={embeddedInEventDetails}
       />
 
-      <div className="flex justify-start">{headerControls}</div>
+      <section
+        className={mixChartPanelClass(embeddedInEventDetails)}
+        aria-label="Event mix breakdown chart"
+      >
+        <div className="flex min-w-0 flex-col gap-3 border-b border-[var(--token-border-muted)]/70 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          {headerControls}
+        </div>
 
-      <p className="mt-3 text-sm leading-snug text-[var(--token-text-secondary)]">{insight}</p>
+        <p className="mt-3 text-sm leading-snug text-[var(--token-text-secondary)]">
+          {MIX_CHART_CAPTION[effectiveMetric]}
+        </p>
 
-      <div className="mt-4 max-h-[min(24rem,70vh)] space-y-3 overflow-y-auto pr-1">
-        {effectiveMetric === "session" && hasSession ? (
-          <>
-            <p className="text-[11px] font-medium text-[var(--token-text-muted)]">Session types</p>
-            {rankedSession.map((seg) => (
-              <MetricRowSession key={seg.key} segment={seg} maxCount={maxSessionCount} />
-            ))}
-          </>
-        ) : null}
-        {effectiveMetric === "drivers" && hasDrivers ? (
-          <>
-            <p className="text-[11px] font-medium text-[var(--token-text-muted)]">
-              Drivers entered by class
-            </p>
-            {rankedDrivers.map((seg, index) => (
-              <MetricRowClassRanked
-                key={seg.key}
-                segment={seg}
-                maxCount={maxDriversCount}
-                index={index}
-                valueUnit="drivers"
-              />
-            ))}
-          </>
-        ) : null}
-        {effectiveMetric === "laps" && hasLaps ? (
-          <>
-            <p className="text-[11px] font-medium text-[var(--token-text-muted)]">
-              Total laps completed by class
-            </p>
-            {rankedLaps.map((seg, index) => (
-              <MetricRowClassRanked
-                key={seg.key}
-                segment={seg}
-                maxCount={maxLapsCount}
-                index={index}
-                valueUnit="laps"
-              />
-            ))}
-          </>
-        ) : null}
-      </div>
+        <div className="mt-4 min-h-0 max-h-[min(24rem,70vh)] overflow-y-auto overflow-x-hidden pr-1">
+          {effectiveMetric === "session" && hasSession ? (
+            <>
+              <div className={MIX_CHART_COLUMN_HEADERS}>
+                <span>Type</span>
+                <span className="min-w-0">Share</span>
+                <span className="text-right">Sessions · %</span>
+              </div>
+              <div className="flex min-w-0 flex-col gap-2.5" role="list">
+                {rankedSession.map((seg) => (
+                  <div key={seg.key} role="listitem">
+                    <MetricRowSession segment={seg} maxCount={maxSessionCount} />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+          {effectiveMetric === "drivers" && hasDrivers ? (
+            <>
+              <div className={MIX_CHART_COLUMN_HEADERS}>
+                <span>Class</span>
+                <span className="min-w-0">Share</span>
+                <span className="text-right">Drivers · %</span>
+              </div>
+              <div className="flex min-w-0 flex-col gap-2.5" role="list">
+                {rankedDrivers.map((seg, index) => (
+                  <div key={seg.key} role="listitem">
+                    <MetricRowClassRanked
+                      segment={seg}
+                      maxCount={maxDriversCount}
+                      index={index}
+                      valueUnit="drivers"
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+          {effectiveMetric === "laps" && hasLaps ? (
+            <>
+              <div className={MIX_CHART_COLUMN_HEADERS}>
+                <span>Class</span>
+                <span className="min-w-0">Share</span>
+                <span className="text-right">Laps · %</span>
+              </div>
+              <div className="flex min-w-0 flex-col gap-2.5" role="list">
+                {rankedLaps.map((seg, index) => (
+                  <div key={seg.key} role="listitem">
+                    <MetricRowClassRanked
+                      segment={seg}
+                      maxCount={maxLapsCount}
+                      index={index}
+                      valueUnit="laps"
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </section>
     </div>
   )
 }

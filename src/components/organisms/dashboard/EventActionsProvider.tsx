@@ -191,7 +191,7 @@ const DriverItem = React.memo<{
     return (
       <div
         style={style}
-        className="flex items-center px-3 py-2 bg-[var(--token-surface)] border-b border-[var(--token-border-default)]"
+        className="flex items-center px-3 py-2 bg-[var(--token-surface-page)] border-b border-[var(--token-border-default)]"
       >
         <h3 className="text-sm font-semibold text-[var(--token-text-primary)]">
           {item.data.className} ({item.data.driverCount})
@@ -812,7 +812,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
               <div
                 role="group"
                 aria-label="View as driver (practice day)"
-                className="flex flex-col gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)] p-3"
+                className="flex flex-col gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-page)] p-3"
               >
                 <div className="flex items-center gap-2 text-sm font-medium text-[var(--token-text-primary)]">
                   <svg

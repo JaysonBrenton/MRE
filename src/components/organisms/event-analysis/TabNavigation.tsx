@@ -40,6 +40,7 @@ import {
 
 export type TabId =
   | "event-overview"
+  | "event-overview-old"
   | "event-analysis"
   | "session-analysis"
   | "my-events"
@@ -88,10 +89,16 @@ export interface TabNavigationProps {
   onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
   /** After the last tab in the scrollable strip (not part of the tablist). */
   tabListTrailing?: ReactNode
+  /**
+   * When `embedded`, how the tablist is chromed. `glass` matches the default pill; `none` is bare
+   * tablist for a parent outline (e.g. overview strip above the main toolbar).
+   */
+  embeddedChrome?: "glass" | "none"
 }
 
 const defaultTabs: Tab[] = [
   { id: "event-overview", label: "Event Overview" },
+  { id: "event-overview-old", label: "Event Overview - OLD" },
   { id: "event-analysis", label: "Event Analysis" },
   { id: "session-analysis", label: "Session Analysis" },
   { id: "drivers", label: "Entry List" },
@@ -237,6 +244,7 @@ export default function TabNavigation({
   activeTab,
   onTabChange,
   embedded = false,
+  embeddedChrome = "glass",
   analysisSubTab,
   onAnalysisSubTabChange,
   tabListTrailing,
@@ -426,17 +434,21 @@ export default function TabNavigation({
     >
       <div className={`flex w-max min-w-0 flex-nowrap items-stretch ${embedded ? "gap-2" : ""}`}>
         {embedded ? (
-          <div
-            className={`inline-flex min-w-0 max-w-full overflow-hidden ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-            style={OVERVIEW_GLASS_SURFACE_STYLE}
-          >
-            {tabList}
-          </div>
+          embeddedChrome === "glass" ? (
+            <div
+              className={`inline-flex min-w-0 max-w-full overflow-hidden ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+              style={OVERVIEW_GLASS_SURFACE_STYLE}
+            >
+              {tabList}
+            </div>
+          ) : (
+            tabList
+          )
         ) : (
           tabList
         )}
         {tabListTrailing ? (
-          <div className="flex shrink-0 snap-none items-center self-stretch">{tabListTrailing}</div>
+          <div className="flex shrink-0 snap-none items-stretch">{tabListTrailing}</div>
         ) : null}
       </div>
     </div>

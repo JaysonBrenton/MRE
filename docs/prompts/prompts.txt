@@ -3,3 +3,14 @@
 Never use nested code blocks. Never emit ‘text’ or ‘json’. Output only one top-level code fence containing the markdown file content.
 
 If the response would exceed a canvas boundary, fail instead and ask me to shorten the file.
+
+###########################################################################################################################################
+
+A block of text in a React/Tailwind app shows one word per line; DevTools reports width ~24px on a p (or similar) even though it has w-full / min-w-full / max-w-*.
+Likely cause: nested flex columns with min-w-0 and/or cyclic or indefinite percentage bases, so width: 100% behaves like shrink-to-fit (min-content).
+Do this:
+
+Walk the DOM from the broken node up to the scroll/shell flex columns and ensure items-stretch on every flex flex-col that is supposed to lay out full-width content (especially the fixed scroll region and the main + inner flex-1 wrapper).
+Where helpful, avoid relying on min-w-full + % width alone to “fix” deep flex children.
+Add a narrow, id-scoped CSS fallback in global styles for that element: width: 100%, max-width matching design (e.g. 42rem), min-width: 12rem (floor so it cannot collapse to tens of px), with a short comment pointing to cyclic % sizing in flex.
+Verify in DevTools: subtitle used width matches the content column, not ~24px.
