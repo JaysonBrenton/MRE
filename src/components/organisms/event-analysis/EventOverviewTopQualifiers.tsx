@@ -12,7 +12,7 @@
 
 "use client"
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   computeClosestP1P2PerClass,
   computeDriverClosestBattles,
@@ -33,17 +33,14 @@ import {
   computeFastestLapRankedForClass,
 } from "@/core/events/event-fastest-lap-per-class"
 import { computeClassWinnerMeanAvgLapCards } from "@/core/events/event-class-winner-mean-avg-lap"
-import type { ClassWinnerHighlight } from "@/core/events/build-event-highlights"
+import { buildClassWinners, type ClassWinnerHighlight } from "@/core/events/build-event-highlights"
 import { isEventMainSession } from "@/core/events/main-bracket-overall"
-import {
-  buildClassWinners,
-  resolveClassWinnerModalDetail,
-} from "@/core/events/build-event-highlights"
 import {
   buildTopQualifierOverviewCards,
   type TopQualifierCardModel,
 } from "@/core/events/top-qualifier-overview-cards"
 import Modal from "@/components/molecules/Modal"
+import { ClassWinnerStandingsModal } from "./ClassWinnerStandingsModal"
 import {
   StandardTable,
   StandardTableHeader,
@@ -58,6 +55,7 @@ import { formatLapTime, formatTotalTime } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE, normalizeTableRowsPerPage } from "@/lib/table-pagination"
 import { typography } from "@/lib/typography"
 import ListPagination from "./ListPagination"
+import { HighlightPodiumName, PodiumSlotName } from "./OverviewPodiumNames"
 import {
   EventOverviewHighlightsTabList,
   HIGHLIGHT_TAB_META,
@@ -65,65 +63,6 @@ import {
 } from "./EventOverviewHighlightsTabs"
 
 type QualPayload = EventAnalysisData["qualPointsTopQualifiers"]
-
-/** One-line podium name: native `title` + help cursor when CSS truncation hides the full string. */
-function HighlightPodiumName({ name, className }: { name: string; className: string }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [truncated, setTruncated] = useState(false)
-  const measure = useCallback(() => {
-    const el = ref.current
-    if (!el) return
-    setTruncated(el.scrollWidth > el.clientWidth + 0.5)
-  }, [])
-
-  useLayoutEffect(() => {
-    measure()
-  }, [name, measure])
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const ro = new ResizeObserver(() => {
-      measure()
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [measure])
-
-  return (
-    <span
-      ref={ref}
-      className={truncated ? `${className} cursor-help` : className}
-      title={truncated ? name : undefined}
-    >
-      {name}
-    </span>
-  )
-}
-
-/** 2nd/3rd slots: driver name or em dash when standings have no row (keeps podium height consistent). */
-function PodiumSlotName({
-  name,
-  filledClassName,
-  emptyHint,
-}: {
-  name: string | null
-  filledClassName: string
-  emptyHint: string
-}) {
-  if (name) {
-    return <HighlightPodiumName name={name} className={filledClassName} />
-  }
-  return (
-    <span
-      className="min-w-0 text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
-      title={emptyHint}
-      aria-label={emptyHint}
-    >
-      —
-    </span>
-  )
-}
 
 const LAP_HEROES_INFO_TEXT = "Most laps · shortest combined time wins ties"
 
@@ -141,9 +80,6 @@ const CLOSEST_BATTLES_INFO_TEXT =
 
 /** Initial resizable panel size for Closest battles (header + body area from layout tuning). */
 const CLOSEST_BATTLES_MODAL_DEFAULT_SIZE = { width: "927px", height: "705px" } as const
-
-/** Class winner: default width; height follows content (capped by viewport) unless the user resizes. */
-const CLASS_WINNER_MODAL_RESIZABLE_DEFAULT = { width: "48rem" } as const
 
 const CLASS_WINNERS_EMPTY_TEXT =
   "No overall class winners to show yet. They appear after final results are imported for this event."
@@ -249,10 +185,6 @@ function EventOverviewTopQualifiersCards({
     null
   )
   const [classWinnerDetail, setClassWinnerDetail] = useState<ClassWinnerHighlight | null>(null)
-  const [classWinnerStandingsPage, setClassWinnerStandingsPage] = useState(1)
-  const [classWinnerStandingsRowsPerPage, setClassWinnerStandingsRowsPerPage] = useState(
-    DEFAULT_TABLE_ROWS_PER_PAGE
-  )
   const [closestBattlesModalOpen, setClosestBattlesModalOpen] = useState(false)
   /** Raw class from the Closest Battles card; scopes the modal table to that class. */
   const [closestBattlesModalClass, setClosestBattlesModalClass] = useState<string | null>(null)
@@ -385,48 +317,6 @@ function EventOverviewTopQualifiersCards({
   const classWinnerRows = useMemo(() => {
     return buildClassWinners({ races, multiMainResults, registrationClassNames, entryList })
   }, [races, multiMainResults, registrationClassNames, entryList])
-
-  const classWinnerModalResolved = useMemo(() => {
-    if (!classWinnerDetail) return null
-    return resolveClassWinnerModalDetail(classWinnerDetail, { races, multiMainResults })
-  }, [classWinnerDetail, races, multiMainResults])
-
-  const classWinnerStandingsCount = useMemo(() => {
-    if (classWinnerModalResolved?.kind === "multiMain")
-      return classWinnerModalResolved.standingsRows.length
-    if (classWinnerModalResolved?.kind === "featuredMain")
-      return classWinnerModalResolved.standingsRows.length
-    return 0
-  }, [classWinnerModalResolved])
-
-  const classWinnerStandingsTotalPages = Math.max(
-    1,
-    Math.ceil(classWinnerStandingsCount / classWinnerStandingsRowsPerPage)
-  )
-  const classWinnerStandingsEffectivePage = Math.min(
-    Math.max(1, classWinnerStandingsPage),
-    classWinnerStandingsTotalPages
-  )
-  const classWinnerMultiMainPageRows = useMemo(() => {
-    if (classWinnerModalResolved?.kind !== "multiMain") return []
-    const start = (classWinnerStandingsEffectivePage - 1) * classWinnerStandingsRowsPerPage
-    return classWinnerModalResolved.standingsRows.slice(
-      start,
-      start + classWinnerStandingsRowsPerPage
-    )
-  }, [classWinnerModalResolved, classWinnerStandingsEffectivePage, classWinnerStandingsRowsPerPage])
-  const classWinnerFeaturedPageRows = useMemo(() => {
-    if (classWinnerModalResolved?.kind !== "featuredMain") return []
-    const start = (classWinnerStandingsEffectivePage - 1) * classWinnerStandingsRowsPerPage
-    return classWinnerModalResolved.standingsRows.slice(
-      start,
-      start + classWinnerStandingsRowsPerPage
-    )
-  }, [classWinnerModalResolved, classWinnerStandingsEffectivePage, classWinnerStandingsRowsPerPage])
-
-  useEffect(() => {
-    queueMicrotask(() => setClassWinnerStandingsPage(1))
-  }, [classWinnerDetail])
 
   /** Same class order as Top Qualifiers / Lap Heroes when possible. */
   const closestBattleSummaries = useMemo(() => computeClosestP1P2PerClass(races), [races])
@@ -1410,230 +1300,12 @@ function EventOverviewTopQualifiersCards({
         ) : null}
       </Modal>
 
-      <Modal
-        isOpen={classWinnerDetail !== null}
+      <ClassWinnerStandingsModal
+        detail={classWinnerDetail}
         onClose={() => setClassWinnerDetail(null)}
-        title={classWinnerDetail?.winnerName ?? "Class winner"}
-        subtitle={
-          classWinnerDetail
-            ? `${classWinnerDetail.classDisplay} · ${classWinnerDetail.raceLabel}`
-            : undefined
-        }
-        maxWidth="lg"
-        resizable
-        resizableDefaultSize={CLASS_WINNER_MODAL_RESIZABLE_DEFAULT}
-      >
-        {classWinnerDetail ? (
-          <div
-            className={`space-y-4 text-sm text-[var(--token-text-secondary)] ${typography.body}`}
-            style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
-          >
-            {!classWinnerModalResolved ? (
-              <p className="text-[var(--token-text-secondary)]">
-                Detailed result breakdown is not available for this import.
-              </p>
-            ) : classWinnerModalResolved.kind === "multiMain" ? (
-              <div className="flex min-w-0 flex-col gap-3">
-                <div
-                  className="rounded-lg border border-[var(--token-border-default)]/80 bg-[var(--token-surface)]/30 px-3 py-2.5 text-xs leading-relaxed"
-                  role="status"
-                >
-                  <p className="text-[var(--token-text-primary)]">
-                    <span
-                      className={`font-medium text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                    >
-                      Schedule:{" "}
-                    </span>
-                    {classWinnerModalResolved.completedMains} of{" "}
-                    {classWinnerModalResolved.totalMains} mains in this class (event). Combined
-                    points: lower is better.
-                  </p>
-                  {classWinnerModalResolved.tieBreaker ? (
-                    <p
-                      className={`mt-1.5 text-[var(--token-text-primary)] ${typography.bodySecondary}`}
-                    >
-                      <span className="font-medium text-[var(--token-text-tertiary)]">
-                        Tie-break:{" "}
-                      </span>
-                      {classWinnerModalResolved.tieBreaker}
-                    </p>
-                  ) : null}
-                </div>
-                {classWinnerModalResolved.standingsRows.length === 0 ? (
-                  <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-                    No standings rows in the imported multi-main table for this class.
-                  </p>
-                ) : (
-                  <>
-                    <DataTableFrame className="max-w-full overflow-x-auto">
-                      <StandardTable>
-                        <StandardTableHeader>
-                          <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
-                            <StandardTableCell header className="w-10 whitespace-nowrap">
-                              Pl.
-                            </StandardTableCell>
-                            <StandardTableCell header>Driver</StandardTableCell>
-                            <StandardTableCell
-                              header
-                              className="w-12 whitespace-nowrap text-right tabular-nums"
-                            >
-                              Pts
-                            </StandardTableCell>
-                            <StandardTableCell
-                              header
-                              className="w-12 whitespace-nowrap text-right tabular-nums"
-                            >
-                              Sd
-                            </StandardTableCell>
-                            {classWinnerModalResolved.mainColumnLabels.map((label) => (
-                              <StandardTableCell
-                                key={label}
-                                header
-                                className="min-w-[6.5rem] max-w-[10rem] whitespace-nowrap"
-                              >
-                                {label}
-                              </StandardTableCell>
-                            ))}
-                          </tr>
-                        </StandardTableHeader>
-                        <tbody>
-                          {classWinnerMultiMainPageRows.map((row) => (
-                            <StandardTableRow
-                              key={`${row.position}-${row.driverName}`}
-                              className={
-                                row.highlight ? "bg-[var(--token-accent-soft-bg)]/50" : undefined
-                              }
-                            >
-                              <StandardTableCell className="tabular-nums text-[var(--token-text-secondary)]">
-                                {row.position}
-                              </StandardTableCell>
-                              <StandardTableCell className="min-w-0 break-words font-medium text-[var(--token-text-primary)]">
-                                {row.driverName}
-                              </StandardTableCell>
-                              <StandardTableCell className="text-right tabular-nums text-[var(--token-text-primary)]">
-                                {row.points}
-                              </StandardTableCell>
-                              <StandardTableCell className="text-right tabular-nums text-[var(--token-text-secondary)]">
-                                {row.seededPosition != null ? row.seededPosition : "—"}
-                              </StandardTableCell>
-                              {row.mainCells.map((cell, i) => (
-                                <StandardTableCell
-                                  key={classWinnerModalResolved.mainColumnLabels[i]!}
-                                  className="min-w-0 max-w-[10rem] break-all font-mono text-xs text-[var(--token-text-primary)]"
-                                >
-                                  {cell}
-                                </StandardTableCell>
-                              ))}
-                            </StandardTableRow>
-                          ))}
-                        </tbody>
-                      </StandardTable>
-                    </DataTableFrame>
-                    <ListPagination
-                      embedded
-                      currentPage={classWinnerStandingsEffectivePage}
-                      totalPages={classWinnerStandingsTotalPages}
-                      onPageChange={setClassWinnerStandingsPage}
-                      itemsPerPage={classWinnerStandingsRowsPerPage}
-                      totalItems={classWinnerStandingsCount}
-                      itemLabel="drivers"
-                      onRowsPerPageChange={(n) => {
-                        setClassWinnerStandingsRowsPerPage(normalizeTableRowsPerPage(n))
-                      }}
-                    />
-                  </>
-                )}
-              </div>
-            ) : classWinnerModalResolved.kind === "featuredMain" ? (
-              <div className="flex min-w-0 flex-col gap-3">
-                <div
-                  className="rounded-lg border border-[var(--token-border-default)]/80 bg-[var(--token-surface)]/30 px-3 py-2.5 text-xs leading-relaxed"
-                  role="status"
-                >
-                  <p className="text-[var(--token-text-primary)]">
-                    <span
-                      className={`font-medium text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}
-                    >
-                      Final:{" "}
-                    </span>
-                    {classWinnerModalResolved.sessionRaceLabel}
-                    <span className="text-[var(--token-text-tertiary)]">
-                      {" "}
-                      — full finishing order for this class (imported main).
-                    </span>
-                  </p>
-                </div>
-                {classWinnerModalResolved.standingsRows.length === 0 ? (
-                  <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-                    No result rows in this main for the class.
-                  </p>
-                ) : (
-                  <>
-                    <DataTableFrame className="max-w-full overflow-x-auto">
-                      <StandardTable>
-                        <StandardTableHeader>
-                          <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
-                            <StandardTableCell header className="w-10 whitespace-nowrap">
-                              Pl.
-                            </StandardTableCell>
-                            <StandardTableCell header>Driver</StandardTableCell>
-                            <StandardTableCell header className="min-w-[5rem]">
-                              Laps / time
-                            </StandardTableCell>
-                            <StandardTableCell header className="min-w-[4rem] whitespace-nowrap">
-                              Fast lap
-                            </StandardTableCell>
-                          </tr>
-                        </StandardTableHeader>
-                        <tbody>
-                          {classWinnerFeaturedPageRows.map((row) => (
-                            <StandardTableRow
-                              key={`${row.position}-${row.driverName}`}
-                              className={
-                                row.highlight ? "bg-[var(--token-accent-soft-bg)]/50" : undefined
-                              }
-                            >
-                              <StandardTableCell className="tabular-nums text-[var(--token-text-secondary)]">
-                                {row.position}
-                              </StandardTableCell>
-                              <StandardTableCell className="min-w-0 break-words font-medium text-[var(--token-text-primary)]">
-                                {row.driverName}
-                              </StandardTableCell>
-                              <StandardTableCell className="min-w-0 break-words font-mono text-xs text-[var(--token-text-primary)]">
-                                {row.lapsTimeLine ?? "—"}
-                              </StandardTableCell>
-                              <StandardTableCell className="tabular-nums text-xs text-[var(--token-text-primary)]">
-                                {row.fastLapFormatted ?? "—"}
-                              </StandardTableCell>
-                            </StandardTableRow>
-                          ))}
-                        </tbody>
-                      </StandardTable>
-                    </DataTableFrame>
-                    <ListPagination
-                      embedded
-                      currentPage={classWinnerStandingsEffectivePage}
-                      totalPages={classWinnerStandingsTotalPages}
-                      onPageChange={setClassWinnerStandingsPage}
-                      itemsPerPage={classWinnerStandingsRowsPerPage}
-                      totalItems={classWinnerStandingsCount}
-                      itemLabel="drivers"
-                      onRowsPerPageChange={(n) => {
-                        setClassWinnerStandingsRowsPerPage(normalizeTableRowsPerPage(n))
-                      }}
-                    />
-                  </>
-                )}
-              </div>
-            ) : null}
-            <p className={`text-xs text-[var(--token-text-tertiary)] ${typography.bodySecondary}`}>
-              For each final (A Main, B Main, …), open{" "}
-              <span className="font-medium text-[var(--token-text-primary)]">Event analysis</span> →{" "}
-              <span className="font-medium text-[var(--token-text-primary)]">Event results</span>.
-            </p>
-          </div>
-        ) : null}
-      </Modal>
+        races={races}
+        multiMainResults={multiMainResults}
+      />
     </div>
   )
 }

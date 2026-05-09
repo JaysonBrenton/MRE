@@ -6,6 +6,7 @@ import {
   EVENT_DETAILS_EMPTY_STATE_CLASS,
   EVENT_DETAILS_VENUE_SECTION_WELL_CLASS,
 } from "./overview-glass-surface"
+import { httpUrlsComparableEqual, toAbsoluteHttpHref } from "@/lib/http-url-utils"
 import { typography } from "@/lib/typography"
 
 const ACTION_BTN_CLASS =
@@ -286,8 +287,10 @@ export type OverviewVenueContactFieldsProps = {
   website?: string | null
   email?: string | null
   facebookUrl?: string | null
-  /** LiveRC track dashboard URL (same as event host heading link). */
-  livercTrackUrl?: string | null
+  /** User-selected physical host track LiveRC dashboard (when set). */
+  physicalLivercTrackUrl?: string | null
+  /** LiveRC dashboard for the event’s ingested / linked track (always from event). */
+  eventLivercTrackUrl?: string | null
 }
 
 /**
@@ -299,14 +302,24 @@ export function OverviewVenueContactFields({
   website = null,
   email = null,
   facebookUrl = null,
-  livercTrackUrl = null,
+  physicalLivercTrackUrl = null,
+  eventLivercTrackUrl = null,
 }: OverviewVenueContactFieldsProps) {
   const hasPhone = !!(phone && phone.trim())
   const hasWebsite = !!(website && website.trim())
   const hasEmail = !!(email && email.trim())
   const hasFacebook = !!(facebookUrl && facebookUrl.trim())
-  const hasLiverc = !!(livercTrackUrl && livercTrackUrl.trim())
-  if (!hasPhone && !hasWebsite && !hasEmail && !hasFacebook && !hasLiverc) return null
+
+  const physicalHref = toAbsoluteHttpHref(physicalLivercTrackUrl)
+  const eventHref = toAbsoluteHttpHref(eventLivercTrackUrl)
+  const livercDup = !!(
+    physicalHref &&
+    eventHref &&
+    httpUrlsComparableEqual(physicalHref, eventHref)
+  )
+
+  const hasAnyLiverc = !!(physicalHref || eventHref)
+  if (!hasPhone && !hasWebsite && !hasEmail && !hasFacebook && !hasAnyLiverc) return null
 
   const websiteHref = hasWebsite
     ? website!.startsWith("http")
@@ -314,11 +327,66 @@ export function OverviewVenueContactFields({
       : `https://${website}`
     : null
 
-  const livercHref = hasLiverc
-    ? livercTrackUrl!.trim().startsWith("http")
-      ? livercTrackUrl!.trim()
-      : `https://${livercTrackUrl!.trim()}`
-    : null
+  const livercRows = (() => {
+    if (physicalHref && eventHref && !livercDup) {
+      return (
+        <>
+          <li className="flex min-w-0 max-w-full items-start justify-start gap-1.5">
+            <ExternalLink
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--token-text-muted)]"
+              aria-hidden
+            />
+            <a
+              href={physicalHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={CONTACT_GLANCE_LINK_CLASS}
+              title={physicalHref}
+              aria-label={`Open physical track homepage (opens in new tab on LiveRC): ${physicalHref}`}
+            >
+              Track Homepage
+            </a>
+          </li>
+          <li className="flex min-w-0 max-w-full items-start justify-start gap-1.5">
+            <ExternalLink
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--token-text-muted)]"
+              aria-hidden
+            />
+            <a
+              href={eventHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={CONTACT_GLANCE_LINK_CLASS}
+              title={eventHref}
+              aria-label={`Open organisers homepage on LiveRC (opens in new tab): ${eventHref}`}
+            >
+              Organisers Homepage
+            </a>
+          </li>
+        </>
+      )
+    }
+    const single = physicalHref ?? eventHref
+    if (!single) return null
+    return (
+      <li className="flex min-w-0 max-w-full items-start justify-start gap-1.5">
+        <ExternalLink
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--token-text-muted)]"
+          aria-hidden
+        />
+        <a
+          href={single}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={CONTACT_GLANCE_LINK_CLASS}
+          title={single}
+          aria-label={`Open track homepage (opens in new tab on LiveRC): ${single}`}
+        >
+          Track Homepage
+        </a>
+      </li>
+    )
+  })()
 
   return (
     <ul className="m-0 flex w-full min-w-0 list-none flex-col items-stretch gap-2 p-0 text-left">
@@ -351,24 +419,7 @@ export function OverviewVenueContactFields({
           </a>
         </li>
       ) : null}
-      {hasLiverc && livercHref ? (
-        <li className="flex min-w-0 max-w-full items-start justify-start gap-1.5">
-          <ExternalLink
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--token-text-muted)]"
-            aria-hidden
-          />
-          <a
-            href={livercHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={CONTACT_GLANCE_LINK_CLASS}
-            title={livercHref}
-            aria-label={`Open track homepage (opens in new tab on LiveRC): ${livercHref}`}
-          >
-            Track Homepage
-          </a>
-        </li>
-      ) : null}
+      {livercRows}
       {hasEmail ? (
         <li className="flex min-w-0 max-w-full items-start justify-start gap-1.5">
           <Mail

@@ -4,12 +4,14 @@
  */
 
 import type { WeatherDayRow } from "@/hooks/useEventWeather"
-import type { EventWeatherData } from "@/types/weather"
+import type { DailyTemperatureSummary, EventWeatherData } from "@/types/weather"
 import { parseWindSpeedKmhFromDisplay } from "@/lib/weather-utils"
 
 export type WeatherGlanceDayStat = {
   date: string
   detail: string
+  /** Hourly temperature series for that day when the API supplied it (sparklines). */
+  dailyTemperatureSummary?: DailyTemperatureSummary
 }
 
 export type EventWeatherGlance = {
@@ -55,7 +57,11 @@ function pickDayExtreme(
   tied.sort((a, b) => a.date.localeCompare(b.date))
   const row = tied[0]
   if (!row) return null
-  return { date: row.date, detail: detail(row) }
+  return {
+    date: row.date,
+    detail: detail(row),
+    dailyTemperatureSummary: row.weather.dailyTemperatureSummary,
+  }
 }
 
 function buildConditionsSummary(rows: WeatherDayRow[]): string | null {

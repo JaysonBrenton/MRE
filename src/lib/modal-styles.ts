@@ -195,6 +195,10 @@ export const EVENT_SEARCH_MODAL_DEFAULT_HEIGHT_REM = "41.375rem"
 export const TRACK_SELECTION_MODAL_DEFAULT_WIDTH_REM = "52.8125rem"
 export const TRACK_SELECTION_MODAL_DEFAULT_HEIGHT_REM = "51.1875rem"
 
+/** Class winner standings (resizable) modal: default open size; 858×661px at 16px root (~574px body scroll + header) */
+export const CLASS_WINNER_STANDINGS_MODAL_DEFAULT_WIDTH_REM = "53.625rem"
+export const CLASS_WINNER_STANDINGS_MODAL_DEFAULT_HEIGHT_REM = "41.3125rem"
+
 /** Shared with `Modal` backdrop (`z-[200]`). */
 export const MODAL_PORTAL_Z_INDEX = 200
 

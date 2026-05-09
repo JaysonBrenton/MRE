@@ -122,7 +122,12 @@ function DashboardEmptyState({
         </div>
       )}
       <div className="flex justify-center">
-        <Button type="button" variant="default" onClick={onOpenEventSearch} className="px-6 py-3">
+        <Button
+          type="button"
+          variant="default"
+          onClick={onOpenEventSearch}
+          className="px-6 py-3 mre-dashboard-empty-search-pulse"
+        >
           Search for events
         </Button>
       </div>

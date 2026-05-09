@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import type { KeyboardEvent, ReactNode } from "react"
 import { Map as MapIcon } from "lucide-react"
 import {
   OVERVIEW_GLASS_SURFACE_CLASS,
@@ -15,6 +15,20 @@ const triColumnSectionProps = {
   style: OVERVIEW_GLASS_SURFACE_STYLE,
 } as const
 
+/** Third column: stretch weather slot full width so content aligns with chip grid. */
+const triColumnConditionsSectionBaseClass = `flex min-h-0 min-w-0 flex-col items-stretch gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`
+
+const triColumnConditionsSectionProps = {
+  className: triColumnConditionsSectionBaseClass,
+  style: OVERVIEW_GLASS_SURFACE_STYLE,
+} as const
+
+const CONDITIONS_INTERACTIVE_CLASS = [
+  "cursor-pointer transition-[box-shadow,filter]",
+  "hover:brightness-[1.03] hover:shadow-lg",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)]",
+].join(" ")
+
 export type OverviewTriColumnSummaryProps = {
   /** Column 1 left pane — track / map / address */
   trackLocationSlot?: ReactNode
@@ -24,10 +38,24 @@ export type OverviewTriColumnSummaryProps = {
   statisticsSlot?: ReactNode
   /** Column 3 body — weather and related conditions */
   conditionsSlot?: ReactNode
+  /**
+   * When true and `onConditionsActivate` is set, the Event Conditions glass panel is keyboard-
+   * activatable and opens the full-weather dialog (parent owns the modal).
+   */
+  conditionsInteractive?: boolean
+  onConditionsActivate?: () => void
 }
 
 /** Shared title style: h4 scale with overview eyebrow color. */
 const TRI_COLUMN_HEADING_CLASS = `min-w-0 w-full text-center text-lg font-semibold tracking-tight text-[var(--token-text-muted)]`
+
+function conditionsSectionKeyActivate(e: KeyboardEvent<HTMLElement>, onActivate?: () => void) {
+  if (!onActivate) return
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault()
+    onActivate()
+  }
+}
 
 /**
  * Three-column summary layout for Event Overview (minimal): h4-scale column titles (muted) plus slots.
@@ -37,7 +65,11 @@ export function OverviewTriColumnSummary({
   contactDetailsSlot,
   statisticsSlot,
   conditionsSlot,
+  conditionsInteractive = false,
+  onConditionsActivate,
 }: OverviewTriColumnSummaryProps) {
+  const conditionsActivatable = Boolean(conditionsInteractive && onConditionsActivate)
+
   return (
     <div
       className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-3 md:gap-1"
@@ -82,13 +114,29 @@ export function OverviewTriColumnSummary({
         <h4 id="event-overview-col-statistics-heading" className={TRI_COLUMN_HEADING_CLASS}>
           Event Statistics
         </h4>
-        <div className="min-h-0 min-w-0">{statisticsSlot}</div>
+        <div className="min-h-0 min-w-0 w-full">{statisticsSlot}</div>
       </section>
-      <section {...triColumnSectionProps} aria-labelledby="event-overview-col-conditions-heading">
+      <section
+        {...triColumnConditionsSectionProps}
+        className={
+          conditionsActivatable
+            ? `${triColumnConditionsSectionBaseClass} ${CONDITIONS_INTERACTIVE_CLASS}`
+            : triColumnConditionsSectionProps.className
+        }
+        aria-labelledby="event-overview-col-conditions-heading"
+        tabIndex={conditionsActivatable ? 0 : undefined}
+        title={conditionsActivatable ? "Open full weather forecast" : undefined}
+        onClick={conditionsActivatable ? () => onConditionsActivate?.() : undefined}
+        onKeyDown={
+          conditionsActivatable
+            ? (e) => conditionsSectionKeyActivate(e, onConditionsActivate)
+            : undefined
+        }
+      >
         <h4 id="event-overview-col-conditions-heading" className={TRI_COLUMN_HEADING_CLASS}>
           Event Conditions
         </h4>
-        <div className="min-h-0 min-w-0">{conditionsSlot}</div>
+        <div className="min-h-0 min-w-0 w-full">{conditionsSlot}</div>
       </section>
     </div>
   )

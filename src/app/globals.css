@@ -462,3 +462,54 @@ select {
   max-width: 42rem;
   min-width: 12rem;
 }
+
+/*
+ * Modal (portal) scroll body: nested flex cols + indefinite % bases can shrink inner copy to ~24px.
+ * Matches shell stretch in Modal.tsx; floor width if percentage resolution falls through to min-content.
+ */
+#mre-modal-scroll {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 12rem;
+}
+
+/* Event weather modal: intro callout — same cyclic % width issue as overview tab panel. */
+#mre-modal-event-weather-intro {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 42rem;
+  min-width: 12rem;
+}
+
+/* Dashboard empty state — soft slow pulse on primary “Search for events” CTA */
+@keyframes mre-dashboard-empty-search-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.18),
+      0 0 0 0 color-mix(in oklab, var(--token-accent) 0%, transparent);
+    border-color: var(--token-border-default);
+  }
+  50% {
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.22),
+      0 0 32px -4px color-mix(in oklab, var(--token-accent) 42%, transparent);
+    border-color: color-mix(in oklab, var(--token-accent) 45%, var(--token-border-default));
+  }
+}
+
+.mre-dashboard-empty-search-pulse {
+  animation: mre-dashboard-empty-search-pulse 2.75s ease-in-out infinite;
+}
+
+.mre-dashboard-empty-search-pulse:hover,
+.mre-dashboard-empty-search-pulse:focus-visible {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mre-dashboard-empty-search-pulse {
+    animation: none;
+  }
+}

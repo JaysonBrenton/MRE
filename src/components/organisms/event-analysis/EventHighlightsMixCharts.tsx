@@ -38,7 +38,8 @@ function mixSummaryCardClass(layeredSurfaces: boolean): string {
   ].join(" ")
 }
 
-const MIX_CHART_PANEL_BASE_LAYOUT = "mt-5 flex min-w-0 flex-col p-3 sm:p-4"
+/** Embedded under Event details / modal: parent `gap-*` handles separation; avoid stacking with mb/mt. */
+const MIX_CHART_PANEL_BASE_LAYOUT = "mt-0 flex min-w-0 flex-col p-3 sm:p-4"
 
 const MIX_CHART_PANEL_STANDALONE =
   "mt-5 flex min-w-0 flex-col rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/45 p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:p-4"
@@ -86,6 +87,110 @@ function metricToggleButtonClass(active: boolean): string {
 function displayLabel(seg: SessionMixSegment): string {
   const raw = seg.label?.trim() || seg.key?.trim()
   return raw || "—"
+}
+
+/**
+ * Compact horizontal strip: segment widths by count (same order as ranked session mix).
+ * Colours match {@link MetricRowSession}.
+ */
+export function SessionMixMiniStackedBar({
+  segments,
+  /** When the strip sits inside a control with its own name (e.g. a button). */
+  suppressA11y = false,
+}: {
+  segments: SessionMixSegment[]
+  suppressA11y?: boolean
+}) {
+  const ranked = useMemo(() => rankSegmentsDesc(segments), [segments])
+  const total = useMemo(
+    () => ranked.reduce((s, x) => s + (Number.isFinite(x.count) ? Math.max(0, x.count) : 0), 0),
+    [ranked]
+  )
+
+  if (ranked.length === 0 || total <= 0) return null
+
+  const ariaLabel = ranked
+    .map((seg) => `${displayLabel(seg)} ${formatPctOneDecimal(seg.pct)}`)
+    .join(", ")
+
+  return (
+    <div
+      className="flex h-2.5 w-full min-w-0 overflow-hidden rounded-sm bg-[var(--token-surface-raised)]"
+      role={suppressA11y ? undefined : "img"}
+      aria-hidden={suppressA11y ? true : undefined}
+      aria-label={suppressA11y ? undefined : `Session mix: ${ariaLabel}`}
+    >
+      {ranked.map((seg) => (
+        <div
+          key={seg.key}
+          className="h-full min-w-0"
+          style={{
+            flexGrow: Math.max(0, seg.count),
+            flexShrink: 1,
+            flexBasis: 0,
+            minWidth: seg.count > 0 ? 3 : 0,
+            backgroundColor: resolveColorToHex(sessionTypeColorVar(seg.key), "#8ab4ff"),
+          }}
+          title={`${displayLabel(seg)}: ${sessionsWord(seg.count)}, ${formatPctOneDecimal(seg.pct)}`}
+        />
+      ))}
+    </div>
+  )
+}
+
+/** Class-based mix strip using {@link SessionMixSegment.colorVar} (matches highlight model ordering). */
+export function ClassMixMiniStackedBar({
+  segments,
+  kind,
+  suppressA11y = false,
+}: {
+  segments: SessionMixSegment[]
+  kind: "drivers" | "laps"
+  suppressA11y?: boolean
+}) {
+  const ranked = useMemo(() => rankSegmentsDesc(segments), [segments])
+  const total = useMemo(
+    () => ranked.reduce((s, x) => s + (Number.isFinite(x.count) ? Math.max(0, x.count) : 0), 0),
+    [ranked]
+  )
+
+  if (ranked.length === 0 || total <= 0) return null
+
+  const heading = kind === "drivers" ? "Driver mix by class" : "Lap mix by class"
+  const ariaLabel = ranked
+    .map((seg) => `${displayLabel(seg)} ${formatPctOneDecimal(seg.pct)}`)
+    .join(", ")
+
+  return (
+    <div
+      className="flex h-2.5 w-full min-w-0 overflow-hidden rounded-sm bg-[var(--token-surface-raised)]"
+      role={suppressA11y ? undefined : "img"}
+      aria-hidden={suppressA11y ? true : undefined}
+      aria-label={suppressA11y ? undefined : `${heading}: ${ariaLabel}`}
+    >
+      {ranked.map((seg) => {
+        const fill = resolveColorToHex(seg.colorVar, "#8ab4ff")
+        const valueLine =
+          kind === "drivers"
+            ? `${driversWord(seg.count)}, ${formatPctOneDecimal(seg.pct)}`
+            : `${lapsWord(seg.count)}, ${formatPctOneDecimal(seg.pct)}`
+        return (
+          <div
+            key={seg.key}
+            className="h-full min-w-0"
+            style={{
+              flexGrow: Math.max(0, seg.count),
+              flexShrink: 1,
+              flexBasis: 0,
+              minWidth: seg.count > 0 ? 3 : 0,
+              backgroundColor: fill,
+            }}
+            title={`${displayLabel(seg)}: ${valueLine}`}
+          />
+        )
+      })}
+    </div>
+  )
 }
 
 function MetricRowSession({ segment, maxCount }: { segment: SessionMixSegment; maxCount: number }) {
@@ -197,8 +302,11 @@ function EventMixSummaryCards({
     [classMixByLaps]
   )
 
+  const gridGap = layeredSurfaces ? "gap-2" : "gap-3"
+  const gridBottom = layeredSurfaces ? "mb-0" : "mb-5"
+
   return (
-    <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className={`${gridBottom} grid grid-cols-1 ${gridGap} sm:grid-cols-2 lg:grid-cols-3`}>
       <article
         className={mixSummaryCardClass(layeredSurfaces)}
         aria-labelledby="event-mix-summary-session-heading"
@@ -302,6 +410,7 @@ export function EventHighlightsMixFilteredChart({
   classMixByLaps,
   className = "",
   embeddedInEventDetails = false,
+  initialMetric,
 }: {
   sessionMix: SessionMixSegment[]
   classMixByDrivers: SessionMixSegment[]
@@ -309,12 +418,14 @@ export function EventHighlightsMixFilteredChart({
   className?: string
   /** When true, omits the outer well (parent Event details tab panel already provides a floor). */
   embeddedInEventDetails?: boolean
+  /** Which breakdown tab is selected when this instance mounts (e.g. after opening a modal). */
+  initialMetric?: MixMetric
 }) {
   const hasSession = sessionMix.length > 0
   const hasDrivers = classMixByDrivers.length > 0
   const hasLaps = classMixByLaps.length > 0
 
-  const [userMetric, setUserMetric] = useState<MixMetric>("session")
+  const [userMetric, setUserMetric] = useState<MixMetric>(() => initialMetric ?? "session")
 
   const effectiveMetric: MixMetric | null = useMemo(() => {
     if (userMetric === "session" && hasSession) return "session"
@@ -397,7 +508,7 @@ export function EventHighlightsMixFilteredChart({
     <div
       className={[
         embeddedInEventDetails
-          ? "flex min-w-0 w-full flex-col gap-5"
+          ? "flex min-w-0 w-full flex-col gap-3"
           : `${OVERVIEW_INNER_WELL_SURFACE_CLASS} p-4`,
         className,
       ]

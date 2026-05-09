@@ -2,17 +2,18 @@
  * @fileoverview Mini temperature trend sparkline with color gradient by temperature
  *
  * @description Renders hourly temperatures as a line; stroke color varies from
- * cool (blue) to hot (orange/red) based on temperature. Shows time and temp on hover.
+ * cool (blue) to hot (orange/red) based on temperature. Shows date, time and temp on hover.
  *
  * @relatedFiles
  * - src/components/organisms/event-analysis/WeatherCard.tsx
+ * - src/components/organisms/event-analysis/EventWeatherAtAGlance.tsx
  */
 
 "use client"
 
 import { useId, useState, useRef } from "react"
 import { createPortal } from "react-dom"
-import { formatTimeDisplay } from "@/lib/date-utils"
+import { formatDateLong, formatTimeDisplay } from "@/lib/date-utils"
 
 const WIDTH = 140
 const HEIGHT = 28
@@ -35,6 +36,8 @@ export interface TemperatureSparklineProps {
   minTemp: number
   maxTemp: number
   className?: string
+  /** Stretch to container width (hover still tracks correctly when scaled). */
+  fullWidth?: boolean
 }
 
 export default function TemperatureSparkline({
@@ -42,6 +45,7 @@ export default function TemperatureSparkline({
   minTemp,
   maxTemp,
   className = "",
+  fullWidth = false,
 }: TemperatureSparklineProps) {
   const gradientId = useId().replace(/:/g, "-")
   const svgRef = useRef<SVGSVGElement>(null)
@@ -67,8 +71,8 @@ export default function TemperatureSparkline({
   function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
     if (!svgRef.current) return
     const rect = svgRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const index = Math.round((x - PADDING) / xStep)
+    const xLogical = ((e.clientX - rect.left) / (rect.width || WIDTH)) * WIDTH
+    const index = Math.round((xLogical - PADDING) / xStep)
     const clamped = Math.max(0, Math.min(index, hourly.length - 1))
     setHoveredIndex(clamped)
     setTooltipPos({ x: e.clientX, y: e.clientY })
@@ -80,13 +84,18 @@ export default function TemperatureSparkline({
   }
 
   return (
-    <span className="relative inline-block">
+    <span
+      className={["relative inline-block", fullWidth ? "block w-full min-w-0" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <svg
         ref={svgRef}
-        width={WIDTH}
+        width={fullWidth ? "100%" : WIDTH}
         height={HEIGHT}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className={`cursor-pointer ${className}`}
+        preserveAspectRatio="none"
+        className={`cursor-pointer ${fullWidth ? "block w-full min-w-0" : ""} ${className}`.trim()}
         aria-hidden
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -121,6 +130,7 @@ export default function TemperatureSparkline({
               color: "var(--token-text-primary)",
             }}
           >
+            {formatDateLong(hourly[hoveredIndex].time)} •{" "}
             {formatTimeDisplay(hourly[hoveredIndex].time)} •{" "}
             {Math.round(hourly[hoveredIndex].temperature)}°C
           </span>,

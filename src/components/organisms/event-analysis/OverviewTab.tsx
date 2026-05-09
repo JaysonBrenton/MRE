@@ -26,8 +26,11 @@ import {
   type VenueHostSubTab,
 } from "./EventOverviewVenueHostTabList"
 import { OverviewEventDetailsSectionHeading } from "./OverviewEventDetailsSectionHeading"
+import { OverviewEventMixMiniSummary } from "./OverviewEventMixMiniSummary"
+import { OverviewOverallClassPodium } from "./OverviewOverallClassPodium"
 import { OverviewTriColumnSummary } from "./OverviewTriColumnSummary"
 import { OverviewVenueContactFields, OverviewVenueDetailPanel } from "./OverviewVenueDetailPanel"
+import Modal from "@/components/molecules/Modal"
 import { MapSearchAddressLink } from "@/components/molecules/MapSearchAddressLink"
 import WeatherCard from "./WeatherCard"
 import { EventWeatherAtAGlance } from "./EventWeatherAtAGlance"
@@ -81,6 +84,7 @@ import {
   OVERVIEW_GLASS_SURFACE_STYLE,
   OVERVIEW_SECTION_SURFACE_CLASS,
 } from "@/components/organisms/event-analysis/overview-glass-surface"
+import { getWeatherErrorMessage } from "@/lib/weather-utils"
 import {
   type EventAnalysisSubTabId,
   getSubTabLabel,
@@ -95,6 +99,7 @@ import {
 import { getSessionAnalysisNavClassOptions } from "@/core/events/entry-list-class-options"
 import { isEventMainSession } from "@/core/events/main-bracket-overall"
 import { buildEventHighlights } from "@/core/events/build-event-highlights"
+import { computeEventWeatherGlance } from "@/lib/event-weather-glance"
 
 /** Shared chrome for Host / Track / Weather / Mix tab panels in Event details. */
 const EVENT_DETAILS_TABPANEL_CHROME = [
@@ -218,6 +223,10 @@ const overviewPrimarySectionTabs: readonly {
 const EVENT_OVERVIEW_WEATHER_INFO_TEXT =
   "Forecast and conditions for the event venue by calendar day, when available from the weather service."
 
+/** Matches EventWeatherAtAGlance fill-layout chip chrome for loading placeholders (glass column). */
+const GLANCE_CHIP_SKELETON_SHELL =
+  "min-h-[3.9375rem] min-w-0 w-full rounded-lg border border-[color-mix(in_oklab,var(--token-border-muted)_72%,transparent)] bg-[color-mix(in_oklab,var(--token-surface-raised)_38%,var(--token-surface-alt))] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)]"
+
 export default function OverviewTab({
   data,
   selectedDriverIds,
@@ -324,6 +333,7 @@ export default function OverviewTab({
     null
   )
   const [sessionLapTrendChartDriverIds, setSessionLapTrendChartDriverIds] = useState<string[]>([])
+  const [eventWeatherDetailModalOpen, setEventWeatherDetailModalOpen] = useState(false)
 
   const eventClassFilterTabs = EVENT_CLASS_SESSION_NAV_TABS
 
@@ -339,6 +349,75 @@ export default function OverviewTab({
           : data.raceClasses.size,
     [data.registrationClassNames, data.raceClasses, validClasses]
   )
+
+  const overviewStatsItems = useMemo(
+    () =>
+      [
+        { label: "Races" as const, value: data.summary.totalRaces.toLocaleString() },
+        { label: "Drivers" as const, value: data.summary.totalDrivers.toLocaleString() },
+        { label: "Entries" as const, value: data.entryList.length.toLocaleString() },
+        { label: "Laps" as const, value: data.summary.totalLaps.toLocaleString() },
+        { label: "Classes" as const, value: totalClassesCount.toLocaleString() },
+      ] as const,
+    [
+      data.summary.totalRaces,
+      data.summary.totalDrivers,
+      data.summary.totalLaps,
+      data.entryList.length,
+      totalClassesCount,
+    ]
+  )
+
+  /** Event overview (minimal): same at-a-glance weather block as Event details → Weather. */
+  const eventOverviewMinimalConditionsSlot = useMemo(() => {
+    if (weatherLoading) {
+      return (
+        <div
+          className="min-w-0 w-full max-w-full"
+          aria-busy="true"
+          aria-label="Loading weather summary"
+        >
+          <div className="grid min-w-0 w-full grid-cols-3 gap-2">
+            {([1, 2, 3] as const).map((k) => (
+              <div key={k} className={GLANCE_CHIP_SKELETON_SHELL}>
+                <div className="mb-0.5 h-3 w-12 animate-pulse rounded bg-[var(--token-surface)]" />
+                <div className="mb-1 h-3 max-w-[5.5rem] animate-pulse rounded bg-[var(--token-surface)]" />
+                <div className="h-3 max-w-[4rem] animate-pulse rounded bg-[var(--token-surface)]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    if (weatherError) {
+      return (
+        <div className="min-w-0 w-full max-w-full" role="alert" aria-live="polite">
+          <p className="text-sm leading-snug text-[var(--token-text-secondary)]">
+            {getWeatherErrorMessage(weatherError)}
+          </p>
+        </div>
+      )
+    }
+    if (!weatherByDay || weatherByDay.length === 0) {
+      return (
+        <p className={EVENT_DETAILS_EMPTY_STATE_CLASS} role="status">
+          No weather data is available for this event yet.
+        </p>
+      )
+    }
+    const glance = computeEventWeatherGlance(weatherByDay)
+    if (!glance.hasAny) {
+      return (
+        <p className={EVENT_DETAILS_EMPTY_STATE_CLASS} role="status">
+          Weather details for this event are too sparse for a summary.
+        </p>
+      )
+    }
+    return <EventWeatherAtAGlance weatherByDay={weatherByDay} variant="flat" />
+  }, [weatherLoading, weatherError, weatherByDay])
+
+  const eventOverviewMinimalWeatherPanelOpensModal =
+    !weatherLoading && !weatherError && (weatherByDay?.length ?? 0) > 0
 
   /** Full-width persistent summary under Event details tabs (same metrics on every tab). */
   const eventDetailsPersistentStatsStrip = useMemo(
@@ -360,49 +439,48 @@ export default function OverviewTab({
             EVENT_DETAILS_STATS_GRID_CLASS,
           ].join(" ")}
         >
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className={typography.overviewMetricLabel}>Races</span>
-            <span className={typography.overviewMetricValue}>
-              {data.summary.totalRaces.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className={typography.overviewMetricLabel}>Drivers</span>
-            <span className={typography.overviewMetricValue}>
-              {data.summary.totalDrivers.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className={typography.overviewMetricLabel}>Entries</span>
-            <span className={typography.overviewMetricValue}>
-              {data.entryList.length.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className={typography.overviewMetricLabel}>Total Laps</span>
-            <span className={typography.overviewMetricValue}>
-              {data.summary.totalLaps.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className={typography.overviewMetricLabel}>Total Classes</span>
-            <span className={typography.overviewMetricValue}>
-              {totalClassesCount.toLocaleString()}
-            </span>
-          </div>
+          {overviewStatsItems.map(({ label, value }) => (
+            <div key={label} className="flex min-w-0 flex-col gap-0.5">
+              <span className={typography.overviewMetricLabel}>{label}</span>
+              <span className={typography.overviewMetricValue}>{value}</span>
+            </div>
+          ))}
         </div>
       </div>
     ),
-    [
-      data.summary.totalRaces,
-      data.summary.totalDrivers,
-      data.summary.totalLaps,
-      data.entryList.length,
-      totalClassesCount,
-    ]
+    [overviewStatsItems]
   )
 
   const eventHighlightsModel = useMemo(() => buildEventHighlights(data), [data])
+
+  /** Event overview (minimal glass middle column): stats grid + event mix minis. */
+  const eventOverviewMinimalStatisticsSlot = useMemo(
+    () => (
+      <div className="flex min-h-0 min-w-0 w-full flex-col gap-4">
+        <div
+          className={[
+            "grid min-h-0 min-w-0 w-full max-w-full justify-items-start text-left",
+            "grid-cols-2 gap-x-4 gap-y-3",
+            "sm:grid-cols-3 sm:gap-x-5",
+            "md:grid-cols-5 md:gap-x-4 md:gap-y-2",
+          ].join(" ")}
+        >
+          {overviewStatsItems.map(({ label, value }) => (
+            <div key={label} className="flex min-w-0 flex-col gap-0.5">
+              <span className={typography.overviewMetricLabel}>{label}</span>
+              <span className={typography.overviewMetricValue}>{value}</span>
+            </div>
+          ))}
+        </div>
+        <OverviewEventMixMiniSummary
+          sessionMix={eventHighlightsModel.sessionMix}
+          classMixByDrivers={eventHighlightsModel.classMixByDrivers}
+          classMixByLaps={eventHighlightsModel.classMixByLaps}
+        />
+      </div>
+    ),
+    [overviewStatsItems, eventHighlightsModel]
+  )
 
   const venueHostSection = useMemo(() => {
     const e = data.event
@@ -471,64 +549,50 @@ export default function OverviewTab({
     }
   }, [data.event, data.userHostTrack])
 
-  /** Contact lines for minimal event overview tri-column (event host preferred, then host track). */
+  /** Contact lines for minimal event overview: host track overrides LiveRC-ingested venue with field-level fallback. */
   const eventOverviewMinimalContactSlot = useMemo(() => {
-    const livercTrackUrl = data.event.trackDashboardUrl?.trim() || null
+    const evt = data.event
+    const host = data.userHostTrack
 
-    const fieldsWithLiverc = (params: {
-      phone?: string | null
-      website?: string | null
-      email?: string | null
-      facebookUrl?: string | null
-    }) => (
+    const pick = (s: string | null | undefined): string | null =>
+      typeof s === "string" && s.trim().length > 0 ? s.trim() : null
+
+    const evtContact = {
+      phone: pick(evt.phone),
+      website: pick(evt.website),
+      email: pick(evt.email),
+      facebookUrl: pick(evt.facebookUrl),
+    }
+
+    const mergedContact = host
+      ? {
+          phone: pick(host.phone) ?? evtContact.phone,
+          website: pick(host.website) ?? evtContact.website,
+          email: pick(host.email) ?? evtContact.email,
+          facebookUrl: pick(host.facebookUrl) ?? evtContact.facebookUrl,
+        }
+      : evtContact
+
+    return (
       <OverviewVenueContactFields
-        phone={params.phone}
-        website={params.website}
-        email={params.email}
-        facebookUrl={params.facebookUrl}
-        livercTrackUrl={livercTrackUrl}
+        phone={mergedContact.phone}
+        website={mergedContact.website}
+        email={mergedContact.email}
+        facebookUrl={mergedContact.facebookUrl}
+        physicalLivercTrackUrl={host ? pick(host.trackDashboardUrl ?? undefined) : null}
+        eventLivercTrackUrl={pick(evt.trackDashboardUrl ?? undefined)}
       />
     )
+  }, [data.event, data.userHostTrack])
 
-    const v = venueHostSection
-    if (!v) {
-      if (!livercTrackUrl) return null
-      return fieldsWithLiverc({})
-    }
-
-    const e = v.venue.event
-    const hasEventContact =
-      v.venue.hasPhone || v.venue.hasWebsite || v.venue.hasEmail || v.venue.hasFacebook
-    if (hasEventContact) {
-      return fieldsWithLiverc({
-        phone: v.venue.hasPhone ? e.phone : null,
-        website: v.venue.hasWebsite ? e.website : null,
-        email: v.venue.hasEmail ? e.email : null,
-        facebookUrl: v.venue.hasFacebook ? e.facebookUrl : null,
-      })
-    }
-
-    const host = v.host
-    if (!host) {
-      if (!livercTrackUrl) return null
-      return fieldsWithLiverc({})
-    }
-
-    const hasHostContact =
-      host.hostHasPhone || host.hostHasWebsite || host.hostHasEmail || host.hostHasFacebook
-    if (!hasHostContact) {
-      if (!livercTrackUrl) return null
-      return fieldsWithLiverc({})
-    }
-
-    const h = host.h
-    return fieldsWithLiverc({
-      phone: host.hostHasPhone ? h.phone : null,
-      website: host.hostHasWebsite ? h.website : null,
-      email: host.hostHasEmail ? h.email : null,
-      facebookUrl: host.hostHasFacebook ? h.facebookUrl : null,
-    })
-  }, [venueHostSection, data.event.trackDashboardUrl])
+  /** Address for Track Location glance: user host track overrides event venue address. */
+  const eventOverviewMinimalAddress = useMemo(() => {
+    const hostLine = data.userHostTrack?.address?.trim()
+    if (hostLine && hostLine.length > 0) return hostLine
+    const evt = data.event.address
+    if (typeof evt === "string" && evt.trim().length > 0) return evt.trim()
+    return null
+  }, [data.userHostTrack?.address, data.event.address])
 
   const visibleVenueHostWeatherTabs = useMemo(() => {
     const tabs: VenueHostSubTab[] = []
@@ -2194,21 +2258,76 @@ export default function OverviewTab({
               >
                 {!isEventOverviewMinimal ? <OverviewEventDetailsSectionHeading /> : null}
                 {isEventOverviewMinimal ? (
-                  <OverviewTriColumnSummary
-                    trackLocationSlot={
-                      venueHostSection?.venue.hasAddress &&
-                      typeof data.event.address === "string" &&
-                      data.event.address.trim().length > 0 ? (
-                        <MapSearchAddressLink
-                          address={data.event.address.trim()}
-                          showMapLink={false}
-                          linkFullAddress
-                          linkClassName="text-sm font-normal leading-snug"
-                        />
-                      ) : null
-                    }
-                    contactDetailsSlot={eventOverviewMinimalContactSlot}
-                  />
+                  <>
+                    <OverviewTriColumnSummary
+                      trackLocationSlot={
+                        eventOverviewMinimalAddress ? (
+                          <MapSearchAddressLink
+                            address={eventOverviewMinimalAddress}
+                            showMapLink={false}
+                            linkFullAddress
+                            linkClassName="text-sm font-normal leading-snug"
+                          />
+                        ) : null
+                      }
+                      contactDetailsSlot={eventOverviewMinimalContactSlot}
+                      statisticsSlot={eventOverviewMinimalStatisticsSlot}
+                      conditionsSlot={eventOverviewMinimalConditionsSlot}
+                      conditionsInteractive={eventOverviewMinimalWeatherPanelOpensModal}
+                      onConditionsActivate={() => setEventWeatherDetailModalOpen(true)}
+                    />
+                    <OverviewOverallClassPodium
+                      data={{
+                        races: data.races,
+                        multiMainResults: data.multiMainResults,
+                        registrationClassNames: data.registrationClassNames,
+                        entryList: data.entryList,
+                        qualPointsTopQualifiers: data.qualPointsTopQualifiers,
+                      }}
+                    />
+                    <Modal
+                      isOpen={eventWeatherDetailModalOpen}
+                      onClose={() => setEventWeatherDetailModalOpen(false)}
+                      title="Event weather"
+                      maxWidth="4xl"
+                    >
+                      {weatherByDay && weatherByDay.length > 0 ? (
+                        <div
+                          className={`min-w-0 w-full max-w-full ${EVENT_DETAILS_TAB_PANEL_WELL_CLASS}`}
+                        >
+                          <div
+                            id="mre-modal-event-weather-intro"
+                            className={`mb-4 w-full max-w-2xl ${EVENT_DETAILS_WEATHER_INFO_CALLOUT_CLASS}`}
+                            aria-label={EVENT_OVERVIEW_WEATHER_INFO_TEXT}
+                          >
+                            <p className="text-sm leading-relaxed text-[var(--token-text-secondary)]">
+                              {EVENT_OVERVIEW_WEATHER_INFO_TEXT}
+                            </p>
+                          </div>
+                          <div
+                            className="grid min-h-0 min-w-0 w-full max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                            aria-live="polite"
+                          >
+                            {weatherByDay.map(({ date, weather }) => (
+                              <div key={date} className="flex h-full min-h-[16.5rem] min-w-0">
+                                <WeatherCard
+                                  weather={weather}
+                                  weatherLoading={false}
+                                  weatherError={null}
+                                  headingDate={formatDateLong(date)}
+                                  className="h-full w-full min-w-0"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className={EVENT_DETAILS_EMPTY_STATE_CLASS} role="status">
+                          No weather data is available for this event yet.
+                        </p>
+                      )}
+                    </Modal>
+                  </>
                 ) : null}
                 {!isEventOverviewMinimal ? (
                   <div

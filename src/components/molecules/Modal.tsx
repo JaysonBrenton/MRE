@@ -3,7 +3,7 @@
  *
  * @created 2025-01-28
  * @creator System
- * @lastModified 2026-04-27
+ * @lastModified 2026-05-09
  *
  * @description Reusable modal component that enforces proper width constraints
  *              to prevent horizontal compression issues in flex layouts.
@@ -32,6 +32,7 @@ import type { CSSProperties } from "react"
 import { ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { createPortal } from "react-dom"
 import {
+  getContentBlockStyles,
   getModalContainerStyles,
   getModalResizableContainerStyles,
   MODAL_MAX_WIDTHS,
@@ -261,7 +262,7 @@ export default function Modal({
     >
       <div
         ref={modalRef}
-        className={`bg-[var(--token-surface-raised)] shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)] ${
+        className={`bg-[var(--token-surface-raised)] shadow-2xl flex flex-col items-stretch border border-[var(--token-border-accent-soft)] ${
           backdropFullscreen
             ? "h-full w-full min-h-0 rounded-none"
             : `my-4 rounded-lg ${resizable ? "min-h-0" : "max-h-[calc(100vh-2rem)]"}`
@@ -314,9 +315,10 @@ export default function Modal({
           </button>
         </div>
 
-        {/* Body */}
+        {/* Body — flex-col + items-stretch so descendants get a definite row width (avoids cyclic % / min-content collapse in nested flex). */}
         <div
-          className={`min-h-0 ${
+          id="mre-modal-scroll"
+          className={`flex min-h-0 flex-col items-stretch ${
             bodyFillsResizablePanel ? "flex-1" : "flex-auto"
           } overflow-y-auto overflow-x-hidden px-4 py-4`}
           style={{
@@ -325,7 +327,7 @@ export default function Modal({
             boxSizing: "border-box",
           }}
         >
-          {children}
+          <div style={getContentBlockStyles("12rem")}>{children}</div>
         </div>
 
         {/* Footer */}
