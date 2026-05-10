@@ -16,7 +16,7 @@
 
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo, useId } from "react"
 
 export interface DriverNameFilterProps {
   driverNames: string[]
@@ -41,6 +41,8 @@ export default function DriverNameFilter({
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
+  const baseId = useId()
+  const suggestionsListId = `${baseId}-suggestions`
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Filter driver names based on input
@@ -157,7 +159,7 @@ export default function DriverNameFilter({
           aria-autocomplete="list"
           role="combobox"
           aria-expanded={showSuggestions}
-          aria-controls="driver-name-suggestions"
+          aria-controls={showSuggestions ? suggestionsListId : undefined}
         />
         {inputValue && (
           <button
@@ -187,7 +189,7 @@ export default function DriverNameFilter({
       {showSuggestions && filteredSuggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          id="driver-name-suggestions"
+          id={suggestionsListId}
           className="scrollbar-none absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg"
           role="listbox"
         >

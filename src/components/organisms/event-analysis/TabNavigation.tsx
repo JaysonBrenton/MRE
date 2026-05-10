@@ -79,6 +79,18 @@ function ChevronDownIcon({ className, open }: { className?: string; open?: boole
 const menuItemClass =
   "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)]/70 hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-accent)]"
 
+/** Embedded primary tab surface for the Event Overview glass strip (pill row). */
+function embeddedGlassStripPrimaryControlClass(selected: boolean): string {
+  const focusRing =
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+  return (
+    `shrink-0 snap-start rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${focusRing} ` +
+    (selected
+      ? "bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
+      : "text-[var(--token-text-secondary)] hover:bg-[var(--token-surface)]/35 hover:text-[var(--token-text-primary)]")
+  )
+}
+
 export interface TabNavigationProps {
   tabs: Tab[]
   activeTab: TabId
@@ -324,12 +336,7 @@ export default function TabNavigation({
       ? "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-[var(--token-interactive-focus-ring)]"
       : "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
     if (embedded) {
-      return (
-        `shrink-0 snap-start rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${focusRing} ` +
-        (isActive
-          ? "bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]"
-          : "text-[var(--token-text-secondary)] hover:bg-[var(--token-surface)]/35 hover:text-[var(--token-text-primary)]")
-      )
+      return embeddedGlassStripPrimaryControlClass(isActive)
     }
     return (
       `shrink-0 snap-start px-6 py-3 text-sm font-medium transition-colors ${focusRing} ` +

@@ -425,6 +425,7 @@ style-src 'self' 'unsafe-inline';
 img-src 'self' data: https:;
 font-src 'self' data:;
 connect-src 'self';
+frame-src 'self' https://www.google.com;
 frame-ancestors 'none';
 ```
 
@@ -437,6 +438,7 @@ style-src 'self' 'unsafe-inline';
 img-src 'self' data: https:;
 font-src 'self' data:;
 connect-src 'self' ws: wss: http://localhost:* https://localhost:*;
+frame-src 'self' https://www.google.com;
 frame-ancestors 'none';
 ```
 

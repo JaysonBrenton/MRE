@@ -3,7 +3,7 @@
  *
  * @description Tab strip (TabNavigation) with optional event title column; Actions after tabs,
  *              tab-styled via EventAnalysisActionsMenu. {@link EventAnalysisToolbarAboveEventDetailsStrip}
- *              uses one row: tab strip box + matching title box (clear bordered chrome).
+ *              matches the overview strip chrome (glass border row + optional title column).
  *
  * @relatedFiles
  * - src/components/organisms/event-analysis/TabNavigation.tsx
@@ -104,7 +104,7 @@ function EventAnalysisToolbarTitleContent({
   )
 }
 
-/** Event Overview: one row — tab strip box + same-style title box (no elevated card below). */
+/** Event Overview: one row — tab strip box + optional same-style title box. */
 export function EventAnalysisToolbarAboveEventDetailsStrip(props: EventAnalysisToolbarProps) {
   const hasTitle = (props.eventTitle?.trim() ?? "").length > 0
 

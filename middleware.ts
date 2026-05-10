@@ -58,6 +58,7 @@ function addSecurityHeaders(response: NextResponse, isProduction: boolean): Next
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       "connect-src 'self'",
+      "frame-src 'self' https://www.google.com",
       "frame-ancestors 'none'",
     ].join("; ")
     response.headers.set("Content-Security-Policy", csp)
@@ -73,6 +74,7 @@ function addSecurityHeaders(response: NextResponse, isProduction: boolean): Next
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       "connect-src 'self' ws: wss: http://localhost:* https://localhost:*",
+      "frame-src 'self' https://www.google.com",
       "frame-ancestors 'none'",
     ].join("; ")
     response.headers.set("Content-Security-Policy", csp)

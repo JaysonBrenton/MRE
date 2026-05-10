@@ -31,6 +31,7 @@ import { OverviewOverallClassPodium } from "./OverviewOverallClassPodium"
 import { OverviewTriColumnSummary } from "./OverviewTriColumnSummary"
 import { OverviewVenueContactFields, OverviewVenueDetailPanel } from "./OverviewVenueDetailPanel"
 import Modal from "@/components/molecules/Modal"
+import { GoogleMapsVenueEmbed } from "@/components/molecules/GoogleMapsVenueEmbed"
 import { MapSearchAddressLink } from "@/components/molecules/MapSearchAddressLink"
 import WeatherCard from "./WeatherCard"
 import { EventWeatherAtAGlance } from "./EventWeatherAtAGlance"
@@ -2262,12 +2263,15 @@ export default function OverviewTab({
                     <OverviewTriColumnSummary
                       trackLocationSlot={
                         eventOverviewMinimalAddress ? (
-                          <MapSearchAddressLink
-                            address={eventOverviewMinimalAddress}
-                            showMapLink={false}
-                            linkFullAddress
-                            linkClassName="text-sm font-normal leading-snug"
-                          />
+                          <div className="flex min-h-0 w-full min-w-0 flex-col items-stretch gap-2">
+                            <MapSearchAddressLink
+                              address={eventOverviewMinimalAddress}
+                              showMapLink={false}
+                              linkFullAddress
+                              linkClassName="text-sm font-normal leading-snug"
+                            />
+                            <GoogleMapsVenueEmbed address={eventOverviewMinimalAddress} />
+                          </div>
                         ) : null
                       }
                       contactDetailsSlot={eventOverviewMinimalContactSlot}
