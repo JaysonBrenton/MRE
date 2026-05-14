@@ -33,12 +33,16 @@ from ingestion.db.models import (
     RaceResult,
     Lap,
     LapAnnotation,
+    PitStopEvent,
+    DriverPitStrategy,
     MultiMainResult,
     MultiMainResultEntry,
     EventQualPoints,
     EventQualPointsEntry,
     EventRoundRanking,
     EventRoundRankingEntry,
+    EventOverallRanking,
+    EventOverallRankingEntry,
     IngestDepth,
     User,
     UserDriverLink,
@@ -104,7 +108,9 @@ class Repository:
         logo_url: Optional[str] = None,
         facebook_url: Optional[str] = None,
         total_laps: Optional[int] = None,
+        total_practice_sessions: Optional[int] = None,
         total_races: Optional[int] = None,
+        total_entries: Optional[int] = None,
         total_events: Optional[int] = None,
     ) -> Track:
         """
@@ -132,7 +138,9 @@ class Repository:
             logo_url: Track logo image URL
             facebook_url: Facebook page URL
             total_laps: Total lifetime laps
+            total_practice_sessions: Total lifetime practice sessions (dashboard)
             total_races: Total lifetime races
+            total_entries: Total lifetime entries (dashboard)
             total_events: Total lifetime events
         
         Returns:
@@ -184,8 +192,12 @@ class Repository:
                 track.facebook_url = facebook_url
             if total_laps is not None:
                 track.total_laps = total_laps
+            if total_practice_sessions is not None:
+                track.total_practice_sessions = total_practice_sessions
             if total_races is not None:
                 track.total_races = total_races
+            if total_entries is not None:
+                track.total_entries = total_entries
             if total_events is not None:
                 track.total_events = total_events
             
@@ -217,7 +229,9 @@ class Repository:
                 logo_url=logo_url,
                 facebook_url=facebook_url,
                 total_laps=total_laps or 0,
+                total_practice_sessions=total_practice_sessions or 0,
                 total_races=total_races or 0,
+                total_entries=total_entries or 0,
                 total_events=total_events or 0,
             )
             # Set timestamps explicitly for new records
@@ -1813,6 +1827,111 @@ class Repository:
         self.session.flush()
         return upserted
 
+    def upsert_event_overall_ranking(
+        self,
+        event_id: UUID,
+        source_overall_ranking_id: str,
+        label: str,
+        entries: List[Dict[str, Any]],
+        driver_name_to_id: Dict[str, str],
+    ) -> int:
+        """Upsert Overall Final Ranking and entries. Skips entries where driver cannot be resolved."""
+        event_id_str = _uuid_to_str(event_id)
+        now = datetime.utcnow()
+
+        overall_ranking = self.session.scalar(
+            select(EventOverallRanking).where(
+                and_(
+                    EventOverallRanking.event_id == event_id_str,
+                    EventOverallRanking.source_overall_ranking_id == source_overall_ranking_id,
+                )
+            )
+        )
+        if not overall_ranking:
+            overall_ranking = EventOverallRanking(
+                event_id=event_id_str,
+                source="liverc",
+                source_overall_ranking_id=source_overall_ranking_id,
+                label=label,
+                created_at=now,
+                updated_at=now,
+            )
+            self.session.add(overall_ranking)
+            self.session.flush()
+            metrics.record_db_insert("event_overall_rankings")
+        else:
+            overall_ranking.label = label
+            overall_ranking.updated_at = now
+            metrics.record_db_update("event_overall_rankings")
+
+        seen: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        for entry in entries:
+            driver_name = (entry.get("driver_name") or "").strip()
+            if not driver_name:
+                continue
+            driver_id = driver_name_to_id.get(driver_name.upper())
+            if not driver_id:
+                logger.debug(
+                    "overall_ranking_entry_driver_not_found",
+                    driver_name=driver_name,
+                    message="Skipping - driver not in event",
+                )
+                continue
+
+            class_name = entry.get("class_name") or "Unknown"
+            if isinstance(class_name, str):
+                class_name = class_name.strip() or "Unknown"
+            else:
+                class_name = "Unknown"
+            key = (driver_id, class_name)
+            pos = entry.get("position")
+            curr = seen.get(key)
+            curr_pos = curr.get("position") if curr else None
+            if curr is None or (pos is not None and (curr_pos is None or pos < curr_pos)):
+                entry_copy = dict(entry)
+                entry_copy["class_name"] = class_name
+                seen[key] = entry_copy
+
+        upserted = 0
+        for entry in seen.values():
+            driver_name = (entry.get("driver_name") or "").strip()
+            driver_id = driver_name_to_id.get(driver_name.upper())
+            if not driver_id:
+                continue
+            class_name = entry["class_name"]
+            existing = self.session.scalar(
+                select(EventOverallRankingEntry).where(
+                    and_(
+                        EventOverallRankingEntry.event_overall_ranking_id == overall_ranking.id,
+                        EventOverallRankingEntry.driver_id == driver_id,
+                        EventOverallRankingEntry.class_name == class_name,
+                    )
+                )
+            )
+            if existing:
+                existing.position = entry["position"]
+                existing.race_label = entry.get("race_label")
+                existing.result_raw = entry.get("result_raw")
+                existing.updated_at = now
+                metrics.record_db_update("event_overall_ranking_entries")
+            else:
+                eo_entry = EventOverallRankingEntry(
+                    event_overall_ranking_id=overall_ranking.id,
+                    driver_id=driver_id,
+                    class_name=class_name,
+                    position=entry["position"],
+                    race_label=entry.get("race_label"),
+                    result_raw=entry.get("result_raw"),
+                    created_at=now,
+                    updated_at=now,
+                )
+                self.session.add(eo_entry)
+                metrics.record_db_insert("event_overall_ranking_entries")
+            upserted += 1
+
+        self.session.flush()
+        return upserted
+
     def calculate_and_update_race_durations(
         self,
         race_ids: List[UUID],
@@ -2077,6 +2196,7 @@ class Repository:
                 "id": race.id,
                 "event_id": race.event_id,
                 "class_name": race.class_name,
+                "race_label": race.race_label,
                 "duration_seconds": race.duration_seconds,
             },
             "results": results,
@@ -2160,6 +2280,132 @@ class Repository:
         if deleted:
             logger.debug("delete_lap_annotations_for_race", race_id=race_id_str, deleted=deleted)
         return deleted
+
+    def bulk_upsert_pit_stop_events(
+        self,
+        pit_events: List[Dict[str, Any]],
+        batch_size: int = 1000,
+    ) -> int:
+        """Bulk upsert pit stop events by (race_result_id, lap_number)."""
+        if not pit_events:
+            return 0
+        now = datetime.utcnow()
+        total = 0
+        for i in range(0, len(pit_events), batch_size):
+            batch = pit_events[i : i + batch_size]
+            batch_data = []
+            for event in batch:
+                batch_data.append(
+                    {
+                        "race_result_id": event["race_result_id"],
+                        "lap_number": event["lap_number"],
+                        "pit_time_estimate_seconds": event["pit_time_estimate_seconds"],
+                        "pit_time_earliest_seconds": event.get("pit_time_earliest_seconds"),
+                        "pit_time_latest_seconds": event.get("pit_time_latest_seconds"),
+                        "pit_time_loss_seconds": event.get("pit_time_loss_seconds"),
+                        "baseline_seconds": event.get("baseline_seconds"),
+                        "detection_confidence": event.get("detection_confidence"),
+                        "detection_version": event["detection_version"],
+                        "event_metadata": event.get("metadata"),
+                        "created_at": now,
+                        "updated_at": now,
+                    }
+                )
+            stmt = pg_insert(PitStopEvent).values(batch_data)
+            excl = stmt.excluded
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["race_result_id", "lap_number"],
+                set_={
+                    "pit_time_estimate_seconds": excl.pit_time_estimate_seconds,
+                    "pit_time_earliest_seconds": excl.pit_time_earliest_seconds,
+                    "pit_time_latest_seconds": excl.pit_time_latest_seconds,
+                    "pit_time_loss_seconds": excl.pit_time_loss_seconds,
+                    "baseline_seconds": excl.baseline_seconds,
+                    "detection_confidence": excl.detection_confidence,
+                    "detection_version": excl.detection_version,
+                    "metadata": excl["metadata"],
+                    "updated_at": now,
+                },
+            )
+            self.session.execute(stmt)
+            total += len(batch)
+        logger.debug("bulk_upsert_pit_stop_events", total=total)
+        metrics.record_db_insert("pit_stop_events", total)
+        return total
+
+    def bulk_upsert_driver_pit_strategies(
+        self,
+        strategies: List[Dict[str, Any]],
+        batch_size: int = 1000,
+    ) -> int:
+        """Bulk upsert per-race-result pit strategy records."""
+        if not strategies:
+            return 0
+        now = datetime.utcnow()
+        total = 0
+        for i in range(0, len(strategies), batch_size):
+            batch = strategies[i : i + batch_size]
+            batch_data = []
+            for strategy in batch:
+                batch_data.append(
+                    {
+                        "race_result_id": strategy["race_result_id"],
+                        "strategy_label": strategy["strategy_label"],
+                        "strategy_confidence": strategy.get("strategy_confidence"),
+                        "pit_count_detected": strategy["pit_count_detected"],
+                        "median_interval_seconds": strategy.get("median_interval_seconds"),
+                        "intervals_json": strategy.get("intervals_json"),
+                        "detection_version": strategy["detection_version"],
+                        "strategy_metadata": strategy.get("metadata"),
+                        "created_at": now,
+                        "updated_at": now,
+                    }
+                )
+            stmt = pg_insert(DriverPitStrategy).values(batch_data)
+            excl = stmt.excluded
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["race_result_id"],
+                set_={
+                    "strategy_label": excl.strategy_label,
+                    "strategy_confidence": excl.strategy_confidence,
+                    "pit_count_detected": excl.pit_count_detected,
+                    "median_interval_seconds": excl.median_interval_seconds,
+                    "intervals_json": excl.intervals_json,
+                    "detection_version": excl.detection_version,
+                    "metadata": excl["metadata"],
+                    "updated_at": now,
+                },
+            )
+            self.session.execute(stmt)
+            total += len(batch)
+        logger.debug("bulk_upsert_driver_pit_strategies", total=total)
+        metrics.record_db_insert("driver_pit_strategies", total)
+        return total
+
+    def delete_pit_stop_detection_for_race(self, race_id: Union[UUID, str]) -> Dict[str, int]:
+        """Delete pit stop rows for all race_results in a race."""
+        race_id_str = _uuid_to_str(race_id) if isinstance(race_id, UUID) else str(race_id)
+        subq = select(RaceResult.id).where(RaceResult.race_id == race_id_str)
+
+        pit_stmt = delete(PitStopEvent).where(PitStopEvent.race_result_id.in_(subq))
+        pit_result = self.session.execute(pit_stmt)
+        pit_deleted = pit_result.rowcount if pit_result.rowcount is not None else 0
+
+        strategy_stmt = delete(DriverPitStrategy).where(DriverPitStrategy.race_result_id.in_(subq))
+        strategy_result = self.session.execute(strategy_stmt)
+        strategy_deleted = strategy_result.rowcount if strategy_result.rowcount is not None else 0
+
+        if pit_deleted or strategy_deleted:
+            logger.debug(
+                "delete_pit_stop_detection_for_race",
+                race_id=race_id_str,
+                pit_events_deleted=pit_deleted,
+                strategies_deleted=strategy_deleted,
+            )
+        return {
+            "pit_stop_events_deleted": pit_deleted,
+            "driver_pit_strategies_deleted": strategy_deleted,
+        }
     
     def get_event_by_id(self, event_id: UUID) -> Optional[Event]:
         """

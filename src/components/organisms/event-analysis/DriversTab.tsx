@@ -15,6 +15,7 @@
 
 "use client"
 
+import type { ReactNode } from "react"
 import TabPanelIntro from "@/components/molecules/TabPanelIntro"
 import EntryList from "./EntryList"
 import ChartContainer from "./ChartContainer"
@@ -25,11 +26,16 @@ export interface DriversTabProps {
   data: EventAnalysisData
   selectedClass?: string | null
   onClassChange?: (className: string | null) => void
+  /** Dashboard: primary tab strip above entry list (matches Event Overview chrome). */
+  toolbarAbove?: ReactNode
 }
 
-export default function DriversTab({ data }: DriversTabProps) {
+export default function DriversTab({ data, toolbarAbove }: DriversTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
+      {toolbarAbove ? (
+        <div className="flex min-w-0 w-full flex-col gap-3">{toolbarAbove}</div>
+      ) : null}
       <TabPanelIntro
         eyebrow="Entry list"
         title="Drivers and entries"

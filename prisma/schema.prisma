@@ -113,7 +113,10 @@ model Track {
   logoUrl                String?   @map("logo_url")
   facebookUrl            String?   @map("facebook_url")
   totalLaps              Int?      @default(0) @map("total_laps")
+  totalPracticeSessions  Int?      @default(0) @map("total_practice_sessions")
   totalRaces             Int?      @default(0) @map("total_races")
+  /// Lifetime registration count from LiveRC track dashboard (not per-event entries).
+  totalEntries           Int?      @default(0) @map("total_entries")
   totalEvents            Int?      @default(0) @map("total_events")
   /// Optional WGS84 GeoJSON LineString for catalogue start/finish (admin or import).
   startFinishLineGeoJson Json?     @map("start_finish_line_geojson") @db.JsonB
@@ -170,6 +173,7 @@ model Event {
   multiMainResults     MultiMainResult[]
   qualPoints           EventQualPoints[]
   roundRankings        EventRoundRanking[]
+  overallRankings      EventOverallRanking[]
   userEventHostTracks UserEventHostTrack[]
 
   @@unique([source, sourceEventId])
@@ -255,6 +259,41 @@ model EventRoundRankingEntry {
   @@index([eventRoundRankingId])
   @@index([driverId])
   @@map("event_round_ranking_entries")
+}
+
+model EventOverallRanking {
+  id                     String                     @id @default(uuid())
+  eventId                String                     @map("event_id")
+  source                 String
+  sourceOverallRankingId String                     @map("source_overall_ranking_id")
+  label                  String
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime                   @updatedAt @map("updated_at")
+  event                  Event                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  entries                EventOverallRankingEntry[]
+
+  @@unique([eventId, sourceOverallRankingId])
+  @@index([eventId])
+  @@map("event_overall_rankings")
+}
+
+model EventOverallRankingEntry {
+  id                    String              @id @default(uuid())
+  eventOverallRankingId String              @map("event_overall_ranking_id")
+  driverId              String              @map("driver_id")
+  className             String              @map("class_name")
+  position              Int
+  raceLabel             String?             @map("race_label")
+  resultRaw             String?             @map("result_raw")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  eventOverallRanking   EventOverallRanking @relation(fields: [eventOverallRankingId], references: [id], onDelete: Cascade)
+  driver                Driver              @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([eventOverallRankingId, driverId, className])
+  @@index([eventOverallRankingId])
+  @@index([driverId])
+  @@map("event_overall_ranking_entries")
 }
 
 model EventEntry {
@@ -362,6 +401,7 @@ model Driver {
   multiMainResultEntries MultiMainResultEntry[]
   qualPointsEntries      EventQualPointsEntry[]
   roundRankingEntries    EventRoundRankingEntry[]
+  overallRankingEntries  EventOverallRankingEntry[]
 
   @@unique([source, sourceDriverId])
   @@index([source, sourceDriverId])
@@ -411,6 +451,8 @@ model RaceResult {
   updatedAt        DateTime   @updatedAt @map("updated_at")
   laps             Lap[]
   lapAnnotations   LapAnnotation[]
+  pitStopEvents    PitStopEvent[]
+  driverPitStrategy DriverPitStrategy?
   raceDriver       RaceDriver @relation(fields: [raceDriverId], references: [id], onDelete: Cascade)
   race             Race       @relation(fields: [raceId], references: [id], onDelete: Cascade)
 
@@ -498,6 +540,46 @@ model LapAnnotation {
   @@index([raceResultId, lapNumber])
   @@index([raceResultId])
   @@map("lap_annotations")
+}
+
+model PitStopEvent {
+  id                    String     @id @default(uuid())
+  raceResultId          String     @map("race_result_id")
+  lapNumber             Int        @map("lap_number")
+  pitTimeEstimateSeconds Float     @map("pit_time_estimate_seconds")
+  pitTimeEarliestSeconds Float?    @map("pit_time_earliest_seconds")
+  pitTimeLatestSeconds  Float?     @map("pit_time_latest_seconds")
+  pitTimeLossSeconds    Float?     @map("pit_time_loss_seconds")
+  baselineSeconds       Float?     @map("baseline_seconds")
+  detectionConfidence   Float?     @map("detection_confidence")
+  detectionVersion      String     @map("detection_version")
+  metadata              Json?      @map("metadata")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+  raceResult            RaceResult @relation(fields: [raceResultId], references: [id], onDelete: Cascade)
+
+  @@unique([raceResultId, lapNumber])
+  @@index([raceResultId, pitTimeEstimateSeconds])
+  @@index([raceResultId])
+  @@map("pit_stop_events")
+}
+
+model DriverPitStrategy {
+  id                    String     @id @default(uuid())
+  raceResultId          String     @unique @map("race_result_id")
+  strategyLabel         String     @map("strategy_label")
+  strategyConfidence    Float?     @map("strategy_confidence")
+  pitCountDetected      Int        @map("pit_count_detected")
+  medianIntervalSeconds Float?     @map("median_interval_seconds")
+  intervalsJson         Json?      @map("intervals_json")
+  detectionVersion      String     @map("detection_version")
+  metadata              Json?      @map("metadata")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+  raceResult            RaceResult @relation(fields: [raceResultId], references: [id], onDelete: Cascade)
+
+  @@index([strategyLabel])
+  @@map("driver_pit_strategies")
 }
 
 model TransponderOverride {

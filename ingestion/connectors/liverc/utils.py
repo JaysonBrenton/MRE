@@ -118,6 +118,23 @@ def build_round_ranking_url(
     return base
 
 
+def build_overall_ranking_url(track_slug: str, source_overall_ranking_id: str) -> str:
+    """
+    Build Overall Final Ranking page URL (event_overall_ranking).
+
+    Args:
+        track_slug: Track subdomain slug
+        source_overall_ranking_id: LiveRC overall ranking id (normally source event id)
+
+    Returns:
+        Full URL
+    """
+    return (
+        f"https://{track_slug}.liverc.com/results/?p=event_overall_ranking"
+        f"&id={source_overall_ranking_id}"
+    )
+
+
 def build_entry_list_url(track_slug: str, source_event_id: str) -> str:
     """
     Build entry list page URL.

@@ -59,6 +59,12 @@ export const typography = {
   /** Data table column headers on muted / inset surfaces */
   tableHeaderMuted: "text-xs font-semibold uppercase tracking-wide text-[var(--token-text-muted)]",
 
+  /** Event Overview: centered card titles (tri-column summary) */
+  overviewSectionCardTitle:
+    "min-w-0 w-full text-center text-lg font-semibold tracking-tight text-[var(--token-text-muted)]",
+  /** Event Overview: results table toolbar title (left, same row as filters) */
+  overviewEventResultsToolbarTitle:
+    "min-w-0 shrink text-left text-lg font-semibold tracking-tight text-[var(--token-text-muted)]",
   /** Event Overview: small eyebrow above section titles (minimal tracking, no all-caps) */
   overviewEyebrow: "text-[11px] font-medium tracking-[0.04em] text-[var(--token-text-muted)]",
   /** Event Overview: grid metric label (Races, Drivers, …) */
@@ -85,6 +91,8 @@ export const typography = {
  * - bodySecondary: sm (14px) - Secondary content
  * - caption: xs (12px) - Captions and helper text
  * - tableHeader / tableHeaderMuted: xs uppercase column titles in data tables
+ * - overviewSectionCardTitle: centered muted lg titles on overview glass cards
+ * - overviewEventResultsToolbarTitle: left title on event results toolbar row
  * - overviewEyebrow / overviewCardClassLabel / overviewCardDriverName: Event Overview hierarchy
  * - overviewMetricLabel (17px) / overviewMetricValue (base): Event Overview stat grid
  */

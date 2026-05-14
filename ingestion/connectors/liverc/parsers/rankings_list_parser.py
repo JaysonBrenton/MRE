@@ -13,6 +13,7 @@ from selectolax.parser import HTMLParser
 
 from ingestion.common.logging import get_logger
 from ingestion.connectors.liverc.models import (
+    ConnectorOverallFinalRankingSummary,
     ConnectorQualPointsSummary,
     ConnectorRoundRankingSummary,
 )
@@ -29,6 +30,10 @@ _QUAL_POINTS_LINK_SELECTORS = (
 _ROUND_RANKING_LINK_SELECTORS = (
     'a[href*="view_round_ranking"]',
     'a[href*="view%5Fround%5Franking"]',
+)
+_OVERALL_RANKING_LINK_SELECTORS = (
+    'a[href*="event_overall_ranking"]',
+    'a[href*="event%5Foverall%5Franking"]',
 )
 
 
@@ -54,7 +59,11 @@ class RankingsListParser:
         self,
         html: str,
         url: str,
-    ) -> Tuple[List[ConnectorQualPointsSummary], List[ConnectorRoundRankingSummary]]:
+    ) -> Tuple[
+        List[ConnectorQualPointsSummary],
+        List[ConnectorRoundRankingSummary],
+        Optional[ConnectorOverallFinalRankingSummary],
+    ]:
         """
         Parse Qual Points and Round Rankings links from HTML.
 
@@ -67,7 +76,7 @@ class RankingsListParser:
             url: Source URL for error reporting
 
         Returns:
-            Tuple of (qual_points_summaries, round_ranking_summaries)
+            Tuple of (qual_points_summaries, round_ranking_summaries, overall_final_ranking_summary)
         """
         logger.debug("parse_rankings_list_start", url=url)
 
@@ -75,6 +84,7 @@ class RankingsListParser:
             tree = HTMLParser(html)
             qual_points: List[ConnectorQualPointsSummary] = []
             round_rankings: List[ConnectorRoundRankingSummary] = []
+            overall_final_ranking: Optional[ConnectorOverallFinalRankingSummary] = None
 
             seen_qual_hrefs: set[str] = set()
             # Qual Points: view_points (literal or %5F-encoded underscore)
@@ -135,13 +145,37 @@ class RankingsListParser:
                         )
                     )
 
+            seen_overall_hrefs: set[str] = set()
+            for sel in _OVERALL_RANKING_LINK_SELECTORS:
+                for link in tree.css(sel):
+                    href = link.attributes.get("href", "")
+                    if not href or href in seen_overall_hrefs:
+                        continue
+                    seen_overall_hrefs.add(href)
+
+                    parsed = urlparse(href)
+                    query_params = parse_qs(parsed.query)
+                    overall_id = query_params.get("id", [None])[0]
+                    if not overall_id:
+                        continue
+
+                    label = link.text().strip() or "Overall Final Ranking"
+                    overall_final_ranking = ConnectorOverallFinalRankingSummary(
+                        source_overall_ranking_id=str(overall_id),
+                        label=label,
+                    )
+                    break
+                if overall_final_ranking is not None:
+                    break
+
             logger.debug(
                 "parse_rankings_list_success",
                 qual_points_count=len(qual_points),
                 round_rankings_count=len(round_rankings),
+                has_overall_final_ranking=overall_final_ranking is not None,
                 url=url,
             )
-            return (qual_points, round_rankings)
+            return (qual_points, round_rankings, overall_final_ranking)
 
         except Exception as e:
             logger.error("parse_rankings_list_error", url=url, error=str(e))

@@ -28,6 +28,7 @@ export type OverviewEventMixMiniSummaryProps = {
   sessionMix: SessionMixSegment[]
   classMixByDrivers: SessionMixSegment[]
   classMixByLaps: SessionMixSegment[]
+  eventDateLabel: string
 }
 
 /**
@@ -38,6 +39,7 @@ export function OverviewEventMixMiniSummary({
   sessionMix,
   classMixByDrivers,
   classMixByLaps,
+  eventDateLabel,
 }: OverviewEventMixMiniSummaryProps) {
   const [mixOpen, setMixOpen] = useState(false)
   const [mixMetric, setMixMetric] = useState<MixInsightMetric>("session")
@@ -81,86 +83,92 @@ export function OverviewEventMixMiniSummary({
         role="region"
         aria-label="Event mix summary"
       >
-        <div
-          className={[
-            "grid min-h-0 min-w-0 w-full max-w-full justify-items-center text-center",
-            "grid-cols-1 gap-x-4 gap-y-3",
-            "sm:grid-cols-3 sm:gap-x-5",
-          ].join(" ")}
-        >
-          <div className="flex min-w-0 w-full flex-col items-center gap-1.5 text-center">
-            <span className={typography.overviewMetricLabel}>Session Mix</span>
-            <div className={MIX_MINI_CHART_SLOT_CLASS}>
-              {sessionTotal > 0 ? (
-                <button
-                  type="button"
-                  className={MIX_OPEN_HIT_CLASS}
-                  onClick={() => openWithMetric("session")}
-                  aria-haspopup="dialog"
-                  aria-label="View full session mix breakdown"
-                >
-                  <SessionMixMiniStackedBar segments={sessionMix} suppressA11y />
-                </button>
-              ) : (
-                <p
-                  className="text-[11px] leading-snug text-[var(--token-text-muted)]"
-                  role="status"
-                >
-                  No session data
-                </p>
-              )}
-            </div>
+        <div className="flex min-h-0 min-w-0 w-full flex-col items-center gap-3">
+          <div className="flex min-w-0 w-full flex-col items-center gap-0.5 text-center">
+            <span className={typography.overviewMetricLabel}>Event Date</span>
+            <span className={typography.overviewMetricValue}>{eventDateLabel}</span>
           </div>
-
-          <div className="flex min-w-0 w-full flex-col items-center gap-1.5 text-center">
-            <span className={typography.overviewMetricLabel}>Driver Mix</span>
-            <div className={MIX_MINI_CHART_SLOT_CLASS}>
-              {driversTotal > 0 ? (
-                <button
-                  type="button"
-                  className={MIX_OPEN_HIT_CLASS}
-                  onClick={() => openWithMetric("drivers")}
-                  aria-haspopup="dialog"
-                  aria-label="View full driver mix by class"
-                >
-                  <ClassMixMiniStackedBar
-                    segments={classMixByDrivers}
-                    kind="drivers"
-                    suppressA11y
-                  />
-                </button>
-              ) : (
-                <p
-                  className="text-[11px] leading-snug text-[var(--token-text-muted)]"
-                  role="status"
-                >
-                  No driver data
-                </p>
-              )}
+          <div
+            className={[
+              "grid min-h-0 min-w-0 w-full max-w-full justify-items-center text-center",
+              "grid-cols-1 gap-x-4 gap-y-3",
+              "sm:grid-cols-3 sm:gap-x-5",
+            ].join(" ")}
+          >
+            <div className="flex min-w-0 w-full flex-col items-center gap-1.5 text-center">
+              <span className={typography.overviewMetricLabel}>Session Mix</span>
+              <div className={MIX_MINI_CHART_SLOT_CLASS}>
+                {sessionTotal > 0 ? (
+                  <button
+                    type="button"
+                    className={MIX_OPEN_HIT_CLASS}
+                    onClick={() => openWithMetric("session")}
+                    aria-haspopup="dialog"
+                    aria-label="View full session mix breakdown"
+                  >
+                    <SessionMixMiniStackedBar segments={sessionMix} suppressA11y />
+                  </button>
+                ) : (
+                  <p
+                    className="text-[11px] leading-snug text-[var(--token-text-muted)]"
+                    role="status"
+                  >
+                    No session data
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="flex min-w-0 w-full flex-col items-center gap-1.5 text-center">
-            <span className={typography.overviewMetricLabel}>Lap Mix</span>
-            <div className={MIX_MINI_CHART_SLOT_CLASS}>
-              {lapsTotal > 0 ? (
-                <button
-                  type="button"
-                  className={MIX_OPEN_HIT_CLASS}
-                  onClick={() => openWithMetric("laps")}
-                  aria-haspopup="dialog"
-                  aria-label="View full lap mix by class"
-                >
-                  <ClassMixMiniStackedBar segments={classMixByLaps} kind="laps" suppressA11y />
-                </button>
-              ) : (
-                <p
-                  className="text-[11px] leading-snug text-[var(--token-text-muted)]"
-                  role="status"
-                >
-                  No lap data
-                </p>
-              )}
+            <div className="flex min-w-0 w-full flex-col items-center gap-1.5 text-center">
+              <span className={typography.overviewMetricLabel}>Driver Mix</span>
+              <div className={MIX_MINI_CHART_SLOT_CLASS}>
+                {driversTotal > 0 ? (
+                  <button
+                    type="button"
+                    className={MIX_OPEN_HIT_CLASS}
+                    onClick={() => openWithMetric("drivers")}
+                    aria-haspopup="dialog"
+                    aria-label="View full driver mix by class"
+                  >
+                    <ClassMixMiniStackedBar
+                      segments={classMixByDrivers}
+                      kind="drivers"
+                      suppressA11y
+                    />
+                  </button>
+                ) : (
+                  <p
+                    className="text-[11px] leading-snug text-[var(--token-text-muted)]"
+                    role="status"
+                  >
+                    No driver data
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex min-w-0 w-full flex-col items-center gap-1.5 text-center">
+              <span className={typography.overviewMetricLabel}>Lap Mix</span>
+              <div className={MIX_MINI_CHART_SLOT_CLASS}>
+                {lapsTotal > 0 ? (
+                  <button
+                    type="button"
+                    className={MIX_OPEN_HIT_CLASS}
+                    onClick={() => openWithMetric("laps")}
+                    aria-haspopup="dialog"
+                    aria-label="View full lap mix by class"
+                  >
+                    <ClassMixMiniStackedBar segments={classMixByLaps} kind="laps" suppressA11y />
+                  </button>
+                ) : (
+                  <p
+                    className="text-[11px] leading-snug text-[var(--token-text-muted)]"
+                    role="status"
+                  >
+                    No lap data
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

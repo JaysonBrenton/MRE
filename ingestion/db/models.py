@@ -150,7 +150,9 @@ class Track(Base):
     logo_url = Column("logo_url", String, nullable=True)
     facebook_url = Column("facebook_url", String, nullable=True)
     total_laps = Column("total_laps", Integer, nullable=True, default=0)
+    total_practice_sessions = Column("total_practice_sessions", Integer, nullable=True, default=0)
     total_races = Column("total_races", Integer, nullable=True, default=0)
+    total_entries = Column("total_entries", Integer, nullable=True, default=0)
     total_events = Column("total_events", Integer, nullable=True, default=0)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -210,6 +212,7 @@ class Event(Base):
     multi_main_results = relationship("MultiMainResult", back_populates="event", cascade="all, delete-orphan")
     qual_points = relationship("EventQualPoints", back_populates="event", cascade="all, delete-orphan")
     round_rankings = relationship("EventRoundRanking", back_populates="event", cascade="all, delete-orphan")
+    overall_rankings = relationship("EventOverallRanking", back_populates="event", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("source", "source_event_id", name="events_source_source_event_id_key"),
@@ -338,6 +341,11 @@ class Driver(Base):
     multi_main_result_entries = relationship("MultiMainResultEntry", back_populates="driver", cascade="all, delete-orphan")
     qual_points_entries = relationship("EventQualPointsEntry", back_populates="driver", cascade="all, delete-orphan")
     round_ranking_entries = relationship("EventRoundRankingEntry", back_populates="driver", cascade="all, delete-orphan")
+    overall_ranking_entries = relationship(
+        "EventOverallRankingEntry",
+        back_populates="driver",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         UniqueConstraint("source", "source_driver_id", name="drivers_source_source_driver_id_key"),
@@ -398,6 +406,8 @@ class RaceResult(Base):
     race_driver = relationship("RaceDriver", back_populates="results")
     laps = relationship("Lap", back_populates="race_result", cascade="all, delete-orphan")
     lap_annotations = relationship("LapAnnotation", back_populates="race_result", cascade="all, delete-orphan")
+    pit_stop_events = relationship("PitStopEvent", back_populates="race_result", cascade="all, delete-orphan")
+    driver_pit_strategy = relationship("DriverPitStrategy", back_populates="race_result", uselist=False, cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("race_id", "race_driver_id", name="race_results_race_id_race_driver_id_key"),
@@ -552,6 +562,81 @@ class EventRoundRankingEntry(Base):
     )
 
 
+class EventOverallRanking(Base):
+    """EventOverallRanking model for LiveRC event_overall_ranking page snapshots."""
+    __tablename__ = "event_overall_rankings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    event_id = Column("event_id", String, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    source = Column(String, nullable=False)
+    source_overall_ranking_id = Column("source_overall_ranking_id", String, nullable=False)
+    label = Column("label", String, nullable=False)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        "updated_at",
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    event = relationship("Event", back_populates="overall_rankings")
+    entries = relationship(
+        "EventOverallRankingEntry",
+        back_populates="event_overall_ranking",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "event_id",
+            "source_overall_ranking_id",
+            name="event_overall_rankings_event_id_source_overall_ranking_id_key",
+        ),
+        Index("event_overall_rankings_event_id_idx", "event_id"),
+    )
+
+
+class EventOverallRankingEntry(Base):
+    """EventOverallRankingEntry model for per-class, per-driver overall final ranking rows."""
+    __tablename__ = "event_overall_ranking_entries"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    event_overall_ranking_id = Column(
+        "event_overall_ranking_id",
+        String,
+        ForeignKey("event_overall_rankings.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    driver_id = Column("driver_id", String, ForeignKey("drivers.id", ondelete="CASCADE"), nullable=False)
+    class_name = Column("class_name", String, nullable=False)
+    position = Column("position", Integer, nullable=False)
+    race_label = Column("race_label", String, nullable=True)
+    result_raw = Column("result_raw", String, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        "updated_at",
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    event_overall_ranking = relationship("EventOverallRanking", back_populates="entries")
+    driver = relationship("Driver", back_populates="overall_ranking_entries")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "event_overall_ranking_id",
+            "driver_id",
+            "class_name",
+            name="event_overall_ranking_entries_overall_driver_class_key",
+        ),
+        Index("event_overall_ranking_entries_event_overall_ranking_id_idx", "event_overall_ranking_id"),
+        Index("event_overall_ranking_entries_driver_id_idx", "driver_id"),
+    )
+
+
 class Lap(Base):
     """Lap model representing normalized lap data for a race result."""
     __tablename__ = "laps"
@@ -598,6 +683,56 @@ class LapAnnotation(Base):
         UniqueConstraint("race_result_id", "lap_number", name="lap_annotations_race_result_id_lap_number_key"),
         Index("lap_annotations_race_result_id_lap_number_idx", "race_result_id", "lap_number"),
         Index("lap_annotations_race_result_id_idx", "race_result_id"),
+    )
+
+
+class PitStopEvent(Base):
+    """PitStopEvent model for normalized nitro pit stop detection events."""
+    __tablename__ = "pit_stop_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    race_result_id = Column("race_result_id", String, ForeignKey("race_results.id", ondelete="CASCADE"), nullable=False)
+    lap_number = Column("lap_number", Integer, nullable=False)
+    pit_time_estimate_seconds = Column("pit_time_estimate_seconds", Float, nullable=False)
+    pit_time_earliest_seconds = Column("pit_time_earliest_seconds", Float, nullable=True)
+    pit_time_latest_seconds = Column("pit_time_latest_seconds", Float, nullable=True)
+    pit_time_loss_seconds = Column("pit_time_loss_seconds", Float, nullable=True)
+    baseline_seconds = Column("baseline_seconds", Float, nullable=True)
+    detection_confidence = Column("detection_confidence", Float, nullable=True)
+    detection_version = Column("detection_version", String, nullable=False)
+    event_metadata = Column("metadata", JSONB, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    race_result = relationship("RaceResult", back_populates="pit_stop_events")
+
+    __table_args__ = (
+        UniqueConstraint("race_result_id", "lap_number", name="pit_stop_events_race_result_id_lap_number_key"),
+        Index("pit_stop_events_race_result_id_pit_time_estimate_seconds_idx", "race_result_id", "pit_time_estimate_seconds"),
+        Index("pit_stop_events_race_result_id_idx", "race_result_id"),
+    )
+
+
+class DriverPitStrategy(Base):
+    """DriverPitStrategy model for race-result-level pit strategy inference."""
+    __tablename__ = "driver_pit_strategies"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    race_result_id = Column("race_result_id", String, ForeignKey("race_results.id", ondelete="CASCADE"), nullable=False, unique=True)
+    strategy_label = Column("strategy_label", String, nullable=False)
+    strategy_confidence = Column("strategy_confidence", Float, nullable=True)
+    pit_count_detected = Column("pit_count_detected", Integer, nullable=False)
+    median_interval_seconds = Column("median_interval_seconds", Float, nullable=True)
+    intervals_json = Column("intervals_json", JSONB, nullable=True)
+    detection_version = Column("detection_version", String, nullable=False)
+    strategy_metadata = Column("metadata", JSONB, nullable=True)
+    created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    race_result = relationship("RaceResult", back_populates="driver_pit_strategy")
+
+    __table_args__ = (
+        Index("driver_pit_strategies_strategy_label_idx", "strategy_label"),
     )
 
 

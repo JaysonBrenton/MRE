@@ -75,6 +75,11 @@ class TestTrackDashboardParser:
         assert "Indoor Tracks" in (data.description or "")
         assert data.logo_url is not None
         assert "livetimescoring.com/track_logos" in (data.logo_url or "")
+        assert data.total_laps == 6_753_663
+        assert data.total_practice_sessions == 115_168
+        assert data.total_races == 20_959
+        assert data.total_entries == 34_957
+        assert data.total_events == 898
 
     def test_parse_missing_sections(self):
         """Test graceful handling of missing sections."""

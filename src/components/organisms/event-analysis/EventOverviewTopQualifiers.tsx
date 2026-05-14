@@ -143,6 +143,7 @@ export type EventOverviewTopQualifiersProps =
       variant: "overviewCards"
       races: EventAnalysisData["races"]
       multiMainResults: EventAnalysisData["multiMainResults"]
+      overallFinalRankings?: EventAnalysisData["overallFinalRankings"]
       /** Distinct entry-list classes; drives one class-winner card per class (see buildClassWinners). */
       registrationClassNames?: string[]
       /** When non-empty, Class Winners and Top Qualifiers card order: most class entries first. */
@@ -156,6 +157,7 @@ export default function EventOverviewTopQualifiers(props: EventOverviewTopQualif
         qualPoints={props.qualPoints}
         races={props.races}
         multiMainResults={props.multiMainResults}
+        overallFinalRankings={props.overallFinalRankings}
         registrationClassNames={props.registrationClassNames}
         entryList={props.entryList}
       />
@@ -168,12 +170,14 @@ function EventOverviewTopQualifiersCards({
   qualPoints,
   races,
   multiMainResults,
+  overallFinalRankings,
   registrationClassNames,
   entryList,
 }: {
   qualPoints: QualPayload
   races: EventAnalysisData["races"]
   multiMainResults: EventAnalysisData["multiMainResults"]
+  overallFinalRankings?: EventAnalysisData["overallFinalRankings"]
   registrationClassNames?: string[]
   entryList?: EventAnalysisData["entryList"]
 }) {
@@ -315,8 +319,14 @@ function EventOverviewTopQualifiersCards({
   }, [fastestLapDetailClass, races])
 
   const classWinnerRows = useMemo(() => {
-    return buildClassWinners({ races, multiMainResults, registrationClassNames, entryList })
-  }, [races, multiMainResults, registrationClassNames, entryList])
+    return buildClassWinners({
+      races,
+      multiMainResults,
+      overallFinalRankings: overallFinalRankings ?? [],
+      registrationClassNames,
+      entryList,
+    })
+  }, [races, multiMainResults, overallFinalRankings, registrationClassNames, entryList])
 
   /** Same class order as Top Qualifiers / Lap Heroes when possible. */
   const closestBattleSummaries = useMemo(() => computeClosestP1P2PerClass(races), [races])
@@ -1305,6 +1315,7 @@ function EventOverviewTopQualifiersCards({
         onClose={() => setClassWinnerDetail(null)}
         races={races}
         multiMainResults={multiMainResults}
+        overallFinalRankings={overallFinalRankings}
       />
     </div>
   )

@@ -10,7 +10,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useId, type ReactNode } from "react"
 import {
   StandardTable,
   StandardTableHeader,
@@ -50,6 +50,7 @@ type Row = {
   firstName: string
   secondName: string | null
   thirdName: string | null
+  driverNames: string[]
   raceOrder: number | null
 }
 
@@ -137,6 +138,35 @@ function podiumFromRaceResults(race: EventAnalysisData["races"][number]): {
   }
 }
 
+function PodiumCell({ place, name }: { place: "1st" | "2nd" | "3rd"; name: string | null }) {
+  const badgeClass =
+    place === "1st"
+      ? "bg-[var(--token-status-warning-bg)] text-[var(--token-status-warning-text)] ring-[var(--token-status-warning-text)]/20"
+      : place === "2nd"
+        ? "bg-[var(--token-surface-raised)]/80 text-[var(--token-text-secondary)] ring-[var(--token-border-default)]/80"
+        : "bg-[var(--token-surface-raised)]/60 text-[var(--token-text-secondary)] ring-[var(--token-border-default)]/80"
+
+  return (
+    <span className="flex min-w-[9rem] items-center gap-2">
+      <span
+        className={`inline-flex h-6 w-10 shrink-0 items-center justify-center rounded-md text-[0.65rem] font-bold leading-none tabular-nums tracking-tight ring-1 ring-inset ${badgeClass}`}
+        aria-hidden
+      >
+        {place}
+      </span>
+      <span
+        className={
+          place === "1st"
+            ? "min-w-0 truncate font-semibold text-[var(--token-text-primary)]"
+            : "min-w-0 truncate text-[var(--token-text-secondary)]"
+        }
+      >
+        {name ?? "—"}
+      </span>
+    </span>
+  )
+}
+
 export interface SessionRaceResultsTableProps {
   races: EventAnalysisData["races"]
   /**
@@ -144,20 +174,34 @@ export interface SessionRaceResultsTableProps {
    * When omitted, `races` is used — totals shrink when `races` is class-filtered.
    */
   raceLabelContextRaces?: EventAnalysisData["races"]
+  classFilter?: string | null
+  onClassFilterChange?: (className: string | null) => void
+  classFilterOptions?: string[]
+  /** Event vs session results toggle; aligned with Class / Session / Driver toolbar. */
+  resultsTabStrip?: ReactNode
 }
 
 function rowMatchesDriverSearch(row: Row, searchLower: string): boolean {
   if (!searchLower) return true
-  const names = [row.firstName, row.secondName, row.thirdName].filter(
+  const podiumNames = [row.firstName, row.secondName, row.thirdName].filter(
     (n): n is string => n != null && n !== "—"
   )
+  const names = row.driverNames.length > 0 ? row.driverNames : podiumNames
   return names.some((n) => n.toLowerCase().includes(searchLower))
 }
 
 export default function SessionRaceResultsTable({
   races,
   raceLabelContextRaces,
+  classFilter,
+  onClassFilterChange,
+  classFilterOptions,
+  resultsTabStrip,
 }: SessionRaceResultsTableProps) {
+  const classFilterId = useId()
+  const sessionTypeFilterId = useId()
+  const driverFilterId = useId()
+
   const raceDisplayLabelById = useMemo(() => {
     const ctx = raceLabelContextRaces ?? races
     const inputs: SessionLabelInput[] = ctx.map((r) => ({
@@ -181,10 +225,47 @@ export default function SessionRaceResultsTable({
   const [modalPage, setModalPage] = useState(1)
   const [modalItemsPerPage, setModalItemsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
 
+  const availableClassOptions = useMemo(() => {
+    const source =
+      classFilterOptions && classFilterOptions.length > 0
+        ? classFilterOptions
+        : Array.from(
+            new Set(
+              races
+                .map((race) => race.className)
+                .filter(
+                  (className): className is string =>
+                    typeof className === "string" && className.trim().length > 0
+                )
+            )
+          )
+    return Array.from(
+      new Set(
+        source
+          .map((className) => className.trim())
+          .filter(
+            (className): className is string =>
+              typeof className === "string" && className.trim().length > 0
+          )
+      )
+    ).sort((a, b) => a.localeCompare(b))
+  }, [races, classFilterOptions])
+
+  const effectiveClassFilter = useMemo(() => {
+    const next = classFilter?.trim() ?? ""
+    if (!next) return ""
+    return availableClassOptions.includes(next) ? next : ""
+  }, [classFilter, availableClassOptions])
+
+  const classFilteredRaces = useMemo(() => {
+    if (!effectiveClassFilter) return races
+    return races.filter((race) => race.className === effectiveClassFilter)
+  }, [races, effectiveClassFilter])
+
   const headerClassLabel = useMemo(() => {
     const classes = Array.from(
       new Set(
-        races
+        classFilteredRaces
           .map((race) => race.className)
           .filter(
             (className): className is string =>
@@ -200,12 +281,12 @@ export default function SessionRaceResultsTable({
       return classes[0]
     }
     return "Multiple Classes"
-  }, [races])
+  }, [classFilteredRaces])
 
   const sessionTypeOptions = useMemo(() => {
-    const keys = new Set(races.map((r) => sessionTypeFilterKeyForRace(r)))
+    const keys = new Set(classFilteredRaces.map((r) => sessionTypeFilterKeyForRace(r)))
     return sortSessionTypeFilterKeys([...keys])
-  }, [races])
+  }, [classFilteredRaces])
 
   const effectiveSessionTypeFilter = useMemo(() => {
     if (!sessionTypeFilter) return ""
@@ -213,9 +294,11 @@ export default function SessionRaceResultsTable({
   }, [sessionTypeFilter, sessionTypeOptions])
 
   const displayRaces = useMemo(() => {
-    if (!effectiveSessionTypeFilter) return races
-    return races.filter((r) => sessionTypeFilterKeyForRace(r) === effectiveSessionTypeFilter)
-  }, [races, effectiveSessionTypeFilter])
+    if (!effectiveSessionTypeFilter) return classFilteredRaces
+    return classFilteredRaces.filter(
+      (r) => sessionTypeFilterKeyForRace(r) === effectiveSessionTypeFilter
+    )
+  }, [classFilteredRaces, effectiveSessionTypeFilter])
 
   const rows: Row[] = useMemo(() => {
     const list: Row[] = []
@@ -231,6 +314,9 @@ export default function SessionRaceResultsTable({
         firstName: podium.first ?? "—",
         secondName: podium.second,
         thirdName: podium.third,
+        driverNames: race.results
+          .map((result) => result.driverName?.trim())
+          .filter((name): name is string => Boolean(name && name.length > 0)),
         raceOrder: race.raceOrder,
       })
     }
@@ -304,8 +390,9 @@ export default function SessionRaceResultsTable({
   }, [driverFilteredRows, resolvedSortField, sortDirection])
 
   const paginationResetKey = useMemo(
-    () => `${effectiveSessionTypeFilter}\0${driverSearch}\0${rows.map((r) => r.raceId).join("\0")}`,
-    [effectiveSessionTypeFilter, driverSearch, rows]
+    () =>
+      `${effectiveClassFilter}\0${effectiveSessionTypeFilter}\0${driverSearch}\0${rows.map((r) => r.raceId).join("\0")}`,
+    [effectiveClassFilter, effectiveSessionTypeFilter, driverSearch, rows]
   )
 
   useEffect(() => {
@@ -407,11 +494,20 @@ export default function SessionRaceResultsTable({
   if (races.length === 0) {
     return (
       <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
-        <div className="px-4 py-3">
-          <h2 className={typography.h4}>Session Results</h2>
-          <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-            No races in this selection.
-          </p>
+        <div className="border-b border-[var(--token-border-default)] px-4 py-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className={typography.h4}>Session Results</h2>
+              <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+                No races in this selection.
+              </p>
+            </div>
+            {resultsTabStrip ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
+                {resultsTabStrip}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     )
@@ -430,16 +526,40 @@ export default function SessionRaceResultsTable({
             )}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
+            {resultsTabStrip}
+            {onClassFilterChange && availableClassOptions.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor={classFilterId}
+                  className="text-xs font-medium text-[var(--token-text-secondary)]"
+                >
+                  Class
+                </label>
+                <select
+                  id={classFilterId}
+                  value={effectiveClassFilter}
+                  onChange={(e) => onClassFilterChange(e.target.value || null)}
+                  className="max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  <option value="">All classes</option>
+                  {availableClassOptions.map((className) => (
+                    <option key={className} value={className}>
+                      {className}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {sessionTypeOptions.length > 0 && (
               <div className="flex items-center gap-2">
                 <label
-                  htmlFor="session-results-session-type"
+                  htmlFor={sessionTypeFilterId}
                   className="text-xs font-medium text-[var(--token-text-secondary)]"
                 >
                   Session
                 </label>
                 <select
-                  id="session-results-session-type"
+                  id={sessionTypeFilterId}
                   value={effectiveSessionTypeFilter}
                   onChange={(e) => setSessionTypeFilter(e.target.value)}
                   className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
@@ -455,13 +575,13 @@ export default function SessionRaceResultsTable({
             )}
             <div className="flex items-center gap-2">
               <label
-                htmlFor="session-results-driver-filter"
+                htmlFor={driverFilterId}
                 className="text-xs font-medium text-[var(--token-text-secondary)]"
               >
                 Driver
               </label>
               <input
-                id="session-results-driver-filter"
+                id={driverFilterId}
                 type="text"
                 value={driverSearch}
                 onChange={(e) => setDriverSearch(e.target.value)}
@@ -653,14 +773,14 @@ export default function SessionRaceResultsTable({
                       <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
                         {formatTimeUTC(row.startTime)}
                       </StandardTableCell>
-                      <StandardTableCell className="px-3 py-2 text-sm font-semibold text-[var(--token-text-primary)]">
-                        {row.firstName}
+                      <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-primary)]">
+                        <PodiumCell place="1st" name={row.firstName} />
                       </StandardTableCell>
                       <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                        {row.secondName ?? "—"}
+                        <PodiumCell place="2nd" name={row.secondName} />
                       </StandardTableCell>
                       <StandardTableCell className="px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                        {row.thirdName ?? "—"}
+                        <PodiumCell place="3rd" name={row.thirdName} />
                       </StandardTableCell>
                     </StandardTableRow>
                   )

@@ -3,7 +3,7 @@
  *
  * @created 2025-01-28
  * @creator Jayson Brenton
- * @lastModified 2026-04-11
+ * @lastModified 2026-05-13
  *
  * @description Guides index page listing all available user guides
  *
@@ -28,16 +28,16 @@ export default async function GuidesPage() {
         "Welcome to My Race Engineer. This guide will help you get started with the platform.",
     },
     {
-      title: "Event Search",
+      title: "Global Search",
       href: "/guides/event-search",
       description:
-        "Complete guide to searching for race events, selecting tracks, importing events from LiveRC, and understanding event status indicators.",
+        "Use /search to query ingested events and sessions, apply driver/session/date filters, paginate results, and jump into My Event Analysis with View Event.",
     },
     {
       title: "Event Analysis",
       href: "/guides/event-analysis",
       description:
-        "Learn how to analyze race event data, view interactive charts, compare drivers, explore sessions, and export data.",
+        "Primary tabs (Event Overview, Event Analysis, Session Analysis, Entry List), Actions menu, practice-day layouts, submenu analytics, and ingestion refresh flows.",
     },
     {
       title: "Car type mapping",
@@ -49,7 +49,7 @@ export default async function GuidesPage() {
       title: "My Event Analysis",
       href: "/guides/dashboard",
       description:
-        "Guide to using your personal event analysis, understanding widgets, customizing layouts, and viewing statistics.",
+        "Mission control on /eventAnalysis: pick an imported event, use Find and Import overlays, Redux persistence shortcuts, Actions menu, and the contextual My Events rail latch.",
     },
     {
       title: "Driver Features",

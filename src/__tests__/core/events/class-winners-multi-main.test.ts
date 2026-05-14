@@ -392,4 +392,89 @@ describe("buildClassWinners", () => {
     expect(winners[0]?.secondPlaceName).toBe("RILEY LANDER-WEST")
     expect(winners[0]?.thirdPlaceName).toBeNull()
   })
+
+  it("prefers event_overall_ranking standings over multi-main and featured-main fallbacks", () => {
+    const races: EventAnalysisData["races"] = [
+      {
+        id: "r1",
+        raceId: "r1",
+        className: "Ep Buggy",
+        raceLabel: "Ep Buggy A-Main",
+        raceOrder: 1,
+        startTime: null,
+        durationSeconds: null,
+        sessionType: "main",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/r1",
+        results: [
+          {
+            raceResultId: "rr1",
+            raceDriverId: "rd1",
+            driverId: "d1",
+            driverName: "FEATURED WINNER",
+            positionFinal: 1,
+            lapsCompleted: 10,
+            totalTimeSeconds: 600,
+            fastLapTime: 30,
+            avgLapTime: null,
+            consistency: null,
+            qualifyingPosition: null,
+            secondsBehind: null,
+            liveRcStats: null,
+          },
+        ],
+      },
+    ]
+    const multiMain: EventAnalysisData["multiMainResults"] = [
+      {
+        id: "m1",
+        classLabel: "Ep Buggy Triple A-Main",
+        tieBreaker: null,
+        completedMains: 3,
+        totalMains: 3,
+        entries: [
+          {
+            position: 1,
+            seededPosition: null,
+            driverId: "d2",
+            driverName: "MULTI MAIN WINNER",
+            points: 2,
+            mainBreakdown: null,
+          },
+        ],
+      },
+    ]
+    const winners = buildClassWinners({
+      races,
+      multiMainResults: multiMain,
+      overallFinalRankings: [
+        {
+          id: "o1",
+          sourceOverallRankingId: "ev-1",
+          label: "Overall Final Ranking",
+          className: "Ep Buggy",
+          entries: [
+            {
+              position: 1,
+              driverId: "d3",
+              driverName: "OVERALL WINNER",
+              raceLabel: "A Main",
+              resultRaw: "[2] [1] 17/10:02.843",
+            },
+            {
+              position: 2,
+              driverId: "d4",
+              driverName: "SECOND PLACE",
+              raceLabel: "A Main",
+              resultRaw: "[3] [2] 17/10:03.100",
+            },
+          ],
+        },
+      ],
+      registrationClassNames: ["Ep Buggy"],
+    })
+    expect(winners).toHaveLength(1)
+    expect(winners[0]?.winnerName).toBe("OVERALL WINNER")
+    expect(winners[0]?.secondPlaceName).toBe("SECOND PLACE")
+  })
 })

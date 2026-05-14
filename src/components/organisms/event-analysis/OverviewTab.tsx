@@ -196,12 +196,7 @@ export interface OverviewTabProps {
   selectedClass: string | null
   onClassChange: (className: string | null) => void
   /** Top-level dashboard tab: only that section’s content (no inner overview subsection strip). */
-  variant?:
-    | "default"
-    | "event-overview-minimal"
-    | "event-overview-only"
-    | "event-analysis-only"
-    | "session-analysis-only"
+  variant?: "default" | "event-overview-minimal" | "event-analysis-only" | "session-analysis-only"
   /** Controlled sub-view when parent owns toolbar dropdown (`event-analysis-only` / `session-analysis-only`). */
   analysisSubTab?: EventAnalysisSubTabId
   onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
@@ -250,7 +245,6 @@ export default function OverviewTab({
     () => {
       switch (variant) {
         case "event-overview-minimal":
-        case "event-overview-only":
           return "event-overview"
         case "event-analysis-only":
           return "event-analysis"
@@ -453,6 +447,14 @@ export default function OverviewTab({
   )
 
   const eventHighlightsModel = useMemo(() => buildEventHighlights(data), [data])
+  const eventOverviewDateLabel = useMemo(() => {
+    const start = formatDateLong(data.event.eventDate)
+    const endValue = data.event.eventDateEnd
+    if (!endValue) return start
+    const end = formatDateLong(endValue)
+    if (!end || end === start) return start
+    return `${start} – ${end}`
+  }, [data.event.eventDate, data.event.eventDateEnd])
 
   /** Event overview (minimal glass middle column): stats grid + event mix minis. */
   const eventOverviewMinimalStatisticsSlot = useMemo(
@@ -477,10 +479,11 @@ export default function OverviewTab({
           sessionMix={eventHighlightsModel.sessionMix}
           classMixByDrivers={eventHighlightsModel.classMixByDrivers}
           classMixByLaps={eventHighlightsModel.classMixByLaps}
+          eventDateLabel={eventOverviewDateLabel}
         />
       </div>
     ),
-    [overviewStatsItems, eventHighlightsModel]
+    [overviewStatsItems, eventHighlightsModel, eventOverviewDateLabel]
   )
 
   const venueHostSection = useMemo(() => {
@@ -2122,14 +2125,12 @@ export default function OverviewTab({
 
   const showOtherSections =
     variant !== "event-overview-minimal" &&
-    variant !== "event-overview-only" &&
     variant !== "event-analysis-only" &&
     variant !== "session-analysis-only"
   const isEventOverviewMinimal = variant === "event-overview-minimal"
   /** Event overview hero/stats: only on the Event Overview top tab, or in default mode when that subsection is active. */
   const showEventOverviewSection =
     variant === "event-overview-minimal" ||
-    variant === "event-overview-only" ||
     (showOtherSections && overviewPrimarySection === "event-overview")
 
   /** Track/venue line when event name and track name differ (e.g. series vs host). */
@@ -2140,6 +2141,14 @@ export default function OverviewTab({
   }, [data.event.eventName, data.event.trackName])
 
   const trackDashboardUrl = data.event.trackDashboardUrl?.trim() || null
+  const eventOverviewLiveRcEventUrl = useMemo(() => {
+    const fromDb = data.event.eventUrl?.trim()
+    if (fromDb) return fromDb
+    const slug = data.event.trackSlug?.trim()
+    const sourceEventId = data.event.sourceEventId?.trim()
+    if (!slug || !sourceEventId) return null
+    return `https://${slug}.liverc.com/results/?p=view_event&id=${encodeURIComponent(sourceEventId)}`
+  }, [data.event.eventUrl, data.event.sourceEventId, data.event.trackSlug])
 
   const showEventAnalysisSectionBlock =
     variant === "event-analysis-only" ||
@@ -2156,7 +2165,6 @@ export default function OverviewTab({
   const overviewPrimarySectionTabsVisible = useMemo(() => {
     if (
       variant === "event-overview-minimal" ||
-      variant === "event-overview-only" ||
       variant === "event-analysis-only" ||
       variant === "session-analysis-only"
     ) {
@@ -2166,32 +2174,24 @@ export default function OverviewTab({
   }, [variant])
 
   const eventOverviewToolbarTabId =
-    variant === "event-overview-minimal"
-      ? "tab-event-overview"
-      : variant === "event-overview-only"
-        ? "tab-event-overview-old"
-        : null
+    variant === "event-overview-minimal" ? "tab-event-overview" : null
 
   const tabPanelId =
     variant === "event-overview-minimal"
       ? "tabpanel-event-overview"
-      : variant === "event-overview-only"
-        ? "tabpanel-event-overview-old"
-        : variant === "event-analysis-only"
-          ? "tabpanel-event-analysis"
-          : variant === "session-analysis-only"
-            ? "tabpanel-session-analysis"
-            : "tabpanel-overview"
+      : variant === "event-analysis-only"
+        ? "tabpanel-event-analysis"
+        : variant === "session-analysis-only"
+          ? "tabpanel-session-analysis"
+          : "tabpanel-overview"
   const tabAriaLabelledBy =
     variant === "event-overview-minimal"
       ? "tab-event-overview"
-      : variant === "event-overview-only"
-        ? "tab-event-overview-old"
-        : variant === "event-analysis-only"
-          ? "tab-event-analysis"
-          : variant === "session-analysis-only"
-            ? "tab-session-analysis"
-            : "tab-overview"
+      : variant === "event-analysis-only"
+        ? "tab-event-analysis"
+        : variant === "session-analysis-only"
+          ? "tab-session-analysis"
+          : "tab-overview"
 
   return (
     <div
@@ -2200,6 +2200,9 @@ export default function OverviewTab({
       id={tabPanelId}
       aria-labelledby={tabAriaLabelledBy}
     >
+      {toolbarAboveEventDetails ? (
+        <div className="flex min-w-0 w-full flex-col gap-3">{toolbarAboveEventDetails}</div>
+      ) : null}
       {showOtherSections && overviewPrimarySectionTabsVisible.length > 0 && (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 px-3 py-2 shadow-sm">
           <div className="min-w-0 flex-1 overflow-x-hidden">
@@ -2244,11 +2247,8 @@ export default function OverviewTab({
             id={eventOverviewSectionContentId}
             role="tabpanel"
             aria-labelledby={eventOverviewToolbarTabId ?? "event-overview-heading"}
-            className={`flex min-h-0 w-full min-w-full flex-col items-stretch ${toolbarAboveEventDetails ? "gap-3" : "gap-5"}`}
+            className="flex min-h-0 w-full min-w-full flex-col items-stretch gap-5"
           >
-            {toolbarAboveEventDetails ? (
-              <div className="flex min-w-0 w-full flex-col gap-3">{toolbarAboveEventDetails}</div>
-            ) : null}
             <div className={toolbarAboveEventDetails ? "min-w-0 w-full" : "w-full min-w-0"}>
               <div
                 className={`grid w-full min-w-0 grid-cols-1 gap-5${
@@ -2261,6 +2261,8 @@ export default function OverviewTab({
                 {isEventOverviewMinimal ? (
                   <>
                     <OverviewTriColumnSummary
+                      statisticsHeading={data.event.eventName}
+                      statisticsHeadingHref={eventOverviewLiveRcEventUrl}
                       trackLocationSlot={
                         eventOverviewMinimalAddress ? (
                           <div className="flex min-h-0 w-full min-w-0 flex-col items-stretch gap-2">
@@ -2284,10 +2286,13 @@ export default function OverviewTab({
                       data={{
                         races: data.races,
                         multiMainResults: data.multiMainResults,
+                        overallFinalRankings: data.overallFinalRankings,
                         registrationClassNames: data.registrationClassNames,
                         entryList: data.entryList,
                         qualPointsTopQualifiers: data.qualPointsTopQualifiers,
                       }}
+                      sessionClassFilter={selectedClass}
+                      onSessionClassFilterChange={onClassChange}
                     />
                     <Modal
                       isOpen={eventWeatherDetailModalOpen}
@@ -2578,6 +2583,7 @@ export default function OverviewTab({
                       qualPoints={data.qualPointsTopQualifiers}
                       races={data.races}
                       multiMainResults={data.multiMainResults}
+                      overallFinalRankings={data.overallFinalRankings}
                       registrationClassNames={data.registrationClassNames}
                       entryList={data.entryList}
                     />

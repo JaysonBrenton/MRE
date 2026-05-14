@@ -32,6 +32,7 @@ export type ClassWinnerStandingsModalProps = {
   onClose: () => void
   races: EventAnalysisData["races"]
   multiMainResults: EventAnalysisData["multiMainResults"]
+  overallFinalRankings?: EventAnalysisData["overallFinalRankings"]
 }
 
 export function ClassWinnerStandingsModal({
@@ -39,16 +40,23 @@ export function ClassWinnerStandingsModal({
   onClose,
   races,
   multiMainResults,
+  overallFinalRankings,
 }: ClassWinnerStandingsModalProps) {
   const [standingsPage, setStandingsPage] = useState(1)
   const [standingsRowsPerPage, setStandingsRowsPerPage] = useState(DEFAULT_TABLE_ROWS_PER_PAGE)
 
   const classWinnerModalResolved = useMemo(() => {
     if (!detail) return null
-    return resolveClassWinnerModalDetail(detail, { races, multiMainResults })
-  }, [detail, races, multiMainResults])
+    return resolveClassWinnerModalDetail(detail, {
+      races,
+      multiMainResults,
+      overallFinalRankings: overallFinalRankings ?? [],
+    })
+  }, [detail, races, multiMainResults, overallFinalRankings])
 
   const classWinnerStandingsCount = useMemo(() => {
+    if (classWinnerModalResolved?.kind === "overallRanking")
+      return classWinnerModalResolved.standingsRows.length
     if (classWinnerModalResolved?.kind === "multiMain")
       return classWinnerModalResolved.standingsRows.length
     if (classWinnerModalResolved?.kind === "featuredMain")
@@ -71,6 +79,11 @@ export function ClassWinnerStandingsModal({
   }, [classWinnerModalResolved, classWinnerStandingsEffectivePage, standingsRowsPerPage])
   const classWinnerFeaturedPageRows = useMemo(() => {
     if (classWinnerModalResolved?.kind !== "featuredMain") return []
+    const start = (classWinnerStandingsEffectivePage - 1) * standingsRowsPerPage
+    return classWinnerModalResolved.standingsRows.slice(start, start + standingsRowsPerPage)
+  }, [classWinnerModalResolved, classWinnerStandingsEffectivePage, standingsRowsPerPage])
+  const classWinnerOverallPageRows = useMemo(() => {
+    if (classWinnerModalResolved?.kind !== "overallRanking") return []
     const start = (classWinnerStandingsEffectivePage - 1) * standingsRowsPerPage
     return classWinnerModalResolved.standingsRows.slice(start, start + standingsRowsPerPage)
   }, [classWinnerModalResolved, classWinnerStandingsEffectivePage, standingsRowsPerPage])
@@ -98,6 +111,70 @@ export function ClassWinnerStandingsModal({
             <p className="text-[var(--token-text-secondary)]">
               Detailed result breakdown is not available for this import.
             </p>
+          ) : classWinnerModalResolved.kind === "overallRanking" ? (
+            <div className="flex min-w-0 flex-col gap-3">
+              {classWinnerModalResolved.standingsRows.length === 0 ? (
+                <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
+                  No rows in the imported Overall Final Ranking table for this class.
+                </p>
+              ) : (
+                <>
+                  <DataTableFrame className="max-w-full overflow-x-auto">
+                    <StandardTable>
+                      <StandardTableHeader>
+                        <tr className="border-b border-[var(--token-border-default)] bg-[var(--token-surface-alt)]">
+                          <StandardTableCell header className="whitespace-nowrap">
+                            Position
+                          </StandardTableCell>
+                          <StandardTableCell header>Driver</StandardTableCell>
+                          <StandardTableCell header className="min-w-[5rem] whitespace-nowrap">
+                            Race
+                          </StandardTableCell>
+                          <StandardTableCell header className="min-w-[7rem] whitespace-nowrap">
+                            Result
+                          </StandardTableCell>
+                        </tr>
+                      </StandardTableHeader>
+                      <tbody>
+                        {classWinnerOverallPageRows.map((row) => (
+                          <StandardTableRow
+                            key={`${row.position}-${row.driverName}`}
+                            className={
+                              row.highlight ? "bg-[var(--token-accent-soft-bg)]/50" : undefined
+                            }
+                          >
+                            <StandardTableCell className="tabular-nums text-[var(--token-text-secondary)]">
+                              {row.position}
+                            </StandardTableCell>
+                            <StandardTableCell className="min-w-0 break-words font-medium text-[var(--token-text-primary)]">
+                              {row.driverName}
+                            </StandardTableCell>
+                            <StandardTableCell className="min-w-0 break-words text-[var(--token-text-primary)]">
+                              {row.raceLabel ?? "—"}
+                            </StandardTableCell>
+                            <StandardTableCell className="min-w-0 break-words font-mono text-xs text-[var(--token-text-primary)]">
+                              {row.resultRaw ?? "—"}
+                            </StandardTableCell>
+                          </StandardTableRow>
+                        ))}
+                      </tbody>
+                    </StandardTable>
+                  </DataTableFrame>
+                  <ListPagination
+                    embedded
+                    currentPage={classWinnerStandingsEffectivePage}
+                    totalPages={classWinnerStandingsTotalPages}
+                    onPageChange={setStandingsPage}
+                    itemsPerPage={standingsRowsPerPage}
+                    totalItems={classWinnerStandingsCount}
+                    itemLabel="drivers"
+                    onRowsPerPageChange={(n) => {
+                      setStandingsRowsPerPage(normalizeTableRowsPerPage(n))
+                    }}
+                  />
+                </>
+              )}
+            </div>
           ) : classWinnerModalResolved.kind === "multiMain" ? (
             <div className="flex min-w-0 flex-col gap-3">
               {classWinnerModalResolved.standingsRows.length === 0 ? (

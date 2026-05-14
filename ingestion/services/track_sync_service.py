@@ -106,7 +106,15 @@ def _validate_metadata(metadata: TrackDashboardData) -> TrackDashboardData:
         logo_url=logo_url,
         facebook_url=facebook_url,
         total_laps=metadata.total_laps if metadata.total_laps is not None and metadata.total_laps >= 0 else None,
+        total_practice_sessions=(
+            metadata.total_practice_sessions
+            if metadata.total_practice_sessions is not None and metadata.total_practice_sessions >= 0
+            else None
+        ),
         total_races=metadata.total_races if metadata.total_races is not None and metadata.total_races >= 0 else None,
+        total_entries=(
+            metadata.total_entries if metadata.total_entries is not None and metadata.total_entries >= 0 else None
+        ),
         total_events=metadata.total_events if metadata.total_events is not None and metadata.total_events >= 0 else None,
     )
     return validated
@@ -406,7 +414,9 @@ class TrackSyncService:
                     "logo_url": metadata.logo_url,
                     "facebook_url": metadata.facebook_url,
                     "total_laps": metadata.total_laps,
+                    "total_practice_sessions": metadata.total_practice_sessions,
                     "total_races": metadata.total_races,
+                    "total_entries": metadata.total_entries,
                     "total_events": metadata.total_events,
                 })
 
@@ -429,7 +439,8 @@ class TrackSyncService:
                     for field in [
                         "latitude", "longitude", "address", "city", "state", "country",
                         "postal_code", "phone", "website", "email", "description",
-                        "logo_url", "facebook_url", "total_laps", "total_races", "total_events",
+                        "logo_url", "facebook_url", "total_laps", "total_practice_sessions",
+                        "total_races", "total_entries", "total_events",
                     ]:
                         existing_val = getattr(existing, field)
                         new_val = getattr(metadata, field)
@@ -556,7 +567,8 @@ class TrackSyncService:
         metadata_fields = [
             "latitude", "longitude", "address", "city", "state", "country",
             "postal_code", "phone", "website", "email", "description",
-            "logo_url", "facebook_url", "total_laps", "total_races", "total_events",
+            "logo_url", "facebook_url", "total_laps", "total_practice_sessions",
+            "total_races", "total_entries", "total_events",
         ]
         
         # Only include metadata fields if they appear in any row of the batch
@@ -653,6 +665,8 @@ class TrackSyncService:
         _update("logo_url", metadata.logo_url)
         _update("facebook_url", metadata.facebook_url)
         _update("total_laps", metadata.total_laps)
+        _update("total_practice_sessions", metadata.total_practice_sessions)
         _update("total_races", metadata.total_races)
+        _update("total_entries", metadata.total_entries)
         _update("total_events", metadata.total_events)
         return changed

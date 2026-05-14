@@ -228,7 +228,7 @@ export const GUIDE_ITEMS: GuideItem[] = [
   },
   {
     href: "/guides/event-search",
-    label: "Event Search",
+    label: "Global Search",
     icon: (active) => (
       <svg
         className={`h-5 w-5 ${active ? "text-[var(--token-accent)]" : "text-[var(--token-text-secondary)]"}`}

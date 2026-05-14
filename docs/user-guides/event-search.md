@@ -1,52 +1,70 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-03-22
-description: Guide to unified search for events and sessions in My Race Engineer
+lastModified: 2026-05-13
+description: Guide to unified Global Search (`/search`) in My Race Engineer
 purpose:
-  Describes the current Global Search experience on /search. Older bookmarks to
-  /event-search redirect here.
+  Describes the shipped search UX, Redux-backed pagination, and how results tie
+  into My Event Analysis.
 relatedFiles:
   - src/app/(authenticated)/search/page.tsx
-  - src/components/organisms/search/SearchForm.tsx
-  - src/components/organisms/search/SearchResultsTable.tsx
+  - src/store/slices/searchSlice.ts
 ---
 
-# Global Search (events and sessions)
+# Global Search (`/search`)
 
-## What shipped today
+![Initial search page before submitting](./images/global-search-empty.png)
 
-- **Route:** `/search` — **Global Search** in the left navigation rail (see
-  `src/app/(authenticated)/search/page.tsx`).
-- **Legacy URL:** `/event-search` redirects to `/search` for bookmarks (see
-  `src/app/(authenticated)/event-search/page.tsx`).
-- **Behaviour:** Text search across events and sessions, optional filters (e.g.
-  driver name, session type, date range). Results link through to event analysis
-  where data exists. This replaces the older dedicated “Event Search” page with
-  a separate track modal and bulk LiveRC import from that screen.
+Global Search replaces the bookmark-only `/event-search` redirect slug. Prefer
+the navigator label **Global Search** (`navigationRailConfig.tsx` ordering).
 
-## Prerequisites
+Once you submit criteria, Redux calls `performSearch()`, filling **Events** and
+**Sessions** tables plus pagination widgets.
 
-- You must be logged into MRE.
+![Results split into Events and Sessions sections](./images/global-search-results.png)
 
-## Using Global Search
+## Form layout
 
-1. Open **Global Search** from the navigation rail (or go to `/search`).
-2. Enter a query and optional filters in the search form
-   (`src/components/organisms/search/SearchForm.tsx`).
-3. Review results in the results table
-   (`src/components/organisms/search/SearchResultsTable.tsx`) and open an event
-   to view analysis.
+| Control               | Behaviour                                                                           |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| **Search**            | Free-text spanning event + session corpus (placeholders cue cross-surface lookups). |
+| **Driver Name**       | Optional narrowing filter forwarded to `/api/v1/search`.                            |
+| **Session Type**      | Select `race`, `heat`, `main`, `seeding`, `practice`, `qualifying`, or “All Types”. |
+| **Start / End dates** | Optional inclusive window (HTML `<input type="date">`).                             |
+| **Search** button     | Validates + executes query. Disabled while Redux `isLoading` true.                  |
+| **Clear**             | Resets slices + wipes tables back to untouched instructions.                        |
 
-## Importing events from LiveRC
+## Results tables
 
-Bulk import from the search page is **not** the primary flow. Use **My Event
-Analysis** on the dashboard: open the event search / discovery modal from the
-dashboard shell to find tracks and import LiveRC events into MRE. See
-[Getting Started](getting-started.md) and [Event Analysis](event-analysis.md)
-for the current analysis workflow.
+Sections render independently:
 
-## Related documentation
+- **Events** — Columns: Event name, Track, Date, Actions (**View Event** →
+  `/eventAnalysis?eventId=…`).
+- **Sessions** — Session label, normalized class column, inferred type, parent
+  event metadata, Actions link (same routing pattern anchored on `eventId`).
 
-- [Navigation](navigation.md) — rail layout and other routes
-- [API reference](../api/api-reference.md) — `GET /api/v1/search`
+Large result sets honour **pagination** identical to Analysis list components:
+
+- Page controls + **Rows per page** (`10`, `25`, `50`, `100`).
+- `First / Previous / Next / Last` respecting disabled states.
+
+## Importing versus searching
+
+Searching **does not** replace ingestion. Use **Actions → Find and Import
+Events** on My Event Analysis to queue LiveRC jobs. Search simply helps you
+recall UUIDs / programme titles already resident in the warehouse.
+
+Legacy documentation referencing standalone “bulk import from search alone” is
+obsolete as of Alpha v0.1.0 UI.
+
+## Breadcrumbs / navigation
+
+`/search` shows `My Event Analysis › Search`; treat **My Event Analysis** crumb
+as shortcut back home.
+
+## Related guides
+
+- [Getting started](getting-started.md)
+- [My Event Analysis](dashboard.md)
+- [Event Analysis visuals](event-analysis.md)
+- [Navigation](navigation.md)

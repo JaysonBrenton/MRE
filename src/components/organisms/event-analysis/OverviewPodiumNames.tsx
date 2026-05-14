@@ -68,14 +68,20 @@ export function PodiumSlotName({
   filledClassName,
   emptyHint,
   isTopQualifier = false,
+  /** When true, only the name is shown; pair with an external TQ badge (same row layout as place chips). */
+  suppressEmbeddedTqBadge = false,
 }: {
   name: string | null
   filledClassName: string
   emptyHint: string
   /** When true and `name` is set, show the top-qualifier badge next to the name. */
   isTopQualifier?: boolean
+  suppressEmbeddedTqBadge?: boolean
 }) {
   if (name) {
+    if (suppressEmbeddedTqBadge) {
+      return <HighlightPodiumName name={name} className={`${filledClassName} min-w-0`} />
+    }
     return (
       <PodiumNameWithOptionalTq
         name={name}

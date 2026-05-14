@@ -1,305 +1,139 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-03-22
-description: Guide to navigating My Race Engineer application
+lastModified: 2026-05-13
+description: Guide to navigating My Race Engineer (Adaptive shell, May 2026)
 purpose:
-  Provides comprehensive instructions for using breadcrumb navigation, menus,
-  tabs, keyboard shortcuts, and finding features throughout the application.
+  Summarizes navigation rail taxonomy, breadcrumbs, command palette behaviours,
+  guide expansion, contextual My Events latch, and keyboard affordances surfaced
+  in Event Actions.
 relatedFiles:
+  - src/components/organisms/dashboard/shell/adaptive-navigation-rail/navigationRailConfig.tsx
   - docs/design/navigation-patterns.md
-  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
-# Navigation Guide
+# Navigation guide
 
-Learn how to navigate My Race Engineer effectively using breadcrumbs, menus,
-tabs, keyboard shortcuts, and other navigation patterns.
+MRE Alpha v0.1.0 standardizes navigation around:
 
-## Introduction
+1. A **dense adaptive rail** (desktop default collapsed icons, optional
+   expansion).
+2. **Breadcrumbs** under the immersive chrome.
+3. **Contextual latch controls** tied to Redux selection state (example: **My
+   Events**).
+4. **Actions** overlays with documented shortcut hints.
 
-MRE uses several navigation patterns to help you move through the application
-efficiently. Understanding these patterns will help you find features quickly
-and navigate with confidence.
+Screenshots illustrating combined chrome:
 
-## Prerequisites
+![Rail + breadcrumbs on Search](./images/global-search-empty.png)
 
-- You must be logged into MRE
-- Basic familiarity with web applications
+## Primary rail entries (authenticated)
 
-## Breadcrumb Navigation
+Listed top → bottom (`navigationRailConfig.tsx` canonical order):
 
-Breadcrumb navigation is the **primary navigation pattern** in MRE. It shows
-your current location and provides a path back to previous sections.
+| Label                  | Route / Target                                   | Notes                                                      |
+| ---------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| **My Event Analysis**  | `/eventAnalysis`                                 | Resets stacked tab Redux slice to Overview when reused.    |
+| **Global Search**      | `/search`                                        | Previously `/event-search`.                                |
+| **My Telemetry**       | `/eventAnalysis/my-telemetry`                    | Telemetry datasets + imports.                              |
+| **My Car Profiles**    | `/eventAnalysis/car-profiles`                    | Car metadata / setups.                                     |
+| **My Driver Profiles** | `/eventAnalysis/driver-profiles`                 | Persona overlays.                                          |
+| **My Engineer**        | `/eventAnalysis/my-engineer`                     | Intelligence cockpit (still evolving).                     |
+| **My Club**            | `/under-development?from=/eventAnalysis/my-club` | Ships placeholder UX until club dashboards GA.             |
+| **My Team**            | `/under-development?from=/eventAnalysis/my-team` | Same treatment.                                            |
+| **MRE Administration** | `/admin`                                         | Visible for admins — console metrics + ingestion triggers. |
 
-### Understanding Breadcrumbs
+**Guides** near the footer toggles the stack linking to `/guides/*` SPA pages
+mirroring Markdown user docs.
 
-Breadcrumbs appear at the top of most pages and show your navigation path:
+Collapsed rail shows icon-only Guides control; expanding reveals textual **User
+Guides** row.
 
-**Example:**
+Guides screenshot:
+
+![`/guides` index](./images/guides-index.png)
+
+### My Events latch logic
+
+`/eventAnalysis` + **race-day** event persisted ⇒ extra **My Events** button
+nests under the home glyph. Selecting it swaps `activeEventAnalysisTab` to the
+fuzzy review surface; choose **Search for events** CTA inside empty-state cards
+if nothing fuzzy-linked yet (`./images/my-events-panel.png`).
+
+### Expand / collapse ergonomics
+
+- **Expand navigation** glyph (square chevron pill) restores textual labels
+  without leaving page.
+- On mobile breakpoints the rail overlays as drawer; ESC + outside tap close per
+  focus-trap helpers.
+
+### My Club submenu (future placeholders)
+
+Collapsed **My Club** icon can expand nested shortcuts (Track leaderboard + Club
+highlights placeholders in code paths). Until `/under-development` pages
+graduate, clicking still routes informational stub.
+
+## Breadcrumbs conventions
+
+Represent path context only (no redundant query echo). Typical patterns:
 
 ```
-Home > Guides > Getting Started
+My Event Analysis › Search
+My Event Analysis › Guides › Getting Started
 ```
 
-**Components:**
+Click earlier crumb slices to rewind without nuking Redux unless target route
+purposely resets slices (dashboard home intentionally normalizes Overview tab).
 
-- **Home**: Starting point (usually Dashboard)
-- **Intermediate Sections**: Clickable links to previous sections
-- **Current Page**: Final item (not clickable, shows where you are)
+## Command palette vs hamburger misconception
 
-### Using Breadcrumbs
+Older docs referenced hamburger semantics. Actual top-left control:
 
-**Navigate Back:**
+- Opens **palette / nav expansion** hybrids per `AdaptiveNavigationRail`
+  orchestration—not a classic “everything” drawer.
 
-1. Click any breadcrumb item to go back to that section
-2. Each click moves you one level up the hierarchy
-3. Useful for quick navigation without using the back button
+Additionally, **profile** opener surfaces account modal with density/theme
+toggles.
 
-**Example Navigation:**
+![Profile drawer](./images/profile-menu.png)
 
-- You're on: `Home > Event Search > Event Analysis`
-- Click "Event Search" to return to search results
-- Click "Home" to return to dashboard
+Shortcuts inside profile:
 
-### Breadcrumb Benefits
+- Density: **Compact / Comfort / Spacious**
+- Theme: **Dark / Light** (persisted separately from OS)
 
-- **Clear Location**: Always know where you are
-- **Quick Navigation**: Jump back multiple levels with one click
-- **Context**: Understand the page hierarchy
-- **Consistency**: Same pattern throughout the application
+## Tabs inside Event Overview row
 
-## Main navigation (authenticated shell)
+Separate from rail: Event Overview tablist uses submenu affordances
+(`Event Analysis`, `Session Analysis`). Refer to dedicated Event Analysis doc
+for interplay.
 
-After login, MRE uses a **left navigation rail** plus **top status bar**
-(`src/components/organisms/dashboard/shell/`). Items include **My Event
-Analysis** (`/eventAnalysis`), **Global Search** (`/search`), car profiles,
-practice-day tooling, and other entries; several items still route to
-`/under-development` until those areas ship.
+### Documented ingestion shortcuts surfaced in Actions menu
 
-**Top bar:** The menu icon opens the **command palette** (quick jump to a few
-routes such as dashboard, search, telemetry); it does **not** toggle the whole
-navigation rail. Use the rail collapse control on the sidebar if you need more
-horizontal space.
+Desktop browsers honour:
 
-**Guides:** The guides section at the bottom of the rail links to `/guides` and
-lists user guides; expanded/collapsed state may be remembered locally.
+| Combination | Mapped action                    |
+| ----------- | -------------------------------- |
+| `⌘ + E`     | Find & Import                    |
+| `⌘ + ⌥ + R` | Refresh ingestion-backed payload |
+| `⌘ + ⇧ + E` | Clear event selection            |
 
-## Tab Navigation
+Non-mac users should translate `⌘ → Ctrl`; actual binding acceptance depends on
+browser focus contexts.
 
-Some pages use tabs to organize related content within a single page.
+Escape closes overlays + palette.
 
-### Understanding Tabs
+## Troubleshooting cues
 
-Tabs appear horizontally (desktop) or as a scrollable list (mobile):
+| Symptom                      | Fix                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| **My Events** missing        | Ensure race-day ingest + Redux selection; Practice-day UX hides latch. |
+| Guides stack stuck collapsed | Toggle Guides icon twice; persists via `localStorage`.                 |
+| Breadcrumb missing crumb     | Rare on root-only paths (Admin console uses internal nav pills).       |
 
-**Example (Event Analysis):**
+## Related guides
 
-- Overview
-- Drivers
-- Sessions / Heats
-- Comparisons
-
-### Using Tabs
-
-**Switching Tabs:**
-
-1. Click or tap a tab to switch to that section
-2. Active tab is highlighted
-3. Content updates to show selected tab's information
-
-**Keyboard Navigation:**
-
-- Arrow keys to move between tabs
-- Enter or Space to select
-- Tab key to move focus to tab content
-
-### Tab Features
-
-- **Active Indicator**: Current tab is visually distinct
-- **Content Switching**: Only active tab's content is visible
-- **State Persistence**: Selected tab may be remembered
-- **Accessibility**: Keyboard and screen reader support
-
-## Keyboard and command palette
-
-There are **no global Alt+letter** shortcuts for navigation in the current
-build. Use:
-
-- **Command palette** (top bar menu icon): filterable list of jump targets
-  (`src/components/organisms/dashboard/shell/CommandPalette.tsx`).
-- **Escape:** closes the command palette and many modals (palette listens for
-  Escape).
-- **Standard focus:** Tab / Shift+Tab / Enter behave as usual in the browser.
-
-For **tab strips** inside a page (e.g. Event Analysis), use the mouse or
-standard focus navigation; do not rely on undocumented global shortcuts.
-
-## Finding Features
-
-### Using Search
-
-**Global Search (if available):**
-
-1. Look for search icon or box
-2. Type feature name or keyword
-3. Results show matching pages or features
-4. Click to navigate
-
-### Using Navigation Menu
-
-1. Browse main navigation menu
-2. Look for descriptive menu items
-3. Check submenus for related features
-4. Use breadcrumbs to understand location
-
-### Using Guides
-
-1. Navigate to Guides section
-2. Browse available guides
-3. Guides explain where features are located
-4. Follow guide instructions to find features
-
-## Mobile vs Desktop Differences
-
-### Desktop Navigation
-
-**Features:**
-
-- Sidebar navigation (usually always visible)
-- Hover interactions
-- Multi-column layouts
-- More screen space for navigation
-
-**Patterns:**
-
-- Breadcrumbs at top
-- Sidebar on left
-- Tabs horizontal
-- Dropdowns on hover
-
-### Mobile Navigation
-
-**Features:**
-
-- Same rail + top bar pattern with responsive layout
-- Touch interactions
-- Single column layouts
-- Full-screen overlays for modals
-
-**Patterns:**
-
-- Breadcrumbs at top (may be abbreviated)
-- Tabs scrollable horizontal where used
-
-### Responsive Behavior
-
-- Navigation adapts to screen size
-- Touch targets are larger on mobile (44px minimum)
-- Menus may collapse on smaller screens
-- Layout adjusts automatically
-
-## Navigation Tips
-
-### Efficient Navigation
-
-1. **Use Breadcrumbs**: Quick way to go back multiple levels
-2. **Command palette**: Use the top-bar menu icon for quick jumps
-3. **Bookmark Pages**: Use browser bookmarks for frequently visited pages
-4. **Global Search** (`/search`): Fast path to events and sessions
-
-### Understanding Location
-
-1. **Check Breadcrumbs**: Always know where you are
-2. **Look at URL**: URL shows current page path
-3. **Notice Highlights**: Active menu items are highlighted
-4. **Read Page Headers**: Headers confirm current section
-
-### Getting Unstuck
-
-1. **Click Home**: Always returns to dashboard
-2. **Use Breadcrumbs**: Navigate back step by step
-3. **Check Menu**: Browse menu to find other sections
-4. **Use Back Button**: Browser back button works too
-
-## Common Navigation Issues
-
-### Menu Not Visible
-
-**Possible Causes:**
-
-- Sidebar collapsed
-- Mobile menu not opened
-- Browser zoom issue
-
-**Solutions:**
-
-- Look for hamburger menu icon
-- Click to expand sidebar
-- Check browser zoom level
-- Refresh page
-
-### Guides Menu Not Expanding
-
-**Possible Causes:**
-
-- Sidebar is expanded (guides menu only works in collapsed mode)
-- JavaScript disabled
-- Browser compatibility issue
-
-**Solutions:**
-
-- Collapse the sidebar to see the guides menu icon
-- In expanded sidebar, use the "User Guides" button instead
-- Enable JavaScript
-- Try a different browser
-- Refresh the page
-
-### Breadcrumbs Missing
-
-**Possible Causes:**
-
-- On home page (no breadcrumbs needed)
-- Page doesn't use breadcrumbs
-- Layout issue
-
-**Solutions:**
-
-- Check if you're on dashboard/home
-- Some pages may not have breadcrumbs
-- Try refreshing page
-
-### Tabs Not Working
-
-**Possible Causes:**
-
-- JavaScript disabled
-- Browser compatibility
-- Page loading issue
-
-**Solutions:**
-
-- Enable JavaScript
-- Try different browser
-- Refresh page
-- Check browser console for errors
-
-## Related Guides
-
-- **[Getting Started Guide](getting-started.md)**: Learn the basics
-- **[Dashboard Guide](dashboard.md)**: Navigate your dashboard
-- **[Event Search Guide](event-search.md)**: Navigate event search
-
-## Next Steps
-
-After mastering navigation:
-
-1. Explore all main sections using the menu
-2. Practice using breadcrumbs to navigate back
-3. Try keyboard shortcuts for faster navigation
-4. Customize your navigation preferences if available
-
----
-
-**Ready to explore?** Use the navigation menu and breadcrumbs to discover all
-the features MRE has to offer!
+- [Getting started](getting-started.md)
+- [My Event Analysis](dashboard.md)
+- [Global Search](event-search.md)
+- [Driver Features](driver-features.md)

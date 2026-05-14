@@ -7,6 +7,7 @@
 import type { EventAnalysisData } from "./get-event-analysis-data"
 import {
   baseClassFromMultiMainLabel,
+  canonicalClassBaseForWinnerMatch,
   listMultiMainBlocksForCanonicalClass,
   pickBestMultiMainBlockForClass,
 } from "./class-winners-multi-main"
@@ -108,6 +109,17 @@ export interface ClassWinnerHighlight {
 
 /** Body content for the Event Overview class-winner detail modal (imported results). */
 export type ClassWinnerModalDetail =
+  | {
+      kind: "overallRanking"
+      label: string
+      standingsRows: Array<{
+        position: number
+        driverName: string
+        raceLabel: string | null
+        resultRaw: string | null
+        highlight: boolean
+      }>
+    }
   | {
       kind: "multiMain"
       classLabel: string
@@ -225,8 +237,38 @@ function buildMultiMainStandings(
  */
 export function resolveClassWinnerModalDetail(
   highlight: ClassWinnerHighlight,
-  data: Pick<EventAnalysisData, "races" | "multiMainResults">
+  data: Pick<EventAnalysisData, "races" | "multiMainResults" | "overallFinalRankings">
 ): ClassWinnerModalDetail | null {
+  const overallCanonical = canonicalClassBaseForWinnerMatch(highlight.className)
+  const overallRows =
+    data.overallFinalRankings
+      ?.filter((r) => canonicalClassBaseForWinnerMatch(r.className) === overallCanonical)
+      .flatMap((r) => r.entries.map((e) => ({ ...e, label: r.label }))) ?? []
+  if (overallRows.length > 0) {
+    const deduped = new Map<number, (typeof overallRows)[number]>()
+    for (const row of overallRows) {
+      const existing = deduped.get(row.position)
+      if (!existing) deduped.set(row.position, row)
+    }
+    const standingsRows = [...deduped.values()]
+      .sort((a, b) => a.position - b.position)
+      .map((row) => ({
+        position: row.position,
+        driverName: row.driverName,
+        raceLabel: row.raceLabel,
+        resultRaw: row.resultRaw,
+        highlight: driverNamesMatchForClassWinner(row.driverName, highlight.winnerName),
+      }))
+    if (standingsRows.length > 0) {
+      const label = overallRows[0]?.label ?? "Overall Final Ranking"
+      return {
+        kind: "overallRanking",
+        label,
+        standingsRows,
+      }
+    }
+  }
+
   const mmCandidates = listMultiMainBlocksForCanonicalClass(
     data.multiMainResults,
     highlight.className
@@ -354,7 +396,7 @@ export interface EventHighlightsModel {
 }
 
 function uniqueClassesForWinners(
-  data: Pick<EventAnalysisData, "races" | "multiMainResults">
+  data: Pick<EventAnalysisData, "races" | "multiMainResults" | "overallFinalRankings">
 ): string[] {
   const fromMm = new Set<string>()
   for (const m of data.multiMainResults) {
@@ -368,6 +410,10 @@ function uniqueClassesForWinners(
     }
   })
   const merged = new Set<string>([...fromMm, ...fromRaces])
+  for (const r of data.overallFinalRankings ?? []) {
+    const c = r.className?.trim()
+    if (c) merged.add(c)
+  }
   return Array.from(merged).sort((a, b) =>
     formatClassName(a).localeCompare(formatClassName(b), undefined, { sensitivity: "base" })
   )
@@ -406,7 +452,10 @@ function sortClassNamesByEntryCountDesc(
 
 /** Same class list as Class Winners (registration classes, or derived from multi-main / mains). */
 export function canonicalClassesForClassWinners(
-  data: Pick<EventAnalysisData, "races" | "multiMainResults" | "registrationClassNames">
+  data: Pick<
+    EventAnalysisData,
+    "races" | "multiMainResults" | "registrationClassNames" | "overallFinalRankings"
+  >
 ): string[] {
   const reg = (data.registrationClassNames ?? []).map((c) => c.trim()).filter(Boolean)
   if (reg.length > 0) {
@@ -426,13 +475,45 @@ export function canonicalClassesForClassWinners(
  * `classDisplay` (same as Event mix “by entries”).
  */
 export function buildClassWinners(
-  data: Pick<EventAnalysisData, "races" | "multiMainResults" | "registrationClassNames"> & {
+  data: Pick<
+    EventAnalysisData,
+    "races" | "multiMainResults" | "registrationClassNames" | "overallFinalRankings"
+  > & {
     entryList?: EventAnalysisData["entryList"]
   }
 ): ClassWinnerHighlight[] {
   const out: ClassWinnerHighlight[] = []
   for (const rawClass of canonicalClassesForClassWinners(data)) {
     const display = formatClassName(rawClass)
+    const overallCanonical = canonicalClassBaseForWinnerMatch(rawClass)
+    const overallCandidates =
+      data.overallFinalRankings?.filter(
+        (r) =>
+          canonicalClassBaseForWinnerMatch(r.className) === overallCanonical &&
+          (r.entries?.length ?? 0) > 0
+      ) ?? []
+    if (overallCandidates.length > 0) {
+      const picked = [...overallCandidates].sort((a, b) => {
+        const exactA = a.className.trim() === rawClass.trim() ? 1 : 0
+        const exactB = b.className.trim() === rawClass.trim() ? 1 : 0
+        if (exactB !== exactA) return exactB - exactA
+        return (b.entries?.length ?? 0) - (a.entries?.length ?? 0)
+      })[0]
+      const sorted = [...(picked?.entries ?? [])].sort((a, b) => a.position - b.position)
+      const first = sorted[0]
+      if (first) {
+        out.push({
+          className: rawClass,
+          classDisplay: display,
+          winnerName: first.driverName,
+          secondPlaceName: sorted[1]?.driverName ?? null,
+          thirdPlaceName: sorted[2]?.driverName ?? null,
+          raceLabel: "Overall final ranking",
+        })
+        continue
+      }
+    }
+
     const mmCandidates = listMultiMainBlocksForCanonicalClass(data.multiMainResults, rawClass)
     const mm = pickBestMultiMainBlockForClass(mmCandidates, rawClass)
     if (mm && mm.entries.length > 0) {

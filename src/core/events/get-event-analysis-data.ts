@@ -417,6 +417,20 @@ export interface EventAnalysisData {
       mainBreakdown: Record<string, { position: number; points: number; lapsTime: string }> | null
     }>
   }>
+  /** Overall Final Ranking rows from LiveRC event_overall_ranking page (canonical class final standings). */
+  overallFinalRankings?: Array<{
+    id: string
+    sourceOverallRankingId: string
+    label: string
+    className: string
+    entries: Array<{
+      position: number
+      driverId: string
+      driverName: string
+      raceLabel: string | null
+      resultRaw: string | null
+    }>
+  }>
   summary: {
     totalRaces: number
     totalDrivers: number
@@ -1299,6 +1313,20 @@ export async function getEventAnalysisData(
           },
         },
       },
+      overallRankings: {
+        include: {
+          entries: {
+            include: {
+              driver: {
+                select: {
+                  displayName: true,
+                },
+              },
+            },
+            orderBy: [{ className: "asc" }, { position: "asc" }],
+          },
+        },
+      },
       races: {
         include: {
           results: {
@@ -1760,6 +1788,33 @@ export async function getEventAnalysisData(
     })),
   }))
 
+  const overallFinalRankingsData = (event.overallRankings ?? []).flatMap((ranking) => {
+    const byClass = new Map<string, typeof ranking.entries>()
+    for (const entry of ranking.entries) {
+      const className = entry.className?.trim()
+      if (!className) continue
+      const arr = byClass.get(className)
+      if (arr) arr.push(entry)
+      else byClass.set(className, [entry])
+    }
+
+    return Array.from(byClass.entries()).map(([className, entries]) => ({
+      id: ranking.id,
+      sourceOverallRankingId: ranking.sourceOverallRankingId,
+      label: ranking.label,
+      className,
+      entries: [...entries]
+        .sort((a, b) => a.position - b.position)
+        .map((e) => ({
+          position: e.position,
+          driverId: e.driverId,
+          driverName: e.driver.displayName,
+          raceLabel: e.raceLabel ?? null,
+          resultRaw: e.resultRaw ?? null,
+        })),
+    }))
+  })
+
   /** LiveRC-linked venue (organiser / club row from ingestion). */
   const effectiveTrack = {
     trackName: event.track.trackName,
@@ -1820,6 +1875,7 @@ export async function getEventAnalysisData(
     entryList: entryListData,
     raceClasses: raceClassesMap,
     multiMainResults: multiMainResultsData,
+    overallFinalRankings: overallFinalRankingsData,
     qualPointsTopQualifiers,
     summary: {
       totalRaces: racesData.length,

@@ -1,199 +1,110 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-01-27
+lastModified: 2026-05-13
 description: Getting Started guide for new My Race Engineer users
 purpose:
-  Provides an introduction and getting started guide for new users to help them
-  understand how to use the My Race Engineer platform, including account
-  creation, login, and basic navigation.
+  Walks through registration, signing in, post-login destinations, where event
+  analysis lives today, and how to reach embedded user guides inside the shell.
 relatedFiles:
+  - src/app/login/page.tsx
+  - src/app/register/page.tsx
   - docs/user-stories/authentication.md
-  - docs/user-stories/user-management.md
-  - docs/user-stories/user-journeys.md
-  - src/app/(authenticated)/guides/getting-started/page.tsx
 ---
 
-# Getting Started with My Race Engineer
+# Getting started with My Race Engineer
 
-**Welcome to My Race Engineer!** This guide will help you get started with the
-platform and learn the basics of using MRE to track and analyze your RC racing
-performance.
+Welcome to **My Race Engineer (MRE)** — an Alpha-stage race engineering shell
+focused on importing LiveRC programmes, inspecting sessions, tuning how classes
+normalize for your persona, and onboarding telemetry data in parallel.
 
-## Introduction
+Screenshots below come from **Alpha · v0.1.0** (see authenticated footer badge).
 
-My Race Engineer (MRE) is a comprehensive RC racing telemetry platform that
-helps you discover, import, and analyze race event data from LiveRC. Whether
-you're a casual racer or a competitive driver, MRE provides the tools you need
-to understand your performance and improve your racing.
+![Sign in](./images/login-page.png)
 
-## Prerequisites
+## 1. Create an account
 
-Before you begin, you'll need:
+1. Browse to `/register`.
+2. Complete the fields:
+   - **Email address** (required — this is how you authenticate).
+   - **Password** (required, eight characters minimum; helper copy reminds you
+     inline).
+   - **Driver Name** (required racing handle used for fuzzy matching pipelines).
+   - **Team Name (optional)**.
+3. Click **Create account**.
 
-- A web browser (Chrome, Firefox, Safari, or Edge)
-- An internet connection
-- Access to the MRE application
+![Create account form](./images/register-page.png)
 
-## Creating Your Account
+> **Important:** Align **Driver Name** with how scoring systems list you —
+> capitalization and punctuation still matter downstream for reviewer workflows.
 
-### Step 1: Navigate to Registration
+Upon success the app performs a credential login and redirects:
 
-1. Open the MRE application in your web browser
-2. Click the **"Register"** or **"Sign Up"** button on the login page
+- Administrators → `/admin`
+- Everyone else → `/eventAnalysis`
 
-### Step 2: Fill Out the Registration Form
+If auto-login fails, you receive the login screen with `?registered=true`.
 
-Complete the registration form with the following information:
+## 2. Sign back in (`/login`)
 
-- **Email or Username** (required): Enter your email address or choose a
-  username
-- **Password** (required): Create a secure password (minimum 8 characters)
-- **Driver Name** (required): Enter your racing name as it appears in race
-  results
-- **Team Name** (optional): Enter your team name if applicable
+1. Provide **Email address** + **Password**.
+2. Press **Sign in**.
 
-### Step 3: Create Your Account
+Destination mirrors registration:
 
-1. Review your information to ensure it's correct
-2. Click the **"Create Account"** button
-3. Wait for confirmation that your account has been created
+- **`/admin`** for administrators (console metrics + ingestion shortcuts).
+- **`/eventAnalysis`** for standard personas.
 
-**Note:** Your driver name is important! MRE uses this to automatically discover
-events where you participated. Make sure it matches how your name appears in
-race results.
+There is intentionally **no discrete “welcome” splash** after login—the mission
+control experience starts immediately.
 
-## Logging In
+## 3. Core authenticated layout
 
-### First-Time Login
+Regardless of persona you keep:
 
-After creating your account, you'll be automatically logged in. On future
-visits:
+| Region                 | Behaviour                                                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Left adaptive rail** | `My Event Analysis`, `Global Search`, telemetry & profile shortcuts, expandable **Guides** stack, contextual **My Events** latch (race-day selections only). |
+| **Top immersive bar**  | Command palette/menu entry (`Expand navigation`), profile chip.                                                                                              |
+| **Content column**     | Breadcrumbs plus page chrome.                                                                                                                                |
 
-1. Navigate to the MRE login page
-2. Enter your **Email or Username** and **Password**
-3. Click **"Sign In"** or **"Log In"**
+## 4. First tasks checklist
 
-### Troubleshooting Login Issues
+1. **Open Guides** (`/guides`) for editorial copy that ships inside the SPA.
 
-If you have trouble logging in:
+![Guides landing cards](./images/guides-index.png)
 
-- Verify your email/username and password are correct
-- Check that your caps lock is off
-- If you've forgotten your password, contact support (password reset coming
-  soon)
-- Ensure your account hasn't been locked due to too many failed attempts
+2. **Search** for catalogue entries (`/search`), then pivot into analysis via
+   **View Event**.
 
-## Understanding the Welcome Page
+![Search empty-state prompt](./images/global-search-empty.png)
 
-After logging in, you'll see the Welcome page with the message:
+3. **Import or refresh** programmes from **Actions → Find and Import Events**
+   once you have dashboard context:
 
-**"Welcome back [Your Driver Name]"**
+![Actions menu](./images/event-actions-menu.png)
 
-This page confirms you're successfully logged in and ready to start using MRE.
-From here, you can navigate to:
+4. **Review My Events matches** via the contextual rail latch or the empty-state
+   CTA that deep-links search when nothing fuzzy has linked yet
+   (`./images/my-events-panel.png`).
 
-- **Dashboard**: View your statistics and quick actions
-- **Event Search**: Search for and import race events
-- **My Events**: View events you've discovered or imported
-- **Guides**: Access user guides and documentation
+## 5. Where to dig deeper
 
-## Basic Navigation
+| Topic                            | Guide                                               |
+| -------------------------------- | --------------------------------------------------- |
+| Shell + Redux selection model    | [My Event Analysis / dashboard guide](dashboard.md) |
+| `/search` filters & pagination   | [Global Search guide](event-search.md)              |
+| Tabs, submenu analytics, ladders | [Event Analysis guide](event-analysis.md)           |
+| Class normalization              | [Car type mapping guide](car-type-mapping.md)       |
+| Fuzzy confirmations              | [Driver Features guide](driver-features.md)         |
 
-MRE uses several navigation patterns to help you find your way:
+## Troubleshooting starters
 
-### Breadcrumb Navigation
-
-Breadcrumbs appear at the top of most pages, showing your current location. For
-example:
-
-**Home > Guides > Getting Started**
-
-Click any breadcrumb to navigate back to that section.
-
-### Main Navigation
-
-The main navigation menu (accessible via the sidebar or hamburger menu) provides
-access to:
-
-- **Dashboard**: Your personal dashboard with statistics
-- **Event Search**: Search for race events
-- **My Events**: Browse your events
-- **Guides**: User guides and help documentation
-
-### Tab Navigation
-
-Some pages use tabs to organize related content. Click tabs to switch between
-different views or sections.
-
-## Quick Start Guide
-
-Once you're logged in, here's a quick path to get started:
-
-1. **Complete Your Profile**: Ensure your driver name and team information are
-   accurate
-2. **Search for Events**: Use Event Search to find racing events from LiveRC
-3. **Import Events**: Import events you've participated in to analyze your
-   performance
-4. **Analyze Performance**: View detailed event analysis with lap times,
-   consistency metrics, and driver comparisons
-5. **Track Progress**: Monitor your performance over time using the Dashboard
-
-## Key Features Overview
-
-### Event Discovery
-
-Search and import events from LiveRC with ease. MRE automatically discovers
-events where you participated based on your driver name.
-
-### Performance Analysis
-
-View detailed lap time analysis, consistency metrics, and compare your
-performance with other drivers. Interactive charts help you visualize your
-racing data.
-
-### Driver Management
-
-MRE automatically links your driver profile to events using fuzzy name matching.
-You can confirm or reject suggested event participations.
-
-### Telemetry Integration
-
-Connect data sources and view telemetry traces (coming soon in future releases).
-
-## Next Steps
-
-Now that you understand the basics, explore these guides to learn more:
-
-- **[Event Search Guide](event-search.md)**: Learn how to search for and import
-  race events
-- **[Event Analysis Guide](event-analysis.md)**: Discover how to analyze event
-  data and compare drivers
-- **[Dashboard Guide](dashboard.md)**: Understand how to use your dashboard and
-  customize widgets
-- **[Navigation Guide](navigation.md)**: Master navigation patterns and keyboard
-  shortcuts
-- **[Driver Features Guide](driver-features.md)**: Learn about discovered events
-  and participation confirmation
-
-## Need Help?
-
-If you have questions or need assistance:
-
-- Explore the other guides in the User Guides section
-- Check the [Troubleshooting Guide](troubleshooting.md) for common issues
-- Contact support if you need additional help
-
-## Related Documentation
-
-- [User Journeys Documentation](../user-stories/user-journeys.md) - Detailed
-  user journey flows
-- [Authentication User Stories](../user-stories/authentication.md) -
-  Registration and login details
-- [User Management User Stories](../user-stories/user-management.md) - User
-  experience details
+If sign-in rejects credentials, duplicate email errors appear during signup, or
+search never returns hits, pivot to **[Troubleshooting](troubleshooting.md)**
+and mention the footer build string when contacting support.
 
 ---
 
-**Welcome to My Race Engineer!** We're excited to help you improve your racing
-performance.
+**Next:** [Navigation patterns](navigation.md) once you understand the rail +
+breadcrumb choreography.

@@ -95,6 +95,12 @@ if [ -f "prisma/schema.prisma" ]; then
           NEED_PRISMA_GENERATE=true
         fi
       fi
+      if grep -q "model EventOverallRanking" "prisma/schema.prisma" 2>/dev/null; then
+        if ! grep -q "overallRankings" "node_modules/.prisma/client/index.d.ts" 2>/dev/null; then
+          echo "🔧 Prisma client missing overallRankings (schema includes EventOverallRanking)"
+          NEED_PRISMA_GENERATE=true
+        fi
+      fi
     fi
   fi
 fi
@@ -105,6 +111,13 @@ if [ "$NEED_PRISMA_GENERATE" = true ]; then
   echo "✅ Prisma client regenerated successfully"
 else
   echo "✅ Prisma client is up to date"
+fi
+
+# Apply pending SQL migrations (dev compose: keeps DB in sync when new migrations land)
+if [ -f "prisma/schema.prisma" ] && [ -n "${DATABASE_URL:-}" ]; then
+  echo "🗄️  Applying Prisma migrations..."
+  npx prisma migrate deploy
+  echo "✅ Migrations up to date"
 fi
 
 # Execute the main command (npm run dev)

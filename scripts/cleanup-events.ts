@@ -8,7 +8,9 @@ async function resetTrackLiveRcDashboardFields(client: PrismaClient): Promise<nu
     data: {
       livercTrackLastUpdated: null,
       totalLaps: 0,
+      totalPracticeSessions: 0,
       totalRaces: 0,
+      totalEntries: 0,
       totalEvents: 0,
     },
   })
@@ -115,7 +117,7 @@ async function main() {
     if (forceFlag) {
       const resetCount = await resetTrackLiveRcDashboardFields(prisma)
       console.log(
-        `   Reset LiveRC dashboard fields on ${resetCount} track(s) (totalLaps/totalRaces/totalEvents + livercTrackLastUpdated).`
+        `   Reset LiveRC dashboard fields on ${resetCount} track(s) (totals + last updated).`
       )
     }
     return
@@ -142,7 +144,7 @@ async function main() {
   console.log("\nStep 1b: Resetting LiveRC dashboard fields on all tracks...")
   const trackResetCount = await resetTrackLiveRcDashboardFields(prisma)
   console.log(
-    `   ✅ Reset ${trackResetCount} track(s): totalLaps, totalRaces, totalEvents → 0; livercTrackLastUpdated → null`
+    `   ✅ Reset ${trackResetCount} track(s): dashboard lifetime totals → 0; livercTrackLastUpdated → null`
   )
 
   // Step 2: Delete LiveRC drivers
@@ -289,7 +291,9 @@ async function main() {
     where: {
       OR: [
         { totalLaps: { gt: 0 } },
+        { totalPracticeSessions: { gt: 0 } },
         { totalRaces: { gt: 0 } },
+        { totalEntries: { gt: 0 } },
         { totalEvents: { gt: 0 } },
         { livercTrackLastUpdated: { not: null } },
       ],

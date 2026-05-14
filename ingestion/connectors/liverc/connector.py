@@ -20,6 +20,7 @@ from ingestion.connectors.liverc.client.httpx_client import HTTPXClient
 from ingestion.connectors.liverc.client.playwright_client import PlaywrightClient
 from ingestion.connectors.liverc.models import (
     ConnectorEventSummary,
+    ConnectorOverallFinalRankingResult,
     ConnectorRacePackage,
     ConnectorRaceSummary,
     ConnectorLap,
@@ -34,6 +35,7 @@ from ingestion.connectors.liverc.parsers.event_metadata_parser import EventMetad
 from ingestion.connectors.liverc.parsers.race_list_parser import RaceListParser
 from ingestion.connectors.liverc.parsers.multi_main_list_parser import MultiMainListParser
 from ingestion.connectors.liverc.parsers.rankings_list_parser import RankingsListParser
+from ingestion.connectors.liverc.parsers.overall_final_ranking_parser import OverallFinalRankingParser
 from ingestion.connectors.liverc.parsers.qual_points_parser import QualPointsParser
 from ingestion.connectors.liverc.parsers.round_ranking_parser import RoundRankingParser
 from ingestion.connectors.liverc.parsers.multi_main_result_parser import MultiMainResultParser
@@ -56,6 +58,7 @@ from ingestion.connectors.liverc.utils import (
     build_multi_main_url,
     build_entry_list_url,
     build_points_url,
+    build_overall_ranking_url,
     build_round_ranking_url,
     normalize_race_url,
     parse_track_slug_from_url,
@@ -298,7 +301,9 @@ class LiveRCConnector:
         metadata = metadata_parser.parse(html, url)
         races = race_list_parser.parse(html, url)
         multi_main_summaries = multi_main_parser.parse(html, url)
-        qual_points_summaries, round_ranking_summaries = rankings_parser.parse(html, url)
+        qual_points_summaries, round_ranking_summaries, overall_final_ranking_summary = (
+            rankings_parser.parse(html, url)
+        )
         return ConnectorEventSummary(
             source_event_id=source_event_id,
             event_name=metadata.event_name,
@@ -311,6 +316,7 @@ class LiveRCConnector:
             multi_main_summaries=multi_main_summaries,
             qual_points_summaries=qual_points_summaries,
             round_ranking_summaries=round_ranking_summaries,
+            overall_final_ranking_summary=overall_final_ranking_summary,
         )
     
     async def fetch_event_page(
@@ -773,6 +779,69 @@ class LiveRCConnector:
             logger.error("fetch_round_ranking_error", url=url, error=str(e))
             raise EventPageFormatError(
                 f"Failed to fetch Round Ranking: {str(e)}",
+                url=url,
+            )
+
+    async def fetch_overall_final_ranking(
+        self,
+        track_slug: str,
+        source_overall_ranking_id: str,
+        label: str,
+        shared_client: Optional[HTTPXClient] = None,
+    ) -> ConnectorOverallFinalRankingResult:
+        """
+        Fetch and parse event_overall_ranking page.
+
+        Args:
+            track_slug: Track subdomain slug
+            source_overall_ranking_id: Ranking ID from LiveRC (usually source event id)
+            label: Link label from event page
+            shared_client: Optional HTTPXClient to reuse
+
+        Returns:
+            ConnectorOverallFinalRankingResult
+        """
+        self._ensure_enabled()
+        url = build_overall_ranking_url(track_slug, source_overall_ranking_id)
+        logger.info(
+            "fetch_overall_final_ranking_start",
+            url=url,
+            source_overall_ranking_id=source_overall_ranking_id,
+        )
+
+        try:
+            if shared_client is not None:
+                response = await shared_client.get(url)
+                html = response.text
+            else:
+                async with HTTPXClient(self._site_policy) as client:
+                    response = await client.get(url)
+                    html = response.text
+
+            parser = OverallFinalRankingParser()
+            result = parser.parse(
+                html,
+                url,
+                source_overall_ranking_id=source_overall_ranking_id,
+                label=label,
+            )
+            logger.info(
+                "fetch_overall_final_ranking_success",
+                source_overall_ranking_id=source_overall_ranking_id,
+                entry_count=len(result.entries),
+            )
+            return result
+        except ConnectorHTTPError as err:
+            self._record_error("fetch_overall_final_ranking", err)
+            raise
+        except EventPageFormatError as err:
+            self._record_error("fetch_overall_final_ranking", err)
+            raise
+        except Exception as e:
+            self._record_error("fetch_overall_final_ranking", e)
+            logger.error("fetch_overall_final_ranking_error", url=url, error=str(e))
+            raise EventPageFormatError(
+                f"Failed to fetch Overall Final Ranking: {str(e)}",
                 url=url,
             )
 

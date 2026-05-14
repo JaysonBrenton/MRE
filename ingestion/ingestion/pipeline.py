@@ -72,6 +72,7 @@ from ingestion.ingestion.validator import Validator
 from ingestion.ingestion.driver_matcher import DriverMatcher
 from ingestion.ingestion.auto_confirm import check_and_confirm_links
 from ingestion.ingestion.derived_laps import run_derivation_for_race
+from ingestion.ingestion.pit_stop_detection import detect_pit_stops_for_race
 
 logger = get_logger(__name__)
 
@@ -1159,9 +1160,37 @@ class IngestionPipeline:
                 if not race_data:
                     continue
                 annotations = run_derivation_for_race(race_data)
+                pit_output = detect_pit_stops_for_race(race_data)
+                combined_by_key = {
+                    (ann["race_result_id"], ann["lap_number"]): dict(ann)
+                    for ann in annotations
+                }
+                for pit_ann in pit_output["lap_annotations"]:
+                    key = (pit_ann["race_result_id"], pit_ann["lap_number"])
+                    existing = combined_by_key.get(key)
+                    if not existing:
+                        combined_by_key[key] = dict(pit_ann)
+                        continue
+                    existing["incident_type"] = pit_ann.get("incident_type") or existing.get("incident_type")
+                    existing["confidence"] = max(
+                        float(existing.get("confidence") or 0.0),
+                        float(pit_ann.get("confidence") or 0.0),
+                    )
+                    existing_meta = existing.get("metadata") if isinstance(existing.get("metadata"), dict) else {}
+                    pit_meta = pit_ann.get("metadata") if isinstance(pit_ann.get("metadata"), dict) else {}
+                    merged_meta = dict(existing_meta)
+                    merged_meta.update(pit_meta)
+                    existing["metadata"] = merged_meta if merged_meta else None
+                    combined_by_key[key] = existing
+                combined_annotations = list(combined_by_key.values())
                 repo.delete_lap_annotations_for_race(race_id)
-                if annotations:
-                    repo.bulk_upsert_lap_annotations(annotations)
+                repo.delete_pit_stop_detection_for_race(race_id)
+                if combined_annotations:
+                    repo.bulk_upsert_lap_annotations(combined_annotations)
+                if pit_output["pit_stop_events"]:
+                    repo.bulk_upsert_pit_stop_events(pit_output["pit_stop_events"])
+                if pit_output["driver_pit_strategies"]:
+                    repo.bulk_upsert_driver_pit_strategies(pit_output["driver_pit_strategies"])
             except Exception as e:
                 logger.warning(
                     "lap_annotation_derivation_failed",
@@ -1400,11 +1429,11 @@ class IngestionPipeline:
         event_id: UUID,
         track_slug: str,
         repo: Repository,
-    ) -> Tuple[int, int]:
+    ) -> Tuple[int, int, int]:
         """
         Fetch and persist Qual Points and Round Rankings.
         Uses event entries for driver resolution (drivers may not have raced yet).
-        Returns (qual_points_count, round_rankings_count).
+        Returns (qual_points_count, round_rankings_count, overall_final_rankings_count).
         """
         driver_name_to_id = repo.get_event_driver_name_to_id_map_with_entries(event_id)
         if not driver_name_to_id:
@@ -1413,10 +1442,11 @@ class IngestionPipeline:
                 event_id=str(event_id),
                 message="No drivers in event - skipping rankings ingestion",
             )
-            return (0, 0)
+            return (0, 0, 0)
 
         qual_ingested = 0
         round_ingested = 0
+        overall_ingested = 0
         async with HTTPXClient(self.connector._site_policy) as shared_client:
             for summary in getattr(event_data, "qual_points_summaries", []) or []:
                 try:
@@ -1502,7 +1532,48 @@ class IngestionPipeline:
                         message="Skipping failed Round Ranking; continuing",
                     )
 
-        return (qual_ingested, round_ingested)
+            overall_summary = getattr(event_data, "overall_final_ranking_summary", None)
+            if overall_summary is not None:
+                try:
+                    result = await self.connector.fetch_overall_final_ranking(
+                        track_slug=track_slug,
+                        source_overall_ranking_id=overall_summary.source_overall_ranking_id,
+                        label=overall_summary.label,
+                        shared_client=shared_client,
+                    )
+                    entries_data = [
+                        {
+                            "class_name": e.class_name,
+                            "position": e.position,
+                            "driver_name": e.driver_name,
+                            "race_label": e.race_label,
+                            "result_raw": e.result_raw,
+                        }
+                        for e in result.entries
+                    ]
+                    upserted = repo.upsert_event_overall_ranking(
+                        event_id=event_id,
+                        source_overall_ranking_id=result.source_overall_ranking_id,
+                        label=result.label,
+                        entries=entries_data,
+                        driver_name_to_id=driver_name_to_id,
+                    )
+                    if upserted > 0:
+                        overall_ingested += 1
+                        self._record_activity()
+                except Exception as e:
+                    logger.warning(
+                        "overall_final_ranking_fetch_failed",
+                        event_id=str(event_id),
+                        source_overall_ranking_id=getattr(
+                            overall_summary, "source_overall_ranking_id", "?"
+                        ),
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                        message="Skipping failed Overall Final Ranking; continuing",
+                    )
+
+        return (qual_ingested, round_ingested, overall_ingested)
 
     def _sync_race_vehicle_classes(
         self,
@@ -2068,22 +2139,27 @@ class IngestionPipeline:
                             multi_main_count=multi_main_ingested,
                         )
 
-                # Ingest Qual Points and Round Rankings
-                if event_data.qual_points_summaries or event_data.round_ranking_summaries:
+                # Ingest Qual Points, Round Rankings, and Overall Final Ranking
+                if (
+                    event_data.qual_points_summaries
+                    or event_data.round_ranking_summaries
+                    or event_data.overall_final_ranking_summary is not None
+                ):
                     self._set_stage("persist_rankings", event_id)
-                    qual_ingested, round_ingested = await self._process_rankings(
+                    qual_ingested, round_ingested, overall_ingested = await self._process_rankings(
                         event_data=event_data,
                         event_id=event_id,
                         track_slug=event_context.track_slug,
                         repo=repo,
                     )
-                    if qual_ingested > 0 or round_ingested > 0:
+                    if qual_ingested > 0 or round_ingested > 0 or overall_ingested > 0:
                         repo.session.commit()
                         logger.info(
                             "rankings_persisted",
                             event_id=str(event_id),
                             qual_points_count=qual_ingested,
                             round_rankings_count=round_ingested,
+                            overall_final_rankings_count=overall_ingested,
                         )
 
                 if event.ingest_depth == IngestDepth.LAPS_FULL and races_ingested > 0:

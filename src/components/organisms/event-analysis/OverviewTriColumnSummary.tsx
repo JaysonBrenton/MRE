@@ -1,11 +1,12 @@
 "use client"
 
 import type { KeyboardEvent, ReactNode } from "react"
-import { Map as MapIcon } from "lucide-react"
+import { ExternalLink, Map as MapIcon } from "lucide-react"
 import {
   OVERVIEW_GLASS_SURFACE_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
 } from "@/components/organisms/event-analysis/overview-glass-surface"
+import { typography } from "@/lib/typography"
 
 /** Tri-column panels: full glass chrome (blur + glass tokens) like dashboard toolbars. */
 const TRI_COLUMN_PANEL_LAYOUT_CLASS = "flex min-h-0 min-w-0 flex-col items-center gap-3 p-4"
@@ -34,6 +35,10 @@ export type OverviewTriColumnSummaryProps = {
   trackLocationSlot?: ReactNode
   /** Column 1 right pane — contact */
   contactDetailsSlot?: ReactNode
+  /** Column 2 heading — event name on the event overview. */
+  statisticsHeading?: string
+  /** Optional external link for the column 2 heading. */
+  statisticsHeadingHref?: string | null
   /** Column 2 body — races, drivers, laps, etc. */
   statisticsSlot?: ReactNode
   /** Column 3 body — weather and related conditions */
@@ -45,9 +50,6 @@ export type OverviewTriColumnSummaryProps = {
   conditionsInteractive?: boolean
   onConditionsActivate?: () => void
 }
-
-/** Shared title style: h4 scale with overview eyebrow color. */
-const TRI_COLUMN_HEADING_CLASS = `min-w-0 w-full text-center text-lg font-semibold tracking-tight text-[var(--token-text-muted)]`
 
 function conditionsSectionKeyActivate(e: KeyboardEvent<HTMLElement>, onActivate?: () => void) {
   if (!onActivate) return
@@ -63,12 +65,15 @@ function conditionsSectionKeyActivate(e: KeyboardEvent<HTMLElement>, onActivate?
 export function OverviewTriColumnSummary({
   trackLocationSlot,
   contactDetailsSlot,
+  statisticsHeading = "Event Statistics",
+  statisticsHeadingHref,
   statisticsSlot,
   conditionsSlot,
   conditionsInteractive = false,
   onConditionsActivate,
 }: OverviewTriColumnSummaryProps) {
   const conditionsActivatable = Boolean(conditionsInteractive && onConditionsActivate)
+  const statisticsHref = statisticsHeadingHref?.trim() ?? ""
 
   return (
     <div
@@ -84,7 +89,10 @@ export function OverviewTriColumnSummary({
             className="flex min-h-0 min-w-0 flex-1 flex-col items-center gap-3"
             aria-labelledby="event-overview-track-location-heading"
           >
-            <h4 id="event-overview-track-location-heading" className={TRI_COLUMN_HEADING_CLASS}>
+            <h4
+              id="event-overview-track-location-heading"
+              className={typography.overviewSectionCardTitle}
+            >
               Track Location
             </h4>
             <div className="min-h-0 w-full min-w-0">
@@ -103,7 +111,10 @@ export function OverviewTriColumnSummary({
             className="flex min-h-0 min-w-0 flex-1 flex-col items-center gap-3"
             aria-labelledby="event-overview-contact-details-heading"
           >
-            <h4 id="event-overview-contact-details-heading" className={TRI_COLUMN_HEADING_CLASS}>
+            <h4
+              id="event-overview-contact-details-heading"
+              className={typography.overviewSectionCardTitle}
+            >
               Contact Details
             </h4>
             <div className="min-h-0 w-full min-w-0">{contactDetailsSlot}</div>
@@ -111,8 +122,24 @@ export function OverviewTriColumnSummary({
         </div>
       </section>
       <section {...triColumnSectionProps} aria-labelledby="event-overview-col-statistics-heading">
-        <h4 id="event-overview-col-statistics-heading" className={TRI_COLUMN_HEADING_CLASS}>
-          Event Statistics
+        <h4
+          id="event-overview-col-statistics-heading"
+          className={typography.overviewSectionCardTitle}
+        >
+          {statisticsHref ? (
+            <a
+              href={statisticsHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-inherit no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)]"
+              aria-label="View event on LiveRC (opens in new tab)"
+            >
+              {statisticsHeading}
+              <ExternalLink className="ml-1 inline h-3.5 w-3.5 align-[-0.125em]" aria-hidden />
+            </a>
+          ) : (
+            statisticsHeading
+          )}
         </h4>
         <div className="min-h-0 min-w-0 w-full">{statisticsSlot}</div>
       </section>
@@ -133,7 +160,10 @@ export function OverviewTriColumnSummary({
             : undefined
         }
       >
-        <h4 id="event-overview-col-conditions-heading" className={TRI_COLUMN_HEADING_CLASS}>
+        <h4
+          id="event-overview-col-conditions-heading"
+          className={typography.overviewSectionCardTitle}
+        >
           Event Conditions
         </h4>
         <div className="min-h-0 min-w-0 w-full">{conditionsSlot}</div>

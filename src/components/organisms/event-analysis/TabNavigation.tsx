@@ -40,7 +40,7 @@ import {
 
 export type TabId =
   | "event-overview"
-  | "event-overview-old"
+  | "event-sessions"
   | "event-analysis"
   | "session-analysis"
   | "my-events"
@@ -110,7 +110,6 @@ export interface TabNavigationProps {
 
 const defaultTabs: Tab[] = [
   { id: "event-overview", label: "Event Overview" },
-  { id: "event-overview-old", label: "Event Overview - OLD" },
   { id: "event-analysis", label: "Event Analysis" },
   { id: "session-analysis", label: "Session Analysis" },
   { id: "drivers", label: "Entry List" },

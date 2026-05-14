@@ -1,11 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import {
-  buildClassWinners,
-  driverNamesMatchForClassWinner,
-  type ClassWinnerHighlight,
-} from "@/core/events/build-event-highlights"
+import { buildClassWinners, type ClassWinnerHighlight } from "@/core/events/build-event-highlights"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { isEventMainSession } from "@/core/events/main-bracket-overall"
 import { buildTopQualifierOverviewCards } from "@/core/events/top-qualifier-overview-cards"
@@ -15,13 +11,14 @@ import {
 } from "@/components/organisms/event-analysis/overview-glass-surface"
 import { typography } from "@/lib/typography"
 import { ClassWinnerStandingsModal } from "./ClassWinnerStandingsModal"
-import { PodiumNameWithOptionalTq, PodiumSlotName } from "./OverviewPodiumNames"
-
-const PODIUM_CARD_INTERACTIVE_CLASS = [
-  "cursor-pointer transition-[box-shadow,filter]",
-  "hover:brightness-[1.03] hover:shadow-lg",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)]",
-].join(" ")
+import EventOverallResultsTable from "./EventOverallResultsTable"
+import {
+  OverviewResultsTabStrip,
+  OVERVIEW_RESULTS_PANEL_IDS,
+  OVERVIEW_RESULTS_TAB_IDS,
+  type OverviewResultsTab,
+} from "./overview-results-tab-strip"
+import SessionRaceResultsTable from "./SessionRaceResultsTable"
 
 const NEED_MAIN_TEXT =
   "Main event results aren’t available for this event yet. Overall class podiums appear after at least one main or final is imported."
@@ -34,17 +31,31 @@ export type OverviewOverallClassPodiumProps = {
     EventAnalysisData,
     | "races"
     | "multiMainResults"
+    | "overallFinalRankings"
     | "registrationClassNames"
     | "entryList"
     | "qualPointsTopQualifiers"
   >
+  sessionClassFilter?: string | null
+  onSessionClassFilterChange?: (className: string | null) => void
 }
 
-export function OverviewOverallClassPodium({ data }: OverviewOverallClassPodiumProps) {
-  const { races, multiMainResults, registrationClassNames, entryList, qualPointsTopQualifiers } =
-    data
+export function OverviewOverallClassPodium({
+  data,
+  sessionClassFilter,
+  onSessionClassFilterChange,
+}: OverviewOverallClassPodiumProps) {
+  const {
+    races,
+    multiMainResults,
+    overallFinalRankings,
+    registrationClassNames,
+    entryList,
+    qualPointsTopQualifiers,
+  } = data
 
   const [classWinnerDetail, setClassWinnerDetail] = useState<ClassWinnerHighlight | null>(null)
+  const [activeResultsTab, setActiveResultsTab] = useState<OverviewResultsTab>("event-results")
 
   const eventHasMain = useMemo(() => races.some((r) => isEventMainSession(r)), [races])
 
@@ -59,8 +70,14 @@ export function OverviewOverallClassPodium({ data }: OverviewOverallClassPodiumP
   }, [qualPointsTopQualifiers, races, entryList, multiMainResults, registrationClassNames])
 
   const classWinnerRows = useMemo(() => {
-    return buildClassWinners({ races, multiMainResults, registrationClassNames, entryList })
-  }, [races, multiMainResults, registrationClassNames, entryList])
+    return buildClassWinners({
+      races,
+      multiMainResults,
+      overallFinalRankings: overallFinalRankings ?? [],
+      registrationClassNames,
+      entryList,
+    })
+  }, [races, multiMainResults, overallFinalRankings, registrationClassNames, entryList])
 
   const classWinnerCardsOrdered = useMemo(() => {
     if (classWinnerRows.length === 0) return []
@@ -90,136 +107,92 @@ export function OverviewOverallClassPodium({ data }: OverviewOverallClassPodiumP
     [tqCards]
   )
 
-  const headingId = "event-overview-overall-class-results-heading"
+  const raceClassNamesForFilter = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          races
+            .map((r) => r.className)
+            .filter(
+              (className): className is string =>
+                typeof className === "string" && className.trim().length > 0
+            )
+            .map((c) => c.trim())
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [races]
+  )
 
-  if (!eventHasMain) {
-    return (
-      <div className="min-w-0 w-full">
-        <h3
-          id={headingId}
-          className="mb-3 w-full text-center text-lg font-semibold tracking-tight text-[var(--token-text-muted)]"
-        >
-          Event Results
-        </h3>
-        <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-          {NEED_MAIN_TEXT}
-        </p>
-      </div>
-    )
-  }
+  const resultsTabStrip = (
+    <OverviewResultsTabStrip activeTab={activeResultsTab} onTabChange={setActiveResultsTab} />
+  )
 
-  if (classWinnerCardsOrdered.length === 0) {
-    return (
-      <div className="min-w-0 w-full">
-        <h3
-          id={headingId}
-          className="mb-3 w-full text-center text-lg font-semibold tracking-tight text-[var(--token-text-muted)]"
-        >
-          Event Results
-        </h3>
-        <p className={`text-sm text-[var(--token-text-secondary)] ${typography.body}`}>
-          {EMPTY_OVERALL_TEXT}
-        </p>
+  const eventResultsEmptyTableChrome = (message: string) => (
+    <div className={OVERVIEW_GLASS_SURFACE_CLASS} style={OVERVIEW_GLASS_SURFACE_STYLE}>
+      <div className="border-b border-[var(--token-border-default)] px-4 py-3">
+        <div className="flex min-w-0 flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0 sm:min-w-[12rem] sm:flex-1 sm:pr-2">
+            <h2 className={typography.overviewEventResultsToolbarTitle}>Event Results</h2>
+            <p className="mt-1 text-left text-sm text-[var(--token-text-secondary)]">{message}</p>
+          </div>
+          <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-3">
+            {resultsTabStrip}
+          </div>
+        </div>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
     <div className="min-w-0 w-full">
-      <h3
-        id={headingId}
-        className="mb-3 w-full text-center text-lg font-semibold tracking-tight text-[var(--token-text-muted)]"
-      >
-        Event Results
-      </h3>
-      <ul
-        className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 xl:grid-cols-5"
-        aria-labelledby={headingId}
-      >
-        {classWinnerCardsOrdered.map((cw) => {
-          const isOpen =
-            classWinnerDetail?.className === cw.className &&
-            classWinnerDetail?.winnerName === cw.winnerName
-          const tqCard = topQualifierCardByClass.get(cw.className.trim()) ?? null
-          const podiumSlotIsTopQualifier = (name: string | null | undefined) =>
-            Boolean(
-              name && tqCard && driverNamesMatchForClassWinner(name, tqCard.driverDisplayName)
-            )
-
-          return (
-            <li key={cw.className}>
-              <button
-                type="button"
-                className={`flex min-h-0 min-w-0 w-full flex-col items-stretch gap-3 p-4 text-left ${OVERVIEW_GLASS_SURFACE_CLASS} ${PODIUM_CARD_INTERACTIVE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                onClick={() => setClassWinnerDetail(cw)}
-                aria-haspopup="dialog"
-                aria-expanded={isOpen}
-                aria-label={`Open class results: 1st ${cw.winnerName}${
-                  podiumSlotIsTopQualifier(cw.winnerName) ? " (top qualifier)" : ""
-                }${cw.secondPlaceName ? `, 2nd ${cw.secondPlaceName}` : ""}${
-                  podiumSlotIsTopQualifier(cw.secondPlaceName) ? " (top qualifier)" : ""
-                }${cw.thirdPlaceName ? `, 3rd ${cw.thirdPlaceName}` : ""}${
-                  podiumSlotIsTopQualifier(cw.thirdPlaceName) ? " (top qualifier)" : ""
-                } · ${cw.classDisplay}`}
-              >
-                <p className={`w-full text-center ${typography.overviewMetricLabel}`}>
-                  {cw.classDisplay}
-                </p>
-                <ol className="m-0 flex w-full min-w-0 list-none flex-col gap-1.5 p-0">
-                  <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
-                    <span
-                      className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-status-warning-bg)] text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-status-warning-text)] ring-1 ring-inset ring-[var(--token-status-warning-text)]/20"
-                      aria-hidden
-                    >
-                      1st
-                    </span>
-                    <PodiumNameWithOptionalTq
-                      name={cw.winnerName}
-                      nameClassName="min-w-0 truncate text-sm font-bold leading-tight text-[var(--token-text-primary)] sm:text-[0.95rem]"
-                      isTopQualifier={podiumSlotIsTopQualifier(cw.winnerName)}
-                    />
-                  </li>
-                  <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
-                    <span
-                      className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-surface-raised)]/80 text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-text-secondary)] ring-1 ring-inset ring-[var(--token-border-default)]/80"
-                      aria-hidden
-                    >
-                      2nd
-                    </span>
-                    <PodiumSlotName
-                      name={cw.secondPlaceName}
-                      filledClassName="min-w-0 truncate text-xs font-semibold leading-tight text-[var(--token-text-primary)] sm:text-sm"
-                      emptyHint="No 2nd place in imported results for this class"
-                      isTopQualifier={podiumSlotIsTopQualifier(cw.secondPlaceName)}
-                    />
-                  </li>
-                  <li className="grid min-h-0 min-w-0 grid-cols-[2.5rem_1fr] items-center gap-x-2.5 sm:grid-cols-[2.75rem_1fr]">
-                    <span
-                      className="inline-flex h-6 w-full shrink-0 items-center justify-center rounded-md bg-[var(--token-surface-raised)]/60 text-[0.65rem] font-bold leading-none tabular-nums tracking-tight text-[var(--token-text-secondary)] ring-1 ring-inset ring-[var(--token-border-default)]/80"
-                      aria-hidden
-                    >
-                      3rd
-                    </span>
-                    <PodiumSlotName
-                      name={cw.thirdPlaceName}
-                      filledClassName="min-w-0 truncate text-xs font-semibold leading-tight text-[var(--token-text-primary)]/95 sm:text-sm"
-                      emptyHint="No 3rd place in imported results for this class"
-                      isTopQualifier={podiumSlotIsTopQualifier(cw.thirdPlaceName)}
-                    />
-                  </li>
-                </ol>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-      <ClassWinnerStandingsModal
-        detail={classWinnerDetail}
-        onClose={() => setClassWinnerDetail(null)}
-        races={races}
-        multiMainResults={multiMainResults}
-      />
+      {activeResultsTab === "event-results" ? (
+        <div
+          id={OVERVIEW_RESULTS_PANEL_IDS["event-results"]}
+          role="tabpanel"
+          aria-labelledby={OVERVIEW_RESULTS_TAB_IDS["event-results"]}
+        >
+          {!eventHasMain ? (
+            eventResultsEmptyTableChrome(NEED_MAIN_TEXT)
+          ) : classWinnerCardsOrdered.length === 0 ? (
+            eventResultsEmptyTableChrome(EMPTY_OVERALL_TEXT)
+          ) : (
+            <>
+              <EventOverallResultsTable
+                rows={classWinnerCardsOrdered}
+                topQualifierByClass={topQualifierCardByClass}
+                onRowActivate={setClassWinnerDetail}
+                activeDetail={classWinnerDetail}
+                classFilter={sessionClassFilter}
+                onClassFilterChange={onSessionClassFilterChange}
+                classFilterOptions={raceClassNamesForFilter}
+                resultsTabStrip={resultsTabStrip}
+              />
+              <ClassWinnerStandingsModal
+                detail={classWinnerDetail}
+                onClose={() => setClassWinnerDetail(null)}
+                races={races}
+                multiMainResults={multiMainResults}
+                overallFinalRankings={overallFinalRankings}
+              />
+            </>
+          )}
+        </div>
+      ) : (
+        <div
+          id={OVERVIEW_RESULTS_PANEL_IDS["session-results"]}
+          role="tabpanel"
+          aria-labelledby={OVERVIEW_RESULTS_TAB_IDS["session-results"]}
+        >
+          <SessionRaceResultsTable
+            races={races}
+            raceLabelContextRaces={races}
+            classFilter={sessionClassFilter}
+            onClassFilterChange={onSessionClassFilterChange}
+            classFilterOptions={raceClassNamesForFilter}
+            resultsTabStrip={resultsTabStrip}
+          />
+        </div>
+      )}
     </div>
   )
 }

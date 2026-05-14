@@ -43,7 +43,9 @@ class TrackDashboardData:
         logo_url: Optional[str] = None,
         facebook_url: Optional[str] = None,
         total_laps: Optional[int] = None,
+        total_practice_sessions: Optional[int] = None,
         total_races: Optional[int] = None,
+        total_entries: Optional[int] = None,
         total_events: Optional[int] = None,
     ):
         self.latitude = latitude
@@ -60,7 +62,9 @@ class TrackDashboardData:
         self.logo_url = logo_url
         self.facebook_url = facebook_url
         self.total_laps = total_laps
+        self.total_practice_sessions = total_practice_sessions
         self.total_races = total_races
+        self.total_entries = total_entries
         self.total_events = total_events
 
 
@@ -550,12 +554,16 @@ class TrackDashboardParser:
                 
                 try:
                     value = int(value_str)
-                    
-                    if "lap" in label and "s" not in label:  # "Laps" not "Practice Sessions"
+
+                    if "practice" in label:
+                        data.total_practice_sessions = value
+                    elif "lap" in label:
                         data.total_laps = value
-                    elif "race" in label and "s" in label:
+                    elif "race" in label:
                         data.total_races = value
-                    elif "event" in label and "s" in label:
+                    elif label == "entries":
+                        data.total_entries = value
+                    elif "event" in label:
                         data.total_events = value
                 except ValueError:
                     continue

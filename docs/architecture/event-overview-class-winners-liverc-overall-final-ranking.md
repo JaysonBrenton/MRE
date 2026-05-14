@@ -261,33 +261,26 @@ This section is **normative** for product behaviour: it ties LiveRC columns to
 - Copy in the class-winner modal (`EventOverviewTopQualifiers`) describes
   multi-main vs featured-main fallback in plain language.
 
-### 7.3 What ingestion actually stores today
+### 7.3 What ingestion stores
 
 - Multi-main blocks are ingested from LiveRC pages with
   **`p=view_multi_main_result`** (see
   `ingestion/connectors/liverc/connector.py`, `MultiMainResultParser`, pipeline
   `_process_multi_main_results`).
-- MRE does **not** currently run a dedicated parser for
-  **`p=event_overall_ranking`** into a first-class “overall final ranking”
-  table. The event detail HTML may **link** to `event_overall_ranking` (see
-  fixtures under `ingestion/tests/fixtures/`), but **Class Winners** logic is
-  **not** defined as “read Pos 1 from that HTML table” in code.
+- Overall final rankings are ingested from LiveRC **`p=event_overall_ranking`**
+  into first-class tables (`event_overall_rankings`,
+  `event_overall_ranking_entries`) via `OverallFinalRankingParser` and pipeline
+  `_process_rankings`.
 
-### 7.4 Alignment gap (normative for future work)
+### 7.4 Canonical winner source
 
-To **strictly** match the **Overall Final Ranking** page for every event:
+Class Winners now use **`event_overall_ranking`** as the canonical source when
+ingested (Pos 1/2/3 per class). Fallbacks remain for events where that page is
+missing or cannot be parsed:
 
-1. Ingestion (or verified equivalence rules) must ensure the **same rows and Pos
-   ordering** as `p=event_overall_ranking&id={sourceEventId}` **per class**,
-   **or**
-2. Prove that **`view_multi_main_result` + per-race mains** always reproduce Pos
-   1 for each class identically to that page (including single-main-only classes
-   and B Main / DNF edge cases), and document that proof here.
-
-Until then, **Class Winners** in MRE are “**multi-main overall when ingested,
-else featured main P1**”, which is **close** to the user-facing LiveRC summary
-for many events but is **not** byte-identical to scraping
-**`event_overall_ranking`**.
+1. Use combined **`view_multi_main_result`** standings for the class when
+   available.
+2. Else use P1/P2/P3 from the featured main race for that class.
 
 ### 7.5 Class winner modal: event mains vs this driver’s mains
 

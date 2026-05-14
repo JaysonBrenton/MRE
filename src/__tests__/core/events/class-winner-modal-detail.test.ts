@@ -43,7 +43,11 @@ describe("resolveClassWinnerModalDetail", () => {
       thirdPlaceName: null,
       raceLabel: "Overall (3/3 mains)",
     }
-    const d = resolveClassWinnerModalDetail(highlight, { races, multiMainResults: multiMain })
+    const d = resolveClassWinnerModalDetail(highlight, {
+      races,
+      multiMainResults: multiMain,
+      overallFinalRankings: [],
+    })
     expect(d?.kind).toBe("multiMain")
     if (d?.kind !== "multiMain") return
     expect(d.mainColumnLabels).toEqual(["A1", "A2", "A3"])
@@ -91,7 +95,11 @@ describe("resolveClassWinnerModalDetail", () => {
       thirdPlaceName: null,
       raceLabel: "Overall (3/3 mains)",
     }
-    const d = resolveClassWinnerModalDetail(highlight, { races, multiMainResults: multiMain })
+    const d = resolveClassWinnerModalDetail(highlight, {
+      races,
+      multiMainResults: multiMain,
+      overallFinalRankings: [],
+    })
     expect(d?.kind).toBe("multiMain")
     if (d?.kind !== "multiMain") return
     expect(d.completedMains).toBe(3)
@@ -159,7 +167,11 @@ describe("resolveClassWinnerModalDetail", () => {
       thirdPlaceName: null,
       raceLabel: "Ic Buggy A-Main",
     }
-    const d = resolveClassWinnerModalDetail(highlight, { races, multiMainResults: multiMain })
+    const d = resolveClassWinnerModalDetail(highlight, {
+      races,
+      multiMainResults: multiMain,
+      overallFinalRankings: [],
+    })
     expect(d?.kind).toBe("featuredMain")
     if (d?.kind !== "featuredMain") return
     expect(d.sessionRaceLabel).toBe("Ic Buggy A-Main")
@@ -204,10 +216,60 @@ describe("resolveClassWinnerModalDetail", () => {
     })
     const w = winners[0]
     expect(w).toBeDefined()
-    const d = resolveClassWinnerModalDetail(w!, { races, multiMainResults: multiMain })
+    const d = resolveClassWinnerModalDetail(w!, {
+      races,
+      multiMainResults: multiMain,
+      overallFinalRankings: [],
+    })
     expect(d?.kind).toBe("multiMain")
     if (d?.kind !== "multiMain") return
     expect(d.standingsRows[0]!.points).toBe(2)
     expect(d.standingsRows[0]!.mainCells[0]).toBe("10/5:00.000")
+  })
+
+  it("prefers overall final ranking detail rows when available", () => {
+    const races: EventAnalysisData["races"] = []
+    const highlight = {
+      className: "Ep Buggy",
+      classDisplay: "Ep Buggy",
+      winnerName: "DARREN PERRY",
+      secondPlaceName: "CONNOR RIBAS",
+      thirdPlaceName: null,
+      raceLabel: "Overall final ranking",
+    }
+    const d = resolveClassWinnerModalDetail(highlight, {
+      races,
+      multiMainResults: [],
+      overallFinalRankings: [
+        {
+          id: "o1",
+          sourceOverallRankingId: "ev-1",
+          label: "Overall Final Ranking",
+          className: "Ep Buggy",
+          entries: [
+            {
+              position: 1,
+              driverId: "d1",
+              driverName: "DARREN PERRY",
+              raceLabel: "A Main",
+              resultRaw: "[2] [1] 17/10:02.843",
+            },
+            {
+              position: 2,
+              driverId: "d2",
+              driverName: "CONNOR RIBAS",
+              raceLabel: "A Main",
+              resultRaw: "[3] [2] 17/10:03.100",
+            },
+          ],
+        },
+      ],
+    })
+    expect(d?.kind).toBe("overallRanking")
+    if (d?.kind !== "overallRanking") return
+    expect(d.standingsRows).toHaveLength(2)
+    expect(d.standingsRows[0]?.driverName).toBe("DARREN PERRY")
+    expect(d.standingsRows[0]?.highlight).toBe(true)
+    expect(d.standingsRows[1]?.resultRaw).toBe("[3] [2] 17/10:03.100")
   })
 })

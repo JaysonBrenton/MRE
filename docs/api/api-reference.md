@@ -1,14 +1,13 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-04-14
-description: Complete API reference documentation for all MRE API endpoints
+lastModified: 2026-05-12
+description: API reference for implemented endpoints and planned contracts
 purpose:
   Provides a comprehensive catalog of all API endpoints, including
   request/response formats, authentication requirements, error codes, and usage
-  examples. This serves as the single source of truth for API consumers
-  including frontend developers, mobile developers, and API integration
-  partners.
+  examples for implemented endpoints. Planned contracts are explicitly marked as
+  not implemented and are documented separately for forward planning.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md (API standards)
   - docs/architecture/venue-correction-deprecation.md (venue correction APIs
@@ -16,14 +15,19 @@ relatedFiles:
   - docs/architecture/car-taxonomy-user-mapping.md (car taxonomy APIs)
   - docs/architecture/liverc-ingestion/05-api-contracts.md (LiveRC ingestion
     APIs)
+  - docs/architecture/liverc-ingestion/29-pitstop-detection-system.md (planned
+    pit stop APIs)
   - src/lib/api-utils.ts (response format utilities)
   - src/app/api/v1/ (API route implementations)
 ---
 
 # API Reference Documentation
 
-**Last Updated:** 2026-04-12 — Telemetry: session list/detail/map; worker ingest
-for CSV, GPX, NMEA 0183, JSON (Garmin FIT is **not** supported — see
+**Last Updated:** 2026-05-12 — Added ready-to-merge **planned placeholders** for
+nitro pit stop detection API contracts (not implemented yet): pit stop event
+listing, driver pit strategy surface, and additive analysis/lap response fields.
+2026-04-12 — Telemetry: session list/detail/map; worker ingest for CSV, GPX,
+NMEA 0183, JSON (Garmin FIT is **not** supported — see
 [`docs/telemetry/README.md`](../telemetry/README.md)). **2026-04-13:** Venue
 correction endpoints are **deprecated** (see
 [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md));
@@ -37,9 +41,10 @@ practice day discover-range, ingestion job status, track maps. Removed obsolete
 **API Version:** v1  
 **Base URL:** `/api/v1/` (relative to application root)
 
-This document provides a complete reference for all API endpoints in the My Race
-Engineer (MRE) application. All endpoints follow the mobile-safe architecture
-guidelines and use standardized request/response formats.
+This document provides the reference for implemented API endpoints in the My
+Race Engineer (MRE) application, plus clearly marked planned contracts. All
+implemented endpoints follow the mobile-safe architecture guidelines and use
+standardized request/response formats.
 
 ---
 
@@ -63,9 +68,10 @@ guidelines and use standardized request/response formats.
 16. [Ingestion Job Status](#ingestion-job-status)
 17. [Telemetry (stage 1)](#telemetry-stage-1)
 18. [Health Check](#health-check)
-19. [Error Handling](#error-handling)
-20. [Authentication Requirements](#authentication-requirements)
-21. [Rate Limiting](#rate-limiting)
+19. [Planned API Contracts (Not Implemented)](#planned-api-contracts-not-implemented)
+20. [Error Handling](#error-handling)
+21. [Authentication Requirements](#authentication-requirements)
+22. [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -794,6 +800,18 @@ Gets detailed lap data for a specific race result.
 }
 ```
 
+**Planned Placeholder (not implemented):** each lap object may later include
+optional pit detection hints:
+
+- `pitAnnotation` (object, optional)
+  - `incidentType` (string; example: `suspected_fuel_stop`)
+  - `confidence` (number, 0.0-1.0)
+  - `pitTimeEstimateSeconds` (number, optional)
+  - `pitTimeEarliestSeconds` (number, optional)
+  - `pitTimeLatestSeconds` (number, optional)
+
+This is additive; existing lap payload contract remains valid.
+
 **Error Codes:**
 
 - `NOT_FOUND` (404) - Race result not found
@@ -804,6 +822,99 @@ Gets detailed lap data for a specific race result.
 ```bash
 curl "http://localhost:3001/api/v1/race-results/uuid/laps"
 ```
+
+---
+
+## Planned API Contracts (Not Implemented)
+
+The following endpoints are planned contracts only. They are not currently
+implemented as API routes and must not be used by production clients.
+
+### [PLANNED] GET /api/v1/race-results/[raceResultId]/pit-stops
+
+> **Planned Placeholder (not implemented):** Reserved for pit stop detection v2.
+> Do not integrate production clients until route exists.
+
+Expected purpose: list detected pit events for one race result, with best-effort
+pit timestamp and uncertainty.
+
+**Authentication:** Required
+
+**Path Parameters:**
+
+- `raceResultId` (string, required) - Race Result UUID
+
+**Planned Response Shape (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "raceResultId": "uuid",
+    "detectorVersion": "pit_v2.0",
+    "pitStops": [
+      {
+        "lapNumber": 29,
+        "pitTimeEstimateSeconds": 1003.4,
+        "pitTimeEarliestSeconds": 999.1,
+        "pitTimeLatestSeconds": 1005.8,
+        "pitTimeLossSeconds": 6.7,
+        "baselineSeconds": 34.1,
+        "confidence": 0.92,
+        "metadata": {}
+      }
+    ]
+  }
+}
+```
+
+Planned errors:
+
+- `NOT_FOUND` (404) - Race result not found
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
+
+---
+
+### [PLANNED] GET /api/v1/race-results/[raceResultId]/pit-strategy
+
+> **Planned Placeholder (not implemented):** Reserved for pit stop strategy
+> inference output. Do not integrate production clients until route exists.
+
+Expected purpose: provide per-driver strategy classification for one race
+result.
+
+**Authentication:** Required
+
+**Path Parameters:**
+
+- `raceResultId` (string, required) - Race Result UUID
+
+**Planned Response Shape (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "raceResultId": "uuid",
+    "detectorVersion": "pit_v2.0",
+    "strategy": {
+      "label": "standard_cadence",
+      "confidence": 0.87,
+      "pitCountDetected": 7,
+      "medianIntervalSeconds": 456.1,
+      "intervalsSeconds": [451.3, 456.4, 457.7],
+      "metadata": {}
+    }
+  }
+}
+```
+
+Planned errors:
+
+- `NOT_FOUND` (404) - Race result not found
+- `UNAUTHORIZED` (401) - Authentication required
+- `INTERNAL_ERROR` (500) - Server error
 
 ---
 
@@ -934,6 +1045,22 @@ race label, section header, or session type. See
   }
 }
 ```
+
+**Planned Placeholder (not implemented):** When pit stop detection v2 ships,
+`data` may include additive fields:
+
+- `pitStopSummary` (object, optional)
+  - `detectorVersion` (string)
+  - `nitroRaceCount` (number)
+  - `driversWithDetectedPitStops` (number)
+  - `totalDetectedPitStops` (number)
+- `pitStrategySummary` (object, optional)
+  - `standardCadenceCount` (number)
+  - `stretchCadenceCount` (number)
+  - `disruptedByIncidentCount` (number)
+  - `noStopCount` (number)
+
+These fields are additive and optional; clients must handle absence safely.
 
 **Error Codes:**
 
@@ -4421,10 +4548,10 @@ code catalog and error handling patterns.
 
 ### Future State
 
-- Data endpoints will require authentication
 - Admin endpoints will require admin privileges
 - Mobile clients will use token-based authentication
-- Rate limiting will be implemented per user/session
+- Authentication and session controls will expand with mobile token support
+- Rate limiting policy may be expanded beyond current protected endpoints
 
 **See:** `docs/architecture/mobile-safe-architecture-guidelines.md` Section 5
 for authentication architecture details.
@@ -4433,7 +4560,7 @@ for authentication architecture details.
 
 ## Rate Limiting
 
-**Status:** Implemented
+**Status:** Implemented (selected endpoints)
 
 Rate limiting is applied to authentication and resource-intensive endpoints to
 prevent abuse and ensure fair usage.

@@ -28,10 +28,6 @@ export interface EventAnalysisToolbarProps {
   onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
   /** Trailing column when set; sizes to show the full name (one line when it fits). */
   eventTitle?: string | null
-  /** When set, the title opens this URL in a new tab (e.g. LiveRC event page). */
-  eventTitleHref?: string | null
-  /** Shown to the right of the title, separated by a vertical divider, when set (e.g. event date range). */
-  eventDateRange?: string | null
   /** Stronger title treatment when Event Overview is active (page-scoped hierarchy). */
   titleEmphasis?: "default" | "page"
 }
@@ -44,62 +40,19 @@ const EVENT_OVERVIEW_STRIP_BOX_INNER_CLASS =
 
 function EventAnalysisToolbarTitleContent({
   eventTitle,
-  eventTitleHref,
-  eventDateRange,
   titleEmphasis = "default",
-}: Pick<
-  EventAnalysisToolbarProps,
-  "eventTitle" | "eventTitleHref" | "eventDateRange" | "titleEmphasis"
->) {
+}: Pick<EventAnalysisToolbarProps, "eventTitle" | "titleEmphasis">) {
   const trimmedTitle = eventTitle?.trim() ?? ""
-  const trimmedDateRange = eventDateRange?.trim() ?? ""
   if (trimmedTitle.length === 0) return null
-  const showDateRange = trimmedDateRange.length > 0
-  const titleHref = eventTitleHref?.trim() ?? ""
 
   const titleClassName =
     titleEmphasis === "page"
       ? "block min-w-0 max-w-full truncate text-center text-lg font-semibold leading-snug tracking-tight text-[var(--token-text-primary)] md:text-xl"
       : "block min-w-0 max-w-full truncate text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base"
-  const titleLinkUnderlineClass =
-    "underline decoration-[var(--token-accent)]/50 underline-offset-2 hover:decoration-[var(--token-accent)]"
-  const titleLinkClassName =
-    titleEmphasis === "page"
-      ? `inline-block min-w-0 max-w-full truncate text-center text-lg font-semibold leading-snug tracking-tight text-[var(--token-text-primary)] transition-colors hover:text-[var(--token-accent)] md:text-xl ${titleLinkUnderlineClass}`
-      : `inline-block min-w-0 max-w-full truncate text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] transition-colors hover:text-[var(--token-accent)] md:text-base ${titleLinkUnderlineClass}`
 
   return (
     <div className="flex min-w-0 max-w-full items-center justify-center gap-2 px-2.5 py-0 sm:gap-2.5 sm:px-3">
-      {titleHref ? (
-        <a
-          href={titleHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={titleLinkClassName}
-          aria-label="View event on LiveRC (opens in new tab)"
-        >
-          {trimmedTitle}
-        </a>
-      ) : (
-        <span className={titleClassName}>{trimmedTitle}</span>
-      )}
-      {showDateRange ? (
-        <>
-          <span
-            className="h-4 w-px shrink-0 self-center bg-[var(--token-border-default)]"
-            aria-hidden
-          />
-          <span
-            className={
-              titleEmphasis === "page"
-                ? "shrink-0 whitespace-nowrap text-center text-sm font-medium leading-snug text-[var(--token-text-secondary)]"
-                : "shrink-0 whitespace-nowrap text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base"
-            }
-          >
-            {trimmedDateRange}
-          </span>
-        </>
-      ) : null}
+      <h2 className={titleClassName}>Welcome to the {trimmedTitle}</h2>
     </div>
   )
 }
@@ -138,8 +91,6 @@ export function EventAnalysisToolbarAboveEventDetailsStrip(props: EventAnalysisT
           >
             <EventAnalysisToolbarTitleContent
               eventTitle={props.eventTitle}
-              eventTitleHref={props.eventTitleHref}
-              eventDateRange={props.eventDateRange}
               titleEmphasis={props.titleEmphasis}
             />
           </div>
@@ -156,17 +107,10 @@ export default function EventAnalysisToolbar({
   analysisSubTab,
   onAnalysisSubTabChange,
   eventTitle,
-  eventTitleHref,
-  eventDateRange,
   titleEmphasis = "default",
 }: EventAnalysisToolbarProps) {
   const title = (
-    <EventAnalysisToolbarTitleContent
-      eventTitle={eventTitle}
-      eventTitleHref={eventTitleHref}
-      eventDateRange={eventDateRange}
-      titleEmphasis={titleEmphasis}
-    />
+    <EventAnalysisToolbarTitleContent eventTitle={eventTitle} titleEmphasis={titleEmphasis} />
   )
 
   return (

@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-04-12
+lastModified: 2026-05-13
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -13,7 +13,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-04-12  
+**Last Updated:** 2026-05-13  
 **Purpose:** Complete listing of all documentation files in the MRE repository
 
 This document provides a comprehensive index of every document in the MRE
@@ -91,33 +91,43 @@ information they need.
 
 ### [Getting Started Guide](../user-guides/getting-started.md)
 
-Perfect for new users! Learn how to create an account, log in, understand the
-welcome page, and get started with MRE. Covers account creation, login, basic
-navigation, and next steps.
+Perfect for new users! Learn how to create an account, sign in (email +
+password), where you land (`/admin` vs `/eventAnalysis`), and how the adaptive
+rail, Global Search, and embedded guides fit together—including
+screenshot-backed orientation.
 
-### [Event Search Guide](../user-guides/event-search.md)
+### [Global Search Guide (`/search`)](../user-guides/event-search.md)
 
-Complete guide to searching for race events, selecting tracks (including
-favorites), setting date ranges, importing events from LiveRC, and understanding
-event status indicators.
+Covers Redux-backed `/search` with driver/session/date filters, split Events vs
+Sessions result tables, pagination, and deep links back to My Event Analysis via
+**View Event**. Import still runs from Actions → Find and Import overlays on the
+dashboard.
 
 ### [Event Analysis Guide](../user-guides/event-analysis.md)
 
-Learn how to analyze race event data, view interactive charts, compare drivers,
-explore sessions/heats, and export data to CSV. Covers overview, drivers,
-sessions, and comparisons tabs.
+Detailed walkthrough of the authenticated analysis shell: race-day vs
+practice-day tab sets, submenu analytics (including ladder-oriented subtabs
+where data allows), Overview summarises, Actions menu ingestion shortcuts, Entry
+List naming, and honest notes on telemetry/export scope for Alpha builds.
 
-### [Dashboard Guide](../user-guides/dashboard.md)
+### [My Event Analysis (Dashboard) Guide](../user-guides/dashboard.md)
 
-Guide to using your personal dashboard, understanding widgets, customizing
-layouts, viewing statistics, and using quick actions. Learn how to personalize
-your MRE experience.
+Mission control UX on `/eventAnalysis`: choosing events, Redux persistence,
+`eventId` query cleanup, ingestion drawers fed by DashboardEventSearchProvider,
+contextual My Events latch, Actions shortcuts (⌘E / ⌘⌥R / ⌘⇧E on macOS), and
+links into Event Analysis subcomponents.
+
+### [Car Type Mapping Guide](../user-guides/car-type-mapping.md)
+
+Explains opening **Actions → Map car types** from Event Analysis plus how
+account-wide taxonomy rules reconcile repeated LiveRC spelling variants.
 
 ### [Driver Features Guide](../user-guides/driver-features.md)
 
-Learn how MRE automatically discovers events where you participated using fuzzy
-matching. Understand match types (transponder, exact, fuzzy), confirm
-participation, and manage driver information.
+Documents fuzzy discovery (`exact`, `transponder`, `similarity`-driven fuzzy),
+`confirmed`/`suggested`/`rejected` participation states, the My Events latch on
+`/eventAnalysis`, pagination/filter affordances inside `MyEventsContent`, and
+related API endpoints.
 
 ### [Navigation Guide](../user-guides/navigation.md)
 
@@ -368,6 +378,17 @@ logic, and kill switch mechanism.
 Asynchronous ingestion via in-process job queue. Describes 202 Accepted + job_id
 when queue is enabled, GET job status endpoint, queue_position, frontend
 polling, and configuration (INGESTION_USE_QUEUE, UVICORN_WORKERS).
+
+#### [29 - Pitstop Detection System (Nitro-Only)](../architecture/liverc-ingestion/29-pitstop-detection-system.md)
+
+Normative architecture for race-length-aware nitro pit detection, pit-time
+estimation with uncertainty bounds, and per-driver strategy inference
+(standard/stretch/disrupted).
+
+#### [30 - Pitstop Detection Testing Strategy](../architecture/liverc-ingestion/30-pitstop-detection-testing-strategy.md)
+
+Fixture-first testing strategy for pit detection correctness across 7/10/30/60
+minute races, including false-positive control cases and deterministic reruns.
 
 ---
 
@@ -637,6 +658,11 @@ observability practices across the application.
 Operational guide for LiveRC ingestion operations. Provides commands and
 procedures for managing ingestion operations, track management, and event
 processing.
+
+### [Pitstop Detection Runbook](../operations/pitstop-detection-runbook.md)
+
+Operational runbook for verifying, troubleshooting, and tuning nitro pitstop
+detection outputs (pit events and strategy labels) after ingestion.
 
 ---
 
@@ -944,6 +970,12 @@ infrastructure (object storage, job queue, worker), config, MVP task breakdown
 (schema, API, parsers, Parquet, session list UI), testing, documentation, and
 operations. References Telemetry Implementation Design; v1/v2 scoped in design.
 
+### [Pitstop Detection Implementation Plan](../plans/pitstop-detection-implementation-plan.md)
+
+Phased implementation plan for nitro-only pit detection, new persistence models
+(`pit_stop_events`, `driver_pit_strategies`), sequence inference, rollout, and
+quality gates.
+
 ---
 
 ## Reviews
@@ -1046,7 +1078,7 @@ documentation formatting.
 
 **Total Documents:** 110+ markdown files  
 **Document Categories:** 21+ logical sections  
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-05-12
 
 ---
 

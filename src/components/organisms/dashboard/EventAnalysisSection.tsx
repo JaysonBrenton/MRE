@@ -44,7 +44,6 @@ import TrackLeaderboardTab from "@/components/organisms/event-analysis/TrackLead
 import ClubHighlightsTab from "@/components/organisms/event-analysis/ClubHighlightsTab"
 import CountryLeaderboardCard from "@/components/organisms/event-analysis/CountryLeaderboardCard"
 import StandardButton from "@/components/atoms/StandardButton"
-import { formatDateLong } from "@/lib/date-utils"
 import { typography } from "@/lib/typography"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import type { EventAnalysisDataApiResponse } from "@/types/event-analysis-api"
@@ -57,11 +56,13 @@ const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
 ]
 const EVENT_TABS: { id: TabId; label: string }[] = [
   { id: "event-overview", label: "Event Overview" },
-  { id: "event-overview-old", label: "Event Overview - OLD" },
   { id: "event-analysis", label: "Event Analysis" },
   { id: "session-analysis", label: "Session Analysis" },
   { id: "drivers", label: "Entry List" },
 ]
+
+/** Race-day primary tabs: inline strip (EventAnalysisToolbarAboveEventDetailsStrip), not stacked EventAnalysisToolbar. */
+const RACE_DAY_INLINE_TOOLBAR_TAB_IDS: TabId[] = EVENT_TABS.map((t) => t.id)
 
 /**
  * Transform API response (with ISO string dates) to EventAnalysisData (with Date objects)
@@ -271,42 +272,14 @@ export default function EventAnalysisSection() {
         null)
       : null
 
-  /** Title between tab strip and Actions in the fixed toolbar (event name, else track). */
+  /** Title between tab strip and Actions in the fixed toolbar (host track, track name, else event). */
   const eventAnalysisToolbarTitle = useMemo(() => {
     if (!transformedData) return null
     const name = transformedData.event.eventName?.trim() ?? ""
+    const hostTrack = transformedData.userHostTrack?.trackName?.trim() ?? ""
     const track = transformedData.event.trackName?.trim() ?? ""
-    const label = name || track
+    const label = hostTrack || track || name
     return label.length > 0 ? label : null
-  }, [transformedData])
-
-  /** LiveRC event page: stored URL or canonical view_event link from slug + source id. */
-  const eventAnalysisToolbarTitleHref = useMemo(() => {
-    if (!transformedData) return null
-    const e = transformedData.event
-    const fromDb = e.eventUrl?.trim()
-    if (fromDb) return fromDb
-    const slug = e.trackSlug?.trim()
-    const sid = e.sourceEventId?.trim()
-    if (slug && sid) {
-      return `https://${slug}.liverc.com/results/?p=view_event&id=${encodeURIComponent(sid)}`
-    }
-    return null
-  }, [transformedData])
-
-  /** Same range string as Event Overview “Event date” row (earliest – latest, or single day). */
-  const eventAnalysisToolbarDateRange = useMemo(() => {
-    if (!transformedData) return null
-    const dr = transformedData.summary.dateRange
-    if (!dr || (!dr.earliest && !dr.latest)) return null
-    const earliestStr = dr.earliest ? formatDateLong(dr.earliest) : ""
-    const latestStr = dr.latest ? formatDateLong(dr.latest) : ""
-    if (!earliestStr && !latestStr) return null
-    const s =
-      earliestStr && latestStr && earliestStr === latestStr
-        ? earliestStr
-        : `${earliestStr}${earliestStr && latestStr ? " – " : ""}${latestStr}`
-    return s.length > 0 ? s : null
   }, [transformedData])
 
   // When data switches between practice day and event, sync active tab
@@ -314,14 +287,16 @@ export default function EventAnalysisSection() {
     const practiceTabIds: TabId[] = ["my-day", "my-sessions", "class-reference", "all-sessions"]
     const eventTabIds: TabId[] = [
       "event-overview",
-      "event-overview-old",
+      "event-sessions",
       "event-analysis",
       "session-analysis",
       "my-events",
       "drivers",
     ]
     const sync = () => {
-      if (isPracticeDay && eventTabIds.includes(activeTab)) {
+      if (!isPracticeDay && activeTab === "event-sessions") {
+        dispatch(setActiveEventAnalysisTab("event-overview"))
+      } else if (isPracticeDay && eventTabIds.includes(activeTab)) {
         dispatch(setActiveEventAnalysisTab("my-day"))
       } else if (!isPracticeDay && practiceTabIds.includes(activeTab)) {
         dispatch(setActiveEventAnalysisTab("event-overview"))
@@ -331,9 +306,9 @@ export default function EventAnalysisSection() {
   }, [isPracticeDay, activeTab, dispatch])
 
   const isToolbarInlineWithEventDetails =
-    activeTab === "event-overview" || activeTab === "event-overview-old"
+    !isPracticeDay && RACE_DAY_INLINE_TOOLBAR_TAB_IDS.includes(activeTab)
 
-  /** Practice day always shows EventAnalysisHeader; else toolbar may render above tab panels (not inline in OverviewTab). */
+  /** Practice day always shows EventAnalysisHeader; race-day primary tabs tuck toolbar in panels (inline strip). */
   const showStackedHeaderToolbar =
     isPracticeDay || (activeTab !== "my-events" && !isToolbarInlineWithEventDetails)
 
@@ -344,12 +319,7 @@ export default function EventAnalysisSection() {
     analysisSubTab: resolvedAnalysisSubTab,
     onAnalysisSubTabChange: setAnalysisSubTab,
     eventTitle: eventAnalysisToolbarTitle,
-    eventTitleHref: eventAnalysisToolbarTitleHref,
-    eventDateRange: eventAnalysisToolbarDateRange,
-    titleEmphasis:
-      activeTab === "event-overview" || activeTab === "event-overview-old"
-        ? ("page" as const)
-        : ("default" as const),
+    titleEmphasis: isToolbarInlineWithEventDetails ? ("page" as const) : ("default" as const),
   }
 
   // Hide section entirely during rehydration to avoid duplicate loading messages
@@ -401,7 +371,7 @@ export default function EventAnalysisSection() {
             </div>
           )}
 
-        {/* Render analysis content — header + toolbar in normal flow (overview tabs tuck toolbar in OverviewTab) */}
+        {/* Header + stacked toolbar: practice day context, or non-primary tabs (e.g. track leaderboard). */}
         {selectedEventId && transformedData && (
           <>
             {showStackedHeaderToolbar ? (
@@ -441,22 +411,6 @@ export default function EventAnalysisSection() {
                 />
               )}
 
-              {activeTab === "event-overview-old" && (
-                <OverviewTab
-                  data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                  variant="event-overview-only"
-                  toolbarAboveEventDetails={
-                    <EventAnalysisToolbarAboveEventDetailsStrip
-                      {...eventAnalysisToolbarCommonProps}
-                    />
-                  }
-                />
-              )}
-
               {activeTab === "event-analysis" && (
                 <OverviewTab
                   data={transformedData}
@@ -467,6 +421,11 @@ export default function EventAnalysisSection() {
                   variant="event-analysis-only"
                   analysisSubTab={resolvedAnalysisSubTab}
                   onAnalysisSubTabChange={setAnalysisSubTab}
+                  toolbarAboveEventDetails={
+                    <EventAnalysisToolbarAboveEventDetailsStrip
+                      {...eventAnalysisToolbarCommonProps}
+                    />
+                  }
                 />
               )}
 
@@ -480,6 +439,11 @@ export default function EventAnalysisSection() {
                   variant="session-analysis-only"
                   analysisSubTab={resolvedAnalysisSubTab}
                   onAnalysisSubTabChange={setAnalysisSubTab}
+                  toolbarAboveEventDetails={
+                    <EventAnalysisToolbarAboveEventDetailsStrip
+                      {...eventAnalysisToolbarCommonProps}
+                    />
+                  }
                 />
               )}
 
@@ -488,6 +452,11 @@ export default function EventAnalysisSection() {
                   data={transformedData}
                   selectedClass={selectedClass}
                   onClassChange={eventActions.onClassChange}
+                  toolbarAbove={
+                    <EventAnalysisToolbarAboveEventDetailsStrip
+                      {...eventAnalysisToolbarCommonProps}
+                    />
+                  }
                 />
               )}
 

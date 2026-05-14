@@ -30,6 +30,12 @@ class ConnectorRoundRankingSummary(BaseModel):
     order_type: Optional[str] = None  # e.g. "laps_time", "top_3_consecutive"
 
 
+class ConnectorOverallFinalRankingSummary(BaseModel):
+    """Overall Final Ranking link from event page (event_overall_ranking)."""
+    source_overall_ranking_id: str
+    label: str  # e.g. "Overall Final Ranking"
+
+
 class ConnectorQualPointsEntry(BaseModel):
     """Single driver entry in Qual Points (per class)."""
     class_name: str
@@ -67,6 +73,22 @@ class ConnectorRoundRankingResult(BaseModel):
     entries: List[ConnectorRoundRankingEntry] = Field(default_factory=list)
 
 
+class ConnectorOverallFinalRankingEntry(BaseModel):
+    """Single row in Overall Final Ranking (per class)."""
+    class_name: str
+    position: int
+    driver_name: str
+    race_label: Optional[str] = None
+    result_raw: Optional[str] = None
+
+
+class ConnectorOverallFinalRankingResult(BaseModel):
+    """Full Overall Final Ranking result from event_overall_ranking page."""
+    source_overall_ranking_id: str
+    label: str
+    entries: List[ConnectorOverallFinalRankingEntry] = Field(default_factory=list)
+
+
 class ConnectorEventSummary(BaseModel):
     """High-level event metadata from event page."""
     source_event_id: str
@@ -88,6 +110,10 @@ class ConnectorEventSummary(BaseModel):
     round_ranking_summaries: List[ConnectorRoundRankingSummary] = Field(
         default_factory=list,
         description="Practice/Qualifier round ranking links (view_round_ranking)",
+    )
+    overall_final_ranking_summary: Optional[ConnectorOverallFinalRankingSummary] = Field(
+        default=None,
+        description="Overall Final Ranking link (event_overall_ranking)",
     )
 
 

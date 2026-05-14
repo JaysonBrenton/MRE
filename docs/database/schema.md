@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-04-14
+lastModified: 2026-05-12
 description: Human-readable database schema documentation for MRE application
 purpose:
   Provides comprehensive documentation of the database schema, including all
@@ -16,15 +16,19 @@ relatedFiles:
     UserCarTaxonomyRule)
   - docs/architecture/liverc-ingestion/04-data-model.md (ingestion-specific
     models)
+  - docs/architecture/liverc-ingestion/29-pitstop-detection-system.md (planned
+    pit stop persistence)
   - src/lib/prisma.ts (Prisma client instance)
   - src/core/users/repo.ts (database access functions)
 ---
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-04-18 — `TelemetrySession` adds optional
-`last_reprocess_at`, `share_token`, `share_token_created_at` (public read-only
-links + reprocess cooldown). See
+**Last Updated:** 2026-05-12 — Added ready-to-merge **planned placeholders** for
+nitro pit stop persistence tables (`pit_stop_events`, `driver_pit_strategies`)
+and API-facing field notes (not implemented yet). 2026-04-18 —
+`TelemetrySession` adds optional `last_reprocess_at`, `share_token`,
+`share_token_created_at` (public read-only links + reprocess cooldown). See
 [`telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md).
 Earlier: telemetry read APIs + UI (see
 [`docs/api/api-reference.md`](../api/api-reference.md) §Telemetry).
@@ -82,6 +86,14 @@ The MRE database schema consists of **38 Prisma models** (see
   `TelemetryDataset`, `TelemetryLap` — see
   [`docs/implimentation_plans/telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md)
   and [`docs/telemetry/README.md`](../telemetry/README.md)
+
+### Planned future models (not yet in Prisma schema)
+
+The following are documented as future placeholders and are not counted in the
+38 current Prisma models:
+
+- `PitStopEvent`
+- `DriverPitStrategy`
 
 **Enums:** `PersonaType`, `IngestDepth`, `UserDriverLinkStatus`,
 `EventDriverLinkMatchType`, `EventDriverLinkStatus`, `SessionType`,
@@ -743,6 +755,70 @@ post-ingestion. One row per lap that has at least one tag. See
 **Relationships:**
 
 - Belongs to `RaceResult` (cascade delete)
+
+---
+
+### PitStopEvent (Planned Placeholder - not implemented)
+
+> **Status:** Planned documentation placeholder only. This model is **not**
+> currently present in `prisma/schema.prisma`.
+
+Normalized pit stop events for nitro races, derived from lap sequences.
+
+**Planned Table:** `pit_stop_events`
+
+| Planned Field            | Type          | Planned Constraints   | Description                                             |
+| ------------------------ | ------------- | --------------------- | ------------------------------------------------------- |
+| `id`                     | String (UUID) | Primary Key           | Unique pit event identifier                             |
+| `raceResultId`           | String (UUID) | Foreign Key, Required | Reference to RaceResult                                 |
+| `lapNumber`              | Int           | Required              | Lap on which pit event was detected                     |
+| `pitTimeEstimateSeconds` | Float         | Required              | Best-effort pit timestamp estimate (elapsed seconds)    |
+| `pitTimeEarliestSeconds` | Float         | Optional              | Earliest plausible pit time bound                       |
+| `pitTimeLatestSeconds`   | Float         | Optional              | Latest plausible pit time bound                         |
+| `pitTimeLossSeconds`     | Float         | Optional              | Estimated time lost to pit stop                         |
+| `baselineSeconds`        | Float         | Optional              | Driver baseline used during detection                   |
+| `detectionConfidence`    | Float         | Optional              | Confidence score (0.0-1.0)                              |
+| `detectionVersion`       | String        | Required              | Detector version tag (example: `pit_v2.0`)              |
+| `metadata`               | Json          | Optional              | Additional diagnostics (cadence score, reject evidence) |
+| `createdAt`              | DateTime      | Auto-generated        | Record creation timestamp                               |
+| `updatedAt`              | DateTime      | Auto-updated          | Last update timestamp                                   |
+
+**Planned Rules and Indexes:**
+
+- Unique index on `[raceResultId, lapNumber]`
+- Index on `[raceResultId, pitTimeEstimateSeconds]`
+- Cascade delete with parent `RaceResult`
+
+---
+
+### DriverPitStrategy (Planned Placeholder - not implemented)
+
+> **Status:** Planned documentation placeholder only. This model is **not**
+> currently present in `prisma/schema.prisma`.
+
+Per-driver strategy classification derived from detected pit stop sequences.
+
+**Planned Table:** `driver_pit_strategies`
+
+| Planned Field           | Type          | Planned Constraints   | Description                                                   |
+| ----------------------- | ------------- | --------------------- | ------------------------------------------------------------- |
+| `id`                    | String (UUID) | Primary Key           | Unique strategy row identifier                                |
+| `raceResultId`          | String (UUID) | Foreign Key, Required | Reference to RaceResult                                       |
+| `strategyLabel`         | String        | Required              | Strategy classification (e.g., `standard_cadence`)            |
+| `strategyConfidence`    | Float         | Optional              | Strategy confidence (0.0-1.0)                                 |
+| `pitCountDetected`      | Int           | Required              | Number of pit events detected                                 |
+| `medianIntervalSeconds` | Float         | Optional              | Median interval between pit events                            |
+| `intervalsJson`         | Json          | Optional              | Interval sequence details                                     |
+| `detectionVersion`      | String        | Required              | Detector version tag (example: `pit_v2.0`)                    |
+| `metadata`              | Json          | Optional              | Additional diagnostics (hypothesis scores, rejected patterns) |
+| `createdAt`             | DateTime      | Auto-generated        | Record creation timestamp                                     |
+| `updatedAt`             | DateTime      | Auto-updated          | Last update timestamp                                         |
+
+**Planned Rules and Indexes:**
+
+- Unique index on `raceResultId` (one strategy row per race result)
+- Index on `strategyLabel` for reporting
+- Cascade delete with parent `RaceResult`
 
 ---
 
@@ -1467,6 +1543,20 @@ Type of racing session (race, practice, qualifying, practiceday, heat, main).
 - Index: `[raceResultId, lapNumber]`
 - Index: `raceResultId`
 - Index: `lapNumber`
+- Note: the composite index duplicates the composite unique constraint and is
+  currently retained to match the live Prisma schema.
+
+**PitStopEvent (planned placeholder):**
+
+- Primary key: `id`
+- Planned unique: `[raceResultId, lapNumber]`
+- Planned index: `[raceResultId, pitTimeEstimateSeconds]`
+
+**DriverPitStrategy (planned placeholder):**
+
+- Primary key: `id`
+- Planned unique: `raceResultId`
+- Planned index: `strategyLabel`
 
 **TransponderOverride:**
 
@@ -1585,6 +1675,12 @@ Type of racing session (race, practice, qualifying, practiceday, heat, main).
 11. **RaceResult → Lap** (One-to-Many)
     - Foreign key: `Lap.raceResultId`
     - Cascade delete: Laps deleted when RaceResult deleted
+
+**Planned placeholder relationships (not implemented):**
+
+- `RaceResult → PitStopEvent` (One-to-Many, cascade delete)
+- `RaceResult → DriverPitStrategy` (One-to-One via unique `raceResultId`,
+  cascade delete)
 
 12. **Event → TransponderOverride** (One-to-Many)
     - Foreign key: `TransponderOverride.eventId`
@@ -1830,6 +1926,38 @@ const laps = await prisma.lap.findMany({
 })
 ```
 
+### Future Query Examples (Planned Placeholders - Not Yet Compilable)
+
+The examples below are future contracts only.
+
+**Warning:** These examples will not compile until the planned Prisma models are
+added to `prisma/schema.prisma` and Prisma Client is regenerated.
+
+### Get Pit Stops for Race Result (Planned Placeholder)
+
+> This query pattern is reserved for pit stop detection v2 and is not currently
+> implemented.
+
+```typescript
+const pitStops = await prisma.pitStopEvent.findMany({
+  where: { raceResultId: raceResultId },
+  orderBy: {
+    pitTimeEstimateSeconds: "asc",
+  },
+})
+```
+
+### Get Driver Pit Strategy for Race Result (Planned Placeholder)
+
+> This query pattern is reserved for pit stop detection v2 and is not currently
+> implemented.
+
+```typescript
+const strategy = await prisma.driverPitStrategy.findUnique({
+  where: { raceResultId: raceResultId },
+})
+```
+
 **Note:** All database queries should be in `src/core/<domain>/repo.ts` files,
 not in API routes or UI components (see mobile-safe architecture guidelines).
 
@@ -1877,6 +2005,8 @@ not in API routes or UI components (see mobile-safe architecture guidelines).
   definition
 - [LiveRC Ingestion Data Model](../architecture/liverc-ingestion/04-data-model.md) -
   Ingestion-specific model documentation
+- [Pit Stop Detection System (Nitro-Only)](../architecture/liverc-ingestion/29-pitstop-detection-system.md) -
+  Planned pit stop detection persistence and contracts
 - [Racing Classes Domain Model](../domain/racing-classes.md) - Complete taxonomy
   of racing classes, vehicle types, and skill groupings
 - [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md) -

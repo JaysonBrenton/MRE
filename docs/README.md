@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-04-07
+lastModified: 2026-05-12
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -78,7 +78,7 @@ contracts, admin CLI, state machine, error handling, validation, performance,
 idempotency, observability, security, testing, fixture management,
 replay/debugging, recovery procedures, versioning, cross-connector abstractions.
 
-**Document Series:** This is a 27-document series covering all aspects of the
+**Document Series:** This is a 30-document series covering all aspects of the
 ingestion system:
 
 - [01 - Overview](architecture/liverc-ingestion/01-overview.md)
@@ -87,6 +87,12 @@ ingestion system:
 - [04 - Data Model](architecture/liverc-ingestion/04-data-model.md)
 - [05 - API Contracts](architecture/liverc-ingestion/05-api-contracts.md)
 - [06 - Admin CLI Specification](architecture/liverc-ingestion/06-admin-cli-spec.md)
+- [29 - Pitstop Detection System (Nitro-Only)](architecture/liverc-ingestion/29-pitstop-detection-system.md) -
+  Race-length-aware nitro pit detection design, pit-time estimates, and strategy
+  inference
+- [30 - Pitstop Detection Testing Strategy](architecture/liverc-ingestion/30-pitstop-detection-testing-strategy.md) -
+  Fixture-first validation across 7/10/30/60-minute races and false-positive
+  controls
 - [27 - Web Scraping Best Practices](architecture/liverc-ingestion/27-web-scraping-best-practices.md) -
   Comprehensive guide to robots.txt compliance, rate limiting, User-Agent
   policy, HTTP caching, retry logic, and kill switch mechanism
@@ -677,6 +683,22 @@ operational procedures.
 **Related:** See
 [LiveRC Ingestion Architecture](architecture/liverc-ingestion/01-overview.md)
 for technical details.
+
+### [Pitstop Detection Runbook](operations/pitstop-detection-runbook.md)
+
+**Status:** Planned for implementation  
+**Last Updated:** 2026-05-12
+
+Operational runbook for nitro-only pitstop detection outputs: verification,
+false-positive triage, strategy-label troubleshooting, and threshold tuning.
+
+**Key Topics:** race-length sanity checks (7/10/30/60 minutes), pit event
+validation, strategy validation, escalation criteria, and tuning protocol.
+
+**Related:** See
+[Pitstop Detection System](architecture/liverc-ingestion/29-pitstop-detection-system.md)
+and
+[Pitstop Detection Testing Strategy](architecture/liverc-ingestion/30-pitstop-detection-testing-strategy.md).
 
 ---
 

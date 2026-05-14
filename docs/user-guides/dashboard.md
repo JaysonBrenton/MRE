@@ -1,137 +1,113 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-04-07
-description: Guide to using the user dashboard in My Race Engineer
+lastModified: 2026-05-13
+description:
+  Guide to the My Event Analysis dashboard shell (event selector + embedded
+  analysis)
 purpose:
-  Explains how to navigate the My Event Analysis dashboard, select events,
-  launch searches, and read the Event Analysis experience that appears on the
-  page once an event is selected.
+  Explains Redux-backed event selection, the embedded drawer search/import flow,
+  how URL parameters interact with persisted storage, and how practice vs race
+  tabs differ.
 relatedFiles:
+  - src/app/(authenticated)/eventAnalysis/page.tsx
+  - src/components/organisms/dashboard/DashboardClient.tsx
+  - src/components/organisms/dashboard/EventAnalysisSection.tsx
   - docs/architecture/dashboard-architecture.md
-  - docs/architecture/car-taxonomy-user-mapping.md
-  - docs/specs/mre-v0.1-feature-scope.md
 ---
 
-# My Event Analysis Guide
+# My Event Analysis dashboard
 
-The My Event Analysis dashboard is the entry point for reviewing imported race
-events. Rather than free-form widgets, the current build centers on choosing an
-event and then displaying the Event Analysis experience directly within the
-dashboards area.
+The dashboard route (`/eventAnalysis`) is **not** a customizable widget canvas
+in Alpha v0.1.0. Instead it is a **workflow shell**:
 
-## Introduction
+1. Choose an imported event from the banner selector or drawers.
+2. Let `EventAnalysisSection` hydrate Redux with `/api/v1/events/{eventId}`
+   summary payloads.
+3. Work inside the scrolling analysis bands already described in
+   [Event Analysis guide](event-analysis.md).
 
-When you sign in and navigate past the welcome screen, the dashboard shows a
-protected “Select an Event” surface. Once you choose an event, the familiar
-Event Analysis tabs (Overview, Drivers, Sessions, My Events) render in place so
-you can review lap charts, driver cards, and weather from the same view.
+Hero screenshot (same graphic used there for continuity):
 
-## Prerequisites
+![Event Overview after selecting an event](./images/my-event-analysis-overview.png)
 
-- You must be logged in.
-- At least one event must exist in the system. You can ingest or discover events
-  through **Event Search** if nothing appears yet.
+## Preconditions
 
-## Accessing My Event Analysis
+| Requirement     | Detail                                                                            |
+| --------------- | --------------------------------------------------------------------------------- |
+| Auth session    | Obtained via `/login`/`/register` or SSO posture configured by ops                |
+| Imported event  | Imported via ingestion pipeline — search alone does not synthesize phantom events |
+| Browser storage | Redux-persist restores `selectedEventId` between reloads                          |
 
-1. Sign into My Race Engineer.
-2. From the navigation rail, click **My Event Analysis** (the home icon).
-3. Use the breadcrumb labeled “My Event Analysis” to return here from other
-   authenticated pages.
+## Landing states
 
-## Page Layout
+### Nothing selected yet
 
-The dashboard contains three main elements:
+`DashboardClient` renders the onboarding card prompting **Search / import**
+actions. Selecting an event swaps in the immersive analysis scaffold.
 
-### 1. Event Selector & Empty State
+### `?eventId=` query parameter
 
-- The top of the page renders the **Dashboard Event Selector**. If an event ID
-  is present in the URL (`/eventAnalysis?eventId=uuid`) the selector loads that
-  event automatically. Otherwise, the page shows a card prompting you to search
-  for events.
-- The selector includes quick filters for “Recent Events” once data is loaded,
-  making it easy to jump back to something you viewed earlier.
+`DashboardEventSelector` watches `eventId` from Next search params:
 
-### 2. Dashboard Event Search Drawer
+- Dispatches `selectEvent` immediately when mismatched vs Redux.
+- After sync, **`router.replace` strips `eventId`** to keep canonical URLs tidy.
+- Redux still remembers the UUID; do not panic if bookmarking loses the query.
 
-- Clicking **Search for Events** or the event selector’s search action opens the
-  embedded Event Search drawer. This is the same search experience available on
-  the dedicated `/event-search` page.
-- You can search by track, date range, or mode (standard events vs. practice
-  days). When you choose **Practice Days**, the form exposes the month picker
-  from `PracticeDaySearchContainer` so you can discover LiveRC practice entries.
-- Selecting an event from the search results automatically sets it as the active
-  dashboard event and closes the drawer.
+### Loading & error handling
 
-### 3. Event Analysis Section
+Between persistence rehydrate and ingestion fetch you might see spinner copy
+like “Loading dashboard…”. Separate **Retry loading** banners appear inside
+`EventAnalysisSection` when API errors bubble up.
 
-- Once an event is selected, the **EventAnalysisSection** component mounts in
-  place of the empty state. It fetches `/api/v1/events/{eventId}/summary`,
-  `/analysis`, and `/weather` to power charts and telemetry-derived insights.
-- Tabs correspond to the same content you see on the standalone Event Analysis
-  route:
-  - **Overview** – hero metrics, pace charts, weather, track summary.
-  - **Drivers** – driver cards with consistency, lap counts, best laps.
-  - **Sessions** – session list and lap charts, including the My Events sub-tab.
-  - **My Events** – fuzzy-matched races linked to your driver persona, including
-    confirm/reject controls.
-- The weather panel shows cached vs. live fetch status and explains failures,
-  exactly matching the `/api/v1/events/[eventId]/weather` endpoint behavior.
+### Practice vs race layouts
 
-## Selecting an Event
+Embedded tabs swap automatically when `analysisData.isPracticeDay` flips. See
+Event Analysis guide matrix for respective tab rails.
 
-1. Click **Search for Events** (or open the selector dropdown).
-2. Filter by track, date, or practice-day mode as needed.
-3. Choose **Import** for new LiveRC data or select an already ingested event.
-4. The dashboard URL updates with `?eventId=...`, and Event Analysis loads in
-   place.
+### My Events rail latch
 
-If you navigate away and return later, the persisted Redux state restores the
-last selected event. On a hard reload, the page briefly shows “Loading
-dashboard…” while Redux rehydrates; this prevents flicker before the event data
-is re-fetched.
+`/eventAnalysis` + **race-day selection** ⇒ rail shows **My Events** below the
+home glyph. Selecting it swaps the large analysis canvas for fuzzy-event review
+powered by `/api/v1/personas/driver/events`. Practice-day regimes hide the
+latch.
 
-### Map car types (Actions menu)
+![Typical empty My Events latch panel](./images/my-events-panel.png)
 
-When an event is selected, open **Actions** → **Map car types** to define **your
-own** global rules: map a class name, race/session title, section heading, or
-session type (or a class + title pair) to a **canonical vehicle class** from the
-seeded list. Rules apply to **all events** for your account and do not change
-LiveRC data or other users’ views. After saving, refresh or re-fetch event
-analysis so Session Analysis can use your mappings.
+## Actions & ingestion affordances
 
-See
-[Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md)
-for technical detail.
+**Actions → Find and Import Events** opens `DashboardEventSearchProvider`
+overlays (track filters, imports, pagination). Shortcut hints:
 
-## Reading the Event Analysis Tabs
+| Shortcut        | Behaviour                       |
+| --------------- | ------------------------------- |
+| `⌘` + `E`       | Focus find/import drawer        |
+| `⌘` + `⌥` + `R` | Refresh active analysis payload |
+| `⌘` + `⇧` + `E` | Clear persisted selection       |
 
-Because the dashboard embeds the same Event Analysis implementation, you can use
-all familiar interactions:
+(Windows/Linux users substitute `Ctrl` where applicable; exact bindings depend
+on OS focus rules.)
 
-- Hover or tap chart legends to isolate drivers.
-- Use the **Sessions** tab to switch between mains, qualifiers, and practice
-  runs.
-- In **My Events**, confirm or reject fuzzy matches; the UI calls
-  `/api/v1/users/me/driver-links/events/{eventId}` so you never have to look up
-  your user ID.
-- Open driver rows to see transponder overrides, lap consistency, and class
-  participation.
+## Map car types (global rules reminder)
 
-## Troubleshooting
+Selecting **Actions → Map car types** persists **account-wide** mappings for
+schedule text ↔ canonical taxonomy. Closing the drawer does not revoke earlier
+saves; adjust via modal history.
 
-| Symptom                                 | Resolution                                                                                                                           |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Dashboard only shows “Select an Event”  | No event has been chosen yet. Use the search drawer or append `?eventId=` with a valid event ID.                                     |
-| Weather pane shows a warning            | The weather endpoint could not fetch live data and no cache exists. Try again later; the rest of Event Analysis is still usable.     |
-| Practice Days mode missing              | Ensure the event search drawer toggle is set to “Practice Days.” The dashboard uses the same mode selector as the Event Search page. |
-| Driver matches missing in My Events tab | Confirm your driver persona is configured, and verify driver links via `/api/v1/users/me/driver-links`.                              |
+Detailed narrative: [Car type mapping guide](car-type-mapping.md).
 
-## Key Takeaways
+## Admin differences
 
-- The current dashboard is an event-centric workflow: select ➝ analyze.
-- Widget layout customization is not part of version 0.1.1 even though future
-  releases plan drag-and-drop dashboards.
-- For additional analytics, switch to the dedicated **Events**, **Event
-  Search**, or **Admin** pages via the navigation rail or breadcrumbs.
+Elevated admins pass through `/admin` first, but `/eventAnalysis` remains
+identical aside from auditing metadata. Telemetry imports, ingestion triggers,
+SQL scripts, etc. stay in ops docs — not surfaced as user-editable knobs here.
+
+## Related guides
+
+| Guide                                 | Highlights                 |
+| ------------------------------------- | -------------------------- |
+| [Event Analysis](event-analysis.md)   | Tab/menu breakdown         |
+| [Global Search](event-search.md)      | Catalogue discovery        |
+| [Driver Features](driver-features.md) | Fuzzy confirmations        |
+| [Navigation](navigation.md)           | Rail map                   |
+| [Troubleshooting](troubleshooting.md) | Spinner / ingestion triage |
