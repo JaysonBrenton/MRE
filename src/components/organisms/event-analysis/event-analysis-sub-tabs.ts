@@ -60,3 +60,22 @@ export function getSubTabOptions(scope: AnalysisSubTabScope): {
     label: getSubTabLabel(id, scope),
   }))
 }
+
+/** Top-level Analysis primary tab: chevron submenu in {@link TabNavigation} (separate from Event / Session Analysis sub-views). */
+export const ANALYSIS_PRIMARY_SUB_TAB_IDS = ["event-level", "session-level"] as const
+
+export type AnalysisPrimarySubTabId = (typeof ANALYSIS_PRIMARY_SUB_TAB_IDS)[number]
+
+export function getAnalysisPrimarySubTabOptions(): {
+  id: AnalysisPrimarySubTabId
+  label: string
+}[] {
+  return [
+    { id: "event-level", label: "Event Level Analysis" },
+    { id: "session-level", label: "Session Level Analysis" },
+  ]
+}
+
+export function getAnalysisPrimarySubTabLabel(id: AnalysisPrimarySubTabId): string {
+  return getAnalysisPrimarySubTabOptions().find((o) => o.id === id)?.label ?? id
+}

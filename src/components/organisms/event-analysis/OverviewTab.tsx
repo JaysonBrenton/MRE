@@ -82,6 +82,7 @@ import {
   EVENT_DETAILS_STATS_STRIP_WELL_CLASS,
   EVENT_DETAILS_TAB_PANEL_WELL_CLASS,
   EVENT_DETAILS_WEATHER_INFO_CALLOUT_CLASS,
+  OVERVIEW_GLASS_SURFACE_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
   OVERVIEW_SECTION_SURFACE_CLASS,
 } from "@/components/organisms/event-analysis/overview-glass-surface"
@@ -255,6 +256,8 @@ export default function OverviewTab({
       }
     }
   )
+
+  const isEventAnalysisToolbarVariant = variant === "event-analysis-only"
 
   const inSessionAnalysisSection =
     variant === "session-analysis-only" || overviewPrimarySection === "session-analysis"
@@ -764,17 +767,24 @@ export default function OverviewTab({
     driverProgressionClassNames.includes(selectedClass)
 
   useEffect(() => {
-    const inBumpUpsUi = variant === "event-analysis-only" && eventAnalysisTab === "bump-ups"
+    const inBumpUpsUi = isEventAnalysisToolbarVariant && eventAnalysisTab === "bump-ups"
     if (!inBumpUpsUi) return
     if (bumpUpClassNames.length === 0) return
     if (selectedClass !== null && !bumpUpClassNames.includes(selectedClass)) {
       onClassChange(null)
     }
-  }, [variant, eventAnalysisTab, bumpUpClassNames, selectedClass, onClassChange, data.event.id])
+  }, [
+    isEventAnalysisToolbarVariant,
+    eventAnalysisTab,
+    bumpUpClassNames,
+    selectedClass,
+    onClassChange,
+    data.event.id,
+  ])
 
   useEffect(() => {
     const inDriverProgressionUi =
-      variant === "event-analysis-only" && eventAnalysisTab === "driver-progression"
+      isEventAnalysisToolbarVariant && eventAnalysisTab === "driver-progression"
     if (!inDriverProgressionUi) return
     if (driverProgressionClassNames.length === 0) {
       if (selectedClass !== null) {
@@ -786,7 +796,7 @@ export default function OverviewTab({
       onClassChange(null)
     }
   }, [
-    variant,
+    isEventAnalysisToolbarVariant,
     eventAnalysisTab,
     driverProgressionClassNames,
     selectedClass,
@@ -812,8 +822,8 @@ export default function OverviewTab({
   const isEventDriverAnalysisContext = useMemo(
     () =>
       eventAnalysisTab === "driver-analysis" &&
-      (overviewPrimarySection === "event-analysis" || variant === "event-analysis-only"),
-    [eventAnalysisTab, overviewPrimarySection, variant]
+      (overviewPrimarySection === "event-analysis" || isEventAnalysisToolbarVariant),
+    [eventAnalysisTab, overviewPrimarySection, isEventAnalysisToolbarVariant]
   )
 
   /**
@@ -1262,7 +1272,7 @@ export default function OverviewTab({
       inSessionAnalysisSection && eventAnalysisTab === "driver-analysis"
     const isEventDriverAnalysis =
       eventAnalysisTab === "driver-analysis" &&
-      (overviewPrimarySection === "event-analysis" || variant === "event-analysis-only")
+      (overviewPrimarySection === "event-analysis" || isEventAnalysisToolbarVariant)
 
     if (!isSessionDriverAnalysis && !isEventDriverAnalysis) {
       queueMicrotask(() => {
@@ -1364,7 +1374,7 @@ export default function OverviewTab({
   }, [
     inSessionAnalysisSection,
     eventAnalysisTab,
-    variant,
+    isEventAnalysisToolbarVariant,
     overviewPrimarySection,
     data.event.id,
     sessionLapTrendChartDriverIds,
@@ -2159,7 +2169,7 @@ export default function OverviewTab({
     (showOtherSections && overviewPrimarySection === "session-analysis")
 
   const ladderInEventAnalysis =
-    variant === "event-analysis-only" &&
+    isEventAnalysisToolbarVariant &&
     (eventAnalysisTab === "bump-ups" || eventAnalysisTab === "driver-progression")
 
   const overviewPrimarySectionTabsVisible = useMemo(() => {
@@ -2192,6 +2202,9 @@ export default function OverviewTab({
         : variant === "session-analysis-only"
           ? "tab-session-analysis"
           : "tab-overview"
+
+  const eventAnalysisSectionToolbarTabId =
+    variant === "event-analysis-only" ? "tab-event-analysis" : "event-analysis-heading"
 
   return (
     <div
@@ -2595,19 +2608,75 @@ export default function OverviewTab({
         </section>
       )}
 
-      {showEventAnalysisSectionBlock && (
-        <section
-          className="space-y-4"
-          aria-labelledby={
-            variant === "event-analysis-only" ? "tab-event-analysis" : "event-analysis-heading"
-          }
-        >
+      {variant === "event-analysis-only" && (
+        <section className="space-y-4" aria-labelledby={eventAnalysisSectionToolbarTabId}>
+          <table className="sr-only">
+            <caption>Event level analysis panels</caption>
+            <tbody>
+              <tr>
+                <th scope="row">Panel 1</th>
+                <td>Event metrics placeholder region</td>
+              </tr>
+              <tr>
+                <th scope="row">Panel 2</th>
+                <td>Program overview placeholder region</td>
+              </tr>
+            </tbody>
+          </table>
           <div
             id={eventAnalysisSectionContentId}
             role="tabpanel"
-            aria-labelledby={
-              variant === "event-analysis-only" ? "tab-event-analysis" : "event-analysis-heading"
-            }
+            aria-labelledby={eventAnalysisSectionToolbarTabId}
+            className="space-y-5"
+          >
+            <h2 id="event-analysis-subview-heading" className={typography.h4}>
+              Event Level Analysis
+            </h2>
+            <div
+              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
+              role="presentation"
+            >
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="event-level-analysis-col-1-heading"
+              >
+                <h3
+                  id="event-level-analysis-col-1-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Event metrics
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for event-level metrics. Content will be added here.
+                </p>
+              </section>
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="event-level-analysis-col-2-heading"
+              >
+                <h3
+                  id="event-level-analysis-col-2-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Program overview
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for program / session mix. Content will be added here.
+                </p>
+              </section>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {showEventAnalysisSectionBlock && variant !== "event-analysis-only" && (
+        <section className="space-y-4" aria-labelledby={eventAnalysisSectionToolbarTabId}>
+          <div
+            id={eventAnalysisSectionContentId}
+            role="tabpanel"
+            aria-labelledby={eventAnalysisSectionToolbarTabId}
             className="space-y-5"
           >
             <h2 id="event-analysis-subview-heading" className={typography.h4}>

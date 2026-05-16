@@ -495,15 +495,15 @@ export default function SessionRaceResultsTable({
     return (
       <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
         <div className="border-b border-[var(--token-border-default)] px-4 py-3">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className={typography.h4}>Session Results</h2>
-              <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+          <div className="flex min-w-0 flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="min-w-0 sm:min-w-[12rem] sm:flex-1 sm:pr-2">
+              <h2 className={typography.overviewEventResultsToolbarTitle}>Session Results</h2>
+              <p className="mt-1 text-left text-sm text-[var(--token-text-secondary)]">
                 No races in this selection.
               </p>
             </div>
             {resultsTabStrip ? (
-              <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
+              <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-3">
                 {resultsTabStrip}
               </div>
             ) : null}
@@ -516,16 +516,13 @@ export default function SessionRaceResultsTable({
   return (
     <div className={SURFACE_CLASS} style={SURFACE_STYLE}>
       <div className="border-b border-[var(--token-border-default)] px-4 py-3">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className={typography.h4}>{`Session Results: ${headerClassLabel}`}</h2>
-            {displayRaces.length > 0 && driverFilteredRows.length > 0 && (
-              <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
-                Click a row for the full finishing order for that session.
-              </p>
-            )}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-0">
+        <div className="flex min-w-0 flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <h2
+            className={`${typography.overviewEventResultsToolbarTitle} min-w-0 max-w-full flex-1 truncate sm:pr-2`}
+          >
+            {`Session Results: ${headerClassLabel}`}
+          </h2>
+          <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-3">
             {resultsTabStrip}
             {onClassFilterChange && availableClassOptions.length > 0 && (
               <div className="flex items-center gap-2">

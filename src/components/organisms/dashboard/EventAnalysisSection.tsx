@@ -56,6 +56,7 @@ const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
 ]
 const EVENT_TABS: { id: TabId; label: string }[] = [
   { id: "event-overview", label: "Event Overview" },
+  { id: "analysis", label: "Analysis" },
   { id: "event-analysis", label: "Event Analysis" },
   { id: "session-analysis", label: "Session Analysis" },
   { id: "drivers", label: "Entry List" },
@@ -235,7 +236,7 @@ export default function EventAnalysisSection() {
   // Also fetch when user clicks on a tab (in case section was already visible)
   const handleTabChange = (tabId: TabId) => {
     if (
-      tabId === "session-analysis" &&
+      (tabId === "session-analysis" || tabId === "analysis") &&
       (analysisSubTab === "bump-ups" ||
         analysisSubTab === "driver-progression" ||
         analysisSubTab === "qualification-results")
@@ -287,6 +288,7 @@ export default function EventAnalysisSection() {
     const practiceTabIds: TabId[] = ["my-day", "my-sessions", "class-reference", "all-sessions"]
     const eventTabIds: TabId[] = [
       "event-overview",
+      "analysis",
       "event-sessions",
       "event-analysis",
       "session-analysis",
@@ -409,6 +411,28 @@ export default function EventAnalysisSection() {
                     />
                   }
                 />
+              )}
+
+              {activeTab === "analysis" && (
+                <div className="flex min-h-0 w-full min-w-full shrink-0 flex-col items-stretch gap-6">
+                  <div className="flex min-w-0 w-full flex-col gap-3">
+                    <EventAnalysisToolbarAboveEventDetailsStrip
+                      {...eventAnalysisToolbarCommonProps}
+                    />
+                  </div>
+                  <div
+                    role="tabpanel"
+                    id="tabpanel-analysis"
+                    aria-labelledby="tab-analysis"
+                    className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)]/95 px-5 py-6 shadow-md"
+                  >
+                    <p className={typography.bodySecondary}>
+                      Choose <strong>Event Level Analysis</strong> or{" "}
+                      <strong>Session Level Analysis</strong> from the Analysis menu above to open
+                      that workspace.
+                    </p>
+                  </div>
+                </div>
               )}
 
               {activeTab === "event-analysis" && (

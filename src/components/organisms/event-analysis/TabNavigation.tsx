@@ -5,7 +5,8 @@
  * @creator Jayson Brenton
  * @lastModified 2026-04-06
  *
- * @description Primary tabs with optional submenus under Event Analysis and Session Analysis.
+ * @description Primary tabs with optional submenus under Analysis (dispatches to Event/Session tabs),
+ *              Event Analysis, and Session Analysis.
  *              Clicking the tab toggles its submenu; the primary tab changes when a menu item is
  *              chosen (or when using a non-submenu tab / arrow keys).
  *
@@ -31,6 +32,7 @@ import { createPortal } from "react-dom"
 
 import {
   type EventAnalysisSubTabId,
+  getAnalysisPrimarySubTabOptions,
   getSubTabOptions,
 } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
 import {
@@ -40,6 +42,7 @@ import {
 
 export type TabId =
   | "event-overview"
+  | "analysis"
   | "event-sessions"
   | "event-analysis"
   | "session-analysis"
@@ -110,6 +113,7 @@ export interface TabNavigationProps {
 
 const defaultTabs: Tab[] = [
   { id: "event-overview", label: "Event Overview" },
+  { id: "analysis", label: "Analysis" },
   { id: "event-analysis", label: "Event Analysis" },
   { id: "session-analysis", label: "Session Analysis" },
   { id: "drivers", label: "Entry List" },
@@ -121,6 +125,8 @@ type SubmenuTabProps = {
   menuOpen: boolean
   menuOptions: { id: string; label: string }[]
   selectedMenuId: string
+  /** When true, menu item “current” styling follows {@link selectedMenuId} even if this tab is not active (dispatcher pattern). */
+  selectedWithoutActiveTab?: boolean
   onMenuItemSelect: (id: string) => void
   onTabButtonClick: () => void
   onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => void
@@ -136,6 +142,7 @@ function SubmenuTab({
   menuOpen,
   menuOptions,
   selectedMenuId,
+  selectedWithoutActiveTab,
   onMenuItemSelect,
   onTabButtonClick,
   onKeyDown,
@@ -196,7 +203,7 @@ function SubmenuTab({
             className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] py-1 shadow-lg"
           >
             {menuOptions.map((opt) => {
-              const selected = opt.id === selectedMenuId && isActive
+              const selected = opt.id === selectedMenuId && (selectedWithoutActiveTab || isActive)
               return (
                 <button
                   key={opt.id}
@@ -264,11 +271,13 @@ export default function TabNavigation({
   const baseId = useId()
 
   const hasAnalysisSubmenus = analysisSubTab !== undefined && onAnalysisSubTabChange !== undefined
+  const hasAnalysisDispatchTab = tabs.some((t) => t.id === "analysis")
 
   const tabHasSubmenu = useCallback(
     (tabId: TabId): boolean =>
-      (tabId === "event-analysis" || tabId === "session-analysis") && hasAnalysisSubmenus,
-    [hasAnalysisSubmenus]
+      ((tabId === "event-analysis" || tabId === "session-analysis") && hasAnalysisSubmenus) ||
+      (tabId === "analysis" && hasAnalysisDispatchTab),
+    [hasAnalysisDispatchTab, hasAnalysisSubmenus]
   )
 
   const closeSubMenu = useCallback(() => setSubMenuOpenFor(null), [])
@@ -350,6 +359,44 @@ export default function TabNavigation({
 
   const tabButtons = tabs.map((tab) => {
     const isActive = activeTab === tab.id
+
+    if (tab.id === "analysis" && hasAnalysisDispatchTab) {
+      const menuOpen = subMenuOpenFor === tab.id
+      const menuId = `${baseId}-menu-${tab.id}`
+      const dispatchTargetSelectedId =
+        activeTab === "event-analysis"
+          ? "event-level"
+          : activeTab === "session-analysis"
+            ? "session-level"
+            : ""
+      return (
+        <Fragment key={tab.id}>
+          <SubmenuTab
+            tab={tab}
+            isActive={isActive}
+            menuOpen={menuOpen}
+            menuOptions={getAnalysisPrimarySubTabOptions()}
+            selectedMenuId={dispatchTargetSelectedId}
+            selectedWithoutActiveTab
+            onMenuItemSelect={(id) => {
+              if (id === "event-level") {
+                changeTab("event-analysis")
+              } else if (id === "session-level") {
+                changeTab("session-analysis")
+              }
+            }}
+            onTabButtonClick={() => {
+              setSubMenuOpenFor((prev) => (prev === tab.id ? null : tab.id))
+            }}
+            onKeyDown={(e) => handleKeyDown(e, tab.id)}
+            tabButtonClass={submenuTabButtonClass}
+            menuId={menuId}
+            menuAriaLabel="Analysis views"
+            onCloseMenu={closeSubMenu}
+          />
+        </Fragment>
+      )
+    }
 
     if (tab.id === "event-analysis" && hasAnalysisSubmenus) {
       const menuOpen = subMenuOpenFor === tab.id
