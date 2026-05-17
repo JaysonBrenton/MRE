@@ -17,15 +17,14 @@ import TabNavigation, {
   type TabId,
 } from "@/components/organisms/event-analysis/TabNavigation"
 import EventAnalysisActionsMenu from "@/components/organisms/event-analysis/EventAnalysisActionsMenu"
-import type { EventAnalysisSubTabId } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
+import type { AnalysisPrimarySubTabId } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
 
 export interface EventAnalysisToolbarProps {
   tabs: Tab[]
   activeTab: TabId
   onTabChange: (tabId: TabId) => void
-  /** Event Analysis / Session Analysis sub-views (menus under those tab buttons). */
-  analysisSubTab?: EventAnalysisSubTabId
-  onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
+  analysisMenuSelectedId?: string
+  onAnalysisMenuDispatch?: (id: AnalysisPrimarySubTabId) => void
   /** Trailing column when set; sizes to show the full name (one line when it fits). */
   eventTitle?: string | null
   /** Stronger title treatment when Event Overview is active (page-scoped hierarchy). */
@@ -71,8 +70,8 @@ export function EventAnalysisToolbarAboveEventDetailsStrip(props: EventAnalysisT
             onTabChange={props.onTabChange}
             embedded
             embeddedChrome="none"
-            analysisSubTab={props.analysisSubTab}
-            onAnalysisSubTabChange={props.onAnalysisSubTabChange}
+            analysisMenuSelectedId={props.analysisMenuSelectedId}
+            onAnalysisMenuDispatch={props.onAnalysisMenuDispatch}
             tabListTrailing={
               <div className="flex items-stretch gap-2 pr-1">
                 <span className={tabStripTrailingDividerClass} aria-hidden />
@@ -104,8 +103,8 @@ export default function EventAnalysisToolbar({
   tabs,
   activeTab,
   onTabChange,
-  analysisSubTab,
-  onAnalysisSubTabChange,
+  analysisMenuSelectedId,
+  onAnalysisMenuDispatch,
   eventTitle,
   titleEmphasis = "default",
 }: EventAnalysisToolbarProps) {
@@ -131,8 +130,8 @@ export default function EventAnalysisToolbar({
           activeTab={activeTab}
           onTabChange={onTabChange}
           embedded
-          analysisSubTab={analysisSubTab}
-          onAnalysisSubTabChange={onAnalysisSubTabChange}
+          analysisMenuSelectedId={analysisMenuSelectedId}
+          onAnalysisMenuDispatch={onAnalysisMenuDispatch}
           tabListTrailing={<EventAnalysisActionsMenu tabStripTrigger />}
         />
       </div>

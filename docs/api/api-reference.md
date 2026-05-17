@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-12
+lastModified: 2026-05-16
 description: API reference for implemented endpoints and planned contracts
 purpose:
   Provides a comprehensive catalog of all API endpoints, including
@@ -23,9 +23,12 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2026-05-12 — Added ready-to-merge **planned placeholders** for
-nitro pit stop detection API contracts (not implemented yet): pit stop event
-listing, driver pit strategy surface, and additive analysis/lap response fields.
+**Last Updated:** 2026-05-16 — **Health check:** documented successful envelope
+for `GET /api/v1/health` (matches `successResponse` and
+`src/__tests__/api/health.test.ts`).  
+**2026-05-12** — Added ready-to-merge **planned placeholders** for nitro pit
+stop detection API contracts (not implemented yet): pit stop event listing,
+driver pit strategy surface, and additive analysis/lap response fields.
 2026-04-12 — Telemetry: session list/detail/map; worker ingest for CSV, GPX,
 NMEA 0183, JSON (Garmin FIT is **not** supported — see
 [`docs/telemetry/README.md`](../telemetry/README.md)). **2026-04-13:** Venue
@@ -4466,12 +4469,17 @@ Health check endpoint for Docker health checks and monitoring.
 
 **Authentication:** Not required
 
-**Response (200 OK):**
+**Response (200 OK)** — Uses the standard success envelope
+(`docs/architecture/mobile-safe-architecture-guidelines.md`):
 
 ```json
 {
-  "status": "ok",
-  "timestamp": "2025-01-27T00:00:00.000Z"
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "timestamp": "2025-01-27T00:00:00.000Z"
+  },
+  "message": "Service is healthy"
 }
 ```
 
@@ -4481,8 +4489,8 @@ Health check endpoint for Docker health checks and monitoring.
 curl "http://localhost:3001/api/v1/health"
 ```
 
-**Note:** This endpoint is unversioned and used by Docker health checks. It does
-not follow the standard API response format.
+**Note:** This route lives under `/api/v1/health` for versioning consistency; it
+does not require authentication.
 
 ---
 

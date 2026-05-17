@@ -19,7 +19,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import {
   fetchEventAnalysisData,
@@ -29,7 +29,10 @@ import {
 import EventAnalysisToolbar, {
   EventAnalysisToolbarAboveEventDetailsStrip,
 } from "@/components/organisms/event-analysis/EventAnalysisToolbar"
-import type { EventAnalysisSubTabId } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
+import type {
+  AnalysisPrimarySubTabId,
+  EventAnalysisSubTabId,
+} from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
 import { type TabId } from "@/components/organisms/event-analysis/TabNavigation"
 import OverviewTab from "@/components/organisms/event-analysis/OverviewTab"
 import DriversTab from "@/components/organisms/event-analysis/DriversTab"
@@ -57,8 +60,6 @@ const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
 const EVENT_TABS: { id: TabId; label: string }[] = [
   { id: "event-overview", label: "Event Overview" },
   { id: "analysis", label: "Analysis" },
-  { id: "event-analysis", label: "Event Analysis" },
-  { id: "session-analysis", label: "Session Analysis" },
   { id: "drivers", label: "Entry List" },
 ]
 
@@ -164,11 +165,16 @@ export default function EventAnalysisSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const lastFetchedEventId = useRef<string | null>(null)
   const [analysisSubTab, setAnalysisSubTab] = useState<EventAnalysisSubTabId>("event-results")
+  const [analysisPrimaryDispatch, setAnalysisPrimaryDispatch] =
+    useState<AnalysisPrimarySubTabId | null>(null)
 
-  /** Ladder sub-views apply to Event Analysis only; Session Analysis ignores them. */
+  const isSessionLevelAnalysis =
+    activeTab === "analysis" && analysisPrimaryDispatch === "session-level"
+
+  /** Ladder sub-views apply to Event Level Analysis only; Session Level ignores them. */
   const resolvedAnalysisSubTab = useMemo((): EventAnalysisSubTabId => {
     if (
-      activeTab === "session-analysis" &&
+      isSessionLevelAnalysis &&
       (analysisSubTab === "bump-ups" ||
         analysisSubTab === "driver-progression" ||
         analysisSubTab === "qualification-results")
@@ -176,7 +182,7 @@ export default function EventAnalysisSection() {
       return "event-results"
     }
     return analysisSubTab
-  }, [activeTab, analysisSubTab])
+  }, [isSessionLevelAnalysis, analysisSubTab])
 
   // Reset fetch state when event is deselected or changes
   useEffect(() => {
@@ -193,6 +199,25 @@ export default function EventAnalysisSection() {
     if (!selectedEventId) return
     queueMicrotask(() => setAnalysisSubTab("event-results"))
   }, [selectedEventId])
+
+  useEffect(() => {
+    queueMicrotask(() => setAnalysisPrimaryDispatch(null))
+  }, [selectedEventId])
+
+  // Legacy primary tabs removed from the strip; route persisted state through Analysis dispatch.
+  useEffect(() => {
+    if (activeTab === "event-analysis") {
+      queueMicrotask(() => {
+        setAnalysisPrimaryDispatch("event-level")
+        dispatch(setActiveEventAnalysisTab("analysis"))
+      })
+    } else if (activeTab === "session-analysis") {
+      queueMicrotask(() => {
+        setAnalysisPrimaryDispatch("session-level")
+        dispatch(setActiveEventAnalysisTab("analysis"))
+      })
+    }
+  }, [activeTab, dispatch])
 
   // Fetch analysis data when event is selected
   // Trigger fetch immediately when event changes
@@ -235,8 +260,9 @@ export default function EventAnalysisSection() {
 
   // Also fetch when user clicks on a tab (in case section was already visible)
   const handleTabChange = (tabId: TabId) => {
+    setAnalysisPrimaryDispatch(null)
     if (
-      (tabId === "session-analysis" || tabId === "analysis") &&
+      tabId === "analysis" &&
       (analysisSubTab === "bump-ups" ||
         analysisSubTab === "driver-progression" ||
         analysisSubTab === "qualification-results")
@@ -256,6 +282,38 @@ export default function EventAnalysisSection() {
       dispatch(fetchEventAnalysisData(selectedEventId))
     }
   }
+
+  const analysisMenuSelectedId = useMemo((): string => {
+    if (activeTab === "analysis" && analysisPrimaryDispatch) {
+      return analysisPrimaryDispatch
+    }
+    return ""
+  }, [activeTab, analysisPrimaryDispatch])
+
+  const handleAnalysisMenuDispatch = useCallback(
+    (id: AnalysisPrimarySubTabId) => {
+      if (
+        id === "session-level" &&
+        (analysisSubTab === "bump-ups" ||
+          analysisSubTab === "driver-progression" ||
+          analysisSubTab === "qualification-results")
+      ) {
+        setAnalysisSubTab("event-results")
+      }
+      setAnalysisPrimaryDispatch(id)
+      dispatch(setActiveEventAnalysisTab("analysis"))
+      if (
+        selectedEventId &&
+        !hasInitiatedFetch &&
+        !isAnalysisLoading &&
+        (!analysisData || analysisData.event.id !== selectedEventId)
+      ) {
+        setHasInitiatedFetch(true)
+        dispatch(fetchEventAnalysisData(selectedEventId))
+      }
+    },
+    [analysisSubTab, dispatch, selectedEventId, hasInitiatedFetch, isAnalysisLoading, analysisData]
+  )
 
   // Transform API response to EventAnalysisData format
   const transformedData = useMemo(() => {
@@ -290,8 +348,6 @@ export default function EventAnalysisSection() {
       "event-overview",
       "analysis",
       "event-sessions",
-      "event-analysis",
-      "session-analysis",
       "my-events",
       "drivers",
     ]
@@ -318,8 +374,8 @@ export default function EventAnalysisSection() {
     tabs: availableTabs,
     activeTab,
     onTabChange: handleTabChange,
-    analysisSubTab: resolvedAnalysisSubTab,
-    onAnalysisSubTabChange: setAnalysisSubTab,
+    analysisMenuSelectedId,
+    onAnalysisMenuDispatch: handleAnalysisMenuDispatch,
     eventTitle: eventAnalysisToolbarTitle,
     titleEmphasis: isToolbarInlineWithEventDetails ? ("page" as const) : ("default" as const),
   }
@@ -414,61 +470,63 @@ export default function EventAnalysisSection() {
               )}
 
               {activeTab === "analysis" && (
-                <div className="flex min-h-0 w-full min-w-full shrink-0 flex-col items-stretch gap-6">
-                  <div className="flex min-w-0 w-full flex-col gap-3">
-                    <EventAnalysisToolbarAboveEventDetailsStrip
-                      {...eventAnalysisToolbarCommonProps}
+                <>
+                  {analysisPrimaryDispatch === null ? (
+                    <div className="flex min-h-0 w-full min-w-full shrink-0 flex-col items-stretch gap-6">
+                      <div className="flex min-w-0 w-full flex-col gap-3">
+                        <EventAnalysisToolbarAboveEventDetailsStrip
+                          {...eventAnalysisToolbarCommonProps}
+                        />
+                      </div>
+                      <div
+                        role="tabpanel"
+                        id="tabpanel-analysis"
+                        aria-labelledby="tab-analysis"
+                        className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)]/95 px-5 py-6 shadow-md"
+                      >
+                        <p className={typography.bodySecondary}>
+                          Choose <strong>Event Level Analysis</strong> or{" "}
+                          <strong>Session Level Analysis</strong> from the Analysis menu above to
+                          open that workspace.
+                        </p>
+                      </div>
+                    </div>
+                  ) : analysisPrimaryDispatch === "event-level" ? (
+                    <OverviewTab
+                      data={transformedData}
+                      selectedDriverIds={selectedDriverIds}
+                      onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                      selectedClass={selectedClass}
+                      onClassChange={eventActions.onClassChange}
+                      variant="event-analysis-only"
+                      analysisDispatchFromPrimaryTab
+                      analysisSubTab={resolvedAnalysisSubTab}
+                      onAnalysisSubTabChange={setAnalysisSubTab}
+                      toolbarAboveEventDetails={
+                        <EventAnalysisToolbarAboveEventDetailsStrip
+                          {...eventAnalysisToolbarCommonProps}
+                        />
+                      }
                     />
-                  </div>
-                  <div
-                    role="tabpanel"
-                    id="tabpanel-analysis"
-                    aria-labelledby="tab-analysis"
-                    className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)]/95 px-5 py-6 shadow-md"
-                  >
-                    <p className={typography.bodySecondary}>
-                      Choose <strong>Event Level Analysis</strong> or{" "}
-                      <strong>Session Level Analysis</strong> from the Analysis menu above to open
-                      that workspace.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "event-analysis" && (
-                <OverviewTab
-                  data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                  variant="event-analysis-only"
-                  analysisSubTab={resolvedAnalysisSubTab}
-                  onAnalysisSubTabChange={setAnalysisSubTab}
-                  toolbarAboveEventDetails={
-                    <EventAnalysisToolbarAboveEventDetailsStrip
-                      {...eventAnalysisToolbarCommonProps}
+                  ) : (
+                    <OverviewTab
+                      data={transformedData}
+                      selectedDriverIds={selectedDriverIds}
+                      onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                      selectedClass={selectedClass}
+                      onClassChange={eventActions.onClassChange}
+                      variant="session-analysis-only"
+                      analysisDispatchFromPrimaryTab
+                      analysisSubTab={resolvedAnalysisSubTab}
+                      onAnalysisSubTabChange={setAnalysisSubTab}
+                      toolbarAboveEventDetails={
+                        <EventAnalysisToolbarAboveEventDetailsStrip
+                          {...eventAnalysisToolbarCommonProps}
+                        />
+                      }
                     />
-                  }
-                />
-              )}
-
-              {activeTab === "session-analysis" && (
-                <OverviewTab
-                  data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                  variant="session-analysis-only"
-                  analysisSubTab={resolvedAnalysisSubTab}
-                  onAnalysisSubTabChange={setAnalysisSubTab}
-                  toolbarAboveEventDetails={
-                    <EventAnalysisToolbarAboveEventDetailsStrip
-                      {...eventAnalysisToolbarCommonProps}
-                    />
-                  }
-                />
+                  )}
+                </>
               )}
 
               {activeTab === "drivers" && (

@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-03-22
+lastModified: 2026-05-16
 description:
   Comprehensive Docker user guide for MRE application architecture and usage
 purpose:
@@ -13,7 +13,7 @@ relatedFiles:
   - docker-compose.yml (container configuration)
   - Dockerfile (Next.js application build configuration)
   - ingestion/Dockerfile (Python ingestion service build configuration)
-  - docs/reviews/DOCKER_REVIEW_REPORT.md (Docker review and evaluation)
+  - docs/operations/build-runtime-reference.md (authoritative service inventory)
   - docs/development/quick-start.md (developer onboarding)
   - docs/operations/deployment-guide.md (deployment procedures)
   - docs/operations/environment-variables.md (environment configuration)
@@ -53,13 +53,21 @@ instructions, daily usage patterns, and troubleshooting procedures.
 ## Overview
 
 The MRE application runs as a containerized microservices architecture using
-Docker Compose. The environment consists of:
+Docker Compose. The default development stack includes:
 
-- **Next.js Application** (`mre-app`) - Main web application and API server
-- **Python Ingestion Service** (`mre-liverc-ingestion-service`) - LiveRC data
-  ingestion microservice
-- **PostgreSQL Database** (`mre-postgres`) - External database container
-  (managed separately)
+- **Next.js application** (`mre-app`) — web UI and `/api/v1` APIs
+- **PostgreSQL** (`mre-postgres`) — defined by the `postgres` service in
+  `docker-compose.yml` (not provisioned separately in the standard workflow)
+- **LiveRC ingestion API** (`mre-liverc-ingestion-service`) — Python FastAPI
+  service for ingestion jobs and LiveRC workflows
+- **Telemetry worker** (`mre-telemetry-worker`) — background telemetry pipeline
+  (`python -m ingestion.telemetry.worker`); same image as ingestion, different
+  entrypoint
+- **ClickHouse** (`mre-clickhouse`) — optional telemetry query cache / HTTP
+  interface (host port 8123 by default)
+
+See [`build-runtime-reference.md`](./build-runtime-reference.md) for ports,
+volumes, and compose keys.
 
 **Docker Runtime:** On macOS, **Docker Desktop is the required Docker runtime**
 for this project. Ensure Docker Desktop is running and the active context is
@@ -87,43 +95,46 @@ The Docker setup provides:
 ### Container Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              Docker Network: mre-network                    │
-│                                                              │
-│  ┌──────────────┐      ┌──────────────┐                    │
-│  │   mre-app    │      │  ingestion-  │                    │
-│  │  (Next.js)   │      │   service    │                    │
-│  │   Port 3001  │      │  (FastAPI)   │                    │
-│  │              │      │   Port 8000  │                    │
-│  └──────┬───────┘      └──────┬───────┘                    │
-│         │                     │                             │
-│         └──────────┬──────────┘                             │
-│                    │                                        │
-│         ┌──────────▼──────────┐                            │
-│         │   mre-postgres      │                            │
-│         │   (PostgreSQL 16)   │                            │
-│         │   Port 5432         │                            │
-│         └─────────────────────┘                            │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│     Docker network: my-race-engineer_mre-network (Compose: mre-network)   │
+│                                                                            │
+│  ┌─────────────┐  ┌──────────────────────────┐  ┌─────────────────────┐   │
+│  │  mre-app    │  │ mre-liverc-ingestion-     │  │ mre-telemetry-      │   │
+│  │  Next.js    │  │ service (FastAPI)         │  │ worker              │   │
+│  │  :3001      │  │  :8000                    │  │  (no host port)     │   │
+│  └──────┬──────┘  └────────────┬────────────┘  └──────────┬──────────┘   │
+│         │            │                     │                   │            │
+│         └────────────┼─────────────────────┼───────────────────┘            │
+│                      │                     │                                │
+│         ┌────────────▼────────────┐  ┌─────▼──────────────┐                │
+│         │ mre-postgres            │  │ mre-clickhouse     │                │
+│         │ PostgreSQL 16 :5432      │  │ HTTP :8123         │                │
+│         └───────────────────────┘  └────────────────────┘                │
+│                                                                            │
+│  Shared volume: telemetry uploads (app + ingestion + worker)              │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Service Overview
 
-| Service           | Container Name                 | Port | Technology           | Purpose                        |
-| ----------------- | ------------------------------ | ---- | -------------------- | ------------------------------ |
-| Next.js App       | `mre-app`                      | 3001 | Node.js 20, Next.js  | Web application and API server |
-| Ingestion Service | `mre-liverc-ingestion-service` | 8000 | Python 3.11, FastAPI | LiveRC data ingestion          |
-| Database          | `mre-postgres`                 | 5432 | PostgreSQL 16        | Data persistence               |
+| Service / Compose key      | Container name                 | Default host port | Technology / role                               |
+| -------------------------- | ------------------------------ | ----------------- | ----------------------------------------------- |
+| `app`                      | `mre-app`                      | 3001              | Node.js 20, Next.js — UI and API                |
+| `postgres`                 | `mre-postgres`                 | 5432              | PostgreSQL 16                                   |
+| `liverc-ingestion-service` | `mre-liverc-ingestion-service` | 8000              | Python 3.11, FastAPI — ingestion HTTP API       |
+| `telemetry-worker`         | `mre-telemetry-worker`         | _none_            | Same image as ingestion; telemetry batch worker |
+| `clickhouse`               | `mre-clickhouse`               | 8123 (HTTP)       | ClickHouse 24.8 — optional telemetry cache      |
 
 ### Network Architecture
 
-All containers communicate through a Docker bridge network:
+All containers communicate through a Docker **user-defined bridge** network:
 
-- **Network Name:** `my-race-engineer_mre-network`
-- **Type:** External bridge network
+- **Network Name:** `my-race-engineer_mre-network` (Compose file key
+  `mre-network`)
+- **Created by:** `docker compose up` for this project (unless pre-created)
 - **Purpose:** Service discovery and inter-container communication
-- **Persistence:** Network persists between container restarts
+- **Persistence:** The network object persists on the Docker host until removed;
+  Compose reuses `my-race-engineer_mre-network` when it already exists.
 
 **Service Discovery:**
 
@@ -1424,16 +1435,17 @@ docker stats
 ### File Locations
 
 - **Docker Compose:** `docker-compose.yml`
+- **Build and runtime inventory:**
+  [`build-runtime-reference.md`](./build-runtime-reference.md)
 - **Next.js Dockerfile:** `Dockerfile`
-- **Next.js Entrypoint Script:** `docker-entrypoint.sh`
+- **Next.js entrypoint:** `docker-entrypoint.sh`
 - **Ingestion Dockerfile:** `ingestion/Dockerfile`
-- **Environment Variables:** `.env.docker`
-- **Docker Review:** `docs/reviews/DOCKER_REVIEW_REPORT.md`
+- **Environment file (Compose):** `.env.docker`
 
 ### Related Documentation
 
-- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker evaluation
-  and review
+- [Build and runtime reference](./build-runtime-reference.md) — service list
+  aligned with `docker-compose.yml`
 - [Quick Start Guide](../development/quick-start.md) - Developer onboarding
 - [Deployment Guide](./deployment-guide.md) - Deployment procedures
 - [Environment Variables](./environment-variables.md) - Complete environment
@@ -1445,51 +1457,42 @@ docker stats
 
 ```yaml
 services:
-  app: # Next.js application
-    build: ...
-    ports: ...
-    volumes: ...
-    networks: ...
-    healthcheck: ...
-
-  liverc-ingestion-service: # Python ingestion service
-    build: ...
-    ports: ...
-    volumes: ...
-    networks: ...
-    healthcheck: ...
+  postgres: # PostgreSQL 16
+  app: # Next.js (development target)
+  liverc-ingestion-service: # FastAPI ingestion API
+  telemetry-worker: # Telemetry pipeline worker (custom entrypoint)
+  clickhouse: # Optional ClickHouse
 
 networks:
-  mre-network: # Shared network
-    driver: bridge
+  mre-network:
     name: my-race-engineer_mre-network
 ```
+
+(Elided: `build`, `ports`, `volumes`, `healthcheck`; see `docker-compose.yml`.)
 
 ### Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              Docker Network: mre-network                    │
-│                                                              │
-│  ┌──────────────┐      ┌──────────────┐                    │
-│  │   mre-app    │      │  ingestion-  │                    │
-│  │  (Next.js)   │      │   service    │                    │
-│  │   Port 3001  │      │  (FastAPI)   │                    │
-│  │              │      │   Port 8000  │                    │
-│  │  Volumes:    │      │              │                    │
-│  │  - ./src     │      │  Volumes:    │                    │
-│  │  - ./public  │      │  - ./ingestion│                  │
-│  └──────┬───────┘      └──────┬───────┘                    │
-│         │                     │                             │
-│         └──────────┬──────────┘                             │
-│                    │                                        │
-│         ┌──────────▼──────────┐                            │
-│         │   mre-postgres      │                            │
-│         │   (PostgreSQL 16)   │                            │
-│         │   Port 5432         │                            │
-│         └─────────────────────┘                            │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│     Docker network (Compose: mre-network / my-race-engineer_mre-network)   │
+│                                                                            │
+│  ┌──────────────┐      ┌───────────────────────┐      ┌────────────────┐ │
+│  │   mre-app    │      │ mre-liverc-ingestion-  │      │ mre-telemetry- │ │
+│  │  (Next.js)   │      │ service (FastAPI)      │      │ worker         │ │
+│  │   Port 3001  │      │  Port 8000             │      │  (internal)    │ │
+│  │  Volumes:    │      │  Volumes: ingestion,    │      │  Volumes:      │ │
+│  │  project → /app     │  docs/reports, uploads │      │  uploads       │ │
+│  └──────┬───────┘      └───────────┬───────────┘      └────────┬───────┘ │
+│         │                         │                             │          │
+│         └─────────────────────────┼─────────────────────────────┘          │
+│                                   │                                        │
+│         ┌─────────────────────────▼──────────────────────────┐            │
+│         │ mre-postgres (PostgreSQL 16) :5432                   │            │
+│         └──────────────────────────────────────────────────────┘            │
+│         ┌──────────────────────────────────────────────────────┐            │
+│         │ mre-clickhouse (HTTP) :8123                             │            │
+│         └──────────────────────────────────────────────────────┘            │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -1499,19 +1502,23 @@ networks:
 This guide provides comprehensive documentation for the MRE Docker environment.
 Key takeaways:
 
-1. **Architecture:** Three-container setup (Next.js app, Python ingestion
-   service, PostgreSQL database) on shared Docker network
-2. **Development:** Hot reload enabled, source code mounted as volumes, easy
-   debugging
-3. **Production:** Multi-stage builds, optimized images, security best practices
+1. **Architecture:** Multi-service Compose stack (Next.js app, PostgreSQL,
+   ingestion API, telemetry worker, ClickHouse, shared telemetry upload volume)
+   on the user-defined bridge network `my-race-engineer_mre-network`
+2. **Development:** Hot reload enabled (app / ingestion dev targets), source
+   mounted as volumes, `docker-entrypoint.sh` installs Node deps and runs
+   migrations when appropriate
+3. **Production:** Multi-stage `Dockerfile` targets for the Next.js image;
+   ingestion build target may differ (`INGESTION_BUILD_TARGET`)
 4. **Operations:** Standard Docker Compose commands for daily operations
-5. **Troubleshooting:** Common issues and solutions documented
+5. **Troubleshooting:** Common issues and solutions documented in this guide
 
 For specific questions or advanced scenarios, refer to:
 
-- Docker Review Report for architectural evaluation
-- Deployment Guide for production deployment
-- Environment Variables Guide for configuration details
+- [`build-runtime-reference.md`](./build-runtime-reference.md) for the exact
+  service matrix from `docker-compose.yml`
+- [Deployment Guide](./deployment-guide.md) for production deployment
+- [Environment Variables](./environment-variables.md) for configuration details
 
 ---
 

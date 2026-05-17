@@ -56,7 +56,8 @@ import MultiMainOverallCard from "./MultiMainOverallCard"
 import MainBracketResultsTable from "./MainBracketResultsTable"
 import SessionRaceResultsTable from "./SessionRaceResultsTable"
 import DriverBumpUpsTable, { type BumpUpRowWithClass } from "./sessions/DriverBumpUpsTable"
-import DriverProgressionTable from "./DriverProgressionTable"
+import DriverMainLadderProgressionPanel from "./DriverMainLadderProgressionPanel"
+import MainBracketLadderPanel from "./MainBracketLadderPanel"
 import { getSessionsForBumpUpInference } from "@/core/events/get-sessions-data"
 import { inferBumpUpsFromSessions } from "@/core/events/infer-bump-ups"
 import {
@@ -203,6 +204,11 @@ export interface OverviewTabProps {
   onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
   /** Renders above the “Event details” heading (e.g. dashboard tab strip for Event Overview tabs). */
   toolbarAboveEventDetails?: ReactNode
+  /**
+   * When true with `event-analysis-only` / `session-analysis-only`, root tabpanel is owned by the
+   * Analysis primary tab (`tabpanel-analysis` / `tab-analysis`) instead of Event/Session tab ids.
+   */
+  analysisDispatchFromPrimaryTab?: boolean
 }
 
 type OverviewPrimarySection = "event-overview" | "session-analysis" | "event-analysis"
@@ -234,6 +240,7 @@ export default function OverviewTab({
   analysisSubTab: analysisSubTabProp,
   onAnalysisSubTabChange,
   toolbarAboveEventDetails,
+  analysisDispatchFromPrimaryTab = false,
 }: OverviewTabProps) {
   const lastLoggedMissingState = useRef<string | null>(null)
   const lastLoggedUnselectedInClassState = useRef<string | null>(null)
@@ -288,6 +295,9 @@ export default function OverviewTab({
     useState<string | null>(null)
   const classFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
   const liveRcSessionNavChipRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const [eventLevelDriverProgressionClass, setEventLevelDriverProgressionClass] = useState<
+    string | null
+  >(null)
 
   useEffect(() => {
     if (isControlledAnalysisSubTab) return
@@ -296,6 +306,10 @@ export default function OverviewTab({
 
   useEffect(() => {
     queueMicrotask(() => setEventTaxonomyNodeFilter(null))
+  }, [data.event.id])
+
+  useEffect(() => {
+    queueMicrotask(() => setEventLevelDriverProgressionClass(null))
   }, [data.event.id])
 
   useEffect(() => {
@@ -760,6 +774,17 @@ export default function OverviewTab({
     () => buildDriverMainEventProgressionMatrix(data, selectedClass),
     [data, selectedClass]
   )
+
+  const eventLevelDriverProgressionClassNames = driverProgressionClassNames
+
+  const resolvedEventLevelDriverProgressionClass = useMemo(() => {
+    if (eventLevelDriverProgressionClass) return eventLevelDriverProgressionClass
+    const fromSelected = selectedClass?.trim()
+    if (fromSelected && eventLevelDriverProgressionClassNames.includes(fromSelected)) {
+      return fromSelected
+    }
+    return null
+  }, [eventLevelDriverProgressionClass, selectedClass, eventLevelDriverProgressionClassNames])
 
   const hasDriverProgressionClassSelected =
     hasBumpUpsClassSelected &&
@@ -2186,16 +2211,22 @@ export default function OverviewTab({
   const eventOverviewToolbarTabId =
     variant === "event-overview-minimal" ? "tab-event-overview" : null
 
-  const tabPanelId =
-    variant === "event-overview-minimal"
+  const analysisPrimaryOwnsTabpanel =
+    analysisDispatchFromPrimaryTab &&
+    (variant === "event-analysis-only" || variant === "session-analysis-only")
+
+  const tabPanelId = analysisPrimaryOwnsTabpanel
+    ? "tabpanel-analysis"
+    : variant === "event-overview-minimal"
       ? "tabpanel-event-overview"
       : variant === "event-analysis-only"
         ? "tabpanel-event-analysis"
         : variant === "session-analysis-only"
           ? "tabpanel-session-analysis"
           : "tabpanel-overview"
-  const tabAriaLabelledBy =
-    variant === "event-overview-minimal"
+  const tabAriaLabelledBy = analysisPrimaryOwnsTabpanel
+    ? "tab-analysis"
+    : variant === "event-overview-minimal"
       ? "tab-event-overview"
       : variant === "event-analysis-only"
         ? "tab-event-analysis"
@@ -2204,7 +2235,18 @@ export default function OverviewTab({
           : "tab-overview"
 
   const eventAnalysisSectionToolbarTabId =
-    variant === "event-analysis-only" ? "tab-event-analysis" : "event-analysis-heading"
+    analysisPrimaryOwnsTabpanel && variant === "event-analysis-only"
+      ? "tab-analysis"
+      : variant === "event-analysis-only"
+        ? "tab-event-analysis"
+        : "event-analysis-heading"
+
+  const sessionAnalysisSectionToolbarTabId =
+    analysisPrimaryOwnsTabpanel && variant === "session-analysis-only"
+      ? "tab-analysis"
+      : variant === "session-analysis-only"
+        ? "tab-session-analysis"
+        : "session-analysis-heading"
 
   return (
     <div
@@ -2621,6 +2663,30 @@ export default function OverviewTab({
                 <th scope="row">Panel 2</th>
                 <td>Program overview placeholder region</td>
               </tr>
+              <tr>
+                <th scope="row">Panel 3</th>
+                <td>Session highlights placeholder region</td>
+              </tr>
+              <tr>
+                <th scope="row">Panel 4</th>
+                <td>Field and classes placeholder region</td>
+              </tr>
+              <tr>
+                <th scope="row">Panel 5</th>
+                <td>Pace trends placeholder region</td>
+              </tr>
+              <tr>
+                <th scope="row">Panel 6</th>
+                <td>Strategy overview placeholder region</td>
+              </tr>
+              <tr>
+                <th scope="row">Panel 7</th>
+                <td>Weather and track placeholder region</td>
+              </tr>
+              <tr>
+                <th scope="row">Panel 8</th>
+                <td>Incidents and penalties placeholder region</td>
+              </tr>
             </tbody>
           </table>
           <div
@@ -2632,12 +2698,9 @@ export default function OverviewTab({
             <h2 id="event-analysis-subview-heading" className={typography.h4}>
               Event Level Analysis
             </h2>
-            <div
-              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
-              role="presentation"
-            >
+            <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
               <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                className={`flex min-h-0 min-w-0 flex-col items-stretch gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
                 style={OVERVIEW_GLASS_SURFACE_STYLE}
                 aria-labelledby="event-level-analysis-col-1-heading"
               >
@@ -2645,12 +2708,22 @@ export default function OverviewTab({
                   id="event-level-analysis-col-1-heading"
                   className={typography.overviewSectionCardTitle}
                 >
-                  Event metrics
+                  Mains Ladder
                 </h3>
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for event-level metrics. Content will be added here.
-                </p>
+                <div className="w-full min-w-0">
+                  <MainBracketLadderPanel
+                    data={data}
+                    classOptions={eventLevelDriverProgressionClassNames}
+                    resolvedClassName={resolvedEventLevelDriverProgressionClass}
+                    onClassNameChange={setEventLevelDriverProgressionClass}
+                  />
+                </div>
               </section>
+            </div>
+            <div
+              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
+              role="presentation"
+            >
               <section
                 className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
                 style={OVERVIEW_GLASS_SURFACE_STYLE}
@@ -2664,6 +2737,182 @@ export default function OverviewTab({
                 </h3>
                 <p className={`${typography.bodySecondary} max-w-prose text-center`}>
                   Placeholder container for program / session mix. Content will be added here.
+                </p>
+              </section>
+            </div>
+            <div
+              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
+              role="presentation"
+            >
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="event-level-analysis-col-3-heading"
+              >
+                <h3
+                  id="event-level-analysis-col-3-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Session highlights
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for per-session summaries and notable performances. Content
+                  will be added here.
+                </p>
+              </section>
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="event-level-analysis-col-4-heading"
+              >
+                <h3
+                  id="event-level-analysis-col-4-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Field and classes
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for entry composition and class-level views. Content will be
+                  added here.
+                </p>
+              </section>
+            </div>
+            <div
+              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
+              role="presentation"
+            >
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="event-level-analysis-col-5-heading"
+              >
+                <h3
+                  id="event-level-analysis-col-5-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Pace trends
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for lap-time progression, consistency bands, and segment
+                  deltas. Content will be added here.
+                </p>
+              </section>
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="event-level-analysis-col-6-heading"
+              >
+                <h3
+                  id="event-level-analysis-col-6-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Strategy overview
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for pit timing, stint lengths, and position-trade context.
+                  Content will be added here.
+                </p>
+              </section>
+            </div>
+            <div
+              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
+              role="presentation"
+            >
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="event-level-analysis-col-7-heading"
+              >
+                <h3
+                  id="event-level-analysis-col-7-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Weather and track
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for ambient conditions, track evolution, and rubber-in
+                  context. Content will be added here.
+                </p>
+              </section>
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="event-level-analysis-col-8-heading"
+              >
+                <h3
+                  id="event-level-analysis-col-8-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Incidents and penalties
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for on-track incidents, race-control actions, and penalty
+                  summaries. Content will be added here.
+                </p>
+              </section>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {variant === "session-analysis-only" && (
+        <section className="space-y-4" aria-labelledby={sessionAnalysisSectionToolbarTabId}>
+          <table className="sr-only">
+            <caption>Session level analysis panels</caption>
+            <tbody>
+              <tr>
+                <th scope="row">Panel 1</th>
+                <td>Session metrics placeholder region</td>
+              </tr>
+              <tr>
+                <th scope="row">Panel 2</th>
+                <td>Session scope placeholder region</td>
+              </tr>
+            </tbody>
+          </table>
+          <div
+            id={sessionAnalysisSectionContentId}
+            role="tabpanel"
+            aria-labelledby={sessionAnalysisSectionToolbarTabId}
+            className="space-y-5"
+          >
+            <h2 id="session-analysis-subview-heading" className={typography.h4}>
+              Session Level Analysis
+            </h2>
+            <div
+              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
+              role="presentation"
+            >
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="session-level-analysis-col-1-heading"
+              >
+                <h3
+                  id="session-level-analysis-col-1-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Session metrics
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for session-level timing, pace, and consistency. Content
+                  will be added here.
+                </p>
+              </section>
+              <section
+                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                style={OVERVIEW_GLASS_SURFACE_STYLE}
+                aria-labelledby="session-level-analysis-col-2-heading"
+              >
+                <h3
+                  id="session-level-analysis-col-2-heading"
+                  className={typography.overviewSectionCardTitle}
+                >
+                  Session scope
+                </h3>
+                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                  Placeholder container for class/program context and results for the selected
+                  session. Content will be added here.
                 </p>
               </section>
             </div>
@@ -2936,7 +3185,14 @@ export default function OverviewTab({
                           rounds for that class.
                         </p>
                       ) : (
-                        <DriverProgressionTable matrix={driverProgressionMatrix} />
+                        <DriverMainLadderProgressionPanel
+                          eventId={data.event.id}
+                          matrix={driverProgressionMatrix}
+                          classOptions={driverProgressionClassNames}
+                          resolvedClassName={selectedClass}
+                          onClassNameChange={handleSessionClassChipClick}
+                          hasLadderClasses={driverProgressionClassNames.length > 0}
+                        />
                       )}
                     </div>
                   </div>
@@ -3166,15 +3422,8 @@ export default function OverviewTab({
             )}
         </section>
       )}
-      {showSessionAnalysisSectionBlock && (
-        <section
-          className="space-y-3"
-          aria-labelledby={
-            variant === "session-analysis-only"
-              ? "tab-session-analysis"
-              : "session-analysis-heading"
-          }
-        >
+      {showSessionAnalysisSectionBlock && variant !== "session-analysis-only" && (
+        <section className="space-y-3" aria-labelledby={sessionAnalysisSectionToolbarTabId}>
           <div
             id={sessionAnalysisSectionContentId}
             role="tabpanel"

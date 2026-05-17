@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-12
+lastModified: 2026-05-16
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -326,7 +326,7 @@ Development guides, testing strategies, and contributing guidelines.
 ### [Developer Quick Start Guide](development/quick-start.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-29
+**Last Updated:** 2026-05-16
 
 Step-by-step developer onboarding guide. Provides prerequisites, setup
 instructions, first-time workflow, running tests, useful commands, common setup
@@ -343,7 +343,7 @@ configuration.
 ### [Testing Strategy and Guidelines](development/testing-strategy.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-27
+**Last Updated:** 2026-05-16
 
 Comprehensive testing strategy for the MRE application. Defines testing pyramid,
 testing tools, test organization, testing patterns, frontend/backend/integration
@@ -407,6 +407,14 @@ Changed, Deprecated, Removed, Fixed, and Security.
 **Related:** See [API Versioning Strategy](api/versioning-strategy.md) for API
 versioning. See [Contributing Guidelines](development/CONTRIBUTING.md) for
 release process.
+
+### [Implementation plans (`docs/implimentation_plans/`)](implimentation_plans/README.md)
+
+**Status:** Active  
+**Last Updated:** 2026-05-16
+
+Index for time-bound implementation and remediation plans. Explains directory
+scope and the historical spelling of the folder name (`implimentation_plans`).
 
 ---
 
@@ -599,7 +607,7 @@ observability.
 ### [Docker User Guide](operations/docker-user-guide.md)
 
 **Status:** Complete  
-**Last Updated:** 2025-01-27
+**Last Updated:** 2026-05-16
 
 **Comprehensive Docker user guide** providing complete Docker architecture
 documentation, setup instructions, usage guide, development workflow,
@@ -613,6 +621,16 @@ development workflow, troubleshooting, production considerations.
 **Related:** See [Quick Start Guide](development/quick-start.md) for developer
 onboarding. See [Deployment Guide](operations/deployment-guide.md) for
 deployment procedures.
+
+### [Build and runtime reference (Compose)](operations/build-runtime-reference.md)
+
+**Status:** Complete  
+**Last Updated:** 2026-05-16
+
+**Authoritative inventory** of `docker-compose.yml` services, container names,
+default ports, images/build targets, and shared volumes. Use this to verify that
+operational docs match the actual stack (including `telemetry-worker` and
+`clickhouse`).
 
 ### [Environment Variables Reference](operations/environment-variables.md)
 
@@ -734,7 +752,8 @@ Frontend-specific workflows and user experience documentation.
 ### [Component catalog](frontend/component-catalog.md)
 
 Build-aligned inventory of every production file under `src/components/`.
-Generate with `npm run docs:component-catalog` (see also
+Generate with  
+`docker exec -it mre-app npm run docs:component-catalog` (see also
 [`docs/reference/generated/README.md`](reference/generated/README.md)).
 
 ### [LiveRC User Workflow](frontend/liverc/user-workflow.md)

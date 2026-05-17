@@ -635,6 +635,12 @@ Comprehensive Docker user guide providing complete Docker architecture
 documentation, setup instructions, usage guide, development workflow,
 troubleshooting, and production considerations.
 
+### [Build and runtime reference (Compose)](../operations/build-runtime-reference.md)
+
+Authoritative inventory of `docker-compose.yml` services, default ports, and
+container names. Use this to verify operational documentation against the
+repository.
+
 ### [Deployment and DevOps Runbook](../operations/deployment-guide.md)
 
 Comprehensive deployment procedures and DevOps runbook. Includes pre-deployment

@@ -259,7 +259,10 @@ See:
 
 docs/operations/docker-user-guide.md (Docker architecture and usage guide)
 
-docs/reviews/DOCKER_REVIEW_REPORT.md (Docker review and evaluation)
+docs/operations/build-runtime-reference.md (Compose services, ports, and
+volumes)
+
+docs/README.md (documentation index and navigation)
 
 9. Role Documentation
 
@@ -290,11 +293,15 @@ handoffs, and success metrics.
 10. Directory Structure . ├── README.md ├── docs/ │ ├── specs/ │ │ ├──
     mre-v0.1-feature-scope.md │ │ └── mre-under-development-page.md │ ├──
     architecture/ │ │ ├── mobile-safe-architecture-guidelines.md │ │ └──
-    liverc-ingestion/ # LiveRC ingestion architecture (26 documents) │ ├──
+    liverc-ingestion/ # LiveRC ingestion architecture (30 documents) │ ├──
     design/ │ │ ├── mre-dark-theme-guidelines.md │ │ ├──
     mre-hero-image-generation.md │ │ └── mre-ux-principles.md │ ├── adr/ │ │ ├──
-    README.md │ │ └── ADR-\*.md (Architecture Decision Records) │ ├── reviews/ │
-    │ └── DOCKER_REVIEW_REPORT.md │ ├── reports/ # Operational reports (track
+    README.md │ │ └── ADR-\*.md (Architecture Decision Records) │ ├──
+    operations/ # Docker, deployment, environment, build-runtime-reference │ ├──
+    reviews/Old/
+
+    # Archived review documents │ ├── reports/ # Operational reports (track
+
     sync, UI reviews, etc.) │ ├── AGENTS.md # MRE Agents Handbook │ ├── roles/ │
     │ ├── devops-platform-engineer.md │ │ ├── documentation-knowledge-steward.md
     │ │ ├── nextjs-front-end-engineer.md │ │ ├──

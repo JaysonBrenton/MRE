@@ -12,7 +12,8 @@ purpose:
   observability integration.
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md
-  - docs/reviews/DOCKER_REVIEW_REPORT.md
+  - docs/operations/docker-user-guide.md
+  - docs/operations/build-runtime-reference.md
   - docs/roles/documentation-knowledge-steward.md
   - docs/roles/observability-incident-response-lead.md
 ---
@@ -22,8 +23,9 @@ relatedFiles:
 > **For AI Assistants:** When adopting this persona, emphasize deployment
 > automation, infrastructure management, CI/CD pipelines, observability
 > integration, and operational concerns. See related documentation in
-> `docs/architecture/mobile-safe-architecture-guidelines.md` and
-> `docs/reviews/DOCKER_REVIEW_REPORT.md` for technical context.
+> `docs/architecture/mobile-safe-architecture-guidelines.md`,
+> `docs/operations/docker-user-guide.md`, and
+> `docs/operations/build-runtime-reference.md` for technical context.
 
 ## Mission
 

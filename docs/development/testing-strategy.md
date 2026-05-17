@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-16
 description: Comprehensive testing strategy and guidelines for MRE application
 purpose:
   Defines the testing pyramid, testing tools, patterns, best practices, and
@@ -16,7 +16,7 @@ relatedFiles:
 
 # Testing Strategy and Guidelines
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2026-05-16  
 **Scope:** All testing across Next.js application and Python ingestion service
 
 This document defines the comprehensive testing strategy for the MRE
@@ -105,26 +105,35 @@ pytest -v
 
 ### Next.js Application
 
-**Placeholder:** Testing framework not yet implemented
+**Implemented stack:** **Vitest** for unit and integration-style tests,
+**Playwright** for end-to-end tests. See `package.json` scripts (`test`,
+`test:ui`, `test:coverage`, `test:e2e`, …).
 
-**Recommended Tools:**
+**Run in Docker** (project standard): `docker exec -it mre-app npm test`
 
-- **Unit Tests:** Vitest or Jest
-- **Component Tests:** React Testing Library
-- **E2E Tests:** Playwright or Cypress
-- **API Tests:** Supertest or similar
+**Test roots:**
 
-**Future Configuration:**
+- `src/__tests__/` — domain groups include `core/`, `api/`, `components/`,
+  `integration/`, `lib/`, `e2e/` (Playwright `*.spec.ts`), and `setup.ts`
+- Playwright config and browsers are dev dependencies; E2E runs in CI/the same
+  Docker workflow as other npm scripts
 
-```json
-{
-  "scripts": {
-    "test": "vitest",
-    "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage",
-    "test:e2e": "playwright test"
-  }
-}
+### Next.js Application (layout)
+
+`src/__tests__/` is organized by concern (not a strict `unit/` vs `integration/`
+split in folder names). Examples: `src/__tests__/core/auth/`,
+`src/__tests__/api/v1/`, `src/__tests__/e2e/`.
+
+```
+src/
+├── __tests__/
+│   ├── setup.ts
+│   ├── core/
+│   ├── api/
+│   ├── components/
+│   ├── e2e/          # Playwright specs (*.spec.ts)
+│   ├── integration/
+│   └── lib/
 ```
 
 ---
@@ -150,25 +159,6 @@ ingestion/
 │               ├── event.html
 │               ├── race.*.html
 │               └── metadata.json
-```
-
-### Next.js Application (Future)
-
-```
-src/
-├── __tests__/              # Test files (co-located or separate)
-│   ├── unit/
-│   │   ├── core/
-│   │   │   └── auth/
-│   │   │       └── register.test.ts
-│   │   └── lib/
-│   │       └── api-utils.test.ts
-│   ├── integration/
-│   │   └── api/
-│   │       └── v1/
-│   │           └── auth.test.ts
-│   └── e2e/
-│       └── auth-flow.spec.ts
 ```
 
 ---
@@ -502,7 +492,9 @@ vitest --coverage
 - Fixtures organized by event ID
 - Metadata files describe fixture contents
 - Telemetry fixtures in `ingestion/tests/fixtures/telemetry/` (synthetic CSV,
-  KML track templates). Generate with `ingestion/scripts/generate-telemetry-seed.py`. See [Telemetry Seed Data Guide](../telemetry/Design/Telemetry_Seed_Data_Guide.md)
+  KML track templates). Generate with
+  `ingestion/scripts/generate-telemetry-seed.py`. See
+  [Telemetry Seed Data Guide](../telemetry/Design/Telemetry_Seed_Data_Guide.md)
 
 **Next.js Application (Future):**
 

@@ -11,7 +11,8 @@ purpose:
 relatedFiles:
   - docker-compose.yml (container configuration)
   - Dockerfile (build configuration)
-  - docs/reviews/DOCKER_REVIEW_REPORT.md (Docker review)
+  - docs/operations/docker-user-guide.md (Docker architecture and operations)
+  - docs/operations/build-runtime-reference.md (Compose service inventory)
   - README.md (basic Docker setup)
   - prisma/migrations/ (migration files)
 ---
@@ -464,8 +465,10 @@ docker logs -f mre-postgres
 
 ## Related Documentation
 
-- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup
-  details
+- [Docker User Guide](./docker-user-guide.md) - Docker architecture and
+  workflows
+- [Build and runtime reference](./build-runtime-reference.md) - Compose services
+  and ports
 - [Environment Variables Reference](./environment-variables.md) - Configuration
 - [Quick Start Guide](../development/quick-start.md) - Development setup
 - [Observability Guide](./observability-guide.md) - Monitoring and logging

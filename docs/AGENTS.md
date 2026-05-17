@@ -7,6 +7,7 @@ purpose:
 relatedDocs:
   - README.md
   - docs/specs/mre-v0.1-feature-scope.md
+  - docs/operations/build-runtime-reference.md
   - docs/architecture/
   - docs/operations/
   - docs/roles/
@@ -87,11 +88,12 @@ ENVIRONMENT.**
   planned/not-implemented. Architecture and ops documents still outrank ad-hoc
   code comments for **design intent**, but shipped behavior is proven by code,
   tests, and manifests.
-- **All Documentation in `docs/`** – **ALL documentation files must live under
-  `docs/`**. This includes reports, reviews, ADRs, architecture docs, operations
-  guides, and any other documentation. The only exception is `README.md` at the
-  root, which serves as the entry point. Any documentation found outside `docs/`
-  must be moved there.
+- **All Documentation in `docs/`** – **ALL product documentation files must live
+  under `docs/`**. This includes reports, reviews, ADRs, architecture docs,
+  operations guides, and runbooks. The primary entry point is `README.md` at the
+  repository root. Short operational README files may exist next to code (for
+  example `ingestion/README.md`) for package or tooling context and must link to
+  `docs/` for full specifications. Avoid growing ad-hoc docs outside `docs/`.
 - **Folder Contracts** – Next.js logic lives under `src/`, Python ingestion
   under `ingestion/`, and all knowledge artifacts under `docs/`. Do not
   cross-contaminate.
@@ -108,12 +110,12 @@ ENVIRONMENT.**
 ### 2.1 Frontend Delivery Agent (Next.js + TypeScript)
 
 - **Scope**: All UI, API routes, and domain logic inside the Next.js app
-  (`src/app`, `src/core`, `src/api`).
+  (`src/app`, including `src/app/api/`, and `src/core`).
 - **Primary References**:
   `docs/architecture/mobile-safe-architecture-guidelines.md`,
   `docs/architecture/atomic-design-system.md`,
   `docs/design/mre-dark-theme-guidelines.md`,
-  `docs/design/mre-mobile-ux-guidelines.md`. For shared or persisted UI state:
+  `docs/design/mre-ux-principles.md`. For shared or persisted UI state:
   `docs/architecture/search-feature.md`, `src/store/` (slices and hooks).
 - **Rules**:
   - Never access Prisma directly from React components; use
@@ -166,8 +168,9 @@ ENVIRONMENT.**
 ### 2.3 DevOps / Platform Agent
 
 - **Scope**: Docker images, orchestration scripts, and environment bootstrapping
-  (see `Dockerfile`, `docker-compose.yml`, `dc/`,
-  `docs/operations/docker-user-guide.md`).
+  (see `Dockerfile`, `docker-compose.yml`, root `dc` helper script,
+  `docs/operations/docker-user-guide.md`,
+  `docs/operations/build-runtime-reference.md`).
 - **Tasks**:
   - Keep container entrypoints in sync with cron scripts.
   - Ensure Playwright dependencies exist in the ingestion container (per
@@ -231,8 +234,10 @@ ENVIRONMENT.**
       `docs/operations/liverc-operations-guide.md`.
 - [ ] Study the role profile closest to your responsibilities
       (`docs/roles/*.md`).
-- [ ] Run `npm test` / `pytest` (see `package.json` and `ingestion/README.md`)
-      to ensure a green baseline.
+- [ ] Run the baseline test suites in Docker (see `package.json` and
+      `ingestion/README.md`), for example:  
+       `docker exec -it mre-app npm test` and  
+       `docker exec -it mre-liverc-ingestion-service pytest`
 
 Adhering to this handbook keeps multi-agent work predictable, auditable, and
 aligned with the version 0.1.1 release objectives.

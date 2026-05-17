@@ -466,8 +466,10 @@ PRACTICE_DAY_DETAIL_CONCURRENCY=3
 **Default:** `600` (10 minutes)  
 **Environment:** Python ingestion service
 
-TTL for the in-memory cache of discovered practice days per (track_slug, year, month).
-Repeat requests for the same track and month within the TTL are served from cache without re-scraping LiveRC, improving performance for repeat searches.
+TTL for the in-memory cache of discovered practice days per (track_slug, year,
+month). Repeat requests for the same track and month within the TTL are served
+from cache without re-scraping LiveRC, improving performance for repeat
+searches.
 
 **Example:**
 
@@ -484,7 +486,8 @@ PRACTICE_DISCOVER_CACHE_TTL_SECONDS=600
 **Default:** `15`  
 **Environment:** Python ingestion service
 
-Timeout for fetching the practice month view from LiveRC. Prevents one slow month from blocking the whole discover.
+Timeout for fetching the practice month view from LiveRC. Prevents one slow
+month from blocking the whole discover.
 
 **Example:**
 
@@ -501,7 +504,8 @@ PRACTICE_DISCOVER_MONTH_VIEW_TIMEOUT_SECONDS=15
 **Default:** `25`  
 **Environment:** Python ingestion service
 
-Timeout for each practice day overview fetch within a month. Prevents one slow day from dominating latency.
+Timeout for each practice day overview fetch within a month. Prevents one slow
+day from dominating latency.
 
 **Example:**
 
@@ -851,8 +855,9 @@ See [Development](#development) section above for complete example.
 
 ## Related Documentation
 
-- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup and
-  configuration
+- [Docker User Guide](./docker-user-guide.md) - Docker setup and configuration
+- [Build and runtime reference](./build-runtime-reference.md) - Compose defaults
+  and service wiring
 - [Deployment Guide](./deployment-guide.md) - Production deployment procedures
 - [Security Overview](../security/security-overview.md) - Security best
   practices

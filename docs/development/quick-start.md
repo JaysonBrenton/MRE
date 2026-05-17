@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-29
+lastModified: 2026-05-16
 description: Step-by-step developer onboarding guide for MRE application
 purpose:
   Provides a comprehensive quick start guide for new developers, including
@@ -9,14 +9,15 @@ purpose:
   Accelerates developer onboarding and reduces setup friction.
 relatedFiles:
   - README.md (project overview and basic setup)
-  - docs/reviews/DOCKER_REVIEW_REPORT.md (Docker setup details)
+  - docs/operations/docker-user-guide.md (Docker setup and workflows)
+  - docs/operations/build-runtime-reference.md (Compose services and ports)
   - docs/operations/environment-variables.md (environment configuration)
   - docs/operations/liverc-operations-guide.md (operational commands)
 ---
 
 # Developer Quick Start Guide
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2026-05-16  
 **Target Audience:** New developers joining the MRE project
 
 This guide provides step-by-step instructions for setting up the MRE development
@@ -89,32 +90,36 @@ git clone <repository-url>
 cd mre
 ```
 
-### Step 2: Verify Docker Network
+### Step 2: Docker network (usually automatic)
 
-The application requires a Docker network named `my-race-engineer_mre-network`.
-Check if it exists:
+`docker-compose.yml` declares a user-defined bridge network named
+`my-race-engineer_mre-network`. Running **`docker compose up`** creates this
+network if it does not exist.
+
+To verify or pre-create:
 
 ```bash
 docker network ls | grep my-race-engineer_mre-network
 ```
 
-If it doesn't exist, create it:
+If you need to create it manually (uncommon):
 
 ```bash
 docker network create my-race-engineer_mre-network
 ```
 
-### Step 3: Verify PostgreSQL Container
+### Step 3: PostgreSQL (via Compose)
 
-The application connects to an existing PostgreSQL container named
-`mre-postgres` on the network. Verify it exists:
+The **`postgres`** service in `docker-compose.yml` defines container
+`mre-postgres`. You do **not** need a separately provisioned Postgres instance
+for the standard dev stack: start the full project with `docker compose up -d`
+and wait until Postgres passes its health check.
+
+To verify after startup:
 
 ```bash
 docker ps -a | grep mre-postgres
 ```
-
-If the container doesn't exist, you'll need to set it up. See
-[Common Setup Issues](#common-setup-issues) for PostgreSQL setup instructions.
 
 ### Step 4: Configure Environment Variables
 
@@ -151,7 +156,8 @@ installs dependencies.
 
 ### Start All Services
 
-Start the Next.js application and Python ingestion service:
+Start the full Compose stack (Next.js app, PostgreSQL, ingestion API, telemetry
+worker, ClickHouse, and shared volumes):
 
 ```bash
 docker compose up -d
@@ -167,10 +173,18 @@ Check container status:
 docker compose ps
 ```
 
-You should see:
+You should see (names from `docker-compose.yml`):
 
-- `mre-app` - Next.js application (port 3001)
-- `mre-liverc-ingestion-service` - Python ingestion service (port 8000)
+- `mre-postgres` — PostgreSQL 16
+- `mre-app` — Next.js (host port 3001 by default)
+- `mre-liverc-ingestion-service` — ingestion HTTP API (host port 8000 by
+  default)
+- `mre-telemetry-worker` — telemetry pipeline worker (no published port)
+- `mre-clickhouse` — ClickHouse (host port 8123 by default)
+
+See
+[`docs/operations/build-runtime-reference.md`](../operations/build-runtime-reference.md)
+for a full service table.
 
 ### View Logs
 
@@ -200,12 +214,16 @@ Verify the application is healthy:
 curl http://localhost:3001/api/v1/health
 ```
 
-Expected response:
+Expected response shape (mobile-safe API envelope; `timestamp` is ISO 8601):
 
 ```json
 {
-  "status": "ok",
-  "timestamp": "2025-01-27T00:00:00.000Z"
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "timestamp": "2026-05-16T12:00:00.000Z"
+  },
+  "message": "Service is healthy"
 }
 ```
 
@@ -227,25 +245,16 @@ docker compose down -v
 
 ## First-Time Developer Workflow
 
-### 1. Run Database Migrations
+### 1. Database migrations
 
-If this is your first setup, run Prisma migrations:
+The app container entrypoint (`docker-entrypoint.sh`) runs
+**`npx prisma migrate deploy`** on startup when `DATABASE_URL` is set, so
+migrations are usually applied automatically.
 
-```bash
-# Enter the Next.js container
-docker exec -it mre-app sh
-
-# Run migrations
-npx prisma migrate deploy
-
-# Exit container
-exit
-```
-
-Or run migrations locally (if Node.js is installed):
+To run migrations manually (for example after pulling new migration files):
 
 ```bash
-npx prisma migrate deploy
+docker exec -it mre-app npx prisma migrate deploy
 ```
 
 ### 2. Seed the Database (Optional)
@@ -344,21 +353,22 @@ docker exec -it mre-liverc-ingestion-service pytest --cov=ingestion
 **Note:** Local Python setup is optional. Docker execution is recommended for
 consistency.
 
-### Next.js Application Tests
+### Next.js application tests (Vitest)
 
-**Placeholder:** Frontend and backend tests for Next.js application are not yet
-implemented.
+Tests live under `src/__tests__/` and are executed with **Vitest** (`npm test`
+in `package.json`). Run them inside the app container:
 
-When tests are added:
+```bash
+docker exec -it mre-app npm test
+```
 
-- Unit tests: `npm test`
-- Unit tests with UI: `npm run test:ui`
-- Test coverage: `npm run test:coverage`
-- E2E tests: `npm run test:e2e`
-- E2E tests with UI: `npm run test:e2e:ui`
-- E2E tests (headed): `npm run test:e2e:headed`
+Other scripts (`npm run test:ui`, `npm run test:coverage`, Playwright E2E) also
+run in the container the same way. See `docs/development/testing-strategy.md`
+for conventions.
 
-See `docs/development/testing-strategy.md` for testing guidelines.
+**Note:** The repository’s standard workflow is Docker-only (`docs/AGENTS.md`).
+Running `npm test` on the host is not supported for troubleshooting the shipping
+environment.
 
 ---
 
@@ -411,19 +421,18 @@ docker exec -it mre-app npx prisma migrate reset
 
 ### Development Scripts
 
+The project runs **inside Docker** (`docs/AGENTS.md`). On the host,
+**`npm run dev` is not the supported workflow**; the `mre-app` container
+executes `npm run dev` via its image `CMD` after `docker-entrypoint.sh`.
+
+For occasional host-side IDE or tooling use only (optional):
+
 ```bash
-# Run development server (if running locally)
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Lint code
-npm run lint
+npm run dev   # Not the standard MRE workflow; use Docker for parity
 ```
+
+Production build commands similarly map to container workflows when needed for
+CI or debugging.
 
 ### Utility Scripts
 
@@ -548,11 +557,23 @@ curl -X POST http://localhost:3001/api/v1/events/[eventId]/ingest \
 docker network create my-race-engineer_mre-network
 ```
 
-### Issue: PostgreSQL Container Not Found
+### Issue: PostgreSQL container not running
 
 **Error:** `could not translate host name "mre-postgres" to address`
 
-**Solution:** Set up PostgreSQL container:
+**Solution:** Start the full stack so the `postgres` service is created on the
+Compose network:
+
+```bash
+docker compose up -d postgres
+# or
+docker compose up -d
+```
+
+The manual procedure below is only for **non-Compose** setups (advanced). Prefer
+Compose for development.
+
+#### Advanced: standalone Postgres (without Compose `postgres` service)
 
 ```bash
 docker run -d \
@@ -655,7 +676,7 @@ docker exec -it mre-app npx prisma generate
 1. Verify ingestion service is running:
 
    ```bash
-   docker ps | grep liverc-ingestion-service
+   docker ps | grep mre-liverc-ingestion-service
    ```
 
 2. Check ingestion service logs:
@@ -759,10 +780,12 @@ After completing setup:
 ## Related Documentation
 
 - [README.md](../../README.md) - Project overview and basic setup
+- [Build and runtime reference (Compose)](../operations/build-runtime-reference.md) -
+  Services, ports, and container names
+- [Docker user guide](../operations/docker-user-guide.md) - Docker architecture
+  and troubleshooting
 - [Environment Variables Reference](../operations/environment-variables.md) -
   Complete environment variable documentation
-- [Docker Review Report](../reviews/DOCKER_REVIEW_REPORT.md) - Docker setup
-  details
 - [LiveRC Operations Guide](../operations/liverc-operations-guide.md) -
   Operational commands
 - [Testing Strategy](./testing-strategy.md) - Testing guidelines
