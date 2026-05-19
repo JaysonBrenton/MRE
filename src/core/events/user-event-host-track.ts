@@ -3,6 +3,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import { deleteUserEventWeatherData } from "@/core/weather/repo"
 
 /** Stale Prisma singleton (pre-`prisma generate` / no restart) yields undefined here. */
 function userEventHostTrackModel() {
@@ -61,12 +62,14 @@ export async function upsertUserEventHostTrack(
     throw err
   }
 
-  return userEventHostTrackModel().upsert({
+  const row = await userEventHostTrackModel().upsert({
     where: { userId_eventId: { userId, eventId } },
     create: { userId, eventId, hostTrackId },
     update: { hostTrackId },
     include: { hostTrack: { select: TRACK_PICK_SELECT } },
   })
+  await deleteUserEventWeatherData(userId, eventId)
+  return row
 }
 
 export async function deleteUserEventHostTrack(userId: string, eventId: string): Promise<boolean> {
@@ -74,6 +77,7 @@ export async function deleteUserEventHostTrack(userId: string, eventId: string):
     await userEventHostTrackModel().delete({
       where: { userId_eventId: { userId, eventId } },
     })
+    await deleteUserEventWeatherData(userId, eventId)
     return true
   } catch {
     return false

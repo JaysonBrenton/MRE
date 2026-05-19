@@ -111,7 +111,7 @@ export default function ListPagination({
               id={pageSizeSelectId}
               value={itemsPerPage}
               onChange={handleRowsPerPageChange}
-              className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+              className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Rows per page"
             >
               {rowsPerPageOptions.map((option) => (
@@ -134,7 +134,7 @@ export default function ListPagination({
             type="button"
             onClick={handleFirst}
             disabled={currentPage === 1}
-            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
             aria-label="First page"
           >
             First
@@ -143,7 +143,7 @@ export default function ListPagination({
             type="button"
             onClick={handlePrev}
             disabled={currentPage === 1}
-            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
             aria-label="Previous page"
           >
             Previous
@@ -155,7 +155,7 @@ export default function ListPagination({
             type="button"
             onClick={handleNext}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
             aria-label="Next page"
           >
             Next
@@ -164,7 +164,7 @@ export default function ListPagination({
             type="button"
             onClick={handleLast}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            className="px-3 py-1 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
             aria-label="Last page"
           >
             Last

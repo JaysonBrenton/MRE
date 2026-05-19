@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-19
 description:
   Guide to the My Event Analysis dashboard shell (event selector + embedded
   analysis)
@@ -14,6 +14,7 @@ relatedFiles:
   - src/components/organisms/dashboard/DashboardClient.tsx
   - src/components/organisms/dashboard/EventAnalysisSection.tsx
   - docs/architecture/dashboard-architecture.md
+  - docs/architecture/event-analysis-mains-ladder.md
 ---
 
 # My Event Analysis dashboard
@@ -25,7 +26,10 @@ in Alpha v0.1.0. Instead it is a **workflow shell**:
 2. Let `EventAnalysisSection` hydrate Redux with `/api/v1/events/{eventId}`
    summary payloads.
 3. Work inside the scrolling analysis bands already described in
-   [Event Analysis guide](event-analysis.md).
+   [Event Analysis guide](event-analysis.md) (Overview vs **Analysis**,
+   including the **Analysis** menu routing to Event Level vs Session workspaces
+   and **Mains Ladder** — see
+   [`event-analysis-mains-ladder.md`](../architecture/event-analysis-mains-ladder.md)).
 
 Hero screenshot (same graphic used there for continuity):
 

@@ -54,7 +54,7 @@ export default function DriverCard({
             type="checkbox"
             checked={isSelected}
             onChange={(e) => onSelectionChange(driverId, e.target.checked)}
-            className="w-5 h-5 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] mt-0.5"
+            className="w-5 h-5 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] mt-0.5"
           />
           <div className="flex-1">
             <h3 className="font-medium text-[var(--token-text-primary)]">{driverName}</h3>

@@ -207,7 +207,7 @@ function LoginPageContent() {
                       setEmail(e.target.value)
                       clearFieldError("email")
                     }}
-                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     placeholder="you@example.com"
                     aria-invalid={Boolean(fieldErrors.email)}
                     aria-describedby={emailErrorId}
@@ -237,7 +237,7 @@ function LoginPageContent() {
                       setPassword(e.target.value)
                       clearFieldError("password")
                     }}
-                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     placeholder="••••••••"
                     aria-invalid={Boolean(fieldErrors.password)}
                     aria-describedby={passwordErrorId}
@@ -254,7 +254,7 @@ function LoginPageContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center items-center px-6 py-3 rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] active:opacity-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full flex justify-center items-center px-6 py-3 rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] active:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? "Signing in..." : "Sign in"}
                 </button>
@@ -266,7 +266,7 @@ function LoginPageContent() {
                 </span>
                 <Link
                   href="/register"
-                  className="font-medium text-[var(--token-text-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                  className="font-medium text-[var(--token-text-primary)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
                 >
                   Sign up
                 </Link>

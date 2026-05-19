@@ -3460,7 +3460,7 @@ export default function EventSearchContainer({
                     setResultFilter(filter)
                     setCurrentPage(1)
                   }}
-                  className={`min-h-[44px] min-w-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] ${
+                  className={`min-h-[44px] min-w-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
                     resultFilter === filter
                       ? "border-[var(--token-accent)] bg-[var(--token-accent)]/20 text-[var(--token-text-primary)]"
                       : "border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-[var(--token-text-secondary)] hover:bg-[var(--token-surface-raised)]"

@@ -246,7 +246,7 @@ export default function ChartColorPicker({
                 e.currentTarget.blur()
               }
             }}
-            className="w-20 px-2 py-1 text-sm rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+            className="w-20 px-2 py-1 text-sm rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
             placeholder="#000000"
             aria-label="Hex color code"
           />

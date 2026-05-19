@@ -154,7 +154,7 @@ export default function DriverNameFilter({
           onBlur={handleInputBlur}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full px-4 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+          className="w-full px-4 py-2 pr-8 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
           aria-label="Filter by driver name"
           aria-autocomplete="list"
           role="combobox"
@@ -165,7 +165,7 @@ export default function DriverNameFilter({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             aria-label="Clear filter"
           >
             <svg
@@ -198,7 +198,7 @@ export default function DriverNameFilter({
               key={suggestion}
               type="button"
               onClick={() => handleSuggestionClick(suggestion)}
-              className={`w-full text-left px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] ${
+              className={`w-full text-left px-3 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)] ${
                 index === highlightedIndex
                   ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)]"
                   : "text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)]"

@@ -18,7 +18,7 @@
 
 import { X } from "lucide-react"
 import type { CSSProperties } from "react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import EventSearchContainer, {
   type EventSearchTracksCatalog,
@@ -48,7 +48,17 @@ export default function EventSearchModal({
 }: EventSearchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
-  const { offset: dragOffset, isDragging, headerPointerDown } = useModalPanelDrag(isOpen, modalRef)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const {
+    offset: dragOffset,
+    isDragging,
+    headerPointerDown,
+  } = useModalPanelDrag(isOpen, modalRef, isFullscreen)
+
+  useEffect(() => {
+    if (isOpen) return
+    queueMicrotask(() => setIsFullscreen(false))
+  }, [isOpen])
 
   // Reset overlay scroll so the panel is not partially scrolled out of view (fixes clipped top on open)
   useEffect(() => {
@@ -118,20 +128,38 @@ export default function EventSearchModal({
   if (typeof document === "undefined") return null
 
   const panelMaxHeight = "min(92dvh, calc(100dvh - 7rem))"
-  const panelStyles: CSSProperties = {
-    ...getModalResizableContainerStyles(EVENT_SEARCH_MODAL_DEFAULT_WIDTH_REM),
-    height: `min(${EVENT_SEARCH_MODAL_DEFAULT_HEIGHT_REM}, ${panelMaxHeight})`,
-    resize: "both",
+  const fullscreenPanel: CSSProperties = {
+    width: "100%",
+    height: "100%",
+    maxWidth: "none",
+    minWidth: "20rem",
+    maxHeight: "none",
+    minHeight: 0,
+    boxSizing: "border-box",
+    flexShrink: 0,
     overflow: "hidden",
-    minHeight: "12rem",
-    maxHeight: panelMaxHeight,
-    transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+    resize: "none",
   }
+  const panelStyles: CSSProperties = isFullscreen
+    ? fullscreenPanel
+    : {
+        ...getModalResizableContainerStyles(EVENT_SEARCH_MODAL_DEFAULT_WIDTH_REM),
+        height: `min(${EVENT_SEARCH_MODAL_DEFAULT_HEIGHT_REM}, ${panelMaxHeight})`,
+        resize: "both",
+        overflow: "hidden",
+        minHeight: "12rem",
+        maxHeight: panelMaxHeight,
+        transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+      }
 
   return createPortal(
     <div
       ref={backdropRef}
-      className="fixed inset-0 flex min-h-full items-start justify-center overflow-y-auto overscroll-contain bg-black/75 px-4 pb-10 pt-10 sm:px-6 sm:pb-12 sm:pt-12"
+      className={`fixed inset-0 bg-black/75 ${
+        isFullscreen
+          ? "overflow-hidden"
+          : "flex min-h-full items-start justify-center overflow-y-auto overscroll-contain px-4 pb-10 pt-10 sm:px-6 sm:pb-12 sm:pt-12"
+      }`}
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
@@ -144,7 +172,9 @@ export default function EventSearchModal({
     >
       <div
         ref={modalRef}
-        className="min-h-0 shrink-0 bg-[var(--token-surface-raised)] rounded-lg shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)]"
+        className={`bg-[var(--token-surface-raised)] shadow-2xl flex flex-col border border-[var(--token-border-accent-soft)] ${
+          isFullscreen ? "h-full w-full min-h-0 rounded-none" : "min-h-0 shrink-0 rounded-lg"
+        }`}
         style={panelStyles}
       >
         {/* Header — drag handle (close button excluded via hook) */}
@@ -154,6 +184,13 @@ export default function EventSearchModal({
           }`}
           style={{ minWidth: 0, width: "100%", boxSizing: "border-box", touchAction: "none" }}
           onPointerDown={headerPointerDown}
+          onDoubleClick={(e) => {
+            const el = e.target as HTMLElement
+            if (el.closest("button, a, input, select, textarea")) return
+            e.preventDefault()
+            setIsFullscreen((v) => !v)
+          }}
+          title="Double-click to toggle full screen"
         >
           <h2
             id="event-search-modal-title"
@@ -165,7 +202,7 @@ export default function EventSearchModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 flex items-center justify-center text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md flex-shrink-0"
+            className="p-2 flex items-center justify-center text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md flex-shrink-0"
             aria-label="Close modal"
           >
             <X className="w-6 h-6" aria-hidden="true" />

@@ -463,7 +463,7 @@ export default function ComparisonTest({ selectedClass, eventId, data }: Compari
                         checked={isSelected}
                         onChange={() => handleDriverToggle(driver.driverId)}
                         disabled={isDisabled}
-                        className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-[var(--token-interactive-focus-ring)]"
+                        className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus-visible:ring-[var(--token-interactive-focus-ring)]"
                       />
                       <div
                         className="w-3 h-3 rounded-full flex-shrink-0"

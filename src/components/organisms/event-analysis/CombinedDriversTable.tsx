@@ -284,7 +284,7 @@ export default function CombinedDriversTable({
                   <button
                     type="button"
                     onClick={() => handleSort("driverName")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                   >
                     Driver Name
                     <SortIcon
@@ -298,7 +298,7 @@ export default function CombinedDriversTable({
                   <button
                     type="button"
                     onClick={() => handleSort("className")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                   >
                     Class
                     <SortIcon field="className" activeField={sortField} direction={sortDirection} />
@@ -309,7 +309,7 @@ export default function CombinedDriversTable({
                     <button
                       type="button"
                       onClick={() => handleSort("vehicleType")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Vehicle Type
                       <SortIcon
@@ -324,7 +324,7 @@ export default function CombinedDriversTable({
                   <button
                     type="button"
                     onClick={() => handleSort("transponderNumber")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                   >
                     Transponder
                     <SortIcon
@@ -338,7 +338,7 @@ export default function CombinedDriversTable({
                   <button
                     type="button"
                     onClick={() => handleSort("carNumber")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                   >
                     Car Number
                     <SortIcon field="carNumber" activeField={sortField} direction={sortDirection} />
@@ -348,7 +348,7 @@ export default function CombinedDriversTable({
                   <button
                     type="button"
                     onClick={() => handleSort("racesParticipated")}
-                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                   >
                     Races
                     <SortIcon
@@ -366,7 +366,7 @@ export default function CombinedDriversTable({
                     <button
                       type="button"
                       onClick={() => handleSort("bestLapTime")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Best Lap
                       <SortIcon
@@ -385,7 +385,7 @@ export default function CombinedDriversTable({
                     <button
                       type="button"
                       onClick={() => handleSort("avgLapTime")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Avg Lap
                       <SortIcon
@@ -404,7 +404,7 @@ export default function CombinedDriversTable({
                     <button
                       type="button"
                       onClick={() => handleSort("consistency")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Consistency
                       <SortIcon

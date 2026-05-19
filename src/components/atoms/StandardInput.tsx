@@ -51,7 +51,7 @@ const StandardInput = forwardRef<HTMLInputElement, StandardInputProps>(
         <input
           ref={ref}
           id={inputId}
-          className={`block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] ${error ? "border-[var(--token-status-error-text)]" : ""} ${className}`}
+          className={`block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${error ? "border-[var(--token-status-error-text)]" : ""} ${className}`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorIdFinal : undefined}
           {...props}

@@ -212,7 +212,7 @@ export default function LapTimeTrendCard({
           <button
             type="button"
             onClick={openChart}
-            className="w-full rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] hover:bg-[var(--token-surface-elevated)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] hover:bg-[var(--token-surface-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           >
             Compare trend chart
           </button>

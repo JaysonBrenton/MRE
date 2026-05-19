@@ -206,8 +206,8 @@ mobile-button flex items-center justify-center rounded-md
 - Background: `bg-[var(--token-surface-elevated)]`
 - Text: `text-[var(--token-text-primary)]`
 - Hover: `hover:bg-[var(--token-surface)]`
-- Focus:
-  `focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]`
+- Focus-visible (keyboard / assistive focus):
+  `focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]`
 - Transitions: `transition-colors`
 - Active state: `active:opacity-90` (optional, for form buttons)
 
@@ -219,7 +219,7 @@ mobile-button flex items-center justify-center rounded-md
 **Complete Standard Button Example:**
 
 ```tsx
-<button className="mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] sm:px-5">
+<button className="mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] sm:px-5">
   Button Text
 </button>
 ```

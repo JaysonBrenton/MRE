@@ -62,7 +62,7 @@ export default function ViewModeToggle({
         aria-label={`Switch to ${isDriverView ? rightLabel : leftLabel}`}
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] focus:ring-offset-[var(--token-surface)] ${
+        className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-all duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-[var(--token-surface)] ${
           isDriverView
             ? "bg-[var(--token-surface-elevated)] border-[var(--token-border-default)]"
             : "bg-[var(--token-accent)]/30 border-[var(--token-accent)]/50"

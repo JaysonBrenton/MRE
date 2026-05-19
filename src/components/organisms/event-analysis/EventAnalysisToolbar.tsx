@@ -25,8 +25,10 @@ export interface EventAnalysisToolbarProps {
   onTabChange: (tabId: TabId) => void
   analysisMenuSelectedId?: string
   onAnalysisMenuDispatch?: (id: AnalysisPrimarySubTabId) => void
-  /** Trailing column when set; sizes to show the full name (one line when it fits). */
-  eventTitle?: string | null
+  /** Event name for the trailing welcome column. */
+  eventName?: string | null
+  /** Track name for the trailing welcome column (user host venue when set, else event track). */
+  trackName?: string | null
   /** Stronger title treatment when Event Overview is active (page-scoped hierarchy). */
   titleEmphasis?: "default" | "page"
 }
@@ -37,28 +39,77 @@ const tabStripTrailingDividerClass = "w-px shrink-0 self-stretch bg-[var(--token
 const EVENT_OVERVIEW_STRIP_BOX_INNER_CLASS =
   "min-w-0 overflow-hidden rounded-2xl border border-[var(--glass-border)] bg-transparent shadow-none"
 
+/** Full accessibility / tooltip string (compact copy). */
+function formatToolbarWelcomeTitle(eventName: string, trackName: string): string {
+  if (trackName.length > 0) {
+    return `Welcome to the ${eventName} · ${trackName}`
+  }
+  return `Welcome to the ${eventName}`
+}
+
+const MIDDLE_ELLIPSIS_AT_CHARS = 72
+const MIDDLE_ELLIPSIS_DISPLAY_MAX_CHARS = 56
+const LONG_TITLE_TYPOGRAPHY_AT_CHARS = 52
+
+function ellipsizeMiddle(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text
+  const sep = " … "
+  const inner = maxLen - sep.length
+  if (inner < 12) {
+    return `${text.slice(0, Math.max(0, maxLen - 1))}…`
+  }
+  const edge = Math.floor(inner / 2)
+  return `${text.slice(0, edge)}${sep}${text.slice(-edge)}`
+}
+
 function EventAnalysisToolbarTitleContent({
-  eventTitle,
+  eventName,
+  trackName,
   titleEmphasis = "default",
-}: Pick<EventAnalysisToolbarProps, "eventTitle" | "titleEmphasis">) {
-  const trimmedTitle = eventTitle?.trim() ?? ""
-  if (trimmedTitle.length === 0) return null
+}: Pick<EventAnalysisToolbarProps, "eventName" | "trackName" | "titleEmphasis">) {
+  const trimmedEventName = eventName?.trim() ?? ""
+  if (trimmedEventName.length === 0) return null
+
+  const trimmedTrackName = trackName?.trim() ?? ""
+  const welcomeTitleFull = formatToolbarWelcomeTitle(trimmedEventName, trimmedTrackName)
+  const useMiddleEllipsis = welcomeTitleFull.length > MIDDLE_ELLIPSIS_AT_CHARS
+  const displayCompact = ellipsizeMiddle(welcomeTitleFull, MIDDLE_ELLIPSIS_DISPLAY_MAX_CHARS)
+  const useCompactType = welcomeTitleFull.length > LONG_TITLE_TYPOGRAPHY_AT_CHARS
 
   const titleClassName =
     titleEmphasis === "page"
-      ? "block min-w-0 max-w-full truncate text-center text-lg font-semibold leading-snug tracking-tight text-[var(--token-text-primary)] md:text-xl"
-      : "block min-w-0 max-w-full truncate text-center text-sm font-semibold leading-snug text-[var(--token-text-primary)] md:text-base"
+      ? `block min-w-0 max-w-full truncate whitespace-nowrap text-center font-semibold leading-snug tracking-tight ${
+          useCompactType ? "text-base md:text-lg" : "text-lg md:text-xl"
+        }`
+      : `block min-w-0 max-w-full truncate whitespace-nowrap text-center font-semibold leading-snug ${
+          useCompactType ? "text-xs md:text-sm" : "text-sm md:text-base"
+        }`
 
   return (
     <div className="flex min-w-0 max-w-full items-center justify-center gap-2 px-2.5 py-0 sm:gap-2.5 sm:px-3">
-      <h2 className={titleClassName}>Welcome to the {trimmedTitle}</h2>
+      <h2 className={titleClassName} aria-label={welcomeTitleFull} title={welcomeTitleFull}>
+        {useMiddleEllipsis ? (
+          <span className="text-[var(--token-text-muted)]">{displayCompact}</span>
+        ) : (
+          <>
+            <span className="text-[var(--token-text-muted)]">Welcome to the </span>
+            <span className="text-[var(--token-text-primary)]">{trimmedEventName}</span>
+            {trimmedTrackName.length > 0 ? (
+              <>
+                <span className="text-[var(--token-text-muted)]"> · </span>
+                <span className="text-[var(--token-text-muted)]">{trimmedTrackName}</span>
+              </>
+            ) : null}
+          </>
+        )}
+      </h2>
     </div>
   )
 }
 
 /** Event Overview: one row — tab strip box + optional same-style title box. */
 export function EventAnalysisToolbarAboveEventDetailsStrip(props: EventAnalysisToolbarProps) {
-  const hasTitle = (props.eventTitle?.trim() ?? "").length > 0
+  const hasTitle = (props.eventName?.trim() ?? "").length > 0
 
   return (
     <div className="scrollbar-none flex w-full min-w-0 flex-nowrap items-stretch gap-3 overflow-x-auto overscroll-x-contain">
@@ -84,12 +135,13 @@ export function EventAnalysisToolbarAboveEventDetailsStrip(props: EventAnalysisT
         </div>
       </div>
       {hasTitle ? (
-        <div className="min-w-0 min-h-0 flex-1 basis-[12rem] max-w-full self-stretch">
+        <div className="min-w-0 min-h-0 flex-1 basis-[clamp(14rem,36vw,28rem)] max-w-full self-stretch">
           <div
             className={`flex h-full min-h-full w-full items-center justify-center ${EVENT_OVERVIEW_STRIP_BOX_INNER_CLASS}`}
           >
             <EventAnalysisToolbarTitleContent
-              eventTitle={props.eventTitle}
+              eventName={props.eventName}
+              trackName={props.trackName}
               titleEmphasis={props.titleEmphasis}
             />
           </div>
@@ -105,11 +157,16 @@ export default function EventAnalysisToolbar({
   onTabChange,
   analysisMenuSelectedId,
   onAnalysisMenuDispatch,
-  eventTitle,
+  eventName,
+  trackName,
   titleEmphasis = "default",
 }: EventAnalysisToolbarProps) {
   const title = (
-    <EventAnalysisToolbarTitleContent eventTitle={eventTitle} titleEmphasis={titleEmphasis} />
+    <EventAnalysisToolbarTitleContent
+      eventName={eventName}
+      trackName={trackName}
+      titleEmphasis={titleEmphasis}
+    />
   )
 
   return (
@@ -135,7 +192,9 @@ export default function EventAnalysisToolbar({
           tabListTrailing={<EventAnalysisActionsMenu tabStripTrigger />}
         />
       </div>
-      {title ? <div className="justify-self-center self-center">{title}</div> : null}
+      {title ? (
+        <div className="min-w-0 max-w-full justify-self-center self-center">{title}</div>
+      ) : null}
     </div>
   )
 }

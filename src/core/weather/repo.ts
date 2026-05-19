@@ -18,7 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
-import type { WeatherData, Prisma } from "@prisma/client"
+import type { UserEventWeatherData, WeatherData, Prisma } from "@prisma/client"
 import { utcCalendarDayStart } from "./utc-calendar-day"
 
 export interface DailyTemperatureSummaryCache {
@@ -48,156 +48,50 @@ export interface WeatherCacheData {
   expiresAt: Date
 }
 
-/**
- * Gets cached weather data for an event day if it exists and is not expired
- *
- * @param eventId - The event ID to get weather data for
- * @param calendarDay - The UTC calendar day (any instant on that day is fine)
- * @returns Cached weather data if valid, null if cache miss or expired
- */
-export async function getCachedWeather(
-  eventId: string,
-  calendarDay: Date
-): Promise<WeatherData | null> {
-  try {
-    const now = new Date()
-    const dayStart = utcCalendarDayStart(calendarDay)
+/** Row shape used when formatting API responses (shared or per-user cache). */
+export type CachedWeatherRow = Pick<
+  WeatherData,
+  | "condition"
+  | "humidity"
+  | "airTemperature"
+  | "windSpeed"
+  | "windDirection"
+  | "trackTemperature"
+  | "precipitation"
+  | "forecast"
+  | "dailyTemperatureSummary"
+  | "cachedAt"
+>
 
-    const forDay = await prisma.weatherData.findFirst({
-      where: {
-        eventId,
-        weatherDate: dayStart,
-        expiresAt: {
-          gt: now,
-        },
-      },
-      orderBy: {
-        cachedAt: "desc",
-      },
-    })
-
-    if (forDay) {
-      return forDay
-    }
-
-    // Legacy rows (pre–weather_date) or unmigrated nulls
-    return await prisma.weatherData.findFirst({
-      where: {
-        eventId,
-        weatherDate: null,
-        expiresAt: {
-          gt: now,
-        },
-      },
-      orderBy: {
-        cachedAt: "desc",
-      },
-    })
-  } catch (error) {
-    // Provide helpful error message if prisma.weatherData is undefined
-    if (
-      error instanceof TypeError &&
-      (error.message.includes("Cannot read properties of undefined") ||
-        error.message.includes("Cannot read property"))
-    ) {
-      throw new Error(
-        `Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`
-      )
-    }
-    throw error
-  }
+function weatherModelUnavailableError(modelName: string, originalMessage: string): Error {
+  return new Error(
+    `Prisma client ${modelName} model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${originalMessage}`
+  )
 }
 
-/**
- * Loads the event start date and returns cached weather for that UTC calendar day (if valid).
- */
-export async function getCachedWeatherForEvent(eventId: string): Promise<WeatherData | null> {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: { eventDate: true },
-  })
-  if (!event) {
-    return null
+function rethrowPrismaModelError(error: unknown, modelName: string): never {
+  if (
+    error instanceof TypeError &&
+    (error.message.includes("Cannot read properties of undefined") ||
+      error.message.includes("Cannot read property"))
+  ) {
+    throw weatherModelUnavailableError(modelName, error.message)
   }
-  return getCachedWeather(eventId, utcCalendarDayStart(event.eventDate))
+  throw error
 }
 
-/**
- * Gets the most recent weather data for an event (optionally for a UTC calendar day), even if expired
- *
- * Used for fallback when API is unavailable
- *
- * @param eventId - The event ID to get weather data for
- * @param calendarDay - If set, prefer a row for that day, then legacy null weatherDate rows
- * @returns Most recent weather data, or null if none exists
- */
-export async function getLastWeatherData(
-  eventId: string,
-  calendarDay?: Date
-): Promise<WeatherData | null> {
-  try {
-    if (calendarDay) {
-      const dayStart = utcCalendarDayStart(calendarDay)
-      const forDay = await prisma.weatherData.findFirst({
-        where: {
-          eventId,
-          weatherDate: dayStart,
-        },
-        orderBy: {
-          cachedAt: "desc",
-        },
-      })
-      if (forDay) {
-        return forDay
-      }
-      const legacy = await prisma.weatherData.findFirst({
-        where: {
-          eventId,
-          weatherDate: null,
-        },
-        orderBy: {
-          cachedAt: "desc",
-        },
-      })
-      if (legacy) {
-        return legacy
-      }
-    }
-
-    return await prisma.weatherData.findFirst({
-      where: {
-        eventId,
-      },
-      orderBy: {
-        cachedAt: "desc",
-      },
-    })
-  } catch (error) {
-    // Provide helpful error message if prisma.weatherData is undefined
-    if (
-      error instanceof TypeError &&
-      (error.message.includes("Cannot read properties of undefined") ||
-        error.message.includes("Cannot read property"))
-    ) {
-      throw new Error(
-        `Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`
-      )
-    }
-    throw error
+function userEventWeatherDataModel() {
+  const m = prisma.userEventWeatherData
+  if (!m) {
+    throw weatherModelUnavailableError(
+      "userEventWeatherData",
+      "userEventWeatherData is undefined on prisma client"
+    )
   }
+  return m
 }
 
-/**
- * Stores weather data in the cache
- *
- * @param eventId - The event ID to cache weather data for
- * @param data - Weather data to cache
- * @returns Created weather data record
- */
-export async function cacheWeatherData(
-  eventId: string,
-  data: WeatherCacheData
-): Promise<WeatherData> {
+function sharedWeatherPayload(data: WeatherCacheData) {
   const weatherDate = utcCalendarDayStart(data.weatherDate)
   const sharedFields = {
     latitude: data.latitude,
@@ -220,6 +114,174 @@ export async function cacheWeatherData(
           dailyTemperatureSummary: data.dailyTemperatureSummary as unknown as Prisma.InputJsonValue,
         }
       : {}
+  return { weatherDate, sharedFields, dailySummaryFields }
+}
+
+/**
+ * Gets cached weather data for an event day if it exists and is not expired.
+ * Pass `userId` when weather is for a per-user host track override.
+ */
+export async function getCachedWeather(
+  eventId: string,
+  calendarDay: Date,
+  userId?: string | null
+): Promise<CachedWeatherRow | null> {
+  const now = new Date()
+  const dayStart = utcCalendarDayStart(calendarDay)
+
+  if (userId) {
+    try {
+      return await userEventWeatherDataModel().findFirst({
+        where: {
+          userId,
+          eventId,
+          weatherDate: dayStart,
+          expiresAt: { gt: now },
+        },
+        orderBy: { cachedAt: "desc" },
+      })
+    } catch (error) {
+      rethrowPrismaModelError(error, "userEventWeatherData")
+    }
+  }
+
+  try {
+    const forDay = await prisma.weatherData.findFirst({
+      where: {
+        eventId,
+        weatherDate: dayStart,
+        expiresAt: { gt: now },
+      },
+      orderBy: { cachedAt: "desc" },
+    })
+
+    if (forDay) {
+      return forDay
+    }
+
+    // Legacy rows (pre–weather_date) or unmigrated nulls
+    return await prisma.weatherData.findFirst({
+      where: {
+        eventId,
+        weatherDate: null,
+        expiresAt: { gt: now },
+      },
+      orderBy: { cachedAt: "desc" },
+    })
+  } catch (error) {
+    rethrowPrismaModelError(error, "weatherData")
+  }
+}
+
+/**
+ * Loads the event start date and returns cached weather for that UTC calendar day (if valid).
+ */
+export async function getCachedWeatherForEvent(
+  eventId: string,
+  userId?: string | null
+): Promise<CachedWeatherRow | null> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { eventDate: true },
+  })
+  if (!event) {
+    return null
+  }
+  return getCachedWeather(eventId, utcCalendarDayStart(event.eventDate), userId)
+}
+
+/**
+ * Gets the most recent weather data for an event (optionally for a UTC calendar day), even if expired.
+ * Pass `userId` for per-user host-track weather.
+ */
+export async function getLastWeatherData(
+  eventId: string,
+  calendarDay?: Date,
+  userId?: string | null
+): Promise<CachedWeatherRow | null> {
+  if (userId) {
+    try {
+      if (calendarDay) {
+        const dayStart = utcCalendarDayStart(calendarDay)
+        return await userEventWeatherDataModel().findFirst({
+          where: { userId, eventId, weatherDate: dayStart },
+          orderBy: { cachedAt: "desc" },
+        })
+      }
+      return await userEventWeatherDataModel().findFirst({
+        where: { userId, eventId },
+        orderBy: { cachedAt: "desc" },
+      })
+    } catch (error) {
+      rethrowPrismaModelError(error, "userEventWeatherData")
+    }
+  }
+
+  try {
+    if (calendarDay) {
+      const dayStart = utcCalendarDayStart(calendarDay)
+      const forDay = await prisma.weatherData.findFirst({
+        where: { eventId, weatherDate: dayStart },
+        orderBy: { cachedAt: "desc" },
+      })
+      if (forDay) {
+        return forDay
+      }
+      const legacy = await prisma.weatherData.findFirst({
+        where: { eventId, weatherDate: null },
+        orderBy: { cachedAt: "desc" },
+      })
+      if (legacy) {
+        return legacy
+      }
+    }
+
+    return await prisma.weatherData.findFirst({
+      where: { eventId },
+      orderBy: { cachedAt: "desc" },
+    })
+  } catch (error) {
+    rethrowPrismaModelError(error, "weatherData")
+  }
+}
+
+/**
+ * Stores weather data in the cache (shared event venue or per-user host-track scope).
+ */
+export async function cacheWeatherData(
+  eventId: string,
+  data: WeatherCacheData,
+  userId?: string | null
+): Promise<WeatherData | UserEventWeatherData> {
+  const { weatherDate, sharedFields, dailySummaryFields } = sharedWeatherPayload(data)
+
+  if (userId) {
+    try {
+      return await userEventWeatherDataModel().upsert({
+        where: {
+          userId_eventId_weatherDate: {
+            userId,
+            eventId,
+            weatherDate,
+          },
+        },
+        create: {
+          userId,
+          eventId,
+          weatherDate,
+          ...sharedFields,
+          ...dailySummaryFields,
+        },
+        update: {
+          ...sharedFields,
+          ...dailySummaryFields,
+        },
+      })
+    } catch (error) {
+      rethrowPrismaModelError(error, "userEventWeatherData")
+    }
+  }
+
   try {
     return await prisma.weatherData.upsert({
       where: {
@@ -240,52 +302,41 @@ export async function cacheWeatherData(
       },
     })
   } catch (error) {
-    // Provide helpful error message if prisma.weatherData is undefined
-    if (
-      error instanceof TypeError &&
-      (error.message.includes("Cannot read properties of undefined") ||
-        error.message.includes("Cannot read property"))
-    ) {
-      throw new Error(
-        `Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`
-      )
-    }
-    throw error
+    rethrowPrismaModelError(error, "weatherData")
   }
 }
 
 /**
- * Cleans up expired weather data entries
- *
- * Useful for maintenance tasks to keep the database clean
- *
- * @param olderThan - Delete entries expired before this date (default: now)
- * @returns Number of deleted records
+ * Removes all per-user cached weather for an event (e.g. when host track changes or is cleared).
  */
-export async function cleanupExpiredWeatherData(olderThan?: Date): Promise<number> {
+export async function deleteUserEventWeatherData(userId: string, eventId: string): Promise<number> {
   try {
-    const cutoffDate = olderThan || new Date()
-
-    const result = await prisma.weatherData.deleteMany({
-      where: {
-        expiresAt: {
-          lt: cutoffDate,
-        },
-      },
+    const result = await userEventWeatherDataModel().deleteMany({
+      where: { userId, eventId },
     })
-
     return result.count
   } catch (error) {
-    // Provide helpful error message if prisma.weatherData is undefined
-    if (
-      error instanceof TypeError &&
-      (error.message.includes("Cannot read properties of undefined") ||
-        error.message.includes("Cannot read property"))
-    ) {
-      throw new Error(
-        `Prisma client weatherData model is not available. This usually means the Prisma client needs to be regenerated or the dev server needs to be restarted. Try running: npx prisma generate and restart the dev server. Original error: ${error.message}`
-      )
-    }
-    throw error
+    rethrowPrismaModelError(error, "userEventWeatherData")
+  }
+}
+
+/**
+ * Cleans up expired weather data entries (shared and per-user caches).
+ */
+export async function cleanupExpiredWeatherData(olderThan?: Date): Promise<number> {
+  const cutoffDate = olderThan || new Date()
+
+  try {
+    const [shared, userScoped] = await Promise.all([
+      prisma.weatherData.deleteMany({
+        where: { expiresAt: { lt: cutoffDate } },
+      }),
+      userEventWeatherDataModel().deleteMany({
+        where: { expiresAt: { lt: cutoffDate } },
+      }),
+    ])
+    return shared.count + userScoped.count
+  } catch (error) {
+    rethrowPrismaModelError(error, "weatherData")
   }
 }

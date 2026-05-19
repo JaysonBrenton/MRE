@@ -5,7 +5,7 @@
 
 /** Matches SessionRaceResultsTable toolbar selects (session / driver filters). */
 export const modalFilterSelectClass =
-  "min-w-[10rem] max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+  "min-w-[10rem] max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
 
 export const modalTableHeaderCell =
   "px-3 py-2.5 text-left text-xs font-semibold text-[var(--token-text-primary)]"

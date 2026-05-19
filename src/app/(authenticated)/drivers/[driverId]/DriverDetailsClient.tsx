@@ -138,7 +138,7 @@ export default function DriverDetailsClient({ driver, eventId }: DriverDetailsCl
                 refreshDriverData()
               }, 100)
             }}
-            className="w-auto px-3 py-2 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-auto px-3 py-2 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           >
             <option value="">All Events</option>
             {Object.values(entriesByEvent).map((event) => (
@@ -159,7 +159,7 @@ export default function DriverDetailsClient({ driver, eventId }: DriverDetailsCl
           {selectedEventId && (
             <button
               onClick={() => setShowOverrideForm(!showOverrideForm)}
-              className="px-4 py-2 bg-[var(--token-accent)] text-white rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] transition-opacity"
+              className="px-4 py-2 bg-[var(--token-accent)] text-white rounded-md hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] transition-opacity"
             >
               {showOverrideForm ? "Cancel" : "Add Override"}
             </button>

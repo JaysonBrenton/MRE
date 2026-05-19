@@ -259,7 +259,7 @@ export default function EventTopMostImprovedPerClassTable({
               id="event-top-mi-class-filter"
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               <option value="">All Classes</option>
               {classOptions.map((c) => (
@@ -282,7 +282,7 @@ export default function EventTopMostImprovedPerClassTable({
               value={driverSearch}
               onChange={(e) => setDriverSearch(e.target.value)}
               placeholder="Search driver name"
-              className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
         </div>
@@ -303,7 +303,7 @@ export default function EventTopMostImprovedPerClassTable({
                     <button
                       type="button"
                       onClick={() => handleSort("rank")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Rank
                       <SortIcon field="rank" activeField={sortField} direction={sortDirection} />
@@ -313,7 +313,7 @@ export default function EventTopMostImprovedPerClassTable({
                     <button
                       type="button"
                       onClick={() => handleSort("className")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Class
                       <SortIcon
@@ -327,7 +327,7 @@ export default function EventTopMostImprovedPerClassTable({
                     <button
                       type="button"
                       onClick={() => handleSort("driverName")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Driver
                       <SortIcon
@@ -341,7 +341,7 @@ export default function EventTopMostImprovedPerClassTable({
                     <button
                       type="button"
                       onClick={() => handleSort("positionImprovement")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Position
                       <SortIcon
@@ -355,7 +355,7 @@ export default function EventTopMostImprovedPerClassTable({
                     <button
                       type="button"
                       onClick={() => handleSort("lapTimeImprovement")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Lap Δ
                       <SortIcon
@@ -369,7 +369,7 @@ export default function EventTopMostImprovedPerClassTable({
                     <button
                       type="button"
                       onClick={() => handleSort("firstRaceLabel")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       First race
                       <SortIcon
@@ -383,7 +383,7 @@ export default function EventTopMostImprovedPerClassTable({
                     <button
                       type="button"
                       onClick={() => handleSort("lastRaceLabel")}
-                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                      className="rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     >
                       Last race
                       <SortIcon

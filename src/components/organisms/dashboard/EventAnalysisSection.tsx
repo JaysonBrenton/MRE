@@ -331,13 +331,18 @@ export default function EventAnalysisSection() {
         null)
       : null
 
-  /** Title between tab strip and Actions in the fixed toolbar (host track, track name, else event). */
-  const eventAnalysisToolbarTitle = useMemo(() => {
+  const eventAnalysisToolbarEventName = useMemo(() => {
     if (!transformedData) return null
     const name = transformedData.event.eventName?.trim() ?? ""
+    return name.length > 0 ? name : null
+  }, [transformedData])
+
+  /** User-selected host venue overrides LiveRC-ingested event track for display. */
+  const eventAnalysisToolbarTrackName = useMemo(() => {
+    if (!transformedData) return null
     const hostTrack = transformedData.userHostTrack?.trackName?.trim() ?? ""
     const track = transformedData.event.trackName?.trim() ?? ""
-    const label = hostTrack || track || name
+    const label = hostTrack || track
     return label.length > 0 ? label : null
   }, [transformedData])
 
@@ -376,7 +381,8 @@ export default function EventAnalysisSection() {
     onTabChange: handleTabChange,
     analysisMenuSelectedId,
     onAnalysisMenuDispatch: handleAnalysisMenuDispatch,
-    eventTitle: eventAnalysisToolbarTitle,
+    eventName: eventAnalysisToolbarEventName,
+    trackName: eventAnalysisToolbarTrackName,
     titleEmphasis: isToolbarInlineWithEventDetails ? ("page" as const) : ("default" as const),
   }
 
@@ -472,24 +478,10 @@ export default function EventAnalysisSection() {
               {activeTab === "analysis" && (
                 <>
                   {analysisPrimaryDispatch === null ? (
-                    <div className="flex min-h-0 w-full min-w-full shrink-0 flex-col items-stretch gap-6">
-                      <div className="flex min-w-0 w-full flex-col gap-3">
-                        <EventAnalysisToolbarAboveEventDetailsStrip
-                          {...eventAnalysisToolbarCommonProps}
-                        />
-                      </div>
-                      <div
-                        role="tabpanel"
-                        id="tabpanel-analysis"
-                        aria-labelledby="tab-analysis"
-                        className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)]/95 px-5 py-6 shadow-md"
-                      >
-                        <p className={typography.bodySecondary}>
-                          Choose <strong>Event Level Analysis</strong> or{" "}
-                          <strong>Session Level Analysis</strong> from the Analysis menu above to
-                          open that workspace.
-                        </p>
-                      </div>
+                    <div className="flex min-w-0 w-full flex-col gap-3">
+                      <EventAnalysisToolbarAboveEventDetailsStrip
+                        {...eventAnalysisToolbarCommonProps}
+                      />
                     </div>
                   ) : analysisPrimaryDispatch === "event-level" ? (
                     <OverviewTab

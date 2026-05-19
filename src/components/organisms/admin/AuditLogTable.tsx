@@ -140,7 +140,7 @@ export default function AuditLogTable() {
                 setActionFilter(e.target.value)
                 setPage(1)
               }}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               <option value="">All actions</option>
               {uniqueActions.map((action) => (
@@ -165,7 +165,7 @@ export default function AuditLogTable() {
                 setResourceTypeFilter(e.target.value)
                 setPage(1)
               }}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               <option value="">All resources</option>
               {uniqueResourceTypes.map((type) => (
@@ -191,7 +191,7 @@ export default function AuditLogTable() {
                 setStartDate(e.target.value)
                 setPage(1)
               }}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
 
@@ -210,7 +210,7 @@ export default function AuditLogTable() {
                 setEndDate(e.target.value)
                 setPage(1)
               }}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
         </div>
@@ -272,7 +272,7 @@ export default function AuditLogTable() {
                         </td>
                         <td className="px-4 py-3 text-sm font-normal">
                           <button
-                            className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                            className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                             aria-label={isExpanded ? "Collapse details" : "Expand details"}
                           >
                             {isExpanded ? "▼" : "▶"}

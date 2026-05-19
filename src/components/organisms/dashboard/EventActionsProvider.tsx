@@ -224,7 +224,7 @@ const DriverItem = React.memo<{
                   onToggle(item.data.driverId!)
                 }
               }}
-              className={`${checkboxSize} rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]`}
+              className={`${checkboxSize} rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]`}
               aria-label={`Toggle selection for ${item.data.driverName}`}
             />
           </span>
@@ -783,7 +783,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                   type="button"
                   onClick={handleClearSelection}
                   disabled={selectedCount === 0}
-                  className="px-4 py-2 text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="px-4 py-2 text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 >
                   Clear
                 </button>
@@ -791,14 +791,14 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                   type="button"
                   onClick={handleSelectAll}
                   disabled={selectedCount === totalDriverCount}
-                  className="px-4 py-2 text-sm font-medium text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="px-4 py-2 text-sm font-medium text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 >
                   Select All
                 </button>
                 <button
                   type="button"
                   onClick={handleCloseDriverSelection}
-                  className="px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 >
                   Done
                 </button>
@@ -849,7 +849,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                   <button
                     type="button"
                     onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-                    className="w-full min-w-0 flex items-center justify-between px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="w-full min-w-0 flex items-center justify-between px-3 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     aria-label="Filter by class"
                     aria-expanded={isClassDropdownOpen}
                   >
@@ -879,7 +879,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                         setIsClassDropdownOpen(false)
                         handleClassChangeFromDropdown(null)
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
+                      className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
                     >
                       All Classes
                     </button>
@@ -891,7 +891,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                           setIsClassDropdownOpen(false)
                           handleClassChangeFromDropdown(classInfo.className)
                         }}
-                        className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
+                        className="w-full text-left px-3 py-2 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)] transition-colors hover:bg-[var(--token-surface-raised)]"
                       >
                         {classInfo.className} ({classInfo.driverCount})
                       </button>
@@ -926,7 +926,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     aria-label="Clear search"
                   >
                     <svg
@@ -994,7 +994,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                 setIsErrorModalOpen(false)
                 setErrorMessage(null)
               }}
-              className="px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               Close
             </button>
@@ -1025,7 +1025,7 @@ export default function EventActionsProvider({ children }: EventActionsProviderP
                   setIsSuccessModalOpen(false)
                   setSuccessStats(null)
                 }}
-                className="px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                className="px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] hover:bg-[var(--token-surface-raised)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
               >
                 Close
               </button>

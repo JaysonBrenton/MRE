@@ -52,7 +52,7 @@ export default function SearchForm() {
           value={query}
           onChange={(e) => dispatch(setQuery(e.target.value))}
           placeholder="Search events and sessions..."
-          className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+          className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
         />
       </div>
 
@@ -72,7 +72,7 @@ export default function SearchForm() {
             value={driverName}
             onChange={(e) => dispatch(setDriverName(e.target.value))}
             placeholder="Filter by driver..."
-            className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
           />
         </div>
 
@@ -90,7 +90,7 @@ export default function SearchForm() {
             onChange={(e) =>
               dispatch(setSessionType((e.target.value || null) as SessionType | null))
             }
-            className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
           >
             <option value="">All Types</option>
             <option value="race">Race</option>
@@ -122,7 +122,7 @@ export default function SearchForm() {
                 })
               )
             }
-            className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
           />
         </div>
       </div>
@@ -147,7 +147,7 @@ export default function SearchForm() {
               })
             )
           }
-          className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)]"
+          className="w-full px-4 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)]"
         />
       </div>
 
@@ -156,7 +156,7 @@ export default function SearchForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="px-6 py-2 rounded-md bg-[var(--token-accent)] text-white font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="px-6 py-2 rounded-md bg-[var(--token-accent)] text-white font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
         >
           {isLoading ? "Searching..." : "Search"}
         </button>
@@ -164,7 +164,7 @@ export default function SearchForm() {
           type="button"
           onClick={handleClear}
           disabled={isLoading}
-          className="px-6 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] font-medium hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="px-6 py-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] font-medium hover:bg-[var(--token-surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
         >
           Clear
         </button>

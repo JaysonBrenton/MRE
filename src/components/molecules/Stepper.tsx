@@ -51,7 +51,7 @@ export default function Stepper({
               aria-current={isCurrent ? "step" : undefined}
               aria-label={`${step.label}${isCurrent ? ", current step" : isCompleted ? ", completed" : ""}`}
               className={`
-                flex items-center gap-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]
+                flex items-center gap-2 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]
                 ${isClickable ? "cursor-pointer hover:opacity-90" : "cursor-default"}
                 ${isCurrent ? "text-[var(--token-accent)]" : ""}
                 ${isCompleted && !isClickable ? "text-[var(--token-text-secondary)]" : ""}
@@ -72,10 +72,7 @@ export default function Stepper({
               <span className="hidden text-sm font-medium sm:inline">{step.label}</span>
             </button>
             {index < steps.length - 1 && (
-              <div
-                className="mx-1 h-0.5 w-4 sm:mx-2 sm:w-6"
-                aria-hidden
-              >
+              <div className="mx-1 h-0.5 w-4 sm:mx-2 sm:w-6" aria-hidden>
                 <div
                   className={`
                     h-full rounded-full

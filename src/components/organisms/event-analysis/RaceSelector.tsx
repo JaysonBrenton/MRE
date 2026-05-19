@@ -170,7 +170,7 @@ export default function RaceSelector({
                     <button
                       type="button"
                       onClick={() => handleSort(key)}
-                      className="flex items-center gap-1.5 w-full text-left hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                      className="flex items-center gap-1.5 w-full text-left hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
                       aria-label={
                         isActive
                           ? `Sort by ${label} ${sortDir === "asc" ? "ascending" : "descending"}. Click to reverse.`

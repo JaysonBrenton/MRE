@@ -30,7 +30,7 @@ export interface SidebarActionProps {
 
 const SIDEBAR_TRANSITION = "duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
 const baseButtonClasses =
-  "w-full flex items-center rounded-lg text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+  "w-full flex items-center rounded-lg text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
 const collapsedClasses = "justify-center p-2"
 const expandedClasses = "gap-2 px-3 py-2 text-sm font-medium"
 

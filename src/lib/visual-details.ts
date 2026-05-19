@@ -52,13 +52,14 @@ export const borderRadius = {
 
 /**
  * Focus ring pattern for consistent accessibility:
- * - Standard: focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]
- * - Inline: focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]
+ * - Standard: focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]
+ * - Inline: focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]
  */
 export const focusRing = {
   standard:
-    "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]",
-  inline: "focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]",
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]",
+  inline:
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]",
 } as const
 
 /**

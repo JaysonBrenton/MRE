@@ -377,7 +377,7 @@ export default function EventsPageClient() {
               placeholder="Event name..."
               value={nameSearch}
               onChange={(e) => setNameSearch(e.target.value)}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
 
@@ -398,14 +398,14 @@ export default function EventsPageClient() {
                 onChange={(e) => handleTrackInputChange(e.target.value)}
                 onFocus={() => setIsTrackDropdownOpen(true)}
                 onKeyDown={handleTrackInputKeyDown}
-                className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+                className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 autoComplete="off"
               />
               {trackId && (
                 <button
                   type="button"
                   onClick={() => handleTrackSelect(null)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
                   aria-label="Clear track selection"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -471,7 +471,7 @@ export default function EventsPageClient() {
                   setOrderBy(e.target.value as OrderBy)
                   handleFilterChange()
                 }}
-                className="flex-1 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+                className="flex-1 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
               >
                 <option value="eventDate">Date</option>
                 <option value="eventName">Name</option>
@@ -485,7 +485,7 @@ export default function EventsPageClient() {
                   setOrderDirection(orderDirection === "asc" ? "desc" : "asc")
                   handleFilterChange()
                 }}
-                className="px-3 py-2 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+                className="px-3 py-2 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 aria-label={`Sort ${orderDirection === "asc" ? "ascending" : "descending"}`}
               >
                 {orderDirection === "asc" ? "↑" : "↓"}
@@ -511,7 +511,7 @@ export default function EventsPageClient() {
                 setStartDate(e.target.value)
                 handleFilterChange()
               }}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
           <div>
@@ -529,7 +529,7 @@ export default function EventsPageClient() {
                 setEndDate(e.target.value)
                 handleFilterChange()
               }}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
         </div>
@@ -560,7 +560,7 @@ export default function EventsPageClient() {
           {!nameSearch && (
             <Link
               href="/event-search"
-              className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-accent)]"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-accent)]"
             >
               Search for events
             </Link>
@@ -643,7 +643,7 @@ export default function EventsPageClient() {
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
@@ -654,7 +654,7 @@ export default function EventsPageClient() {
                     type="button"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>
@@ -718,7 +718,7 @@ export default function EventsPageClient() {
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -729,7 +729,7 @@ export default function EventsPageClient() {
                   type="button"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

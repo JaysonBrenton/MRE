@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-import { buildMainBracketLadderModel } from "@/core/events/main-bracket-ladder-model"
+import {
+  buildMainBracketLadderModel,
+  driversAdvancedToNextRoundSorted,
+} from "@/core/events/main-bracket-ladder-model"
 
 function makeResult(
   id: string,
@@ -97,6 +100,12 @@ describe("buildMainBracketLadderModel", () => {
     expect(alex?.progressedFromRoundLabel).toBe("1/8 Odd")
     expect(chris?.advancedFromPriorRound).toBe(false)
     expect(chris?.progressedFromRoundLabel).toBeNull()
+
+    const round1 = model?.nodes.find((n) => n.sessionId === "r1")
+    expect(round1).toBeTruthy()
+    const { target, drivers } = driversAdvancedToNextRoundSorted(round1!, model!)
+    expect(target?.sessionId).toBe("r2")
+    expect(drivers.map((d) => d.driverId)).toEqual(["d1"])
   })
 
   it("returns null when class has fewer than two ranked ladder sessions", () => {
@@ -232,6 +241,11 @@ describe("buildMainBracketLadderModel", () => {
     expect(edgeSet.has("16e->8e")).toBe(true)
     expect(edgeSet.has("16e->16o")).toBe(false)
     expect(edgeSet.has("16o->16e")).toBe(false)
+
+    const node16o = model!.nodes.find((n) => n.sessionId === "16o")!
+    const { target, drivers } = driversAdvancedToNextRoundSorted(node16o, model!)
+    expect(target?.sessionId).toBe("8o")
+    expect(drivers.map((d) => d.driverId)).toEqual(["d1"])
   })
 
   it("places 1/1 final on center lane even with odd/even label", () => {
@@ -281,5 +295,162 @@ describe("buildMainBracketLadderModel", () => {
     expect(model).not.toBeNull()
     const finalNode = model?.nodes.find((n) => n.sessionId === "final-even")
     expect(finalNode?.branch).toBe("center")
+  })
+
+  it("places LCQ before 1/1 finals in bracket ladders", () => {
+    const races: EventAnalysisData["races"] = [
+      {
+        id: "half-odd",
+        raceId: "half-odd",
+        className: "Buggy",
+        raceLabel: "Buggy 1/2 Odd Final",
+        raceOrder: 1,
+        startTime: new Date("2026-01-01T10:00:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/half-odd",
+        results: [makeResult("a", "d1", "Alex", 1)],
+      },
+      {
+        id: "half-even",
+        raceId: "half-even",
+        className: "Buggy",
+        raceLabel: "Buggy 1/2 Even Final",
+        raceOrder: 2,
+        startTime: new Date("2026-01-01T10:30:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/half-even",
+        results: [makeResult("b", "d2", "Blake", 1)],
+      },
+      {
+        id: "final-even",
+        raceId: "final-even",
+        className: "Buggy",
+        raceLabel: "Buggy 1/1 Even Final",
+        raceOrder: 4,
+        startTime: new Date("2026-01-01T12:00:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/final-even",
+        results: [makeResult("c", "d3", "Chris", 2)],
+      },
+      {
+        id: "lcq",
+        raceId: "lcq",
+        className: "Buggy",
+        raceLabel: "Buggy Last Chance Qualifier",
+        raceOrder: 3,
+        startTime: new Date("2026-01-01T11:30:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/lcq",
+        results: [makeResult("d", "d4", "Dana", 1)],
+      },
+    ]
+
+    const model = buildMainBracketLadderModel(baseEventData(races), "Buggy")
+    expect(model).not.toBeNull()
+    const halfOddNode = model?.nodes.find((n) => n.sessionId === "half-odd")
+    const finalNode = model?.nodes.find((n) => n.sessionId === "final-even")
+    const lcqNode = model?.nodes.find((n) => n.sessionId === "lcq")
+    expect(halfOddNode).toBeTruthy()
+    expect(finalNode).toBeTruthy()
+    expect(lcqNode).toBeTruthy()
+    expect(lcqNode!.tierIndex).toBeGreaterThan(halfOddNode!.tierIndex)
+    expect(lcqNode!.tierIndex).toBeLessThan(finalNode!.tierIndex)
+  })
+
+  it("supports mixed direct and LCQ progression paths into 1/1 final", () => {
+    const races: EventAnalysisData["races"] = [
+      {
+        id: "half-odd",
+        raceId: "half-odd",
+        className: "Buggy",
+        raceLabel: "Buggy 1/2 Odd Final",
+        raceOrder: 1,
+        startTime: new Date("2026-01-01T10:00:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/half-odd",
+        results: [
+          makeResult("o1", "josh", "JOSH PAIN", 3),
+          makeResult("o2", "felix", "FELIX KOEGLER", 4),
+        ],
+      },
+      {
+        id: "half-even",
+        raceId: "half-even",
+        className: "Buggy",
+        raceLabel: "Buggy 1/2 Even Final",
+        raceOrder: 2,
+        startTime: new Date("2026-01-01T10:30:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/half-even",
+        results: [makeResult("e1", "andrew", "ANDREW FOORD", 2)],
+      },
+      {
+        id: "lcq",
+        raceId: "lcq",
+        className: "Buggy",
+        raceLabel: "Buggy Last Chance Qualifier",
+        raceOrder: 3,
+        startTime: new Date("2026-01-01T11:30:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/lcq",
+        results: [
+          makeResult("l1", "josh", "JOSH PAIN", 1),
+          makeResult("l2", "felix", "FELIX KOEGLER", 2),
+        ],
+      },
+      {
+        id: "final-even",
+        raceId: "final-even",
+        className: "Buggy",
+        raceLabel: "Buggy 1/1 Even Final",
+        raceOrder: 4,
+        startTime: new Date("2026-01-01T12:00:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/final-even",
+        results: [
+          makeResult("f1", "andrew", "ANDREW FOORD", 3),
+          makeResult("f2", "josh", "JOSH PAIN", 5),
+          makeResult("f3", "felix", "FELIX KOEGLER", 6),
+        ],
+      },
+    ]
+
+    const model = buildMainBracketLadderModel(baseEventData(races), "Buggy")
+    expect(model).not.toBeNull()
+
+    const edgeSet = new Set(model!.edges.map((e) => `${e.fromSessionId}->${e.toSessionId}`))
+    expect(edgeSet.has("half-even->final-even")).toBe(true)
+    expect(edgeSet.has("half-odd->lcq")).toBe(true)
+    expect(edgeSet.has("lcq->final-even")).toBe(true)
+
+    const edgeKindByKey = new Map(
+      model!.edges.map((e) => [`${e.fromSessionId}->${e.toSessionId}`, e.kind])
+    )
+    expect(edgeKindByKey.get("half-even->final-even")).toBe("direct")
+    expect(edgeKindByKey.get("half-odd->lcq")).toBe("via_lcq")
+    expect(edgeKindByKey.get("lcq->final-even")).toBe("via_lcq")
+
+    const edgeCountByKey = new Map(
+      model!.edges.map((e) => [`${e.fromSessionId}->${e.toSessionId}`, e.driverCount])
+    )
+    expect(edgeCountByKey.get("half-even->final-even")).toBe(1)
+    expect(edgeCountByKey.get("half-odd->lcq")).toBe(2)
+    expect(edgeCountByKey.get("lcq->final-even")).toBe(2)
   })
 })

@@ -187,7 +187,7 @@ export default function LiveRCEntryListTable({ eventId }: LiveRCEntryListTablePr
               value={driverFilter}
               onChange={(e) => setDriverFilter(e.target.value)}
               placeholder="Driver name…"
-              className="min-w-[12rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2 text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="min-w-[12rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2 text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Filter by driver name"
             />
           </label>
@@ -196,7 +196,7 @@ export default function LiveRCEntryListTable({ eventId }: LiveRCEntryListTablePr
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="min-w-[12rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2 text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="min-w-[12rem] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2 text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Filter by class"
             >
               <option value="">All Classes</option>

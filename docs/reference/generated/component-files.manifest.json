@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-22T05:23:17.962Z",
+  "generatedAt": "2026-05-19T01:54:27.389Z",
   "source": "src/components",
   "exclusions": "Excludes: *.test.ts, *.test.tsx, __tests__/**, organisms/**/overview-testing/**",
-  "count": 178,
+  "count": 196,
   "components": [
     {
       "file": "src/components/AdminNav.tsx",
@@ -120,7 +120,17 @@
       "featureArea": "molecules"
     },
     {
+      "file": "src/components/molecules/GoogleMapsVenueEmbed.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
       "file": "src/components/molecules/LabeledSwitch.tsx",
+      "tier": "molecule",
+      "featureArea": "molecules"
+    },
+    {
+      "file": "src/components/molecules/MapSearchAddressLink.tsx",
       "tier": "molecule",
       "featureArea": "molecules"
     },
@@ -310,6 +320,16 @@
       "featureArea": "dashboard"
     },
     {
+      "file": "src/components/organisms/dashboard/shell/dashboard-shell-content-horizontal-padding.ts",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
+      "file": "src/components/organisms/dashboard/shell/dashboard-shell-nav-transition.ts",
+      "tier": "organism:dashboard",
+      "featureArea": "dashboard"
+    },
+    {
       "file": "src/components/organisms/event-analysis/AvgVsFastestChart.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -370,6 +390,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/ClassWinnerStandingsModal.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/ClubHighlightsTab.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -411,6 +436,11 @@
     },
     {
       "file": "src/components/organisms/event-analysis/DriverList.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/DriverMainLadderProgressionPanel.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -485,7 +515,22 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/EventOverallResultsTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventOverviewHighlightsTabs.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/EventOverviewTopQualifiers.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventOverviewVenueHostTabList.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -506,6 +551,11 @@
     },
     {
       "file": "src/components/organisms/event-analysis/EventTopMostImprovedPerClassTable.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/EventWeatherAtAGlance.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -555,6 +605,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/MainBracketLadderPanel.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/MainBracketResultsTable.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -585,7 +640,42 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/OverviewEventDetailsSectionHeading.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/OverviewEventMixMiniSummary.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/OverviewOverallClassPodium.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/OverviewPodiumNames.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/OverviewTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/OverviewTriColumnSummary.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/OverviewVenueDetailPanel.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ProgramOverviewPanel.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -671,6 +761,11 @@
     },
     {
       "file": "src/components/organisms/event-analysis/overview-glass-surface.ts",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/overview-results-tab-strip.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -786,6 +881,11 @@
     },
     {
       "file": "src/components/organisms/event-search/EventTable.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/FavouriteTracksChips.tsx",
       "tier": "organism:event-search",
       "featureArea": "event-search"
     },

@@ -243,7 +243,7 @@ export default function EventsTable() {
               placeholder="Search events or tracks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
               aria-label="Search events or tracks"
             />
           </div>
@@ -261,7 +261,7 @@ export default function EventsTable() {
                 setIngestDepthFilter(e.target.value as IngestDepthFilter)
                 setPage(1)
               }}
-              className="rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               <option value="all">All</option>
               <option value="none">Not imported</option>
@@ -288,7 +288,7 @@ export default function EventsTable() {
                   <button
                     type="button"
                     onClick={() => handleSort("eventName")}
-                    className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+                    className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
                     aria-label={`Sort by event name ${sortField === "eventName" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
                   >
                     Event
@@ -312,7 +312,7 @@ export default function EventsTable() {
                   <button
                     type="button"
                     onClick={() => handleSort("trackName")}
-                    className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+                    className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
                     aria-label={`Sort by track name ${sortField === "trackName" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
                   >
                     Track
@@ -336,7 +336,7 @@ export default function EventsTable() {
                   <button
                     type="button"
                     onClick={() => handleSort("eventDate")}
-                    className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+                    className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
                     aria-label={`Sort by event date ${sortField === "eventDate" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
                   >
                     Date
@@ -360,7 +360,7 @@ export default function EventsTable() {
                   <button
                     type="button"
                     onClick={() => handleSort("ingestDepth")}
-                    className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+                    className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
                     aria-label={`Sort by status ${sortField === "ingestDepth" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
                   >
                     Status
@@ -410,14 +410,14 @@ export default function EventsTable() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setReingestEvent(e)}
-                          className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
+                          className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
                           aria-label={`Re-ingest ${e.eventName}`}
                         >
                           Re-ingest
                         </button>
                         <button
                           onClick={() => setDeleteEvent(e)}
-                          className="text-[var(--token-text-error)] hover:text-[var(--token-text-error)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
+                          className="text-[var(--token-text-error)] hover:text-[var(--token-text-error)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
                           aria-label={`Delete ${e.eventName}`}
                         >
                           Delete
@@ -457,7 +457,7 @@ export default function EventsTable() {
                 type="button"
                 onClick={() => setReingestEvent(null)}
                 disabled={actionLoading}
-                className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-elevated)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
@@ -465,7 +465,7 @@ export default function EventsTable() {
                 type="button"
                 onClick={handleReingest}
                 disabled={actionLoading}
-                className="rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading ? "Marking..." : "Mark for Re-ingestion"}
               </button>

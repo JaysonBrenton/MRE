@@ -1102,7 +1102,7 @@ export default function LapByLapTrendChart({
                 >
                   <button
                     type="button"
-                    className="flex items-center gap-2 cursor-pointer rounded px-0 py-0 text-left hover:ring-2 hover:ring-[var(--token-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+                    className="flex items-center gap-2 cursor-pointer rounded px-0 py-0 text-left hover:ring-2 hover:ring-[var(--token-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
                     aria-label={`Change line color for ${driver.driverName}`}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -1146,7 +1146,7 @@ export default function LapByLapTrendChart({
                   {onDriverDeselect && (
                     <button
                       type="button"
-                      className="shrink-0 rounded p-0.5 text-[var(--token-text-tertiary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+                      className="shrink-0 rounded p-0.5 text-[var(--token-text-tertiary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
                       aria-label={`Remove ${driver.driverName} from chart`}
                       onClick={(e) => {
                         e.stopPropagation()

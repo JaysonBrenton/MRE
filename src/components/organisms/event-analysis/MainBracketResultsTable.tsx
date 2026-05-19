@@ -87,7 +87,7 @@ function resolveSortFieldForDisplay(sortField: SortField, showClassColumn: boole
 }
 
 const HEADER_BUTTON_CLASS =
-  "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+  "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
 
 const SURFACE_CLASS = OVERVIEW_GLASS_SURFACE_CLASS
 const SURFACE_STYLE = OVERVIEW_GLASS_SURFACE_STYLE
@@ -482,7 +482,7 @@ export default function MainBracketResultsTable({
                           <button
                             type="button"
                             disabled={expandDisabled}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[var(--token-text-secondary)]"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[var(--token-text-secondary)]"
                             aria-expanded={expandDisabled ? false : expanded}
                             aria-controls={expandDisabled ? undefined : `leg-sessions-${rk}`}
                             aria-label={

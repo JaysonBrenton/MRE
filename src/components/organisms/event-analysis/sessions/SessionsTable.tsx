@@ -264,7 +264,7 @@ export default function SessionsTable({
                   setSelectedRoundHeading(e.target.value || null)
                   setCurrentPage(1)
                 }}
-                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] shrink-0"
+                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)] shrink-0"
               >
                 <option value="">All Sessions</option>
                 {availableRoundHeadings.map((heading) => (
@@ -289,7 +289,7 @@ export default function SessionsTable({
                   setSelectedClassFilter(e.target.value || null)
                   setCurrentPage(1)
                 }}
-                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] shrink-0"
+                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)] shrink-0"
               >
                 <option value="">All Classes</option>
                 {availableClasses.map((cls) => (
@@ -316,7 +316,7 @@ export default function SessionsTable({
                   setSearchTerm(e.target.value)
                   setCurrentPage(1)
                 }}
-                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--token-interactive-focus-ring)] w-full"
+                className="px-4 py-2 text-sm rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-interactive-focus-ring)] w-full"
               />
             </div>
           </div>

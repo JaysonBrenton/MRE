@@ -700,7 +700,7 @@ export default function MyLapsContent({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleDriverToggle(driver.driverId)}
-                        className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-[var(--token-interactive-focus-ring)]"
+                        className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus-visible:ring-[var(--token-interactive-focus-ring)]"
                       />
                       <div
                         className="w-3 h-3 rounded-full flex-shrink-0"
@@ -780,7 +780,7 @@ export default function MyLapsContent({
                             href={selectedRaceFull.raceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 underline hover:text-[var(--token-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] focus:ring-offset-2 rounded"
+                            className="inline-flex items-center gap-1.5 underline hover:text-[var(--token-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 rounded"
                             aria-label={`View ${selectedRaceFull.raceOrder != null ? `Race ${selectedRaceFull.raceOrder}: ${selectedRaceFull.raceLabel}` : selectedRaceFull.raceLabel} on LiveRC (opens in new tab)`}
                           >
                             {selectedRaceFull.raceOrder != null

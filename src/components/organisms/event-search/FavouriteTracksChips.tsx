@@ -79,14 +79,14 @@ export default function FavouriteTracksChips({
                   <button
                     type="button"
                     onClick={() => onTrackSelect(track)}
-                    className="pl-3 pr-1 py-1 text-xs font-medium text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="pl-3 pr-1 py-1 text-xs font-medium text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                   >
                     {track.trackName}
                   </button>
                   <button
                     type="button"
                     onClick={() => onToggleFavourite(track.id)}
-                    className="mr-1 p-0.5 rounded-full hover:bg-[var(--token-surface-alt)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] flex items-center justify-center"
+                    className="mr-1 p-0.5 rounded-full hover:bg-[var(--token-surface-alt)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] flex items-center justify-center"
                     aria-label={`Remove ${track.trackName} from favourites`}
                     title="Remove from favourites"
                   >

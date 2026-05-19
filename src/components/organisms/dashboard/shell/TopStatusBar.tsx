@@ -32,7 +32,7 @@ export default function TopStatusBar({ user, userId }: TopStatusBarProps) {
           <div className="flex flex-1 items-center">
             <button
               type="button"
-              className="rounded-md border border-[var(--token-border-default)] p-2 text-[var(--token-text-secondary)] transition hover:border-[var(--token-accent)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] lg:hidden"
+              className="rounded-md border border-[var(--token-border-default)] p-2 text-[var(--token-text-secondary)] transition hover:border-[var(--token-accent)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] lg:hidden"
               onClick={() => dispatch(toggleMobileNav())}
               aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={isMobileNavOpen}
@@ -47,7 +47,7 @@ export default function TopStatusBar({ user, userId }: TopStatusBarProps) {
                 <button
                   type="button"
                   onClick={() => setIsProfileModalOpen(true)}
-                  className="flex items-center gap-2 rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] py-2.5 pl-3 pr-3 transition hover:border-[var(--token-accent)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="flex items-center gap-2 rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] py-2.5 pl-3 pr-3 transition hover:border-[var(--token-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                   aria-haspopup="dialog"
                   aria-expanded={isProfileModalOpen}
                   aria-label={user?.name ? `Open profile for ${user.name}` : "Open user profile"}

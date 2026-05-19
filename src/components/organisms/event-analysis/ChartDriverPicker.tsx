@@ -182,7 +182,7 @@ export default function ChartDriverPicker({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search drivers..."
-          className="w-full px-2.5 py-1.5 text-sm rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="w-full px-2.5 py-1.5 text-sm rounded border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           aria-label="Search drivers"
         />
       </div>
@@ -191,7 +191,7 @@ export default function ChartDriverPicker({
           <button
             type="button"
             onClick={handleSelectAll}
-            className="text-xs font-medium text-[var(--token-accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+            className="text-xs font-medium text-[var(--token-accent)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
           >
             Select all
           </button>
@@ -199,7 +199,7 @@ export default function ChartDriverPicker({
         <button
           type="button"
           onClick={handleClear}
-          className="text-xs font-medium text-[var(--token-text-secondary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+          className="text-xs font-medium text-[var(--token-text-secondary)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
         >
           Clear
         </button>
@@ -219,7 +219,7 @@ export default function ChartDriverPicker({
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => handleToggle(driver.driverId)}
-                  className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="w-4 h-4 rounded border-[var(--token-border-default)] text-[var(--token-accent)] focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                   aria-label={`Toggle ${driver.driverName}`}
                 />
                 <span className="text-sm text-[var(--token-text-primary)] truncate">
@@ -239,7 +239,7 @@ export default function ChartDriverPicker({
       type="button"
       onClick={() => setIsOpen((o) => !o)}
       disabled={disabled}
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
       aria-label={`${label}: ${selectedCount} selected`}
       aria-expanded={isOpen}
       aria-haspopup="listbox"

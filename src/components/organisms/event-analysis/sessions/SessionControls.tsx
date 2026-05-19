@@ -94,7 +94,7 @@ export default function SessionControls({
               id="preset-view"
               value={presetView}
               onChange={(e) => onPresetViewChange(e.target.value as PresetView)}
-              className="px-3 py-1.5 text-sm border border-[var(--token-border-default)] rounded bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="px-3 py-1.5 text-sm border border-[var(--token-border-default)] rounded bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               <option value="overview">Overview</option>
             </select>

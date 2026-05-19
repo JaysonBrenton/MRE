@@ -161,7 +161,7 @@ export default function PracticeDriverSelector({
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         style={{ minWidth: `${inputWidthCh}ch`, width: `${inputWidthCh}ch` }}
-        className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus:border-[var(--token-interactive-focus-ring)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+        className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-muted)] focus-visible:border-[var(--token-interactive-focus-ring)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
       />
       {isOpen && (
         <div
@@ -184,7 +184,7 @@ export default function PracticeDriverSelector({
                 aria-selected={i === highlightedIndex}
                 onClick={() => select(opt.id)}
                 onMouseEnter={() => setHighlightedIndex(i)}
-                className={`w-full text-left px-3 py-2 text-sm focus:outline-none focus:ring-0 ${
+                className={`w-full text-left px-3 py-2 text-sm focus:outline-none focus-visible:ring-0 ${
                   i === highlightedIndex
                     ? "bg-[var(--token-accent)]/20 text-[var(--token-accent)]"
                     : "text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)]"

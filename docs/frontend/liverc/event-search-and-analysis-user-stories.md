@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-28
+lastModified: 2026-05-19
 description:
   User stories and acceptance criteria for Event Search and Event Analysis
   features
@@ -16,6 +16,7 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/05-api-contracts.md
   - docs/specs/mre-v0.1-feature-scope.md
+  - docs/architecture/event-analysis-mains-ladder.md
 ---
 
 # Event Search and Event Analysis User Stories
@@ -636,6 +637,38 @@ performance
 - [MRE UX Principles](../../design/mre-ux-principles.md)
 - [MRE Dark Theme Guidelines](../../design/mre-dark-theme-guidelines.md)
 - [Chart Design Standards](../../design/chart-design-standards.md)
+
+---
+
+## User Story (shipped scaffold): Inspect mains finals ladder under Event Level Analysis
+
+**As a** racer or viewer  
+**I want** a mains-bracket visualization and explicit tabular listings of
+drivers who progressed from earlier rounds  
+**So that** I can understand advancement through finals without juggling
+multiple LiveRC pages
+
+Authoritative UX + layering detail:
+[`docs/architecture/event-analysis-mains-ladder.md`](../../architecture/event-analysis-mains-ladder.md).
+
+### Acceptance criteria
+
+- [ ] **Analysis → Event Level Analysis** surfaces the Event Level scaffold with
+      **Mains Ladder** labeled `event-level-analysis-col-1-heading`.
+- [ ] Selecting a ladder-eligible class renders the modeled bracket canvas plus
+      **Drivers who progressed from earlier rounds** tables with proper
+      caption + column headings.
+- [ ] Results reflect ingested standings only (inherits bump-up honesty rules
+      from
+      [`docs/domain/bump-ups-inference.md`](../../domain/bump-ups-inference.md)).
+- [ ] Behaviour stays aligned with Redux/toolbar orchestration documented in
+      [`EventAnalysisSection.tsx`](../../../src/components/organisms/dashboard/EventAnalysisSection.tsx)
+      (including submenu resets when swapping Event vs Session workspaces).
+
+### Related documentation
+
+- [Event Analysis mains ladder](../../architecture/event-analysis-mains-ladder.md)
+- [Bump-ups domain note](../../domain/bump-ups-inference.md)
 
 ---
 

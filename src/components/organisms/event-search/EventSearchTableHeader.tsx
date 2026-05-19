@@ -53,7 +53,7 @@ export default function EventSearchTableHeader({
             <button
               type="button"
               onClick={() => onSort!("name")}
-              className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+              className="text-left text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
               aria-label={`Sort by event name ${sortField === "name" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
             >
               Event Name
@@ -88,7 +88,7 @@ export default function EventSearchTableHeader({
             <button
               type="button"
               onClick={() => onSort!("status")}
-              className="text-center text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+              className="text-center text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
               aria-label={`Sort by event status ${sortField === "status" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
             >
               Event Status
@@ -119,7 +119,7 @@ export default function EventSearchTableHeader({
           <button
             type="button"
             onClick={() => onSort!("date")}
-            className="text-center text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+            className="text-center text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
             aria-label={`Sort by event date ${sortField === "date" ? (sortDirection === "asc" ? "ascending" : "descending") : ""}`}
           >
             Event Date

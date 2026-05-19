@@ -43,13 +43,13 @@ toolbars
 - **Panel:** Absolutely positioned list (`position: absolute`, `z-10`), same
   width as trigger or `w-full`, with scroll when needed
   (`max-h-60 overflow-auto`).
-- **Options:** Use `<button type="button">` per option; `focus:ring-2` and
-  `hover:bg-[var(--token-surface-raised)]` for focus and hover.
+- **Options:** Use `<button type="button">` per option; `focus-visible:ring-2`
+  and `hover:bg-[var(--token-surface-raised)]` for keyboard focus and hover.
 - **Click outside:** Close the dropdown when the user clicks outside (use a
   `mousedown` listener and a ref on the dropdown container).
 - **Styling:** Border `border-[var(--token-border-default)]`, background
   `bg-[var(--token-surface-elevated)]`, text `text-[var(--token-text-primary)]`,
-  focus ring `focus:ring-[var(--token-interactive-focus-ring)]`.
+  focus-visible ring `focus-visible:ring-[var(--token-interactive-focus-ring)]`.
 
 Reference implementations: **ChartControls** (class filter + driver search) and
 **EventActionsProvider** (driver modal class filter + search).

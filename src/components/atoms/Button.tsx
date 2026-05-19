@@ -40,7 +40,7 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const baseClasses =
-    "flex items-center justify-center gap-2 rounded-md text-sm font-medium cursor-pointer transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+    "flex items-center justify-center gap-2 rounded-md text-sm font-medium cursor-pointer transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
 
   const variantClasses = {
     default:

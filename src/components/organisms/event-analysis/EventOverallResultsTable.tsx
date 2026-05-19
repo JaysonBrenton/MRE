@@ -46,14 +46,14 @@ function compareRowsTieBreak(a: ClassWinnerHighlight, b: ClassWinnerHighlight): 
 }
 
 const HEADER_BUTTON_CLASS =
-  "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+  "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
 
 /** Matches {@link PodiumPlaceCell}: `w-10` TQ slot + `gap-2` before the place badge — aligns header labels with chips. */
 const PODIUM_HEADER_LEAD_SPACER = <span className="inline-flex h-6 w-10 shrink-0" aria-hidden />
 
 const PODIUM_HEADER_SORT_BUTTON_CLASS = [
   "inline-flex min-w-0 flex-1 items-center gap-1 rounded-md px-0 text-left text-[inherit]",
-  "hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]",
+  "hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]",
 ].join(" ")
 
 const SURFACE_CLASS = OVERVIEW_GLASS_SURFACE_CLASS
@@ -326,7 +326,7 @@ export default function EventOverallResultsTable({
                   id={classFilterId}
                   value={effectiveClassFilter}
                   onChange={(e) => onClassFilterChange(e.target.value || null)}
-                  className="max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 >
                   <option value="">All classes</option>
                   {availableClassOptions.map((className) => (
@@ -350,7 +350,7 @@ export default function EventOverallResultsTable({
                 value={driverSearch}
                 onChange={(e) => setDriverSearch(e.target.value)}
                 placeholder="Search driver name"
-                className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
               />
             </div>
           </div>

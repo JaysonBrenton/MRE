@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-28
+lastModified: 2026-05-19
 description:
   Complete end-to-end user workflow for Event Search and Event Analysis features
 purpose:
@@ -18,6 +18,8 @@ relatedFiles:
   - docs/design/mre-mobile-ux-guidelines.md
   - docs/design/mre-dark-theme-guidelines.md
   - docs/architecture/mobile-safe-architecture-guidelines.md
+  - docs/user-guides/event-analysis.md
+  - docs/architecture/event-analysis-mains-ladder.md
 ---
 
 # LiveRC Event Search and Event Analysis User Workflow
@@ -770,6 +772,17 @@ For detailed technical implementation, see
 ---
 
 ## 4. Event Analysis Page UX
+
+### 4.0 Shipped experience (`/eventAnalysis`)
+
+Canonical docs for tabs, Analysis menu routing (**Event Level** vs **Session
+Level** workspaces), **Mains Ladder** (**Drivers who progressed from earlier
+rounds** caption/text), and submenu analytics live in
+[`docs/user-guides/event-analysis.md`](../../user-guides/event-analysis.md) with
+engineering detail in
+[`docs/architecture/event-analysis-mains-ladder.md`](../../architecture/event-analysis-mains-ladder.md).
+The numbered subsections below retain an older structural outline; reconcile
+them against the Alpha dashboard scaffold when editing.
 
 ### 4.1 General
 

@@ -115,8 +115,9 @@ ENVIRONMENT.**
   `docs/architecture/mobile-safe-architecture-guidelines.md`,
   `docs/architecture/atomic-design-system.md`,
   `docs/design/mre-dark-theme-guidelines.md`,
-  `docs/design/mre-ux-principles.md`. For shared or persisted UI state:
-  `docs/architecture/search-feature.md`, `src/store/` (slices and hooks).
+  `docs/design/mre-ux-principles.md`,
+  `docs/architecture/event-analysis-mains-ladder.md`. For shared or persisted UI
+  state: `docs/architecture/search-feature.md`, `src/store/` (slices and hooks).
 - **Rules**:
   - Never access Prisma directly from React components; use
     `src/core/.../repo.ts` per architecture rules.

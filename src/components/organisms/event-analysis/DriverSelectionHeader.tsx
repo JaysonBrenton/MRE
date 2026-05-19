@@ -39,7 +39,7 @@ export default function DriverSelectionHeader({
           e.stopPropagation()
           onSelectAll()
         }}
-        className="text-xs text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1"
+        className="text-xs text-[var(--token-accent)] hover:text-[var(--token-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1"
         aria-label="Select all drivers"
       >
         Select All
@@ -50,7 +50,7 @@ export default function DriverSelectionHeader({
           e.stopPropagation()
           onClear()
         }}
-        className="text-xs text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1"
+        className="text-xs text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded px-2 py-1"
         aria-label="Clear selection"
       >
         Clear

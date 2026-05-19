@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-19
 description: Guide to analyzing race event data in My Race Engineer (current UI)
 purpose:
   Documents the Event Analysis experience as embedded on My Event Analysis
@@ -11,6 +11,7 @@ relatedFiles:
   - src/components/organisms/dashboard/EventAnalysisSection.tsx
   - src/components/organisms/event-analysis/event-analysis-sub-tabs.ts
   - docs/frontend/liverc/user-workflow.md
+  - docs/architecture/event-analysis-mains-ladder.md
 ---
 
 # Event Analysis guide
@@ -65,12 +66,12 @@ clear it.
 Race-day programmes use four top-level tabs in the scrolling pill strip beside
 **Actions**:
 
-| Tab                  | Purpose                                                                                                                                                                |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Event Overview**   | Venue, contact shortcuts, headline stats/class mix mini summaries, weather, class podium previews, toggles between **Event Results** vs **Session Results** summaries. |
-| **Event Analysis**   | Event-wide analysis subtabs (menus under the pill); includes ladder-oriented views such as qualification results, bump-up, and progression where data exists.          |
-| **Session Analysis** | Same toolkit scoped to sessions; submenu omits ladder-only subtabs automatically.                                                                                      |
-| **Entry List**       | Entry list driver table tooling (classes, normalization hints).                                                                                                        |
+| Tab                  | Purpose                                                                                                                                                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Event Overview**   | Venue, contact shortcuts, headline stats/class mix mini summaries, weather, class podium previews, toggles between **Event Results** vs **Session Results** summaries.                                                                                         |
+| **Event Analysis**   | Event-wide analysis subtree: open **Analysis** menu → **Event Level Analysis** (see [Mains Ladder](../architecture/event-analysis-mains-ladder.md)) **or** other subtabs (qualifying, bump-ups, per-driver mains progression, laps, charts) where data exists. |
+| **Session Analysis** | Same toolkit scoped to sessions; submenu omits ladder-only subtabs automatically.                                                                                                                                                                              |
+| **Entry List**       | Entry list driver table tooling (classes, normalization hints).                                                                                                                                                                                                |
 
 **Actions** exposes event operations regardless of tab:
 
@@ -86,21 +87,57 @@ Typical commands:
 | **Update host track**      | Correlate venue metadata shown in summaries.                                                     |
 | **Clear Event**            | Clears the selection (`⌘⇧E`).                                                                    |
 
+## Event Level workspace (Analysis menu → Event Level Analysis)
+
+Selecting **Analysis** picks the analysis band; choosing **Event Level
+Analysis** loads the `#tabpanel-analysis` workspace (see `EventAnalysisSection`
+wiring).
+
+Shipped surfaces include:
+
+- **Event Level Analysis** headline block with placeholders for future KPI
+  summaries.
+- **Mains Ladder** — bracket-style mains diagram per class
+  (`MainBracketLadderPanel`) plus **Drivers who progressed from earlier rounds**
+  tables for drivers flagged as advancing from prior ladder rounds (`Driver`,
+  **From round**).
+- **Program overview** — schedule-phase flow (practice through parallel mains)
+  for the selected class (`ProgramOverviewPanel`); dashed connectors mean
+  **scheduled program order**, not bump-through mains advancement.
+
+Both panels share ingested **`race.className`** options from **`OverviewTab`**.
+Bump-up / Driver Progression inferred rules still anchor on mains ladder tiers
+([architecture reference](../architecture/event-analysis-mains-ladder.md));
+**Program overview** never substitutes for bump inference — it mirrors
+session-type buckets + mains list only.
+
+**Important:** **Mains Ladder** shows mains tier bump modeling and progressed
+rows. Use **Program overview** for multi-main EP-style schedules without reading
+that diagram as mains bump logic. For **Bump-Up** (promotion pairs) open the
+**Bump-Up** subtab; for **per-driver** finish traces across mains rounds switch
+to **Driver Progression**.
+
 ## Submenus under Event Analysis / Session Analysis
 
-Click **Event Analysis** or **Session Analysis** to expose a submenu. IDs map
-to:
+Use the **Analysis** dropdown in the toolbar to pick **Event Level Analysis**,
+**Session Level Analysis**, and (when surfaced) submenu analytics. Event-wide
+IDs map to:
 
 - **Event Results** / **Session Results**
 - **Qualification Results** (event-wide only)
 - **Fastest Laps**
 - **Fastest Average Laps**
 - **Driver Analysis**
-- **Bump-Up**, **Driver Progression** (event-wide only — hidden when viewing
-  Session Analysis)
+- **Bump-Up**, **Driver Progression** (ladder-heavy — session level hides or
+  downgrades incompatible picks per `resolvedAnalysisSubTab` in
+  `EventAnalysisSection`)
 
-Session Analysis resets to compatible subtabs automatically if you were viewing
-a ladder-only subtab.
+For the **relationship between Mains Ladder vs Bump-Up vs Driver Progression**,
+see
+[Event Analysis — mains ladder](../architecture/event-analysis-mains-ladder.md).
+
+Session Analysis resets incompatible ladder-only submenu selections
+automatically when you switch workspaces.
 
 ## Overview surface (mixed summary + class insights)
 
@@ -172,6 +209,7 @@ handlers.
 
 ## Related guides
 
+- [Mains ladder (architecture reference)](../architecture/event-analysis-mains-ladder.md)
 - [My Event Analysis (dashboard shell)](dashboard.md)
 - [Global Search](event-search.md)
 - [Navigation & shortcuts](navigation.md)

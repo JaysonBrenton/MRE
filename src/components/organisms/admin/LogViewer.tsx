@@ -165,7 +165,7 @@ export default function LogViewer() {
               setSearchQuery(e.target.value)
               setPage(1)
             }}
-            className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           />
         </div>
 
@@ -183,7 +183,7 @@ export default function LogViewer() {
               setLevelFilter(e.target.value)
               setPage(1)
             }}
-            className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           >
             <option value="all">All levels</option>
             {uniqueLevels.map((level) => (
@@ -209,7 +209,7 @@ export default function LogViewer() {
                 setSelectedSource(e.target.value)
                 setPage(1)
               }}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               <option value="all">All sources</option>
               {sources.map((source) => (
@@ -236,7 +236,7 @@ export default function LogViewer() {
               setStartDate(e.target.value)
               setPage(1)
             }}
-            className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           />
         </div>
 
@@ -255,7 +255,7 @@ export default function LogViewer() {
               setEndDate(e.target.value)
               setPage(1)
             }}
-            className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           />
         </div>
       </div>
@@ -301,7 +301,7 @@ export default function LogViewer() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -311,7 +311,7 @@ export default function LogViewer() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>

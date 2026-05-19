@@ -27,7 +27,7 @@ export interface EventAnalysisScopeFiltersProps {
 
 /** Matches `SessionRaceResultsTable` session / driver control styling. */
 const SELECT_CLASS =
-  "max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+  "max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
 
 const LABEL_CLASS = "text-xs font-medium text-[var(--token-text-secondary)]"
 

@@ -188,7 +188,7 @@ export default function UsersTable() {
                 setSearchQuery(e.target.value)
                 setPage(1)
               }}
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -202,7 +202,7 @@ export default function UsersTable() {
                 setIsAdminFilter(e.target.value)
                 setPage(1)
               }}
-              className="rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               <option value="all">All</option>
               <option value="true">Admins only</option>
@@ -275,21 +275,21 @@ export default function UsersTable() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEdit(user)}
-                          className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
+                          className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
                           aria-label={`Edit ${user.email}`}
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleToggleAdmin(user)}
-                          className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
+                          className="text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
                           aria-label={user.isAdmin ? "Remove admin" : "Make admin"}
                         >
                           {user.isAdmin ? "Demote" : "Promote"}
                         </button>
                         <button
                           onClick={() => handleDelete(user)}
-                          className="text-[var(--token-text-error)] hover:text-[var(--token-text-error)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
+                          className="text-[var(--token-text-error)] hover:text-[var(--token-text-error)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md px-2 py-1"
                           aria-label={`Delete ${user.email}`}
                         >
                           Delete
@@ -346,7 +346,7 @@ export default function UsersTable() {
                 type="button"
                 onClick={() => setToggleAdminUser(null)}
                 disabled={actionLoading}
-                className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-elevated)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
@@ -354,7 +354,7 @@ export default function UsersTable() {
                 type="button"
                 onClick={handleConfirmToggleAdmin}
                 disabled={actionLoading}
-                className="rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 py-2 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading
                   ? "Updating..."

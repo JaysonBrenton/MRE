@@ -160,7 +160,7 @@ export interface CustomDateFieldProps {
 }
 
 const SELECT_PILL =
-  "rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+  "rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
 
 export default function CustomDateField({
   id,
@@ -286,7 +286,7 @@ export default function CustomDateField({
       min={minDate}
       max={maxDate}
       disabled={disabled}
-      className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+      className="w-full h-11 px-4 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
       aria-invalid={Boolean(errorMessage)}
       aria-describedby={describedById}
     />
@@ -426,7 +426,7 @@ export default function CustomDateField({
                   closePopover()
                 }
               }}
-              className={`flex h-10 min-w-0 items-center justify-center rounded-full text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] ${
+              className={`flex h-10 min-w-0 items-center justify-center rounded-full text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
                 isSel
                   ? "bg-[#00AEEF] text-white shadow-[0_0_10px_rgba(0,174,239,0.45)]"
                   : inMonth
@@ -444,7 +444,7 @@ export default function CustomDateField({
           <button
             type="button"
             onClick={onPopoverClose}
-            className="min-h-10 min-w-[4.5rem] rounded-full px-4 text-sm font-medium text-[#E6674C] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="min-h-10 min-w-[4.5rem] rounded-full px-4 text-sm font-medium text-[#E6674C] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             style={{ backgroundColor: "#FDF2F0" }}
           >
             Close
@@ -452,7 +452,7 @@ export default function CustomDateField({
           <button
             type="button"
             onClick={onConfirm}
-            className="min-h-10 min-w-[4.5rem] rounded-full px-4 text-sm font-medium text-[#5a9a3a] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="min-h-10 min-w-[4.5rem] rounded-full px-4 text-sm font-medium text-[#5a9a3a] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             style={{ backgroundColor: "#EBF5E1" }}
           >
             Confirm
@@ -464,8 +464,8 @@ export default function CustomDateField({
 
   const triggerClass =
     appearance === "compact"
-      ? "flex h-10 w-full min-w-0 sm:min-w-[12rem] max-w-md items-center justify-between gap-2 rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 text-left text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50"
-      : "flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 text-left text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50"
+      ? "flex h-10 w-full min-w-0 sm:min-w-[12rem] max-w-md items-center justify-between gap-2 rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 text-left text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50"
+      : "flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-4 text-left text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50"
 
   const fieldInner = (
     <div

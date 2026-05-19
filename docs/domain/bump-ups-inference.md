@@ -9,6 +9,7 @@ relatedDocs:
   - docs/plans/bump-ups-liverc-main-events-solution.md
   - docs/adr/ADR-20260404-bump-ups-inferred-from-results.md
   - docs/adr/ADR-20260405-bump-ups-liveRC-heat-sheet-ladder-strategy.md
+  - docs/architecture/event-analysis-mains-ladder.md
 ---
 
 # Bump-ups — domain note (MRE)
@@ -88,3 +89,8 @@ that remains out of scope until explicitly specified.
 
 Product may shorten further if space is tight; the spec in
 `docs/plans/bump-ups-feature-spec.md` owns final copy.
+
+UI that visualizes mains advancement outside the inferred bump-up table
+(bracket, per-node progressed-driver lists, driver progression matrices) is
+documented under
+[`docs/architecture/event-analysis-mains-ladder.md`](../architecture/event-analysis-mains-ladder.md).

@@ -18,6 +18,7 @@ import {
   getLastWeatherData,
   cacheWeatherData,
   cleanupExpiredWeatherData,
+  deleteUserEventWeatherData,
 } from "@/core/weather/repo"
 import { utcCalendarDayStart } from "@/core/weather/utc-calendar-day"
 import { prisma } from "@/lib/prisma"
@@ -29,6 +30,11 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
     },
     weatherData: {
+      findFirst: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    userEventWeatherData: {
       findFirst: vi.fn(),
       upsert: vi.fn(),
       deleteMany: vi.fn(),
@@ -66,6 +72,25 @@ describe("weather repository", () => {
 
   describe("getCachedWeather", () => {
     const calendarDay = new Date("2025-06-15T12:00:00Z")
+    const userId = "user-abc"
+
+    it("should return per-user cached weather when userId is provided", async () => {
+      vi.mocked(prisma.userEventWeatherData.findFirst).mockResolvedValue(mockWeatherData as never)
+
+      const result = await getCachedWeather(eventId, calendarDay, userId)
+
+      expect(result).toEqual(mockWeatherData)
+      expect(prisma.userEventWeatherData.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId,
+          eventId,
+          weatherDate: utcCalendarDayStart(calendarDay),
+          expiresAt: { gt: expect.any(Date) },
+        },
+        orderBy: { cachedAt: "desc" },
+      })
+      expect(prisma.weatherData.findFirst).not.toHaveBeenCalled()
+    })
 
     it("should return cached weather data when found for that UTC day", async () => {
       vi.mocked(prisma.weatherData.findFirst).mockResolvedValue(mockWeatherData as never)
@@ -215,6 +240,7 @@ describe("weather repository", () => {
   })
 
   describe("cacheWeatherData", () => {
+    const userId = "user-abc"
     const cacheData = {
       weatherDate: new Date("2025-06-15T12:00:00Z"),
       latitude: -35.2809,
@@ -231,6 +257,34 @@ describe("weather repository", () => {
       isHistorical: false,
       expiresAt: new Date(Date.now() + 3600000),
     }
+
+    it("should cache per-user weather when userId is provided", async () => {
+      vi.mocked(prisma.userEventWeatherData.upsert).mockResolvedValue(mockWeatherData as never)
+
+      const result = await cacheWeatherData(eventId, cacheData, userId)
+
+      expect(result).toEqual(mockWeatherData)
+      const day = utcCalendarDayStart(cacheData.weatherDate)
+      expect(prisma.userEventWeatherData.upsert).toHaveBeenCalledWith({
+        where: {
+          userId_eventId_weatherDate: {
+            userId,
+            eventId,
+            weatherDate: day,
+          },
+        },
+        create: expect.objectContaining({
+          userId,
+          eventId,
+          weatherDate: day,
+          condition: cacheData.condition,
+        }),
+        update: expect.objectContaining({
+          condition: cacheData.condition,
+        }),
+      })
+      expect(prisma.weatherData.upsert).not.toHaveBeenCalled()
+    })
 
     it("should cache weather data successfully", async () => {
       vi.mocked(prisma.weatherData.upsert).mockResolvedValue(mockWeatherData as never)
@@ -282,14 +336,35 @@ describe("weather repository", () => {
     })
   })
 
+  describe("deleteUserEventWeatherData", () => {
+    it("should delete all per-user weather rows for the event", async () => {
+      vi.mocked(prisma.userEventWeatherData.deleteMany).mockResolvedValue({ count: 3 } as never)
+
+      const result = await deleteUserEventWeatherData("user-abc", eventId)
+
+      expect(result).toBe(3)
+      expect(prisma.userEventWeatherData.deleteMany).toHaveBeenCalledWith({
+        where: { userId: "user-abc", eventId },
+      })
+    })
+  })
+
   describe("cleanupExpiredWeatherData", () => {
     it("should delete expired weather data", async () => {
       vi.mocked(prisma.weatherData.deleteMany).mockResolvedValue({ count: 5 } as never)
+      vi.mocked(prisma.userEventWeatherData.deleteMany).mockResolvedValue({ count: 2 } as never)
 
       const result = await cleanupExpiredWeatherData()
 
-      expect(result).toBe(5)
+      expect(result).toBe(7)
       expect(prisma.weatherData.deleteMany).toHaveBeenCalledWith({
+        where: {
+          expiresAt: {
+            lt: expect.any(Date),
+          },
+        },
+      })
+      expect(prisma.userEventWeatherData.deleteMany).toHaveBeenCalledWith({
         where: {
           expiresAt: {
             lt: expect.any(Date),
@@ -301,6 +376,7 @@ describe("weather repository", () => {
     it("should use provided cutoff date", async () => {
       const cutoffDate = new Date("2025-01-01")
       vi.mocked(prisma.weatherData.deleteMany).mockResolvedValue({ count: 3 } as never)
+      vi.mocked(prisma.userEventWeatherData.deleteMany).mockResolvedValue({ count: 0 } as never)
 
       const result = await cleanupExpiredWeatherData(cutoffDate)
 

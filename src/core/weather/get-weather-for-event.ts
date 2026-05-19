@@ -56,13 +56,12 @@ const HISTORICAL_WEATHER_TTL_HOURS = 24 * 7 // 7 days for historical (since it w
 
 /**
  * LiveRC venue + optional per-user host track. When the user picks a different catalogue track,
- * weather must use those coordinates; shared `weather_data` rows are keyed only by event + day
- * so we bypass DB cache read/write for that case.
+ * weather uses host coordinates and is cached in `user_event_weather_data` for that user only.
  */
 async function buildWeatherEventContext(
   eventId: string,
   userId?: string | null
-): Promise<{ weatherEvent: EventWithTrack; bypassSharedCache: boolean }> {
+): Promise<{ weatherEvent: EventWithTrack; cacheUserId: string | null }> {
   const event = await getEventWithTrack(eventId)
 
   if (!event) {
@@ -80,13 +79,13 @@ async function buildWeatherEventContext(
       if (hostTrack) {
         return {
           weatherEvent: { ...event, track: hostTrack },
-          bypassSharedCache: true,
+          cacheUserId: userId,
         }
       }
     }
   }
 
-  return { weatherEvent: event, bypassSharedCache: false }
+  return { weatherEvent: event, cacheUserId: null }
 }
 
 async function geocodeForWeatherEvent(
@@ -191,20 +190,17 @@ export async function getWeatherForEvent(
   eventId: string,
   options?: { skipCache?: boolean; userId?: string | null }
 ): Promise<WeatherForEvent> {
-  const { weatherEvent, bypassSharedCache } = await buildWeatherEventContext(
-    eventId,
-    options?.userId
-  )
+  const { weatherEvent, cacheUserId } = await buildWeatherEventContext(eventId, options?.userId)
 
   // Check for valid cached data unless skipCache requested (keyed by event start UTC day)
-  if (!options?.skipCache && !bypassSharedCache) {
-    const cached = await getCachedWeatherForEvent(eventId)
+  if (!options?.skipCache) {
+    const cached = await getCachedWeatherForEvent(eventId, cacheUserId)
     if (cached) {
       return formatWeatherResponse(cached)
     }
   }
 
-  // Cache miss, expired, skipCache, or per-user host track — fetch fresh data
+  // Cache miss, expired, or skipCache — fetch fresh data
   try {
     const geocodeResult = await geocodeForWeatherEvent(weatherEvent)
 
@@ -228,7 +224,6 @@ export async function getWeatherForEvent(
     const ttlHours = isHistorical ? HISTORICAL_WEATHER_TTL_HOURS : CURRENT_WEATHER_TTL_HOURS
     const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000)
 
-    // Cache the data (shared venue weather only — host-track weather is not stored to avoid overwriting venue cache)
     const cacheData: WeatherCacheData = {
       weatherDate: utcCalendarDayStart(weatherEvent.eventDate),
       latitude: geocodeResult.latitude,
@@ -247,9 +242,7 @@ export async function getWeatherForEvent(
       expiresAt,
     }
 
-    if (!bypassSharedCache) {
-      await cacheWeatherData(eventId, cacheData)
-    }
+    await cacheWeatherData(eventId, cacheData, cacheUserId)
 
     // Format and return the response
     const result: WeatherForEvent = {
@@ -270,16 +263,14 @@ export async function getWeatherForEvent(
 
     return result
   } catch (error) {
-    // If API calls fail, try to return last cached data (even if expired) for shared venue cache only
-    if (!bypassSharedCache) {
-      const ev = await getEventWithTrack(eventId)
-      const lastCached = ev
-        ? ((await getLastWeatherData(eventId, utcCalendarDayStart(ev.eventDate))) ??
-          (await getLastWeatherData(eventId)))
-        : null
-      if (lastCached) {
-        return formatWeatherResponse(lastCached)
-      }
+    // If API calls fail, try to return last cached data (even if expired)
+    const ev = await getEventWithTrack(eventId)
+    const lastCached = ev
+      ? ((await getLastWeatherData(eventId, utcCalendarDayStart(ev.eventDate), cacheUserId)) ??
+        (await getLastWeatherData(eventId, undefined, cacheUserId)))
+      : null
+    if (lastCached) {
+      return formatWeatherResponse(lastCached)
     }
 
     // No cache available and API failed
@@ -371,7 +362,7 @@ export async function getWeatherForEventDays(
   eventId: string,
   userId?: string | null
 ): Promise<WeatherForEventDay[]> {
-  const { weatherEvent, bypassSharedCache } = await buildWeatherEventContext(eventId, userId)
+  const { weatherEvent, cacheUserId } = await buildWeatherEventContext(eventId, userId)
 
   // Build list of dates to fetch (eventDate through eventDateEnd, or single day)
   const startDate = new Date(weatherEvent.eventDate)
@@ -392,14 +383,12 @@ export async function getWeatherForEventDays(
 
   for (const date of dates) {
     const dateStr = date.toISOString().split("T")[0]
-    if (!bypassSharedCache) {
-      const cached = await getCachedWeather(eventId, date)
-      if (cached) {
-        byDateStr.set(dateStr, {
-          date: dateStr,
-          weather: formatWeatherResponse(cached),
-        })
-      }
+    const cached = await getCachedWeather(eventId, date, cacheUserId)
+    if (cached) {
+      byDateStr.set(dateStr, {
+        date: dateStr,
+        weather: formatWeatherResponse(cached),
+      })
     }
   }
 
@@ -432,8 +421,9 @@ export async function getWeatherForEventDays(
       const ttlHours = isHistorical ? HISTORICAL_WEATHER_TTL_HOURS : CURRENT_WEATHER_TTL_HOURS
       const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000)
 
-      if (!bypassSharedCache) {
-        await cacheWeatherData(eventId, {
+      await cacheWeatherData(
+        eventId,
+        {
           weatherDate: utcCalendarDayStart(date),
           latitude: geocodeResult.latitude,
           longitude: geocodeResult.longitude,
@@ -449,8 +439,9 @@ export async function getWeatherForEventDays(
           dailyTemperatureSummary: weatherResponse.dailyTemperatureSummary,
           isHistorical,
           expiresAt,
-        })
-      }
+        },
+        cacheUserId
+      )
 
       byDateStr.set(dateStr, {
         date: dateStr,
@@ -471,15 +462,13 @@ export async function getWeatherForEventDays(
         },
       })
     } catch (err) {
-      if (!bypassSharedCache) {
-        const last = await getLastWeatherData(eventId, utcCalendarDayStart(date))
-        if (last) {
-          byDateStr.set(dateStr, {
-            date: dateStr,
-            weather: formatWeatherResponse(last),
-          })
-          continue
-        }
+      const last = await getLastWeatherData(eventId, utcCalendarDayStart(date), cacheUserId)
+      if (last) {
+        byDateStr.set(dateStr, {
+          date: dateStr,
+          weather: formatWeatherResponse(last),
+        })
+        continue
       }
       if (err instanceof Error) {
         throw err

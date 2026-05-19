@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-19
 description: Index of all end-user guides for My Race Engineer
 purpose:
   Central directory for Markdown user documentation that mirrors the SPA guide
@@ -45,11 +45,12 @@ guides; see [`images/README.md`](./images/README.md) for refresh tips.
 
 ### Companion documentation
 
-| Doc                                                                                        | Relationship                         |
-| ------------------------------------------------------------------------------------------ | ------------------------------------ |
-| [`docs/specs/mre-v0.1-feature-scope.md`](../specs/mre-v0.1-feature-scope.md)               | Formal scope vs aspirational backlog |
-| [`docs/architecture/dashboard-architecture.md`](../architecture/dashboard-architecture.md) | Engineering view of Redux & widgets  |
-| [`docs/frontend/liverc/user-workflow.md`](../frontend/liverc/user-workflow.md)             | Connector-level narrative            |
+| Doc                                                                                                  | Relationship                                |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| [`docs/specs/mre-v0.1-feature-scope.md`](../specs/mre-v0.1-feature-scope.md)                         | Formal scope vs aspirational backlog        |
+| [`docs/architecture/dashboard-architecture.md`](../architecture/dashboard-architecture.md)           | Engineering view of Redux & widgets         |
+| [`docs/architecture/event-analysis-mains-ladder.md`](../architecture/event-analysis-mains-ladder.md) | Mains Ladder bracket + progressed-driver UX |
+| [`docs/frontend/liverc/user-workflow.md`](../frontend/liverc/user-workflow.md)                       | Connector-level narrative                   |
 
 ## Feedback & maintenance
 

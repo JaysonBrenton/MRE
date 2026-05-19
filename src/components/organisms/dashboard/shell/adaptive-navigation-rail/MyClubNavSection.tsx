@@ -81,7 +81,7 @@ export default function MyClubNavSection({
         <button
           type="button"
           onClick={onToggleMyClubExpanded}
-          className="rounded-lg p-1.5 text-[var(--token-text-muted)] hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="rounded-lg p-1.5 text-[var(--token-text-muted)] hover:bg-[var(--token-surface-raised)] hover:text-[var(--token-text-primary)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           aria-label={isMyClubExpanded ? "Collapse My Club menu" : "Expand My Club menu"}
           aria-expanded={isMyClubExpanded}
         >

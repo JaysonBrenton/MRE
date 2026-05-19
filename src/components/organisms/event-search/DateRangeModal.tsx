@@ -154,7 +154,7 @@ export default function DateRangeModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 flex-shrink-0 rounded-md text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="p-2 flex-shrink-0 rounded-md text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             aria-label="Close modal"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,14 +182,14 @@ export default function DateRangeModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 py-2 text-sm font-medium text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
+            className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-5 py-2 text-sm font-medium text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] h-11"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11"
+            className="rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] h-11"
           >
             Done
           </button>

@@ -103,7 +103,7 @@ function resolveSortFieldForDisplay(sortField: SortField, showClassColumn: boole
 }
 
 const HEADER_BUTTON_CLASS =
-  "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+  "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
 
 const SURFACE_CLASS = OVERVIEW_GLASS_SURFACE_CLASS
 const SURFACE_STYLE = OVERVIEW_GLASS_SURFACE_STYLE
@@ -536,7 +536,7 @@ export default function SessionRaceResultsTable({
                   id={classFilterId}
                   value={effectiveClassFilter}
                   onChange={(e) => onClassFilterChange(e.target.value || null)}
-                  className="max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 >
                   <option value="">All classes</option>
                   {availableClassOptions.map((className) => (
@@ -559,7 +559,7 @@ export default function SessionRaceResultsTable({
                   id={sessionTypeFilterId}
                   value={effectiveSessionTypeFilter}
                   onChange={(e) => setSessionTypeFilter(e.target.value)}
-                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 >
                   <option value="">All session types</option>
                   {sessionTypeOptions.map((key) => (
@@ -583,7 +583,7 @@ export default function SessionRaceResultsTable({
                 value={driverSearch}
                 onChange={(e) => setDriverSearch(e.target.value)}
                 placeholder="Search driver name"
-                className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
               />
             </div>
           </div>

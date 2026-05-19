@@ -67,7 +67,7 @@ export default function ErrorDisplay({
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-xs font-medium text-[var(--token-status-error-text)] hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                className="text-xs font-medium text-[var(--token-status-error-text)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
                 aria-expanded={isExpanded}
                 aria-controls="error-details"
               >
@@ -88,7 +88,7 @@ export default function ErrorDisplay({
           <button
             type="button"
             onClick={onRetry}
-            className="flex-shrink-0 flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-4 py-2 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="flex-shrink-0 flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-4 py-2 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           >
             {retryLabel}
           </button>

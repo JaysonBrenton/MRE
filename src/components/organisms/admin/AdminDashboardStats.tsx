@@ -113,7 +113,7 @@ export default function AdminDashboardStats() {
           </div>
           <Link
             href="/admin/users"
-            className="text-sm text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+            className="text-sm text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
           >
             Manage →
           </Link>
@@ -134,7 +134,7 @@ export default function AdminDashboardStats() {
           </div>
           <Link
             href="/admin/events"
-            className="text-sm text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+            className="text-sm text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
           >
             View →
           </Link>
@@ -155,7 +155,7 @@ export default function AdminDashboardStats() {
           </div>
           <Link
             href="/admin/tracks"
-            className="text-sm text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded-md"
+            className="text-sm text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded-md"
           >
             Manage →
           </Link>

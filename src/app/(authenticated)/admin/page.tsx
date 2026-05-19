@@ -56,7 +56,7 @@ export default async function AdminPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Link
           href="/admin/ingestion"
-          className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-6 transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-6 transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
         >
           <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">
             Ingestion Controls
@@ -68,7 +68,7 @@ export default async function AdminPage() {
 
         <Link
           href="/admin/events"
-          className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-6 transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-6 transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
         >
           <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">Recent Events</h2>
           <p className="mt-2 text-sm text-[var(--token-text-secondary)]">
@@ -78,7 +78,7 @@ export default async function AdminPage() {
 
         <Link
           href="/admin/health"
-          className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-6 transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)] p-6 transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
         >
           <h2 className="text-lg font-semibold text-[var(--token-text-primary)]">System Health</h2>
           <p className="mt-2 text-sm text-[var(--token-text-secondary)]">

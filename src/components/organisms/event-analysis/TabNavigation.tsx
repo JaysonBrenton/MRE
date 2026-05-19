@@ -125,6 +125,11 @@ type SubmenuTabProps = {
   selectedMenuId: string
   /** When true, menu item “current” styling follows {@link selectedMenuId} even if this tab is not active (dispatcher pattern). */
   selectedWithoutActiveTab?: boolean
+  /**
+   * Analysis uses a submenu before mounting {@code #tabpanel-analysis}. While no menu item is
+   * chosen, omit aria-controls when the menu is closed so we do not reference a missing node.
+   */
+  deferTabpanelAriaUntilMenuChoice?: boolean
   onMenuItemSelect: (id: string) => void
   onTabButtonClick: () => void
   onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => void
@@ -141,6 +146,7 @@ function SubmenuTab({
   menuOptions,
   selectedMenuId,
   selectedWithoutActiveTab,
+  deferTabpanelAriaUntilMenuChoice,
   onMenuItemSelect,
   onTabButtonClick,
   onKeyDown,
@@ -223,6 +229,11 @@ function SubmenuTab({
         )
       : null
 
+  const collapsedTabpanelAriaControls =
+    deferTabpanelAriaUntilMenuChoice && selectedMenuId.length === 0
+      ? undefined
+      : `tabpanel-${tab.id}`
+
   const tabButton = (
     <div data-analysis-submenu-root className="relative inline-block shrink-0 snap-start">
       <button
@@ -233,7 +244,7 @@ function SubmenuTab({
         id={`tab-${tab.id}`}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
-        aria-controls={menuOpen ? menuId : `tabpanel-${tab.id}`}
+        aria-controls={menuOpen ? menuId : collapsedTabpanelAriaControls}
         onClick={onTabButtonClick}
         onKeyDown={onKeyDown}
         className={tabButtonClass(isActive)}
@@ -368,6 +379,7 @@ export default function TabNavigation({
             menuOptions={getAnalysisPrimarySubTabOptions()}
             selectedMenuId={dispatchTargetSelectedId}
             selectedWithoutActiveTab
+            deferTabpanelAriaUntilMenuChoice={Boolean(onAnalysisMenuDispatch)}
             onMenuItemSelect={(id) => {
               onAnalysisMenuDispatch?.(id as AnalysisPrimarySubTabId)
             }}

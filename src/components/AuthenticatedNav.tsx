@@ -28,7 +28,7 @@ export default function AuthenticatedNav() {
         <div className="flex items-center">
           <Link
             href="/welcome"
-            className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           >
             My Race Engineer
           </Link>
@@ -38,7 +38,7 @@ export default function AuthenticatedNav() {
         <div className="flex items-center gap-4">
           <Link
             href="/eventAnalysis"
-            className="text-base font-medium text-[var(--token-text-primary)] hover:text-[var(--token-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+            className="text-base font-medium text-[var(--token-text-primary)] hover:text-[var(--token-text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
           >
             My Event Analysis
           </Link>

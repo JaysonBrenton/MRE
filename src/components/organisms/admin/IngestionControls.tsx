@@ -178,7 +178,7 @@ export default function IngestionControls() {
         <button
           onClick={triggerTrackSync}
           disabled={trackSyncLoading}
-          className="inline-flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {trackSyncLoading ? "Triggering..." : "Trigger Track Sync"}
         </button>
@@ -234,13 +234,13 @@ export default function IngestionControls() {
               value={eventId}
               onChange={(e) => setEventId(e.target.value)}
               placeholder="Enter event UUID"
-              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="w-full rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-3 py-2 text-sm text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
           <button
             onClick={triggerEventIngestion}
             disabled={eventIngestionLoading || !eventId.trim()}
-            className="inline-flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-5 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {eventIngestionLoading ? "Triggering..." : "Trigger Event Ingestion"}
           </button>

@@ -62,7 +62,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
               ) : (
                 <Link
                   href={item.href}
-                  className="hover:text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                  className="hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
                 >
                   {item.label}
                 </Link>

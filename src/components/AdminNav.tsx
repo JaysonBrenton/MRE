@@ -43,7 +43,7 @@ export default function AdminNav() {
           <div className="flex items-center py-4">
             <Link
               href="/admin"
-              className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="text-lg font-semibold text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             >
               MRE Admin
             </Link>
@@ -58,7 +58,7 @@ export default function AdminNav() {
                   <Link
                     key={href}
                     href={href}
-                    className={`flex items-center px-3 py-2 text-sm font-medium transition-colors rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] ${
+                    className={`flex items-center px-3 py-2 text-sm font-medium transition-colors rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] ${
                       isActive
                         ? "text-[var(--token-text-primary)] bg-[var(--token-surface-elevated)]"
                         : "text-[var(--token-text-muted)] hover:text-[var(--token-text-primary)]"

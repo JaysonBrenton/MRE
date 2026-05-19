@@ -101,31 +101,49 @@ describe("getWeatherForEvent", () => {
       expect(fetchWeatherModule.fetchWeather).not.toHaveBeenCalled()
     })
 
-    it("when user host track differs from venue, skips shared cache and uses host coordinates", async () => {
+    it("when user host track differs from venue, uses per-user cache and host coordinates", async () => {
       const mockCachedWeather = {
-        id: "weather-1",
-        eventId,
-        latitude: -35.2809,
-        longitude: 149.13,
-        timestamp: new Date(),
-        airTemperature: 99,
+        condition: "Cached host weather",
         humidity: 62,
+        airTemperature: 28,
         windSpeed: 12,
         windDirection: 180,
-        precipitation: 18,
-        condition: "Should not use cached",
         trackTemperature: 32,
+        precipitation: 18,
         forecast: [],
-        isHistorical: false,
         cachedAt: new Date(),
-        expiresAt: new Date(Date.now() + 3600000),
-        createdAt: new Date(),
-        updatedAt: new Date(),
       }
 
       vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(
         mockCachedWeather as never
       )
+      vi.mocked(userEventHostTrackModule.getUserEventHostTrackRow).mockResolvedValue({
+        hostTrackId: "host-track-id",
+      } as never)
+      vi.mocked(prisma.track.findUnique).mockResolvedValue({
+        id: "host-track-id",
+        trackName: "Host Facility",
+        latitude: -33.8688,
+        longitude: 151.2093,
+        address: null,
+        city: null,
+        state: null,
+        country: null,
+      } as never)
+      vi.mocked(eventsRepoModule.getEventWithTrack).mockResolvedValue(mockEvent as never)
+
+      const result = await getWeatherForEvent(eventId, { userId: "user-1" })
+
+      expect(weatherRepoModule.getCachedWeatherForEvent).toHaveBeenCalledWith(eventId, "user-1")
+      expect(result.condition).toBe("Cached host weather")
+      expect(result.air).toBe(28)
+      expect(result.isCached).toBe(true)
+      expect(geocodeTrackModule.geocodeTrack).not.toHaveBeenCalled()
+      expect(fetchWeatherModule.fetchWeather).not.toHaveBeenCalled()
+    })
+
+    it("when user host track differs and cache misses, fetches and stores per-user weather", async () => {
+      vi.mocked(weatherRepoModule.getCachedWeatherForEvent).mockResolvedValue(null)
       vi.mocked(userEventHostTrackModule.getUserEventHostTrackRow).mockResolvedValue({
         hostTrackId: "host-track-id",
       } as never)
@@ -152,20 +170,23 @@ describe("getWeatherForEvent", () => {
         },
         forecast: [],
       })
+      vi.mocked(weatherRepoModule.cacheWeatherData).mockResolvedValue({} as never)
 
       const result = await getWeatherForEvent(eventId, { userId: "user-1" })
 
-      expect(weatherRepoModule.getCachedWeatherForEvent).not.toHaveBeenCalled()
+      expect(weatherRepoModule.getCachedWeatherForEvent).toHaveBeenCalledWith(eventId, "user-1")
       expect(result.condition).toBe("Clear sky")
-      expect(result.air).toBe(24)
       expect(result.isCached).toBe(false)
-      expect(geocodeTrackModule.geocodeTrack).not.toHaveBeenCalled()
       expect(fetchWeatherModule.fetchWeather).toHaveBeenCalledWith(
         -33.8688,
         151.2093,
         expect.any(Date)
       )
-      expect(weatherRepoModule.cacheWeatherData).not.toHaveBeenCalled()
+      expect(weatherRepoModule.cacheWeatherData).toHaveBeenCalledWith(
+        eventId,
+        expect.objectContaining({ condition: "Clear sky" }),
+        "user-1"
+      )
     })
   })
 

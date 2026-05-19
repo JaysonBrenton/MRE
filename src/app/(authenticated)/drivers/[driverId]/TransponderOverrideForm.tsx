@@ -150,7 +150,7 @@ export default function TransponderOverrideForm({
             }
           }}
           onBlur={() => validateTransponder(transponderNumber)}
-          className="w-full px-3 py-2 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="w-full px-3 py-2 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           placeholder="e.g., 1234567"
           required
         />
@@ -174,7 +174,7 @@ export default function TransponderOverrideForm({
                 setScope("all")
                 setEffectiveFromRaceId(null)
               }}
-              className="h-4 w-4 text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="h-4 w-4 text-[var(--token-accent)] focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
             <span className="text-sm text-[var(--token-text-primary)]">
               All remaining races (from first race onwards)
@@ -187,7 +187,7 @@ export default function TransponderOverrideForm({
               value="race"
               checked={scope === "race"}
               onChange={() => setScope("race")}
-              className="h-4 w-4 text-[var(--token-accent)] focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="h-4 w-4 text-[var(--token-accent)] focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
             <span className="text-sm text-[var(--token-text-primary)]">
               From specific race onwards
@@ -204,7 +204,7 @@ export default function TransponderOverrideForm({
           <select
             value={effectiveFromRaceId || ""}
             onChange={(e) => setEffectiveFromRaceId(e.target.value || null)}
-            className="w-full px-3 py-2 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+            className="w-full px-3 py-2 border border-[var(--token-border-default)] rounded-md bg-[var(--token-surface-elevated)] text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             required={scope === "race"}
           >
             <option value="">Select a race</option>
@@ -223,14 +223,14 @@ export default function TransponderOverrideForm({
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex flex-1 items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex flex-1 items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? "Creating..." : "Create Override"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex flex-1 items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="inline-flex flex-1 items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
         >
           Cancel
         </button>

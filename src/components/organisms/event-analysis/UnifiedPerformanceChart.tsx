@@ -181,7 +181,7 @@ function SortByDropdown({
         id="sort-by-select"
         value={sortBy}
         onChange={(e) => onSortByChange(e.target.value as SortByMetricType)}
-        className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+        className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
         aria-label="Sort drivers by metric (best to worst)"
       >
         {SORT_BY_OPTIONS.filter((opt) => availableSortMetrics.has(opt.metric)).map((opt) => (
@@ -887,7 +887,7 @@ export default function UnifiedPerformanceChart({
               <select
                 value={selectedClass ?? ""}
                 onChange={(e) => onClassChange(e.target.value || null)}
-                className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-accent)]"
+                className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
                 aria-label="Choose a Class"
               >
                 <option value="">All Classes</option>

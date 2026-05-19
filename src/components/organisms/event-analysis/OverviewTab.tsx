@@ -3,18 +3,27 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2026-04-24
+ * @lastModified 2026-05-19
  *
  * @description Overview tab content for event analysis. Primary sections (Event Overview,
- *            Session Analysis, Event Analysis) use a top toolbar tablist; Bump-Up and Driver
- *            Progression are sub-views under Event Analysis.
+ *            Session Analysis, Event Analysis) use a top toolbar tablist on `/eventAnalysis`.
+ *            **Analysis → Event Level Analysis** mounts `OverviewTab` with `variant="event-analysis-only"`:
+ *            the **Mains Ladder** bracket + **Program overview** schedule-phase SVG
+ *            (`MainBracketLadderPanel`, `ProgramOverviewPanel`; see
+ *            docs/architecture/event-analysis-mains-ladder.md).
+ *            Bump-Up and Driver Progression share ladder inference modules but render from different
+ *            subtabs guarded by variant logic.
  *
  * @purpose Displays event summary statistics and primary highlights chart.
  *          Supports chart type switching and driver selection.
  *
  * @relatedFiles
- * - src/components/event-analysis/ChartControls.tsx (controls)
- * - src/components/event-analysis/BestLapBarChart.tsx (charts)
+ * - docs/architecture/event-analysis-mains-ladder.md (Mains Ladder UX + wiring)
+ * - src/components/organisms/event-analysis/MainBracketLadderPanel.tsx (mains ladder bracket + drill-down modal)
+ * - src/components/organisms/event-analysis/ProgramOverviewPanel.tsx (practice→mains phase diagram)
+ * - src/components/organisms/event-analysis/DriverMainLadderProgressionPanel.tsx (driver progression matrices)
+ * - src/components/organisms/event-analysis/ChartControls.tsx (controls)
+ * - src/components/organisms/event-analysis/BestLapBarChart.tsx (charts)
  */
 
 "use client"
@@ -58,6 +67,7 @@ import SessionRaceResultsTable from "./SessionRaceResultsTable"
 import DriverBumpUpsTable, { type BumpUpRowWithClass } from "./sessions/DriverBumpUpsTable"
 import DriverMainLadderProgressionPanel from "./DriverMainLadderProgressionPanel"
 import MainBracketLadderPanel from "./MainBracketLadderPanel"
+import ProgramOverviewPanel from "./ProgramOverviewPanel"
 import { getSessionsForBumpUpInference } from "@/core/events/get-sessions-data"
 import { inferBumpUpsFromSessions } from "@/core/events/infer-bump-ups"
 import {
@@ -70,7 +80,11 @@ import {
   getUnselectedDriversInClass,
 } from "@/core/events/event-analysis-notices"
 import { clientLogger } from "@/lib/client-logger"
-import { getRaceClassNamesForBumpUpChips, getValidClasses } from "@/core/events/class-validator"
+import {
+  getRaceClassNamesForBumpUpChips,
+  getRaceClassNamesFromRaces,
+  getValidClasses,
+} from "@/core/events/class-validator"
 import { splitAddressForDisplay } from "@/lib/address-normalization"
 import { formatDateLong } from "@/lib/date-utils"
 import { formatLapTime } from "@/lib/format-session-data"
@@ -775,16 +789,17 @@ export default function OverviewTab({
     [data, selectedClass]
   )
 
-  const eventLevelDriverProgressionClassNames = driverProgressionClassNames
+  /** Distinct race row classes — widens Mains Ladder picker + feeds Program overview. */
+  const raceClassNamesFromIngest = useMemo(() => getRaceClassNamesFromRaces(data), [data])
 
   const resolvedEventLevelDriverProgressionClass = useMemo(() => {
-    if (eventLevelDriverProgressionClass) return eventLevelDriverProgressionClass
+    const ing = raceClassNamesFromIngest
+    const explicit = eventLevelDriverProgressionClass?.trim()
+    if (explicit && ing.includes(explicit)) return explicit
     const fromSelected = selectedClass?.trim()
-    if (fromSelected && eventLevelDriverProgressionClassNames.includes(fromSelected)) {
-      return fromSelected
-    }
+    if (fromSelected && ing.includes(fromSelected)) return fromSelected
     return null
-  }, [eventLevelDriverProgressionClass, selectedClass, eventLevelDriverProgressionClassNames])
+  }, [eventLevelDriverProgressionClass, selectedClass, raceClassNamesFromIngest])
 
   const hasDriverProgressionClassSelected =
     hasBumpUpsClassSelected &&
@@ -2704,40 +2719,47 @@ export default function OverviewTab({
                 style={OVERVIEW_GLASS_SURFACE_STYLE}
                 aria-labelledby="event-level-analysis-col-1-heading"
               >
-                <h3
-                  id="event-level-analysis-col-1-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Mains Ladder
-                </h3>
                 <div className="w-full min-w-0">
                   <MainBracketLadderPanel
                     data={data}
-                    classOptions={eventLevelDriverProgressionClassNames}
+                    classOptions={raceClassNamesFromIngest}
                     resolvedClassName={resolvedEventLevelDriverProgressionClass}
                     onClassNameChange={setEventLevelDriverProgressionClass}
+                    toolbarTitle={
+                      <h3
+                        id="event-level-analysis-col-1-heading"
+                        className={typography.overviewEventResultsToolbarTitle}
+                      >
+                        Mains Ladder
+                      </h3>
+                    }
                   />
                 </div>
               </section>
             </div>
-            <div
-              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
-              role="presentation"
-            >
+            {/* Full-width row: Program overview needs horizontal space for the phase diagram; avoid md:grid-cols-2 with a single child (that pins the panel to half width). */}
+            <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
               <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                className={`flex min-h-0 min-w-0 flex-col items-stretch gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
                 style={OVERVIEW_GLASS_SURFACE_STYLE}
                 aria-labelledby="event-level-analysis-col-2-heading"
               >
-                <h3
-                  id="event-level-analysis-col-2-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Program overview
-                </h3>
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for program / session mix. Content will be added here.
-                </p>
+                <div className="w-full min-w-0">
+                  <ProgramOverviewPanel
+                    data={data}
+                    classOptions={raceClassNamesFromIngest}
+                    resolvedClassName={resolvedEventLevelDriverProgressionClass}
+                    onClassNameChange={setEventLevelDriverProgressionClass}
+                    toolbarTitle={
+                      <h3
+                        id="event-level-analysis-col-2-heading"
+                        className={typography.overviewSectionCardTitle}
+                      >
+                        Program overview
+                      </h3>
+                    }
+                  />
+                </div>
               </section>
             </div>
             <div

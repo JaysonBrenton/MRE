@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-16
+lastModified: 2026-05-19
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -153,6 +153,16 @@ and Docker operational notes.
 
 **Related:** [Database schema – CarTaxonomyNode](database/schema.md),
 [API Reference – car-taxonomy endpoints](api/api-reference.md).
+
+### [Event Analysis — mains ladder (bracket UX)](architecture/event-analysis-mains-ladder.md)
+
+**Status:** Active  
+**Last Updated:** 2026-05-19
+
+Defines the shipped **Event Level Analysis → Mains Ladder** bracket panel (SVG
+diagram, **Drivers who progressed from earlier rounds** tables), how it nests
+inside `OverviewTab`, and how Bump-Up inference / driver-progression matrices
+relate engineering-wise.
 
 ---
 

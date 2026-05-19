@@ -297,7 +297,7 @@ export default function EventRow({
               onClick={handleImport}
               disabled={importButtonDisabled}
               title={importDisabled && !isImporting ? "Finish the current import first" : undefined}
-              className={`flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
+              className={`flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
               aria-label={`Download ${event.eventName}`}
             >
               Download
@@ -311,7 +311,7 @@ export default function EventRow({
               onClick={handleRetry}
               disabled={importButtonDisabled}
               title={importDisabled && !isImporting ? "Finish the current import first" : undefined}
-              className="flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-5 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
+              className="flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-5 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
               aria-label={`Retry import for ${event.eventName}`}
             >
               Retry import
@@ -323,7 +323,7 @@ export default function EventRow({
             <button
               type="button"
               onClick={handleSelect}
-              className={`flex items-center justify-center rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-text)]/10 px-5 text-sm font-medium text-[var(--token-status-success-text)] transition-colors hover:bg-[var(--token-status-success-text)]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
+              className={`flex items-center justify-center rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-text)]/10 px-5 text-sm font-medium text-[var(--token-status-success-text)] transition-colors hover:bg-[var(--token-status-success-text)]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
               aria-label={`Open ${event.eventName}`}
             >
               Open

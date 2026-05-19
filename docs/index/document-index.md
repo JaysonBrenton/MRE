@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-05-13
+lastModified: 2026-05-19
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -13,7 +13,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-05-13  
+**Last Updated:** 2026-05-19  
 **Purpose:** Complete listing of all documentation files in the MRE repository
 
 This document provides a comprehensive index of every document in the MRE
@@ -107,8 +107,15 @@ dashboard.
 
 Detailed walkthrough of the authenticated analysis shell: race-day vs
 practice-day tab sets, submenu analytics (including ladder-oriented subtabs
-where data allows), Overview summarises, Actions menu ingestion shortcuts, Entry
-List naming, and honest notes on telemetry/export scope for Alpha builds.
+where data allows), **Mains Ladder** on the Event Level workspace, Overview
+summarises, Actions menu ingestion shortcuts, Entry List naming, and honest
+notes on telemetry/export scope for Alpha builds.
+
+### [Event Analysis — mains ladder](../architecture/event-analysis-mains-ladder.md)
+
+Technical reference for the **Mains Ladder** bracket (SVG ladder,
+progressed-driver captions/tables), `OverviewTab` wiring, domain modules
+(`main-bracket-ladder-*`, Bump-Up inference companions).
 
 ### [My Event Analysis (Dashboard) Guide](../user-guides/dashboard.md)
 
@@ -188,6 +195,11 @@ rows). CLI: `drivers deduplicate` (dry-run) / `drivers deduplicate --execute`.
 Dashboard architecture and widget system for MRE version 0.1.1. Defines
 dashboard types, widget system, customization architecture, and implementation
 guidelines.
+
+#### [Event Analysis — mains ladder](../architecture/event-analysis-mains-ladder.md)
+
+Defines **Analysis → Event Level Analysis → Mains Ladder**, bracket modeling,
+progressed-driver tables, and Bump-Up/driver-progression complements.
 
 #### [Error Handling and Error Codes Catalog](../architecture/error-handling.md)
 

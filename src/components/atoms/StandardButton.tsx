@@ -31,7 +31,7 @@ export interface StandardButtonProps extends ButtonHTMLAttributes<HTMLButtonElem
  * - Background: bg-[var(--token-surface-elevated)]
  * - Text: text-[var(--token-text-primary)]
  * - Hover: hover:bg-[var(--token-surface-raised)]
- * - Focus: focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)]
+ * - Focus-visible: focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]
  *
  * This component enforces these standards.
  */
@@ -43,7 +43,7 @@ export default function StandardButton({
   ...props
 }: StandardButtonProps) {
   const baseClasses =
-    "mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 sm:px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90"
+    "mobile-button flex items-center justify-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-4 sm:px-5 text-sm font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90"
 
   const widthClass = fullWidth ? "w-full" : ""
 

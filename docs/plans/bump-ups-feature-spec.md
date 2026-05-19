@@ -11,6 +11,7 @@ relatedDocs:
   - docs/adr/ADR-20260404-bump-ups-inferred-from-results.md
   - docs/adr/ADR-20260405-bump-ups-liveRC-heat-sheet-ladder-strategy.md
   - docs/plans/bump-ups-test-plan.md
+  - docs/architecture/event-analysis-mains-ladder.md
 ---
 
 # Bump-ups feature — product specification
@@ -81,3 +82,5 @@ Detailed placement, ASCII wireframes, and component notes:
   `docs/adr/ADR-20260405-bump-ups-liveRC-heat-sheet-ladder-strategy.md`
 - QA: `docs/plans/bump-ups-test-plan.md`
 - UX: `docs/plans/bump-ups-ux-surfacing.md`
+- Main bracket UX:
+  [`docs/architecture/event-analysis-mains-ladder.md`](../architecture/event-analysis-mains-ladder.md)

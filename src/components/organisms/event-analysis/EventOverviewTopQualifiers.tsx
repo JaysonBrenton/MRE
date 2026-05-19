@@ -1087,7 +1087,7 @@ function EventOverviewTopQualifiersCards({
               onChange={(e) => setClosestBattlesDriverFilter(e.target.value)}
               placeholder="Filter by driver name"
               autoComplete="off"
-              className="min-w-[12rem] max-w-full rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+              className="min-w-[12rem] max-w-full rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
             />
           </div>
           {filteredDriverClosestRows.length === 0 ? (
@@ -1389,7 +1389,7 @@ function EventOverviewTopQualifiersTable({ qualPoints }: { qualPoints: QualPaylo
           id="top-qualifiers-class-filter"
           value={resolvedClassFilter}
           onChange={(e) => setClassFilter(e.target.value)}
-          className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+          className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
           aria-label="Filter qual points standings by class"
         >
           <option value="">All classes</option>

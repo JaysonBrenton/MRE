@@ -45,12 +45,81 @@ export interface MainBracketLadderNode {
 export interface MainBracketLadderEdge {
   fromSessionId: string
   toSessionId: string
+  kind: "direct" | "via_lcq"
+  driverCount: number | null
 }
 
 export interface MainBracketLadderModel {
   className: string
   nodes: MainBracketLadderNode[]
   edges: MainBracketLadderEdge[]
+}
+
+/**
+ * When multiple ladder nodes share the same column (e.g. lettered mains), pick the edge target
+ * that matches the source branch (odd/even) when possible.
+ */
+function pickNextTargetFromCandidates(
+  from: MainBracketLadderNode,
+  candidates: MainBracketLadderNode[]
+): MainBracketLadderNode | null {
+  if (candidates.length === 0) return null
+  if (candidates.length === 1) return candidates[0]!
+  if (from.branch === "odd" || from.branch === "even") {
+    const match = candidates.find((t) => t.branch === from.branch)
+    if (match) return match
+  }
+  const center = candidates.find((t) => t.branch === "center")
+  if (center) return center
+  return candidates[0]!
+}
+
+/**
+ * Next visual/ladder hop from `from`, derived from progression edges and session labels only
+ * (no bump-up inference). Prefers the nearest non-LCQ target; falls back to LCQ when that is the
+ * only outgoing edge.
+ */
+export function resolveNextRoundTargetNode(
+  from: MainBracketLadderNode,
+  model: MainBracketLadderModel
+): MainBracketLadderNode | null {
+  const nodeById = new Map(model.nodes.map((n) => [n.sessionId, n]))
+  const outgoing = model.edges.filter((e) => e.fromSessionId === from.sessionId)
+  if (outgoing.length === 0) return null
+
+  const outgoingTargets = outgoing
+    .map((e) => nodeById.get(e.toSessionId))
+    .filter((n): n is MainBracketLadderNode => Boolean(n))
+
+  const nonLcq = outgoingTargets.filter((n) => !labelLooksLikeLcq(n.raceLabel))
+  const pool = nonLcq.length > 0 ? nonLcq : outgoingTargets
+  const minTier = Math.min(...pool.map((t) => t.tierIndex))
+  const atMinTier = pool.filter((t) => t.tierIndex === minTier)
+  return pickNextTargetFromCandidates(from, atMinTier)
+}
+
+/** Drivers in `from` who also appear in {@link resolveNextRoundTargetNode} (observed advancement). */
+export function driversAdvancedToNextRoundSorted(
+  from: MainBracketLadderNode,
+  model: MainBracketLadderModel
+): { target: MainBracketLadderNode | null; drivers: BracketNodeDriver[] } {
+  const target = resolveNextRoundTargetNode(from, model)
+  if (!target) {
+    return { target: null, drivers: [] }
+  }
+  const toIds = new Set(target.drivers.map((d) => d.driverId))
+  const drivers = from.drivers
+    .filter((d) => toIds.has(d.driverId))
+    .slice()
+    .sort((a, b) => {
+      if (a.position !== null && b.position !== null && a.position !== b.position) {
+        return a.position - b.position
+      }
+      if (a.position !== null && b.position === null) return -1
+      if (a.position === null && b.position !== null) return 1
+      return a.driverName.localeCompare(b.driverName, undefined, { sensitivity: "base" })
+    })
+  return { target, drivers }
 }
 
 function formatRoundLabel(raceLabel: string, fallback: string): string {
@@ -101,6 +170,71 @@ type RankedSession = {
   rank: number
 }
 
+function buildTransitionEdgesFromDriverPaths(
+  rankedSessions: RankedSession[],
+  nodes: MainBracketLadderNode[]
+): MainBracketLadderEdge[] {
+  const sessionOrderIndex = new Map<string, number>()
+  rankedSessions.forEach(({ session }, idx) => {
+    sessionOrderIndex.set(session.id, idx)
+  })
+
+  const sessionsById = new Map(rankedSessions.map(({ session }) => [session.id, session]))
+  const nodeBySessionId = new Map(nodes.map((n) => [n.sessionId, n]))
+
+  const appearancesByDriver = new Map<string, Set<string>>()
+  for (const { session } of rankedSessions) {
+    const seenInSession = new Set<string>()
+    for (const r of session.results) {
+      if (seenInSession.has(r.driverId)) continue
+      seenInSession.add(r.driverId)
+      const set = appearancesByDriver.get(r.driverId) ?? new Set<string>()
+      set.add(session.id)
+      appearancesByDriver.set(r.driverId, set)
+    }
+  }
+
+  const edgesByKey = new Map<
+    string,
+    {
+      fromSessionId: string
+      toSessionId: string
+      kind: MainBracketLadderEdge["kind"]
+      driverCount: number
+    }
+  >()
+  for (const [, sessionIds] of appearancesByDriver) {
+    const orderedIds = Array.from(sessionIds).sort((a, b) => {
+      const ia = sessionOrderIndex.get(a) ?? 0
+      const ib = sessionOrderIndex.get(b) ?? 0
+      return ia - ib
+    })
+    for (let i = 0; i < orderedIds.length - 1; i++) {
+      const fromSessionId = orderedIds[i]!
+      const toSessionId = orderedIds[i + 1]!
+      if (fromSessionId === toSessionId) continue
+      const fromSession = sessionsById.get(fromSessionId)
+      const toSession = sessionsById.get(toSessionId)
+      const fromNode = nodeBySessionId.get(fromSessionId)
+      const toNode = nodeBySessionId.get(toSessionId)
+      if (!fromSession || !toSession || !fromNode || !toNode) continue
+      if (fromNode.tierIndex >= toNode.tierIndex) continue
+      const key = `${fromSessionId}->${toSessionId}`
+      const kind: MainBracketLadderEdge["kind"] =
+        labelLooksLikeLcq(fromSession.raceLabel) || labelLooksLikeLcq(toSession.raceLabel)
+          ? "via_lcq"
+          : "direct"
+      const existing = edgesByKey.get(key)
+      if (existing) {
+        existing.driverCount += 1
+      } else {
+        edgesByKey.set(key, { fromSessionId, toSessionId, kind, driverCount: 1 })
+      }
+    }
+  }
+  return Array.from(edgesByKey.values())
+}
+
 export function buildMainBracketLadderModel(
   data: EventAnalysisData,
   className: string | null
@@ -141,15 +275,28 @@ export function buildMainBracketLadderModel(
     maxFractionColumnIndex = log2IntPow2(maxFractionDenom) - log2IntPow2(minD)
   }
 
+  const hasLcqRound = rankedSessions.some(({ session }) => labelLooksLikeLcq(session.raceLabel))
+  // Reserve one bridge column between feeder rounds and the terminal fraction round (e.g. 1/1)
+  // when LCQ exists, so LCQ never visually overlaps 1/2 Odd/Even lanes.
+  const lcqBridgeColumn = hasLcqRound && maxFractionColumnIndex >= 0 ? maxFractionColumnIndex : null
+  const shiftedMaxFractionColumnIndex =
+    maxFractionColumnIndex >= 0 && lcqBridgeColumn !== null
+      ? maxFractionColumnIndex + 1
+      : maxFractionColumnIndex
+
   const nonFractionColumnByRankKey = new Map<number, number>()
   nonFractionRankKeys.forEach((key, idx) => {
-    nonFractionColumnByRankKey.set(key, maxFractionColumnIndex + 1 + idx)
+    nonFractionColumnByRankKey.set(key, shiftedMaxFractionColumnIndex + 1 + idx)
   })
 
   function displayColumnForSession(session: RankedSession["session"], rank: number): number {
     const d = parseBracketFinalDenominator(session.raceLabel)
     if (d !== null && maxFractionDenom > 0) {
-      return maxFracLog - log2IntPow2(d)
+      const base = maxFracLog - log2IntPow2(d)
+      return lcqBridgeColumn !== null && base >= lcqBridgeColumn ? base + 1 : base
+    }
+    if (lcqBridgeColumn !== null && labelLooksLikeLcq(session.raceLabel)) {
+      return lcqBridgeColumn
     }
     return nonFractionColumnByRankKey.get(tierKeyFromRank(rank)) ?? 0
   }
@@ -239,27 +386,27 @@ export function buildMainBracketLadderModel(
     return a.raceLabel.localeCompare(b.raceLabel, undefined, { sensitivity: "base", numeric: true })
   })
 
-  const maxColumn = Math.max(...nodes.map((n) => n.tierIndex), 0)
-  const edges: MainBracketLadderEdge[] = []
-  for (const node of nodes) {
-    const nextCol = node.tierIndex + 1
-    if (nextCol > maxColumn) continue
-    const nextColumnNodes = nodesByColumn.get(nextCol) ?? []
-    const target = edgeTargetForBranch(nextColumnNodes, node.branch)
-    if (target) {
-      edges.push({ fromSessionId: node.sessionId, toSessionId: target.sessionId })
-    }
-  }
+  const edges = buildTransitionEdgesFromDriverPaths(rankedSessions, nodes)
 
-  const lcqNodes = nodes.filter((n) => labelLooksLikeLcq(n.raceLabel))
-  for (const lcqNode of lcqNodes) {
-    const alreadyHas = edges.some((e) => e.fromSessionId === lcqNode.sessionId)
-    if (alreadyHas) continue
-    const higher = nodes
-      .filter((n) => n.tierIndex > lcqNode.tierIndex)
-      .sort((a, b) => a.tierIndex - b.tierIndex)[0]
-    if (higher) {
-      edges.push({ fromSessionId: lcqNode.sessionId, toSessionId: higher.sessionId })
+  if (edges.length === 0) {
+    const maxColumn = Math.max(...nodes.map((n) => n.tierIndex), 0)
+    for (const node of nodes) {
+      const nextCol = node.tierIndex + 1
+      if (nextCol > maxColumn) continue
+      const nextColumnNodes = nodesByColumn.get(nextCol) ?? []
+      const target = edgeTargetForBranch(nextColumnNodes, node.branch)
+      if (target) {
+        const kind: MainBracketLadderEdge["kind"] =
+          labelLooksLikeLcq(node.raceLabel) || labelLooksLikeLcq(target.raceLabel)
+            ? "via_lcq"
+            : "direct"
+        edges.push({
+          fromSessionId: node.sessionId,
+          toSessionId: target.sessionId,
+          kind,
+          driverCount: null,
+        })
+      }
     }
   }
 

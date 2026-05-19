@@ -327,7 +327,7 @@ export default function RegisterPage() {
                       setEmail(e.target.value)
                       clearFieldError("email")
                     }}
-                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     placeholder="you@example.com"
                     aria-invalid={Boolean(fieldErrors.email)}
                     aria-describedby={emailErrorId}
@@ -358,7 +358,7 @@ export default function RegisterPage() {
                       setPassword(e.target.value)
                       clearFieldError("password")
                     }}
-                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     placeholder="••••••••"
                     aria-invalid={Boolean(fieldErrors.password)}
                     aria-describedby={passwordErrorId}
@@ -390,7 +390,7 @@ export default function RegisterPage() {
                       setDriverName(e.target.value)
                       clearFieldError("driverName")
                     }}
-                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     placeholder="Your display name"
                     aria-invalid={Boolean(fieldErrors.driverName)}
                     aria-describedby={driverNameErrorId}
@@ -418,7 +418,7 @@ export default function RegisterPage() {
                     type="text"
                     value={teamName}
                     onChange={(e) => setTeamName(e.target.value)}
-                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus:border-[var(--token-form-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)]"
+                    className="block w-full min-w-0 rounded-md border border-[var(--token-form-border)] bg-[var(--token-form-background)] px-4 py-3 text-base text-[var(--token-text-primary)] placeholder-[var(--token-form-placeholder)] focus-visible:border-[var(--token-form-border-focus)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                     placeholder="Your team name"
                   />
                 </div>
@@ -428,7 +428,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mobile-button w-full flex justify-center items-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-6 py-3 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90"
+                  className="mobile-button w-full flex justify-center items-center rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-6 py-3 text-base font-medium text-[var(--token-text-primary)] transition-colors hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed active:opacity-90"
                 >
                   {loading ? "Creating account..." : "Create account"}
                 </button>
@@ -440,7 +440,7 @@ export default function RegisterPage() {
                 </span>
                 <Link
                   href="/login"
-                  className="font-medium text-[var(--token-text-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--token-interactive-focus-ring)] rounded"
+                  className="font-medium text-[var(--token-text-primary)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded"
                 >
                   Sign in
                 </Link>
