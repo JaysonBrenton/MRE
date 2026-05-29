@@ -3,6 +3,8 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import {
   buildMainBracketLadderModel,
   driversAdvancedToNextRoundSorted,
+  filterRaceClassesWithObservedMainBracketProgression,
+  raceClassHasObservedMainBracketProgression,
 } from "@/core/events/main-bracket-ladder-model"
 
 function makeResult(
@@ -452,5 +454,79 @@ describe("buildMainBracketLadderModel", () => {
     expect(edgeCountByKey.get("half-even->final-even")).toBe(1)
     expect(edgeCountByKey.get("half-odd->lcq")).toBe(2)
     expect(edgeCountByKey.get("lcq->final-even")).toBe(2)
+  })
+})
+
+describe("raceClassHasObservedMainBracketProgression / filterRaceClassesWithObservedMainBracketProgression", () => {
+  it("is true for bracket finals where a driver spans tiers", () => {
+    const races: EventAnalysisData["races"] = [
+      {
+        id: "r1",
+        raceId: "r1",
+        className: "Buggy",
+        raceLabel: "Buggy 1/8 Odd Final",
+        raceOrder: 1,
+        startTime: new Date("2026-01-01T10:00:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/r1",
+        results: [makeResult("a", "d1", "Alex", 1, 2), makeResult("b", "d2", "Blake", 2, 8)],
+      },
+      {
+        id: "r2",
+        raceId: "r2",
+        className: "Buggy",
+        raceLabel: "Buggy 1/4 Odd Final",
+        raceOrder: 2,
+        startTime: new Date("2026-01-01T11:00:00Z"),
+        durationSeconds: 300,
+        sessionType: "race",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/r2",
+        results: [makeResult("c", "d1", "Alex", 3, 2), makeResult("d", "d3", "Chris", 5, 7)],
+      },
+    ]
+    const data = baseEventData(races)
+    expect(raceClassHasObservedMainBracketProgression(data, "Buggy")).toBe(true)
+    expect(
+      filterRaceClassesWithObservedMainBracketProgression(data, ["Buggy", "EP Buggy"])
+    ).toEqual(["Buggy"])
+  })
+
+  it("is false for parallel letter mains with disjoint driver sets", () => {
+    const races: EventAnalysisData["races"] = [
+      {
+        id: "e-main",
+        raceId: "e-main",
+        className: "EP Buggy",
+        raceLabel: "EP Buggy E1-Main",
+        raceOrder: 1,
+        startTime: new Date("2026-01-01T10:00:00Z"),
+        durationSeconds: 300,
+        sessionType: "main",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/e",
+        results: [makeResult("a", "d1", "Alex", 1), makeResult("b", "d2", "Blake", 2)],
+      },
+      {
+        id: "d-main",
+        raceId: "d-main",
+        className: "EP Buggy",
+        raceLabel: "EP Buggy D1-Main",
+        raceOrder: 2,
+        startTime: new Date("2026-01-01T11:00:00Z"),
+        durationSeconds: 300,
+        sessionType: "main",
+        sectionHeader: "Main Events",
+        raceUrl: "https://example.com/d",
+        results: [makeResult("c", "d9", "Chris", 1), makeResult("d", "d10", "Dana", 2)],
+      },
+    ]
+    const data = baseEventData(races)
+    expect(raceClassHasObservedMainBracketProgression(data, "EP Buggy")).toBe(false)
+    expect(
+      filterRaceClassesWithObservedMainBracketProgression(data, ["Buggy", "EP Buggy"])
+    ).toEqual([])
   })
 })

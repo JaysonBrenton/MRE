@@ -31,6 +31,34 @@ import {
 } from "@/core/events/main-bracket-ladder-model"
 import { assignCenterYBySessionId } from "@/core/events/main-bracket-ladder-layout"
 
+type QualStandingLite = { position: number }
+
+/** Map driverId → LiveRC qual-points rank (# column) for one ladder class. */
+function qualStandingsByDriverIdForClass(
+  qualPayload: EventAnalysisData["qualPointsTopQualifiers"],
+  ladderClass: string | null | undefined
+): Map<string, QualStandingLite> {
+  const out = new Map<string, QualStandingLite>()
+  const want = ladderClass?.trim()
+  if (!qualPayload?.standings?.length || !want) return out
+  for (const row of qualPayload.standings) {
+    if (row.className.trim() !== want) continue
+    if (out.has(row.driverId)) continue
+    out.set(row.driverId, { position: row.position })
+  }
+  return out
+}
+
+/** Prior mains ladder round label, else overall qual rank when ingested, else N/A. */
+function formatPriorMainOrQualCell(
+  progressedFromRoundLabel: string | null,
+  qual: QualStandingLite | undefined
+): string {
+  if (progressedFromRoundLabel) return progressedFromRoundLabel
+  if (qual) return `Qualified: ${qual.position}`
+  return "N/A"
+}
+
 interface MainBracketLadderPanelProps {
   data: EventAnalysisData
   classOptions: string[]
@@ -75,7 +103,8 @@ const defaultPalette: ThemePalette = {
 }
 
 const NODE_WIDTH = 188
-const NODE_HEIGHT = 82
+/** Card: round title + podium (P1–P3). Who advanced is hover / modal / screen reader only. */
+const NODE_HEIGHT = 92
 /** Suppress default focus outline/ring on the class picker (still operable via keyboard). */
 const MAIN_BRACKET_CLASS_SELECT_CLASS =
   "w-max max-w-full shrink-0 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:outline-none"
@@ -113,50 +142,29 @@ function driverCountLabel(node: MainBracketLadderNode): string {
   return `${count} drivers`
 }
 
-/** Fits inside NODE_WIDTH minus horizontal padding at ~10px font in the SVG export. */
-const CARD_PROGRESSED_NAME_MAX_CHARS = 23
-const CARD_PROGRESSED_MAX_LINES = 3
-const CARD_PROGRESSED_LINE_HEIGHT = 13
+const CARD_PODIUM_FONT_SIZE = 11
+const CARD_PODIUM_LINE_HEIGHT = 15
+/** ~max chars per line at CARD_PODIUM_FONT_SIZE inside NODE_WIDTH minus padding */
+const CARD_PODIUM_NAME_MAX_CHARS = 22
+/** Space from round-label baseline (e.g. “1/4 Odd”) to first podium line baseline. */
+const NODE_ROUND_LABEL_BASELINE_OFFSET = 22
+/** Extra separation so the 14px round title does not crowd the podium lines. */
+const NODE_ROUND_LABEL_TO_PODIUM_BASELINE_GAP = 26
 
-/** Lines shown under the round label for drivers who advanced to the next main. */
-function advancedDriverNameLines(drivers: BracketNodeDriver[]): string[] {
-  if (drivers.length === 0) return []
-
-  const names = drivers.map((d) => d.driverName)
+/** Up to three lines: finishing positions 1–3 when results include those places. */
+function podiumDriverLines(drivers: BracketNodeDriver[]): string[] {
   const lines: string[] = []
-  let i = 0
-
-  while (i < names.length && lines.length < CARD_PROGRESSED_MAX_LINES) {
-    const linesLeft = CARD_PROGRESSED_MAX_LINES - lines.length
-    const namesLeft = names.length - i
-
-    if (linesLeft === 1 && namesLeft > 1) {
-      const first = names[i]!
-      const more = namesLeft - 1
-      const suffix = ` +${more} more`
-      const budget = CARD_PROGRESSED_NAME_MAX_CHARS - suffix.length
-      let head = first
-      if (head.length > budget) {
-        head = head.slice(0, Math.max(1, budget - 1)) + "…"
-      }
-      lines.push(head + suffix)
-      break
+  for (const pos of [1, 2, 3] as const) {
+    const d = drivers.find((x) => x.position === pos)
+    if (!d) continue
+    let name = d.driverName
+    const prefix = `${pos}. `
+    const budget = CARD_PODIUM_NAME_MAX_CHARS - prefix.length
+    if (name.length > budget) {
+      name = name.slice(0, Math.max(1, budget - 1)) + "…"
     }
-
-    let chunk = names[i]!
-    if (chunk.length > CARD_PROGRESSED_NAME_MAX_CHARS) {
-      lines.push(chunk.slice(0, CARD_PROGRESSED_NAME_MAX_CHARS - 1) + "…")
-      i++
-      continue
-    }
-    i++
-    while (i < names.length && `${chunk}, ${names[i]!}`.length <= CARD_PROGRESSED_NAME_MAX_CHARS) {
-      chunk += ", " + names[i]!
-      i++
-    }
-    lines.push(chunk)
+    lines.push(prefix + name)
   }
-
   return lines
 }
 
@@ -663,6 +671,17 @@ export default function MainBracketLadderPanel({
     return computeBracketLayout(model)
   }, [model])
 
+  const qualByDriverId = useMemo(
+    () => qualStandingsByDriverIdForClass(data.qualPointsTopQualifiers, selectedClass),
+    [data.qualPointsTopQualifiers, selectedClass]
+  )
+
+  const hasQualStandingsForSelectedClass = useMemo(() => {
+    if (!selectedClass?.trim() || !data.qualPointsTopQualifiers?.standings?.length) return false
+    const want = selectedClass.trim()
+    return data.qualPointsTopQualifiers.standings.some((r) => r.className.trim() === want)
+  }, [data.qualPointsTopQualifiers, selectedClass])
+
   const bracketHasLcqEdges = useMemo(
     () => layout?.edges.some((e) => e.kind === "via_lcq") ?? false,
     [layout]
@@ -749,7 +768,8 @@ export default function MainBracketLadderPanel({
         ) : null}
         <div className="rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface)]/40 p-4">
           <p className="text-sm text-[var(--token-text-secondary)]">
-            No classes with multiple mains ladder rounds are available for this event.
+            No mains ladder progression was detected across mains tiers for any ingested class at
+            this event.
           </p>
         </div>
       </div>
@@ -903,7 +923,7 @@ export default function MainBracketLadderPanel({
                 )
                 const showAdvancedTooltip = advancedList.length > 0 && Boolean(target)
                 const descId = `mains-bracket-adv-${node.sessionId}`
-                const progressedLines = advancedDriverNameLines(advancedList)
+                const podiumLines = node.hasResults ? podiumDriverLines(node.drivers) : []
                 return (
                   <g key={node.sessionId}>
                     <rect
@@ -959,7 +979,7 @@ export default function MainBracketLadderPanel({
                     />
                     <text
                       x={x + 10}
-                      y={y + 22}
+                      y={y + NODE_ROUND_LABEL_BASELINE_OFFSET}
                       fill={palette.nodeText}
                       fontSize={14}
                       fontWeight={600}
@@ -967,21 +987,21 @@ export default function MainBracketLadderPanel({
                     >
                       {node.roundLabel}
                     </text>
-                    {progressedLines.length > 0 ? (
+                    {podiumLines.length > 0 ? (
                       <text
                         x={x + 10}
-                        y={y + 38}
-                        fill={palette.advancedText}
-                        fontSize={10}
+                        y={
+                          y +
+                          NODE_ROUND_LABEL_BASELINE_OFFSET +
+                          NODE_ROUND_LABEL_TO_PODIUM_BASELINE_GAP
+                        }
+                        fill={palette.nodeSubtle}
+                        fontSize={CARD_PODIUM_FONT_SIZE}
                         fontWeight={600}
                         style={{ pointerEvents: "none" }}
                       >
-                        {progressedLines.map((line, idx) => (
-                          <tspan
-                            key={idx}
-                            x={x + 10}
-                            dy={idx === 0 ? 0 : CARD_PROGRESSED_LINE_HEIGHT}
-                          >
+                        {podiumLines.map((line, idx) => (
+                          <tspan key={idx} x={x + 10} dy={idx === 0 ? 0 : CARD_PODIUM_LINE_HEIGHT}>
                             {line}
                           </tspan>
                         ))}
@@ -1011,7 +1031,7 @@ export default function MainBracketLadderPanel({
           onClose={() => setActiveNode(null)}
           title={activeNode?.roundLabel ?? "Round Details"}
           subtitle={activeNode?.raceLabel}
-          maxWidth="3xl"
+          maxWidth="4xl"
           resizable={false}
         >
           {activeNode && (
@@ -1031,15 +1051,24 @@ export default function MainBracketLadderPanel({
                   <> · {activeNode.advancedDriverCount} started this main after an earlier main</>
                 ) : null}
               </p>
+              {hasQualStandingsForSelectedClass && data.qualPointsTopQualifiers?.label ? (
+                <p className="text-xs text-[var(--token-text-secondary)]">
+                  <span className="text-[var(--token-text-primary)]">
+                    {data.qualPointsTopQualifiers.label}
+                  </span>
+                </p>
+              ) : null}
               <div className="w-full min-w-0 overflow-x-auto rounded-md border border-[var(--token-border-default)]">
                 <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
                   <thead className="bg-[var(--token-surface)]/60 text-[var(--token-text-secondary)]">
                     <tr>
-                      <th className="px-3 py-2 font-medium">Pos</th>
-                      <th className="px-3 py-2 font-medium">Driver</th>
-                      <th className="px-3 py-2 font-medium">Qual</th>
+                      <th className="px-3 py-2 font-medium">Finish Position</th>
+                      <th className="w-[1%] whitespace-nowrap px-3 py-2 font-medium">Driver</th>
+                      <th className="px-3 py-2 font-medium">Start Position</th>
                       <th className="px-3 py-2 font-medium">Laps / Time</th>
-                      <th className="px-3 py-2 font-medium">From Round</th>
+                      <th className="px-3 py-2 font-medium whitespace-nowrap">
+                        Prior Main / Qualification
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1054,12 +1083,17 @@ export default function MainBracketLadderPanel({
                         }}
                       >
                         <td className="px-3 py-2">P{safePosition(driver.position)}</td>
-                        <td className="px-3 py-2">{driver.driverName}</td>
-                        <td className="px-3 py-2">Q{safePosition(driver.qualifyingPosition)}</td>
+                        <td className="w-[1%] whitespace-nowrap px-3 py-2">{driver.driverName}</td>
+                        <td className="px-3 py-2">{safePosition(driver.qualifyingPosition)}</td>
                         <td className="px-3 py-2">
                           {formatLapsTime(driver.lapsCompleted, driver.totalTimeSeconds)}
                         </td>
-                        <td className="px-3 py-2">{driver.progressedFromRoundLabel ?? "N/A"}</td>
+                        <td className="px-3 py-2">
+                          {formatPriorMainOrQualCell(
+                            driver.progressedFromRoundLabel,
+                            qualByDriverId.get(driver.driverId)
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

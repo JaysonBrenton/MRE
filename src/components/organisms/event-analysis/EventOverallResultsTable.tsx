@@ -17,16 +17,18 @@ import {
   OVERVIEW_GLASS_SURFACE_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
 } from "@/components/organisms/event-analysis/overview-glass-surface"
-import {
-  driverNamesMatchForClassWinner,
-  type ClassWinnerHighlight,
-} from "@/core/events/build-event-highlights"
+import type { ClassWinnerHighlight } from "@/core/events/build-event-highlights"
 import type { TopQualifierCardModel } from "@/core/events/top-qualifier-overview-cards"
 import { typography } from "@/lib/typography"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
-import { PodiumSlotName, HighlightPodiumName } from "./OverviewPodiumNames"
+import { HighlightPodiumName } from "./OverviewPodiumNames"
 
-type SortField = "classDisplay" | "winnerName" | "secondPlaceName" | "thirdPlaceName"
+type SortField =
+  | "classDisplay"
+  | "topQualifierName"
+  | "winnerName"
+  | "secondPlaceName"
+  | "thirdPlaceName"
 
 type SortDirection = "asc" | "desc"
 
@@ -48,14 +50,6 @@ function compareRowsTieBreak(a: ClassWinnerHighlight, b: ClassWinnerHighlight): 
 const HEADER_BUTTON_CLASS =
   "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
 
-/** Matches {@link PodiumPlaceCell}: `w-10` TQ slot + `gap-2` before the place badge — aligns header labels with chips. */
-const PODIUM_HEADER_LEAD_SPACER = <span className="inline-flex h-6 w-10 shrink-0" aria-hidden />
-
-const PODIUM_HEADER_SORT_BUTTON_CLASS = [
-  "inline-flex min-w-0 flex-1 items-center gap-1 rounded-md px-0 text-left text-[inherit]",
-  "hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]",
-].join(" ")
-
 const SURFACE_CLASS = OVERVIEW_GLASS_SURFACE_CLASS
 const SURFACE_STYLE = OVERVIEW_GLASS_SURFACE_STYLE
 
@@ -72,25 +66,13 @@ function placeBadgeClass(place: "1st" | "2nd" | "3rd"): string {
 function PodiumPlaceCell({
   place,
   children,
-  isTopQualifier = false,
 }: {
   place: "1st" | "2nd" | "3rd"
   children: ReactNode
-  /** When true, show a TQ chip (same size as the place badge) before the place badge. */
-  isTopQualifier?: boolean
 }) {
   const badgeClass = placeBadgeClass(place)
-  const tqBadgeClass =
-    "inline-flex h-6 w-10 shrink-0 items-center justify-center rounded-md text-[0.65rem] font-bold leading-none tabular-nums tracking-wide ring-1 ring-inset bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)] ring-[var(--token-accent)]/35 no-underline"
   return (
     <span className="flex min-w-0 max-w-full items-center gap-2">
-      {isTopQualifier ? (
-        <abbr title="Top qualifier" className={tqBadgeClass} aria-label="Top qualifier">
-          TQ
-        </abbr>
-      ) : (
-        <span className="inline-flex h-6 w-10 shrink-0" aria-hidden />
-      )}
       <span
         className={`inline-flex h-6 w-10 shrink-0 items-center justify-center rounded-md text-[0.65rem] font-bold leading-none tabular-nums tracking-tight ring-1 ring-inset ${badgeClass}`}
         aria-hidden
@@ -102,11 +84,26 @@ function PodiumPlaceCell({
   )
 }
 
-function rowMatchesDriverSearch(row: ClassWinnerHighlight, searchLower: string): boolean {
+function topQualifierNameForClass(
+  className: string,
+  topQualifierByClass: ReadonlyMap<string, TopQualifierCardModel>
+): string | null {
+  const name = topQualifierByClass.get(className.trim())?.driverDisplayName?.trim() ?? ""
+  return name.length > 0 ? name : null
+}
+
+function rowMatchesDriverSearch(
+  row: ClassWinnerHighlight,
+  searchLower: string,
+  topQualifierByClass: ReadonlyMap<string, TopQualifierCardModel>
+): boolean {
   if (!searchLower) return true
-  const names = [row.winnerName, row.secondPlaceName, row.thirdPlaceName].filter(
-    (n): n is string => typeof n === "string" && n.trim().length > 0
-  )
+  const names = [
+    topQualifierNameForClass(row.className, topQualifierByClass),
+    row.winnerName,
+    row.secondPlaceName,
+    row.thirdPlaceName,
+  ].filter((n): n is string => typeof n === "string" && n.trim().length > 0)
   return names.some((n) => n.toLowerCase().includes(searchLower))
 }
 
@@ -198,8 +195,10 @@ export default function EventOverallResultsTable({
   const driverFilteredRows = useMemo(() => {
     const search = driverSearch.trim().toLowerCase()
     if (!search) return classFilteredRows
-    return classFilteredRows.filter((row) => rowMatchesDriverSearch(row, search))
-  }, [classFilteredRows, driverSearch])
+    return classFilteredRows.filter((row) =>
+      rowMatchesDriverSearch(row, search, topQualifierByClass)
+    )
+  }, [classFilteredRows, driverSearch, topQualifierByClass])
 
   const sortedRows = useMemo(() => {
     const list = [...driverFilteredRows]
@@ -209,6 +208,12 @@ export default function EventOverallResultsTable({
         case "classDisplay":
           cmp = a.classDisplay.localeCompare(b.classDisplay)
           break
+        case "topQualifierName": {
+          const aName = topQualifierNameForClass(a.className, topQualifierByClass) ?? ""
+          const bName = topQualifierNameForClass(b.className, topQualifierByClass) ?? ""
+          cmp = aName.localeCompare(bName, undefined, { sensitivity: "base" })
+          break
+        }
         case "winnerName":
           cmp = a.winnerName.localeCompare(b.winnerName, undefined, { sensitivity: "base" })
           break
@@ -231,7 +236,7 @@ export default function EventOverallResultsTable({
       return compareRowsTieBreak(a, b)
     })
     return list
-  }, [driverFilteredRows, sortField, sortDirection])
+  }, [driverFilteredRows, sortField, sortDirection, topQualifierByClass])
 
   const paginationResetKey = useMemo(
     () =>
@@ -272,14 +277,6 @@ export default function EventOverallResultsTable({
       queueMicrotask(() => setCurrentPage(totalPages))
     }
   }, [currentPage, totalPages])
-
-  const podiumSlotIsTopQualifier = useCallback(
-    (className: string, name: string | null | undefined) => {
-      const tq = topQualifierByClass.get(className.trim()) ?? null
-      return Boolean(name && tq && driverNamesMatchForClassWinner(name, tq.driverDisplayName))
-    },
-    [topQualifierByClass]
-  )
 
   if (rows.length === 0) {
     return (
@@ -391,79 +388,85 @@ export default function EventOverallResultsTable({
                     header
                     className={`align-middle px-3 py-2 text-left ${typography.tableHeader}`}
                   >
-                    <div className="flex min-w-0 items-center gap-2">
-                      {PODIUM_HEADER_LEAD_SPACER}
-                      <button
-                        type="button"
-                        onClick={() => handleSort("winnerName")}
-                        className={PODIUM_HEADER_SORT_BUTTON_CLASS}
-                      >
-                        1st
-                        <SortIcon
-                          field="winnerName"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("topQualifierName")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      Top Qualifiers
+                      <SortIcon
+                        field="topQualifierName"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
                   </StandardTableCell>
                   <StandardTableCell
                     header
                     className={`align-middle px-3 py-2 text-left ${typography.tableHeader}`}
                   >
-                    <div className="flex min-w-0 items-center gap-2">
-                      {PODIUM_HEADER_LEAD_SPACER}
-                      <button
-                        type="button"
-                        onClick={() => handleSort("secondPlaceName")}
-                        className={PODIUM_HEADER_SORT_BUTTON_CLASS}
-                      >
-                        2nd
-                        <SortIcon
-                          field="secondPlaceName"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("winnerName")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      1st
+                      <SortIcon
+                        field="winnerName"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
                   </StandardTableCell>
                   <StandardTableCell
                     header
                     className={`align-middle px-3 py-2 text-left ${typography.tableHeader}`}
                   >
-                    <div className="flex min-w-0 items-center gap-2">
-                      {PODIUM_HEADER_LEAD_SPACER}
-                      <button
-                        type="button"
-                        onClick={() => handleSort("thirdPlaceName")}
-                        className={PODIUM_HEADER_SORT_BUTTON_CLASS}
-                      >
-                        3rd
-                        <SortIcon
-                          field="thirdPlaceName"
-                          activeField={sortField}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("secondPlaceName")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      2nd
+                      <SortIcon
+                        field="secondPlaceName"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
+                  </StandardTableCell>
+                  <StandardTableCell
+                    header
+                    className={`align-middle px-3 py-2 text-left ${typography.tableHeader}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSort("thirdPlaceName")}
+                      className={HEADER_BUTTON_CLASS}
+                    >
+                      3rd
+                      <SortIcon
+                        field="thirdPlaceName"
+                        activeField={sortField}
+                        direction={sortDirection}
+                      />
+                    </button>
                   </StandardTableCell>
                 </StandardTableRow>
               </StandardTableHeader>
               <tbody>
                 {paginatedRows.map((cw) => {
+                  const topQualifierName = topQualifierNameForClass(
+                    cw.className,
+                    topQualifierByClass
+                  )
                   const isOpen =
                     activeDetail?.className === cw.className &&
                     activeDetail?.winnerName === cw.winnerName
-                  const ariaLabel = `Open class results: 1st ${cw.winnerName}${
-                    podiumSlotIsTopQualifier(cw.className, cw.winnerName) ? " (top qualifier)" : ""
-                  }${cw.secondPlaceName ? `, 2nd ${cw.secondPlaceName}` : ""}${
-                    podiumSlotIsTopQualifier(cw.className, cw.secondPlaceName)
-                      ? " (top qualifier)"
-                      : ""
-                  }${cw.thirdPlaceName ? `, 3rd ${cw.thirdPlaceName}` : ""}${
-                    podiumSlotIsTopQualifier(cw.className, cw.thirdPlaceName)
-                      ? " (top qualifier)"
-                      : ""
+                  const ariaLabel = `Open class results: top qualifier ${
+                    topQualifierName ?? "none"
+                  }, 1st ${cw.winnerName}${cw.secondPlaceName ? `, 2nd ${cw.secondPlaceName}` : ""}${
+                    cw.thirdPlaceName ? `, 3rd ${cw.thirdPlaceName}` : ""
                   } · ${cw.classDisplay}`
                   return (
                     <StandardTableRow
@@ -483,11 +486,23 @@ export default function EventOverallResultsTable({
                       <StandardTableCell className="align-middle px-3 py-2 text-sm font-medium text-[var(--token-text-primary)]">
                         {cw.classDisplay}
                       </StandardTableCell>
+                      <StandardTableCell className="align-middle px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {topQualifierName ? (
+                          <HighlightPodiumName
+                            name={topQualifierName}
+                            className="min-w-0 truncate text-[var(--token-text-secondary)]"
+                          />
+                        ) : (
+                          <span
+                            className="text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
+                            aria-label="No top qualifier in imported results for this class"
+                          >
+                            None
+                          </span>
+                        )}
+                      </StandardTableCell>
                       <StandardTableCell className="align-middle px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                        <PodiumPlaceCell
-                          place="1st"
-                          isTopQualifier={podiumSlotIsTopQualifier(cw.className, cw.winnerName)}
-                        >
+                        <PodiumPlaceCell place="1st">
                           <HighlightPodiumName
                             name={cw.winnerName}
                             className="min-w-0 truncate font-semibold text-[var(--token-text-primary)]"
@@ -495,32 +510,37 @@ export default function EventOverallResultsTable({
                         </PodiumPlaceCell>
                       </StandardTableCell>
                       <StandardTableCell className="align-middle px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                        <PodiumPlaceCell
-                          place="2nd"
-                          isTopQualifier={podiumSlotIsTopQualifier(
-                            cw.className,
-                            cw.secondPlaceName
+                        <PodiumPlaceCell place="2nd">
+                          {cw.secondPlaceName ? (
+                            <HighlightPodiumName
+                              name={cw.secondPlaceName}
+                              className="min-w-0 truncate text-[var(--token-text-secondary)]"
+                            />
+                          ) : (
+                            <span
+                              className="text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
+                              aria-label="No 2nd place in imported results for this class"
+                            >
+                              None
+                            </span>
                           )}
-                        >
-                          <PodiumSlotName
-                            name={cw.secondPlaceName}
-                            filledClassName="min-w-0 truncate text-[var(--token-text-secondary)]"
-                            emptyHint="No 2nd place in imported results for this class"
-                            suppressEmbeddedTqBadge
-                          />
                         </PodiumPlaceCell>
                       </StandardTableCell>
                       <StandardTableCell className="align-middle px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                        <PodiumPlaceCell
-                          place="3rd"
-                          isTopQualifier={podiumSlotIsTopQualifier(cw.className, cw.thirdPlaceName)}
-                        >
-                          <PodiumSlotName
-                            name={cw.thirdPlaceName}
-                            filledClassName="min-w-0 truncate text-[var(--token-text-secondary)]"
-                            emptyHint="No 3rd place in imported results for this class"
-                            suppressEmbeddedTqBadge
-                          />
+                        <PodiumPlaceCell place="3rd">
+                          {cw.thirdPlaceName ? (
+                            <HighlightPodiumName
+                              name={cw.thirdPlaceName}
+                              className="min-w-0 truncate text-[var(--token-text-secondary)]"
+                            />
+                          ) : (
+                            <span
+                              className="text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
+                              aria-label="No 3rd place in imported results for this class"
+                            >
+                              None
+                            </span>
+                          )}
                         </PodiumPlaceCell>
                       </StandardTableCell>
                     </StandardTableRow>

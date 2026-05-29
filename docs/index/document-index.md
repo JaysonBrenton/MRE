@@ -1,7 +1,7 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-05-19
+lastModified: 2026-05-20
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
   Provides a complete listing of every document in the repository with links and
@@ -478,6 +478,14 @@ Defines what “bump-up” means in MRE (observed advancement from results, not
 rulebooks), LiveRC Main Events schedule model, same-class vs LCQ class names,
 tier strategies, and multi-main aggregate usage. Entry point for bump-up product
 and engineering semantics.
+
+### [LiveRC Qual Points page (view_points) explainer](../domain/liverc-qual-points-view-explainer.md)
+
+Reference for reading LiveRC **Qual Points** pages: **best N of M** drops,
+IFMAR-style point totals (`Result`), column semantics (`points : laps/time` is
+**total time**, not average lap), tie-breaker cell behaviour, DNS/DNF, and a
+worked example (**2025 RCRA Nationals**, Buggy, **best 3 of 5**). Descriptive of
+LiveRC UX—not automatic MRE implementation logic.
 
 ---
 

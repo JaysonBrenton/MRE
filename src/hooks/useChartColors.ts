@@ -55,6 +55,46 @@ function getStorageKey(chartInstanceId: string, seriesName: SeriesName): string 
   return `${STORAGE_PREFIX}-${chartInstanceId}-${seriesName}`
 }
 
+function getDynamicStorageKey(chartInstanceId: string, seriesKey: string): string {
+  return `${STORAGE_PREFIX}-${chartInstanceId}-${seriesKey}`
+}
+
+function readDynamicColorFromStorage(
+  chartInstanceId: string,
+  seriesKey: string,
+  defaultValue: string
+): string {
+  if (typeof window === "undefined") {
+    return defaultValue
+  }
+  try {
+    const stored = localStorage.getItem(getDynamicStorageKey(chartInstanceId, seriesKey))
+    if (stored && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(stored)) {
+      return stored
+    }
+  } catch (error) {
+    console.warn("Failed to read chart color from localStorage:", error)
+  }
+  return defaultValue
+}
+
+function writeDynamicColorToStorage(
+  chartInstanceId: string,
+  seriesKey: string,
+  color: string
+): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  try {
+    if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)) {
+      localStorage.setItem(getDynamicStorageKey(chartInstanceId, seriesKey), color)
+    }
+  } catch (error) {
+    console.warn("Failed to write chart color to localStorage:", error)
+  }
+}
+
 /**
  * Read color from localStorage
  */
@@ -174,4 +214,61 @@ export function useChartColors<T extends Record<string, string>>(
   )
 
   return { colors, setColor }
+}
+
+/**
+ * Per-driver line colors keyed by stable driverId (not selection index).
+ */
+export function useDriverLineColors(
+  chartInstanceId: string,
+  driverIds: string[],
+  defaultColorForDriver: (driverId: string) => string
+): {
+  colorByDriverId: Record<string, string>
+  setDriverColor: (driverId: string, color: string) => void
+} {
+  const driverKey = driverIds.slice().sort().join("|")
+
+  const [colorByDriverId, setColorByDriverId] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {}
+    for (const id of driverIds) {
+      const storageKey = `driverId-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+      initial[id] = readDynamicColorFromStorage(
+        chartInstanceId,
+        storageKey,
+        defaultColorForDriver(id)
+      )
+    }
+    return initial
+  })
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setColorByDriverId((prev) => {
+        const next: Record<string, string> = {}
+        let changed = false
+        for (const id of driverIds) {
+          const storageKey = `driverId-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+          const resolved =
+            prev[id] ??
+            readDynamicColorFromStorage(chartInstanceId, storageKey, defaultColorForDriver(id))
+          next[id] = resolved
+          if (prev[id] !== resolved) changed = true
+        }
+        if (Object.keys(prev).length !== driverIds.length) changed = true
+        return changed ? next : prev
+      })
+    })
+  }, [chartInstanceId, driverKey, defaultColorForDriver, driverIds])
+
+  const setDriverColor = useCallback(
+    (driverId: string, color: string) => {
+      const storageKey = `driverId-${driverId.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+      setColorByDriverId((prev) => ({ ...prev, [driverId]: color }))
+      writeDynamicColorToStorage(chartInstanceId, storageKey, color)
+    },
+    [chartInstanceId]
+  )
+
+  return { colorByDriverId, setDriverColor }
 }

@@ -1,7 +1,7 @@
 ---
 created: 2026-04-12
 owner: Platform / Event Analysis
-lastModified: 2026-04-12
+lastModified: 2026-05-20
 description:
   Normative design for defining and surfacing top qualifiers (TQ) in MRE from
   ingested race data.
@@ -11,6 +11,7 @@ purpose:
 relatedFiles:
   - docs/future-ideas/top-qualifiers-and-seeding-rounds.md
   - docs/implimentation_plans/top-qualifiers-2026-04.md
+  - docs/domain/liverc-qual-points-view-explainer.md
   - prisma/schema.prisma
   - src/core/events/get-event-analysis-data.ts
   - docs/architecture/liverc-ingestion/04-data-model.md
@@ -147,6 +148,9 @@ When a durable choice is locked, record it here or in a dedicated ADR per
 
 ## References
 
+- LiveRC **Qual Points** page semantics (IFMAR totals, best N of M, worked
+  example):
+  [liverc-qual-points-view-explainer.md](../domain/liverc-qual-points-view-explainer.md)
 - Future ideas (product):
   [top-qualifiers-and-seeding-rounds.md](../future-ideas/top-qualifiers-and-seeding-rounds.md)
 - Implementation checklist:

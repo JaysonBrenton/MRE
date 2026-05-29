@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { buildClassWinners, type ClassWinnerHighlight } from "@/core/events/build-event-highlights"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import { isEventMainSession } from "@/core/events/main-bracket-overall"
@@ -36,12 +36,15 @@ export type OverviewOverallClassPodiumProps = {
     | "entryList"
     | "qualPointsTopQualifiers"
   >
+  /** Resets the event-results class dropdown to “All classes” when the event changes. */
+  eventId: string
   sessionClassFilter?: string | null
   onSessionClassFilterChange?: (className: string | null) => void
 }
 
 export function OverviewOverallClassPodium({
   data,
+  eventId,
   sessionClassFilter,
   onSessionClassFilterChange,
 }: OverviewOverallClassPodiumProps) {
@@ -56,6 +59,12 @@ export function OverviewOverallClassPodium({
 
   const [classWinnerDetail, setClassWinnerDetail] = useState<ClassWinnerHighlight | null>(null)
   const [activeResultsTab, setActiveResultsTab] = useState<OverviewResultsTab>("event-results")
+  /** Independent of dashboard `selectedClass` (which defaults to the first class on load). */
+  const [eventResultsClassFilter, setEventResultsClassFilter] = useState<string | null>(null)
+
+  useEffect(() => {
+    queueMicrotask(() => setEventResultsClassFilter(null))
+  }, [eventId])
 
   const eventHasMain = useMemo(() => races.some((r) => isEventMainSession(r)), [races])
 
@@ -162,8 +171,8 @@ export function OverviewOverallClassPodium({
                 topQualifierByClass={topQualifierCardByClass}
                 onRowActivate={setClassWinnerDetail}
                 activeDetail={classWinnerDetail}
-                classFilter={sessionClassFilter}
-                onClassFilterChange={onSessionClassFilterChange}
+                classFilter={eventResultsClassFilter}
+                onClassFilterChange={setEventResultsClassFilter}
                 classFilterOptions={raceClassNamesForFilter}
                 resultsTabStrip={resultsTabStrip}
               />

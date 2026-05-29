@@ -157,7 +157,7 @@ export default function ChartContainer({
         padding: "20px",
         overflow: "visible",
       }}
-      role="img"
+      role="group"
       aria-label={ariaLabel || title || "Chart"}
     >
       {/* Subtle gradient overlay for extra glass depth */}
@@ -180,11 +180,41 @@ export default function ChartContainer({
       {/* Content wrapper */}
       <div className="relative z-10">
         {(title || headerControls) && (
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-            <div className="flex flex-wrap items-center gap-4 min-w-0 flex-1">
-              {title &&
-                (description ? (
-                  <Tooltip text={description} position="top">
+          <div className="mb-3 rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/35 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4 min-w-0 flex-1">
+                {title &&
+                  (description ? (
+                    <Tooltip text={description} position="top">
+                      <h3
+                        className={
+                          titleClassName ??
+                          `${typography.h4} ${
+                            onTitleClick
+                              ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
+                              : ""
+                          }`
+                        }
+                        onClick={onTitleClick}
+                        onKeyDown={(e) => {
+                          if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
+                            e.preventDefault()
+                            onTitleClick()
+                          }
+                        }}
+                        tabIndex={onTitleClick ? 0 : undefined}
+                        role={onTitleClick ? "button" : undefined}
+                        aria-label={
+                          onTitleClick
+                            ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
+                            : undefined
+                        }
+                      >
+                        {title}
+                        {selectedClass ? ` - ${selectedClass}` : ""}
+                      </h3>
+                    </Tooltip>
+                  ) : (
                     <h3
                       className={
                         titleClassName ??
@@ -212,57 +242,31 @@ export default function ChartContainer({
                       {title}
                       {selectedClass ? ` - ${selectedClass}` : ""}
                     </h3>
-                  </Tooltip>
-                ) : (
-                  <h3
-                    className={
-                      titleClassName ??
-                      `${typography.h4} ${
-                        onTitleClick
-                          ? "cursor-pointer hover:text-[var(--token-accent)] transition-colors"
-                          : ""
-                      }`
-                    }
-                    onClick={onTitleClick}
-                    onKeyDown={(e) => {
-                      if (onTitleClick && (e.key === "Enter" || e.key === " ")) {
-                        e.preventDefault()
-                        onTitleClick()
-                      }
-                    }}
-                    tabIndex={onTitleClick ? 0 : undefined}
-                    role={onTitleClick ? "button" : undefined}
-                    aria-label={
-                      onTitleClick
-                        ? `${title}${selectedClass ? ` - ${selectedClass}` : ""} - Click to customize color`
-                        : undefined
-                    }
-                  >
-                    {title}
-                    {selectedClass ? ` - ${selectedClass}` : ""}
-                  </h3>
-                ))}
-              {headerControls}
+                  ))}
+                {headerControls}
+              </div>
             </div>
           </div>
         )}
-        <div
-          className="w-full"
-          style={{
-            minHeight: `${height}px`,
-            color: "var(--token-text-primary)",
-          }}
-        >
-          {renderContent
-            ? renderContent({
-                axisColors: {
-                  xAxisColor: axisColorByKey.x,
-                  yAxisColor: axisColorByKey.y,
-                  yAxisRightColor: axisColorByKey.yRight,
-                },
-                onAxisColorPickerRequest: handleAxisColorPickerRequest,
-              })
-            : children}
+        <div className="w-full overflow-visible rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface)]/25">
+          <div
+            className="w-full"
+            style={{
+              minHeight: `${height}px`,
+              color: "var(--token-text-primary)",
+            }}
+          >
+            {renderContent
+              ? renderContent({
+                  axisColors: {
+                    xAxisColor: axisColorByKey.x,
+                    yAxisColor: axisColorByKey.y,
+                    yAxisRightColor: axisColorByKey.yRight,
+                  },
+                  onAxisColorPickerRequest: handleAxisColorPickerRequest,
+                })
+              : children}
+          </div>
         </div>
       </div>
       {axisPickerOpen != null && showAxisPickers && chartInstanceId && (

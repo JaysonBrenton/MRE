@@ -99,23 +99,29 @@ Shipped surfaces include:
   summaries.
 - **Mains Ladder** — bracket-style mains diagram per class
   (`MainBracketLadderPanel`) plus **Drivers who progressed from earlier rounds**
-  tables for drivers flagged as advancing from prior ladder rounds (`Driver`,
+  tables for drivers flagged as advancing from prior ladder rounds (**Driver**,
   **From round**).
-- **Program overview** — schedule-phase flow (practice through parallel mains)
-  for the selected class (`ProgramOverviewPanel`); dashed connectors mean
-  **scheduled program order**, not bump-through mains advancement.
+- **Driver Analysis** (same Event Level workspace) — event-wide lap trace for
+  the **same class as the mains ladder picker** (every session in scope for that
+  class via `/lap-trend`): up to four drivers overlaid; light session dividers
+  instead of shaded bands; optional position axis, smoothing, and **expanded
+  chart height** (chart **Display** menu); default driver follows multi-main /
+  final ranking / mains finish / qualifying heuristics when the ladder selection
+  changes (`pickEventLevelDriverAnalysisDefaultDriver`, rendered in
+  `OverviewTab` under `variant="event-analysis-only"`). The X-axis is each
+  driver's **chronological lap index within the current class/session scope**;
+  the same index does not always mean the same session moment when drivers ran
+  different sessions. Use **Session type** and **Session** filters to narrow
+  scope; remove drivers from the legend with **×** when comparing up to four
+  traces.
 
-Both panels share ingested **`race.className`** options from **`OverviewTab`**.
 Bump-up / Driver Progression inferred rules still anchor on mains ladder tiers
-([architecture reference](../architecture/event-analysis-mains-ladder.md));
-**Program overview** never substitutes for bump inference — it mirrors
-session-type buckets + mains list only.
+([architecture reference](../architecture/event-analysis-mains-ladder.md)).
 
 **Important:** **Mains Ladder** shows mains tier bump modeling and progressed
-rows. Use **Program overview** for multi-main EP-style schedules without reading
-that diagram as mains bump logic. For **Bump-Up** (promotion pairs) open the
-**Bump-Up** subtab; for **per-driver** finish traces across mains rounds switch
-to **Driver Progression**.
+rows. For **Bump-Up** (promotion pairs) open the **Bump-Up** subtab; for
+**per-driver** finish traces across mains rounds switch to **Driver
+Progression**.
 
 ## Submenus under Event Analysis / Session Analysis
 

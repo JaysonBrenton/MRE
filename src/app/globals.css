@@ -482,6 +482,19 @@ select {
   min-width: 12rem;
 }
 
+/*
+ * Event Analysis empty states: nested flex columns can produce cyclic percentage sizing where
+ * width:100% resolves to min-content. Keep these id-scoped wrappers stretched with a floor width.
+ */
+#event-analysis-lap-trend-empty-state,
+#event-analysis-performance-empty-state {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 12rem;
+  min-inline-size: 12rem;
+}
+
 /* Dashboard empty state — soft slow pulse on primary “Search for events” CTA */
 @keyframes mre-dashboard-empty-search-pulse {
   0%,

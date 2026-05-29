@@ -47,20 +47,7 @@ function formatToolbarWelcomeTitle(eventName: string, trackName: string): string
   return `Welcome to the ${eventName}`
 }
 
-const MIDDLE_ELLIPSIS_AT_CHARS = 72
-const MIDDLE_ELLIPSIS_DISPLAY_MAX_CHARS = 56
 const LONG_TITLE_TYPOGRAPHY_AT_CHARS = 52
-
-function ellipsizeMiddle(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text
-  const sep = " … "
-  const inner = maxLen - sep.length
-  if (inner < 12) {
-    return `${text.slice(0, Math.max(0, maxLen - 1))}…`
-  }
-  const edge = Math.floor(inner / 2)
-  return `${text.slice(0, edge)}${sep}${text.slice(-edge)}`
-}
 
 function EventAnalysisToolbarTitleContent({
   eventName,
@@ -72,36 +59,28 @@ function EventAnalysisToolbarTitleContent({
 
   const trimmedTrackName = trackName?.trim() ?? ""
   const welcomeTitleFull = formatToolbarWelcomeTitle(trimmedEventName, trimmedTrackName)
-  const useMiddleEllipsis = welcomeTitleFull.length > MIDDLE_ELLIPSIS_AT_CHARS
-  const displayCompact = ellipsizeMiddle(welcomeTitleFull, MIDDLE_ELLIPSIS_DISPLAY_MAX_CHARS)
   const useCompactType = welcomeTitleFull.length > LONG_TITLE_TYPOGRAPHY_AT_CHARS
 
   const titleClassName =
     titleEmphasis === "page"
-      ? `block min-w-0 max-w-full truncate whitespace-nowrap text-center font-semibold leading-snug tracking-tight ${
+      ? `block min-w-0 max-w-full text-balance text-center font-semibold leading-snug tracking-tight ${
           useCompactType ? "text-base md:text-lg" : "text-lg md:text-xl"
         }`
-      : `block min-w-0 max-w-full truncate whitespace-nowrap text-center font-semibold leading-snug ${
+      : `block min-w-0 max-w-full text-balance text-center font-semibold leading-snug ${
           useCompactType ? "text-xs md:text-sm" : "text-sm md:text-base"
         }`
 
   return (
-    <div className="flex min-w-0 max-w-full items-center justify-center gap-2 px-2.5 py-0 sm:gap-2.5 sm:px-3">
-      <h2 className={titleClassName} aria-label={welcomeTitleFull} title={welcomeTitleFull}>
-        {useMiddleEllipsis ? (
-          <span className="text-[var(--token-text-muted)]">{displayCompact}</span>
-        ) : (
+    <div className="flex min-w-0 max-w-full items-center justify-center gap-2 px-2.5 py-1 sm:gap-2.5 sm:px-3">
+      <h2 className={titleClassName} aria-label={welcomeTitleFull}>
+        <span className="text-[var(--token-text-muted)]">Welcome to the </span>
+        <span className="text-[var(--token-text-muted)]">{trimmedEventName}</span>
+        {trimmedTrackName.length > 0 ? (
           <>
-            <span className="text-[var(--token-text-muted)]">Welcome to the </span>
-            <span className="text-[var(--token-text-primary)]">{trimmedEventName}</span>
-            {trimmedTrackName.length > 0 ? (
-              <>
-                <span className="text-[var(--token-text-muted)]"> · </span>
-                <span className="text-[var(--token-text-muted)]">{trimmedTrackName}</span>
-              </>
-            ) : null}
+            <span className="text-[var(--token-text-muted)]"> · </span>
+            <span className="text-[var(--token-text-muted)]">{trimmedTrackName}</span>
           </>
-        )}
+        ) : null}
       </h2>
     </div>
   )

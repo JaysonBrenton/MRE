@@ -32,6 +32,20 @@ export interface ChartDriverPickerProps {
   disabled?: boolean
   /** Shown when disabled; use a wrapper so the tooltip receives hover (disabled buttons ignore pointer events) */
   disabledTooltip?: string
+  /**
+   * Optional nearest-driver map keyed by anchor driver ID.
+   * Each value should be pre-sorted nearest-first and may include any number of IDs.
+   */
+  closestDriverIdsByAnchor?: Record<string, string[]>
+  /** Show "Closest Only" toggle in the popover header. */
+  showClosestOnlyToggle?: boolean
+  /** When false, closest-only is controlled elsewhere (e.g. chart Display menu). */
+  closestOnlyToggleInPopover?: boolean
+  /** Controlled closest-only mode (optional). */
+  closestOnly?: boolean
+  onClosestOnlyChange?: (enabled: boolean) => void
+  /** Number of nearest drivers to include when closest-only mode is on. */
+  closestCount?: number
 }
 
 export default function ChartDriverPicker({
@@ -43,19 +57,55 @@ export default function ChartDriverPicker({
   className = "",
   disabled = false,
   disabledTooltip,
+  closestDriverIdsByAnchor,
+  showClosestOnlyToggle = false,
+  closestOnlyToggleInPopover = true,
+  closestOnly: closestOnlyProp,
+  onClosestOnlyChange,
+  closestCount = 3,
 }: ChartDriverPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [internalClosestOnly, setInternalClosestOnly] = useState(false)
+  const closestOnlyControlled = closestOnlyProp !== undefined
+  const closestOnly = closestOnlyControlled ? closestOnlyProp : internalClosestOnly
+  const setClosestOnly = useCallback(
+    (next: boolean) => {
+      if (!closestOnlyControlled) setInternalClosestOnly(next)
+      onClosestOnlyChange?.(next)
+    },
+    [closestOnlyControlled, onClosestOnlyChange]
+  )
+  const [closestAnchorId, setClosestAnchorId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number } | null>(null)
 
+  const validDriverIdSet = useMemo(() => new Set(drivers.map((d) => d.driverId)), [drivers])
+
+  const resolveClosestSelection = useCallback(
+    (anchorId: string): string[] => {
+      if (!validDriverIdSet.has(anchorId)) return []
+      const nearest = (closestDriverIdsByAnchor?.[anchorId] ?? []).filter(
+        (id) => id !== anchorId && validDriverIdSet.has(id)
+      )
+      return [anchorId, ...nearest].slice(0, 1 + Math.max(0, closestCount))
+    },
+    [closestCount, closestDriverIdsByAnchor, validDriverIdSet]
+  )
+
+  const scopedDrivers = useMemo(() => {
+    if (!closestOnly || !closestAnchorId) return drivers
+    const inScope = new Set(resolveClosestSelection(closestAnchorId))
+    return drivers.filter((d) => inScope.has(d.driverId))
+  }, [closestOnly, closestAnchorId, drivers, resolveClosestSelection])
+
   const filteredDrivers = useMemo(() => {
-    if (!searchQuery.trim()) return drivers
+    if (!searchQuery.trim()) return scopedDrivers
     const q = searchQuery.toLowerCase().trim()
-    return drivers.filter((d) => d.driverName.toLowerCase().includes(q))
-  }, [drivers, searchQuery])
+    return scopedDrivers.filter((d) => d.driverName.toLowerCase().includes(q))
+  }, [scopedDrivers, searchQuery])
 
   const selectedCount = useMemo(
     () => selectedDriverIds.filter((id) => drivers.some((d) => d.driverId === id)).length,
@@ -64,6 +114,16 @@ export default function ChartDriverPicker({
 
   const handleToggle = useCallback(
     (driverId: string) => {
+      if (closestOnly && !singleSelect) {
+        if (selectedDriverIds.includes(driverId) && closestAnchorId === driverId) {
+          setClosestAnchorId(null)
+          queueMicrotask(() => onSelectionChange([]))
+          return
+        }
+        setClosestAnchorId(driverId)
+        queueMicrotask(() => onSelectionChange(resolveClosestSelection(driverId)))
+        return
+      }
       if (selectedDriverIds.includes(driverId)) {
         onSelectionChange(selectedDriverIds.filter((id) => id !== driverId))
       } else if (singleSelect) {
@@ -72,7 +132,14 @@ export default function ChartDriverPicker({
         onSelectionChange([...selectedDriverIds, driverId])
       }
     },
-    [selectedDriverIds, onSelectionChange, singleSelect]
+    [
+      closestOnly,
+      singleSelect,
+      selectedDriverIds,
+      closestAnchorId,
+      onSelectionChange,
+      resolveClosestSelection,
+    ]
   )
 
   const handleSelectAll = useCallback(() => {
@@ -83,8 +150,21 @@ export default function ChartDriverPicker({
   }, [filteredDrivers, selectedDriverIds, onSelectionChange])
 
   const handleClear = useCallback(() => {
+    setClosestAnchorId(null)
     onSelectionChange([])
   }, [onSelectionChange])
+
+  const handleClosestOnlyToggle = useCallback(() => {
+    const next = !closestOnly
+    setClosestOnly(next)
+    if (!next) {
+      setClosestAnchorId(null)
+      return
+    }
+    const fallbackAnchor = selectedDriverIds.find((id) => validDriverIdSet.has(id)) ?? null
+    setClosestAnchorId(fallbackAnchor)
+    // Selection sync is handled in useEffect so we never call onSelectionChange during render.
+  }, [closestOnly, selectedDriverIds, setClosestOnly, validDriverIdSet])
 
   // Position popover in viewport when open (portal-rendered). Only need button rect.
   const updatePosition = useCallback(() => {
@@ -146,6 +226,15 @@ export default function ChartDriverPicker({
   }, [isOpen])
 
   useEffect(() => {
+    if (!isOpen) return
+    const handleKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false)
+    }
+    document.addEventListener("keydown", handleKey)
+    return () => document.removeEventListener("keydown", handleKey)
+  }, [isOpen])
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node
       if (
@@ -163,6 +252,43 @@ export default function ChartDriverPicker({
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (closestOnly) return
+    if (closestAnchorId === null) return
+    queueMicrotask(() => setClosestAnchorId(null))
+  }, [closestOnly, closestAnchorId])
+
+  useEffect(() => {
+    if (!showClosestOnlyToggle || singleSelect || !closestOnly) return
+    if (selectedDriverIds.length === 0) {
+      if (closestAnchorId !== null) {
+        queueMicrotask(() => setClosestAnchorId(null))
+      }
+      return
+    }
+    const fallbackAnchor = selectedDriverIds.find((id) => validDriverIdSet.has(id)) ?? null
+    const anchorToUse =
+      closestAnchorId && validDriverIdSet.has(closestAnchorId) ? closestAnchorId : fallbackAnchor
+    if (!anchorToUse) return
+    if (anchorToUse !== closestAnchorId) {
+      queueMicrotask(() => setClosestAnchorId(anchorToUse))
+      return
+    }
+    const enforced = resolveClosestSelection(anchorToUse)
+    if (enforced.join("|") !== selectedDriverIds.join("|")) {
+      queueMicrotask(() => onSelectionChange(enforced))
+    }
+  }, [
+    showClosestOnlyToggle,
+    singleSelect,
+    closestOnly,
+    closestAnchorId,
+    selectedDriverIds,
+    validDriverIdSet,
+    resolveClosestSelection,
+    onSelectionChange,
+  ])
+
   const popoverContent = isOpen && typeof document !== "undefined" && (
     <div
       ref={popoverRef}
@@ -173,7 +299,8 @@ export default function ChartDriverPicker({
         left: popoverStyle?.left ?? 0,
         visibility: popoverStyle ? "visible" : "hidden",
       }}
-      role="listbox"
+      role="dialog"
+      aria-modal="false"
       aria-label="Driver selection"
     >
       <div className="p-2 border-b border-[var(--token-border-default)]">
@@ -187,7 +314,7 @@ export default function ChartDriverPicker({
         />
       </div>
       <div className="flex items-center gap-2 px-2 py-1.5 border-b border-[var(--token-border-default)]">
-        {!singleSelect && (
+        {!singleSelect && !closestOnly && (
           <button
             type="button"
             onClick={handleSelectAll}
@@ -203,6 +330,17 @@ export default function ChartDriverPicker({
         >
           Clear
         </button>
+        {showClosestOnlyToggle && !singleSelect && closestOnlyToggleInPopover && (
+          <button
+            type="button"
+            onClick={handleClosestOnlyToggle}
+            aria-pressed={closestOnly}
+            className="ml-auto inline-flex items-center gap-1 rounded border border-[var(--token-border-default)] px-2 py-1 text-xs font-medium text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+          >
+            <span>Closest Only</span>
+            <span className="text-[var(--token-text-muted)]">{closestOnly ? "On" : "Off"}</span>
+          </button>
+        )}
       </div>
       <div className="scrollbar-none flex-1 min-h-0 overflow-y-auto p-1">
         {filteredDrivers.length === 0 ? (
@@ -239,12 +377,17 @@ export default function ChartDriverPicker({
       type="button"
       onClick={() => setIsOpen((o) => !o)}
       disabled={disabled}
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-sm text-[var(--token-text-primary)] hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50"
       aria-label={`${label}: ${selectedCount} selected`}
       aria-expanded={isOpen}
-      aria-haspopup="listbox"
+      aria-haspopup="dialog"
     >
-      <span>({selectedCount})</span>
+      <span className="rounded-full border border-[var(--token-border-muted)] bg-[var(--token-surface)]/70 px-2 py-0.5 text-xs font-medium text-[var(--token-text-secondary)]">
+        {label}
+      </span>
+      <span className="rounded-full border border-[var(--token-border-muted)] px-2 py-0.5 text-xs font-semibold tabular-nums">
+        {selectedCount}
+      </span>
       <svg
         className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
         fill="none"
@@ -266,8 +409,7 @@ export default function ChartDriverPicker({
     )
 
   return (
-    <div ref={containerRef} className={`flex items-center gap-2 relative ${className}`}>
-      <span className="text-sm text-[var(--token-text-secondary)]">{label}:</span>
+    <div ref={containerRef} className={`relative flex min-w-0 items-center gap-2 ${className}`}>
       {buttonWithOptionalTooltip}
 
       {typeof document !== "undefined" &&

@@ -3,14 +3,15 @@
  *
  * @created 2025-01-27
  * @creator Jayson Brenton
- * @lastModified 2026-05-19
+ * @lastModified 2026-05-23
  *
  * @description Overview tab content for event analysis. Primary sections (Event Overview,
  *            Session Analysis, Event Analysis) use a top toolbar tablist on `/eventAnalysis`.
  *            **Analysis → Event Level Analysis** mounts `OverviewTab` with `variant="event-analysis-only"`:
- *            the **Mains Ladder** bracket + **Program overview** schedule-phase SVG
- *            (`MainBracketLadderPanel`, `ProgramOverviewPanel`; see
- *            docs/architecture/event-analysis-mains-ladder.md).
+ *            the **Mains Ladder** bracket (`MainBracketLadderPanel`; see
+ *            docs/architecture/event-analysis-mains-ladder.md). The unified compare-performance chart
+ *            (`UnifiedPerformanceChart`) lives only in that variant’s stacked column (not Event
+ *            Analysis → Driver Analysis or Session Analysis).
  *            Bump-Up and Driver Progression share ladder inference modules but render from different
  *            subtabs guarded by variant logic.
  *
@@ -20,15 +21,14 @@
  * @relatedFiles
  * - docs/architecture/event-analysis-mains-ladder.md (Mains Ladder UX + wiring)
  * - src/components/organisms/event-analysis/MainBracketLadderPanel.tsx (mains ladder bracket + drill-down modal)
- * - src/components/organisms/event-analysis/ProgramOverviewPanel.tsx (practice→mains phase diagram)
  * - src/components/organisms/event-analysis/DriverMainLadderProgressionPanel.tsx (driver progression matrices)
  * - src/components/organisms/event-analysis/ChartControls.tsx (controls)
- * - src/components/organisms/event-analysis/BestLapBarChart.tsx (charts)
+ * - src/components/organisms/event-analysis/UnifiedPerformanceChart.tsx (event-level stacked compare chart)
  */
 
 "use client"
 
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef, useId, type ReactNode } from "react"
 import EventOverviewTopQualifiers from "./EventOverviewTopQualifiers"
 import {
   EventOverviewVenueHostTabList,
@@ -53,11 +53,12 @@ import ChartControls from "./ChartControls"
 import UnifiedPerformanceChart, { type ChartViewType } from "./UnifiedPerformanceChart"
 import ChartSection from "./ChartSection"
 import ChartDriverPicker from "./ChartDriverPicker"
+import ChartSessionPicker from "./ChartSessionPicker"
 import EventAnalysisScopeFilters from "./EventAnalysisScopeFilters"
 import LapByLapTrendChart from "./LapByLapTrendChart"
 import type { DriverPerformanceData } from "./UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-import type { EventLapTrendResponse } from "@/core/events/get-lap-data"
+import type { EventLapTrendResponse, DriverLapTrendSeries } from "@/core/events/get-lap-data"
 import { useEventWeather } from "@/hooks/useEventWeather"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 import ChartDataNotice from "./ChartDataNotice"
@@ -67,13 +68,13 @@ import SessionRaceResultsTable from "./SessionRaceResultsTable"
 import DriverBumpUpsTable, { type BumpUpRowWithClass } from "./sessions/DriverBumpUpsTable"
 import DriverMainLadderProgressionPanel from "./DriverMainLadderProgressionPanel"
 import MainBracketLadderPanel from "./MainBracketLadderPanel"
-import ProgramOverviewPanel from "./ProgramOverviewPanel"
 import { getSessionsForBumpUpInference } from "@/core/events/get-sessions-data"
 import { inferBumpUpsFromSessions } from "@/core/events/infer-bump-ups"
 import {
   buildDriverMainEventProgressionMatrix,
   getRaceClassNamesForDriverProgressionChips,
 } from "@/core/events/driver-main-event-progression"
+import { filterRaceClassesWithObservedMainBracketProgression } from "@/core/events/main-bracket-ladder-model"
 import {
   getDriversMissingAvgVsFastest,
   getDriversMissingBestLap,
@@ -108,6 +109,12 @@ import {
   getSubTabOptions,
 } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
 import { isPlaceholderClass, isSchedulePlaceholderLiveRcRow } from "@/lib/format-class-name"
+import { buildSessionDisplayLabelLookup } from "@/lib/format-session-race-display-label"
+import {
+  sessionTypeFilterChipLabel,
+  sessionTypeFilterKeyForRace,
+  sortSessionTypeFilterKeys,
+} from "@/core/events/session-type-filter"
 import {
   UNCLASSIFIED_CLASS_KEY,
   eventHasVehicleDenormalization,
@@ -117,6 +124,11 @@ import { getSessionAnalysisNavClassOptions } from "@/core/events/entry-list-clas
 import { isEventMainSession } from "@/core/events/main-bracket-overall"
 import { buildEventHighlights } from "@/core/events/build-event-highlights"
 import { computeEventWeatherGlance } from "@/lib/event-weather-glance"
+import { pickEventLevelDriverAnalysisDefaultDriver } from "@/core/events/pick-event-level-driver-analysis-default-driver"
+import {
+  driverHasPlottableLaps,
+  filterLapTrendDriversByRaceIds,
+} from "@/core/events/lap-by-lap-trend-chart-model"
 
 /** Shared chrome for Host / Track / Weather / Mix tab panels in Event details. */
 const EVENT_DETAILS_TABPANEL_CHROME = [
@@ -182,6 +194,24 @@ function trimClassPrefixFromRaceLabel(raceLabel: string, className: string): str
     rest = rest.slice(1).trimStart()
   }
   return rest || raceLabel
+}
+
+/**
+ * Driver pace value used for nearest-neighbor compare in the chart picker.
+ * Prefer best lap when present; otherwise fall back to average lap.
+ */
+function comparablePaceValue(d: DriverPerformanceData): number | null {
+  if (typeof d.bestLapTime === "number" && Number.isFinite(d.bestLapTime) && d.bestLapTime > 0) {
+    return d.bestLapTime
+  }
+  if (
+    typeof d.averageLapTime === "number" &&
+    Number.isFinite(d.averageLapTime) &&
+    d.averageLapTime > 0
+  ) {
+    return d.averageLapTime
+  }
+  return null
 }
 
 type SessionRaceOptionFields = {
@@ -312,6 +342,9 @@ export default function OverviewTab({
   const [eventLevelDriverProgressionClass, setEventLevelDriverProgressionClass] = useState<
     string | null
   >(null)
+  /** Per-chart class scope override for Event Analysis → stacked Driver laps card (omit to follow ladder/actions heuristic). */
+  const [eventLevelDriverLapChartClassOverride, setEventLevelDriverLapChartClassOverride] =
+    useState<string | null>(null)
 
   useEffect(() => {
     if (isControlledAnalysisSubTab) return
@@ -332,6 +365,7 @@ export default function OverviewTab({
       setDriverCompareEventTaxonomyNodeFilter(null)
       setDriverLapTrendEventClassFilter(null)
       setDriverLapTrendEventTaxonomyNodeFilter(null)
+      setEventLevelDriverLapChartClassOverride(null)
     })
   }, [data.event.id])
 
@@ -354,12 +388,33 @@ export default function OverviewTab({
   >("bestLap")
   const driversPerPage = 25
   const MAX_LAP_TREND_DRIVERS = 8
+  const MAX_EVENT_LEVEL_LAP_DRIVERS = 4
+  const EVENT_LEVEL_DRIVER_LAP_HEIGHT_COLLAPSED = 280
+  const EVENT_LEVEL_DRIVER_LAP_HEIGHT_EXPANDED = 450
 
   const [sessionAnalysisSessionRaceId, setSessionAnalysisSessionRaceId] = useState<string | null>(
     null
   )
   const [sessionLapTrendChartDriverIds, setSessionLapTrendChartDriverIds] = useState<string[]>([])
   const [eventWeatherDetailModalOpen, setEventWeatherDetailModalOpen] = useState(false)
+
+  /** Re-seeds Event Level lap card when mains ladder resolved class changes. */
+  const prevEventLevelLapSeedKeyRef = useRef<string>("")
+  const [eventLevelLapTrendData, setEventLevelLapTrendData] =
+    useState<EventLapTrendResponse | null>(null)
+  const [eventLevelLapTrendLoading, setEventLevelLapTrendLoading] = useState(false)
+  const [eventLevelLapTrendError, setEventLevelLapTrendError] = useState<string | null>(null)
+  const [eventLevelLapChartDriverIds, setEventLevelLapChartDriverIds] = useState<string[]>([])
+  /** null = all sessions in class; set to a race id to show one session only. */
+  const [eventLevelLapChartRaceId, setEventLevelLapChartRaceId] = useState<string | null>(null)
+  /** Empty string = all session types (Qualifier, Main, etc.). */
+  const [eventLevelLapChartSessionTypeFilter, setEventLevelLapChartSessionTypeFilter] = useState("")
+  const eventLevelLapChartSessionTypeFilterId = useId()
+  const [eventLevelDriverLapChartExpanded, setEventLevelDriverLapChartExpanded] = useState(false)
+  const [eventLevelLapChartClosestOnly, setEventLevelLapChartClosestOnly] = useState(false)
+  const [eventLevelLapDriverCapNotice, setEventLevelLapDriverCapNotice] = useState<string | null>(
+    null
+  )
 
   const eventClassFilterTabs = EVENT_CLASS_SESSION_NAV_TABS
 
@@ -789,17 +844,355 @@ export default function OverviewTab({
     [data, selectedClass]
   )
 
-  /** Distinct race row classes — widens Mains Ladder picker + feeds Program overview. */
-  const raceClassNamesFromIngest = useMemo(() => getRaceClassNamesFromRaces(data), [data])
+  /** Mains Ladder only: ingest race classes where results show observed mains-tier progression. */
+  const mainsLadderBracketClassOptions = useMemo(() => {
+    const ingestClasses = getRaceClassNamesFromRaces(data)
+    return filterRaceClassesWithObservedMainBracketProgression(data, ingestClasses)
+  }, [data])
 
   const resolvedEventLevelDriverProgressionClass = useMemo(() => {
-    const ing = raceClassNamesFromIngest
+    const allowed = mainsLadderBracketClassOptions
     const explicit = eventLevelDriverProgressionClass?.trim()
-    if (explicit && ing.includes(explicit)) return explicit
+    if (explicit && allowed.includes(explicit)) return explicit
     const fromSelected = selectedClass?.trim()
-    if (fromSelected && ing.includes(fromSelected)) return fromSelected
+    if (fromSelected && allowed.includes(fromSelected)) return fromSelected
     return null
-  }, [eventLevelDriverProgressionClass, selectedClass, raceClassNamesFromIngest])
+  }, [eventLevelDriverProgressionClass, selectedClass, mainsLadderBracketClassOptions])
+
+  /**
+   * Lap card class scope (derived): mains ladder strict resolution → ladder chip / Actions class /
+   * first class with races. Used only when {@link eventLevelDriverLapChartClassOverride} is unset.
+   */
+  const derivedEventLevelDriverLapChartClass = useMemo(() => {
+    const strict = resolvedEventLevelDriverProgressionClass?.trim()
+    if (strict) return strict
+
+    const explicit = eventLevelDriverProgressionClass?.trim()
+    if (explicit && data.races.some((r) => r.className === explicit)) return explicit
+
+    const sel = selectedClass?.trim()
+    if (sel && data.races.some((r) => r.className === sel)) return sel
+
+    const names = [
+      ...new Set(
+        data.races
+          .map((r) => r.className)
+          .filter((c): c is string => typeof c === "string" && c.trim() !== "")
+      ),
+    ].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+    return names[0] ?? null
+  }, [
+    resolvedEventLevelDriverProgressionClass,
+    eventLevelDriverProgressionClass,
+    selectedClass,
+    data.races,
+  ])
+
+  /** Effective laps chart class — per-chart override wins when valid for this event */
+  const eventLevelDriverLapChartClass = useMemo(() => {
+    const o = eventLevelDriverLapChartClassOverride?.trim()
+    if (o && data.races.some((r) => r.className === o)) return o
+    return derivedEventLevelDriverLapChartClass
+  }, [eventLevelDriverLapChartClassOverride, derivedEventLevelDriverLapChartClass, data.races])
+
+  const eventLevelLapChartSessionRaces = useMemo((): RaceAnalysisRow[] => {
+    const cn = eventLevelDriverLapChartClass?.trim()
+    if (!cn) return []
+    return sortRacesChronologically(
+      data.races.filter(
+        (r) => r.className === cn && !isSchedulePlaceholderLiveRcRow(r.className, r.raceLabel)
+      )
+    )
+  }, [data.races, eventLevelDriverLapChartClass])
+
+  const eventLevelLapChartSessionTypeOptions = useMemo(
+    () =>
+      sortSessionTypeFilterKeys([
+        ...new Set(eventLevelLapChartSessionRaces.map((r) => sessionTypeFilterKeyForRace(r))),
+      ]),
+    [eventLevelLapChartSessionRaces]
+  )
+
+  const effectiveEventLevelLapChartSessionTypeFilter = useMemo(() => {
+    if (!eventLevelLapChartSessionTypeFilter) return ""
+    return eventLevelLapChartSessionTypeOptions.includes(eventLevelLapChartSessionTypeFilter)
+      ? eventLevelLapChartSessionTypeFilter
+      : ""
+  }, [eventLevelLapChartSessionTypeFilter, eventLevelLapChartSessionTypeOptions])
+
+  const eventLevelLapChartTypeFilteredSessionRaces = useMemo((): RaceAnalysisRow[] => {
+    if (!effectiveEventLevelLapChartSessionTypeFilter) return eventLevelLapChartSessionRaces
+    return eventLevelLapChartSessionRaces.filter(
+      (r) => sessionTypeFilterKeyForRace(r) === effectiveEventLevelLapChartSessionTypeFilter
+    )
+  }, [eventLevelLapChartSessionRaces, effectiveEventLevelLapChartSessionTypeFilter])
+
+  const eventLevelLapChartSessionDisplayLabelById = useMemo(
+    () =>
+      buildSessionDisplayLabelLookup(
+        sessionAnalysisRaceLabelContextRaces.map((r) => ({
+          id: r.id,
+          raceLabel: r.raceLabel,
+          className: r.className,
+          sectionHeader: r.sectionHeader ?? null,
+          startTime: r.startTime,
+          raceOrder: r.raceOrder,
+        }))
+      ),
+    [sessionAnalysisRaceLabelContextRaces]
+  )
+
+  const eventLevelLapChartSessionOptions = useMemo(
+    () =>
+      eventLevelLapChartTypeFilteredSessionRaces.map((race) => ({
+        id: race.id,
+        label:
+          eventLevelLapChartSessionDisplayLabelById.get(race.id) ??
+          liveRcCompactRaceLabel(race, eventLevelDriverLapChartClass),
+        compactLabel: liveRcCompactRaceLabel(race, eventLevelDriverLapChartClass),
+      })),
+    [
+      eventLevelLapChartTypeFilteredSessionRaces,
+      eventLevelLapChartSessionDisplayLabelById,
+      eventLevelDriverLapChartClass,
+    ]
+  )
+
+  const eventLevelLapChartAllowedRaceIds = useMemo(
+    () => new Set(eventLevelLapChartTypeFilteredSessionRaces.map((r) => r.id)),
+    [eventLevelLapChartTypeFilteredSessionRaces]
+  )
+
+  const eventLevelScopedLapTrendData = useMemo((): EventLapTrendResponse | null => {
+    if (!eventLevelLapTrendData?.drivers?.length) return eventLevelLapTrendData
+    if (eventLevelLapChartRaceId != null) return eventLevelLapTrendData
+    if (!effectiveEventLevelLapChartSessionTypeFilter) return eventLevelLapTrendData
+    return {
+      drivers: filterLapTrendDriversByRaceIds(
+        eventLevelLapTrendData.drivers,
+        eventLevelLapChartAllowedRaceIds
+      ),
+    }
+  }, [
+    eventLevelLapTrendData,
+    eventLevelLapChartRaceId,
+    effectiveEventLevelLapChartSessionTypeFilter,
+    eventLevelLapChartAllowedRaceIds,
+  ])
+
+  const eventLevelDriverPickListForLapChart = useMemo(() => {
+    const cn = eventLevelDriverLapChartClass?.trim()
+    if (!cn) return [] as Array<{ driverId: string; driverName: string }>
+    const m = new Map<string, string>()
+    const races =
+      eventLevelLapChartRaceId != null
+        ? data.races.filter((r) => r.id === eventLevelLapChartRaceId && r.className === cn)
+        : eventLevelLapChartTypeFilteredSessionRaces
+    for (const r of races) {
+      for (const row of r.results) {
+        const nm =
+          typeof row.driverName === "string" && row.driverName.trim().length > 0
+            ? row.driverName
+            : "Driver"
+        m.set(row.driverId, nm)
+      }
+    }
+    return [...m.entries()]
+      .map(([driverId, driverName]) => ({ driverId, driverName }))
+      .sort((a, b) => a.driverName.localeCompare(b.driverName, undefined, { sensitivity: "base" }))
+  }, [
+    data.races,
+    eventLevelDriverLapChartClass,
+    eventLevelLapChartRaceId,
+    eventLevelLapChartTypeFilteredSessionRaces,
+  ])
+
+  /** Event-level lap card stats in selected scope (used for Closest Only driver picker mode). */
+  const eventLevelLapChartScopedRacesForStats = useMemo((): RaceAnalysisRow[] => {
+    const cn = eventLevelDriverLapChartClass?.trim()
+    if (!cn) return []
+    if (eventLevelLapChartRaceId != null) {
+      return data.races.filter((r) => r.id === eventLevelLapChartRaceId && r.className === cn)
+    }
+    return eventLevelLapChartTypeFilteredSessionRaces
+  }, [
+    data.races,
+    eventLevelDriverLapChartClass,
+    eventLevelLapChartRaceId,
+    eventLevelLapChartTypeFilteredSessionRaces,
+  ])
+
+  const eventLevelLapChartDriverStats = useMemo(
+    () => computeDriverStatsFromRaces(eventLevelLapChartScopedRacesForStats),
+    [eventLevelLapChartScopedRacesForStats]
+  )
+
+  /** Per anchor driver, nearest peers by absolute pace delta (best lap, else avg lap). */
+  const eventLevelLapChartClosestIdsByAnchor = useMemo<Record<string, string[]>>(() => {
+    const rows = eventLevelLapChartDriverStats.map((driver) => ({
+      driverId: driver.driverId,
+      driverName: driver.driverName,
+      pace: comparablePaceValue({
+        driverId: driver.driverId,
+        driverName: driver.driverName,
+        bestLapTime: driver.bestLapTime,
+        averageLapTime: driver.avgLapTime,
+      }),
+    }))
+
+    const result: Record<string, string[]> = {}
+    rows.forEach((anchor) => {
+      if (anchor.pace === null) {
+        result[anchor.driverId] = []
+        return
+      }
+      const nearest = rows
+        .filter((candidate) => candidate.driverId !== anchor.driverId && candidate.pace !== null)
+        .map((candidate) => ({
+          driverId: candidate.driverId,
+          driverName: candidate.driverName,
+          delta: Math.abs((candidate.pace as number) - anchor.pace),
+        }))
+        .sort(
+          (a, b) =>
+            a.delta - b.delta ||
+            a.driverName.localeCompare(b.driverName, undefined, { sensitivity: "base" })
+        )
+        .map((candidate) => candidate.driverId)
+      result[anchor.driverId] = nearest
+    })
+
+    return result
+  }, [eventLevelLapChartDriverStats])
+
+  useEffect(() => {
+    if (eventLevelDriverLapChartClassOverride === null) return
+    if (data.races.some((r) => r.className === eventLevelDriverLapChartClassOverride)) return
+    queueMicrotask(() => setEventLevelDriverLapChartClassOverride(null))
+  }, [data.races, eventLevelDriverLapChartClassOverride])
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setEventLevelLapChartRaceId(null)
+      setEventLevelLapChartSessionTypeFilter("")
+    })
+  }, [eventLevelDriverLapChartClass])
+
+  useEffect(() => {
+    if (eventLevelLapChartRaceId == null) return
+    if (eventLevelLapChartTypeFilteredSessionRaces.some((r) => r.id === eventLevelLapChartRaceId)) {
+      return
+    }
+    queueMicrotask(() => setEventLevelLapChartRaceId(null))
+  }, [eventLevelLapChartRaceId, eventLevelLapChartTypeFilteredSessionRaces])
+
+  useEffect(() => {
+    if (eventLevelLapChartRaceId != null) return
+    const allowed = new Set(eventLevelDriverPickListForLapChart.map((d) => d.driverId))
+    queueMicrotask(() => {
+      setEventLevelLapChartDriverIds((prev) => {
+        const kept = prev.filter((id) => allowed.has(id)).slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+        if (kept.length === prev.length && kept.every((id, index) => id === prev[index])) {
+          return prev
+        }
+        return kept
+      })
+    })
+  }, [
+    eventLevelDriverPickListForLapChart,
+    eventLevelLapChartRaceId,
+    effectiveEventLevelLapChartSessionTypeFilter,
+  ])
+
+  useEffect(() => {
+    if (eventLevelLapChartRaceId == null) return
+    queueMicrotask(() => setEventLevelLapChartClosestOnly(false))
+  }, [eventLevelLapChartRaceId])
+
+  useEffect(() => {
+    if (eventLevelLapChartRaceId == null) return
+    const race = data.races.find((r) => r.id === eventLevelLapChartRaceId)
+    if (!race) return
+    const inSession = new Set(race.results.map((row) => row.driverId))
+    queueMicrotask(() => {
+      setEventLevelLapChartDriverIds((prev) => {
+        const kept = prev.filter((id) => inSession.has(id)).slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+        if (kept.length > 0) {
+          if (kept.length === prev.length && kept.every((id, index) => id === prev[index])) {
+            return prev
+          }
+          return kept
+        }
+        const fallback = [...race.results]
+          .map((row) => ({
+            driverId: row.driverId,
+            driverName:
+              typeof row.driverName === "string" && row.driverName.trim().length > 0
+                ? row.driverName
+                : row.driverId,
+          }))
+          .sort((a, b) =>
+            a.driverName.localeCompare(b.driverName, undefined, { sensitivity: "base" })
+          )[0]?.driverId
+        return fallback ? [fallback] : []
+      })
+    })
+  }, [eventLevelLapChartRaceId, data.races])
+
+  const sortedEventLevelLapTrendDrivers = useMemo((): DriverLapTrendSeries[] => {
+    if (!eventLevelScopedLapTrendData?.drivers?.length) return []
+    const byId = new Map(eventLevelScopedLapTrendData.drivers.map((d) => [d.driverId, d]))
+    return eventLevelLapChartDriverIds
+      .slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+      .map((id) => byId.get(id))
+      .filter((d): d is DriverLapTrendSeries => d != null && d.laps.length > 0)
+  }, [eventLevelScopedLapTrendData, eventLevelLapChartDriverIds])
+
+  const eventLevelLapSummaryFooterNode = useMemo(() => {
+    if (eventLevelLapChartDriverIds.length === 0) return null
+    const nameLookup = new Map(
+      eventLevelDriverPickListForLapChart.map((d) => [d.driverId, d.driverName])
+    )
+    const parts: string[] = []
+    for (const id of eventLevelLapChartDriverIds.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)) {
+      const laps = eventLevelScopedLapTrendData?.drivers.find((x) => x.driverId === id)?.laps ?? []
+      if (laps.length === 0) continue
+      const times = laps
+        .map((l) => l.lapTimeSeconds)
+        .filter((t) => typeof t === "number" && t > 0 && Number.isFinite(t))
+      const best = times.length ? Math.min(...times) : null
+      const avg = times.length ? times.reduce((a, b) => a + b, 0) / times.length : null
+      const sessions = new Set(laps.map((l) => l.raceId)).size
+      const label = nameLookup.get(id) ?? id
+      parts.push(
+        `${label}: ${best != null ? `best ${formatLapTime(best)}` : "best —"}${
+          avg != null ? ` · avg ${formatLapTime(avg)}` : ""
+        } · ${laps.length} lap${laps.length === 1 ? "" : "s"} · ${sessions} session${sessions === 1 ? "" : "s"}`
+      )
+    }
+    if (parts.length === 0) return null
+    return parts.join("\n")
+  }, [
+    eventLevelLapChartDriverIds,
+    eventLevelScopedLapTrendData,
+    eventLevelDriverPickListForLapChart,
+  ])
+
+  const eventLevelLapChartXAxisLabel = useMemo(() => {
+    if (eventLevelLapChartRaceId != null) return "Lap number (this session)"
+    if (effectiveEventLevelLapChartSessionTypeFilter) return "Event lap index (filtered sessions)"
+    return "Event lap index"
+  }, [eventLevelLapChartRaceId, effectiveEventLevelLapChartSessionTypeFilter])
+
+  const eventLevelLapChartAriaLabel = useMemo(() => {
+    if (eventLevelLapChartRaceId != null) {
+      return "Lap-by-lap trend chart for selected session"
+    }
+    if (effectiveEventLevelLapChartSessionTypeFilter) {
+      return "Lap-by-lap trend chart for filtered session types in class scope"
+    }
+    return "Lap-by-lap trend chart across all sessions in class scope"
+  }, [eventLevelLapChartRaceId, effectiveEventLevelLapChartSessionTypeFilter])
 
   const hasDriverProgressionClassSelected =
     hasBumpUpsClassSelected &&
@@ -864,6 +1257,16 @@ export default function OverviewTab({
       eventAnalysisTab === "driver-analysis" &&
       (overviewPrimarySection === "event-analysis" || isEventAnalysisToolbarVariant),
     [eventAnalysisTab, overviewPrimarySection, isEventAnalysisToolbarVariant]
+  )
+
+  /**
+   * Event Level Analysis mounts the unified compare chart outside the Driver Analysis toolbar tab,
+   * so compare-scoped stats / selection expansion still follow Session/Type + Actions whenever that
+   * variant is active.
+   */
+  const preferDriverCompareRaceScope = useMemo(
+    () => isEventAnalysisToolbarVariant || isEventDriverAnalysisContext,
+    [isEventAnalysisToolbarVariant, isEventDriverAnalysisContext]
   )
 
   /**
@@ -1025,8 +1428,8 @@ export default function OverviewTab({
 
   /** Stats for compare chart notices + “all drivers selected” (compare scope, not lap-trend). */
   const statsForCompareScope = useMemo(
-    () => (isEventDriverAnalysisContext ? driverCompareDriverStatsByClass : driverStatsByClass),
-    [isEventDriverAnalysisContext, driverCompareDriverStatsByClass, driverStatsByClass]
+    () => (preferDriverCompareRaceScope ? driverCompareDriverStatsByClass : driverStatsByClass),
+    [preferDriverCompareRaceScope, driverCompareDriverStatsByClass, driverStatsByClass]
   )
 
   // Prepare unified chart data (Event Analysis driver charts: scoped races + Session/Type filters)
@@ -1081,56 +1484,6 @@ export default function OverviewTab({
     [sessionDriverAnalysisRace]
   )
 
-  const sessionUnifiedChartData = useMemo<DriverPerformanceData[]>(() => {
-    return sessionDriverAnalysisDriverStatsFromRace.map((d) => ({
-      driverId: d.driverId,
-      driverName: d.driverName,
-      bestLapTime: d.bestLapTime,
-      bestLapRaceLabel: d.bestLapRaceLabel,
-      averageLapTime: d.avgLapTime,
-      consistency: d.averageConsistency ?? null,
-      averagePosition: d.averagePosition,
-      gapToFastest: d.gapToFastest,
-      podiumFinishes: d.podiumFinishes,
-      avgTop5: d.avgTop5,
-      avgTop10: d.avgTop10,
-      avgTop15: d.avgTop15,
-      top2Consecutive: d.top2Consecutive,
-      top3Consecutive: d.top3Consecutive,
-      stdDeviation: d.stdDeviation,
-    }))
-  }, [sessionDriverAnalysisDriverStatsFromRace])
-
-  const sessionCompareChartSummaryStrip = useMemo(() => {
-    const bests = sessionDriverAnalysisDriverStatsFromRace
-      .map((d) => d.bestLapTime)
-      .filter((t): t is number => t !== null && isFinite(t))
-    const bestLapSeconds = bests.length > 0 ? Math.min(...bests) : null
-
-    const avgs = sessionDriverAnalysisDriverStatsFromRace
-      .map((d) => d.avgLapTime)
-      .filter((t): t is number => t !== null && isFinite(t))
-    const avgLapSeconds = avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
-
-    let lapCount = 0
-    if (sessionDriverAnalysisRace) {
-      for (const result of sessionDriverAnalysisRace.results) {
-        lapCount += result.lapsCompleted ?? 0
-      }
-    }
-
-    const driverCount = sessionDriverAnalysisDriverStatsFromRace.length
-
-    return { bestLapSeconds, avgLapSeconds, lapCount, driverCount }
-  }, [sessionDriverAnalysisDriverStatsFromRace, sessionDriverAnalysisRace])
-
-  const sessionParticipantIds = useMemo(() => {
-    if (!sessionDriverAnalysisRace) return new Set<string>()
-    return new Set(
-      sessionDriverAnalysisRace.results.filter((r) => r.lapsCompleted > 0).map((r) => r.driverId)
-    )
-  }, [sessionDriverAnalysisRace])
-
   // Build driver options from allDriverStats (not filtered by class)
   // This ensures ChartControls always has the complete driver list for correct class counts
   // Excludes non-starting drivers (those with 0 laps completed who have no performance data to visualize)
@@ -1173,10 +1526,10 @@ export default function OverviewTab({
   const expandDriverIdsByName = useCallback(
     (seedIds: string[]) => {
       if (seedIds.length === 0) return []
-      const statsForExpand = isEventDriverAnalysisContext
+      const statsForExpand = preferDriverCompareRaceScope
         ? driverCompareDriverStatsByClass
         : driverStatsByClass
-      const racesForExpand = isEventDriverAnalysisContext
+      const racesForExpand = preferDriverCompareRaceScope
         ? driverCompareDriverAnalysisRaces
         : sessionAnalysisRaces
       const selectedNormalizedNames = new Set<string>()
@@ -1224,7 +1577,7 @@ export default function OverviewTab({
     [
       data.drivers,
       data.races,
-      isEventDriverAnalysisContext,
+      preferDriverCompareRaceScope,
       driverCompareDriverStatsByClass,
       driverStatsByClass,
       driverCompareDriverAnalysisRaces,
@@ -1243,23 +1596,6 @@ export default function OverviewTab({
   const expandedUnifiedChartDriverIds = useMemo(
     () => expandDriverIdsByName(unifiedChartDriverIds),
     [expandDriverIdsByName, unifiedChartDriverIds]
-  )
-
-  const expandedSessionUnifiedChartDriverIds = useMemo(
-    () =>
-      expandDriverIdsByName(unifiedChartDriverIds).filter((id) => sessionParticipantIds.has(id)),
-    [expandDriverIdsByName, unifiedChartDriverIds, sessionParticipantIds]
-  )
-
-  const sessionUnifiedChartSelectionKey = expandedSessionUnifiedChartDriverIds.join("|")
-  const currentPageSession =
-    paginationState.selectionKey === sessionUnifiedChartSelectionKey ? paginationState.page : 1
-
-  const handleSessionPageChange = useCallback(
-    (page: number) => {
-      setPaginationState({ page, selectionKey: sessionUnifiedChartSelectionKey })
-    },
-    [sessionUnifiedChartSelectionKey]
   )
 
   // Pagination for unified chart is keyed by that chart's driver selection
@@ -1294,6 +1630,13 @@ export default function OverviewTab({
       setLapTrendChartDriverIds([])
       setSessionAnalysisSessionRaceId(null)
       setSessionLapTrendChartDriverIds([])
+      setEventLevelLapChartDriverIds([])
+      setEventLevelLapChartRaceId(null)
+      setEventLevelLapChartSessionTypeFilter("")
+      setEventLevelLapTrendData(null)
+      setEventLevelLapTrendError(null)
+      setEventLevelDriverLapChartExpanded(false)
+      prevEventLevelLapSeedKeyRef.current = ""
     })
   }, [data.event.id])
 
@@ -1426,6 +1769,153 @@ export default function OverviewTab({
     lapTrendChartDriverIds,
   ])
 
+  // Event Level Analysis (toolbar): lap trace card — class scope + fetch
+  useEffect(() => {
+    if (!isEventAnalysisToolbarVariant) return
+    const cn = eventLevelDriverLapChartClass?.trim() ?? ""
+    if (!cn) {
+      prevEventLevelLapSeedKeyRef.current = `${data.event.id}::`
+      queueMicrotask(() => {
+        setEventLevelLapChartDriverIds([])
+        setEventLevelLapChartRaceId(null)
+        setEventLevelLapChartSessionTypeFilter("")
+        setEventLevelLapTrendData(null)
+        setEventLevelLapTrendError(null)
+        setEventLevelLapTrendLoading(false)
+      })
+      return
+    }
+    const seedKey = `${data.event.id}::${cn}`
+    if (prevEventLevelLapSeedKeyRef.current === seedKey) return
+    prevEventLevelLapSeedKeyRef.current = seedKey
+    queueMicrotask(() => {
+      const lapEligibleDriverIds = new Set(
+        data.races
+          .filter((r) => r.className === cn)
+          .flatMap((r) =>
+            r.results
+              .filter(
+                (row) =>
+                  row.fastLapTime != null && Number.isFinite(row.fastLapTime) && row.fastLapTime > 0
+              )
+              .map((row) => row.driverId)
+          )
+      )
+      const picked = pickEventLevelDriverAnalysisDefaultDriver({
+        data,
+        className: cn,
+        lapEligibleDriverIds: lapEligibleDriverIds.size > 0 ? lapEligibleDriverIds : undefined,
+      })
+      setEventLevelLapChartDriverIds(picked ? [picked] : [])
+    })
+  }, [data, data.event.id, isEventAnalysisToolbarVariant, eventLevelDriverLapChartClass])
+
+  useEffect(() => {
+    if (!isEventAnalysisToolbarVariant) return
+    const cn = eventLevelDriverLapChartClass?.trim()
+    const ids = eventLevelLapChartDriverIds.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+    if (!cn || ids.length === 0) {
+      queueMicrotask(() => {
+        setEventLevelLapTrendLoading(false)
+        setEventLevelLapTrendData(null)
+        setEventLevelLapTrendError(null)
+      })
+      return
+    }
+    const ac = new AbortController()
+    queueMicrotask(() => {
+      setEventLevelLapTrendLoading(true)
+      setEventLevelLapTrendError(null)
+    })
+    const params = new URLSearchParams({
+      driverIds: ids.join(","),
+    })
+    if (eventLevelLapChartRaceId) {
+      params.set("raceId", eventLevelLapChartRaceId)
+    } else {
+      params.set("className", cn)
+    }
+    fetch(`/api/v1/events/${data.event.id}/lap-trend?${params.toString()}`, {
+      cache: "no-store",
+      credentials: "include",
+      signal: ac.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          const message =
+            typeof err?.error?.message === "string"
+              ? err.error.message
+              : `Failed to load lap trend (${res.status})`
+          throw new Error(message)
+        }
+        const json = await res.json()
+        if (json.success && json.data) {
+          setEventLevelLapTrendData(json.data as EventLapTrendResponse)
+        } else {
+          setEventLevelLapTrendData({ drivers: [] })
+        }
+      })
+      .catch((err: unknown) => {
+        const e = err as { name?: string }
+        if (e?.name === "AbortError") return
+        setEventLevelLapTrendError(err instanceof Error ? err.message : "Failed to load lap trend")
+        setEventLevelLapTrendData(null)
+      })
+      .finally(() => setEventLevelLapTrendLoading(false))
+    return () => ac.abort()
+  }, [
+    eventLevelLapChartDriverIds,
+    eventLevelLapChartRaceId,
+    eventLevelDriverLapChartClass,
+    data.event.id,
+    isEventAnalysisToolbarVariant,
+  ])
+
+  // When loaded lap data has no plottable laps for current selection, pick a driver who does.
+  useEffect(() => {
+    if (!isEventAnalysisToolbarVariant || eventLevelLapTrendLoading) return
+    if (!eventLevelLapTrendData?.drivers?.length) return
+    const cn = eventLevelDriverLapChartClass?.trim()
+    if (!cn) return
+
+    const scopedDrivers = eventLevelScopedLapTrendData?.drivers ?? eventLevelLapTrendData.drivers
+    const withLaps = scopedDrivers.filter(driverHasPlottableLaps)
+    if (withLaps.length === 0) return
+
+    queueMicrotask(() => {
+      setEventLevelLapChartDriverIds((prev) => {
+        const kept = prev
+          .filter((id) => withLaps.some((d) => d.driverId === id))
+          .slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+        if (kept.length > 0) {
+          if (kept.length === prev.length && kept.every((id, index) => id === prev[index])) {
+            return prev
+          }
+          return kept
+        }
+        if (prev.length > 0) return prev
+
+        const lapEligible = new Set(withLaps.map((d) => d.driverId))
+        const picked = pickEventLevelDriverAnalysisDefaultDriver({
+          data,
+          className: cn,
+          lapEligibleDriverIds: lapEligible,
+        })
+        const next = picked && lapEligible.has(picked) ? [picked] : [withLaps[0].driverId]
+        if (prev.length === 1 && prev[0] === next[0]) return prev
+        return next
+      })
+    })
+  }, [
+    data,
+    eventLevelDriverLapChartClass,
+    eventLevelLapTrendData,
+    eventLevelLapTrendLoading,
+    eventLevelScopedLapTrendData,
+    isEventAnalysisToolbarVariant,
+  ])
+
   /** When Session/Type scope narrows races, drop laps from sessions outside scope (API returns all class races). */
   const eventScopedLapTrendData = useMemo((): EventLapTrendResponse | null => {
     if (!lapTrendData?.drivers?.length) return lapTrendData
@@ -1433,10 +1923,7 @@ export default function OverviewTab({
     const allowed = new Set(driverLapTrendDriverAnalysisRaces.map((r) => r.id))
     return {
       ...lapTrendData,
-      drivers: lapTrendData.drivers.map((d) => ({
-        ...d,
-        laps: d.laps.filter((lap) => allowed.has(lap.raceId)),
-      })),
+      drivers: filterLapTrendDriversByRaceIds(lapTrendData.drivers, allowed),
     }
   }, [lapTrendData, isEventDriverAnalysisContext, driverLapTrendDriverAnalysisRaces])
 
@@ -1555,11 +2042,6 @@ export default function OverviewTab({
     return expandedSelectedDriverIds.filter((id) => statsDriverIds.has(id))
   }, [expandedSelectedDriverIds, statsForCompareScope])
 
-  const selectedDriverIdsInSessionRace = useMemo(() => {
-    const statsDriverIds = new Set(sessionDriverAnalysisDriverStatsFromRace.map((d) => d.driverId))
-    return expandedSelectedDriverIds.filter((id) => statsDriverIds.has(id))
-  }, [expandedSelectedDriverIds, sessionDriverAnalysisDriverStatsFromRace])
-
   const missingBestLapDriverIds = useMemo(() => {
     if (!shouldShowSelectionNotices) {
       return []
@@ -1593,40 +2075,6 @@ export default function OverviewTab({
     () => mapDriverIdsToNames(missingAvgVsFastestDriverIds),
     [mapDriverIdsToNames, missingAvgVsFastestDriverIds]
   )
-
-  const sessionMissingBestLapDriverNames = useMemo(() => {
-    if (!shouldShowSelectionNotices || sessionDriverAnalysisDriverStatsFromRace.length === 0) {
-      return []
-    }
-    return mapDriverIdsToNames(
-      getDriversMissingBestLap(
-        selectedDriverIdsInSessionRace,
-        sessionDriverAnalysisDriverStatsFromRace
-      )
-    )
-  }, [
-    shouldShowSelectionNotices,
-    sessionDriverAnalysisDriverStatsFromRace,
-    mapDriverIdsToNames,
-    selectedDriverIdsInSessionRace,
-  ])
-
-  const sessionMissingAvgVsFastestDriverNames = useMemo(() => {
-    if (!shouldShowSelectionNotices || sessionDriverAnalysisDriverStatsFromRace.length === 0) {
-      return []
-    }
-    return mapDriverIdsToNames(
-      getDriversMissingAvgVsFastest(
-        selectedDriverIdsInSessionRace,
-        sessionDriverAnalysisDriverStatsFromRace
-      )
-    )
-  }, [
-    shouldShowSelectionNotices,
-    sessionDriverAnalysisDriverStatsFromRace,
-    mapDriverIdsToNames,
-    selectedDriverIdsInSessionRace,
-  ])
 
   // Calculate unselected drivers in the selected class
   const unselectedDriversInClassIds = useMemo(() => {
@@ -1673,15 +2121,6 @@ export default function OverviewTab({
     }
     return statsForCompareScope.every((d) => selectedDriverIds.includes(d.driverId))
   }, [selectedClass, statsForCompareScope, selectedDriverIds])
-
-  const allSessionRaceDriversSelected = useMemo(() => {
-    if (!sessionDriverAnalysisRace || sessionDriverAnalysisDriverStatsFromRace.length === 0) {
-      return false
-    }
-    return sessionDriverAnalysisDriverStatsFromRace.every((d) =>
-      selectedDriverIds.includes(d.driverId)
-    )
-  }, [sessionDriverAnalysisRace, sessionDriverAnalysisDriverStatsFromRace, selectedDriverIds])
 
   // Clear "Select All clicked" when user deselects a driver
   // Only clear if we previously had all selected and now we don't (user explicitly deselected)
@@ -2353,6 +2792,7 @@ export default function OverviewTab({
                       onConditionsActivate={() => setEventWeatherDetailModalOpen(true)}
                     />
                     <OverviewOverallClassPodium
+                      eventId={data.event.id}
                       data={{
                         races: data.races,
                         multiMainResults: data.multiMainResults,
@@ -2672,34 +3112,30 @@ export default function OverviewTab({
             <tbody>
               <tr>
                 <th scope="row">Panel 1</th>
-                <td>Event metrics placeholder region</td>
+                <td>Mains ladder region</td>
               </tr>
               <tr>
                 <th scope="row">Panel 2</th>
-                <td>Program overview placeholder region</td>
-              </tr>
-              <tr>
-                <th scope="row">Panel 3</th>
                 <td>Session highlights placeholder region</td>
               </tr>
               <tr>
-                <th scope="row">Panel 4</th>
-                <td>Field and classes placeholder region</td>
+                <th scope="row">Panel 3</th>
+                <td>Driver analysis lap trend region</td>
               </tr>
               <tr>
-                <th scope="row">Panel 5</th>
+                <th scope="row">Panel 4</th>
                 <td>Pace trends placeholder region</td>
               </tr>
               <tr>
-                <th scope="row">Panel 6</th>
+                <th scope="row">Panel 5</th>
                 <td>Strategy overview placeholder region</td>
               </tr>
               <tr>
-                <th scope="row">Panel 7</th>
+                <th scope="row">Panel 6</th>
                 <td>Weather and track placeholder region</td>
               </tr>
               <tr>
-                <th scope="row">Panel 8</th>
+                <th scope="row">Panel 7</th>
                 <td>Incidents and penalties placeholder region</td>
               </tr>
             </tbody>
@@ -2722,7 +3158,7 @@ export default function OverviewTab({
                 <div className="w-full min-w-0">
                   <MainBracketLadderPanel
                     data={data}
-                    classOptions={raceClassNamesFromIngest}
+                    classOptions={mainsLadderBracketClassOptions}
                     resolvedClassName={resolvedEventLevelDriverProgressionClass}
                     onClassNameChange={setEventLevelDriverProgressionClass}
                     toolbarTitle={
@@ -2737,37 +3173,9 @@ export default function OverviewTab({
                 </div>
               </section>
             </div>
-            {/* Full-width row: Program overview needs horizontal space for the phase diagram; avoid md:grid-cols-2 with a single child (that pins the panel to half width). */}
             <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
               <section
                 className={`flex min-h-0 min-w-0 flex-col items-stretch gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="event-level-analysis-col-2-heading"
-              >
-                <div className="w-full min-w-0">
-                  <ProgramOverviewPanel
-                    data={data}
-                    classOptions={raceClassNamesFromIngest}
-                    resolvedClassName={resolvedEventLevelDriverProgressionClass}
-                    onClassNameChange={setEventLevelDriverProgressionClass}
-                    toolbarTitle={
-                      <h3
-                        id="event-level-analysis-col-2-heading"
-                        className={typography.overviewSectionCardTitle}
-                      >
-                        Program overview
-                      </h3>
-                    }
-                  />
-                </div>
-              </section>
-            </div>
-            <div
-              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
-              role="presentation"
-            >
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
                 style={OVERVIEW_GLASS_SURFACE_STYLE}
                 aria-labelledby="event-level-analysis-col-3-heading"
               >
@@ -2775,15 +3183,169 @@ export default function OverviewTab({
                   id="event-level-analysis-col-3-heading"
                   className={typography.overviewSectionCardTitle}
                 >
-                  Session highlights
+                  Driver Analysis
                 </h3>
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for per-session summaries and notable performances. Content
-                  will be added here.
-                </p>
+                {eventLevelDriverLapChartClass == null ? (
+                  <p className="text-center text-sm text-[var(--token-text-secondary)]" role="note">
+                    No racing classes appear in results for this event, so lap data cannot be
+                    plotted here yet.
+                  </p>
+                ) : (
+                  <div className="flex min-w-0 flex-col gap-3">
+                    {eventLevelLapDriverCapNotice ? (
+                      <p className="text-xs text-[var(--token-text-secondary)]" role="status">
+                        {eventLevelLapDriverCapNotice}
+                      </p>
+                    ) : null}
+                    <div className="w-full min-w-0">
+                      <ChartSection>
+                        <LapByLapTrendChart
+                          drivers={sortedEventLevelLapTrendDrivers}
+                          isLoading={eventLevelLapTrendLoading}
+                          pendingDriverCount={eventLevelLapChartDriverIds.length}
+                          height={EVENT_LEVEL_DRIVER_LAP_HEIGHT_COLLAPSED}
+                          raceLabelContextRaces={sessionAnalysisRaceLabelContextRaces}
+                          xAxisLabel={eventLevelLapChartXAxisLabel}
+                          chartAriaLabel={eventLevelLapChartAriaLabel}
+                          onDriverDeselect={(driverId) =>
+                            setEventLevelLapChartDriverIds((prev) =>
+                              prev.filter((id) => id !== driverId)
+                            )
+                          }
+                          displayChartHeightPreset={{
+                            collapsedHeight: EVENT_LEVEL_DRIVER_LAP_HEIGHT_COLLAPSED,
+                            expandedHeight: EVENT_LEVEL_DRIVER_LAP_HEIGHT_EXPANDED,
+                            expanded: eventLevelDriverLapChartExpanded,
+                            onExpandedChange: setEventLevelDriverLapChartExpanded,
+                          }}
+                          chartTitle={`Driver laps (${eventLevelDriverLapChartClass})`}
+                          chartInstanceId={`event-level-driver-laps-${data.event.id}`}
+                          sessionVisualization="dividers"
+                          enablePositionAxisToggle
+                          enableSmoothingToggle
+                          enableClosestOnlyToggle={eventLevelLapChartRaceId == null}
+                          closestOnly={eventLevelLapChartClosestOnly}
+                          onClosestOnlyChange={setEventLevelLapChartClosestOnly}
+                          headerControls={
+                            validClasses.length > 0 ||
+                            eventLevelDriverPickListForLapChart.length > 0 ||
+                            eventLevelLapChartSessionOptions.length > 0 ||
+                            eventLevelLapChartSessionTypeOptions.length > 0 ? (
+                              <div className="flex min-w-0 w-full flex-wrap items-center gap-4 gap-y-2">
+                                {validClasses.length > 0 ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-[var(--token-text-secondary)]">
+                                      Choose a Class:
+                                    </span>
+                                    <select
+                                      value={eventLevelDriverLapChartClass ?? ""}
+                                      onChange={(e) =>
+                                        setEventLevelDriverLapChartClassOverride(e.target.value)
+                                      }
+                                      className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                                      aria-label="Driver laps chart class scope"
+                                    >
+                                      {validClasses.map((cls) => (
+                                        <option key={cls} value={cls}>
+                                          {cls}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : null}
+                                {eventLevelLapChartSessionTypeOptions.length > 0 &&
+                                eventLevelLapChartRaceId == null ? (
+                                  <div className="flex items-center gap-2">
+                                    <label
+                                      htmlFor={eventLevelLapChartSessionTypeFilterId}
+                                      className="text-sm text-[var(--token-text-secondary)]"
+                                    >
+                                      Session type
+                                    </label>
+                                    <select
+                                      id={eventLevelLapChartSessionTypeFilterId}
+                                      value={effectiveEventLevelLapChartSessionTypeFilter}
+                                      onChange={(e) =>
+                                        setEventLevelLapChartSessionTypeFilter(e.target.value)
+                                      }
+                                      className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                                    >
+                                      <option value="">All session types</option>
+                                      {eventLevelLapChartSessionTypeOptions.map((key) => (
+                                        <option key={key} value={key}>
+                                          {sessionTypeFilterChipLabel(key)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : null}
+                                {eventLevelLapChartSessionOptions.length > 0 ? (
+                                  <ChartSessionPicker
+                                    sessions={eventLevelLapChartSessionOptions}
+                                    selectedRaceId={eventLevelLapChartRaceId}
+                                    onSessionChange={setEventLevelLapChartRaceId}
+                                    label="Session"
+                                  />
+                                ) : null}
+                                {eventLevelDriverPickListForLapChart.length > 0 ? (
+                                  <ChartDriverPicker
+                                    drivers={eventLevelDriverPickListForLapChart}
+                                    selectedDriverIds={eventLevelLapChartDriverIds}
+                                    closestDriverIdsByAnchor={eventLevelLapChartClosestIdsByAnchor}
+                                    showClosestOnlyToggle={eventLevelLapChartRaceId == null}
+                                    closestOnlyToggleInPopover={false}
+                                    closestOnly={eventLevelLapChartClosestOnly}
+                                    onClosestOnlyChange={setEventLevelLapChartClosestOnly}
+                                    label="Select Drivers"
+                                    onSelectionChange={(ids) => {
+                                      if (ids.length > MAX_EVENT_LEVEL_LAP_DRIVERS) {
+                                        setEventLevelLapDriverCapNotice(
+                                          `Showing ${MAX_EVENT_LEVEL_LAP_DRIVERS} of ${ids.length} selected drivers (maximum ${MAX_EVENT_LEVEL_LAP_DRIVERS}).`
+                                        )
+                                      } else {
+                                        setEventLevelLapDriverCapNotice(null)
+                                      }
+                                      setEventLevelLapChartDriverIds(
+                                        ids.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+                                      )
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
+                            ) : undefined
+                          }
+                          footerSummary={
+                            eventLevelLapSummaryFooterNode != null ? (
+                              <span className="whitespace-pre-line">
+                                {eventLevelLapSummaryFooterNode}
+                              </span>
+                            ) : undefined
+                          }
+                          emptyMessage={
+                            eventLevelLapTrendLoading
+                              ? "Loading lap data…"
+                              : eventLevelDriverLapChartClass == null
+                                ? "No class scope — add race results."
+                                : eventLevelLapChartDriverIds.length === 0
+                                  ? "No driver selected yet."
+                                  : (eventLevelLapTrendError ??
+                                    (eventLevelLapChartSessionOptions.length === 0 &&
+                                    effectiveEventLevelLapChartSessionTypeFilter
+                                      ? "No sessions match the selected session type."
+                                      : eventLevelLapChartRaceId != null
+                                        ? "No lap data for selected drivers in this session."
+                                        : "No lap data for selected drivers in this class scope."))
+                          }
+                        />
+                      </ChartSection>
+                    </div>
+                  </div>
+                )}
               </section>
+            </div>
+            <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
               <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
+                className={`flex min-h-0 min-w-0 flex-col items-stretch gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
                 style={OVERVIEW_GLASS_SURFACE_STYLE}
                 aria-labelledby="event-level-analysis-col-4-heading"
               >
@@ -2791,12 +3353,78 @@ export default function OverviewTab({
                   id="event-level-analysis-col-4-heading"
                   className={typography.overviewSectionCardTitle}
                 >
-                  Field and classes
+                  Compare driver performance
                 </h3>
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for entry composition and class-level views. Content will be
-                  added here.
-                </p>
+                <div className="space-y-4">
+                  <ChartControls
+                    drivers={driverOptions}
+                    races={data.races}
+                    selectedDriverIds={selectedDriverIds}
+                    onDriverSelectionChange={handleSelectionChange}
+                    onClassChange={handleClassChange}
+                    selectedClass={selectedClass}
+                    eventId={data.event.id}
+                    raceClasses={data.raceClasses}
+                    onSelectAllClick={handleSelectAllClick}
+                  />
+                </div>
+                <div className="flex min-w-0 flex-col gap-4">
+                  {missingBestLapDriverNames.length > 0 && (
+                    <ChartDataNotice
+                      title="Some selected drivers have no recorded best lap"
+                      description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
+                      driverNames={missingBestLapDriverNames}
+                      eventId={data.event.id}
+                      noticeType="best-lap"
+                    />
+                  )}
+                  {missingAvgVsFastestDriverNames.length > 0 && (
+                    <ChartDataNotice
+                      title="Missing average lap telemetry"
+                      description="These drivers were selected, but the data feed does not include both best and average lap times for them."
+                      driverNames={missingAvgVsFastestDriverNames}
+                      eventId={data.event.id}
+                      noticeType="avg-vs-fastest"
+                    />
+                  )}
+                  <div className="w-full min-w-0">
+                    <ChartSection>
+                      <UnifiedPerformanceChart
+                        data={unifiedChartData}
+                        selectedDriverIds={expandedUnifiedChartDriverIds}
+                        currentPage={currentPage}
+                        driversPerPage={driversPerPage}
+                        onPageChange={handlePageChange}
+                        onDriverToggle={handleUnifiedChartDriverToggle}
+                        chartInstanceId={`overview-${data.event.id}-event-level-unified`}
+                        selectedClass={driverCompareEventClassFilter ?? selectedClass}
+                        availableClasses={validClasses}
+                        onClassChange={setDriverCompareEventClassFilter}
+                        classScopeSelectPlaceholderLabel="Same as Actions"
+                        allDriversInClassSelected={
+                          driverCompareEventClassFilter == null &&
+                          allDriversInClassSelected &&
+                          selectAllClickedForCurrentClass
+                        }
+                        chartView={chartViewState}
+                        onChartViewChange={setChartViewState}
+                        chartDriverOptions={driverCompareDriverStatsByClass.map((d) => ({
+                          driverId: d.driverId,
+                          driverName: d.driverName,
+                        }))}
+                        chartSelectedDriverIds={unifiedChartDriverIds}
+                        onChartDriverSelectionChange={setUnifiedChartDriverIds}
+                        headerAfterClassSelect={
+                          driverCompareScopeFilterToolbar ? (
+                            <div className="flex flex-wrap items-center gap-3">
+                              {driverCompareScopeFilterToolbar}
+                            </div>
+                          ) : null
+                        }
+                      />
+                    </ChartSection>
+                  </div>
+                </div>
               </section>
             </div>
             <div
@@ -3239,72 +3867,6 @@ export default function OverviewTab({
                     </section>
                     <div className="space-y-1.5">
                       <h3
-                        id="compare-driver-performance-heading"
-                        className={`${typography.h4} tracking-tight`}
-                      >
-                        Compare driver performance
-                      </h3>
-                      <div
-                        className="w-full max-w-full rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)]"
-                        role="note"
-                      >
-                        Best lap, average lap, gap, and related metrics for the scope you set with
-                        Session and Type on the compare chart, and drivers in Actions. Switch column
-                        or line view and sort from the chart header.
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      {missingBestLapDriverNames.length > 0 && (
-                        <ChartDataNotice
-                          title="Some selected drivers have no recorded best lap"
-                          description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
-                          driverNames={missingBestLapDriverNames}
-                          eventId={data.event.id}
-                          noticeType="best-lap"
-                        />
-                      )}
-                      {missingAvgVsFastestDriverNames.length > 0 && (
-                        <ChartDataNotice
-                          title="Missing average lap telemetry"
-                          description="These drivers were selected, but the data feed does not include both best and average lap times for them."
-                          driverNames={missingAvgVsFastestDriverNames}
-                          eventId={data.event.id}
-                          noticeType="avg-vs-fastest"
-                        />
-                      )}
-                      <ChartSection>
-                        <UnifiedPerformanceChart
-                          data={unifiedChartData}
-                          selectedDriverIds={expandedUnifiedChartDriverIds}
-                          currentPage={currentPage}
-                          driversPerPage={driversPerPage}
-                          onPageChange={handlePageChange}
-                          onDriverToggle={handleUnifiedChartDriverToggle}
-                          chartInstanceId={`overview-${data.event.id}-unified`}
-                          selectedClass={selectedClass}
-                          allDriversInClassSelected={
-                            allDriversInClassSelected && selectAllClickedForCurrentClass
-                          }
-                          chartView={chartViewState}
-                          onChartViewChange={setChartViewState}
-                          chartDriverOptions={driverCompareDriverStatsByClass.map((d) => ({
-                            driverId: d.driverId,
-                            driverName: d.driverName,
-                          }))}
-                          chartSelectedDriverIds={unifiedChartDriverIds}
-                          onChartDriverSelectionChange={setUnifiedChartDriverIds}
-                          headerAfterClassSelect={
-                            driverCompareScopeFilterToolbar ? (
-                              <div className="flex flex-wrap items-center gap-3">
-                                {driverCompareScopeFilterToolbar}
-                              </div>
-                            ) : null
-                          }
-                        />
-                      </ChartSection>
-                    </div>
-                    <div className="space-y-1.5">
-                      <h3
                         id="driver-analysis-overview-heading"
                         className={`${typography.h4} tracking-tight`}
                       >
@@ -3352,6 +3914,7 @@ export default function OverviewTab({
                               }
                               height={450}
                               chartInstanceId={`overview-${data.event.id}-lap-trend`}
+                              raceLabelContextRaces={sessionAnalysisRaceLabelContextRaces}
                               chartTitle={driverLapTrendChartTitle}
                               headerControls={
                                 <div className="flex flex-wrap items-center gap-4">
@@ -3544,113 +4107,6 @@ export default function OverviewTab({
                   <>
                     <div className="space-y-1.5">
                       <h3
-                        id="session-compare-driver-performance-heading"
-                        className={`${typography.h4} tracking-tight`}
-                      >
-                        Compare driver performance (this session)
-                      </h3>
-                      <div
-                        className="w-full max-w-full rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface)]/35 px-3 py-3 text-sm leading-relaxed text-[var(--token-text-secondary)]"
-                        role="note"
-                      >
-                        Best lap, average lap, gap, and related metrics for the selected session
-                        only. Use the legend below for Avg Top 5–15, consecutive laps, and std. dev.
-                        Pick a class or session with the pills above; refine class scope in Actions.
-                        Use the session pills in the chart header to switch session without
-                        scrolling.
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      {sessionMissingBestLapDriverNames.length > 0 && (
-                        <ChartDataNotice
-                          title="Some selected drivers have no recorded best lap"
-                          description="LiveRC did not publish a best lap time for these drivers in this session, so they are hidden from the chart."
-                          driverNames={sessionMissingBestLapDriverNames}
-                          eventId={data.event.id}
-                          noticeType="best-lap"
-                        />
-                      )}
-                      {sessionMissingAvgVsFastestDriverNames.length > 0 && (
-                        <ChartDataNotice
-                          title="Missing average lap telemetry"
-                          description="These drivers were selected, but the data feed does not include both best and average lap times for them in this session."
-                          driverNames={sessionMissingAvgVsFastestDriverNames}
-                          eventId={data.event.id}
-                          noticeType="avg-vs-fastest"
-                        />
-                      )}
-                      <div
-                        className="w-full min-w-0 rounded-lg border border-[var(--token-border-muted)]/90 bg-[var(--token-surface)]/25 px-3 py-2 shadow-sm"
-                        style={{ minWidth: "20rem", width: "100%", boxSizing: "border-box" }}
-                        aria-label="Summary for session chart scope"
-                      >
-                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                              Best lap
-                            </span>
-                            <span className="font-mono text-sm tabular-nums text-[var(--token-text-secondary)]">
-                              {formatLapTime(sessionCompareChartSummaryStrip.bestLapSeconds)}
-                            </span>
-                          </div>
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                              Avg lap
-                            </span>
-                            <span className="font-mono text-sm tabular-nums text-[var(--token-text-secondary)]">
-                              {formatLapTime(sessionCompareChartSummaryStrip.avgLapSeconds)}
-                            </span>
-                          </div>
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                              Laps
-                            </span>
-                            <span className="text-sm tabular-nums text-[var(--token-text-secondary)]">
-                              {sessionCompareChartSummaryStrip.lapCount.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                              Drivers
-                            </span>
-                            <span className="text-sm tabular-nums text-[var(--token-text-secondary)]">
-                              {sessionCompareChartSummaryStrip.driverCount.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <ChartSection>
-                        <UnifiedPerformanceChart
-                          data={sessionUnifiedChartData}
-                          selectedDriverIds={expandedSessionUnifiedChartDriverIds}
-                          currentPage={currentPageSession}
-                          driversPerPage={driversPerPage}
-                          onPageChange={handleSessionPageChange}
-                          onDriverToggle={handleUnifiedChartDriverToggle}
-                          chartInstanceId={`overview-${data.event.id}-session-unified`}
-                          chartTitleOverride=""
-                          selectedClass={selectedClass}
-                          allDriversInClassSelected={
-                            allSessionRaceDriversSelected && selectAllClickedForCurrentClass
-                          }
-                          chartView={chartViewState}
-                          onChartViewChange={setChartViewState}
-                          chartDriverOptions={sessionDriverAnalysisDriverStatsFromRace.map((d) => ({
-                            driverId: d.driverId,
-                            driverName: d.driverName,
-                          }))}
-                          chartSelectedDriverIds={unifiedChartDriverIds}
-                          onChartDriverSelectionChange={setUnifiedChartDriverIds}
-                          headerAfterClassSelect={renderSessionScopeControls(
-                            "session-driver-analysis-compare",
-                            sessionDriverAnalysisSortedRaces,
-                            "Choose session for compare chart"
-                          )}
-                        />
-                      </ChartSection>
-                    </div>
-                    <div className="space-y-1.5">
-                      <h3
                         id="session-lap-by-lap-heading"
                         className={`${typography.h4} tracking-tight`}
                       >
@@ -3694,6 +4150,7 @@ export default function OverviewTab({
                               }
                               height={450}
                               chartInstanceId={`overview-${data.event.id}-session-lap-trend`}
+                              raceLabelContextRaces={sessionAnalysisRaceLabelContextRaces}
                               chartTitle=""
                               headerControls={
                                 <>

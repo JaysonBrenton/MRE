@@ -19,6 +19,7 @@ import Modal from "@/components/molecules/Modal"
 import { getDriverLapTrends } from "@/core/events/get-sessions-data"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import type { EventLapTrendResponse } from "@/core/events/get-lap-data"
+import { isSchedulePlaceholderLiveRcRow } from "@/lib/format-class-name"
 import LapByLapTrendChart from "./LapByLapTrendChart"
 
 const CARD_CLASS =
@@ -57,6 +58,11 @@ export default function LapTimeTrendCard({
   const driverLapTrends = useMemo(
     () => getDriverLapTrends(data, effectiveDriverIds),
     [data, effectiveDriverIds]
+  )
+
+  const raceLabelContextRaces = useMemo(
+    () => data.races.filter((r) => !isSchedulePlaceholderLiveRcRow(r.className, r.raceLabel)),
+    [data.races]
   )
 
   const hasData =
@@ -250,6 +256,7 @@ export default function LapTimeTrendCard({
                   drivers={lapTrendData.drivers}
                   height={MODAL_CHART_HEIGHT}
                   chartInstanceId="overview-lap-trend-modal"
+                  raceLabelContextRaces={raceLabelContextRaces}
                 />
               ) : (
                 <div

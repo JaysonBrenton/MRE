@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-19
+lastModified: 2026-05-20
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -270,6 +270,18 @@ ADRs **ADR-20260404**, **ADR-20260405**.
 
 **Related:**
 [Bump-ups LiveRC Main Events solution](plans/bump-ups-liverc-main-events-solution.md).
+
+### [LiveRC Qual Points page (view_points) explainer](domain/liverc-qual-points-view-explainer.md)
+
+**Status:** Reference  
+**Last Updated:** 2026-05-20
+
+How to read LiveRC **Qual Points** (`view_points`) pages: **best N of M**,
+IFMAR-style **Result** totals, `points : laps/time` cells (elapsed time, not avg
+lap), tie-breaker cell layout, DNS/DNF. Includes **2025 RCRA Nationals** Buggy
+(**best 3 of 5**) and a full-field table + tie examples. Descriptive of LiveRC,
+not normative MRE product logic; complements
+[Top qualifiers (TQ)](architecture/top-qualifiers.md).
 
 ---
 

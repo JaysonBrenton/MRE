@@ -16,6 +16,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import { isSchedulePlaceholderLiveRcRow } from "@/lib/format-class-name"
 import type { Prisma } from "@prisma/client"
 
 export interface LapData {
@@ -291,6 +292,13 @@ export interface EventLapTrendResponse {
   drivers: DriverLapTrendSeries[]
 }
 
+/** Excludes LiveRC schedule placeholders from lap-trend race lists. */
+export function filterRacesForEventLapTrend<T extends { className: string; raceLabel: string }>(
+  races: T[]
+): T[] {
+  return races.filter((race) => !isSchedulePlaceholderLiveRcRow(race.className, race.raceLabel))
+}
+
 /**
  * Get lap-by-lap trend data for selected drivers in an event.
  * Returns every single lap in race order with a global 1-based lap index for charting.
@@ -346,9 +354,11 @@ export async function getEventLapTrend(
     orderBy: { raceOrder: "asc" },
   })
 
+  const racesForTrend = filterRacesForEventLapTrend(races)
+
   // Sort by startTime (chronological) first – Practice → Qualifying → Mains.
   // race_order from LiveRC reflects page/display order (Mains often listed first), not when sessions ran.
-  races.sort((a, b) => {
+  racesForTrend.sort((a, b) => {
     const hasA = a.startTime != null
     const hasB = b.startTime != null
     if (hasA && hasB) {
@@ -363,7 +373,7 @@ export async function getEventLapTrend(
 
   const driverMap = new Map<string, { driverName: string; laps: LapTrendPoint[] }>()
 
-  for (const race of races) {
+  for (const race of racesForTrend) {
     for (const result of race.results) {
       const driverId = result.raceDriver.driverId
       if (!driverIdSet.has(driverId)) continue

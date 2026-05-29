@@ -416,3 +416,28 @@ export function buildMainBracketLadderModel(
     edges,
   }
 }
+
+/**
+ * True when ingested mains results link at least one driver across strictly increasing ladder tiers
+ * (same signal as edges emitted by {@link buildTransitionEdgesFromDriverPaths} with a positive count).
+ * Parallel letter mains with no shared drivers across tiers yield false even though the bracket SVG
+ * may still draw structural connectors.
+ */
+export function raceClassHasObservedMainBracketProgression(
+  data: EventAnalysisData,
+  className: string | null | undefined
+): boolean {
+  const cn = className?.trim()
+  if (!cn) return false
+  const model = buildMainBracketLadderModel(data, cn)
+  if (!model?.edges.length) return false
+  return model.edges.some((e) => typeof e.driverCount === "number" && e.driverCount > 0)
+}
+
+/** Preserve candidate order (callers typically pass sorted ingest class names). */
+export function filterRaceClassesWithObservedMainBracketProgression(
+  data: EventAnalysisData,
+  candidates: readonly string[]
+): string[] {
+  return candidates.filter((c) => raceClassHasObservedMainBracketProgression(data, c))
+}

@@ -30,6 +30,7 @@ import { AxisBottom, AxisLeft } from "@visx/axis"
 import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip"
 import { localPoint } from "@visx/event"
 import { ParentSize } from "@visx/responsive"
+import { ChevronDown, ChevronRight } from "lucide-react"
 import ChartContainer from "./ChartContainer"
 import ChartDriverPicker from "./ChartDriverPicker"
 import ChartPagination from "./ChartPagination"
@@ -99,10 +100,16 @@ export interface UnifiedPerformanceChartProps {
   chartDriverOptions?: ChartDriverOption[]
   chartSelectedDriverIds?: string[]
   onChartDriverSelectionChange?: (driverIds: string[]) => void
+  /** Optional nearest-driver map used by ChartDriverPicker "Closest Only". */
+  chartDriverClosestIdsByAnchor?: Record<string, string[]>
+  /** Show ChartDriverPicker "Closest Only" toggle. */
+  chartDriverClosestOnlyEnabled?: boolean
   /** Available race classes for per-chart class picker. */
   availableClasses?: string[]
-  /** Handler for changing the global class filter from the chart header. */
+  /** Handler for chart-only class scope; does not change global Actions unless you wire it. */
   onClassChange?: (className: string | null) => void
+  /** First `<option value="">` text for class scope dropdown (default: All Classes). */
+  classScopeSelectPlaceholderLabel?: string
   /** Rendered in the chart header scope row after the class control when it is shown (e.g. session picker). */
   headerAfterClassSelect?: ReactNode
   /**
@@ -120,79 +127,9 @@ export type SortByMetricType = MetricType
 
 const defaultMargin = { top: 20, right: 20, bottom: 100, left: 80 }
 
-function ChartViewToggle({
-  chartView,
-  onChartViewChange,
-}: {
-  chartView: ChartViewType
-  onChartViewChange: (view: ChartViewType) => void
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-[var(--token-text-secondary)]">Chart type:</span>
-      <div className="flex rounded-lg border border-[var(--token-border-default)] p-0.5 bg-[var(--token-surface-elevated)]">
-        <button
-          type="button"
-          onClick={() => onChartViewChange("column")}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            chartView === "column"
-              ? "bg-[var(--token-accent)] text-white"
-              : "text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)]"
-          }`}
-          aria-pressed={chartView === "column"}
-          aria-label="Show column chart"
-        >
-          Column
-        </button>
-        <button
-          type="button"
-          onClick={() => onChartViewChange("line")}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            chartView === "line"
-              ? "bg-[var(--token-accent)] text-white"
-              : "text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)]"
-          }`}
-          aria-pressed={chartView === "line"}
-          aria-label="Show line chart"
-        >
-          Line
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function SortByDropdown({
-  sortBy,
-  onSortByChange,
-  availableSortMetrics,
-}: {
-  sortBy: SortByMetricType
-  onSortByChange: (metric: SortByMetricType) => void
-  availableSortMetrics: Set<SortByMetricType>
-}) {
-  if (availableSortMetrics.size === 0) return null
-  return (
-    <div className="flex items-center gap-2">
-      <label htmlFor="sort-by-select" className="text-sm text-[var(--token-text-secondary)]">
-        Sort by:
-      </label>
-      <select
-        id="sort-by-select"
-        value={sortBy}
-        onChange={(e) => onSortByChange(e.target.value as SortByMetricType)}
-        className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
-        aria-label="Sort drivers by metric (best to worst)"
-      >
-        {SORT_BY_OPTIONS.filter((opt) => availableSortMetrics.has(opt.metric)).map((opt) => (
-          <option key={opt.metric} value={opt.metric}>
-            {metricConfig[opt.metric].label}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
+/** Row control style — aligns with LapByLapTrendChart Display menu */
+const PERFORMANCE_DISPLAY_MENU_ROW_CLASS =
+  "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--token-accent)]"
 
 const defaultColors = {
   bestLap: "var(--token-accent)",
@@ -211,6 +148,23 @@ const defaultColors = {
 const _textSecondaryColor = "var(--token-text-secondary)"
 const borderColor = "var(--token-border-default)"
 const DEFAULT_AXIS_COLOR = "#ffffff"
+
+function EmptyStateBarChartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <rect x="4" y="12" width="3.5" height="7" rx="1" fill="currentColor" opacity={0.65} />
+      <rect x="10.25" y="9" width="3.5" height="10" rx="1" fill="currentColor" opacity={0.8} />
+      <rect x="16.5" y="6" width="3.5" height="13" rx="1" fill="currentColor" />
+      <path
+        d="M3.5 19.5h17"
+        stroke="currentColor"
+        strokeWidth={1.25}
+        strokeLinecap="round"
+        opacity={0.5}
+      />
+    </svg>
+  )
+}
 
 /**
  * Convert CSS variable or color string to hex color for SVG
@@ -425,7 +379,7 @@ const metricConfig: Record<
 
 /** Chart title tooltip — matches ChartContainer `description` pattern used by LapByLapTrendChart. */
 const UNIFIED_CHART_TITLE_DESCRIPTION =
-  "Compare drivers on best lap, average lap, gap to fastest, consistency, finishing position, podium counts, and LiveRC session stats (Avg Top 5/10/15, consecutive laps, std. dev.) when available. Toggle metrics in the legend; use Chart type and Sort by in the header. Click a series to change its color."
+  "Compare drivers on best lap, average lap, gap to fastest, consistency, finishing position, podium counts, and LiveRC session stats (Avg Top 5/10/15, consecutive laps, std. dev.) when available. Toggle metrics in the legend; open Display for line vs column charts and Order Chart for the sort metric. Click a series to change its color."
 
 /** Stable order for hover tooltip rows (not Set iteration order). */
 const TOOLTIP_METRIC_ORDER: MetricType[] = [
@@ -558,14 +512,18 @@ export default function UnifiedPerformanceChart({
   chartDriverOptions,
   chartSelectedDriverIds = [],
   onChartDriverSelectionChange,
+  chartDriverClosestIdsByAnchor,
+  chartDriverClosestOnlyEnabled = false,
   availableClasses,
   onClassChange,
+  classScopeSelectPlaceholderLabel = "All Classes",
   headerAfterClassSelect,
   chartTitleOverride,
   chartDriverPickerDisabled = false,
   chartDriverPickerDisabledTooltip,
 }: UnifiedPerformanceChartProps) {
   const chartDescId = useId()
+  const orderChartSubmenuId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [colorPickerMetric, setColorPickerMetric] = useState<MetricType | null>(null)
@@ -581,6 +539,10 @@ export default function UnifiedPerformanceChart({
 
   // Sort by metric (best to worst); default bestLap preserves previous behavior
   const [sortBy, setSortBy] = useState<SortByMetricType>("bestLap")
+  const [performanceDisplayMenuOpen, setPerformanceDisplayMenuOpen] = useState(false)
+  const [performanceOrderChartSubmenuOpen, setPerformanceOrderChartSubmenuOpen] = useState(false)
+  const performanceDisplayMenuButtonRef = useRef<HTMLButtonElement>(null)
+  const performanceDisplayMenuPanelRef = useRef<HTMLDivElement>(null)
 
   // Use chart colors hook
   const instanceId = chartInstanceId || "default-unified-performance"
@@ -680,6 +642,35 @@ export default function UnifiedPerformanceChart({
       queueMicrotask(() => setSortBy(effectiveSortBy))
     }
   }, [sortBy, availableSortMetrics, effectiveSortBy])
+
+  useEffect(() => {
+    if (!performanceDisplayMenuOpen) return
+    const handleClick = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (
+        performanceDisplayMenuButtonRef.current?.contains(t) ||
+        performanceDisplayMenuPanelRef.current?.contains(t)
+      ) {
+        return
+      }
+      setPerformanceDisplayMenuOpen(false)
+      setPerformanceOrderChartSubmenuOpen(false)
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [performanceDisplayMenuOpen])
+
+  useEffect(() => {
+    if (!performanceDisplayMenuOpen) return
+    const handleKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPerformanceDisplayMenuOpen(false)
+        setPerformanceOrderChartSubmenuOpen(false)
+      }
+    }
+    document.addEventListener("keydown", handleKey)
+    return () => document.removeEventListener("keydown", handleKey)
+  }, [performanceDisplayMenuOpen])
 
   // Include any driver who has at least one plottable metric (not only the legend-visible set).
   // Otherwise drivers with e.g. podium/position but missing LiveRC best/avg lap vanish from the
@@ -874,6 +865,8 @@ export default function UnifiedPerformanceChart({
     (chartDriverOptions && onChartDriverSelectionChange) ||
     Boolean(headerAfterClassSelect)
 
+  const resolvedOrderChartSortMetric = availableSortMetrics.has(sortBy) ? sortBy : effectiveSortBy
+
   const headerControlsContent = (
     <div className="flex flex-wrap items-center gap-3">
       {hasScopeCluster && (
@@ -883,14 +876,13 @@ export default function UnifiedPerformanceChart({
         >
           {availableClasses && availableClasses.length > 0 && onClassChange && (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-[var(--token-text-secondary)]">Choose a Class:</span>
               <select
                 value={selectedClass ?? ""}
                 onChange={(e) => onClassChange(e.target.value || null)}
-                className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                className="h-9 rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
                 aria-label="Choose a Class"
               >
-                <option value="">All Classes</option>
+                <option value="">{classScopeSelectPlaceholderLabel}</option>
                 {availableClasses.map((cls) => (
                   <option key={cls} value={cls}>
                     {cls}
@@ -908,39 +900,204 @@ export default function UnifiedPerformanceChart({
               label="Select Drivers"
               disabled={chartDriverPickerDisabled}
               disabledTooltip={chartDriverPickerDisabledTooltip}
+              closestDriverIdsByAnchor={chartDriverClosestIdsByAnchor}
+              showClosestOnlyToggle={chartDriverClosestOnlyEnabled}
+              closestCount={3}
             />
           )}
         </div>
       )}
-      <div
-        className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/35 px-2 py-1.5 sm:gap-3"
-        aria-label="Chart view options"
-      >
-        {onChartViewChange && (
-          <ChartViewToggle chartView={chartView} onChartViewChange={onChartViewChange} />
-        )}
-        <SortByDropdown
-          sortBy={availableSortMetrics.has(sortBy) ? sortBy : effectiveSortBy}
-          onSortByChange={setSortBy}
-          availableSortMetrics={availableSortMetrics}
-        />
-      </div>
+      {(onChartViewChange || availableSortMetrics.size > 0) && (
+        <div
+          className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/35 px-2 py-1.5"
+          aria-label="Chart display"
+        >
+          <div className="relative flex shrink-0">
+            <button
+              ref={performanceDisplayMenuButtonRef}
+              type="button"
+              onClick={() => {
+                setPerformanceDisplayMenuOpen((wasOpen) => {
+                  const next = !wasOpen
+                  if (!next) queueMicrotask(() => setPerformanceOrderChartSubmenuOpen(false))
+                  return next
+                })
+              }}
+              className="flex items-center gap-2 rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm font-medium text-[var(--token-text-primary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+              aria-expanded={performanceDisplayMenuOpen}
+              aria-haspopup="menu"
+              aria-label="Driver performance chart display options"
+            >
+              <span>Display</span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-[var(--token-text-muted)] transition-transform ${performanceDisplayMenuOpen ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </button>
+            {performanceDisplayMenuOpen && (
+              <div
+                ref={performanceDisplayMenuPanelRef}
+                role="group"
+                aria-label="Driver performance chart display"
+                className="absolute right-0 top-full z-50 mt-1 min-w-[220px] max-w-[min(100vw-1rem,280px)] overflow-visible rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] shadow-lg"
+              >
+                <div role="menu" aria-label="Display toggles" className="relative space-y-1 p-2">
+                  {onChartViewChange ? (
+                    <button
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={chartView === "line"}
+                      className={PERFORMANCE_DISPLAY_MENU_ROW_CLASS}
+                      onClick={() => onChartViewChange(chartView === "line" ? "column" : "line")}
+                    >
+                      <span>Line chart</span>
+                      <span
+                        className="shrink-0 text-xs tabular-nums text-[var(--token-text-muted)]"
+                        aria-hidden
+                      >
+                        {chartView === "line" ? "On" : "Off"}
+                      </span>
+                    </button>
+                  ) : null}
+                  {availableSortMetrics.size > 0 ? (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        aria-haspopup="menu"
+                        aria-expanded={performanceOrderChartSubmenuOpen}
+                        aria-controls={orderChartSubmenuId}
+                        className={PERFORMANCE_DISPLAY_MENU_ROW_CLASS}
+                        onClick={() => setPerformanceOrderChartSubmenuOpen((prev) => !prev)}
+                      >
+                        <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
+                          <span className="shrink-0 text-sm text-[var(--token-text-primary)]">
+                            Order Chart
+                          </span>
+                          <span className="min-w-0 truncate text-xs tabular-nums text-[var(--token-text-muted)]">
+                            {metricConfig[resolvedOrderChartSortMetric].label}
+                          </span>
+                        </span>
+                        <ChevronRight
+                          aria-hidden
+                          className={`h-4 w-4 shrink-0 text-[var(--token-text-muted)] transition-transform ${performanceOrderChartSubmenuOpen ? "rotate-90" : ""}`}
+                        />
+                      </button>
+                      {performanceOrderChartSubmenuOpen && (
+                        <div
+                          id={orderChartSubmenuId}
+                          role="menu"
+                          aria-label="Order chart metric"
+                          className="absolute left-full top-0 z-[60] ml-1 min-w-[220px] max-h-[min(70vh,24rem)] max-w-[min(100vw-1rem,280px)] space-y-1 overflow-y-auto rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] p-2 shadow-lg"
+                        >
+                          {SORT_BY_OPTIONS.filter((opt) =>
+                            availableSortMetrics.has(opt.metric)
+                          ).map((opt) => {
+                            const active = opt.metric === resolvedOrderChartSortMetric
+                            return (
+                              <button
+                                key={opt.metric}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={active}
+                                className={PERFORMANCE_DISPLAY_MENU_ROW_CLASS}
+                                onClick={() => {
+                                  setSortBy(opt.metric)
+                                  setPerformanceOrderChartSubmenuOpen(false)
+                                }}
+                              >
+                                <span className="min-w-0 truncate">
+                                  {metricConfig[opt.metric].label}
+                                </span>
+                                <span
+                                  className="shrink-0 text-xs tabular-nums text-[var(--token-text-muted)]"
+                                  aria-hidden
+                                >
+                                  {active ? "On" : "Off"}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+                <div
+                  className="border-t border-[var(--token-border-muted)] px-3 pb-2 pt-2 text-[0.7rem] leading-snug text-[var(--token-text-muted)]"
+                  role="note"
+                >
+                  <p>{UNIFIED_CHART_TITLE_DESCRIPTION}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 
   if (displayData.length === 0) {
+    const noDriversSelected = selectedDriverIds !== undefined && selectedDriverIds.length === 0
+    const noScopedData = validData.length === 0
+    const emptyStateTitle = noDriversSelected
+      ? "No drivers selected"
+      : noScopedData
+        ? "No performance data in this scope"
+        : "No comparable data in current filters"
+    const emptyStateDescription = noDriversSelected
+      ? "Select at least one driver to compare chart metrics."
+      : noScopedData
+        ? "The selected class/session does not contain chartable performance metrics."
+        : "The current scope is valid, but no selected drivers have chartable values."
+    const emptyStateHint = noDriversSelected
+      ? "Use Select Drivers to choose who appears in this graph."
+      : "Try adjusting class/session scope or selecting a different driver set."
+    const compactEmptyHeight = Math.min(height, 250)
+
     return (
       <div ref={containerRef} className="relative">
         <ChartContainer
           title={chartTitle}
           description={UNIFIED_CHART_TITLE_DESCRIPTION}
           headerControls={headerControlsContent}
-          height={height}
+          height={compactEmptyHeight}
           className={className}
           aria-label="Driver performance chart - no data for the current scope"
         >
-          <div className="flex items-center justify-center h-full text-[var(--token-text-secondary)]">
-            {validData.length === 0 ? "No data available" : "Select drivers to compare"}
+          <div
+            id="event-analysis-performance-empty-state"
+            className="relative min-h-[190px] w-full px-5 py-6"
+          >
+            <div className="pointer-events-none absolute inset-0 rounded-xl">
+              <div className="absolute inset-x-6 top-4 bottom-12 rounded-lg border border-[var(--token-border-muted)]/45">
+                <div className="absolute bottom-0 left-0 top-0 border-l border-[var(--token-border-muted)]/50" />
+                <div className="absolute bottom-0 left-0 right-0 border-t border-[var(--token-border-muted)]/50" />
+                <div className="absolute bottom-0 left-[20%] h-[25%] w-4 rounded-t bg-[var(--token-border-muted)]/40" />
+                <div className="absolute bottom-0 left-[45%] h-[40%] w-4 rounded-t bg-[var(--token-border-muted)]/45" />
+                <div className="absolute bottom-0 left-[70%] h-[58%] w-4 rounded-t bg-[var(--token-border-muted)]/50" />
+              </div>
+            </div>
+            <div className="relative z-10 mx-auto w-full max-w-[42rem] min-w-[12rem] rounded-xl border border-[var(--token-border-muted)] bg-[var(--token-surface-elevated)]/65 px-4 py-4 text-center shadow-sm backdrop-blur-sm">
+              <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)]">
+                <EmptyStateBarChartIcon />
+              </div>
+              <p className="text-sm font-semibold text-[var(--token-text-primary)]">
+                {emptyStateTitle}
+              </p>
+              <p className="mt-1 text-sm text-[var(--token-text-secondary)]">
+                {emptyStateDescription}
+              </p>
+              <p className="mt-2 text-xs text-[var(--token-text-muted)]">{emptyStateHint}</p>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-[var(--token-text-secondary)]">
+                <span className="rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface)]/60 px-2.5 py-1">
+                  Drivers: select 1+
+                </span>
+                <span className="rounded-full border border-[var(--token-border-default)] bg-[var(--token-surface)]/60 px-2.5 py-1">
+                  Scope: class/session
+                </span>
+              </div>
+            </div>
           </div>
         </ChartContainer>
       </div>
