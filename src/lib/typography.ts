@@ -65,6 +65,14 @@ export const typography = {
   /** Event Overview: results table toolbar title (left, same row as filters) */
   overviewEventResultsToolbarTitle:
     "min-w-0 shrink text-left text-lg font-semibold tracking-tight text-[var(--token-text-muted)]",
+  /** Event Overview: toolbar filter labels (Class, Driver, View, …) */
+  overviewToolbarLabel: "shrink-0 text-sm font-medium text-[var(--token-text-secondary)]",
+  /** Event Overview: toolbar selects and text inputs */
+  overviewToolbarControl:
+    "rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]",
+  /** Event Overview: segmented tab buttons (Event Results / Session Results) */
+  overviewToolbarTabButton:
+    "shrink-0 rounded-[0.25rem] px-3 py-1.5 text-sm font-medium transition-colors",
   /** Event Overview: small eyebrow above section titles (minimal tracking, no all-caps) */
   overviewEyebrow: "text-[11px] font-medium tracking-[0.04em] text-[var(--token-text-muted)]",
   /** Event Overview: grid metric label (Races, Drivers, …) */
@@ -93,6 +101,7 @@ export const typography = {
  * - tableHeader / tableHeaderMuted: xs uppercase column titles in data tables
  * - overviewSectionCardTitle: centered muted lg titles on overview glass cards
  * - overviewEventResultsToolbarTitle: left title on event results toolbar row
+ * - overviewToolbarLabel / overviewToolbarControl / overviewToolbarTabButton: results toolbar controls
  * - overviewEyebrow / overviewCardClassLabel / overviewCardDriverName: Event Overview hierarchy
  * - overviewMetricLabel (17px) / overviewMetricValue (base): Event Overview stat grid
  */

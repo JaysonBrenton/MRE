@@ -50,6 +50,7 @@ import StandardButton from "@/components/atoms/StandardButton"
 import { typography } from "@/lib/typography"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import type { EventAnalysisDataApiResponse } from "@/types/event-analysis-api"
+import { EventAnalysisUiStateProvider } from "@/components/organisms/event-analysis/event-analysis-ui-state"
 
 const PRACTICE_DAY_TABS: { id: TabId; label: string }[] = [
   { id: "my-day", label: "My Day" },
@@ -458,166 +459,171 @@ export default function EventAnalysisSection() {
               </div>
             ) : null}
             {/* Tab panels */}
-            <div className="flex min-h-0 w-full min-w-full shrink-0 flex-col items-stretch gap-[var(--dashboard-gap)]">
-              {activeTab === "event-overview" && (
-                <OverviewTab
-                  data={transformedData}
-                  selectedDriverIds={selectedDriverIds}
-                  onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                  variant="event-overview-minimal"
-                  toolbarAboveEventDetails={
-                    <EventAnalysisToolbarAboveEventDetailsStrip
-                      {...eventAnalysisToolbarCommonProps}
-                    />
-                  }
-                />
-              )}
-
-              {activeTab === "analysis" && (
-                <>
-                  {analysisPrimaryDispatch === null ? (
-                    <div className="flex min-w-0 w-full flex-col gap-3">
+            <EventAnalysisUiStateProvider eventId={selectedEventId}>
+              <div className="flex min-h-0 w-full min-w-full shrink-0 flex-col items-stretch gap-[var(--dashboard-gap)]">
+                {activeTab === "event-overview" && (
+                  <OverviewTab
+                    data={transformedData}
+                    selectedDriverIds={selectedDriverIds}
+                    onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                    selectedClass={selectedClass}
+                    onClassChange={eventActions.onClassChange}
+                    variant="event-overview-minimal"
+                    toolbarAboveEventDetails={
                       <EventAnalysisToolbarAboveEventDetailsStrip
                         {...eventAnalysisToolbarCommonProps}
                       />
-                    </div>
-                  ) : analysisPrimaryDispatch === "event-level" ? (
-                    <OverviewTab
-                      data={transformedData}
-                      selectedDriverIds={selectedDriverIds}
-                      onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                      selectedClass={selectedClass}
-                      onClassChange={eventActions.onClassChange}
-                      variant="event-analysis-only"
-                      analysisDispatchFromPrimaryTab
-                      analysisSubTab={resolvedAnalysisSubTab}
-                      onAnalysisSubTabChange={setAnalysisSubTab}
-                      toolbarAboveEventDetails={
+                    }
+                  />
+                )}
+
+                {activeTab === "analysis" && (
+                  <>
+                    {analysisPrimaryDispatch === null ? (
+                      <div className="flex min-w-0 w-full flex-col gap-3">
                         <EventAnalysisToolbarAboveEventDetailsStrip
                           {...eventAnalysisToolbarCommonProps}
                         />
-                      }
-                    />
-                  ) : (
-                    <OverviewTab
-                      data={transformedData}
-                      selectedDriverIds={selectedDriverIds}
-                      onDriverSelectionChange={eventActions.onDriverSelectionChange}
-                      selectedClass={selectedClass}
-                      onClassChange={eventActions.onClassChange}
-                      variant="session-analysis-only"
-                      analysisDispatchFromPrimaryTab
-                      analysisSubTab={resolvedAnalysisSubTab}
-                      onAnalysisSubTabChange={setAnalysisSubTab}
-                      toolbarAboveEventDetails={
-                        <EventAnalysisToolbarAboveEventDetailsStrip
-                          {...eventAnalysisToolbarCommonProps}
-                        />
-                      }
-                    />
-                  )}
-                </>
-              )}
+                      </div>
+                    ) : analysisPrimaryDispatch === "event-level" ? (
+                      <OverviewTab
+                        data={transformedData}
+                        selectedDriverIds={selectedDriverIds}
+                        onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                        selectedClass={selectedClass}
+                        onClassChange={eventActions.onClassChange}
+                        variant="event-analysis-only"
+                        analysisDispatchFromPrimaryTab
+                        analysisSubTab={resolvedAnalysisSubTab}
+                        onAnalysisSubTabChange={setAnalysisSubTab}
+                        toolbarAboveEventDetails={
+                          <EventAnalysisToolbarAboveEventDetailsStrip
+                            {...eventAnalysisToolbarCommonProps}
+                          />
+                        }
+                      />
+                    ) : (
+                      <OverviewTab
+                        data={transformedData}
+                        selectedDriverIds={selectedDriverIds}
+                        onDriverSelectionChange={eventActions.onDriverSelectionChange}
+                        selectedClass={selectedClass}
+                        onClassChange={eventActions.onClassChange}
+                        variant="session-analysis-only"
+                        analysisDispatchFromPrimaryTab
+                        analysisSubTab={resolvedAnalysisSubTab}
+                        onAnalysisSubTabChange={setAnalysisSubTab}
+                        toolbarAboveEventDetails={
+                          <EventAnalysisToolbarAboveEventDetailsStrip
+                            {...eventAnalysisToolbarCommonProps}
+                          />
+                        }
+                      />
+                    )}
+                  </>
+                )}
 
-              {activeTab === "drivers" && (
-                <DriversTab
-                  data={transformedData}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                  toolbarAbove={
-                    <EventAnalysisToolbarAboveEventDetailsStrip
-                      {...eventAnalysisToolbarCommonProps}
-                    />
-                  }
-                />
-              )}
-
-              {activeTab === "my-events" && (
-                <div
-                  className="space-y-[var(--dashboard-gap)]"
-                  role="region"
-                  aria-label="My events"
-                >
-                  <MyEventsContent
-                    onEventSelect={(eventId) => {
-                      dispatch(selectEvent(eventId))
-                      dispatch(setActiveEventAnalysisTab("event-overview"))
-                    }}
-                  />
-                </div>
-              )}
-
-              {activeTab === "track-leader-board" && transformedData && selectedEventId && (
-                <div className="space-y-[var(--dashboard-gap)]">
-                  <TrackLeaderboardTab
-                    eventId={selectedEventId}
-                    trackName={transformedData.event.trackName}
-                    selectedClass={selectedClass}
-                    onClassChange={eventActions.onClassChange}
-                  />
-                  <CountryLeaderboardCard defaultCountry="Australia" />
-                </div>
-              )}
-
-              {activeTab === "club-highlights" && transformedData && (
-                <ClubHighlightsTab trackName={transformedData.event.trackName} />
-              )}
-
-              {/* Practice day tabs - no driver cards or weather panel */}
-              {isPracticeDay && activeTab === "my-day" && transformedData && (
-                <PracticeMyDayTab
-                  data={transformedData}
-                  selectedDriverId={selectedPracticeDriverId}
-                />
-              )}
-              {isPracticeDay && activeTab === "my-sessions" && transformedData && (
-                <PracticeMySessionsTab
-                  data={transformedData}
-                  selectedDriverId={selectedPracticeDriverId}
-                  selectedClass={selectedClass}
-                  onClassChange={eventActions.onClassChange}
-                  eventId={selectedEventId}
-                />
-              )}
-              {isPracticeDay && activeTab === "class-reference" && transformedData && (
-                <div
-                  className="space-y-[var(--dashboard-gap)]"
-                  role="tabpanel"
-                  id="tabpanel-class-reference"
-                  aria-labelledby="tab-class-reference"
-                >
-                  <PracticeClassLeaderboard data={transformedData} selectedClass={selectedClass} />
+                {activeTab === "drivers" && (
                   <DriversTab
                     data={transformedData}
                     selectedClass={selectedClass}
                     onClassChange={eventActions.onClassChange}
+                    toolbarAbove={
+                      <EventAnalysisToolbarAboveEventDetailsStrip
+                        {...eventAnalysisToolbarCommonProps}
+                      />
+                    }
                   />
-                </div>
-              )}
-              {isPracticeDay && activeTab === "all-sessions" && transformedData && (
-                <div
-                  className="space-y-[var(--dashboard-gap)]"
-                  role="tabpanel"
-                  id="tabpanel-all-sessions"
-                  aria-labelledby="tab-all-sessions"
-                >
-                  <div>
-                    <h2 className={`${typography.h3} mb-2`}>All Sessions</h2>
-                    <p className={typography.bodySecondary}>
-                      Full session list for the practice day. Sort by time, driver, or class.
-                    </p>
+                )}
+
+                {activeTab === "my-events" && (
+                  <div
+                    className="space-y-[var(--dashboard-gap)]"
+                    role="region"
+                    aria-label="My events"
+                  >
+                    <MyEventsContent
+                      onEventSelect={(eventId) => {
+                        dispatch(selectEvent(eventId))
+                        dispatch(setActiveEventAnalysisTab("event-overview"))
+                      }}
+                    />
                   </div>
-                  <SessionsTab
+                )}
+
+                {activeTab === "track-leader-board" && transformedData && selectedEventId && (
+                  <div className="space-y-[var(--dashboard-gap)]">
+                    <TrackLeaderboardTab
+                      eventId={selectedEventId}
+                      trackName={transformedData.event.trackName}
+                      selectedClass={selectedClass}
+                      onClassChange={eventActions.onClassChange}
+                    />
+                    <CountryLeaderboardCard defaultCountry="Australia" />
+                  </div>
+                )}
+
+                {activeTab === "club-highlights" && transformedData && (
+                  <ClubHighlightsTab trackName={transformedData.event.trackName} />
+                )}
+
+                {/* Practice day tabs - no driver cards or weather panel */}
+                {isPracticeDay && activeTab === "my-day" && transformedData && (
+                  <PracticeMyDayTab
                     data={transformedData}
-                    selectedDriverIds={[]}
+                    selectedDriverId={selectedPracticeDriverId}
+                  />
+                )}
+                {isPracticeDay && activeTab === "my-sessions" && transformedData && (
+                  <PracticeMySessionsTab
+                    data={transformedData}
+                    selectedDriverId={selectedPracticeDriverId}
                     selectedClass={selectedClass}
                     onClassChange={eventActions.onClassChange}
+                    eventId={selectedEventId}
                   />
-                </div>
-              )}
-            </div>
+                )}
+                {isPracticeDay && activeTab === "class-reference" && transformedData && (
+                  <div
+                    className="space-y-[var(--dashboard-gap)]"
+                    role="tabpanel"
+                    id="tabpanel-class-reference"
+                    aria-labelledby="tab-class-reference"
+                  >
+                    <PracticeClassLeaderboard
+                      data={transformedData}
+                      selectedClass={selectedClass}
+                    />
+                    <DriversTab
+                      data={transformedData}
+                      selectedClass={selectedClass}
+                      onClassChange={eventActions.onClassChange}
+                    />
+                  </div>
+                )}
+                {isPracticeDay && activeTab === "all-sessions" && transformedData && (
+                  <div
+                    className="space-y-[var(--dashboard-gap)]"
+                    role="tabpanel"
+                    id="tabpanel-all-sessions"
+                    aria-labelledby="tab-all-sessions"
+                  >
+                    <div>
+                      <h2 className={`${typography.h3} mb-2`}>All Sessions</h2>
+                      <p className={typography.bodySecondary}>
+                        Full session list for the practice day. Sort by time, driver, or class.
+                      </p>
+                    </div>
+                    <SessionsTab
+                      data={transformedData}
+                      selectedDriverIds={[]}
+                      selectedClass={selectedClass}
+                      onClassChange={eventActions.onClassChange}
+                    />
+                  </div>
+                )}
+              </div>
+            </EventAnalysisUiStateProvider>
           </>
         )}
       </div>

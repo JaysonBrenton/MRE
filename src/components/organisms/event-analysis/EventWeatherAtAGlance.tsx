@@ -156,12 +156,14 @@ export function EventWeatherAtAGlance({
       ) : null}
       {glance.conditionsSummary ? (
         <div
-          className={["mb-2 flex min-w-0 w-full flex-col gap-0.5", variant === "flat" ? "pl-3" : ""]
+          className={["mb-2 min-w-0 w-full", variant === "flat" ? "pl-3" : ""]
             .filter(Boolean)
             .join(" ")}
         >
-          <span className={typography.overviewMetricLabel}>Overall</span>
-          <span className={`min-w-0 ${typography.overviewMetricValue} break-words`}>
+          <span className={typography.overviewMetricLabel}>Overall:</span>{" "}
+          <span
+            className={`inline-block w-fit max-w-full ${typography.overviewMetricValue} break-words`}
+          >
             {glance.conditionsSummary}
           </span>
         </div>

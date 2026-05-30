@@ -50,6 +50,9 @@ function compareRowsTieBreak(a: ClassWinnerHighlight, b: ClassWinnerHighlight): 
 const HEADER_BUTTON_CLASS =
   "inline-flex w-full items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
 
+const PODIUM_HEADER_SORT_BUTTON_CLASS =
+  "inline-flex items-center gap-1 rounded-md px-0 text-left text-[inherit] hover:text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+
 const SURFACE_CLASS = OVERVIEW_GLASS_SURFACE_CLASS
 const SURFACE_STYLE = OVERVIEW_GLASS_SURFACE_STYLE
 
@@ -63,25 +66,26 @@ function placeBadgeClass(place: "1st" | "2nd" | "3rd"): string {
   return "bg-[var(--token-surface-raised)]/60 text-[var(--token-text-secondary)] ring-[var(--token-border-default)]/80"
 }
 
-function PodiumPlaceCell({
-  place,
-  children,
-}: {
-  place: "1st" | "2nd" | "3rd"
-  children: ReactNode
-}) {
+function PodiumPlaceBadge({ place }: { place: "1st" | "2nd" | "3rd" }) {
   const badgeClass = placeBadgeClass(place)
   return (
-    <span className="flex min-w-0 max-w-full items-center gap-2">
-      <span
-        className={`inline-flex h-6 w-10 shrink-0 items-center justify-center rounded-md text-[0.65rem] font-bold leading-none tabular-nums tracking-tight ring-1 ring-inset ${badgeClass}`}
-        aria-hidden
-      >
-        {place}
-      </span>
-      <span className="min-w-0 flex-1 self-center">{children}</span>
+    <span
+      className={`inline-flex h-6 w-10 shrink-0 items-center justify-center rounded-md text-[0.65rem] font-bold leading-none tabular-nums tracking-tight ring-1 ring-inset ${badgeClass}`}
+    >
+      {place}
     </span>
   )
+}
+
+function podiumSortAriaLabel(
+  place: "1st" | "2nd" | "3rd",
+  field: SortField,
+  sortField: SortField,
+  sortDirection: SortDirection
+): string {
+  const base = `Sort by ${place} place`
+  if (sortField !== field) return base
+  return `${base}, ${sortDirection === "asc" ? "ascending" : "descending"}`
 }
 
 function topQualifierNameForClass(
@@ -290,7 +294,7 @@ export default function EventOverallResultsTable({
               </p>
             </div>
             {resultsTabStrip ? (
-              <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-3">
+              <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-4">
                 {resultsTabStrip}
               </div>
             ) : null}
@@ -309,21 +313,18 @@ export default function EventOverallResultsTable({
           >
             {`Event Results: ${headerClassLabel}`}
           </h2>
-          <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-3">
+          <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-4">
             {resultsTabStrip}
             {onClassFilterChange && availableClassOptions.length > 0 && (
               <div className="flex items-center gap-2">
-                <label
-                  htmlFor={classFilterId}
-                  className="text-xs font-medium text-[var(--token-text-secondary)]"
-                >
+                <label htmlFor={classFilterId} className={typography.overviewToolbarLabel}>
                   Class
                 </label>
                 <select
                   id={classFilterId}
                   value={effectiveClassFilter}
                   onChange={(e) => onClassFilterChange(e.target.value || null)}
-                  className="max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                  className={`max-w-[min(100%,22rem)] ${typography.overviewToolbarControl}`}
                 >
                   <option value="">All classes</option>
                   {availableClassOptions.map((className) => (
@@ -335,10 +336,7 @@ export default function EventOverallResultsTable({
               </div>
             )}
             <div className="flex items-center gap-2">
-              <label
-                htmlFor={driverFilterId}
-                className="text-xs font-medium text-[var(--token-text-secondary)]"
-              >
+              <label htmlFor={driverFilterId} className={typography.overviewToolbarLabel}>
                 Driver
               </label>
               <input
@@ -347,7 +345,7 @@ export default function EventOverallResultsTable({
                 value={driverSearch}
                 onChange={(e) => setDriverSearch(e.target.value)}
                 placeholder="Search driver name"
-                className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                className={`w-40 ${typography.overviewToolbarControl}`}
               />
             </div>
           </div>
@@ -408,9 +406,15 @@ export default function EventOverallResultsTable({
                     <button
                       type="button"
                       onClick={() => handleSort("winnerName")}
-                      className={HEADER_BUTTON_CLASS}
+                      className={PODIUM_HEADER_SORT_BUTTON_CLASS}
+                      aria-label={podiumSortAriaLabel(
+                        "1st",
+                        "winnerName",
+                        sortField,
+                        sortDirection
+                      )}
                     >
-                      1st
+                      <PodiumPlaceBadge place="1st" />
                       <SortIcon
                         field="winnerName"
                         activeField={sortField}
@@ -425,9 +429,15 @@ export default function EventOverallResultsTable({
                     <button
                       type="button"
                       onClick={() => handleSort("secondPlaceName")}
-                      className={HEADER_BUTTON_CLASS}
+                      className={PODIUM_HEADER_SORT_BUTTON_CLASS}
+                      aria-label={podiumSortAriaLabel(
+                        "2nd",
+                        "secondPlaceName",
+                        sortField,
+                        sortDirection
+                      )}
                     >
-                      2nd
+                      <PodiumPlaceBadge place="2nd" />
                       <SortIcon
                         field="secondPlaceName"
                         activeField={sortField}
@@ -442,9 +452,15 @@ export default function EventOverallResultsTable({
                     <button
                       type="button"
                       onClick={() => handleSort("thirdPlaceName")}
-                      className={HEADER_BUTTON_CLASS}
+                      className={PODIUM_HEADER_SORT_BUTTON_CLASS}
+                      aria-label={podiumSortAriaLabel(
+                        "3rd",
+                        "thirdPlaceName",
+                        sortField,
+                        sortDirection
+                      )}
                     >
-                      3rd
+                      <PodiumPlaceBadge place="3rd" />
                       <SortIcon
                         field="thirdPlaceName"
                         activeField={sortField}
@@ -502,46 +518,40 @@ export default function EventOverallResultsTable({
                         )}
                       </StandardTableCell>
                       <StandardTableCell className="align-middle px-3 py-2 text-sm text-[var(--token-text-primary)]">
-                        <PodiumPlaceCell place="1st">
+                        <HighlightPodiumName
+                          name={cw.winnerName}
+                          className="min-w-0 truncate font-semibold text-[var(--token-text-primary)]"
+                        />
+                      </StandardTableCell>
+                      <StandardTableCell className="align-middle px-3 py-2 text-sm text-[var(--token-text-secondary)]">
+                        {cw.secondPlaceName ? (
                           <HighlightPodiumName
-                            name={cw.winnerName}
-                            className="min-w-0 truncate font-semibold text-[var(--token-text-primary)]"
+                            name={cw.secondPlaceName}
+                            className="min-w-0 truncate text-[var(--token-text-secondary)]"
                           />
-                        </PodiumPlaceCell>
+                        ) : (
+                          <span
+                            className="text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
+                            aria-label="No 2nd place in imported results for this class"
+                          >
+                            None
+                          </span>
+                        )}
                       </StandardTableCell>
                       <StandardTableCell className="align-middle px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                        <PodiumPlaceCell place="2nd">
-                          {cw.secondPlaceName ? (
-                            <HighlightPodiumName
-                              name={cw.secondPlaceName}
-                              className="min-w-0 truncate text-[var(--token-text-secondary)]"
-                            />
-                          ) : (
-                            <span
-                              className="text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
-                              aria-label="No 2nd place in imported results for this class"
-                            >
-                              None
-                            </span>
-                          )}
-                        </PodiumPlaceCell>
-                      </StandardTableCell>
-                      <StandardTableCell className="align-middle px-3 py-2 text-sm text-[var(--token-text-secondary)]">
-                        <PodiumPlaceCell place="3rd">
-                          {cw.thirdPlaceName ? (
-                            <HighlightPodiumName
-                              name={cw.thirdPlaceName}
-                              className="min-w-0 truncate text-[var(--token-text-secondary)]"
-                            />
-                          ) : (
-                            <span
-                              className="text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
-                              aria-label="No 3rd place in imported results for this class"
-                            >
-                              None
-                            </span>
-                          )}
-                        </PodiumPlaceCell>
+                        {cw.thirdPlaceName ? (
+                          <HighlightPodiumName
+                            name={cw.thirdPlaceName}
+                            className="min-w-0 truncate text-[var(--token-text-secondary)]"
+                          />
+                        ) : (
+                          <span
+                            className="text-xs font-medium leading-tight text-[var(--token-text-tertiary)] sm:text-sm"
+                            aria-label="No 3rd place in imported results for this class"
+                          >
+                            None
+                          </span>
+                        )}
                       </StandardTableCell>
                     </StandardTableRow>
                   )

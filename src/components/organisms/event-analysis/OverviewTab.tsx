@@ -50,7 +50,7 @@ import EventTopAverageLapsPerClassTable from "./EventTopAverageLapsPerClassTable
 import EventFastestLapsTable from "./EventFastestLapsTable"
 import EventFastestAverageLapsTable from "./EventFastestAverageLapsTable"
 import ChartControls from "./ChartControls"
-import UnifiedPerformanceChart, { type ChartViewType } from "./UnifiedPerformanceChart"
+import UnifiedPerformanceChart from "./UnifiedPerformanceChart"
 import ChartSection from "./ChartSection"
 import ChartDriverPicker from "./ChartDriverPicker"
 import ChartSessionPicker from "./ChartSessionPicker"
@@ -68,6 +68,8 @@ import SessionRaceResultsTable from "./SessionRaceResultsTable"
 import DriverBumpUpsTable, { type BumpUpRowWithClass } from "./sessions/DriverBumpUpsTable"
 import DriverMainLadderProgressionPanel from "./DriverMainLadderProgressionPanel"
 import MainBracketLadderPanel from "./MainBracketLadderPanel"
+import OverviewCollapsibleGlassCard from "./OverviewCollapsibleGlassCard"
+import { useEventAnalysisUiState } from "@/components/organisms/event-analysis/event-analysis-ui-state"
 import { getSessionsForBumpUpInference } from "@/core/events/get-sessions-data"
 import { inferBumpUpsFromSessions } from "@/core/events/infer-bump-ups"
 import {
@@ -98,7 +100,6 @@ import {
   EVENT_DETAILS_STATS_STRIP_WELL_CLASS,
   EVENT_DETAILS_TAB_PANEL_WELL_CLASS,
   EVENT_DETAILS_WEATHER_INFO_CALLOUT_CLASS,
-  OVERVIEW_GLASS_SURFACE_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
   OVERVIEW_SECTION_SURFACE_CLASS,
 } from "@/components/organisms/event-analysis/overview-glass-surface"
@@ -309,6 +310,33 @@ export default function OverviewTab({
   )
 
   const isEventAnalysisToolbarVariant = variant === "event-analysis-only"
+  const {
+    eventLevelDriverProgressionClass,
+    setEventLevelDriverProgressionClass,
+    eventLevelDriverLapChartClassOverride,
+    setEventLevelDriverLapChartClassOverride,
+    eventLevelLapChartDriverIds,
+    setEventLevelLapChartDriverIds,
+    eventLevelLapChartRaceId,
+    setEventLevelLapChartRaceId,
+    eventLevelLapChartSessionTypeFilter,
+    setEventLevelLapChartSessionTypeFilter,
+    eventLevelDriverLapChartExpanded,
+    setEventLevelDriverLapChartExpanded,
+    eventLevelLapChartClosestOnly,
+    setEventLevelLapChartClosestOnly,
+    driverCompareEventClassFilter,
+    setDriverCompareEventClassFilter,
+    driverCompareEventTaxonomyNodeFilter,
+    setDriverCompareEventTaxonomyNodeFilter,
+    unifiedChartDriverIds,
+    setUnifiedChartDriverIds,
+    chartViewState,
+    setChartViewState,
+    isPanelExpanded,
+    setPanelExpanded,
+    prevEventLevelLapSeedKeyRef,
+  } = useEventAnalysisUiState()
 
   const inSessionAnalysisSection =
     variant === "session-analysis-only" || overviewPrimarySection === "session-analysis"
@@ -324,13 +352,6 @@ export default function OverviewTab({
   const [eventClassFilter, setEventClassFilter] = useState<string | null>(null)
   /** Car taxonomy leaf id when user selects a mapping chip (event-scoped: only nodes that appear on this event's races). */
   const [eventTaxonomyNodeFilter, setEventTaxonomyNodeFilter] = useState<string | null>(null)
-  /** Session/Type scope for Event Analysis → compare chart only (independent of lap-trend + tables). */
-  const [driverCompareEventClassFilter, setDriverCompareEventClassFilter] = useState<string | null>(
-    null
-  )
-  const [driverCompareEventTaxonomyNodeFilter, setDriverCompareEventTaxonomyNodeFilter] = useState<
-    string | null
-  >(null)
   /** Session/Type scope for Event Analysis → lap-by-lap chart only. */
   const [driverLapTrendEventClassFilter, setDriverLapTrendEventClassFilter] = useState<
     string | null
@@ -339,13 +360,6 @@ export default function OverviewTab({
     useState<string | null>(null)
   const classFilterButtonRefs = useRef<Array<HTMLButtonElement | null>>([])
   const liveRcSessionNavChipRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const [eventLevelDriverProgressionClass, setEventLevelDriverProgressionClass] = useState<
-    string | null
-  >(null)
-  /** Per-chart class scope override for Event Analysis → stacked Driver laps card (omit to follow ladder/actions heuristic). */
-  const [eventLevelDriverLapChartClassOverride, setEventLevelDriverLapChartClassOverride] =
-    useState<string | null>(null)
-
   useEffect(() => {
     if (isControlledAnalysisSubTab) return
     queueMicrotask(() => setInternalAnalysisSubTab("event-results"))
@@ -356,16 +370,9 @@ export default function OverviewTab({
   }, [data.event.id])
 
   useEffect(() => {
-    queueMicrotask(() => setEventLevelDriverProgressionClass(null))
-  }, [data.event.id])
-
-  useEffect(() => {
     queueMicrotask(() => {
-      setDriverCompareEventClassFilter(null)
-      setDriverCompareEventTaxonomyNodeFilter(null)
       setDriverLapTrendEventClassFilter(null)
       setDriverLapTrendEventTaxonomyNodeFilter(null)
-      setEventLevelDriverLapChartClassOverride(null)
     })
   }, [data.event.id])
 
@@ -374,12 +381,9 @@ export default function OverviewTab({
     selectionKey: "",
   })
   const [selectAllClickedForCurrentClass, setSelectAllClickedForCurrentClass] = useState(false)
-  const [chartViewState, setChartViewState] = useState<ChartViewType>("column")
   const [lapTrendData, setLapTrendData] = useState<EventLapTrendResponse | null>(null)
   const [lapTrendLoading, setLapTrendLoading] = useState(false)
   const [lapTrendError, setLapTrendError] = useState<string | null>(null)
-  // Per-chart driver selection for unified chart only; lap trend uses global selection (Actions menu)
-  const [unifiedChartDriverIds, setUnifiedChartDriverIds] = useState<string[]>([])
   // Lap-trend chart: which drivers to show (subset of expandedSelectedDriverIds); cap at 8 when many selected
   const [lapTrendChartDriverIds, setLapTrendChartDriverIds] = useState<string[]>([])
   // Lap-trend sort: order drivers in chart/legend by this metric
@@ -398,20 +402,11 @@ export default function OverviewTab({
   const [sessionLapTrendChartDriverIds, setSessionLapTrendChartDriverIds] = useState<string[]>([])
   const [eventWeatherDetailModalOpen, setEventWeatherDetailModalOpen] = useState(false)
 
-  /** Re-seeds Event Level lap card when mains ladder resolved class changes. */
-  const prevEventLevelLapSeedKeyRef = useRef<string>("")
   const [eventLevelLapTrendData, setEventLevelLapTrendData] =
     useState<EventLapTrendResponse | null>(null)
   const [eventLevelLapTrendLoading, setEventLevelLapTrendLoading] = useState(false)
   const [eventLevelLapTrendError, setEventLevelLapTrendError] = useState<string | null>(null)
-  const [eventLevelLapChartDriverIds, setEventLevelLapChartDriverIds] = useState<string[]>([])
-  /** null = all sessions in class; set to a race id to show one session only. */
-  const [eventLevelLapChartRaceId, setEventLevelLapChartRaceId] = useState<string | null>(null)
-  /** Empty string = all session types (Qualifier, Main, etc.). */
-  const [eventLevelLapChartSessionTypeFilter, setEventLevelLapChartSessionTypeFilter] = useState("")
   const eventLevelLapChartSessionTypeFilterId = useId()
-  const [eventLevelDriverLapChartExpanded, setEventLevelDriverLapChartExpanded] = useState(false)
-  const [eventLevelLapChartClosestOnly, setEventLevelLapChartClosestOnly] = useState(false)
   const [eventLevelLapDriverCapNotice, setEventLevelLapDriverCapNotice] = useState<string | null>(
     null
   )
@@ -1106,11 +1101,6 @@ export default function OverviewTab({
 
   useEffect(() => {
     if (eventLevelLapChartRaceId == null) return
-    queueMicrotask(() => setEventLevelLapChartClosestOnly(false))
-  }, [eventLevelLapChartRaceId])
-
-  useEffect(() => {
-    if (eventLevelLapChartRaceId == null) return
     const race = data.races.find((r) => r.id === eventLevelLapChartRaceId)
     if (!race) return
     const inSession = new Set(race.results.map((row) => row.driverId))
@@ -1624,19 +1614,14 @@ export default function OverviewTab({
     driverCompareEventTaxonomyNodeFilter,
   ])
 
-  // When event changes, reset lap trend state and vehicle session scope
+  // When event changes, reset ephemeral lap-trend fetch state (selection persists in EventAnalysisUiStateProvider)
   useEffect(() => {
     queueMicrotask(() => {
       setLapTrendChartDriverIds([])
       setSessionAnalysisSessionRaceId(null)
       setSessionLapTrendChartDriverIds([])
-      setEventLevelLapChartDriverIds([])
-      setEventLevelLapChartRaceId(null)
-      setEventLevelLapChartSessionTypeFilter("")
       setEventLevelLapTrendData(null)
       setEventLevelLapTrendError(null)
-      setEventLevelDriverLapChartExpanded(false)
-      prevEventLevelLapSeedKeyRef.current = ""
     })
   }, [data.event.id])
 
@@ -1786,7 +1771,9 @@ export default function OverviewTab({
       return
     }
     const seedKey = `${data.event.id}::${cn}`
-    if (prevEventLevelLapSeedKeyRef.current === seedKey) return
+    if (prevEventLevelLapSeedKeyRef.current === seedKey && eventLevelLapChartDriverIds.length > 0) {
+      return
+    }
     prevEventLevelLapSeedKeyRef.current = seedKey
     queueMicrotask(() => {
       const lapEligibleDriverIds = new Set(
@@ -1808,7 +1795,13 @@ export default function OverviewTab({
       })
       setEventLevelLapChartDriverIds(picked ? [picked] : [])
     })
-  }, [data, data.event.id, isEventAnalysisToolbarVariant, eventLevelDriverLapChartClass])
+  }, [
+    data,
+    data.event.id,
+    isEventAnalysisToolbarVariant,
+    eventLevelDriverLapChartClass,
+    eventLevelLapChartDriverIds.length,
+  ])
 
   useEffect(() => {
     if (!isEventAnalysisToolbarVariant) return
@@ -2181,7 +2174,7 @@ export default function OverviewTab({
       setDriverCompareEventClassFilter(className)
       onClassChange(className)
     },
-    [onClassChange]
+    [onClassChange, setDriverCompareEventClassFilter, setDriverCompareEventTaxonomyNodeFilter]
   )
 
   const handleDriverCompareTaxonomyFilterSelect = useCallback(
@@ -2192,7 +2185,7 @@ export default function OverviewTab({
         onClassChange(null)
       }
     },
-    [onClassChange]
+    [onClassChange, setDriverCompareEventClassFilter, setDriverCompareEventTaxonomyNodeFilter]
   )
 
   const handleDriverLapTrendClassFilterSelect = useCallback((className: string | null) => {
@@ -3150,10 +3143,13 @@ export default function OverviewTab({
               Event Level Analysis
             </h2>
             <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-stretch gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="event-level-analysis-col-1-heading"
+              <OverviewCollapsibleGlassCard
+                panelId="event-level-analysis-col-1"
+                headingId="event-level-analysis-col-1-heading"
+                title="Mains Ladder"
+                layout="stretch"
+                expanded={isPanelExpanded("event-level-analysis-col-1")}
+                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-1", open)}
               >
                 <div className="w-full min-w-0">
                   <MainBracketLadderPanel
@@ -3161,30 +3157,19 @@ export default function OverviewTab({
                     classOptions={mainsLadderBracketClassOptions}
                     resolvedClassName={resolvedEventLevelDriverProgressionClass}
                     onClassNameChange={setEventLevelDriverProgressionClass}
-                    toolbarTitle={
-                      <h3
-                        id="event-level-analysis-col-1-heading"
-                        className={typography.overviewEventResultsToolbarTitle}
-                      >
-                        Mains Ladder
-                      </h3>
-                    }
                   />
                 </div>
-              </section>
+              </OverviewCollapsibleGlassCard>
             </div>
             <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-stretch gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="event-level-analysis-col-3-heading"
+              <OverviewCollapsibleGlassCard
+                panelId="event-level-analysis-col-3"
+                headingId="event-level-analysis-col-3-heading"
+                title="Driver Analysis"
+                layout="stretch"
+                expanded={isPanelExpanded("event-level-analysis-col-3")}
+                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-3", open)}
               >
-                <h3
-                  id="event-level-analysis-col-3-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Driver Analysis
-                </h3>
                 {eventLevelDriverLapChartClass == null ? (
                   <p className="text-center text-sm text-[var(--token-text-secondary)]" role="note">
                     No racing classes appear in results for this event, so lap data cannot be
@@ -3223,7 +3208,7 @@ export default function OverviewTab({
                           sessionVisualization="dividers"
                           enablePositionAxisToggle
                           enableSmoothingToggle
-                          enableClosestOnlyToggle={eventLevelLapChartRaceId == null}
+                          enableClosestOnlyToggle
                           closestOnly={eventLevelLapChartClosestOnly}
                           onClosestOnlyChange={setEventLevelLapChartClosestOnly}
                           headerControls={
@@ -3292,7 +3277,7 @@ export default function OverviewTab({
                                     drivers={eventLevelDriverPickListForLapChart}
                                     selectedDriverIds={eventLevelLapChartDriverIds}
                                     closestDriverIdsByAnchor={eventLevelLapChartClosestIdsByAnchor}
-                                    showClosestOnlyToggle={eventLevelLapChartRaceId == null}
+                                    showClosestOnlyToggle
                                     closestOnlyToggleInPopover={false}
                                     closestOnly={eventLevelLapChartClosestOnly}
                                     onClosestOnlyChange={setEventLevelLapChartClosestOnly}
@@ -3341,20 +3326,17 @@ export default function OverviewTab({
                     </div>
                   </div>
                 )}
-              </section>
+              </OverviewCollapsibleGlassCard>
             </div>
             <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-stretch gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="event-level-analysis-col-4-heading"
+              <OverviewCollapsibleGlassCard
+                panelId="event-level-analysis-col-4"
+                headingId="event-level-analysis-col-4-heading"
+                title="Compare driver performance"
+                layout="stretch"
+                expanded={isPanelExpanded("event-level-analysis-col-4")}
+                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-4", open)}
               >
-                <h3
-                  id="event-level-analysis-col-4-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Compare driver performance
-                </h3>
                 <div className="space-y-4">
                   <ChartControls
                     drivers={driverOptions}
@@ -3425,81 +3407,69 @@ export default function OverviewTab({
                     </ChartSection>
                   </div>
                 </div>
-              </section>
+              </OverviewCollapsibleGlassCard>
             </div>
             <div
               className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
               role="presentation"
             >
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="event-level-analysis-col-5-heading"
+              <OverviewCollapsibleGlassCard
+                panelId="event-level-analysis-col-5"
+                headingId="event-level-analysis-col-5-heading"
+                title="Pace trends"
+                layout="center"
+                expanded={isPanelExpanded("event-level-analysis-col-5")}
+                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-5", open)}
               >
-                <h3
-                  id="event-level-analysis-col-5-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Pace trends
-                </h3>
                 <p className={`${typography.bodySecondary} max-w-prose text-center`}>
                   Placeholder container for lap-time progression, consistency bands, and segment
                   deltas. Content will be added here.
                 </p>
-              </section>
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="event-level-analysis-col-6-heading"
+              </OverviewCollapsibleGlassCard>
+              <OverviewCollapsibleGlassCard
+                panelId="event-level-analysis-col-6"
+                headingId="event-level-analysis-col-6-heading"
+                title="Strategy overview"
+                layout="center"
+                expanded={isPanelExpanded("event-level-analysis-col-6")}
+                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-6", open)}
               >
-                <h3
-                  id="event-level-analysis-col-6-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Strategy overview
-                </h3>
                 <p className={`${typography.bodySecondary} max-w-prose text-center`}>
                   Placeholder container for pit timing, stint lengths, and position-trade context.
                   Content will be added here.
                 </p>
-              </section>
+              </OverviewCollapsibleGlassCard>
             </div>
             <div
               className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
               role="presentation"
             >
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="event-level-analysis-col-7-heading"
+              <OverviewCollapsibleGlassCard
+                panelId="event-level-analysis-col-7"
+                headingId="event-level-analysis-col-7-heading"
+                title="Weather and track"
+                layout="center"
+                expanded={isPanelExpanded("event-level-analysis-col-7")}
+                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-7", open)}
               >
-                <h3
-                  id="event-level-analysis-col-7-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Weather and track
-                </h3>
                 <p className={`${typography.bodySecondary} max-w-prose text-center`}>
                   Placeholder container for ambient conditions, track evolution, and rubber-in
                   context. Content will be added here.
                 </p>
-              </section>
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="event-level-analysis-col-8-heading"
+              </OverviewCollapsibleGlassCard>
+              <OverviewCollapsibleGlassCard
+                panelId="event-level-analysis-col-8"
+                headingId="event-level-analysis-col-8-heading"
+                title="Incidents and penalties"
+                layout="center"
+                expanded={isPanelExpanded("event-level-analysis-col-8")}
+                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-8", open)}
               >
-                <h3
-                  id="event-level-analysis-col-8-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Incidents and penalties
-                </h3>
                 <p className={`${typography.bodySecondary} max-w-prose text-center`}>
                   Placeholder container for on-track incidents, race-control actions, and penalty
                   summaries. Content will be added here.
                 </p>
-              </section>
+              </OverviewCollapsibleGlassCard>
             </div>
           </div>
         </section>
@@ -3533,38 +3503,32 @@ export default function OverviewTab({
               className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
               role="presentation"
             >
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="session-level-analysis-col-1-heading"
+              <OverviewCollapsibleGlassCard
+                panelId="session-level-analysis-col-1"
+                headingId="session-level-analysis-col-1-heading"
+                title="Session metrics"
+                layout="center"
+                expanded={isPanelExpanded("session-level-analysis-col-1")}
+                onExpandedChange={(open) => setPanelExpanded("session-level-analysis-col-1", open)}
               >
-                <h3
-                  id="session-level-analysis-col-1-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Session metrics
-                </h3>
                 <p className={`${typography.bodySecondary} max-w-prose text-center`}>
                   Placeholder container for session-level timing, pace, and consistency. Content
                   will be added here.
                 </p>
-              </section>
-              <section
-                className={`flex min-h-0 min-w-0 flex-col items-center gap-3 p-4 ${OVERVIEW_GLASS_SURFACE_CLASS}`}
-                style={OVERVIEW_GLASS_SURFACE_STYLE}
-                aria-labelledby="session-level-analysis-col-2-heading"
+              </OverviewCollapsibleGlassCard>
+              <OverviewCollapsibleGlassCard
+                panelId="session-level-analysis-col-2"
+                headingId="session-level-analysis-col-2-heading"
+                title="Session scope"
+                layout="center"
+                expanded={isPanelExpanded("session-level-analysis-col-2")}
+                onExpandedChange={(open) => setPanelExpanded("session-level-analysis-col-2", open)}
               >
-                <h3
-                  id="session-level-analysis-col-2-heading"
-                  className={typography.overviewSectionCardTitle}
-                >
-                  Session scope
-                </h3>
                 <p className={`${typography.bodySecondary} max-w-prose text-center`}>
                   Placeholder container for class/program context and results for the selected
                   session. Content will be added here.
                 </p>
-              </section>
+              </OverviewCollapsibleGlassCard>
             </div>
           </div>
         </section>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, type KeyboardEvent } from "react"
+import { typography } from "@/lib/typography"
 
 export type OverviewResultsTab = "event-results" | "session-results"
 
@@ -53,9 +54,7 @@ export function OverviewResultsTabStrip({ activeTab, onTabChange }: OverviewResu
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="whitespace-nowrap text-xs font-medium text-[var(--token-text-secondary)]">
-        View
-      </span>
+      <span className={`whitespace-nowrap ${typography.overviewToolbarLabel}`}>View</span>
       <div
         className="inline-flex rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] p-0.5"
         role="tablist"
@@ -73,7 +72,7 @@ export function OverviewResultsTabStrip({ activeTab, onTabChange }: OverviewResu
               aria-controls={OVERVIEW_RESULTS_PANEL_IDS[tab.id]}
               tabIndex={isActive ? 0 : -1}
               className={[
-                "shrink-0 rounded-[0.25rem] px-2.5 py-1 text-xs font-medium transition-colors",
+                typography.overviewToolbarTabButton,
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--token-surface)]",
                 isActive
                   ? "bg-[var(--token-accent-soft-bg)] text-[var(--token-accent)] shadow-sm"

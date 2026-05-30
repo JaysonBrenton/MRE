@@ -503,7 +503,7 @@ export default function SessionRaceResultsTable({
               </p>
             </div>
             {resultsTabStrip ? (
-              <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-3">
+              <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-4">
                 {resultsTabStrip}
               </div>
             ) : null}
@@ -522,21 +522,18 @@ export default function SessionRaceResultsTable({
           >
             {`Session Results: ${headerClassLabel}`}
           </h2>
-          <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-3">
+          <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-4">
             {resultsTabStrip}
             {onClassFilterChange && availableClassOptions.length > 0 && (
               <div className="flex items-center gap-2">
-                <label
-                  htmlFor={classFilterId}
-                  className="text-xs font-medium text-[var(--token-text-secondary)]"
-                >
+                <label htmlFor={classFilterId} className={typography.overviewToolbarLabel}>
                   Class
                 </label>
                 <select
                   id={classFilterId}
                   value={effectiveClassFilter}
                   onChange={(e) => onClassFilterChange(e.target.value || null)}
-                  className="max-w-[min(100%,22rem)] rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                  className={`max-w-[min(100%,22rem)] ${typography.overviewToolbarControl}`}
                 >
                   <option value="">All classes</option>
                   {availableClassOptions.map((className) => (
@@ -549,17 +546,14 @@ export default function SessionRaceResultsTable({
             )}
             {sessionTypeOptions.length > 0 && (
               <div className="flex items-center gap-2">
-                <label
-                  htmlFor={sessionTypeFilterId}
-                  className="text-xs font-medium text-[var(--token-text-secondary)]"
-                >
+                <label htmlFor={sessionTypeFilterId} className={typography.overviewToolbarLabel}>
                   Session
                 </label>
                 <select
                   id={sessionTypeFilterId}
                   value={effectiveSessionTypeFilter}
                   onChange={(e) => setSessionTypeFilter(e.target.value)}
-                  className="rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                  className={typography.overviewToolbarControl}
                 >
                   <option value="">All session types</option>
                   {sessionTypeOptions.map((key) => (
@@ -571,10 +565,7 @@ export default function SessionRaceResultsTable({
               </div>
             )}
             <div className="flex items-center gap-2">
-              <label
-                htmlFor={driverFilterId}
-                className="text-xs font-medium text-[var(--token-text-secondary)]"
-              >
+              <label htmlFor={driverFilterId} className={typography.overviewToolbarLabel}>
                 Driver
               </label>
               <input
@@ -583,7 +574,7 @@ export default function SessionRaceResultsTable({
                 value={driverSearch}
                 onChange={(e) => setDriverSearch(e.target.value)}
                 placeholder="Search driver name"
-                className="w-40 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-2 py-1 text-xs text-[var(--token-text-primary)] placeholder:text-[var(--token-text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                className={`w-40 ${typography.overviewToolbarControl}`}
               />
             </div>
           </div>

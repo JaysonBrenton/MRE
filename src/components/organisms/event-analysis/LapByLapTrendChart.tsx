@@ -174,6 +174,9 @@ function EmptyStateChartIcon() {
 }
 /** Alternating band fill — kept low so lap traces stay visually primary over session shading. */
 const SESSION_BAND_OPACITIES = [0.26, 0.22] as const
+const SESSION_DIVIDER_STROKE = "var(--token-text-secondary)"
+const SESSION_DIVIDER_STROKE_WIDTH = 1.5
+const SESSION_DIVIDER_OPACITY = 0.75
 
 function formatLapTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
@@ -1057,10 +1060,10 @@ export default function LapByLapTrendChart({
                                   x2={xScale(band.startLapIndex - 0.5)}
                                   y1={0}
                                   y2={innerHeight}
-                                  stroke={borderColor}
-                                  strokeWidth={1}
-                                  strokeDasharray="4,3"
-                                  opacity={0.45}
+                                  stroke={SESSION_DIVIDER_STROKE}
+                                  strokeWidth={SESSION_DIVIDER_STROKE_WIDTH}
+                                  strokeDasharray="5,4"
+                                  opacity={SESSION_DIVIDER_OPACITY}
                                   pointerEvents="none"
                                 />
                               ))}
