@@ -5,3 +5,7 @@
 # Followed Event Refresh Cron Job
 # Runs daily at 00:30 UTC to keep followed tracks current
 30 0 * * * /usr/local/bin/run-followed-event-sync.sh >> /var/log/event-refresh.log 2>&1
+
+# Recent Events Auto-Ingest
+# Runs daily at 02:00 UTC (after track sync + followed metadata refresh)
+0 2 * * * /usr/local/bin/run-recent-events-auto-ingest.sh >> /var/log/recent-events-auto-ingest.log 2>&1

@@ -9,6 +9,62 @@ License: Proprietary, internal to MRE
 
 # Telemetry API Contract and Query Patterns
 
+> **Implementation status (verified against code 2026-05-31).** This document is
+> a forward-looking contract; the **as-built API differs in several places**.
+> The source of truth is `src/app/api/v1/telemetry/**`. Sections 6–10 below
+> describe the aspirational design; the table in **§0 As-built endpoints** lists
+> what actually ships today. Where they conflict, trust §0 and the code.
+>
+> Key differences from this design:
+>
+> - **Response envelope** is `{ "success": true, "data": { ... } }` for success
+>   and `{ "success": false, "error": { "code", "message", "details?" } }` for
+>   errors (see `src/lib/api-utils.ts`). There is no top-level `request_id`
+>   field and no `error.request_id` (a request id is generated server-side for
+>   logs).
+> - **Upload is a direct `PUT` of raw bytes**, not an external signed URL.
+>   `POST /uploads` returns an app `uploadUrl` pointing at
+>   `/uploads/{uploadId}/bytes` with `method: "PUT"`; the client then `PUT`s the
+>   bytes and calls `POST /uploads/{uploadId}/finalise`.
+> - **Time base is `t_ns` (nanoseconds since Unix epoch)**, not `t_ms` /
+>   `t_unix_ms`. The timeseries endpoint takes `t_ns_min`, `t_ns_max`,
+>   `max_rows`, `stride`, `ds_rate` (`10hz` | `1hz`) — not `channels`, `level`,
+>   or `start_t_ms`.
+> - **Canonical GNSS columns actually returned/written:** `t_ns`, `lat_deg`,
+>   `lon_deg`, `alt_m`, `speed_mps`. The richer PVT fields (`course_deg`,
+>   `hacc_m`, `sat_count`, `fix_type`, `quality_flags`) are not yet produced.
+> - **Not implemented:** `GET /uploads/{id}`, `/channels`, `/laps/{lapId}`,
+>   `POST /laps/compare`, `/segments` (GET/PUT), `/processing-runs`, signed-URL
+>   delivery, and Arrow/IPC export (`format=arrow|ipc` → `501 NOT_IMPLEMENTED`).
+> - **Additional built endpoints** not in §6: `PATCH`/`DELETE` on a session,
+>   `GET /sessions/compare?ids=`, `POST /sessions/{id}/reprocess`,
+>   `POST /sessions/{id}/retry`, `POST`/`DELETE /sessions/{id}/share`,
+>   `GET /sessions/{id}/coaching`, and public `GET /share/{token}` (+ `/map`).
+>
+> ## 0. As-built endpoints (2026-05-31)
+>
+> | Method        | Path                                                | Notes                                                                                                                                                                      |
+> | ------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+> | POST          | `/api/v1/telemetry/uploads`                         | Body `{ originalFileName, contentType }`. Returns `{ uploadId, uploadUrl, method: "PUT", storagePath }` (201).                                                             |
+> | PUT           | `/api/v1/telemetry/uploads/{uploadId}/bytes`        | Raw request body = file bytes. Returns `{ uploadId, byteSize, sha256 }`.                                                                                                   |
+> | POST          | `/api/v1/telemetry/uploads/{uploadId}/finalise`     | Optional body `{ name?, livercEventId?, livercRaceId? }`. Returns `{ sessionId, runId?, sessionPollUrl, idempotent }` (201 or 200 if idempotent).                          |
+> | GET           | `/api/v1/telemetry/sessions`                        | Query `limit`, `cursor`, `status`. Returns `{ items, nextCursor }`; ETag/304 supported.                                                                                    |
+> | GET           | `/api/v1/telemetry/sessions/{sessionId}`            | Detail incl. `datasets`, `laps`, `segments`, `currentRun`, and `failure` when `status === "failed"`.                                                                       |
+> | PATCH         | `/api/v1/telemetry/sessions/{sessionId}`            | Body any of `name`, `livercEventId`, `livercRaceId`, `trackId`, `userSflLineGeoJson`.                                                                                      |
+> | DELETE        | `/api/v1/telemetry/sessions/{sessionId}`            | Soft delete; returns `{ deleted: true }`.                                                                                                                                  |
+> | GET           | `/api/v1/telemetry/sessions/{sessionId}/laps`       | `{ laps: [{ lapNumber, startTimeUtc, endTimeUtc, durationMs, validity, qualityScore }] }`. READY only (else 409 NOT_READY).                                                |
+> | GET           | `/api/v1/telemetry/sessions/{sessionId}/timeseries` | Query `t_ns_min`, `t_ns_max`, `max_rows` (default 100000), `stride`, `ds_rate`. Columns `t_ns, lat_deg, lon_deg, alt_m, speed_mps`; `source` is `clickhouse` or `parquet`. |
+> | GET           | `/api/v1/telemetry/sessions/{sessionId}/map`        | Query `max_points`. Bounded GNSS polyline `{ meta, data: { lat_deg, lon_deg } }`.                                                                                          |
+> | GET           | `/api/v1/telemetry/sessions/{sessionId}/quality`    | `{ pipelineVersion, fusionVersion, lapDetectorVersion, quality, rawQualitySummary }`.                                                                                      |
+> | GET           | `/api/v1/telemetry/sessions/{sessionId}/coaching`   | Heuristic tips from quality + segments.                                                                                                                                    |
+> | GET           | `/api/v1/telemetry/sessions/{sessionId}/export`     | Streams canonical GNSS Parquet (`format=parquet` default; `arrow`/`ipc` → 501).                                                                                            |
+> | POST          | `/api/v1/telemetry/sessions/{sessionId}/reprocess`  | Full re-ingest (READY only; cooldown → 429).                                                                                                                               |
+> | POST          | `/api/v1/telemetry/sessions/{sessionId}/retry`      | Re-queue a FAILED session.                                                                                                                                                 |
+> | POST / DELETE | `/api/v1/telemetry/sessions/{sessionId}/share`      | Mint / revoke read-only share token (READY only).                                                                                                                          |
+> | GET           | `/api/v1/telemetry/sessions/compare?ids=`           | 2–4 READY session ids (comma-separated).                                                                                                                                   |
+> | GET           | `/api/v1/telemetry/share/{token}`                   | Public read-only session summary (no auth).                                                                                                                                |
+> | GET           | `/api/v1/telemetry/share/{token}/map`               | Public map polyline (no auth).                                                                                                                                             |
+
 This document locks in section 2 from `Gaps And Recommended Additions.md`: a
 clear API contract and query patterns that match the Telemetry UX.
 
@@ -176,9 +232,8 @@ API responses and pipeline output. Common conventions:
 
 - **Rate-based:** `raw`, `ds_50hz`, `ds_10hz`, `ds_5hz`, `ds_1hz` — maps to
   pipeline levels L0 (raw) through L2 (overview).
-- **Pipeline-aligned:** `L0`, `L1`, `L2` — direct mapping to
-  `downsample_L0`, `downsample_L1`, `downsample_L2` from the processing
-  pipeline.
+- **Pipeline-aligned:** `L0`, `L1`, `L2` — direct mapping to `downsample_L0`,
+  `downsample_L1`, `downsample_L2` from the processing pipeline.
 
 The `/channels` endpoint returns `levels` available for each channel. The API
 must document which levels are always generated by default per session size
@@ -205,7 +260,10 @@ Primary resources:
 
 #### POST `/api/v1/telemetry/uploads`
 
-Creates an artifact row (with `sessionId` null, `status` UPLOADED) and returns a signed URL for direct upload. The artifact id is returned as the upload id. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §2.
+Creates an artifact row (with `sessionId` null, `status` UPLOADED) and returns a
+signed URL for direct upload. The artifact id is returned as the upload id. See
+[Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md)
+§2.
 
 Request:
 
@@ -273,7 +331,9 @@ Response `200`:
 
 #### POST `/api/v1/telemetry/uploads/{uploadId}/finalise`
 
-Signals upload completion: creates a session, sets the artifact(s) `sessionId`, creates a processing run, and enqueues job(s). Triggers ingestion. Upload id is the artifact id.
+Signals upload completion: creates a session, sets the artifact(s) `sessionId`,
+creates a processing run, and enqueues job(s). Triggers ingestion. Upload id is
+the artifact id.
 
 Response `202`:
 
@@ -330,7 +390,12 @@ Session detail and overview summary.
 
 Response `200`:
 
-When `session.status` is `failed`, the response MUST include `session.failure`: `{ "code": "<stable code>", "message": "<user-facing message>" }`. Omit `failure` when status is not failed. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §7 and [Telemetry Import UX Design](Telemetry_Import_UX_Design.md) §6.4 for code → message mapping.
+When `session.status` is `failed`, the response MUST include `session.failure`:
+`{ "code": "<stable code>", "message": "<user-facing message>" }`. Omit
+`failure` when status is not failed. See
+[Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md)
+§7 and [Telemetry Import UX Design](Telemetry_Import_UX_Design.md) §6.4 for code
+→ message mapping.
 
 Response `200`:
 
@@ -389,7 +454,8 @@ Response `200`:
 }
 ```
 
-When `status` is `failed`, include `failure` with the run's error code and a user-facing message; omit `failure` otherwise.
+When `status` is `failed`, include `failure` with the run's error code and a
+user-facing message; omit `failure` otherwise.
 
 ---
 
@@ -569,7 +635,10 @@ Request:
 
 ```json
 {
-  "lap_ids": ["b2c3d4e5-f6a7-8901-bcde-f12345678901", "b2c3d4e5-f6a7-8901-bcde-f12345678902"],
+  "lap_ids": [
+    "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "b2c3d4e5-f6a7-8901-bcde-f12345678902"
+  ],
   "align": {
     "mode": "distance",
     "resample_points": 1500

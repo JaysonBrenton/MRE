@@ -18,6 +18,7 @@ import {
   useState,
   type CSSProperties,
   type ReactNode,
+  type RefObject,
 } from "react"
 import { createPortal } from "react-dom"
 import { Download } from "lucide-react"
@@ -26,10 +27,13 @@ import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import {
   type BracketNodeDriver,
   type MainBracketLadderNode,
+  type MainBracketLadderModel,
   buildMainBracketLadderModel,
   driversAdvancedToNextRoundSorted,
 } from "@/core/events/main-bracket-ladder-model"
 import { assignCenterYBySessionId } from "@/core/events/main-bracket-ladder-layout"
+import { ANALYSIS_MINI_CHART_HEIGHT_PX } from "@/components/organisms/event-analysis/overview-glass-surface"
+import AnalysisCardMiniSummary from "@/components/organisms/event-analysis/AnalysisCardMiniSummary"
 
 type QualStandingLite = { position: number }
 
@@ -66,6 +70,13 @@ interface MainBracketLadderPanelProps {
   onClassNameChange: (className: string | null) => void
   /** Renders at the start of the class toolbar row (e.g. section title). */
   toolbarTitle?: ReactNode
+  /**
+   * Mini-preview mode for collapsed analysis tiles: scaled bracket SVG only,
+   * no toolbar, export, modals, or pointer interaction.
+   */
+  compact?: boolean
+  /** Preview canvas height (px) when `compact`. Default {@link ANALYSIS_MINI_CHART_HEIGHT_PX}. */
+  previewHeight?: number
 }
 
 type ThemePalette = {
@@ -150,6 +161,59 @@ const CARD_PODIUM_NAME_MAX_CHARS = 22
 const NODE_ROUND_LABEL_BASELINE_OFFSET = 22
 /** Extra separation so the 14px round title does not crowd the podium lines. */
 const NODE_ROUND_LABEL_TO_PODIUM_BASELINE_GAP = 26
+
+interface LadderCompactSummary {
+  roundCount: number
+  completedCount: number
+  uniqueDriverCount: number
+  tierCount: number
+  hasLcq: boolean
+  winnerName: string | null
+}
+
+/**
+ * Cheap, derived headline facts for the collapsed Mains Ladder tile: round/tier
+ * counts, distinct drivers, LCQ presence, and the A-Main winner (P1 of the
+ * terminal final node, i.e. the node with no outgoing ladder edge).
+ */
+function summarizeLadderForCompact(model: MainBracketLadderModel): LadderCompactSummary {
+  const roundCount = model.nodes.length
+  const completedCount = model.nodes.filter((node) => node.hasResults).length
+
+  const driverIds = new Set<string>()
+  for (const node of model.nodes) {
+    for (const driver of node.drivers) driverIds.add(driver.driverId)
+  }
+
+  const tierCount = new Set(model.nodes.map((node) => node.tierIndex)).size
+
+  const hasLcq =
+    model.edges.some((edge) => edge.kind === "via_lcq") ||
+    model.nodes.some((node) => node.roundKind === "LCQ")
+
+  // Final = terminal node (no outgoing edge); fall back to the right-most tier.
+  const sourceIds = new Set(model.edges.map((edge) => edge.fromSessionId))
+  const terminals = model.nodes.filter((node) => !sourceIds.has(node.sessionId))
+  const finalCandidates = terminals.length > 0 ? terminals : model.nodes
+  const finalNode = finalCandidates.reduce<MainBracketLadderNode | null>((best, node) => {
+    if (best == null) return node
+    if (node.tierIndex !== best.tierIndex) return node.tierIndex > best.tierIndex ? node : best
+    if (node.hasResults !== best.hasResults) return node.hasResults ? node : best
+    return node.drivers.length > best.drivers.length ? node : best
+  }, null)
+  const winnerName = finalNode?.hasResults
+    ? (finalNode.drivers.find((driver) => driver.position === 1)?.driverName ?? null)
+    : null
+
+  return {
+    roundCount,
+    completedCount,
+    uniqueDriverCount: driverIds.size,
+    tierCount,
+    hasLcq,
+    winnerName,
+  }
+}
 
 /** Up to three lines: finishing positions 1–3 when results include those places. */
 function podiumDriverLines(drivers: BracketNodeDriver[]): string[] {
@@ -598,12 +662,184 @@ function AdvancedDriversTooltipFloater({
   )
 }
 
+function CompactBracketPreviewShell({
+  previewHeight,
+  children,
+}: {
+  previewHeight: number
+  children: ReactNode
+}) {
+  return (
+    <div
+      className="flex w-full min-w-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface)]/30 px-3 text-center"
+      style={{ height: previewHeight }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function BracketLadderSvg({
+  layout,
+  model,
+  palette,
+  selectedClass,
+  compact = false,
+  svgRef,
+  onNodeClick,
+  onProgressTooltip,
+}: {
+  layout: BracketLayout
+  model: NonNullable<ReturnType<typeof buildMainBracketLadderModel>>
+  palette: ThemePalette
+  selectedClass: string
+  compact?: boolean
+  svgRef?: RefObject<SVGSVGElement | null>
+  onNodeClick?: (node: MainBracketLadderNode, x: number, y: number) => void
+  onProgressTooltip?: (state: ProgressFloaterState | null) => void
+}) {
+  return (
+    <svg
+      ref={svgRef}
+      width={compact ? "100%" : layout.width}
+      height={compact ? "100%" : layout.height}
+      viewBox={`0 0 ${layout.width} ${layout.height}`}
+      preserveAspectRatio={compact ? "xMidYMid meet" : undefined}
+      role="img"
+      aria-label={`Mains ladder bracket${compact ? " preview" : ""} for ${selectedClass}`}
+      xmlns="http://www.w3.org/2000/svg"
+      className="block shrink-0"
+    >
+      {layout.edges.map((edge) => (
+        <g key={edge.id}>
+          <path
+            d={edge.path}
+            fill="none"
+            stroke={palette.lineDim}
+            strokeWidth={8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d={edge.path}
+            fill="none"
+            stroke={edge.kind === "via_lcq" ? "#f59e0b" : palette.advancedText}
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={edge.kind === "via_lcq" ? "6 4" : undefined}
+          />
+        </g>
+      ))}
+
+      {layout.nodes.map(({ node, x, y }) => {
+        const { target, drivers: advancedList } = driversAdvancedToNextRoundSorted(node, model)
+        const showAdvancedTooltip = !compact && advancedList.length > 0 && Boolean(target)
+        const descId = `mains-bracket-adv-${node.sessionId}`
+        const podiumLines = node.hasResults ? podiumDriverLines(node.drivers) : []
+        return (
+          <g key={node.sessionId}>
+            <rect
+              x={x}
+              y={y}
+              width={NODE_WIDTH}
+              height={NODE_HEIGHT}
+              rx={10}
+              fill={palette.nodeBg}
+              stroke={palette.nodeBorder}
+              strokeWidth={1.5}
+              style={compact ? undefined : { cursor: "pointer" }}
+              className={
+                showAdvancedTooltip
+                  ? "[&:focus-visible]:outline [&:focus-visible]:outline-2 [&:focus-visible]:outline-[var(--token-accent)] [&:focus-visible]:outline-offset-2"
+                  : undefined
+              }
+              tabIndex={showAdvancedTooltip ? 0 : undefined}
+              aria-describedby={showAdvancedTooltip ? descId : undefined}
+              aria-label={compact ? undefined : `${node.roundLabel}. Activate for round details.`}
+              onMouseEnter={
+                showAdvancedTooltip && onProgressTooltip
+                  ? (e) => {
+                      if (!target) return
+                      onProgressTooltip({
+                        anchor: e.currentTarget,
+                        drivers: advancedList,
+                        nextRoundLabel: target.roundLabel,
+                      })
+                    }
+                  : undefined
+              }
+              onMouseLeave={
+                showAdvancedTooltip && onProgressTooltip ? () => onProgressTooltip(null) : undefined
+              }
+              onFocus={
+                showAdvancedTooltip && onProgressTooltip
+                  ? (e) => {
+                      if (!target) return
+                      onProgressTooltip({
+                        anchor: e.currentTarget,
+                        drivers: advancedList,
+                        nextRoundLabel: target.roundLabel,
+                      })
+                    }
+                  : undefined
+              }
+              onBlur={
+                showAdvancedTooltip && onProgressTooltip ? () => onProgressTooltip(null) : undefined
+              }
+              onKeyDown={
+                showAdvancedTooltip && onNodeClick
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        onNodeClick(node, x, y)
+                      }
+                    }
+                  : undefined
+              }
+              onClick={!compact && onNodeClick ? () => onNodeClick(node, x, y) : undefined}
+            />
+            <text
+              x={x + 10}
+              y={y + NODE_ROUND_LABEL_BASELINE_OFFSET}
+              fill={palette.nodeText}
+              fontSize={14}
+              fontWeight={600}
+              style={{ pointerEvents: "none" }}
+            >
+              {node.roundLabel}
+            </text>
+            {podiumLines.length > 0 ? (
+              <text
+                x={x + 10}
+                y={y + NODE_ROUND_LABEL_BASELINE_OFFSET + NODE_ROUND_LABEL_TO_PODIUM_BASELINE_GAP}
+                fill={palette.nodeSubtle}
+                fontSize={CARD_PODIUM_FONT_SIZE}
+                fontWeight={600}
+                style={{ pointerEvents: "none" }}
+              >
+                {podiumLines.map((line, idx) => (
+                  <tspan key={idx} x={x + 10} dy={idx === 0 ? 0 : CARD_PODIUM_LINE_HEIGHT}>
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+            ) : null}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 export default function MainBracketLadderPanel({
   data,
   classOptions,
   resolvedClassName,
   onClassNameChange,
   toolbarTitle,
+  compact = false,
+  previewHeight = ANALYSIS_MINI_CHART_HEIGHT_PX,
 }: MainBracketLadderPanelProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -690,6 +926,7 @@ export default function MainBracketLadderPanel({
   const [progressTooltip, setProgressTooltip] = useState<ProgressFloaterState | null>(null)
 
   useEffect(() => {
+    if (compact) return
     const el = containerRef.current
     if (!el) return
     const centerViewport = () => {
@@ -699,7 +936,7 @@ export default function MainBracketLadderPanel({
     }
     const frame = requestAnimationFrame(centerViewport)
     return () => cancelAnimationFrame(frame)
-  }, [selectedClass, layout?.width, layout?.height])
+  }, [compact, selectedClass, layout?.width, layout?.height])
 
   const handleNodeClick = useCallback((node: MainBracketLadderNode, x: number, y: number) => {
     const container = containerRef.current
@@ -759,6 +996,15 @@ export default function MainBracketLadderPanel({
   }, [layout, palette.canvasBg, selectedClass])
 
   if (classOptions.length === 0) {
+    if (compact) {
+      return (
+        <CompactBracketPreviewShell previewHeight={previewHeight}>
+          <p className="text-xs text-[var(--token-text-secondary)]">
+            No mains ladder progression detected for this event.
+          </p>
+        </CompactBracketPreviewShell>
+      )
+    }
     return (
       <div className="w-full min-w-0 space-y-3">
         {toolbarTitle ? (
@@ -777,6 +1023,16 @@ export default function MainBracketLadderPanel({
   }
 
   if (!selectedClass || !model || !layout) {
+    if (compact) {
+      return (
+        <CompactBracketPreviewShell previewHeight={previewHeight}>
+          <p className="text-xs text-[var(--token-text-secondary)]">
+            Not enough ladder rounds to build a bracket
+            {selectedClass ? ` for ${selectedClass}` : ""}.
+          </p>
+        </CompactBracketPreviewShell>
+      )
+    }
     return (
       <div className="w-full min-w-0 space-y-3">
         <div className="scrollbar-none flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto border-b border-[var(--token-border-muted)]/60 pb-2">
@@ -806,6 +1062,43 @@ export default function MainBracketLadderPanel({
           </p>
         </div>
       </div>
+    )
+  }
+
+  if (compact) {
+    const summary = summarizeLadderForCompact(model)
+    const resultsLabel = `${summary.completedCount}/${summary.roundCount}`
+    return (
+      <AnalysisCardMiniSummary
+        eyebrow={selectedClass}
+        metric={summary.roundCount}
+        metricLabel={`main round${summary.roundCount === 1 ? "" : "s"}`}
+        primary={
+          summary.winnerName
+            ? { label: "Winner", value: summary.winnerName }
+            : {
+                label: "Results",
+                value: resultsLabel,
+                tone: summary.completedCount === summary.roundCount ? "positive" : "warning",
+              }
+        }
+        facts={[
+          { id: "drivers", label: "Drivers", value: summary.uniqueDriverCount },
+          { id: "tiers", label: "Tiers", value: summary.tierCount },
+          ...(summary.hasLcq ? [{ id: "lcq", label: "LCQ", value: "Yes" as const }] : []),
+          ...(summary.winnerName
+            ? [
+                {
+                  id: "results",
+                  label: "Results",
+                  value: resultsLabel,
+                  tone: summary.completedCount === summary.roundCount ? "positive" : "warning",
+                },
+              ]
+            : []),
+        ]}
+        hint="Tap to view the full bracket"
+      />
     )
   }
 
@@ -884,133 +1177,15 @@ export default function MainBracketLadderPanel({
           className="scrollbar-none relative w-full min-w-0 overflow-x-auto rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface)]/30"
         >
           <div className="mx-auto flex w-max justify-center">
-            <svg
-              ref={svgRef}
-              width={layout.width}
-              height={layout.height}
-              viewBox={`0 0 ${layout.width} ${layout.height}`}
-              role="group"
-              aria-label={`Mains ladder bracket for ${selectedClass}`}
-              xmlns="http://www.w3.org/2000/svg"
-              className="block shrink-0"
-            >
-              {layout.edges.map((edge) => (
-                <g key={edge.id}>
-                  <path
-                    d={edge.path}
-                    fill="none"
-                    stroke={palette.lineDim}
-                    strokeWidth={8}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d={edge.path}
-                    fill="none"
-                    stroke={edge.kind === "via_lcq" ? "#f59e0b" : palette.advancedText}
-                    strokeWidth={2.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeDasharray={edge.kind === "via_lcq" ? "6 4" : undefined}
-                  />
-                </g>
-              ))}
-
-              {layout.nodes.map(({ node, x, y }) => {
-                const { target, drivers: advancedList } = driversAdvancedToNextRoundSorted(
-                  node,
-                  model
-                )
-                const showAdvancedTooltip = advancedList.length > 0 && Boolean(target)
-                const descId = `mains-bracket-adv-${node.sessionId}`
-                const podiumLines = node.hasResults ? podiumDriverLines(node.drivers) : []
-                return (
-                  <g key={node.sessionId}>
-                    <rect
-                      x={x}
-                      y={y}
-                      width={NODE_WIDTH}
-                      height={NODE_HEIGHT}
-                      rx={10}
-                      fill={palette.nodeBg}
-                      stroke={palette.nodeBorder}
-                      strokeWidth={1.5}
-                      style={{ cursor: "pointer" }}
-                      className={
-                        showAdvancedTooltip
-                          ? "[&:focus-visible]:outline [&:focus-visible]:outline-2 [&:focus-visible]:outline-[var(--token-accent)] [&:focus-visible]:outline-offset-2"
-                          : undefined
-                      }
-                      tabIndex={showAdvancedTooltip ? 0 : undefined}
-                      aria-describedby={showAdvancedTooltip ? descId : undefined}
-                      aria-label={`${node.roundLabel}. Activate for round details.`}
-                      onMouseEnter={(e) => {
-                        if (!showAdvancedTooltip || !target) return
-                        setProgressTooltip({
-                          anchor: e.currentTarget,
-                          drivers: advancedList,
-                          nextRoundLabel: target.roundLabel,
-                        })
-                      }}
-                      onMouseLeave={() => {
-                        if (!showAdvancedTooltip) return
-                        setProgressTooltip(null)
-                      }}
-                      onFocus={(e) => {
-                        if (!showAdvancedTooltip || !target) return
-                        setProgressTooltip({
-                          anchor: e.currentTarget,
-                          drivers: advancedList,
-                          nextRoundLabel: target.roundLabel,
-                        })
-                      }}
-                      onBlur={() => {
-                        if (!showAdvancedTooltip) return
-                        setProgressTooltip(null)
-                      }}
-                      onKeyDown={(e) => {
-                        if (!showAdvancedTooltip) return
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault()
-                          handleNodeClick(node, x, y)
-                        }
-                      }}
-                      onClick={() => handleNodeClick(node, x, y)}
-                    />
-                    <text
-                      x={x + 10}
-                      y={y + NODE_ROUND_LABEL_BASELINE_OFFSET}
-                      fill={palette.nodeText}
-                      fontSize={14}
-                      fontWeight={600}
-                      style={{ pointerEvents: "none" }}
-                    >
-                      {node.roundLabel}
-                    </text>
-                    {podiumLines.length > 0 ? (
-                      <text
-                        x={x + 10}
-                        y={
-                          y +
-                          NODE_ROUND_LABEL_BASELINE_OFFSET +
-                          NODE_ROUND_LABEL_TO_PODIUM_BASELINE_GAP
-                        }
-                        fill={palette.nodeSubtle}
-                        fontSize={CARD_PODIUM_FONT_SIZE}
-                        fontWeight={600}
-                        style={{ pointerEvents: "none" }}
-                      >
-                        {podiumLines.map((line, idx) => (
-                          <tspan key={idx} x={x + 10} dy={idx === 0 ? 0 : CARD_PODIUM_LINE_HEIGHT}>
-                            {line}
-                          </tspan>
-                        ))}
-                      </text>
-                    ) : null}
-                  </g>
-                )
-              })}
-            </svg>
+            <BracketLadderSvg
+              layout={layout}
+              model={model}
+              palette={palette}
+              selectedClass={selectedClass}
+              svgRef={svgRef}
+              onNodeClick={handleNodeClick}
+              onProgressTooltip={setProgressTooltip}
+            />
           </div>
         </div>
 

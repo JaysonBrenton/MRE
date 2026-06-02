@@ -33,9 +33,7 @@ export interface DriversTabProps {
 export default function DriversTab({ data, toolbarAbove }: DriversTabProps) {
   return (
     <div className="space-y-6" role="tabpanel" id="tabpanel-drivers" aria-labelledby="tab-drivers">
-      {toolbarAbove ? (
-        <div className="flex min-w-0 w-full flex-col gap-3">{toolbarAbove}</div>
-      ) : null}
+      {toolbarAbove}
       <TabPanelIntro
         eyebrow="Entry list"
         title="Drivers and entries"

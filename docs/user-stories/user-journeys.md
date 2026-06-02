@@ -297,7 +297,8 @@ flowchart TD
   - Date range picker (start date, end date)
   - "Search" button
   - "Reset" button
-- **API Calls**: `GET /api/v1/tracks` (to populate track modal)
+- **API Calls**: `GET /api/v1/tracks?followed=all&active=true` (to populate
+  track modal)
 - **Backend Process**: Retrieve track list from database
 - **Success State**: Event Search form displayed with track list available
 - **Error States**:
@@ -316,7 +317,8 @@ flowchart TD
   - Track list with favourite stars
   - Favourite tracks section at top
   - "Cancel" button
-- **API Calls**: `GET /api/v1/tracks` (if not already loaded)
+- **API Calls**: `GET /api/v1/tracks?followed=all&active=true` (if not already
+  loaded; favourites are client-side `localStorage`, not `is_followed`)
 - **Backend Process**: Filter tracks by search query, return matching tracks
 - **Success State**: Track selected, modal closed, track name displayed in field
 - **Error States**: None (search is client-side filtering)
@@ -608,7 +610,8 @@ flowchart TD
   - Track field pre-populated with last selected track (if persisted)
   - Date range pre-populated with last selected range (if persisted)
   - Form ready for search or modification
-- **API Calls**: `GET /api/v1/tracks` (to populate track modal)
+- **API Calls**: `GET /api/v1/tracks?followed=all&active=true` (to populate
+  track modal)
 - **Backend Process**: Retrieve track list
 - **Success State**: Form displayed with persisted values (if available)
 - **Error States**: None

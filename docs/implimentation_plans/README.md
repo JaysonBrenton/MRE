@@ -26,3 +26,13 @@ coordinated move and link update across `docs/`.
 - [MRE Documentation Index](../README.md)
 - [Architecture docs](../architecture/) — normative system design
 - [ADRs](../adr/) — accepted architectural decisions
+
+## Active plans
+
+| Plan                                                                         | Status  | Architecture                                                                                        |
+| ---------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| [Recent Events Auto-Ingest (May 2026)](recent-events-auto-ingest-2026-05.md) | Planned | [31-recent-events-auto-ingest.md](../architecture/liverc-ingestion/31-recent-events-auto-ingest.md) |
+
+Operations runbook:
+[recent-events-auto-ingest-runbook.md](../operations/recent-events-auto-ingest-runbook.md).
+ADR: [ADR-20260531](../adr/ADR-20260531-scheduled-recent-events-auto-ingest.md).

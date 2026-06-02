@@ -145,7 +145,7 @@ export default function EventsPageClient() {
     async function fetchTracks() {
       try {
         // Fetch all active tracks (not just followed ones) for the filter dropdown
-        const response = await fetch("/api/v1/tracks?active=true&followed=false")
+        const response = await fetch("/api/v1/tracks?active=true&followed=all")
         if (response.ok) {
           const data: TracksResponse = await response.json()
           if (data.success && data.data.tracks) {

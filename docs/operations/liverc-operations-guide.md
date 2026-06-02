@@ -4,7 +4,7 @@
 LiveRC-related features, including how to retrieve required IDs from the
 database.
 
-**Last Updated**: 2025-01-27
+**Last Updated**: 2026-05-31
 
 ---
 
@@ -94,10 +94,11 @@ export MRE_SCRAPE_ENABLED=false
 
 When disabled:
 
-- Cron wrappers (`run-track-sync.sh`, `run-followed-event-sync.sh`) log a skip
-  message and exit before any HTTP calls.
+- Cron wrappers (`run-track-sync.sh`, `run-followed-event-sync.sh`, and
+  `run-recent-events-auto-ingest.sh`) log a skip message and exit before any
+  HTTP calls.
 - CLI commands (`refresh-tracks`, `refresh-events`, `refresh-followed-events`,
-  `ingest-event`) fail fast with a helpful error.
+  `refresh-recent-events`, `ingest-event`) fail fast with a helpful error.
 - Next.js clients surface the same message before hitting the ingestion API.
 
 Re-enable scraping with `MRE_SCRAPE_ENABLED=true`. This flag is part of
@@ -231,6 +232,11 @@ See "Track Sync Cron Job and Reports" section below for details.
 
 #### Automated Event Refresh for Followed Tracks
 
+**Followed** here means `tracks.is_followed = true` — a **global admin flag**
+that marks which tracks are in scope for automated ingestion (not Event Search
+favourite stars or per-user preferences). See
+[Track catalogue flags and follow model](../architecture/liverc-ingestion/04-data-model.md#track-catalogue-flags-and-follow-model).
+
 Followed tracks are refreshed nightly via `run-followed-event-sync.sh`, which
 executes the `refresh-followed-events` CLI command with `--depth none`. This
 keeps event metadata up to date without manual CLI runs. You can run the same
@@ -245,9 +251,30 @@ For ad-hoc deep ingests across all followed tracks, pass `--depth laps_full`
 iterates every `Track` marked `is_followed=true` and aggregates the ingestion
 results.
 
-**Scheduling courtesy:** both cron wrappers add a small random jitter (0-120
-seconds) before firing to avoid hammering LiveRC right at the top of the minute.
-Leave this in place when copying scripts into other schedulers.
+**Scheduling courtesy:** cron wrappers add a small random jitter (0-120 seconds)
+before firing to avoid hammering LiveRC right at the top of the minute. Leave
+this in place when copying scripts into other schedulers.
+
+#### Automated Recent Events Auto-Ingest
+
+**Status:** Implemented, **disabled by default** — see
+[31-recent-events-auto-ingest.md](../architecture/liverc-ingestion/31-recent-events-auto-ingest.md)
+and
+[recent-events-auto-ingest-runbook.md](./recent-events-auto-ingest-runbook.md).
+
+A third nightly job (`run-recent-events-auto-ingest.sh`, **02:00 UTC**) runs
+`refresh-recent-events` to **full-ingest recent events** on followed tracks
+(default: last **7 days**, caps **50** ingests/run). It stays **off** until both
+`MRE_SCRAPE_ENABLED=true` and `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED=true`.
+
+This complements — does not replace — the 00:30 metadata-only followed refresh.
+
+Manual equivalent:
+
+```bash
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-recent-events \
+  --days 7 --tracks followed --max-ingests 50 --min-event-age-hours 12 --quiet
+```
 
 ---
 
@@ -578,6 +605,59 @@ tracks where `is_followed=true`.
 
 ---
 
+#### 6.5 Refresh Recent Events
+
+**Command**: `refresh-recent-events`
+
+**Description**: Discovers events on a track scope, upserts metadata, and
+automatically runs **full ingestion** (`laps_full`) for events whose dates fall
+within a recency window. Designed for nightly cron on followed tracks.
+
+**Status**: Implemented (available in the CLI as
+`ingest liverc refresh-recent-events`). The nightly cron job is **disabled by
+default**. Full specification:
+[31-recent-events-auto-ingest.md](../architecture/liverc-ingestion/31-recent-events-auto-ingest.md).
+Operations:
+[recent-events-auto-ingest-runbook.md](./recent-events-auto-ingest-runbook.md).
+
+**Usage**:
+
+Docker (Recommended):
+
+```bash
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-recent-events \
+  --days 7 \
+  --tracks followed \
+  --max-ingests 50 \
+  --max-ingests-per-track 5 \
+  --min-event-age-hours 12 \
+  [--dry-run] \
+  [--quiet]
+```
+
+**Flags**:
+
+| Flag                      | Default    | Purpose                                 |
+| ------------------------- | ---------- | --------------------------------------- |
+| `--days`                  | `7`        | Recency window (calendar days)          |
+| `--tracks`                | `followed` | `followed`, `active`, or `all`          |
+| `--max-ingests`           | `50`       | Global cap per run                      |
+| `--max-ingests-per-track` | `5`        | Per-track cap                           |
+| `--min-event-age-hours`   | `12`       | Skip in-progress events                 |
+| `--dry-run`               | off        | No pipeline ingest                      |
+| `--re-ingest-stale`       | off        | Re-ingest completed events (admin only) |
+
+**Automated Execution**: Cron at **02:00 UTC** via
+`run-recent-events-auto-ingest.sh` when
+`MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED=true`. See runbook for env vars and QA
+fixture (Hot Rod Hobbies event `506979`).
+
+**Use Case**: Keep followed tracks' **recent** club meetings fully ingested
+without manual CLI. For historical backfill, use `refresh-events` or
+`ingest-event` instead.
+
+---
+
 #### 7. Status
 
 **Command**: `status`
@@ -621,7 +701,7 @@ system's state.
 
 ---
 
-#### 7. Verify Integrity
+#### 8. Verify Integrity
 
 **Command**: `verify-integrity`
 
@@ -669,6 +749,48 @@ Integrity check completed - no issues found.
 
 **Use Case**: Run this periodically to ensure data integrity, especially after
 bulk ingestion operations.
+
+---
+
+#### 9. Other Maintenance Commands
+
+The following commands also exist in the CLI and are useful for maintenance.
+
+**`backfill-track-countries`** (under `ingest liverc`) — Backfill the `country`
+field for tracks where an ISO code was stored in `city`/`state`. Supports
+`--dry-run`.
+
+```bash
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc backfill-track-countries --dry-run
+```
+
+**`reingest-section-headers`** (under `ingest liverc`) — Re-ingest events whose
+races have null `section_header` so round headings are populated (events are
+reset then fully re-ingested). Supports `--dry-run` and `--limit`.
+
+```bash
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc reingest-section-headers --dry-run
+```
+
+**`auto-confirm-links`** (top-level command) — Auto-confirm user↔driver links
+based on multi-event transponder matches.
+
+```bash
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli auto-confirm-links
+```
+
+**`drivers deduplicate`** (under the `drivers` group) — Merge duplicate `Driver`
+records (transponder + normalized name match). Dry-run by default; use
+`--execute` to perform the merge. See
+`docs/architecture/driver-deduplication-design.md`.
+
+```bash
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli drivers deduplicate
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli drivers deduplicate --execute
+```
+
+> **Note:** `auto-confirm-links` and `drivers deduplicate` are **not** under the
+> `ingest liverc` subgroup — invoke them directly as shown above.
 
 ---
 
@@ -814,8 +936,8 @@ fetches each session’s detail page with bounded concurrency and persists
 end_time and practiceSessionStats to Race.race_metadata, updates RaceResult
 (consistency, raw_fields_json), and bulk-inserts laps. “Unknown Driver” sessions
 are differentiated by transponder when present (laps can still be extracted);
-only when transponder is missing are laps not extracted. Concurrency limit:
-env `PRACTICE_DAY_DETAIL_CONCURRENCY` (default 5).
+only when transponder is missing are laps not extracted. Concurrency limit: env
+`PRACTICE_DAY_DETAIL_CONCURRENCY` (default 5).
 
 **Request**:
 
@@ -1390,13 +1512,13 @@ database.
 
 - **No laps for some sessions:** Check that the session has a transponder in the
   list/detail. “Unknown Driver” sessions often have a transponder and can still
-  have laps extracted; only when transponder is missing are laps skipped. Inspect
-  `race_results` and `laps` for the event’s races.
+  have laps extracted; only when transponder is missing are laps skipped.
+  Inspect `race_results` and `laps` for the event’s races.
 - **Detail fetch failed:** Check logs for `practice_session_detail_fetch_failed`
-  (session_id, error). Common causes: HTTP/network errors, or parser failure
-  due to LiveRC HTML change. Re-import will retry detail for that session.
-- **Import slow or high latency:** Reduce `PRACTICE_DAY_DETAIL_CONCURRENCY` (env,
-  default 5) to lower concurrent session-detail requests; respect LiveRC
+  (session_id, error). Common causes: HTTP/network errors, or parser failure due
+  to LiveRC HTML change. Re-import will retry detail for that session.
+- **Import slow or high latency:** Reduce `PRACTICE_DAY_DETAIL_CONCURRENCY`
+  (env, default 5) to lower concurrent session-detail requests; respect LiveRC
   throttling.
 
 ### Common Issues

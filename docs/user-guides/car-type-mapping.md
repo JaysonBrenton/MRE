@@ -1,7 +1,7 @@
 ---
 created: 2026-05-13
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-31
 description: Account-wide car type mapping for consistent session analysis
 purpose:
   Explains how to open the mapping UI from Event Analysis and where deeper

@@ -2,10 +2,40 @@
 
 Author: Jayson Brenton  
 Date: 2026-01-30  
+Last reviewed against code: 2026-05-31  
 Purpose: Define the authoritative telemetry processing pipeline, job
 orchestration model, and state machine semantics for MRE telemetry ingest,
 normalisation, downsampling, fusion, and analytics readiness.  
 License: Proprietary, internal to MRE
+
+## Implementation status (as of 2026-05-31)
+
+The orchestration **mechanism** matches this doc; the **stage granularity is
+simpler**. Source of truth: `ingestion/telemetry/worker.py` and
+`ingestion/telemetry/pipeline_v1.py`.
+
+- **Queue / claiming match the design:** Postgres `telemetry_jobs`, claimed with
+  `SELECT ... FOR UPDATE SKIP LOCKED`, marked `RUNNING` with `locked_at`,
+  `locked_by`, `attempt_count++` (default `max_attempts = 3`). Worker
+  entrypoint: `python -m ingestion.telemetry.worker`, poll
+  `TELEMETRY_WORKER_POLL_INTERVAL_SEC`.
+- **Only two job types are wired:** **`artifact_validate`** (validate file
+  exists + byte size, then enqueue) and **`parse_raw`**. The §4.1 stages
+  `artifact_classify`, `normalise_units`, `time_align`, `downsample_L0/L1/L2`,
+  `fuse_gnss_imu`, `detect_laps`, `detect_segments`, `compute_metrics`,
+  `build_indexes`, `materialise_clickhouse`, `publish_session` are **not
+  separate jobs** — they run **inline inside `parse_raw`** (format detect →
+  parse → `time_align_gnss` → write Parquet → downsample → fusion pass-through →
+  lap/segment detection → quality → optional ClickHouse materialise → mark
+  session `READY`).
+- **Job statuses in code:** `QUEUED | RUNNING | SUCCEEDED | FAILED | CANCELLED`
+  (no `retry_wait`, `cancel_requested`, `skipped`, or `partial` states yet).
+  Failures set the job + run to `FAILED` and the session to `FAILED`; there is
+  no automatic retry/backoff or stale-lock reaper loop today (retry is
+  user-driven via `POST /sessions/{id}/retry`).
+- **No `telemetry_job_attempt` table** (per MVP decision) and **no `depends_on`
+  graph** — the DAG in §4 is conceptual; the live flow is a linear two-stage
+  chain.
 
 ## 1. Scope
 
@@ -154,7 +184,14 @@ Recommended stale lock threshold: 10 to 30 minutes, configurable per job type.
 This section describes the minimum metadata entities required for orchestration.
 Exact columns are illustrative.
 
-**MVP implementation:** For MVP, the **authoritative** job schema is the single table `telemetry_jobs` defined in [Concrete Data Model §7.4](Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md) and [Telemetry MVP Implementation Decisions §1](Telemetry_MVP_Implementation_Decisions.md). No separate `telemetry_job_attempt` table in MVP; retry and error fields are on the job row. The schema below (§6.3–6.5) is a fuller conceptual model; implement MVP per the Concrete Data Model and MVP Decisions.
+**MVP implementation:** For MVP, the **authoritative** job schema is the single
+table `telemetry_jobs` defined in
+[Concrete Data Model §7.4](Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md)
+and
+[Telemetry MVP Implementation Decisions §1](Telemetry_MVP_Implementation_Decisions.md).
+No separate `telemetry_job_attempt` table in MVP; retry and error fields are on
+the job row. The schema below (§6.3–6.5) is a fuller conceptual model; implement
+MVP per the Concrete Data Model and MVP Decisions.
 
 ### 6.1 `telemetry_artifact`
 
@@ -189,14 +226,19 @@ Represents one processing execution with pinned versions.
 
 ### 6.3 `telemetry_job`
 
-Represents a unit of work. **MVP:** Use the single-table schema in [Concrete Data Model §7.4](Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md) (id, runId, jobType, status, payload, attemptCount, maxAttempts, lockedAt, lockedBy, lastErrorCode, lastErrorMessage, nextRetryAt, createdAt, updatedAt). No separate attempt table; no depends_on in MVP.
+Represents a unit of work. **MVP:** Use the single-table schema in
+[Concrete Data Model §7.4](Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md)
+(id, runId, jobType, status, payload, attemptCount, maxAttempts, lockedAt,
+lockedBy, lastErrorCode, lastErrorMessage, nextRetryAt, createdAt, updatedAt).
+No separate attempt table; no depends_on in MVP.
 
 Conceptual (v1+ optional):
 
 - `id` (uuid)
 - `run_id`
 - `job_type` (enum)
-- `depends_on` (list of job ids or derived datasets, modelled via join table) — MVP: not implemented
+- `depends_on` (list of job ids or derived datasets, modelled via join table) —
+  MVP: not implemented
 - `state` (see state machine)
 - `priority` (default 0)
 - `attempt_count`

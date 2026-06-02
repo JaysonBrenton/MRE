@@ -76,6 +76,13 @@ ENVIRONMENT.**
 
 ### Other Global Guardrails
 
+- **No em dashes in UI copy** – Never use the Unicode em dash (U+2014, `—`) in
+  user-facing strings (labels, summaries, tooltips, table cells, placeholders).
+  Join related values on one line with a middle dot and spaces (`·`), as in
+  event analysis cards and toolbars. For missing or unavailable values, use
+  hyphen-minus (`-`), an explicit word (`N/A`, `None`), or an empty state; do
+  not use an em dash. See `docs/design/mre-ux-principles.md` (Copy and
+  punctuation).
 - **Version 0.1.1 Scope Only** – Follow the feature list in `README.md` and
   `docs/specs/mre-v0.1-feature-scope.md#6-llm-guardrails`. Reject any change
   outside registration, login, welcome/admin pages, LiveRC ingestion, navigation
@@ -161,10 +168,13 @@ ENVIRONMENT.**
   - Observability: log via structlog, emit Prometheus metrics
     (`ingestion/common/metrics.py`), and keep tracing breadcrumbs
     (`ingestion/common/tracing.py`).
-  - Ops: automated cron workflows include track sync and followed-track event
-    refresh (`ingestion/scripts/run-track-sync.sh`,
-    `ingestion/scripts/run-followed-event-sync.sh`). Cron timing is documented
-    in `docs/operations/liverc-operations-guide.md`.
+  - Ops: automated cron workflows include track sync, followed-track event
+    refresh, and (when implemented) recent-events auto-ingest
+    (`ingestion/scripts/run-track-sync.sh`,
+    `ingestion/scripts/run-followed-event-sync.sh`,
+    `ingestion/scripts/run-recent-events-auto-ingest.sh`). Cron timing is
+    documented in `docs/operations/liverc-operations-guide.md` and
+    `docs/operations/recent-events-auto-ingest-runbook.md`.
 
 ### 2.3 DevOps / Platform Agent
 

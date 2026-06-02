@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-31
 description: Guide to unified Global Search (`/search`) in My Race Engineer
 purpose:
   Describes the shipped search UX, Redux-backed pagination, and how results tie

@@ -170,7 +170,8 @@ managing the MRE application. The console includes:
 **Track Management:**
 
 - View all tracks with details and event counts
-- Follow/unfollow tracks (toggle isFollowed flag)
+- Follow/unfollow tracks (toggle global `isFollowed` ingestion scope; see
+  [04-data-model § Track catalogue flags](../architecture/liverc-ingestion/04-data-model.md#track-catalogue-flags-and-follow-model))
 - View events for specific tracks
 - Filter and sort by name, source, follow status
 

@@ -1,17 +1,17 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Authoritative design standards for all chart components in MRE
 purpose:
   Locks in consistent chart design patterns to prevent visual inconsistencies.
   All charts MUST follow these standards exactly. These rules are binding, not
   advisory.
 relatedFiles:
-  - src/components/event-analysis/ChartContainer.tsx
-  - src/components/event-analysis/BestLapBarChart.tsx
-  - src/components/event-analysis/AvgVsFastestChart.tsx
-  - src/components/event-analysis/sessions/DriverPerformanceChart.tsx
+  - src/components/organisms/event-analysis/ChartContainer.tsx
+  - src/components/organisms/event-analysis/BestLapBarChart.tsx
+  - src/components/organisms/event-analysis/AvgVsFastestChart.tsx
+  - src/components/organisms/event-analysis/sessions/DriverPerformanceChart.tsx
   - docs/design/mre-dark-theme-guidelines.md
 ---
 
@@ -50,7 +50,7 @@ import ChartContainer from "./ChartContainer"
 </ChartContainer>
 ```
 
-**Reference:** `src/components/event-analysis/ChartContainer.tsx`
+**Reference:** `src/components/organisms/event-analysis/ChartContainer.tsx`
 
 ### 1.2 Default Height
 
@@ -390,7 +390,12 @@ onKeyDown={(e) => {
 }}
 ```
 
-**Focus styling (mandatory):** Any focusable chart element (`role="button"`, `tabIndex={0}`) MUST include `className="focus:outline-none"` (or equivalent) so the browser default focus outline (e.g. white/yellow rectangle) is not shown when the element receives focus (e.g. after opening a color picker). Without this, users see an unwanted rectangular focus ring. Use the same pattern for any new focusable chart elements (bars, line series groups, etc.).
+**Focus styling (mandatory):** Any focusable chart element (`role="button"`,
+`tabIndex={0}`) MUST include `className="focus:outline-none"` (or equivalent) so
+the browser default focus outline (e.g. white/yellow rectangle) is not shown
+when the element receives focus (e.g. after opening a color picker). Without
+this, users see an unwanted rectangular focus ring. Use the same pattern for any
+new focusable chart elements (bars, line series groups, etc.).
 
 ---
 
@@ -422,7 +427,9 @@ onKeyDown={(e) => {
 
 ### 10.2 Chart Wrapper When Content Is Below the SVG (e.g. Legend)
 
-**Charts that render content below the SVG (legend, pagination, etc.) MUST use `minHeight` on the wrapper, not a fixed `height`.** Otherwise the wrapper clips the content and `ChartContainer`'s `overflow: hidden` will hide the legend.
+**Charts that render content below the SVG (legend, pagination, etc.) MUST use
+`minHeight` on the wrapper, not a fixed `height`.** Otherwise the wrapper clips
+the content and `ChartContainer`'s `overflow: hidden` will hide the legend.
 
 ```tsx
 // ✅ Correct: wrapper grows to include legend
@@ -435,7 +442,8 @@ onKeyDown={(e) => {
 <div className="relative w-full" style={{ height: `${height}px` }}>
 ```
 
-**Reference:** `LapTimeLineChart.tsx` — lap-time line graphs with a below-chart legend use this pattern.
+**Reference:** `LapTimeLineChart.tsx` — lap-time line graphs with a below-chart
+legend use this pattern.
 
 ---
 
@@ -632,10 +640,15 @@ const xScale = scaleBand({
 
 1. **BestLapBarChart.tsx** - Single-series bar chart
 2. **AvgVsFastestChart.tsx** - Multi-series bar chart
-3. **LapTimeLineChart.tsx** - Lap-time line graph (multi-driver lap times over laps; zoom, tooltips, below-chart legend)
+3. **LapTimeLineChart.tsx** - Lap-time line graph (multi-driver lap times over
+   laps; zoom, tooltips, below-chart legend)
 4. **DriverPerformanceChart.tsx** - Multi-line chart (sessions)
 
-**All new charts MUST follow the patterns in these files exactly.** Future line-graph charts (e.g. lap times vs lap number) should be built the same way as LapTimeLineChart: ChartContainer, ParentSize, Visx (LinePath, scales, axes, tooltip), `useChartColors`, and a below-chart legend with wrapper `minHeight` per §10.2.
+**All new charts MUST follow the patterns in these files exactly.** Future
+line-graph charts (e.g. lap times vs lap number) should be built the same way as
+LapTimeLineChart: ChartContainer, ParentSize, Visx (LinePath, scales, axes,
+tooltip), `useChartColors`, and a below-chart legend with wrapper `minHeight`
+per §10.2.
 
 ---
 
@@ -662,10 +675,11 @@ const xScale = scaleBand({
 
 - `docs/design/mre-dark-theme-guidelines.md` - Token system reference
 - `docs/design/mre-ux-principles.md` - General UX principles
-- `src/components/event-analysis/ChartContainer.tsx` - Container component
+- `src/components/organisms/event-analysis/ChartContainer.tsx` - Container
+  component
 
 ---
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2026-05-31  
 **Version:** 0.1.1  
 **Status:** Authoritative Standard

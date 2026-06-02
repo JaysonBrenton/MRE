@@ -1,7 +1,7 @@
 ---
 created: 2026-01-16
 creator: Documentation & Knowledge Steward
-lastModified: 2026-01-16
+lastModified: 2026-05-31
 description:
   Architecture documentation for car profiles and driver profiles features
 purpose:

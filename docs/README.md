@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-20
+lastModified: 2026-05-31
 description: Central index and navigation for all MRE project documentation
 purpose:
   Provides a comprehensive index of all documentation in the MRE project,
@@ -15,9 +15,11 @@ relatedFiles:
 
 # MRE Documentation Index
 
-This document provides a comprehensive index of all documentation in the My Race
-Engineer (MRE) project. Use this as your starting point for discovering and
-navigating project documentation.
+This document provides a **curated** index of the most-used documentation in the
+My Race Engineer (MRE) project. Use this as your starting point for discovering
+and navigating project documentation. For an exhaustive, directory-organized
+listing of **every** document, see the
+[full Document Index](index/document-index.md).
 
 ---
 
@@ -78,7 +80,7 @@ contracts, admin CLI, state machine, error handling, validation, performance,
 idempotency, observability, security, testing, fixture management,
 replay/debugging, recovery procedures, versioning, cross-connector abstractions.
 
-**Document Series:** This is a 30-document series covering all aspects of the
+**Document Series:** This is a 31-document series covering all aspects of the
 ingestion system:
 
 - [01 - Overview](architecture/liverc-ingestion/01-overview.md)
@@ -87,6 +89,9 @@ ingestion system:
 - [04 - Data Model](architecture/liverc-ingestion/04-data-model.md)
 - [05 - API Contracts](architecture/liverc-ingestion/05-api-contracts.md)
 - [06 - Admin CLI Specification](architecture/liverc-ingestion/06-admin-cli-spec.md)
+- [31 - Recent Events Auto-Ingest](architecture/liverc-ingestion/31-recent-events-auto-ingest.md) -
+  Planned nightly discovery and full ingest for recent LiveRC events (followed
+  tracks, date window, caps)
 - [29 - Pitstop Detection System (Nitro-Only)](architecture/liverc-ingestion/29-pitstop-detection-system.md) -
   Race-length-aware nitro pit detection design, pit-time estimates, and strategy
   inference
@@ -317,13 +322,14 @@ forms, and mobile requirements.
 **Key Topics:** Token naming convention, contrast ratios, layered surfaces,
 typography rules, spacing scale, form styling.
 
-### [MRE Mobile UX Guidelines](design/mre-mobile-ux-guidelines.md)
+### MRE Mobile UX Guidelines (removed)
 
-**Status:** Complete  
-**Last Updated:** 2025-01-27
-
-**Note:** This document has been removed. The application is now desktop-only
-for UI. See `docs/design/mre-ux-principles.md` for current UX guidelines.
+**Status:** Removed  
+**Note:** The application is now desktop-only for UI. The former mobile UX
+guidelines document no longer exists; see
+[MRE UX Principles](design/mre-ux-principles.md) for current UX guidance and
+[Mobile UI Removal Summary](development/mobile-ui-removal-summary.md) for the
+migration record.
 
 ### [MRE Hero Image Generation](design/mre-hero-image-generation.md)
 
@@ -722,7 +728,27 @@ operational procedures.
 
 **Related:** See
 [LiveRC Ingestion Architecture](architecture/liverc-ingestion/01-overview.md)
-for technical details.
+for technical details. See
+[Recent Events Auto-Ingest Runbook](operations/recent-events-auto-ingest-runbook.md)
+for the planned nightly auto-ingest job (doc 31).
+
+### [Recent Events Auto-Ingest Runbook](operations/recent-events-auto-ingest-runbook.md)
+
+**Status:** Planned — documentation complete; implementation pending  
+**Last Updated:** 2026-05-31
+
+Operations runbook for scheduled discovery and full ingestion of recent LiveRC
+events on followed tracks. Covers enable/disable, cron schedule, env vars,
+manual CLI, monitoring, troubleshooting, and QA fixture (Hot Rod Hobbies
+`506979`).
+
+**Key Topics:** `refresh-recent-events` CLI, `MRE_RECENT_EVENTS_*` env vars,
+02:00 UTC cron, caps, kill switches, canonical test event.
+
+**Related:** See
+[31 - Recent Events Auto-Ingest](architecture/liverc-ingestion/31-recent-events-auto-ingest.md),
+[implementation plan](implimentation_plans/recent-events-auto-ingest-2026-05.md),
+[ADR-20260531](adr/ADR-20260531-scheduled-recent-events-auto-ingest.md).
 
 ### [Pitstop Detection Runbook](operations/pitstop-detection-runbook.md)
 
@@ -801,13 +827,11 @@ for technical implementation details.
 
 ## Documentation Status
 
-**Quick Status:**
+This file is a **curated** entry point covering the most-used documents. For the
+**complete, directory-organized listing of every document** in the repository,
+see the [full Document Index](index/document-index.md).
 
-- ✅ 14/14 recommended documents created
-- 📝 Placeholders tracked for future completion
-- 🔄 Monthly reviews scheduled
-
-**Last Updated:** 2025-01-29
+**Last Updated:** 2026-05-31
 
 **Note:** Detailed documentation status tracking is managed via version control
 and code review processes.

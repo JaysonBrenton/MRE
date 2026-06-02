@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-12
+lastModified: 2026-05-31
 description: Human-readable database schema documentation for MRE application
 purpose:
   Provides comprehensive documentation of the database schema, including all
@@ -11,33 +11,32 @@ purpose:
 relatedFiles:
   - prisma/schema.prisma (source of truth for schema)
   - docs/architecture/venue-correction-deprecation.md (venue correction tables
-    deprecated; slated for removal)
+    removed; replaced by per-user host track)
   - docs/architecture/car-taxonomy-user-mapping.md (CarTaxonomyNode,
     UserCarTaxonomyRule)
   - docs/architecture/liverc-ingestion/04-data-model.md (ingestion-specific
     models)
-  - docs/architecture/liverc-ingestion/29-pitstop-detection-system.md (planned
-    pit stop persistence)
+  - docs/architecture/liverc-ingestion/29-pitstop-detection-system.md (pit stop
+    detection persistence)
   - src/lib/prisma.ts (Prisma client instance)
   - src/core/users/repo.ts (database access functions)
 ---
 
 # Database Schema Documentation
 
-**Last Updated:** 2026-05-12 — Added ready-to-merge **planned placeholders** for
-nitro pit stop persistence tables (`pit_stop_events`, `driver_pit_strategies`)
-and API-facing field notes (not implemented yet). 2026-04-18 —
-`TelemetrySession` adds optional `last_reprocess_at`, `share_token`,
-`share_token_created_at` (public read-only links + reprocess cooldown). See
-[`telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md).
-Earlier: telemetry read APIs + UI (see
-[`docs/api/api-reference.md`](../api/api-reference.md) §Telemetry).
-**2026-04-13:** `EventVenueCorrection` / `EventVenueCorrectionRequest` are
-**deprecated** (see
-[`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md)).
-**2026-04-07:** Schema overview and model list aligned with
-`prisma/schema.prisma`; includes `CarTaxonomyNode` and `UserCarTaxonomyRule` for
-per-user car-type mapping.  
+**Last Updated:** 2026-05-31 — Re-aligned with `prisma/schema.prisma`. The
+`pit_stop_events` and `driver_pit_strategies` tables (`PitStopEvent`,
+`DriverPitStrategy`) are now **implemented** models, no longer placeholders. The
+deprecated `EventVenueCorrection` / `EventVenueCorrectionRequest` models (and
+the `EventVenueCorrectionRequestStatus` enum) have been **removed** from the
+schema. Added models now present in Prisma: `TrackCatalogueSyncState`,
+`EventOverallRanking` (+`EventOverallRankingEntry`), `UserEventHostTrack`,
+`UserEventWeatherData`. `SessionType` gained a `seeding` value. Earlier:
+`TelemetrySession` optional `last_reprocess_at`, `share_token`,
+`share_token_created_at` (public read-only links + reprocess cooldown);
+telemetry read APIs + UI (see
+[`docs/api/api-reference.md`](../api/api-reference.md) §Telemetry);
+`CarTaxonomyNode` and `UserCarTaxonomyRule` for per-user car-type mapping.  
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Schema File:** `prisma/schema.prisma`
@@ -65,46 +64,51 @@ the database structure.
 
 ## Schema Overview
 
-The MRE database schema consists of **38 Prisma models** (see
+The MRE database schema consists of **43 Prisma models** (see
 `prisma/schema.prisma`):
 
 - **Identity & profiles:** `User`, `Persona`, `CarProfile`, `DriverProfile`
 - **Car taxonomy (user mapping):** `CarTaxonomyNode`, `UserCarTaxonomyRule`
-- **Catalogue & events:** `Track`, `Event`, `EventEntry`, `EventRaceClass`
+- **Catalogue & events:** `Track`, `TrackCatalogueSyncState`, `Event`,
+  `EventEntry`, `EventRaceClass`
 - **LiveRC / results ingestion:** `Race`, `Driver`, `RaceDriver`, `RaceResult`,
   `Lap`, `LapAnnotation`, `MultiMainResult`, `MultiMainResultEntry`
+- **Pit stop detection (nitro):** `PitStopEvent`, `DriverPitStrategy`
 - **Event-level standings (parsed from LiveRC):** `EventQualPoints`,
-  `EventQualPointsEntry`, `EventRoundRanking`, `EventRoundRankingEntry`
+  `EventQualPointsEntry`, `EventRoundRanking`, `EventRoundRankingEntry`,
+  `EventOverallRanking`, `EventOverallRankingEntry`
 - **Links & overrides:** `UserDriverLink`, `EventDriverLink`,
-  `TransponderOverride`
-- **Venue workflow (deprecated — removal planned):** `EventVenueCorrection`,
-  `EventVenueCorrectionRequest` — see
-  [venue-correction-deprecation.md](../architecture/venue-correction-deprecation.md)
-- **Supporting:** `WeatherData`, `AuditLog`, `ApplicationLog`, `TrackMap`
+  `TransponderOverride`, `UserEventHostTrack`
+- **Weather:** `WeatherData`, `UserEventWeatherData`
+- **Supporting:** `AuditLog`, `ApplicationLog`, `TrackMap`
 - **Telemetry (GNSS/IMU import):** `TelemetrySession`, `TelemetryArtifact`,
   `TelemetryDevice`, `TelemetryProcessingRun`, `TelemetryJob`,
   `TelemetryDataset`, `TelemetryLap` — see
   [`docs/implimentation_plans/telemetry-implementation-plan.md`](../implimentation_plans/telemetry-implementation-plan.md)
   and [`docs/telemetry/README.md`](../telemetry/README.md)
 
-### Planned future models (not yet in Prisma schema)
+> **Removed:** The previously deprecated `EventVenueCorrection` and
+> `EventVenueCorrectionRequest` models (and the
+> `EventVenueCorrectionRequestStatus` enum) have been dropped from
+> `prisma/schema.prisma`. See
+> [venue-correction-deprecation.md](../architecture/venue-correction-deprecation.md).
+> The replacement direction is per-user host-track designation
+> (`UserEventHostTrack`).
 
-The following are documented as future placeholders and are not counted in the
-38 current Prisma models:
-
-- `PitStopEvent`
-- `DriverPitStrategy`
-
-**Enums:** `PersonaType`, `IngestDepth`, `UserDriverLinkStatus`,
+**Enums (17):** `PersonaType`, `IngestDepth`, `UserDriverLinkStatus`,
 `EventDriverLinkMatchType`, `EventDriverLinkStatus`, `SessionType`,
-`EventVenueCorrectionRequestStatus`, `CarTaxonomyMatchType`,
-`TelemetrySessionPrivacy`, `TelemetrySessionStatus`, `TelemetryArtifactRole`,
-`TelemetryArtifactStatus`, `TelemetryDeviceType`,
+`CarTaxonomyMatchType`, `TelemetrySessionPrivacy`, `TelemetrySessionStatus`,
+`TelemetryArtifactRole`, `TelemetryArtifactStatus`, `TelemetryDeviceType`,
 `TelemetryProcessingRunStatus`, `TelemetryJobStatus`, `TelemetryDatasetType`,
 `TelemetryDatasetSensorType`, `TelemetryLapValidity`
 
 Most models use UUID primary keys and include `createdAt` and `updatedAt`
 timestamps where applicable.
+
+> **Note:** This document complements but does not replace
+> `prisma/schema.prisma`, which remains the single source of truth. Field lists
+> below cover the key/representative columns; consult the Prisma file for the
+> exhaustive column set, native DB types, and index definitions.
 
 ---
 
@@ -275,42 +279,52 @@ pages.
 
 **Table:** `tracks`
 
-| Field                    | Type          | Constraints          | Description                                       |
-| ------------------------ | ------------- | -------------------- | ------------------------------------------------- |
-| `id`                     | String (UUID) | Primary Key          | Unique track identifier                           |
-| `source`                 | String        | Required             | Data source (always "liverc" for this connector)  |
-| `sourceTrackSlug`        | String        | Required             | LiveRC track slug identifier                      |
-| `trackName`              | String        | Required             | Human-readable track name                         |
-| `trackUrl`               | String        | Required             | LiveRC track page URL                             |
-| `eventsUrl`              | String        | Required             | LiveRC events listing URL for this track          |
-| `livercTrackLastUpdated` | String        | Optional             | Last update timestamp from LiveRC                 |
-| `lastSeenAt`             | DateTime      | Optional             | Last time track was seen in LiveRC catalogue      |
-| `isActive`               | Boolean       | Default: `true`      | Whether track is currently active                 |
-| `isFollowed`             | Boolean       | Default: `false`     | Whether track is followed by users                |
-| `latitude`               | Float         | Optional             | Track latitude coordinate (from dashboard map)    |
-| `longitude`              | Float         | Optional             | Track longitude coordinate (from dashboard map)   |
-| `address`                | String        | Optional             | Full address string (from dashboard)              |
-| `city`                   | String        | Optional             | City name (parsed from address)                   |
-| `state`                  | String        | Optional             | State/province name (parsed from address)         |
-| `country`                | String        | Optional             | Country name (parsed from address)                |
-| `postalCode`             | String        | Optional             | Postal/ZIP code (parsed from address)             |
-| `phone`                  | String        | Optional             | Phone number (from dashboard)                     |
-| `website`                | String        | Optional             | Website URL (from dashboard)                      |
-| `email`                  | String        | Optional             | Email address (from dashboard, may be obfuscated) |
-| `description`            | String        | Optional             | Track description/amenities text (from dashboard) |
-| `logoUrl`                | String        | Optional             | Track logo image URL (from dashboard)             |
-| `facebookUrl`            | String        | Optional             | Facebook page URL (from dashboard)                |
-| `totalLaps`              | Int           | Optional, Default: 0 | Total lifetime laps (from dashboard stats)        |
-| `totalRaces`             | Int           | Optional, Default: 0 | Total lifetime races (from dashboard stats)       |
-| `totalEvents`            | Int           | Optional, Default: 0 | Total lifetime events (from dashboard stats)      |
-| `createdAt`              | DateTime      | Auto-generated       | Record creation timestamp                         |
-| `updatedAt`              | DateTime      | Auto-updated         | Last update timestamp                             |
+| Field                    | Type          | Constraints          | Description                                                                                 |
+| ------------------------ | ------------- | -------------------- | ------------------------------------------------------------------------------------------- |
+| `id`                     | String (UUID) | Primary Key          | Unique track identifier                                                                     |
+| `source`                 | String        | Required             | Data source (always "liverc" for this connector)                                            |
+| `sourceTrackSlug`        | String        | Required             | LiveRC track slug identifier                                                                |
+| `trackName`              | String        | Required             | Human-readable track name                                                                   |
+| `trackUrl`               | String        | Required             | LiveRC track page URL                                                                       |
+| `eventsUrl`              | String        | Required             | LiveRC events listing URL for this track                                                    |
+| `livercTrackLastUpdated` | String        | Optional             | Last update timestamp from LiveRC                                                           |
+| `lastSeenAt`             | DateTime      | Optional             | Last time track was seen in LiveRC catalogue                                                |
+| `isActive`               | Boolean       | Default: `true`      | Whether the track still appears in the LiveRC global catalogue (set by track sync)          |
+| `isFollowed`             | Boolean       | Default: `false`     | Global admin flag: whether the track is in scope for automated ingestion (**not per-user**) |
+| `latitude`               | Float         | Optional             | Track latitude coordinate (from dashboard map)                                              |
+| `longitude`              | Float         | Optional             | Track longitude coordinate (from dashboard map)                                             |
+| `address`                | String        | Optional             | Full address string (from dashboard)                                                        |
+| `city`                   | String        | Optional             | City name (parsed from address)                                                             |
+| `state`                  | String        | Optional             | State/province name (parsed from address)                                                   |
+| `country`                | String        | Optional             | Country name (parsed from address)                                                          |
+| `postalCode`             | String        | Optional             | Postal/ZIP code (parsed from address)                                                       |
+| `phone`                  | String        | Optional             | Phone number (from dashboard)                                                               |
+| `website`                | String        | Optional             | Website URL (from dashboard)                                                                |
+| `email`                  | String        | Optional             | Email address (from dashboard, may be obfuscated)                                           |
+| `description`            | String        | Optional             | Track description/amenities text (from dashboard)                                           |
+| `logoUrl`                | String        | Optional             | Track logo image URL (from dashboard)                                                       |
+| `facebookUrl`            | String        | Optional             | Facebook page URL (from dashboard)                                                          |
+| `totalLaps`              | Int           | Optional, Default: 0 | Total lifetime laps (from dashboard stats)                                                  |
+| `totalPracticeSessions`  | Int           | Optional, Default: 0 | Total lifetime practice sessions (dashboard)                                                |
+| `totalRaces`             | Int           | Optional, Default: 0 | Total lifetime races (from dashboard stats)                                                 |
+| `totalEntries`           | Int           | Optional, Default: 0 | Lifetime registration count (not per-event)                                                 |
+| `totalEvents`            | Int           | Optional, Default: 0 | Total lifetime events (from dashboard stats)                                                |
+| `startFinishLineGeoJson` | Json          | Optional             | WGS84 GeoJSON LineString for catalogue start/finish (admin/import)                          |
+| `createdAt`              | DateTime      | Auto-generated       | Record creation timestamp                                                                   |
+| `updatedAt`              | DateTime      | Auto-updated         | Last update timestamp                                                                       |
 
 **Business Rules:**
 
 - `source` + `sourceTrackSlug` must be unique (composite unique constraint)
 - Tracks are discovered via LiveRC catalogue ingestion
-- `isFollowed` tracks are prioritized in user-facing APIs
+- **`isActive` vs `isFollowed`:** `isActive` reflects LiveRC catalogue
+  membership; `isFollowed` is a **global admin flag** for ingestion/monitoring
+  scope. See
+  [Track catalogue flags and follow model](../architecture/liverc-ingestion/04-data-model.md#track-catalogue-flags-and-follow-model).
+- **`isFollowed` is not user favourites:** Event Search favourite stars use
+  client `localStorage` (`mre_favourite_tracks`) and do not update this column
+- New tracks default to `isFollowed = false`; admins follow tracks via Admin →
+  Tracks; track sync preserves existing `isFollowed` values
 - **Metadata Extraction:** Location, contact info, statistics, description, and
   logos are extracted from track dashboard pages during sync
 - Metadata fields are optional - tracks without dashboard data continue to
@@ -330,6 +344,7 @@ pages.
 **Relationships:**
 
 - Has many `Event` records (cascade delete)
+- Has many `TrackMap`, `UserEventHostTrack`, and `TelemetrySession` records
 
 **Data Sources:**
 
@@ -339,27 +354,49 @@ pages.
 
 ---
 
+### TrackCatalogueSyncState
+
+Single-row table recording the completion time of the last successful full track
+catalogue sync (written by the ingestion service; read by the UI countdown).
+
+**Table:** `track_catalogue_sync_state`
+
+| Field         | Type     | Constraints    | Description                                 |
+| ------------- | -------- | -------------- | ------------------------------------------- |
+| `id`          | String   | Primary Key    | Fixed identifier for the singleton row      |
+| `completedAt` | DateTime | Required       | Timestamp of last successful catalogue sync |
+| `createdAt`   | DateTime | Auto-generated | Record creation timestamp                   |
+| `updatedAt`   | DateTime | Auto-updated   | Last update timestamp                       |
+
+Surfaced via `GET /api/v1/tracks/catalogue-sync-state`.
+
+---
+
 ### Event
 
 Race events associated with tracks.
 
 **Table:** `events`
 
-| Field            | Type          | Constraints           | Description                         |
-| ---------------- | ------------- | --------------------- | ----------------------------------- |
-| `id`             | String (UUID) | Primary Key           | Unique event identifier             |
-| `source`         | String        | Required              | Data source (always "liverc")       |
-| `sourceEventId`  | String        | Required              | LiveRC event identifier             |
-| `trackId`        | String (UUID) | Foreign Key, Required | Reference to Track                  |
-| `eventName`      | String        | Required              | Human-readable event name           |
-| `eventDate`      | DateTime      | Required              | Event date/time                     |
-| `eventEntries`   | Int           | Required              | Number of entries                   |
-| `eventDrivers`   | Int           | Required              | Number of drivers                   |
-| `eventUrl`       | String        | Required              | LiveRC event page URL               |
-| `ingestDepth`    | IngestDepth   | Default: `none`       | Ingestion depth level               |
-| `lastIngestedAt` | DateTime      | Optional              | Last successful ingestion timestamp |
-| `createdAt`      | DateTime      | Auto-generated        | Record creation timestamp           |
-| `updatedAt`      | DateTime      | Auto-updated          | Last update timestamp               |
+| Field              | Type          | Constraints           | Description                                      |
+| ------------------ | ------------- | --------------------- | ------------------------------------------------ |
+| `id`               | String (UUID) | Primary Key           | Unique event identifier                          |
+| `source`           | String        | Required              | Data source (always "liverc")                    |
+| `sourceEventId`    | String        | Required              | LiveRC event identifier                          |
+| `trackId`          | String (UUID) | Foreign Key, Required | Reference to Track                               |
+| `eventName`        | String        | Required              | Human-readable event name                        |
+| `eventDate`        | DateTime      | Required              | Event date/time (start)                          |
+| `eventDateEnd`     | DateTime      | Optional              | Event end date (multi-day events)                |
+| `eventEntries`     | Int           | Required              | Number of entries                                |
+| `eventDrivers`     | Int           | Required              | Number of drivers                                |
+| `totalRaceLaps`    | Int           | Optional              | Total laps across the event's races              |
+| `eventUrl`         | String        | Required              | LiveRC event page URL                            |
+| `ingestDepth`      | IngestDepth   | Default: `none`       | Ingestion depth level                            |
+| `lastIngestedAt`   | DateTime      | Optional              | Last successful ingestion timestamp              |
+| `importedByUserId` | String (UUID) | Foreign Key, Optional | User who imported the event (set null on delete) |
+| `metadata`         | Json          | Optional              | Additional event metadata (JSON)                 |
+| `createdAt`        | DateTime      | Auto-generated        | Record creation timestamp                        |
+| `updatedAt`        | DateTime      | Auto-updated          | Last update timestamp                            |
 
 **Business Rules:**
 
@@ -380,10 +417,14 @@ Race events associated with tracks.
 **Relationships:**
 
 - Belongs to `Track` (cascade delete)
+- Belongs to `User` via `importedByUserId` (optional, set null on delete)
 - Has many `EventEntry` records (cascade delete)
 - Has many `Race` records (cascade delete)
-- Has many `WeatherData` records (cascade delete)
+- Has many `WeatherData` and `UserEventWeatherData` records (cascade delete)
 - Has many `EventRaceClass` records (cascade delete)
+- Has many `EventQualPoints`, `EventRoundRanking`, `EventOverallRanking`,
+  `MultiMainResult`, `TransponderOverride`, `EventDriverLink`,
+  `UserEventHostTrack`, and `TelemetrySession` records
 
 ---
 
@@ -444,17 +485,18 @@ type assignments and review status for each class within an event.
 
 **Table:** `event_race_classes`
 
-| Field                    | Type          | Constraints           | Description                                                                     |
-| ------------------------ | ------------- | --------------------- | ------------------------------------------------------------------------------- |
-| `id`                     | String (UUID) | Primary Key           | Unique event race class identifier                                              |
-| `eventId`                | String (UUID) | Foreign Key, Required | Reference to Event                                                              |
-| `className`              | String        | Required              | Racing class name (e.g., "1/8 Nitro Buggy")                                     |
-| `vehicleType`            | String        | Optional              | Vehicle type assigned to this class (e.g., "1/8 Nitro Buggy", "1/10 2WD Buggy") |
-| `vehicleTypeNeedsReview` | Boolean       | Default: `true`       | Whether vehicle type needs review                                               |
-| `vehicleTypeReviewedAt`  | DateTime      | Optional              | Timestamp when vehicle type was reviewed                                        |
-| `vehicleTypeReviewedBy`  | String (UUID) | Optional              | User ID who reviewed the vehicle type                                           |
-| `createdAt`              | DateTime      | Auto-generated        | Record creation timestamp                                                       |
-| `updatedAt`              | DateTime      | Auto-updated          | Last update timestamp                                                           |
+| Field                    | Type          | Constraints           | Description                                                                                            |
+| ------------------------ | ------------- | --------------------- | ------------------------------------------------------------------------------------------------------ |
+| `id`                     | String (UUID) | Primary Key           | Unique event race class identifier                                                                     |
+| `eventId`                | String (UUID) | Foreign Key, Required | Reference to Event                                                                                     |
+| `className`              | String        | Required              | Racing class name (e.g., "1/8 Nitro Buggy")                                                            |
+| `fromEntryList`          | Boolean       | Default: `true`       | False when the class row exists only for race/session rows (e.g. LCQ, semi practice), not registration |
+| `vehicleType`            | String        | Optional              | Vehicle type assigned to this class (e.g., "1/8 Nitro Buggy", "1/10 2WD Buggy")                        |
+| `vehicleTypeNeedsReview` | Boolean       | Default: `true`       | Whether vehicle type needs review                                                                      |
+| `vehicleTypeReviewedAt`  | DateTime      | Optional              | Timestamp when vehicle type was reviewed                                                               |
+| `vehicleTypeReviewedBy`  | String (UUID) | Optional              | User ID who reviewed the vehicle type                                                                  |
+| `createdAt`              | DateTime      | Auto-generated        | Record creation timestamp                                                                              |
+| `updatedAt`              | DateTime      | Auto-updated          | Last update timestamp                                                                                  |
 
 **Business Rules:**
 
@@ -538,22 +580,28 @@ Individual races within an event.
 
 **Table:** `races`
 
-| Field             | Type          | Constraints           | Description                                                                                                                                                                                                        |
-| ----------------- | ------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `id`              | String (UUID) | Primary Key           | Unique race identifier                                                                                                                                                                                             |
-| `eventId`         | String (UUID) | Foreign Key, Required | Reference to Event                                                                                                                                                                                                 |
-| `source`          | String        | Required              | Data source (always "liverc")                                                                                                                                                                                      |
-| `sourceRaceId`    | String        | Required              | LiveRC race identifier                                                                                                                                                                                             |
-| `className`       | String        | Required              | Race class name extracted from LiveRC labels (e.g., "1/8 Nitro Buggy", "1/10 2WD Buggy Modified", "Junior"). See [Racing Classes Domain Model](../domain/racing-classes.md) for complete taxonomy and definitions. |
-| `raceLabel`       | String        | Required              | Race label (e.g., "A-Main", "B-Main")                                                                                                                                                                              |
-| `raceOrder`       | Int           | Optional              | Order of race within event                                                                                                                                                                                         |
-| `raceUrl`         | String        | Required              | LiveRC race page URL                                                                                                                                                                                               |
-| `startTime`       | DateTime      | Optional              | Race start time                                                                                                                                                                                                    |
-| `durationSeconds` | Int           | Optional              | Race duration in seconds                                                                                                                                                                                           |
-| `sessionType`     | SessionType   | Optional              | Type of session (race, practice, qualifying, practiceday, heat, main). See [SessionType](#sessiontype) for definitions.                                                                                            |
-| `raceMetadata`    | Json          | Optional              | Practice sessions only: end_time and practiceSessionStats (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../architecture/practice-day-full-ingestion-design.md).    |
-| `createdAt`       | DateTime      | Auto-generated        | Record creation timestamp                                                                                                                                                                                          |
-| `updatedAt`       | DateTime      | Auto-updated          | Last update timestamp                                                                                                                                                                                              |
+| Field                                  | Type          | Constraints           | Description                                                                                                                                                                                                        |
+| -------------------------------------- | ------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                                   | String (UUID) | Primary Key           | Unique race identifier                                                                                                                                                                                             |
+| `eventId`                              | String (UUID) | Foreign Key, Required | Reference to Event                                                                                                                                                                                                 |
+| `source`                               | String        | Required              | Data source (always "liverc")                                                                                                                                                                                      |
+| `sourceRaceId`                         | String        | Required              | LiveRC race identifier                                                                                                                                                                                             |
+| `className`                            | String        | Required              | Race class name extracted from LiveRC labels (e.g., "1/8 Nitro Buggy", "1/10 2WD Buggy Modified", "Junior"). See [Racing Classes Domain Model](../domain/racing-classes.md) for complete taxonomy and definitions. |
+| `raceLabel`                            | String        | Required              | Race label (e.g., "A-Main", "B-Main")                                                                                                                                                                              |
+| `raceOrder`                            | Int           | Optional              | Order of race within event                                                                                                                                                                                         |
+| `raceUrl`                              | String        | Required              | LiveRC race page URL                                                                                                                                                                                               |
+| `completedAt`                          | DateTime      | Optional              | LiveRC "Time Completed" (venue-local wall time as parsed)                                                                                                                                                          |
+| `startTime`                            | DateTime      | Optional              | Session start: `completedAt − durationSeconds` when both exist                                                                                                                                                     |
+| `durationSeconds`                      | Int           | Optional              | Race duration in seconds (LiveRC "Length" is source of truth)                                                                                                                                                      |
+| `sessionType`                          | SessionType   | Optional              | Type of session (race, practice, qualifying, practiceday, heat, main, seeding). See [SessionType](#sessiontype) for definitions.                                                                                   |
+| `sectionHeader`                        | String        | Optional              | LiveRC section header the race row was grouped under                                                                                                                                                               |
+| `raceMetadata`                         | Json          | Optional              | Practice sessions only: end_time and practiceSessionStats (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../architecture/practice-day-full-ingestion-design.md).    |
+| `vehicleType`                          | String        | Optional              | Denormalized from `EventRaceClass.vehicleType` for vehicle-first Session Analysis                                                                                                                                  |
+| `skillTier`                            | String        | Optional              | Skill tier (Junior, Senior, Sportsman) when inferable from class/label/entries                                                                                                                                     |
+| `vehicleClassNormalizationNeedsReview` | Boolean       | Default: `false`      | True when vehicle/skill mapping could not be determined confidently                                                                                                                                                |
+| `eventRaceClassId`                     | String (UUID) | Foreign Key, Optional | Reference to `EventRaceClass` (set null on delete)                                                                                                                                                                 |
+| `createdAt`                            | DateTime      | Auto-generated        | Record creation timestamp                                                                                                                                                                                          |
+| `updatedAt`                            | DateTime      | Auto-updated          | Last update timestamp                                                                                                                                                                                              |
 
 **Business Rules:**
 
@@ -581,8 +629,11 @@ Individual races within an event.
 **Relationships:**
 
 - Belongs to `Event` (cascade delete)
+- Belongs to `EventRaceClass` (optional, set null on delete)
 - Has many `RaceDriver` records (cascade delete)
 - Has many `RaceResult` records (cascade delete)
+- Has many `TransponderOverride` (via `effectiveFromRaceId`) and
+  `TelemetrySession` records
 
 ---
 
@@ -636,23 +687,24 @@ Race results for a driver in a race.
 
 **Table:** `race_results`
 
-| Field                | Type          | Constraints           | Description                                                |
-| -------------------- | ------------- | --------------------- | ---------------------------------------------------------- |
-| `id`                 | String (UUID) | Primary Key           | Unique race result identifier                              |
-| `raceId`             | String (UUID) | Foreign Key, Required | Reference to Race                                          |
-| `raceDriverId`       | String (UUID) | Foreign Key, Required | Reference to RaceDriver                                    |
-| `positionFinal`      | Int           | Required              | Final finishing position                                   |
-| `lapsCompleted`      | Int           | Required              | Number of laps completed                                   |
-| `totalTimeRaw`       | String        | Optional              | Total time as raw string (e.g. "47/30:31.382")             |
-| `totalTimeSeconds`   | Float         | Optional              | Total time in seconds (parsed from Laps/Time)              |
-| `fastLapTime`        | Float         | Optional              | Fastest lap time in seconds                                |
-| `avgLapTime`         | Float         | Optional              | Average lap time in seconds                                |
-| `consistency`        | Float         | Optional              | Consistency percentage (e.g., 92.82)                       |
-| `qualifyingPosition` | Int           | Optional              | Qualifying position (Qual column from LiveRC)              |
-| `secondsBehind`      | Float         | Optional              | Seconds behind winner (Behind column)                      |
-| `rawFieldsJson`      | Json          | Optional              | Extra metrics (avg_top_5, avg_top_10, std_deviation, etc.) |
-| `createdAt`          | DateTime      | Auto-generated        | Record creation timestamp                                  |
-| `updatedAt`          | DateTime      | Auto-updated          | Last update timestamp                                      |
+| Field                | Type          | Constraints           | Description                                                  |
+| -------------------- | ------------- | --------------------- | ------------------------------------------------------------ |
+| `id`                 | String (UUID) | Primary Key           | Unique race result identifier                                |
+| `raceId`             | String (UUID) | Foreign Key, Required | Reference to Race                                            |
+| `raceDriverId`       | String (UUID) | Foreign Key, Required | Reference to RaceDriver                                      |
+| `positionFinal`      | Int           | Required              | Final finishing position                                     |
+| `lapsCompleted`      | Int           | Required              | Number of laps completed                                     |
+| `totalTimeRaw`       | String        | Optional              | Total time as raw string (e.g. "47/30:31.382")               |
+| `totalTimeSeconds`   | Float         | Optional              | Total time in seconds (parsed from Laps/Time)                |
+| `fastLapTime`        | Float         | Optional              | Fastest lap time in seconds                                  |
+| `avgLapTime`         | Float         | Optional              | Average lap time in seconds                                  |
+| `consistency`        | Float         | Optional              | Consistency percentage (e.g., 92.82)                         |
+| `qualifyingPosition` | Int           | Optional              | Qualifying position (Qual column from LiveRC)                |
+| `secondsBehind`      | Float         | Optional              | Seconds behind winner (Behind column)                        |
+| `behindDisplay`      | String        | Optional              | LiveRC "Behind" cell when not numeric seconds (e.g. "1 Lap") |
+| `rawFieldsJson`      | Json          | Optional              | Extra metrics (avg_top_5, avg_top_10, std_deviation, etc.)   |
+| `createdAt`          | DateTime      | Auto-generated        | Record creation timestamp                                    |
+| `updatedAt`          | DateTime      | Auto-updated          | Last update timestamp                                        |
 
 **Business Rules:**
 
@@ -675,6 +727,8 @@ Race results for a driver in a race.
 - Belongs to `RaceDriver` (cascade delete)
 - Has many `Lap` records (cascade delete)
 - Has many `LapAnnotation` records (cascade delete)
+- Has many `PitStopEvent` records (cascade delete)
+- Has one optional `DriverPitStrategy` (cascade delete)
 
 ---
 
@@ -758,16 +812,13 @@ post-ingestion. One row per lap that has at least one tag. See
 
 ---
 
-### PitStopEvent (Planned Placeholder - not implemented)
-
-> **Status:** Planned documentation placeholder only. This model is **not**
-> currently present in `prisma/schema.prisma`.
+### PitStopEvent
 
 Normalized pit stop events for nitro races, derived from lap sequences.
 
-**Planned Table:** `pit_stop_events`
+**Table:** `pit_stop_events`
 
-| Planned Field            | Type          | Planned Constraints   | Description                                             |
+| Field                    | Type          | Constraints           | Description                                             |
 | ------------------------ | ------------- | --------------------- | ------------------------------------------------------- |
 | `id`                     | String (UUID) | Primary Key           | Unique pit event identifier                             |
 | `raceResultId`           | String (UUID) | Foreign Key, Required | Reference to RaceResult                                 |
@@ -783,40 +834,37 @@ Normalized pit stop events for nitro races, derived from lap sequences.
 | `createdAt`              | DateTime      | Auto-generated        | Record creation timestamp                               |
 | `updatedAt`              | DateTime      | Auto-updated          | Last update timestamp                                   |
 
-**Planned Rules and Indexes:**
+**Rules and Indexes:**
 
 - Unique index on `[raceResultId, lapNumber]`
-- Index on `[raceResultId, pitTimeEstimateSeconds]`
+- Index on `[raceResultId, pitTimeEstimateSeconds]` and on `raceResultId`
 - Cascade delete with parent `RaceResult`
 
 ---
 
-### DriverPitStrategy (Planned Placeholder - not implemented)
-
-> **Status:** Planned documentation placeholder only. This model is **not**
-> currently present in `prisma/schema.prisma`.
+### DriverPitStrategy
 
 Per-driver strategy classification derived from detected pit stop sequences.
 
-**Planned Table:** `driver_pit_strategies`
+**Table:** `driver_pit_strategies`
 
-| Planned Field           | Type          | Planned Constraints   | Description                                                   |
-| ----------------------- | ------------- | --------------------- | ------------------------------------------------------------- |
-| `id`                    | String (UUID) | Primary Key           | Unique strategy row identifier                                |
-| `raceResultId`          | String (UUID) | Foreign Key, Required | Reference to RaceResult                                       |
-| `strategyLabel`         | String        | Required              | Strategy classification (e.g., `standard_cadence`)            |
-| `strategyConfidence`    | Float         | Optional              | Strategy confidence (0.0-1.0)                                 |
-| `pitCountDetected`      | Int           | Required              | Number of pit events detected                                 |
-| `medianIntervalSeconds` | Float         | Optional              | Median interval between pit events                            |
-| `intervalsJson`         | Json          | Optional              | Interval sequence details                                     |
-| `detectionVersion`      | String        | Required              | Detector version tag (example: `pit_v2.0`)                    |
-| `metadata`              | Json          | Optional              | Additional diagnostics (hypothesis scores, rejected patterns) |
-| `createdAt`             | DateTime      | Auto-generated        | Record creation timestamp                                     |
-| `updatedAt`             | DateTime      | Auto-updated          | Last update timestamp                                         |
+| Field                   | Type          | Constraints                   | Description                                                   |
+| ----------------------- | ------------- | ----------------------------- | ------------------------------------------------------------- |
+| `id`                    | String (UUID) | Primary Key                   | Unique strategy row identifier                                |
+| `raceResultId`          | String (UUID) | Foreign Key, Required, Unique | Reference to RaceResult (one strategy row per result)         |
+| `strategyLabel`         | String        | Required                      | Strategy classification (e.g., `standard_cadence`)            |
+| `strategyConfidence`    | Float         | Optional                      | Strategy confidence (0.0-1.0)                                 |
+| `pitCountDetected`      | Int           | Required                      | Number of pit events detected                                 |
+| `medianIntervalSeconds` | Float         | Optional                      | Median interval between pit events                            |
+| `intervalsJson`         | Json          | Optional                      | Interval sequence details                                     |
+| `detectionVersion`      | String        | Required                      | Detector version tag (example: `pit_v2.0`)                    |
+| `metadata`              | Json          | Optional                      | Additional diagnostics (hypothesis scores, rejected patterns) |
+| `createdAt`             | DateTime      | Auto-generated                | Record creation timestamp                                     |
+| `updatedAt`             | DateTime      | Auto-updated                  | Last update timestamp                                         |
 
-**Planned Rules and Indexes:**
+**Rules and Indexes:**
 
-- Unique index on `raceResultId` (one strategy row per race result)
+- Unique on `raceResultId` (one strategy row per race result)
 - Index on `strategyLabel` for reporting
 - Cascade delete with parent `RaceResult`
 
@@ -1001,30 +1049,33 @@ Cached weather data for events, retrieved from Open-Meteo API.
 
 **Table:** `weather_data`
 
-| Field              | Type          | Constraints                                | Description                                    |
-| ------------------ | ------------- | ------------------------------------------ | ---------------------------------------------- |
-| `id`               | String (UUID) | Primary Key                                | Unique weather data identifier                 |
-| `eventId`          | String (UUID) | Foreign Key → Event.id, Required           | Associated event                               |
-| `latitude`         | Float         | Required                                   | Latitude coordinate used for API call          |
-| `longitude`        | Float         | Required                                   | Longitude coordinate used for API call         |
-| `timestamp`        | DateTime      | Required                                   | When weather was observed/forecasted           |
-| `airTemperature`   | Float         | Required                                   | Air temperature in Celsius                     |
-| `humidity`         | Int           | Required                                   | Humidity percentage (0-100)                    |
-| `windSpeed`        | Float         | Required                                   | Wind speed (km/h)                              |
-| `windDirection`    | Int?          | Optional                                   | Wind direction in degrees (0-360)              |
-| `precipitation`    | Int           | Required                                   | Precipitation chance percentage (0-100)        |
-| `condition`        | String        | Required                                   | Weather condition description                  |
-| `trackTemperature` | Float         | Required                                   | Calculated track surface temperature (Celsius) |
-| `forecast`         | Json          | Required                                   | Array of forecast entries (JSON)               |
-| `isHistorical`     | Boolean       | Required, Default: false                   | Whether this is historical weather data        |
-| `cachedAt`         | DateTime      | Required, Default: now()                   | When this data was cached                      |
-| `expiresAt`        | DateTime      | Required                                   | When this cache entry expires (TTL)            |
-| `createdAt`        | DateTime      | Required, Default: now()                   | Record creation timestamp                      |
-| `updatedAt`        | DateTime      | Required, Default: now(), Updated on write | Record update timestamp                        |
+| Field                     | Type          | Constraints                                | Description                                               |
+| ------------------------- | ------------- | ------------------------------------------ | --------------------------------------------------------- |
+| `id`                      | String (UUID) | Primary Key                                | Unique weather data identifier                            |
+| `eventId`                 | String (UUID) | Foreign Key → Event.id, Required           | Associated event                                          |
+| `weatherDate`             | DateTime      | Optional                                   | UTC calendar day this snapshot applies to (per-day cache) |
+| `latitude`                | Float         | Required                                   | Latitude coordinate used for API call                     |
+| `longitude`               | Float         | Required                                   | Longitude coordinate used for API call                    |
+| `timestamp`               | DateTime      | Required                                   | When weather was observed/forecasted                      |
+| `airTemperature`          | Float         | Required                                   | Air temperature in Celsius                                |
+| `humidity`                | Int           | Required                                   | Humidity percentage (0-100)                               |
+| `windSpeed`               | Float         | Required                                   | Wind speed (km/h)                                         |
+| `windDirection`           | Int?          | Optional                                   | Wind direction in degrees (0-360)                         |
+| `precipitation`           | Int           | Required                                   | Precipitation chance percentage (0-100)                   |
+| `condition`               | String        | Required                                   | Weather condition description                             |
+| `trackTemperature`        | Float         | Required                                   | Calculated track surface temperature (Celsius)            |
+| `forecast`                | Json          | Required                                   | Array of forecast entries (JSON)                          |
+| `dailyTemperatureSummary` | Json          | Optional                                   | Per-day temperature summary (JSON)                        |
+| `isHistorical`            | Boolean       | Required, Default: false                   | Whether this is historical weather data                   |
+| `cachedAt`                | DateTime      | Required, Default: now()                   | When this data was cached                                 |
+| `expiresAt`               | DateTime      | Required                                   | When this cache entry expires (TTL)                       |
+| `createdAt`               | DateTime      | Required, Default: now()                   | Record creation timestamp                                 |
+| `updatedAt`               | DateTime      | Required, Default: now(), Updated on write | Record update timestamp                                   |
 
 **Indexes:**
 
 - Primary key on `id`
+- Unique on `[eventId, weatherDate]` (one snapshot per event per UTC day)
 - Foreign key index on `eventId`
 - Index on `expiresAt` for cache cleanup queries
 - Index on `eventId, expiresAt` for cache lookup
@@ -1144,7 +1195,22 @@ block, with per-driver rows). See `prisma/schema.prisma` for fields; linked to
 **Tables:** `event_round_rankings`, `event_round_ranking_entries`
 
 Round / seeding ranking tables parsed from LiveRC (header + per-driver rows).
-See `prisma/schema.prisma` for fields.
+The header carries `label` and `orderType`; entries carry `position`, `laps`,
+`totalTimeSeconds`, `bestLapSeconds`, `rankingValueRaw`, and link to `Driver`.
+Unique on `(eventRoundRankingId, driverId, className)`. See
+`prisma/schema.prisma` for fields.
+
+---
+
+### EventOverallRanking and EventOverallRankingEntry
+
+**Tables:** `event_overall_rankings`, `event_overall_ranking_entries`
+
+Overall event ranking tables parsed from LiveRC (header + per-driver rows). The
+header carries `label` and is unique on `(eventId, sourceOverallRankingId)`;
+entries carry `position`, `raceLabel`, `resultRaw`, link to `Driver`, and are
+unique on `(eventOverallRankingId, driverId, className)`. Belongs to `Event`
+(cascade delete).
 
 ---
 
@@ -1158,27 +1224,50 @@ and `Driver`.
 
 ---
 
-### EventVenueCorrection
+### EventVenueCorrection / EventVenueCorrectionRequest (Removed)
 
-> **Deprecated.** Full removal planned. See
+> **Removed.** These models (tables `event_venue_corrections`,
+> `event_venue_correction_requests`) and the `EventVenueCorrectionRequestStatus`
+> enum are **no longer present** in `prisma/schema.prisma`. The replacement is
+> per-user host-track designation via
+> [`UserEventHostTrack`](#usereventhosttrack). See
 > [venue-correction-deprecation.md](../architecture/venue-correction-deprecation.md).
-
-**Table:** `event_venue_corrections`
-
-Approved correction linking an event to a venue `Track` (one row per event when
-approved). See `EventVenueCorrection` in `prisma/schema.prisma`.
 
 ---
 
-### EventVenueCorrectionRequest
+### UserEventHostTrack
 
-> **Deprecated.** Full removal planned. See
-> [venue-correction-deprecation.md](../architecture/venue-correction-deprecation.md).
+Per-user designation of which catalogue track physically hosted an event (the
+LiveRC venue may be an organiser office rather than the racing facility).
 
-**Table:** `event_venue_correction_requests`
+**Table:** `user_event_host_tracks`
 
-User-submitted venue correction pending admin review (`status`: `pending` |
-`approved` | `rejected`). One row per event for the workflow.
+| Field         | Type          | Constraints           | Description                          |
+| ------------- | ------------- | --------------------- | ------------------------------------ |
+| `id`          | String (UUID) | Primary Key           | Unique row identifier                |
+| `userId`      | String (UUID) | Foreign Key, Required | Reference to User (cascade delete)   |
+| `eventId`     | String (UUID) | Foreign Key, Required | Reference to Event (cascade delete)  |
+| `hostTrackId` | String (UUID) | Foreign Key, Required | Reference to Track (restrict delete) |
+| `createdAt`   | DateTime      | Auto-generated        | Record creation timestamp            |
+| `updatedAt`   | DateTime      | Auto-updated          | Last update timestamp                |
+
+Unique on `(userId, eventId)`. Surfaced via
+`GET/PUT/DELETE /api/v1/user/events/[eventId]/host-track`.
+
+---
+
+### UserEventWeatherData
+
+Per-user cached weather used when a user's host track differs from the event's
+LiveRC venue. Mirrors `WeatherData` fields plus `weatherDate` (UTC calendar day)
+and `dailyTemperatureSummary`.
+
+**Table:** `user_event_weather_data`
+
+Belongs to `User` and `Event` (both cascade delete). Unique on
+`(userId, eventId, weatherDate)`; indexed on `expiresAt` and
+`(userId, eventId, expiresAt)` for cache lookup/cleanup. See
+`prisma/schema.prisma` for the full column set.
 
 ---
 
@@ -1215,6 +1304,69 @@ on `(user_id, match_type, pattern_normalized)`. Cascade delete with `User`.
 
 **Related:**
 [Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md).
+
+---
+
+## Telemetry Models (GNSS/IMU import)
+
+These models back the telemetry intake/processing pipeline (raw upload →
+canonicalisation → datasets/laps). See
+[`docs/telemetry/README.md`](../telemetry/README.md) and the
+[telemetry implementation plan](../implimentation_plans/telemetry-implementation-plan.md).
+Refer to `prisma/schema.prisma` for the exhaustive column set.
+
+### TelemetryDevice
+
+**Table:** `telemetry_devices`. Capture devices owned by a `User` (`deviceType`
+= `TelemetryDeviceType`, make/model/serial/firmware, `capabilities` JSON). Has
+many `TelemetryArtifact` records; can be a session's primary device.
+
+### TelemetrySession
+
+**Table:** `telemetry_sessions`. The central per-session record owned by a
+`User`. Optional links to `DriverProfile`, `Track`, a LiveRC `Event`
+(`livercEventId`) and `Race` (`livercRaceId`), optional `userSflLineGeoJson`
+(user-drawn start/finish), `privacy` (`TelemetrySessionPrivacy`), `status`
+(`TelemetrySessionStatus`), `startTimeUtc`/`endTimeUtc`, `currentRunId`
+(unique), `lastReprocessAt`, `shareToken` (unique, read-only public links) +
+`shareTokenCreatedAt`, soft-delete `deletedAt`. Has many
+`TelemetryProcessingRun`, `TelemetryArtifact`, `TelemetryDataset`, and
+`TelemetryLap` records.
+
+### TelemetryArtifact
+
+**Table:** `telemetry_artifacts`. An uploaded raw file (or canonicalised output)
+with `artifactRole` (`TelemetryArtifactRole`), `byteSize` (BigInt), `sha256`,
+`storagePath`, `formatDetected`, `status` (`TelemetryArtifactStatus`),
+`ingestWarnings` JSON. Belongs to `User` (owner), optional `TelemetrySession`
+and `TelemetryDevice`. Unique on `(sessionId, sha256, byteSize)`.
+
+### TelemetryProcessingRun
+
+**Table:** `telemetry_processing_runs`. One processing attempt for a session,
+with `status` (`TelemetryProcessingRunStatus`), pipeline/canonicaliser/fusion/
+lap-detector versions, `inputArtifactIds`/`outputDatasetIds` JSON,
+`qualitySummary` JSON, and `errorCode`/`errorDetail`. Has many `TelemetryJob`,
+`TelemetryDataset`, and `TelemetryLap` records.
+
+### TelemetryJob
+
+**Table:** `telemetry_jobs`. Worker queue rows for a run (`jobType`, `status` =
+`TelemetryJobStatus`, `attemptCount`/`maxAttempts`, lock + retry fields).
+Indexed on `(status, nextRetryAt, createdAt)` for the worker poller.
+
+### TelemetryDataset
+
+**Table:** `telemetry_datasets`. Materialised/derived dataset descriptors for a
+run (`datasetType` = `TelemetryDatasetType`, optional `sensorType` =
+`TelemetryDatasetSensorType`, IMU metadata, `sampleRateHz`,
+`clickhouseTable`/`clickhouseWhereHint`, schema/units versions).
+
+### TelemetryLap
+
+**Table:** `telemetry_laps`. Per-lap rows for a run (`lapNumber`,
+`startTimeUtc`/`endTimeUtc`, `durationMs`, `validity` = `TelemetryLapValidity`,
+`qualityScore`). Unique on `(runId, lapNumber)`.
 
 ---
 
@@ -1404,16 +1556,6 @@ Lifecycle state for an event-level driver link (separate from match type).
 
 ---
 
-### EventVenueCorrectionRequestStatus
-
-> **Deprecated** with venue correction tables; remove when models are dropped.
-
-Admin workflow for venue correction requests.
-
-**Values:** `pending`, `approved`, `rejected`
-
----
-
 ### CarTaxonomyMatchType
 
 Which LiveRC-derived field a user rule matches (`CLASS_AND_LABEL`, `CLASS_NAME`,
@@ -1425,7 +1567,8 @@ Resolution order is documented in
 
 ### SessionType
 
-Type of racing session (race, practice, qualifying, practiceday, heat, main).
+Type of racing session (race, practice, qualifying, practiceday, heat, main,
+seeding).
 
 **Values:**
 
@@ -1437,6 +1580,7 @@ Type of racing session (race, practice, qualifying, practiceday, heat, main).
   mains
 - `main` - Main event (e.g., "A1-Main", "B2-Main", "C-Main") — the actual race
   finals
+- `seeding` - Seeding round used to set initial grid positions
 
 **Usage:**
 
@@ -1456,6 +1600,30 @@ Type of racing session (race, practice, qualifying, practiceday, heat, main).
   LiveRC
 - Default behavior: if not set, race is treated as a race session
 - Used for session-based search and filtering in the unified search feature
+
+---
+
+### Telemetry Enums
+
+Used by the telemetry models. See `prisma/schema.prisma` for the authoritative
+values.
+
+- **TelemetrySessionPrivacy:** `PRIVATE`, `TEAM`, `PUBLIC`
+- **TelemetrySessionStatus:** `UPLOADING`, `PROCESSING`, `READY`, `FAILED`,
+  `DELETED`
+- **TelemetryArtifactRole:** `GNSS`, `IMU`, `FUSED`, `MIXED`, `UNKNOWN`
+- **TelemetryArtifactStatus:** `UPLOADED`, `CANONICALISED`, `REJECTED`,
+  `DELETED`
+- **TelemetryDeviceType:** `PHONE`, `RACEBOX`, `CUSTOM`, `OTHER`
+- **TelemetryProcessingRunStatus:** `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`,
+  `CANCELLED`
+- **TelemetryJobStatus:** `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`,
+  `CANCELLED`
+- **TelemetryDatasetType:** `CANON_GNSS`, `CANON_ACCEL`, `CANON_GYRO`,
+  `CANON_MAG`, `FUSED_POSE`, `LAP_EVENTS`, `DOWNSAMPLE_GNSS`,
+  `DOWNSAMPLE_ACCEL`, `DOWNSAMPLE_GYRO`, `DOWNSAMPLE_MAG`, `DOWNSAMPLE_POSE`
+- **TelemetryDatasetSensorType:** `GNSS`, `IMU`, `FUSION`
+- **TelemetryLapValidity:** `VALID`, `INVALID`, `OUTLAP`, `INLAP`
 
 ---
 
@@ -1546,17 +1714,18 @@ Type of racing session (race, practice, qualifying, practiceday, heat, main).
 - Note: the composite index duplicates the composite unique constraint and is
   currently retained to match the live Prisma schema.
 
-**PitStopEvent (planned placeholder):**
+**PitStopEvent:**
 
 - Primary key: `id`
-- Planned unique: `[raceResultId, lapNumber]`
-- Planned index: `[raceResultId, pitTimeEstimateSeconds]`
+- Unique: `[raceResultId, lapNumber]`
+- Index: `[raceResultId, pitTimeEstimateSeconds]`
+- Index: `raceResultId`
 
-**DriverPitStrategy (planned placeholder):**
+**DriverPitStrategy:**
 
 - Primary key: `id`
-- Planned unique: `raceResultId`
-- Planned index: `strategyLabel`
+- Unique: `raceResultId`
+- Index: `strategyLabel`
 
 **TransponderOverride:**
 
@@ -1676,7 +1845,7 @@ Type of racing session (race, practice, qualifying, practiceday, heat, main).
     - Foreign key: `Lap.raceResultId`
     - Cascade delete: Laps deleted when RaceResult deleted
 
-**Planned placeholder relationships (not implemented):**
+**Pit stop relationships:**
 
 - `RaceResult → PitStopEvent` (One-to-Many, cascade delete)
 - `RaceResult → DriverPitStrategy` (One-to-One via unique `raceResultId`,
@@ -1926,17 +2095,9 @@ const laps = await prisma.lap.findMany({
 })
 ```
 
-### Future Query Examples (Planned Placeholders - Not Yet Compilable)
+### Pit Stop Query Examples
 
-The examples below are future contracts only.
-
-**Warning:** These examples will not compile until the planned Prisma models are
-added to `prisma/schema.prisma` and Prisma Client is regenerated.
-
-### Get Pit Stops for Race Result (Planned Placeholder)
-
-> This query pattern is reserved for pit stop detection v2 and is not currently
-> implemented.
+### Get Pit Stops for Race Result
 
 ```typescript
 const pitStops = await prisma.pitStopEvent.findMany({
@@ -1947,10 +2108,7 @@ const pitStops = await prisma.pitStopEvent.findMany({
 })
 ```
 
-### Get Driver Pit Strategy for Race Result (Planned Placeholder)
-
-> This query pattern is reserved for pit stop detection v2 and is not currently
-> implemented.
+### Get Driver Pit Strategy for Race Result
 
 ```typescript
 const strategy = await prisma.driverPitStrategy.findUnique({

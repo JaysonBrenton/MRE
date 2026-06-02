@@ -24,10 +24,10 @@ import { type Track } from "./TrackRow"
 import { type DateRangePreset, PRESETS as DATE_RANGE_PRESETS } from "./DateRangePresetPicker"
 import DateRangeModal from "./DateRangeModal"
 import MonthYearPicker from "../practice-days/MonthYearPicker"
+import EventSearchOmnibox from "./EventSearchOmnibox"
+import EventSearchFilters from "./EventSearchFilters"
 import { Search } from "lucide-react"
 import Button from "@/components/atoms/Button"
-import Switch from "@/components/atoms/Switch"
-import Tooltip from "@/components/molecules/Tooltip"
 import { clientLogger } from "@/lib/client-logger"
 import { formatCustomRangeSummary } from "@/lib/date-utils"
 import { isPracticeDaysEnabled } from "@/lib/feature-flags"
@@ -53,6 +53,8 @@ export interface EventSearchFormProps {
   onDateRangePresetChange?: (preset: DateRangePreset) => void
   onToggleFavourite: (trackId: string) => void
   onSearch: (track?: Track) => void
+  /** Select an event for the dashboard (omnibox event pick). */
+  onSelectEvent?: (eventId: string) => void
   searchMode?: "events" | "practice-days"
   onSearchModeChange?: (mode: "events" | "practice-days") => void
   /** When true, a search or background discovery is currently in flight */
@@ -66,12 +68,17 @@ export interface EventSearchFormProps {
   /** When true, event search also includes practice days in the same list (events mode only) */
   includePracticeDays?: boolean
   onIncludePracticeDaysChange?: (checked: boolean) => void
-  /** When true, event search queries LiveRC as well as the database */
+  /** When true, the full search queries LiveRC as well as the database */
   includeLiveRC?: boolean
   onIncludeLiveRCChange?: (checked: boolean) => void
-  /** When true, event search will include Everlaps (pipeline not yet implemented) */
+  /** When true, the full search will include Everlaps (pipeline not yet implemented) */
   includeEverlaps?: boolean
   onIncludeEverlapsChange?: (checked: boolean) => void
+  /** When true, Search is allowed without a selected track (database browse only). */
+  canSearchWithoutTrack?: boolean
+  /** True after a cross-track browse (omnibox empty); used for summary copy. */
+  isGlobalBrowse?: boolean
+  onOmniboxQueryChange?: (query: string) => void
 }
 
 export default function EventSearchForm({
@@ -89,6 +96,7 @@ export default function EventSearchForm({
   onDateRangePresetChange,
   onToggleFavourite,
   onSearch,
+  onSelectEvent,
   searchMode = "events",
   onSearchModeChange: _onSearchModeChange,
   isSearchingInFlight = false,
@@ -103,6 +111,9 @@ export default function EventSearchForm({
   onIncludeLiveRCChange,
   includeEverlaps = false,
   onIncludeEverlapsChange,
+  canSearchWithoutTrack = false,
+  isGlobalBrowse = false,
+  onOmniboxQueryChange,
 }: EventSearchFormProps) {
   const practiceDaysEnabled = isPracticeDaysEnabled()
 
@@ -168,7 +179,21 @@ export default function EventSearchForm({
           return baseLabel
         })()
 
-  const selectionSummaryText = `Selected track: ${selectedTrack?.trackName ?? "—"}\nDate Filter: ${dateFilterSummary}`
+  const trackSummary = isGlobalBrowse
+    ? "all tracks (database)"
+    : (selectedTrack?.trackName ??
+      (canSearchWithoutTrack ? "all tracks (database)" : "none selected"))
+  const compactSummary =
+    searchMode === "events"
+      ? `Track: ${trackSummary} · ${dateFilterSummary}`
+      : `Track: ${trackSummary} · ${dateFilterSummary}`
+
+  /** Non-default filters surfaced as a badge on the Filters button. */
+  const activeFilterCount =
+    (searchMode === "events" && dateRangePreset !== "last12" ? 1 : 0) +
+    (searchMode === "events" && includePracticeDays ? 1 : 0) +
+    (searchMode === "events" && includeLiveRC ? 1 : 0) +
+    (searchMode === "events" && includeEverlaps ? 1 : 0)
 
   return (
     <>
@@ -188,194 +213,87 @@ export default function EventSearchForm({
           </div>
         )}
         <div className="space-y-2">
-          <h3
-            id="event-search-filters-heading"
-            className="text-sm font-medium text-[var(--token-text-primary)]"
-          >
-            Search filters
-          </h3>
           <div
             className="rounded-lg border border-[var(--token-border-accent-soft)] bg-[var(--token-surface-elevated)] p-4 space-y-4"
             role="region"
-            aria-labelledby="event-search-filters-heading"
+            aria-label="Search filters"
           >
-            {/* Where: Track + Date range side by side */}
-            <div className="space-y-3" role="group" aria-labelledby="event-search-where">
-              <span id="event-search-where" className="sr-only">
-                Where
-              </span>
-              <div className="flex flex-wrap items-start gap-4 sm:gap-6">
-                <div className="min-w-0 flex-1">
-                  <div className="flex w-fit min-w-0 max-w-full flex-col items-stretch gap-2">
-                    <div className="inline-flex max-w-full flex-wrap items-center gap-3">
-                      <Tooltip
-                        text="Choose the race track or venue to search events for."
-                        position="top"
-                      >
-                        <Button
-                          type="button"
-                          id="track-selector-trigger"
-                          aria-describedby={trackErrorId}
-                          onClick={() => setIsTrackModalOpen(true)}
-                          variant="default"
-                          className="h-11 w-[9rem] min-w-[9rem] shrink-0 justify-center px-3"
-                          aria-haspopup="dialog"
-                          aria-expanded={isTrackModalOpen}
-                          aria-label={
-                            selectedTrack
-                              ? `Open track list, current track: ${selectedTrack.trackName}`
-                              : "Open track list"
-                          }
-                        >
-                          <span className="truncate">Track Selection</span>
-                        </Button>
-                      </Tooltip>
-                      {searchMode === "events" && onDateRangePresetChange && (
-                        <Tooltip
-                          text="Filter events by when they occurred (e.g. last 12 months)."
-                          position="top"
-                        >
-                          <Button
-                            type="button"
-                            id="date-range-trigger"
-                            variant="default"
-                            onClick={() => setIsDateRangeModalOpen(true)}
-                            className="h-11 w-[9rem] min-w-[9rem] shrink-0 justify-center px-3"
-                            aria-haspopup="dialog"
-                            aria-expanded={isDateRangeModalOpen}
-                            aria-label={
-                              "Open date filter, current: " +
-                              (DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ??
-                                "Date range")
-                            }
-                          >
-                            <span className="truncate">Date Filter</span>
-                          </Button>
-                        </Tooltip>
-                      )}
-                      {searchMode === "events" && onIncludeLiveRCChange && (
-                        <div className="inline-flex min-h-11 w-max max-w-full flex-nowrap items-center gap-2">
-                          <Tooltip
-                            text="On: include LiveRC discovery with database results. Off: database only (no LiveRC); the list shows events with full lap data (laps_full) when applicable."
-                            position="top"
-                          >
-                            <label
-                              htmlFor="search-live-rc-trigger"
-                              className="w-max max-w-full shrink-0 text-sm font-medium text-[var(--token-text-primary)]"
-                            >
-                              Search LiveRC:
-                            </label>
-                          </Tooltip>
-                          <Switch
-                            id="search-live-rc-trigger"
-                            checked={includeLiveRC}
-                            onChange={onIncludeLiveRCChange}
-                            disabled={isLoading}
-                            aria-label="Search LiveRC: toggle on to include LiveRC with database, off for database only"
-                            className="shrink-0"
-                          />
-                        </div>
-                      )}
-                      {searchMode === "events" && onIncludeEverlapsChange && (
-                        <div className="inline-flex min-h-11 w-max max-w-full flex-nowrap items-center gap-2">
-                          <Tooltip
-                            text="Reserved for a future Everlaps search path; the toggle is saved in the UI but does not change results yet."
-                            position="top"
-                          >
-                            <label
-                              htmlFor="search-everlaps-trigger"
-                              className="w-max max-w-full shrink-0 text-sm font-medium text-[var(--token-text-primary)]"
-                            >
-                              Search Everlaps:
-                            </label>
-                          </Tooltip>
-                          <Switch
-                            id="search-everlaps-trigger"
-                            checked={includeEverlaps}
-                            onChange={onIncludeEverlapsChange}
-                            disabled={isLoading}
-                            aria-label="Include Everlaps when searching (not yet connected)"
-                            className="shrink-0"
-                          />
-                        </div>
-                      )}
-                      {searchMode === "events" &&
-                        practiceDaysEnabled &&
-                        onIncludePracticeDaysChange && (
-                          <div className="inline-flex min-h-11 w-max max-w-full flex-nowrap items-center gap-2">
-                            <Tooltip
-                              text="Include practice day sessions in the event list."
-                              position="top"
-                            >
-                              <label
-                                htmlFor="include-practice-days-trigger"
-                                className="w-max max-w-full shrink-0 text-sm font-medium text-[var(--token-text-primary)]"
-                              >
-                                Include practice days:
-                              </label>
-                            </Tooltip>
-                            <Switch
-                              id="include-practice-days-trigger"
-                              checked={includePracticeDays}
-                              onChange={onIncludePracticeDaysChange}
-                              disabled={isLoading}
-                              aria-label="Include practice days in event list results"
-                              className="shrink-0"
-                            />
-                          </div>
-                        )}
-                    </div>
-                    <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
-                      <div className="inline-flex max-w-full shrink-0 flex-row items-center gap-3">
-                        <Button
-                          type="submit"
-                          id="event-search-run-trigger"
-                          variant="primary"
-                          disabled={!selectedTrack || isSearchingInFlight || isLoading}
-                          className="h-11 w-[9rem] min-w-[9rem] shrink-0 justify-center px-3"
-                          aria-label="Run event search"
-                        >
-                          {isSearchingInFlight || isLoading ? (
-                            "Running..."
-                          ) : (
-                            <Search className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          id="event-search-stop-trigger"
-                          variant="default"
-                          disabled={!isSearchingInFlight}
-                          onClick={handleStop}
-                          className="h-11 w-[9rem] min-w-[9rem] shrink-0 justify-center px-3 text-[var(--token-error-text)] border-[var(--token-error-text)]/60 bg-[var(--token-error-text)]/10 hover:bg-[var(--token-error-text)]/20 disabled:opacity-50 disabled:hover:bg-[var(--token-error-text)]/10"
-                          aria-label="Stop current search"
-                        >
-                          Stop
-                        </Button>
-                      </div>
-                      <textarea
-                        readOnly
-                        tabIndex={-1}
-                        rows={2}
-                        value={selectionSummaryText}
-                        className="min-h-0 min-w-0 w-full flex-1 rounded-md border border-[var(--token-border-default)] bg-[var(--token-surface)] px-3 py-2 text-xs leading-snug text-[var(--token-text-primary)] self-stretch sm:self-center overflow-y-auto"
-                        style={{ resize: "none" }}
-                        aria-label="Current selected track and date filter"
-                      />
-                    </div>
-                  </div>
-                  {errors?.track && (
-                    <p
-                      id={trackErrorId}
-                      className="mt-1 text-sm text-[var(--token-error-text)]"
-                      role="alert"
-                    >
-                      {errors.track}
-                    </p>
+            {/* Omnibox: search by track or event name (database-only) */}
+            {searchMode === "events" && (
+              <EventSearchOmnibox
+                onSelectTrack={(track) => {
+                  onTrackSelect(track)
+                  onSearch(track)
+                }}
+                onSelectEvent={(eventId) => onSelectEvent?.(eventId)}
+                onQueryChange={onOmniboxQueryChange}
+                disabled={isLoading}
+              />
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <EventSearchFilters
+                selectedTrack={selectedTrack}
+                dateFilterSummary={dateFilterSummary}
+                showDateFilter={searchMode === "events" && !!onDateRangePresetChange}
+                onOpenTrackModal={() => setIsTrackModalOpen(true)}
+                onOpenDateModal={() => setIsDateRangeModalOpen(true)}
+                includePracticeDays={includePracticeDays}
+                onIncludePracticeDaysChange={onIncludePracticeDaysChange}
+                showPracticeToggle={
+                  searchMode === "events" && practiceDaysEnabled && !!onIncludePracticeDaysChange
+                }
+                includeLiveRC={includeLiveRC}
+                onIncludeLiveRCChange={onIncludeLiveRCChange}
+                showLiveRCToggle={searchMode === "events" && !!onIncludeLiveRCChange}
+                includeEverlaps={includeEverlaps}
+                onIncludeEverlapsChange={onIncludeEverlapsChange}
+                showEverlapsToggle={searchMode === "events" && !!onIncludeEverlapsChange}
+                activeFilterCount={activeFilterCount}
+                disabled={isLoading}
+                trackErrorId={trackErrorId}
+              />
+
+              <div className="inline-flex shrink-0 items-center gap-3">
+                <Button
+                  type="submit"
+                  id="event-search-run-trigger"
+                  variant="primary"
+                  disabled={
+                    (!canSearchWithoutTrack && !selectedTrack) || isSearchingInFlight || isLoading
+                  }
+                  className="h-11 w-[9rem] min-w-[9rem] shrink-0 justify-center px-3"
+                  aria-label="Run event search"
+                >
+                  {isSearchingInFlight || isLoading ? (
+                    "Running..."
+                  ) : (
+                    <Search className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
                   )}
-                </div>
+                </Button>
+                <Button
+                  type="button"
+                  id="event-search-stop-trigger"
+                  variant="default"
+                  disabled={!isSearchingInFlight}
+                  onClick={handleStop}
+                  className="h-11 w-[9rem] min-w-[9rem] shrink-0 justify-center px-3 text-[var(--token-error-text)] border-[var(--token-error-text)]/60 bg-[var(--token-error-text)]/10 hover:bg-[var(--token-error-text)]/20 disabled:opacity-50 disabled:hover:bg-[var(--token-error-text)]/10"
+                  aria-label="Stop current search"
+                >
+                  Stop
+                </Button>
               </div>
             </div>
+
+            <p className="text-xs text-[var(--token-text-secondary)]" aria-live="polite">
+              {compactSummary}
+            </p>
+
+            {errors?.track && (
+              <p id={trackErrorId} className="text-sm text-[var(--token-error-text)]" role="alert">
+                {errors.track}
+              </p>
+            )}
           </div>
         </div>
 

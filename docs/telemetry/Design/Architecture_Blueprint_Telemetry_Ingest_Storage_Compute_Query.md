@@ -5,10 +5,36 @@
 This document describes where each part of MRE should run, which services own
 which responsibilities, and how data should flow through the system.
 
-**Storage authority:** Time series storage decisions (Parquet canonical, ClickHouse
-as derived cache) are defined in
-`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`.
-This blueprint aligns with that ADR.
+**Storage authority:** Time series storage decisions (Parquet canonical,
+ClickHouse as derived cache) are defined in
+`docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`. This
+blueprint aligns with that ADR.
+
+## Implementation status (as of 2026-05-31)
+
+The chosen architecture is **built and shipping**, matching "Concrete
+Recommendation for MRE": Postgres control plane + canonical **Parquet** (system
+of record) under `TELEMETRY_UPLOAD_ROOT` (`/data/telemetry`), a Postgres
+`telemetry_jobs` queue with `SKIP LOCKED`, and a Python **`telemetry-worker`**
+container (`python -m ingestion.telemetry.worker`). ClickHouse is wired as the
+**optional** derived cache (only `telemetry_gnss_v1`, enabled when
+`CLICKHOUSE_HOST` is set).
+
+Caveats versus this blueprint's wider wording:
+
+- The worker parses **GNSS text/binary formats only** (CSV, GPX, JSON, NMEA,
+  UBX). The broader format list here (RINEX, CRINEX, BINEX, decompression) is
+  **not implemented**; Garmin FIT is explicitly excluded.
+- **DuckDB is not used.** Parquet reads for the API are served by the Node layer
+  (`telemetry-parquet-*` in `src/core/telemetry`); the worker writes Parquet
+  with pyarrow.
+- Processed-artifact paths are
+  `canonical/{session_id}/{run_id}/{dataset_id}/<name>.parquet`, not a
+  tenant/driver-prefixed object key.
+- Fusion runs as a GNSS-only pass-through today (IMU parsing not yet wired into
+  the worker); see
+  [Supported Formats](Supported%20Formats%20and%20Parser%20Specification.md)
+  status note.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Documentation Update
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Table component specification for MRE version 0.1.1
 purpose:
   Defines table component usage, features, mobile behavior, and implementation

@@ -1,7 +1,7 @@
 ---
 created: 2026-03-10
 creator: Dashboard UI/UX Audit Remediation
-lastModified: 2026-03-10
+lastModified: 2026-05-31
 description: Form patterns for lookup fields, dropdowns, and text inputs
 purpose:
   Documents dropdown/combobox and text input patterns for dashboard and

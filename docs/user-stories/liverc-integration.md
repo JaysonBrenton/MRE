@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description:
   User stories for LiveRC integration features (track selection, event
   discovery, ingestion, visualization)
@@ -20,6 +20,17 @@ relatedFiles:
 
 This epic contains user stories for LiveRC integration features: track
 selection, event discovery, on-demand ingestion, and data visualization.
+
+> **Note (Alpha v0.1.0) — shipped surfaces.** These stories describe the
+> designed LiveRC integration. As shipped, drivers reach this functionality
+> through **Global Search** (`/search`) for recall and through **Actions → Find
+> and Import Events** inside **My Event Analysis** (`/eventAnalysis`) for
+> track-filtered discovery/import; analysis and visualization render embedded in
+> `/eventAnalysis`. The standalone track-selection / date-range / per-event
+> ingestion screens below are design intent — see
+> [`docs/user-guides/event-search.md`](../user-guides/event-search.md) and
+> [`docs/user-guides/event-analysis.md`](../user-guides/event-analysis.md) for
+> the running UI.
 
 ---
 
@@ -59,13 +70,15 @@ High
      background color change)
 
 3. **API Integration**
-   - Interface must call `GET /api/v1/tracks` to retrieve track list
-   - Default behavior: fetch tracks where `is_followed = true` AND
-     `is_active = true`
-   - Query parameters must be supported: `followed` (boolean, optional) and
-     `active` (boolean, optional)
+   - Interface must call `GET /api/v1/tracks?followed=all&active=true` for the
+     track picker (full active catalogue)
+   - Default API (`followed` omitted or `true`): tracks where
+     `is_followed = true` AND `is_active = true`
+   - Query parameters: `followed` (`true` | `false` | `all`) and `active`
+     (boolean, optional)
    - API response must be parsed and displayed correctly
-   - Track data must include: id, track_name, track_url, is_active, is_followed
+   - Track list payload includes: `id`, `trackName`, `sourceTrackSlug`,
+     `country` (nullable)
 
 4. **Empty State Handling**
    - When API returns empty array, must display: "No tracks available"
@@ -112,7 +125,8 @@ High
 ### Definition of Done
 
 - [ ] Track selection interface implemented with track list display
-- [ ] API endpoint `GET /api/v1/tracks` integrated
+- [ ] API endpoint `GET /api/v1/tracks?followed=all&active=true` integrated for
+      track picker (full active catalogue)
 - [ ] Track items meet 44px minimum height requirement
 - [ ] Single-column, mobile-first layout implemented
 - [ ] Empty state handling implemented

@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-31
 description: Getting Started guide for new My Race Engineer users
 purpose:
   Walks through registration, signing in, post-login destinations, where event
@@ -62,11 +62,11 @@ control experience starts immediately.
 
 Regardless of persona you keep:
 
-| Region                 | Behaviour                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Left adaptive rail** | `My Event Analysis`, `Global Search`, telemetry & profile shortcuts, expandable **Guides** stack, contextual **My Events** latch (race-day selections only). |
-| **Top immersive bar**  | Command palette/menu entry (`Expand navigation`), profile chip.                                                                                              |
-| **Content column**     | Breadcrumbs plus page chrome.                                                                                                                                |
+| Region                 | Behaviour                                                                                                                                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Left adaptive rail** | `My Event Analysis`, `Global Search`, `My Telemetry`, `My Car Profiles`, `My Driver Profiles`, `My Engineer`, `My Club` (with a Track Maps submenu), expandable **Guides** stack, and the contextual **My Events** latch (race-day selections only). Admins also see **MRE Administration**. |
+| **Top immersive bar**  | Command palette/menu entry (`Expand navigation`), profile chip.                                                                                                                                                                                                                              |
+| **Content column**     | Breadcrumbs plus page chrome.                                                                                                                                                                                                                                                                |
 
 ## 4. First tasks checklist
 

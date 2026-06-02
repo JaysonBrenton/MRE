@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-19
+lastModified: 2026-05-31
 description: Index of all end-user guides for My Race Engineer
 purpose:
   Central directory for Markdown user documentation that mirrors the SPA guide
@@ -23,17 +23,17 @@ guides; see [`images/README.md`](./images/README.md) for refresh tips.
 
 ## Featured guides
 
-| Guide                                                    | Highlights                                                          |
-| -------------------------------------------------------- | ------------------------------------------------------------------- |
-| [Getting started](getting-started.md)                    | Register/login redirects, rails overview, Guides landing            |
-| [Account management](account-management.md)              | Profile modal densities/themes, signup validation                   |
-| [Navigation](navigation.md)                              | Adaptive rail taxonomy, breadcrumbs, contextual **My Events** latch |
-| [Global Search / `event-search` legacy](event-search.md) | `/search` Redux flow, pagination, **View Event** deep links         |
-| [My Event Analysis (dashboard shell)](dashboard.md)      | Redux selection, ingestion drawers, shortcuts                       |
-| [Event Analysis (tabs + subtabs)](event-analysis.md)     | Race vs Practice layouts, submenu analytics                         |
-| [Car type mapping](car-type-mapping.md)                  | Account-wide taxonomy rules surfaced via **Actions**                |
-| [Driver features](driver-features.md)                    | Fuzzy confirmations, personas, API touchpoints                      |
-| [Troubleshooting](troubleshooting.md)                    | Deterministic triage aligned with ingestion stack                   |
+| Guide                                                    | Highlights                                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [Getting started](getting-started.md)                    | Register/login redirects, rails overview, Guides landing                                                |
+| [Account management](account-management.md)              | Profile modal densities/themes, signup validation                                                       |
+| [Navigation](navigation.md)                              | Adaptive rail taxonomy, telemetry / car / driver profiles, Track Maps, breadcrumbs, **My Events** latch |
+| [Global Search / `event-search` legacy](event-search.md) | `/search` Redux flow, pagination, **View Event** deep links                                             |
+| [My Event Analysis (dashboard shell)](dashboard.md)      | Redux selection, ingestion drawers, shortcuts                                                           |
+| [Event Analysis (tabs + subtabs)](event-analysis.md)     | Race vs Practice layouts, submenu analytics                                                             |
+| [Car type mapping](car-type-mapping.md)                  | Account-wide taxonomy rules surfaced via **Actions**                                                    |
+| [Driver features](driver-features.md)                    | Fuzzy confirmations, personas, API touchpoints                                                          |
+| [Troubleshooting](troubleshooting.md)                    | Deterministic triage aligned with ingestion stack                                                       |
 
 ### For new racers (suggested reading order)
 

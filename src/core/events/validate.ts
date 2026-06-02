@@ -153,3 +153,94 @@ export function validateEventSearchParams(
 
   return null
 }
+
+/**
+ * Validate parameters for cross-track event browse (no track_id).
+ *
+ * @param startDate - Start date string (ISO format, optional)
+ * @param endDate - End date string (ISO format, optional)
+ * @returns Validation error or null if valid
+ */
+export function validateBrowseEventsParams(
+  startDate: string | null,
+  endDate: string | null
+): ValidationError | null {
+  const hasStartDate = startDate && startDate.trim() !== ""
+  const hasEndDate = endDate && endDate.trim() !== ""
+
+  if (hasStartDate && !hasEndDate) {
+    return {
+      code: "VALIDATION_ERROR",
+      message: "end_date is required when start_date is provided",
+      field: "end_date",
+    }
+  }
+
+  if (hasEndDate && !hasStartDate) {
+    return {
+      code: "VALIDATION_ERROR",
+      message: "start_date is required when end_date is provided",
+      field: "start_date",
+    }
+  }
+
+  if (hasStartDate && hasEndDate) {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const today = new Date()
+
+    start.setHours(0, 0, 0, 0)
+    end.setHours(0, 0, 0, 0)
+    today.setHours(0, 0, 0, 0)
+
+    if (isNaN(start.getTime())) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "start_date must be a valid date",
+        field: "start_date",
+      }
+    }
+
+    if (isNaN(end.getTime())) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "end_date must be a valid date",
+        field: "end_date",
+      }
+    }
+
+    if (start > end) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "start_date must be before or equal to end_date",
+        field: "start_date",
+      }
+    }
+
+    const earliest = getEventSearchEarliestSelectableDate()
+    if (start < earliest) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "start_date cannot be more than 7 years in the past",
+        field: "start_date",
+      }
+    }
+    if (end < earliest) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "end_date cannot be more than 7 years in the past",
+        field: "end_date",
+      }
+    }
+
+    if (start > today || end > today) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "Cannot select future dates. Please select today or earlier.",
+        field: end > today ? "end_date" : "start_date",
+      }
+    }
+  }
+
+  return null
+}

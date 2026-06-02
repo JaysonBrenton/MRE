@@ -1,6 +1,6 @@
 ---
 created: 2026-04-14
-lastModified: 2026-05-19
+lastModified: 2026-05-31
 owner: Frontend Delivery
 purpose: Standardize Event Analysis table/panel surface treatments
 relatedDocs:

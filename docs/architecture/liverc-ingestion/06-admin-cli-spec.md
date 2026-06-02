@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-03-22
+lastModified: 2026-05-31
 description: Admin CLI specification for LiveRC ingestion management
 purpose:
   Defines command-line tools for administrators to manage LiveRC ingestion,
@@ -111,6 +111,7 @@ The CLI provides at least the following `liverc` subcommands:
    - `list-events`
    - `refresh-events`
    - `refresh-followed-events`
+   - `refresh-recent-events` (implemented — see §4.4)
    - `ingest-event`
    - `reingest-section-headers`
 
@@ -142,8 +143,9 @@ Output includes:
 - track_id
 - source_track_slug
 - track_name
-- is_active
-- is_followed
+- is_active (LiveRC catalogue membership; see
+  [04-data-model § Track flags](./04-data-model.md#track-catalogue-flags-and-follow-model))
+- is_followed (global admin ingestion scope; not per-user favourites)
 - last updated timestamp
 
 Behaviour:
@@ -156,11 +158,13 @@ Behaviour:
 
 ### 3.2 refresh-tracks
 
-Description: Re-scrape the global LiveRC track list and update the Track table.
+Description: Re-scrape the global LiveRC track list and update the Track table
+via the shared `TrackSyncService`.
 
 Arguments:
 
-- none
+- `--metadata` / `--no-metadata` (optional, default `--metadata`) — Enable or
+  disable per-track dashboard metadata enrichment.
 
 Behaviour:
 
@@ -237,13 +241,13 @@ command iterates through all followed tracks and refreshes their events.
 
 Arguments:
 
-- --depth (required) - Ingestion depth: `none` (metadata only) or `laps_full`
-  (full ingestion)
+- --depth (optional, default `none`) - Ingestion depth: `none` (metadata only)
+  or `laps_full` (full ingestion)
 - --ingest-new-only (optional) - Only ingest newly discovered events (default
   when depth is laps_full)
 - --ingest-all (optional) - Ingest all events, including re-ingestion of
   existing events
-- --quiet (optional) - Suppress per-track output, only show summary
+- --quiet (optional) - Suppress per-event output, only show summary
 
 Behaviour:
 
@@ -260,7 +264,59 @@ Cron usage:
 
 ---
 
-### 4.4 ingest-event
+### 4.4 refresh-recent-events
+
+**Status:** Implemented in `ingestion/cli/commands.py` (filter logic in
+`ingestion/ingestion/recent_events.py`). Feature-gated for cron by
+`MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED` (default `false`). Normative spec:
+[31-recent-events-auto-ingest.md](31-recent-events-auto-ingest.md). ADR:
+[ADR-20260531](../adr/ADR-20260531-scheduled-recent-events-auto-ingest.md).
+
+Description: Discover events on a track scope, upsert metadata, and
+automatically run **`laps_full`** ingestion for events whose dates fall within a
+recency window (default **7 days**). Intended for nightly cron after track sync
+and followed metadata refresh.
+
+Arguments:
+
+- --days (optional, default `7`) — Recency window in calendar days.
+- --tracks (optional, default `followed`) — `followed` | `active` | `all`.
+- --min-event-age-hours (optional, default `12`) — Skip events newer than this.
+- --max-ingests (optional, default `50`) — Max full ingests per run (`0` =
+  unlimited, dev only).
+- --max-ingests-per-track (optional, default `5`) — Per-track cap per run.
+- --re-ingest-stale (optional flag) — Re-ingest events already at `laps_full`
+  (admin only; not used by cron).
+- --dry-run (optional flag) — Log eligible events; skip pipeline ingest.
+- --quiet (optional flag) — Summary output only.
+
+Behaviour:
+
+- Queries tracks by `--tracks` scope (`followed` = `is_active AND is_followed`).
+- For each track: fetch LiveRC event list, upsert summaries (same as
+  `refresh-events`).
+- For events overlapping the date window and passing eligibility (§3.4 of doc
+  31): call pipeline at `laps_full`.
+- Process tracks in stable order; within track ingest `event_date DESC`.
+- Failure on one track or event must not abort the full run.
+- Must respect `MRE_SCRAPE_ENABLED` via `_ensure_scraping_enabled`.
+- Must be idempotent.
+
+Cron usage:
+
+- Nightly via `run-recent-events-auto-ingest.sh` at **02:00 UTC** (active entry
+  in `ingestion/crontab`).
+- Requires `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED=true` in addition to global
+  scrape enable; the wrapper exits early (no HTTP) when either flag is unset.
+- Env defaults: see
+  [environment-variables.md](../../operations/environment-variables.md).
+
+Operations:
+[recent-events-auto-ingest-runbook.md](../../operations/recent-events-auto-ingest-runbook.md).
+
+---
+
+### 4.5 ingest-event
 
 Description: Perform ingestion for a specific event, including races, results,
 and lap data.
@@ -269,11 +325,13 @@ Arguments:
 
 - --event-id (required)
 - --depth (optional, defaults to laps_full)
+- --force (optional flag) - Re-process all races (e.g. to repair `race_order`)
+  even if the event is already at the requested depth
 
 Behaviour:
 
 - Validates event existence.
-- If already fully ingested at this depth, exits with “already complete”.
+- Pipeline skips work already complete unless `--force` is passed.
 - Otherwise:
   - Fetch race list
   - Fetch race result pages
@@ -285,9 +343,7 @@ Behaviour:
 Exit codes:
 
 - 0 success
-- 1 validation error
-- 2 ingestion failed
-- 3 event already ingested at requested depth
+- 2 ingestion failed (any error)
 
 ---
 
@@ -302,8 +358,10 @@ Output includes:
 - number of tracks
 - number of events
 - number of races
-- oldest/ newest ingestion timestamps
-- pending ingestion tasks (if any queued)
+- number of results
+- number of laps
+- oldest / newest ingestion timestamps
+- events grouped by `ingest_depth`
 
 Behaviour:
 
@@ -318,9 +376,12 @@ Description: Perform checks across data tables to flag:
 
 - Orphaned races
 - Orphaned race results
-- Missing lap series
+- Missing / incomplete lap series
 - Mismatched driver counts
-- Events with partial ingestion
+- Events marked fully ingested but missing races
+- Races with non-contiguous finishing positions (e.g. missing P2)
+
+Exits non-zero (1) when any issue is found, 0 when clean.
 
 Behaviour:
 
@@ -354,15 +415,21 @@ Examples of required metadata:
 
 Administrators may use cron for:
 
-- refresh-tracks (nightly)
-- refresh-followed-events (nightly, typically with `--depth none`)
-- refresh-events (weekly or per-track)
+- refresh-tracks (nightly, 00:00 UTC)
+- refresh-followed-events (nightly, 00:30 UTC, typically with `--depth none`)
+- refresh-recent-events (nightly, 02:00 UTC; gated by
+  `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED` — see doc 31)
+- refresh-events (weekly or per-track, manual ops)
 - periodic ingestion for selected tracks (optional)
 
 Rules:
 
-- Cron MUST NOT run full ingestion for all events automatically.
-- Only admin-marked followed tracks may be scheduled.
+- Cron MUST NOT run unbounded full ingestion across the entire catalogue.
+  **`refresh-recent-events`** is the approved exception when:
+  - `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED=true`,
+  - track scope defaults to **`followed`**,
+  - date window, min-age, and per-run caps are enforced (doc 31).
+- Only admin-marked followed tracks are in scope for v1 production cron.
 - The ingestion pipeline MUST remain idempotent to avoid data corruption.
 
 ---

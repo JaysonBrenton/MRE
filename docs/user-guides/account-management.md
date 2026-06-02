@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-31
 description:
   Account lifecycle, persona panel, logout, roadmap for password resets
 purpose:

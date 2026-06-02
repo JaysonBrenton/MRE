@@ -92,6 +92,9 @@ docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest live
 # Refresh events and perform full ingestion for all events
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-events --track-id <uuid> --depth laps_full --ingest-all
 
+# Discover + full-ingest recent events for followed tracks (auto-ingest job)
+docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc refresh-recent-events --days 7 --tracks followed --dry-run
+
 # Ingest a specific event (legacy command, still supported)
 docker exec -it mre-liverc-ingestion-service python -m ingestion.cli ingest liverc ingest-event --event-id <uuid> --depth laps_full
 
@@ -155,6 +158,22 @@ with a `job_id`; clients poll `GET /api/v1/ingestion/jobs/{job_id}` until the
 job completes or fails. Configuration: `INGESTION_USE_QUEUE`,
 `INGESTION_QUEUE_MAX_CONCURRENT`, `UVICORN_WORKERS` (must be 1 when queue
 enabled). See `docs/architecture/liverc-ingestion/28-async-ingestion-queue.md`.
+
+## Scheduled jobs (cron)
+
+The same ingestion image also runs a cron daemon alongside the API server (see
+`ingestion/scripts/cron-entrypoint.sh` and `ingestion/crontab`):
+
+- `00:00 UTC` — `run-track-sync.sh` (`refresh-tracks`)
+- `00:30 UTC` — `run-followed-event-sync.sh`
+  (`refresh-followed-events --depth none`)
+- `02:00 UTC` — `run-recent-events-auto-ingest.sh` (`refresh-recent-events`),
+  gated by `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED` (default `false`). See
+  `docs/architecture/liverc-ingestion/31-recent-events-auto-ingest.md` and
+  `docs/operations/recent-events-auto-ingest-runbook.md`.
+
+Telemetry processing runs in a **separate** Compose service (`telemetry-worker`,
+`python -m ingestion.telemetry.worker`); see the Telemetry worker section below.
 
 ## Architecture
 

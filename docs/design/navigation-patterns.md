@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Documentation Update
-lastModified: 2025-12-28
+lastModified: 2026-05-31
 description: Navigation patterns and guidelines for MRE version 0.1.1
 purpose:
   Defines navigation patterns including sidebars, multi-level navigation, tabs,

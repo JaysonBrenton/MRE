@@ -23,6 +23,8 @@ import { Prisma, type Track } from "@prisma/client"
 export interface GetTracksFilters {
   followed?: boolean
   active?: boolean
+  /** When true, return all tracks matching other filters regardless of isFollowed (track pickers). */
+  catalogue?: boolean
 }
 
 /** Minimal track fields returned for list/dropdown use (event search, track picker, etc.) */
@@ -47,7 +49,7 @@ export async function getTracks(filters: GetTracksFilters = {}): Promise<TrackLi
     isActive?: boolean
   } = {}
 
-  if (filters.followed !== undefined) {
+  if (!filters.catalogue && filters.followed !== undefined) {
     where.isFollowed = filters.followed
   }
 

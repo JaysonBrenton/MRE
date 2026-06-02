@@ -11,7 +11,10 @@ purpose:
 relatedFiles:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
+  - docs/architecture/liverc-ingestion/05-api-contracts.md
   - docs/architecture/liverc-ingestion/14-ingestion-idempotency-design.md
+  - docs/database/schema.md
+  - docs/frontend/liverc/user-workflow.md
   - docs/specs/mre-v0.1-feature-scope.md
 ---
 
@@ -79,7 +82,7 @@ Tracks represent LiveRC subdomains such as `canberraoffroad`.
 | `liverc_track_last_updated` | text        | Raw LiveRC status string from global list (e.g. `"1 minute ago"`, `"last month"`) |
 | `last_seen_at`              | timestamptz | When the track was last observed during sync                                      |
 | `is_active`                 | boolean     | True if the track appeared in the latest global track sync                        |
-| `is_followed`               | boolean     | Admin-controlled: true if MRE should allow event syncing or display in UI         |
+| `is_followed`               | boolean     | Global admin flag: true if MRE should include this track in automated ingestion   |
 | `latitude`                  | float       | Track latitude coordinate (extracted from dashboard map, optional)                |
 | `longitude`                 | float       | Track longitude coordinate (extracted from dashboard map, optional)               |
 | `address`                   | text        | Full address string (extracted from dashboard, optional)                          |
@@ -106,6 +109,63 @@ service for improved geolocation accuracy.
 ### Natural Key
 
 `(source = "liverc", source_track_slug)`
+
+### Track catalogue flags and follow model
+
+LiveRC exposes **~1,000+ tracks**. MRE stores all discovered tracks but uses
+flags to separate **catalogue membership**, **operational monitoring**, and
+**personal UI shortcuts**. These are three different concepts:
+
+| Concept              | Storage                                           | Scope                 | Purpose                                                                                                                           |
+| -------------------- | ------------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **`is_active`**      | `tracks.is_active`                                | System (track sync)   | Track still appears in the LiveRC global catalogue. Missing tracks are marked inactive on nightly sync; they are not deleted.     |
+| **`is_followed`**    | `tracks.is_followed`                              | **Global / admin**    | Track is in scope for **automated ingestion** (nightly metadata refresh, recent-events auto-ingest by default). **Not per-user.** |
+| **Favourite tracks** | Browser `localStorage` key `mre_favourite_tracks` | **Per-user / client** | Shortcuts in the Event Search track picker (stars, chips). **Does not** change `is_followed` or ingestion.                        |
+
+**`is_followed` lifecycle**
+
+- New tracks discovered during `refresh-tracks` are inserted with
+  `is_followed = false`.
+- Track sync **preserves** the existing `is_followed` value for known tracks.
+- Administrators follow/unfollow via **Admin → Tracks**
+  (`PATCH /api/v1/admin/tracks/:trackId` with `{ "isFollowed": true | false }`).
+  Actions are audit-logged (`track.follow` / `track.unfollow`).
+
+**Ingestion jobs that honour `is_followed`**
+
+| Job                                          | Schedule (UTC)   | Scope                                                                                    |
+| -------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------- |
+| `refresh-followed-events --depth none`       | 00:30 daily      | `is_active AND is_followed` — event metadata only                                        |
+| `refresh-recent-events` (v1 default)         | 02:00 daily      | `is_active AND is_followed` — full ingest for recent events                              |
+| `refresh-recent-events --tracks active\|all` | Opt-in / staging | Broader scopes; see [31-recent-events-auto-ingest.md](./31-recent-events-auto-ingest.md) |
+
+**User-facing track list API (`GET /api/v1/tracks`)**
+
+Returns a **minimal list payload** (`id`, `trackName`, `sourceTrackSlug`,
+`country`) from the database only — never calls LiveRC.
+
+| `followed` query param | `active=true` (default) behaviour                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------------- |
+| Omitted or `true`      | `is_followed = true` **and** `is_active = true` (default API filter)                                |
+| `false`                | `is_followed = false` **and** `is_active = true` (**unfollowed only** — not the full catalogue)     |
+| `all`                  | All rows matching the `active` filter; **no** `is_followed` filter (**required for track pickers**) |
+
+| `active` query param | Behaviour                       |
+| -------------------- | ------------------------------- |
+| Omitted or `true`    | `is_active = true`              |
+| `false`              | Include inactive tracks as well |
+
+**Client conventions**
+
+- **Event Search / dashboard track modal / track map editor:** fetch
+  `GET /api/v1/tracks?followed=all&active=true` so users can search the full
+  active catalogue.
+- **Default API (no `followed=all`):** returns followed active tracks only —
+  suitable when the product intentionally limits to the monitored subset.
+
+See also: [05-api-contracts.md §2.1](./05-api-contracts.md#21-get-tracks),
+[schema.md Track §](../database/schema.md#track),
+[user-workflow.md §1.3 Favourite Tracks](../frontend/liverc/user-workflow.md#13-track-selection).
 
 ---
 
@@ -141,19 +201,19 @@ A Race (or Session) is one class run (e.g., A-Main, Q1, Heat 3/3).
 
 ### Fields
 
-| Field              | Type        | Description                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`               | PK          | Internal primary key                                                                                                                                                                                                                                                                                                                                                                                           |
-| `event_id`         | FK → Event  | Event this race belongs to                                                                                                                                                                                                                                                                                                                                                                                     |
-| `source`           | text        | `"liverc"`                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `source_race_id`   | text or int | Value from race result URL: `...?p=view_race_result&id=6304829`                                                                                                                                                                                                                                                                                                                                                |
-| `class_name`       | text        | Race class name extracted from LiveRC labels. May contain car classes (e.g., `"1/8 Nitro Buggy"`, `"1/10 2WD Buggy"`), modification rules (e.g., `"Modified"`, `"Stock"`), or skill groupings (e.g., `"Junior"`, `"Pro"`, `"Expert"`). See [Racing Classes Domain Model](../../domain/racing-classes.md) for complete taxonomy. Currently stored as free-form text; future versions may normalize or validate. |
-| `race_label`       | text        | Label such as `"A-Main"`, `"Heat 1/3"`, `"Qualifier Round 3"`                                                                                                                                                                                                                                                                                                                                                  |
-| `race_order`       | int         | Numeric prefix if present (e.g. `14` from `"Race 14"`)                                                                                                                                                                                                                                                                                                                                                         |
-| `race_url`         | text        | Canonical race result URL                                                                                                                                                                                                                                                                                                                                                                                      |
-| `start_time`       | timestamptz | Parsed from race list (e.g. `"Nov 16, 2025 at 5:30pm"`)                                                                                                                                                                                                                                                                                                                                                        |
-| `duration_seconds` | int         | Parsed from the **race result page** (e.g. `"Length: 30:00 Timed"` in `span.class_sub_header`). Not on the race list; populated when each race page is fetched. Fallback: if null, may be derived from max `total_time_seconds` of results after ingestion.                                                                                                                                                       |
-| `race_metadata`    | JSONB (nullable) | Used for practice sessions to store `end_time` and `practiceSessionStats` (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../../practice-day-full-ingestion-design.md). |
+| Field              | Type             | Description                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`               | PK               | Internal primary key                                                                                                                                                                                                                                                                                                                                                                                           |
+| `event_id`         | FK → Event       | Event this race belongs to                                                                                                                                                                                                                                                                                                                                                                                     |
+| `source`           | text             | `"liverc"`                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `source_race_id`   | text or int      | Value from race result URL: `...?p=view_race_result&id=6304829`                                                                                                                                                                                                                                                                                                                                                |
+| `class_name`       | text             | Race class name extracted from LiveRC labels. May contain car classes (e.g., `"1/8 Nitro Buggy"`, `"1/10 2WD Buggy"`), modification rules (e.g., `"Modified"`, `"Stock"`), or skill groupings (e.g., `"Junior"`, `"Pro"`, `"Expert"`). See [Racing Classes Domain Model](../../domain/racing-classes.md) for complete taxonomy. Currently stored as free-form text; future versions may normalize or validate. |
+| `race_label`       | text             | Label such as `"A-Main"`, `"Heat 1/3"`, `"Qualifier Round 3"`                                                                                                                                                                                                                                                                                                                                                  |
+| `race_order`       | int              | Numeric prefix if present (e.g. `14` from `"Race 14"`)                                                                                                                                                                                                                                                                                                                                                         |
+| `race_url`         | text             | Canonical race result URL                                                                                                                                                                                                                                                                                                                                                                                      |
+| `start_time`       | timestamptz      | Parsed from race list (e.g. `"Nov 16, 2025 at 5:30pm"`)                                                                                                                                                                                                                                                                                                                                                        |
+| `duration_seconds` | int              | Parsed from the **race result page** (e.g. `"Length: 30:00 Timed"` in `span.class_sub_header`). Not on the race list; populated when each race page is fetched. Fallback: if null, may be derived from max `total_time_seconds` of results after ingestion.                                                                                                                                                    |
+| `race_metadata`    | JSONB (nullable) | Used for practice sessions to store `end_time` and `practiceSessionStats` (top_3_consecutive, avg_top_5, etc.). Null for race events. See [Practice Day Full Ingestion](../../practice-day-full-ingestion-design.md).                                                                                                                                                                                          |
 
 ### Natural Key
 
@@ -273,21 +333,21 @@ Represents a single driver’s result in a single race.
 
 ### Fields
 
-| Field                  | Type            | Description                                                                 |
-| ---------------------- | --------------- | --------------------------------------------------------------------------- |
-| `id`                   | PK              | Internal primary key                                                        |
-| `race_id`              | FK → Race       | The race                                                                    |
-| `race_driver_id`       | FK → RaceDriver | Associated driver                                                           |
-| `position_final`       | int             | Finishing position                                                          |
-| `laps_completed`       | int             | From Laps/Time column (e.g. `47` from `47/30:31.382`)                       |
-| `total_time_raw`       | text            | Raw Laps/Time string (e.g. `"47/30:31.382"`)                                |
-| `total_time_seconds`   | float           | Parsed from Laps/Time (e.g. `30:31.382` → seconds). Ingested from LiveRC.   |
-| `fast_lap_time`        | float           | Fastest lap time in seconds                                                 |
-| `avg_lap_time`         | float           | Mean lap time                                                               |
-| `consistency`          | float           | LiveRC % consistency (e.g. `92.82`)                                         |
-| `qualifying_position`  | int             | Qual position from results table (column Qual). Optional.                   |
-| `seconds_behind`       | float           | Seconds behind winner (column Behind). Optional; empty for winner.           |
-| `raw_fields_json`      | jsonb           | Optional extra metrics: `avg_top_5`, `avg_top_10`, `avg_top_15`, `top_3_consecutive`, `std_deviation` (from results table columns). |
+| Field                 | Type            | Description                                                                                                                         |
+| --------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                  | PK              | Internal primary key                                                                                                                |
+| `race_id`             | FK → Race       | The race                                                                                                                            |
+| `race_driver_id`      | FK → RaceDriver | Associated driver                                                                                                                   |
+| `position_final`      | int             | Finishing position                                                                                                                  |
+| `laps_completed`      | int             | From Laps/Time column (e.g. `47` from `47/30:31.382`)                                                                               |
+| `total_time_raw`      | text            | Raw Laps/Time string (e.g. `"47/30:31.382"`)                                                                                        |
+| `total_time_seconds`  | float           | Parsed from Laps/Time (e.g. `30:31.382` → seconds). Ingested from LiveRC.                                                           |
+| `fast_lap_time`       | float           | Fastest lap time in seconds                                                                                                         |
+| `avg_lap_time`        | float           | Mean lap time                                                                                                                       |
+| `consistency`         | float           | LiveRC % consistency (e.g. `92.82`)                                                                                                 |
+| `qualifying_position` | int             | Qual position from results table (column Qual). Optional.                                                                           |
+| `seconds_behind`      | float           | Seconds behind winner (column Behind). Optional; empty for winner.                                                                  |
+| `raw_fields_json`     | jsonb           | Optional extra metrics: `avg_top_5`, `avg_top_10`, `avg_top_15`, `top_3_consecutive`, `std_deviation` (from results table columns). |
 
 ### Natural Key
 
@@ -322,9 +382,13 @@ All fields are derived from the `racerLaps[...]` array.
 
 # Derived Data: Lap Annotations
 
-Post-ingestion, the pipeline derives **lap annotations** (invalid laps, incidents, fuel stop, flame out) and stores them in `lap_annotations`, keyed by `(race_result_id, lap_number)`. Raw lap data remains in `laps`; annotations are read-only from the app’s perspective and are recomputed only after ingestion.
+Post-ingestion, the pipeline derives **lap annotations** (invalid laps,
+incidents, fuel stop, flame out) and stores them in `lap_annotations`, keyed by
+`(race_result_id, lap_number)`. Raw lap data remains in `laps`; annotations are
+read-only from the app’s perspective and are recomputed only after ingestion.
 
-See [Lap Annotations](../lap-annotations.md) for the full design, rules, and pipeline integration.
+See [Lap Annotations](../lap-annotations.md) for the full design, rules, and
+pipeline integration.
 
 ---
 

@@ -46,8 +46,8 @@ export default function TrackMapEditor({ mapId, initialMap, onSave }: TrackMapEd
 
   useEffect(() => {
     if (!trackId) {
-      // Load all active tracks for selection (followed=false so we get full catalogue)
-      fetch("/api/v1/tracks?followed=false&active=true")
+      // Load all active tracks for selection (followed=all skips isFollowed filter)
+      fetch("/api/v1/tracks?followed=all&active=true")
         .then((res) => res.json())
         .then((data) => {
           if (data.success) {

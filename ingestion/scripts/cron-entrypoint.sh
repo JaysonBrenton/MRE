@@ -53,6 +53,11 @@ if [ "$IS_ROOT" = "true" ]; then
         {
             echo "export DATABASE_URL='$(safe_value "$DATABASE_URL")'"
             echo "export MRE_SCRAPE_ENABLED='$(safe_value "${MRE_SCRAPE_ENABLED:-true}")'"
+            echo "export MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED='$(safe_value "${MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED:-false}")'"
+            echo "export MRE_RECENT_EVENTS_DAYS='$(safe_value "${MRE_RECENT_EVENTS_DAYS:-7}")'"
+            echo "export MRE_RECENT_EVENTS_TRACKS='$(safe_value "${MRE_RECENT_EVENTS_TRACKS:-followed}")'"
+            echo "export MRE_RECENT_EVENTS_MAX_INGESTS='$(safe_value "${MRE_RECENT_EVENTS_MAX_INGESTS:-50}")'"
+            echo "export MRE_RECENT_EVENTS_MIN_AGE_HOURS='$(safe_value "${MRE_RECENT_EVENTS_MIN_AGE_HOURS:-12}")'"
         } > "$env_file"
         chown ingestion:ingestion "$env_file"
         chmod 600 "$env_file"

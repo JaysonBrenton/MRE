@@ -1,1136 +1,484 @@
 ---
 created: 2026-01-05
 creator: Documentation System
-lastModified: 2026-05-20
+lastModified: 2026-05-31
 description: Comprehensive index of all documentation in the MRE repository
 purpose:
-  Provides a complete listing of every document in the repository with links and
-  descriptions, organized into logical sections for easy navigation and
-  discovery.
+  Provides a complete, directory-organized listing of every documentation file
+  in the repository so contributors can discover and navigate all available
+  knowledge artefacts. Verified against the actual `docs/` tree.
 relatedFiles:
-  - docs/README.md (main documentation index)
+  - docs/README.md (curated documentation index)
+  - README.md (project root entry point)
 ---
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-05-19  
-**Purpose:** Complete listing of all documentation files in the MRE repository
+**Last Updated:** 2026-05-31  
+**Purpose:** Complete listing of all documentation files in the MRE repository.
 
-This document provides a comprehensive index of every document in the MRE
-repository, organized into logical sections with descriptions and direct links.
-Use this document to discover and navigate all available documentation.
+This index is organized by directory to mirror the on-disk layout under `docs/`
+(plus the package-local docs that live next to code). It is verified against the
+actual file tree. For a curated, description-rich entry point, see
+[docs/README.md](../README.md).
+
+> **Documentation truth rule (see `docs/AGENTS.md`):** Normative docs (ADRs,
+> architecture intent, standards, security policy) guide how work should be
+> done. Descriptive docs (API reference, schema prose, user guides, ops
+> runbooks, generated manifests) must match the **actual build**; when they
+> disagree, the code wins and the doc is updated or marked
+> planned/not-implemented.
 
 ---
 
 ## Table of Contents
 
-- [Getting Started & Overview](#getting-started--overview)
-- [User Guides](#user-guides)
-- [Architecture](#architecture)
-- [API Documentation](#api-documentation)
-- [Database](#database)
-- [Domain](#domain)
-- [Design](#design)
-- [Development](#development)
-- [Operations](#operations)
-- [Ingestion Service Documentation](#ingestion-service-documentation)
-- [Security](#security)
-- [Specifications](#specifications)
-- [Future Ideas](#future-ideas)
-- [Architecture Decision Records (ADRs)](#architecture-decision-records-adrs)
-- [User Stories](#user-stories)
-- [Role Documentation](#role-documentation)
-- [Standards](#standards)
-- [Frontend](#frontend)
-- [Implementation Plans](#implementation-plans)
-- [Reviews](#reviews)
-- [Reports](#reports)
-- [Reference Material](#reference-material)
-- [Prompts](#prompts)
+- [Top-Level Entry Points](#top-level-entry-points)
+- [Architecture (`docs/architecture/`)](#architecture-docsarchitecture)
+- [LiveRC Ingestion Architecture (`docs/architecture/liverc-ingestion/`)](#liverc-ingestion-architecture-docsarchitectureliverc-ingestion)
+- [Everlaps Ingestion (`docs/architecture/everlaps-ingestion/`)](#everlaps-ingestion-docsarchitectureeverlaps-ingestion)
+- [API (`docs/api/` + generated reference)](#api-docsapi--generated-reference)
+- [Database (`docs/database/`)](#database-docsdatabase)
+- [Domain (`docs/domain/`)](#domain-docsdomain)
+- [Design (`docs/design/`)](#design-docsdesign)
+- [Development (`docs/development/`)](#development-docsdevelopment)
+- [Operations (`docs/operations/`)](#operations-docsoperations)
+- [Telemetry (`docs/telemetry/`)](#telemetry-docstelemetry)
+- [Security (`docs/security/`)](#security-docssecurity)
+- [Specifications (`docs/specs/`)](#specifications-docsspecs)
+- [Standards (`docs/standards/`)](#standards-docsstandards)
+- [Frontend (`docs/frontend/`)](#frontend-docsfrontend)
+- [User Guides (`docs/user-guides/`)](#user-guides-docsuser-guides)
+- [User Stories (`docs/user-stories/`)](#user-stories-docsuser-stories)
+- [Architecture Decision Records (`docs/adr/`)](#architecture-decision-records-docsadr)
+- [Roles (`docs/roles/`)](#roles-docsroles)
+- [Plans (`docs/plans/`)](#plans-docsplans)
+- [Implementation Plans (`docs/implimentation_plans/`)](#implementation-plans-docsimplimentation_plans)
+- [Future Ideas & Feature Ideas](#future-ideas--feature-ideas)
+- [Reviews (`docs/reviews/`)](#reviews-docsreviews)
+- [Reports (`docs/reports/`)](#reports-docsreports)
+- [Reference Material (`docs/reference_material/`)](#reference-material-docsreference_material)
+- [Debug & Refactor Notes](#debug--refactor-notes)
+- [Package-Local Docs (next to code)](#package-local-docs-next-to-code)
 
 ---
 
-## Getting Started & Overview
+## Top-Level Entry Points
 
-### [Project README](../../README.md)
-
-Main project documentation and entry point. Defines version 0.1.1 feature scope,
-system architecture requirements, Docker setup instructions, API endpoints,
-utility scripts, and project structure. **CRITICAL: Contains Docker-only
-environment requirements** - the application runs exclusively in Docker
-containers.
-
-### [Main Documentation Index](../README.md)
-
-Comprehensive index and navigation for all MRE project documentation. Provides
-organized entry point for discovering and navigating all project documentation
-with brief descriptions and cross-references.
-
-### [AGENTS.md](../AGENTS.md)
-
-MRE Agents Handbook describing all autonomous and semi-autonomous contributors
-(human or LLM) that operate inside the MRE repo and the guardrails they must
-obey. **CRITICAL: Contains Docker-only environment requirements** - the
-application runs exclusively in Docker containers. Defines agent domains, global
-guardrails (including mandatory Docker environment rules), and operational
-rules.
+- [Project README](../../README.md) — Primary entry point. Version 0.1.1 scope,
+  Docker-only environment rules, directory structure, utility scripts, curated
+  API endpoint list, and Python ingestion service overview.
+- [Curated Documentation Index (`docs/README.md`)](../README.md) —
+  Description-rich navigation for the most-used docs.
+- [MRE Agents Handbook (`docs/AGENTS.md`)](../AGENTS.md) — Guardrails for human
+  and LLM contributors; Docker-only rules; agent domains; documentation-truth
+  rule.
+- [Document Index (`docs/index/document-index.md`)](document-index.md) — This
+  file.
 
 ---
 
-## User Guides
+## Architecture (`docs/architecture/`)
 
-End-user documentation providing step-by-step instructions for using My Race
-Engineer features. These guides are written for all users (both new and
-experienced) and complement the technical documentation.
-
-### [User Guides Index](../user-guides/README.md)
-
-Central index and navigation for all end-user guides. Provides overview of
-available guides, quick reference, and guide categories to help users find the
-information they need.
-
-### [Getting Started Guide](../user-guides/getting-started.md)
-
-Perfect for new users! Learn how to create an account, sign in (email +
-password), where you land (`/admin` vs `/eventAnalysis`), and how the adaptive
-rail, Global Search, and embedded guides fit together—including
-screenshot-backed orientation.
-
-### [Global Search Guide (`/search`)](../user-guides/event-search.md)
-
-Covers Redux-backed `/search` with driver/session/date filters, split Events vs
-Sessions result tables, pagination, and deep links back to My Event Analysis via
-**View Event**. Import still runs from Actions → Find and Import overlays on the
-dashboard.
-
-### [Event Analysis Guide](../user-guides/event-analysis.md)
-
-Detailed walkthrough of the authenticated analysis shell: race-day vs
-practice-day tab sets, submenu analytics (including ladder-oriented subtabs
-where data allows), **Mains Ladder** on the Event Level workspace, Overview
-summarises, Actions menu ingestion shortcuts, Entry List naming, and honest
-notes on telemetry/export scope for Alpha builds.
-
-### [Event Analysis — mains ladder](../architecture/event-analysis-mains-ladder.md)
-
-Technical reference for the **Mains Ladder** bracket (SVG ladder,
-progressed-driver captions/tables), `OverviewTab` wiring, domain modules
-(`main-bracket-ladder-*`, Bump-Up inference companions).
-
-### [My Event Analysis (Dashboard) Guide](../user-guides/dashboard.md)
-
-Mission control UX on `/eventAnalysis`: choosing events, Redux persistence,
-`eventId` query cleanup, ingestion drawers fed by DashboardEventSearchProvider,
-contextual My Events latch, Actions shortcuts (⌘E / ⌘⌥R / ⌘⇧E on macOS), and
-links into Event Analysis subcomponents.
-
-### [Car Type Mapping Guide](../user-guides/car-type-mapping.md)
-
-Explains opening **Actions → Map car types** from Event Analysis plus how
-account-wide taxonomy rules reconcile repeated LiveRC spelling variants.
-
-### [Driver Features Guide](../user-guides/driver-features.md)
-
-Documents fuzzy discovery (`exact`, `transponder`, `similarity`-driven fuzzy),
-`confirmed`/`suggested`/`rejected` participation states, the My Events latch on
-`/eventAnalysis`, pagination/filter affordances inside `MyEventsContent`, and
-related API endpoints.
-
-### [Navigation Guide](../user-guides/navigation.md)
-
-Master navigation patterns including breadcrumb navigation, menus, tabs,
-keyboard shortcuts, and finding features. Learn how to navigate MRE efficiently
-on both desktop and mobile.
-
-### [Account Management Guide](../user-guides/account-management.md)
-
-Complete guide to managing your account, including registration, login, password
-management, session management, and account security. Essential for account
-setup and maintenance.
-
-### [Troubleshooting Guide](../user-guides/troubleshooting.md)
-
-Find solutions to common problems including login issues, event import failures,
-search problems, chart display issues, performance problems, and getting help.
-Quick reference for resolving issues.
+- [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
+  — Authoritative architecture standard (API-first, `/api/v1`, `src/core` folder
+  contracts, JSON envelopes, security/testing/performance rules).
+- [Atomic Design System](../architecture/atomic-design-system.md) — Component
+  tiers (atoms/molecules/organisms/templates), import rules, and canonical
+  component paths under `src/components/`.
+- [Dashboard Architecture](../architecture/dashboard-architecture.md) — Event
+  selection + Event Analysis integration model and Redux-backed UI state.
+- [Search Feature](../architecture/search-feature.md) — `/search` and
+  `/event-search` behaviour, Redux slices, and persisted filters.
+- [Event Search Omnibox](../architecture/event-search-omnibox.md) —
+  database-only type-ahead omnibox and collapsed Filters control for the
+  dashboard Event Search modal.
+- [Profiles Feature](../architecture/profiles-feature.md) — Car/driver profile
+  pages and APIs.
+- [Event Analysis — Mains Ladder](../architecture/event-analysis-mains-ladder.md)
+  — Mains Ladder bracket UX, `OverviewTab` wiring, progressed-driver tables.
+- [Event Overview: Class Winners & LiveRC Overall Final Ranking](../architecture/event-overview-class-winners-liverc-overall-final-ranking.md)
+- [Event Host/Track User Override](../architecture/event-host-track-user-override.md)
+- [Event Search: Include Practice Days Design](../architecture/event-search-include-practice-days-design.md)
+- [Practice Day Search Performance Design](../architecture/practice-day-search-performance-design.md)
+- [Practice Day Full Ingestion Design](../architecture/practice-day-full-ingestion-design.md)
+- [Practice Day Dashboard Visualization Design](../architecture/practice-day-dashboard-visualization-design.md)
+- [Car Taxonomy & User Car-Type Mapping](../architecture/car-taxonomy-user-mapping.md)
+- [Driver Deduplication Design](../architecture/driver-deduplication-design.md)
+- [Address Normalization](../architecture/address-normalization.md)
+- [Lap Annotations](../architecture/lap-annotations.md)
+- [Top Qualifiers](../architecture/top-qualifiers.md)
+- [Error Handling & Error Codes Catalog](../architecture/error-handling.md)
+- [Performance Requirements & Benchmarks](../architecture/performance-requirements.md)
+- [Logging Standards](../architecture/logging.md)
+- [Rate Limiting Plan](../architecture/rate-limiting-plan.md)
+- [Security Headers Plan](../architecture/security-headers-plan.md)
+- [Venue Correction Deprecation](../architecture/venue-correction-deprecation.md)
 
 ---
 
-## Architecture
-
-Core architectural guidelines, principles, and specifications that govern the
-entire codebase.
-
-### Core Architecture
-
-#### [Mobile-Safe Architecture Guidelines](../architecture/mobile-safe-architecture-guidelines.md)
-
-Authoritative architecture standard for the MRE application. Defines the
-complete architectural framework ensuring the system is mobile-safe, API-first,
-and future-native for iOS/Android clients. All code must follow these
-guidelines.
-
-#### [Event Search: Include Practice Days Design](../architecture/event-search-include-practice-days-design.md)
-
-Design for Event Search with optional “Include practice days”: single combined
-list (events + practice days), practice range = event min/max, in-app Prisma for
-practice-day list, single discover-range request (or streaming), 180-day
-default, and cache for fast repeat searches.
-
-#### [Practice Day Search Performance Design](../architecture/practice-day-search-performance-design.md)
-
-Practice day discovery performance: design options and **implemented**
-improvements (single discover-range request, cache, timeouts, streaming, 180-day
-default, skip when covered, optimistic import). Includes before/after timings
-and env vars for cache TTL and timeouts.
-
-#### [Driver Deduplication Design](../architecture/driver-deduplication-design.md)
-
-Design for merging duplicate Driver records using transponder + normalized name.
-Addresses track leaderboard fragmentation (e.g. multiple "Steven Rukavina"
-rows). CLI: `drivers deduplicate` (dry-run) / `drivers deduplicate --execute`.
-
-#### [Dashboard Architecture](../architecture/dashboard-architecture.md)
-
-Dashboard architecture and widget system for MRE version 0.1.1. Defines
-dashboard types, widget system, customization architecture, and implementation
-guidelines.
-
-#### [Event Analysis — mains ladder](../architecture/event-analysis-mains-ladder.md)
-
-Defines **Analysis → Event Level Analysis → Mains Ladder**, bracket modeling,
-progressed-driver tables, and Bump-Up/driver-progression complements.
-
-#### [Error Handling and Error Codes Catalog](../architecture/error-handling.md)
-
-Comprehensive error handling documentation including error codes, error response
-formats, HTTP status mappings, and error handling patterns. Provides guidance
-for consistent error handling across the application.
-
-#### [Performance Requirements and Benchmarks](../architecture/performance-requirements.md)
-
-Performance requirements and benchmarks for the MRE application. Defines
-performance goals, performance budgets, database performance requirements, API
-response time targets, and optimization guidelines.
-
-#### [Car taxonomy and user car-type mapping](../architecture/car-taxonomy-user-mapping.md)
-
-Canonical seeded vehicle-type tree, per-user global mapping rules, match types,
-resolution order, Session Analysis integration, HTTP APIs, and operational notes
-(Prisma migrate / generate in Docker).
-
-#### [Top qualifiers](../architecture/top-qualifiers.md)
-
-Normative design for top qualifier (TQ) definitions, v1 derivation rules from
-`Race` / `RaceResult` and qualifying sessions, edge cases, persistence options,
-and links to ingestion semantics. Companion implementation plan under
-`docs/implimentation_plans/`.
-
-#### [Logging Standards](../architecture/logging.md)
-
-Logging standards and practices for the MRE application. Defines structured
-logging requirements, log levels, and logging patterns.
-
-#### [Rate Limiting Plan](../architecture/rate-limiting-plan.md)
-
-Rate limiting strategy and implementation plan for API endpoints and external
-service interactions.
-
-#### [Security Headers Plan](../architecture/security-headers-plan.md)
-
-Security headers implementation plan and configuration guidelines.
-
-### LiveRC Ingestion Architecture
-
-Comprehensive architecture documentation for the LiveRC ingestion subsystem.
-This subsystem provides MRE with the ability to retrieve, normalize, and store
-race event data from LiveRC.
-
-#### [01 - Overview](../architecture/liverc-ingestion/01-overview.md)
-
-Overview and goals for the LiveRC ingestion subsystem. Provides the conceptual
-foundation, high-level user workflow, architectural goals, constraints, and
-long-term vision.
-
-#### [02 - Connector Architecture](../architecture/liverc-ingestion/02-connector-architecture.md)
-
-Connector architecture and design patterns for LiveRC data connectors. Defines
-connector interfaces, HTTPX and Playwright usage patterns, and browser
-automation strategies.
-
-#### [03 - Ingestion Pipeline](../architecture/liverc-ingestion/03-ingestion-pipeline.md)
-
-Ingestion pipeline architecture and orchestration. Defines pipeline stages,
-idempotency requirements, locking mechanisms, and state management.
-
-#### [04 - Data Model](../architecture/liverc-ingestion/04-data-model.md)
-
-Data model specification for LiveRC ingestion. Defines entity relationships,
-data normalization rules, and storage patterns.
-
-#### [05 - API Contracts](../architecture/liverc-ingestion/05-api-contracts.md)
-
-API contracts and endpoint specifications for the ingestion service. Defines
-REST API endpoints, request/response formats, and authentication requirements.
-
-#### [06 - Admin CLI Specification](../architecture/liverc-ingestion/06-admin-cli-spec.md)
-
-Administrative CLI specification for managing ingestion operations. Defines
-command-line interface, commands, and usage patterns.
-
-#### [07 - Ingestion State Machine](../architecture/liverc-ingestion/07-ingestion-state-machine.md)
-
-State machine design for ingestion workflows. Defines state transitions, event
-handling, and state persistence.
-
-#### [08 - Ingestion Pipeline Internals](../architecture/liverc-ingestion/08-ingestion-pipeline-internals.md)
-
-Detailed internal architecture of the ingestion pipeline. Covers pipeline
-stages, data flow, and internal processing logic.
-
-#### [09 - Connector Contracts](../architecture/liverc-ingestion/09-connector-contracts.md)
-
-Connector contract specifications and interface definitions. Defines required
-methods, return types, and error handling patterns.
-
-#### [10 - Connector Browser Strategy](../architecture/liverc-ingestion/10-connector-browser-strategy.md)
-
-Browser automation strategy for connectors requiring JavaScript execution.
-Defines Playwright usage patterns, browser lifecycle management, and performance
-considerations.
-
-#### [11 - Ingestion Error Handling](../architecture/liverc-ingestion/11-ingestion-error-handling.md)
-
-Error handling patterns and strategies for ingestion operations. Defines error
-types, recovery procedures, and error reporting.
-
-#### [12 - Ingestion Validation Rules](../architecture/liverc-ingestion/12-ingestion-validation-rules.md)
-
-Data validation rules and validation framework for ingested data. Defines
-validation schemas, validation stages, and error reporting.
-
-#### [13 - Ingestion Performance and Scaling](../architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md)
-
-Performance optimization and scaling strategies for ingestion operations.
-Defines performance targets, scaling patterns, and optimization techniques.
-
-#### [14 - Ingestion Idempotency Design](../architecture/liverc-ingestion/14-ingestion-idempotency-design.md)
-
-Idempotency design and implementation patterns. Defines idempotency keys,
-duplicate detection, and idempotent operation patterns.
-
-#### [15 - Ingestion Observability](../architecture/liverc-ingestion/15-ingestion-observability.md)
-
-Observability architecture for ingestion operations. Defines logging, metrics,
-tracing, and monitoring patterns.
-
-#### [16 - Ingestion Concurrency and Locking](../architecture/liverc-ingestion/16-ingestion-concurrency-and-locking.md)
-
-Concurrency control and locking mechanisms for ingestion operations. Defines
-advisory locks, concurrent operation handling, and race condition prevention.
-
-#### [17 - Ingestion Security](../architecture/liverc-ingestion/17-ingestion-security.md)
-
-Security architecture for ingestion operations. Defines authentication,
-authorization, data protection, and security best practices.
-
-#### [18 - Ingestion Testing Strategy](../architecture/liverc-ingestion/18-ingestion-testing-strategy.md)
-
-Testing strategy and patterns for ingestion code. Defines unit testing,
-integration testing, fixture management, and test data patterns.
-
-#### [19 - Ingestion Fixture Management](../architecture/liverc-ingestion/19-ingestion-fixture-management.md)
-
-Fixture management system for ingestion testing. Defines fixture structure,
-fixture loading, and fixture maintenance procedures.
-
-#### [20 - Ingestion Replay and Debugging](../architecture/liverc-ingestion/20-ingestion-replay-and-debugging.md)
-
-Replay and debugging capabilities for ingestion operations. Defines replay
-mechanisms, debugging tools, and troubleshooting procedures.
-
-#### [21 - Ingestion Recovery Procedures](../architecture/liverc-ingestion/21-ingestion-recovery-procedures.md)
-
-Recovery procedures for failed ingestion operations. Defines failure scenarios,
-recovery strategies, and manual intervention procedures.
-
-#### [22 - Ingestion Versioning and Migrations](../architecture/liverc-ingestion/22-ingestion-versioning-and-migrations.md)
-
-Versioning strategy and migration procedures for ingestion system changes.
-Defines version management, migration patterns, and backward compatibility.
-
-#### [23 - Ingestion Cross-Connector Abstractions](../architecture/liverc-ingestion/23-ingestion-cross-connector-abstractions.md)
-
-Cross-connector abstraction patterns and shared components. Defines common
-interfaces, shared utilities, and connector framework.
-
-#### [24 - Ingestion Security Hardening](../architecture/liverc-ingestion/24-ingestion-security-hardening.md)
-
-Security hardening procedures and best practices for ingestion operations.
-Defines security controls, threat mitigation, and security audit procedures.
-
-#### [25 - HTTPX Client Architecture](../architecture/liverc-ingestion/25-httpx-client-architecture.md)
-
-HTTPX client architecture and configuration for HTTP requests. Defines client
-configuration, retry logic, timeout handling, and connection pooling.
-
-#### [26 - HTML Parsing Architecture](../architecture/liverc-ingestion/26-html-parsing-architecture.md)
-
-HTML parsing architecture and parser patterns. Defines parsing strategies, error
-handling, and parser extensibility.
-
-#### [27 - Web Scraping Best Practices](../architecture/liverc-ingestion/27-web-scraping-best-practices.md)
-
-Comprehensive guide to web scraping practices and ethical guidelines. Covers
-robots.txt compliance, rate limiting, User-Agent policy, HTTP caching, retry
-logic, and kill switch mechanism.
-
-#### [28 - Async Ingestion Queue](../architecture/liverc-ingestion/28-async-ingestion-queue.md)
-
-Asynchronous ingestion via in-process job queue. Describes 202 Accepted + job_id
-when queue is enabled, GET job status endpoint, queue_position, frontend
-polling, and configuration (INGESTION_USE_QUEUE, UVICORN_WORKERS).
-
-#### [29 - Pitstop Detection System (Nitro-Only)](../architecture/liverc-ingestion/29-pitstop-detection-system.md)
-
-Normative architecture for race-length-aware nitro pit detection, pit-time
-estimation with uncertainty bounds, and per-driver strategy inference
-(standard/stretch/disrupted).
-
-#### [30 - Pitstop Detection Testing Strategy](../architecture/liverc-ingestion/30-pitstop-detection-testing-strategy.md)
-
-Fixture-first testing strategy for pit detection correctness across 7/10/30/60
-minute races, including false-positive control cases and deterministic reruns.
+## LiveRC Ingestion Architecture (`docs/architecture/liverc-ingestion/`)
+
+A 31-document series covering the Python ingestion subsystem.
+
+- [01 - Overview](../architecture/liverc-ingestion/01-overview.md)
+- [02 - Connector Architecture](../architecture/liverc-ingestion/02-connector-architecture.md)
+- [03 - Ingestion Pipeline](../architecture/liverc-ingestion/03-ingestion-pipeline.md)
+- [04 - Data Model](../architecture/liverc-ingestion/04-data-model.md) —
+  includes
+  [Track catalogue flags and follow model](../architecture/liverc-ingestion/04-data-model.md#track-catalogue-flags-and-follow-model)
+  (`is_active`, `is_followed`, favourites)
+- [05 - API Contracts](../architecture/liverc-ingestion/05-api-contracts.md)
+- [06 - Admin CLI Specification](../architecture/liverc-ingestion/06-admin-cli-spec.md)
+- [07 - Ingestion State Machine](../architecture/liverc-ingestion/07-ingestion-state-machine.md)
+- [08 - Ingestion Pipeline Internals](../architecture/liverc-ingestion/08-ingestion-pipeline-internals.md)
+- [09 - Connector Contracts](../architecture/liverc-ingestion/09-connector-contracts.md)
+- [10 - Connector Browser Strategy](../architecture/liverc-ingestion/10-connector-browser-strategy.md)
+- [11 - Ingestion Error Handling](../architecture/liverc-ingestion/11-ingestion-error-handling.md)
+- [12 - Ingestion Validation Rules](../architecture/liverc-ingestion/12-ingestion-validation-rules.md)
+- [13 - Ingestion Performance & Scaling](../architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md)
+- [14 - Ingestion Idempotency Design](../architecture/liverc-ingestion/14-ingestion-idempotency-design.md)
+- [15 - Ingestion Observability](../architecture/liverc-ingestion/15-ingestion-observability.md)
+- [16 - Ingestion Concurrency & Locking](../architecture/liverc-ingestion/16-ingestion-concurrency-and-locking.md)
+- [17 - Ingestion Security](../architecture/liverc-ingestion/17-ingestion-security.md)
+- [18 - Ingestion Testing Strategy](../architecture/liverc-ingestion/18-ingestion-testing-strategy.md)
+- [19 - Ingestion Fixture Management](../architecture/liverc-ingestion/19-ingestion-fixture-management.md)
+- [20 - Ingestion Replay & Debugging](../architecture/liverc-ingestion/20-ingestion-replay-and-debugging.md)
+- [21 - Ingestion Recovery Procedures](../architecture/liverc-ingestion/21-ingestion-recovery-procedures.md)
+- [22 - Ingestion Versioning & Migrations](../architecture/liverc-ingestion/22-ingestion-versioning-and-migrations.md)
+- [23 - Ingestion Cross-Connector Abstractions](../architecture/liverc-ingestion/23-ingestion-cross-connector-abstractions.md)
+- [24 - Ingestion Security Hardening](../architecture/liverc-ingestion/24-ingestion-security-hardening.md)
+- [25 - HTTPX Client Architecture](../architecture/liverc-ingestion/25-httpx-client-architecture.md)
+- [26 - HTML Parsing Architecture](../architecture/liverc-ingestion/26-html-parsing-architecture.md)
+- [27 - Web Scraping Best Practices](../architecture/liverc-ingestion/27-web-scraping-best-practices.md)
+- [28 - Async Ingestion Queue](../architecture/liverc-ingestion/28-async-ingestion-queue.md)
+- [29 - Pitstop Detection System (Nitro-Only)](../architecture/liverc-ingestion/29-pitstop-detection-system.md)
+- [30 - Pitstop Detection Testing Strategy](../architecture/liverc-ingestion/30-pitstop-detection-testing-strategy.md)
+- [31 - Recent Events Auto-Ingest](../architecture/liverc-ingestion/31-recent-events-auto-ingest.md)
+  — Nightly discovery + full ingest for recent LiveRC events on followed tracks
+  (implemented; gated by `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED`, default off).
 
 ---
 
-## Everlaps (preliminary)
+## Everlaps Ingestion (`docs/architecture/everlaps-ingestion/`)
 
-### [00 - Preliminary scoping and design](../architecture/everlaps-ingestion/00-preliminary-scoping-and-design.md)
-
-Exploratory scope and design for Everlaps as a timing/event source without a
-LiveRC-style track catalog: derived venues, event-driven indexing, phased
-results, risks, and open questions.
+- [00 - Preliminary Scoping and Design](../architecture/everlaps-ingestion/00-preliminary-scoping-and-design.md)
+  — Exploratory scope for Everlaps as an alternate timing/event source.
 
 ---
 
-## API Documentation
+## API (`docs/api/` + generated reference)
 
-API reference documentation and versioning strategy.
-
-### [API Reference](../api/api-reference.md)
-
-Complete API reference documentation for all MRE API endpoints. Provides
-comprehensive catalog of endpoints, request/response formats, authentication
-requirements, error codes, and usage examples.
-
-### [API Versioning Strategy](../api/versioning-strategy.md)
-
-API versioning strategy and deprecation policy. Defines versioning approach,
-when to create new versions, deprecation timeline, breaking change policy, and
-migration guide.
-
-### [Generated documentation inventory](../reference/generated/README.md)
-
-Machine-generated manifests (`api-routes.manifest.json`,
-`component-files.manifest.json`) used to keep API and UI inventories aligned
-with the build. Regenerate via `npm run docs:inventory` in the app container.
-
-### [Component catalog](../frontend/component-catalog.md)
-
-One row per production component file under `src/components/` (tier and feature
-area). Regenerate via `npm run docs:component-catalog` in the app container.
+- [API Reference](../api/api-reference.md) — Endpoint catalog for the `/api/v1`
+  surface (auth, events, races, drivers, telemetry, track-maps, profiles, car
+  taxonomy, leaderboards, practice-days, personas, admin).
+- [API Versioning Strategy](../api/versioning-strategy.md) — URL path versioning
+  (`/api/v1`), deprecation policy, breaking-change rules.
+- [Generated Documentation Inventory](../reference/generated/README.md) — How
+  the machine-generated manifests are produced (`npm run docs:inventory`).
+  - `docs/reference/generated/api-routes.manifest.json` — Canonical list of all
+    API routes + HTTP methods (regenerate in the app container).
+  - `docs/reference/generated/component-files.manifest.json` — Canonical list of
+    `src/components/` files.
 
 ---
 
-## Database
+## Database (`docs/database/`)
 
-Database schema and data model documentation.
-
-### [Database Schema Documentation](../database/schema.md)
-
-Human-readable database schema documentation. Provides comprehensive overview of
-all models, relationships, indexes, constraints, and business rules. Essential
-reference for developers understanding the data model.
+- [Database Schema Documentation](../database/schema.md) — Human-readable
+  overview of all Prisma models and enums, relationships, indexes, and
+  lifecycle. Source of truth is
+  [`prisma/schema.prisma`](../../prisma/schema.prisma).
 
 ---
 
-## Domain
+## Domain (`docs/domain/`)
 
-Domain models and business logic documentation.
-
-### [Racing Classes Domain Model](../domain/racing-classes.md)
-
-Authoritative domain model for racing classes in the MRE application. Defines
-the complete taxonomy of car classes (vehicle types), modification rules
-(Modified/Stock), and skill groupings (Junior/Pro/Expert).
-
-### [Triple A-Main Overall Scoring (IFMAR & ROAR)](../domain/triple-a-main-scoring.md)
-
-Reference for triple A-main point systems, best-two-of-three overall scoring,
-IFMAR reduced-finals handling, and ROAR tie-breakers including early winner (sit
-out A3). Use when computing or displaying overall standings for electric
-off-road triple-main formats.
-
-### [Bump-ups inference (domain)](../domain/bump-ups-inference.md)
-
-Defines what “bump-up” means in MRE (observed advancement from results, not
-rulebooks), LiveRC Main Events schedule model, same-class vs LCQ class names,
-tier strategies, and multi-main aggregate usage. Entry point for bump-up product
-and engineering semantics.
-
-### [LiveRC Qual Points page (view_points) explainer](../domain/liverc-qual-points-view-explainer.md)
-
-Reference for reading LiveRC **Qual Points** pages: **best N of M** drops,
-IFMAR-style point totals (`Result`), column semantics (`points : laps/time` is
-**total time**, not average lap), tie-breaker cell behaviour, DNS/DNF, and a
-worked example (**2025 RCRA Nationals**, Buggy, **best 3 of 5**). Descriptive of
-LiveRC UX—not automatic MRE implementation logic.
+- [Racing Classes Domain Model](../domain/racing-classes.md)
+- [Triple A-Main Overall Scoring (IFMAR & ROAR)](../domain/triple-a-main-scoring.md)
+- [Bump-ups Inference](../domain/bump-ups-inference.md)
+- [LiveRC Qual Points (`view_points`) Explainer](../domain/liverc-qual-points-view-explainer.md)
 
 ---
 
-## Design
+## Design (`docs/design/`)
 
-Visual design, UX principles, and user experience guidelines.
-
-### [MRE UX Principles](../design/mre-ux-principles.md)
-
-Mandatory User Experience principles for all MRE version 0.1.1 features. Defines
-core UX philosophy, laws of UX, foundational layout rules, form patterns,
-content rules, and mobile-specific requirements.
-
-### [MRE Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md)
-
-Visual standards and token system for MRE dark theme implementation. Defines
-semantic token naming (`--token-*`), core dark theme rules, typography, spacing,
-forms, and mobile requirements.
-
-### [MRE Personas](../design/mre-personas.md)
-
-Comprehensive persona documentation for MRE application. Defines detailed
-persona descriptions, user journeys, technical specifications, and UI mockups
-for all MRE personas: Driver, Admin, Team Manager, and Race Engineer.
-
-### [MRE Hero Image Generation](../design/mre-hero-image-generation.md)
-
-Standards and prompts for generating MRE hero images using AI tools. Defines
-visual style, composition rules, Stable Diffusion prompt structure, and image
-output requirements.
-
-### [Chart Design Standards](../design/chart-design-standards.md)
-
-Chart design standards and visualization guidelines. Defines chart types,
-styling patterns, color usage, and accessibility requirements.
-
-### [Navigation Patterns](../design/navigation-patterns.md)
-
-Navigation patterns and information architecture guidelines. Defines navigation
-structures, menu patterns, and user flow patterns.
-
-### [Table Component Specification](../design/table-component-specification.md)
-
-Table component specification and design guidelines. Defines table patterns,
-sorting, filtering, pagination, and responsive behavior.
-
-### [Event Analysis Weather Card and Icon Library](../design/event-analysis-weather-card-design.md)
-
-Design for the Overview tab weather card (placement next to EventStats, compact
-label-value layout, condition icons) and adoption of `lucide-react`. Reuses
-existing weather API, types, and dashboard patterns.
-
-### [Telemetry Visualization Specification](../design/telemetry-visualization-specification.md)
-
-Telemetry visualization specification for lap data and sensor data. Defines
-visualization types, data formats, and interaction patterns. Desktop-only;
-separate mobile app planned for future.
-
-### [Telemetry Documentation Index](../telemetry/README.md)
-
-Index of all telemetry design documentation: user stories, UX blueprint, API
-contract, data model, processing pipeline, formats, security, and related ADRs.
-Use this as the entry point for telemetry implementation.
-
-### [Telemetry Seed Data Guide](../telemetry/Design/Telemetry_Seed_Data_Guide.md)
-
-Practical guide for creating telemetry seed data sets for testing, development,
-and UX validation. Covers synthetic vs. dummy data, storage layout, quick-start
-options, and implementation order. Entry point for fixture creation.
+- [MRE UX Principles](../design/mre-ux-principles.md)
+- [MRE Dark Theme Guidelines](../design/mre-dark-theme-guidelines.md)
+- [MRE Personas](../design/mre-personas.md)
+- [MRE Hero Image Generation](../design/mre-hero-image-generation.md)
+- [Chart Design Standards](../design/chart-design-standards.md)
+- [Navigation Patterns](../design/navigation-patterns.md)
+- [Table Component Specification](../design/table-component-specification.md)
+- [Event Analysis Table Surfaces](../design/event-analysis-table-surfaces.md)
+- [Event Analysis Weather Card Design](../design/event-analysis-weather-card-design.md)
+- [Compact Label-Value Card](../design/compact-label-value-card.md)
+- [Form Patterns](../design/form-patterns.md)
+- [Standard Form Field Width](../design/standard-form-field-width.md)
+- [Telemetry Visualization Specification](../design/telemetry-visualization-specification.md)
 
 ---
 
-## Development
+## Development (`docs/development/`)
 
-Development guides, testing strategies, contributing guidelines, and development
-checklists.
-
-### Getting Started
-
-#### [Developer Quick Start Guide](../development/quick-start.md)
-
-Step-by-step developer onboarding guide for Docker-based development
-environment. Provides prerequisites, Docker setup instructions, first-time
-workflow, running tests in containers, useful Docker commands, common setup
-issues, and IDE recommendations. **All development occurs in Docker
-containers.**
-
-#### [Contributing Guidelines](../development/CONTRIBUTING.md)
-
-Comprehensive contributing guidelines for the MRE project. Includes code of
-conduct, development workflow, branch naming, commit messages, pull request
-process, code review guidelines, testing requirements, and release process.
-
-### Testing
-
-#### [Testing Strategy and Guidelines](../development/testing-strategy.md)
-
-Comprehensive testing strategy for the MRE application. Defines testing pyramid,
-testing tools, test organization, testing patterns, frontend/backend/integration
-testing guidelines, and CI/CD requirements.
-
-#### [Integration Testing Guide](../development/integration-testing-guide.md)
-
-Detailed integration testing guide. Provides guidance for integration test
-setup, test data management, mocking strategies, database testing, API
-integration testing, and CI/CD integration.
-
-### Changelog
-
-#### [CHANGELOG](../development/CHANGELOG.md)
-
-Changelog template following Keep a Changelog format. Documents all notable
-changes to the MRE project, organized by version with categories for Added,
-Changed, Deprecated, Removed, Fixed, and Security.
-
-#### [CHANGELOG Guide](../development/CHANGELOG_GUIDE.md)
-
-Guidelines for writing and maintaining the CHANGELOG. Defines changelog format,
-entry categories, and maintenance procedures.
-
-### Development Checklists and Guidelines
-
-#### [Component Creation Checklist](../development/COMPONENT_CREATION_CHECKLIST.md)
-
-Pre-commit checklist for component creation. Provides quick reference checklist
-to run before committing any new or modified component.
-
-#### [Flexbox Layout Checklist](../development/FLEXBOX_LAYOUT_CHECKLIST.md)
-
-Flexbox layout guidelines and common issues checklist. Helps identify and
-resolve common flexbox layout problems.
-
-#### [Pagination Component Template](../development/PAGINATION_COMPONENT_TEMPLATE.md)
-
-Template and guidelines for creating pagination components. Provides standard
-patterns and implementation guidelines.
-
-#### [Pagination Spacing Guidelines](../development/PAGINATION_SPACING_GUIDELINES.md)
-
-Spacing guidelines for pagination components. Defines spacing requirements and
-common spacing issues.
-
-#### [Mobile UI Removal Summary](../development/mobile-ui-removal-summary.md)
-
-Summary of mobile UI removal changes and migration guide. Documents the
-transition from mobile-first to desktop-only UI.
-
-### Development Tools and Configuration
-
-#### [SSL Certificates for Development](../../certs/README.md)
-
-Documentation for self-signed SSL certificates used in HTTPS development.
-Includes certificate details, installation instructions for macOS/Linux/Windows,
-regeneration procedures, and security notes. **Development only** - certificates
-are self-signed and not for production use.
+- [Developer Quick Start](../development/quick-start.md)
+- [Contributing Guidelines](../development/CONTRIBUTING.md)
+- [Testing Strategy & Guidelines](../development/testing-strategy.md)
+- [Integration Testing Guide](../development/integration-testing-guide.md)
+- [CHANGELOG](../development/CHANGELOG.md)
+- [CHANGELOG Guide](../development/CHANGELOG_GUIDE.md)
+- [Component Creation Checklist](../development/COMPONENT_CREATION_CHECKLIST.md)
+- [Flexbox Layout Checklist](../development/FLEXBOX_LAYOUT_CHECKLIST.md)
+- [Pagination Component Template](../development/PAGINATION_COMPONENT_TEMPLATE.md)
+- [Pagination Spacing Guidelines](../development/PAGINATION_SPACING_GUIDELINES.md)
+- [Mobile UI Removal Summary](../development/mobile-ui-removal-summary.md)
+- [Speed Test (Event vs Practice Search)](../development/speed-test-search.md)
+- [SSL Certificates for Development](../../certs/README.md)
 
 ---
 
-## Operations
+## Operations (`docs/operations/`)
 
-Operational documentation for deployment, environment configuration,
-observability, and system operations.
-
-### [Docker User Guide](../operations/docker-user-guide.md)
-
-Comprehensive Docker user guide providing complete Docker architecture
-documentation, setup instructions, usage guide, development workflow,
-troubleshooting, and production considerations.
-
-### [Build and runtime reference (Compose)](../operations/build-runtime-reference.md)
-
-Authoritative inventory of `docker-compose.yml` services, default ports, and
-container names. Use this to verify operational documentation against the
-repository.
-
-### [Deployment and DevOps Runbook](../operations/deployment-guide.md)
-
-Comprehensive deployment procedures and DevOps runbook. Includes pre-deployment
-checklists, deployment steps, database migration procedures, rollback
-procedures, health checks, and post-deployment verification.
-
-### [Environment Variables Reference](../operations/environment-variables.md)
-
-Complete reference for all environment variables used in the MRE application.
-Documents required vs optional variables, default values, validation rules,
-environment-specific configurations, and security considerations.
-
-### [Monitoring and Observability Guide](../operations/observability-guide.md)
-
-Comprehensive observability guide covering logging, metrics, tracing, alerting,
-dashboard setup, troubleshooting, and performance monitoring. Ensures consistent
-observability practices across the application.
-
-### [LiveRC Operations Guide](../operations/liverc-operations-guide.md)
-
-Operational guide for LiveRC ingestion operations. Provides commands and
-procedures for managing ingestion operations, track management, and event
-processing.
-
-### [Pitstop Detection Runbook](../operations/pitstop-detection-runbook.md)
-
-Operational runbook for verifying, troubleshooting, and tuning nitro pitstop
-detection outputs (pit events and strategy labels) after ingestion.
+- [Docker User Guide](../operations/docker-user-guide.md)
+- [Build & Runtime Reference (Compose)](../operations/build-runtime-reference.md)
+  — Inventory of all Compose services (`postgres`, `app`, `clickhouse`,
+  `liverc-ingestion-service`, `telemetry-worker`), ports, and volumes.
+- [Environment Variables Reference](../operations/environment-variables.md)
+- [Deployment & DevOps Runbook](../operations/deployment-guide.md)
+- [Monitoring & Observability Guide](../operations/observability-guide.md)
+- [LiveRC Operations Guide](../operations/liverc-operations-guide.md)
+- [Recent Events Auto-Ingest Runbook](../operations/recent-events-auto-ingest-runbook.md)
+- [Pitstop Detection Runbook](../operations/pitstop-detection-runbook.md)
 
 ---
 
-## Ingestion Service Documentation
+## Telemetry (`docs/telemetry/`)
 
-Documentation for the Python-based LiveRC ingestion service. This service
-handles data retrieval, parsing, normalization, and storage from LiveRC.
+- [Telemetry Documentation Index](../telemetry/README.md)
 
-### [Ingestion Service README](../../ingestion/README.md)
+### Design (`docs/telemetry/Design/`)
 
-Comprehensive guide for the LiveRC ingestion service. Includes setup
-instructions, development workflow, API endpoints, CLI commands (Docker-based
-execution), testing strategies, fixture management, troubleshooting procedures,
-and parser selector reference. **All commands must be executed inside Docker
-containers.**
+- [API Contract — Telemetry](../telemetry/Design/API_Contract_Telemetry.md)
+- [Architecture Blueprint — Ingest/Storage/Compute/Query](../telemetry/Design/Architecture_Blueprint_Telemetry_Ingest_Storage_Compute_Query.md)
+- [GNSS + IMU Fusion Blueprint](../telemetry/Design/Gnss_plus_Imu_Fusion_Blueprint.md)
+- [Lap Segment and Corner Detection Specification](../telemetry/Design/Lap%20Segment%20and%20Corner%20Detection%20Specification.md)
+- [Operational Runbook](../telemetry/Design/Operational%20Runbook.md)
+- [Performance Plan and Benchmarking](../telemetry/Design/Performance%20Plan%20and%20Benchmarking.md)
+- [Security, Privacy, Retention and Deletion](../telemetry/Design/Security%20Privacy%20Retention%20and%20Deletion.md)
+- [Supported Formats and Parser Specification](../telemetry/Design/Supported%20Formats%20and%20Parser%20Specification.md)
+- [Concrete Data Model and Contracts](../telemetry/Design/Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md)
+- [Processing Pipeline, Job Orchestration and State Machine](../telemetry/Design/Telemetry%20Processing%20Pipeline%20Job%20Orchestration%20and%20State%20Machine.md)
+- [Telemetry Implementation Design](../telemetry/Design/Telemetry_Implementation_Design.md)
+- [Telemetry Import UX Design](../telemetry/Design/Telemetry_Import_UX_Design.md)
+- [Telemetry MVP Implementation Decisions](../telemetry/Design/Telemetry_MVP_Implementation_Decisions.md)
+- [Telemetry Seed Data Guide](../telemetry/Design/Telemetry_Seed_Data_Guide.md)
+- [Telemetry UX Blueprint](../telemetry/Design/Telemetry_Ux_Blueprint.md)
+- [Test Strategy and Synthetic Datasets](../telemetry/Design/Test%20Strategy%20and%20Synthetic%20Datasets.md)
+- [Trust, Quality Scoring and Honesty Rules](../telemetry/Design/Trust%20Quality%20Scoring%20and%20Honesty%20Rules.md)
 
-### [Parser Implementation Status](../../ingestion/PARSER_IMPLEMENTATION_STATUS.md)
+### User Story & End-User Experience
 
-Status tracking document for LiveRC parser implementation. Documents completion
-status of all parsers (100% complete), CSS selectors used, test fixtures, known
-edge cases, and parser features. Essential reference for understanding parser
-capabilities and implementation details.
+- [User Story — Universal Telemetry Import & Analysis (GNSS + IMU)](../telemetry/User_Story/User_Story_Universal_Telemetry_Import_and_Analysis_%28GNSS_%2B_IMU%29.md)
+- [Exploring the End-User Experience for Telemetry](../telemetry/End_User_Experience/Exploring_the_End_User_Experience_for_Telemetry_in_MRE.md)
 
-### [LiveRC Parser CSS Selector Reference](../../ingestion/connectors/liverc/PARSER_SELECTORS.md)
+### Telemetry Reviews
 
-Complete CSS selector reference for all LiveRC parsers. Documents HTML structure
-dependencies, CSS selectors, data extraction patterns, edge cases, and
-maintenance procedures. Critical reference for maintaining parsers when LiveRC
-HTML structure changes. Covers TrackListParser, EventListParser,
-EventMetadataParser, RaceListParser, RaceResultsParser, RaceLapParser, and
-EntryListParser.
-
----
-
-## Security
-
-Security documentation and best practices.
-
-### [Security Overview](../security/security-overview.md)
-
-Comprehensive security documentation covering authentication, authorization,
-password security, session management, API security, data protection, security
-headers, dependency security, and security best practices.
+- [Telemetry Documentation Deep Review (2026-02-13)](../telemetry/reviews/telemetry-documentation-deep-review-2026-02-13.md)
+- [Telemetry Design Review](../telemetry/reviews/telemetry_design_review.md)
+- [Gaps and Recommended Additions (archived)](../telemetry/reviews/Old/Gaps%20And%20Recommended%20Additions.md)
 
 ---
 
-## Specifications
+## Security (`docs/security/`)
 
-Feature specifications and requirements.
-
-### [MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md)
-
-Authoritative specification for the strict, locked-down feature set for the MRE
-Version 0.1.1 Release. Defines allowed features and explicitly forbidden
-features.
-
-### [MRE Under Development Page Specification](../specs/mre-under-development-page.md)
-
-Complete specification for the `/under-development` placeholder page. Defines
-route, required message, layout requirements, accessibility, and integration
-with navigation.
+- [Security Overview](../security/security-overview.md) — Authentication
+  (Argon2id), authorization, session management, API security, data protection,
+  security headers.
 
 ---
 
-## Future Ideas
+## Specifications (`docs/specs/`)
 
-Exploratory concepts not committed to the roadmap. See also
-[Future Features](../user-stories/future-features.md) for formal Beta+ epics.
-
-### [Future Ideas Index](../future-ideas/README.md)
-
-Index of lightweight idea notes and links to individual write-ups.
-
-### [Graph-based race replay](../future-ideas/graph-based-race-replay.md)
-
-Chart-driven playback (lap times, order, gaps) as an alternative to video or
-track-map replay, building on existing lap-trend data.
-
-### [Top qualifiers and seeding rounds](../future-ideas/top-qualifiers-and-seeding-rounds.md)
-
-Product background for top qualifiers and seeding; normative TQ definitions and
-implementation plan are
-[architecture/top-qualifiers.md](../architecture/top-qualifiers.md) and
-[implimentation_plans/top-qualifiers-2026-04.md](../implimentation_plans/top-qualifiers-2026-04.md).
+- [MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md)
+- [MRE Under Development Page Specification](../specs/mre-under-development-page.md)
 
 ---
 
-## Architecture Decision Records (ADRs)
+## Standards (`docs/standards/`)
 
-Documentation of significant architectural decisions.
-
-### [ADR Index and Guidelines](../adr/README.md)
-
-Index and guidelines for Architecture Decision Records (ADRs). Defines when to
-create ADRs, ADR format, lifecycle, storage structure, and usage in development.
-
-### [ADR-20260405: Bump-ups — LiveRC heat sheet ladder strategy](../adr/ADR-20260405-bump-ups-liveRC-heat-sheet-ladder-strategy.md)
-
-Multi-strategy ladder tiers for heterogeneous LiveRC labels, LCQ association
-without new schema fields, and exposing `driverId` on multi-main analysis
-entries. Complements ADR-20260404.
-
-### [ADR-20260404: Bump-ups inferred from LiveRC results](../adr/ADR-20260404-bump-ups-inferred-from-results.md)
-
-Bump-ups as graph inference on sessions and results; no rulebook runtime in v1.
-
-### [ADR-20250127: Adopt Mobile-Safe Architecture](../adr/ADR-20250127-adopt-mobile-safe-architecture.md)
-
-Documents the architectural decision to adopt the Mobile-Safe Architecture
-Guidelines as the authoritative standard for the MRE codebase.
-
-### [ADR-20251228: Allow Sidebar Navigation](../adr/ADR-20251228-allow-sidebar-navigation.md)
-
-Documents the architectural decision to allow sidebar navigation patterns in the
-MRE application.
+- [Standards Index](../standards/README.md)
+- [File Headers and Code Commenting Guidelines](../standards/file-headers-and-commenting-guidelines.md)
+- [TypeScript & React Style Guide](../standards/typescript-react-style-guide.md)
 
 ---
 
-## User Stories
+## Frontend (`docs/frontend/`)
 
-User stories documentation organized by feature epics.
-
-### [User Stories Index](../user-stories/README.md)
-
-Overview and navigation for MRE user stories documentation. Defines user types,
-story format, and links to related documentation.
-
-### [Authentication Epic](../user-stories/authentication.md)
-
-User stories covering user registration and login functionality.
-
-### [User Management Epic](../user-stories/user-management.md)
-
-User stories covering user experience and welcome pages.
-
-### [Administrator Epic](../user-stories/admin.md)
-
-User stories covering administrator login and console access.
-
-### [LiveRC Integration Epic](../user-stories/liverc-integration.md)
-
-User stories covering LiveRC data discovery, ingestion, and visualization.
-
-### [System Epic](../user-stories/system.md)
-
-User stories covering system-level features and placeholders.
-
-### [User Journeys](../user-stories/user-journeys.md)
-
-Comprehensive end-to-end user journey documentation. Defines complete user
-workflows and interaction patterns.
-
-### [Future Features](../user-stories/future-features.md)
-
-Placeholder stories for Beta+ features that are out of scope for Alpha. Includes
-telemetry ingestion, analytics, setup sheets, AI coach, and other future
-capabilities.
-
-### [Non-Functional Requirements](../user-stories/non-functional-requirements.md)
-
-Non-functional requirements documented as user stories. Covers performance,
-security, accessibility, mobile compatibility, and API reliability.
+- [Component Catalog](../frontend/component-catalog.md) — Machine-generated
+  inventory of every production file under `src/components/`. Regenerate with
+  `docker exec -it mre-app npm run docs:component-catalog`.
+- [LiveRC User Workflow](../frontend/liverc/user-workflow.md)
+- [LiveRC Event Search & Analysis User Stories](../frontend/liverc/event-search-and-analysis-user-stories.md)
 
 ---
 
-## Role Documentation
+## User Guides (`docs/user-guides/`)
 
-Engineering role definitions, responsibilities, and collaboration patterns.
+These guides mirror the in-app `/guides/*` routes.
 
-### [DevOps & Platform Engineer](../roles/devops-platform-engineer.md)
-
-Infrastructure, CI/CD pipelines, deployment automation, environment
-provisioning, and platform engineering responsibilities.
-
-### [Documentation & Knowledge Steward](../roles/documentation-knowledge-steward.md)
-
-Documentation quality, ADR facilitation, knowledge management, cross-linking,
-and documentation maintenance responsibilities.
-
-### [Next.js Front-End Engineer](../roles/nextjs-front-end-engineer.md)
-
-UI components, App Router patterns, performance budgets, design token usage, and
-front-end development responsibilities.
-
-### [Observability & Incident Response Lead](../roles/observability-incident-response-lead.md)
-
-Structured logging, metrics, tracing, alerting, incident response, and
-observability architecture responsibilities.
-
-### [Prisma/PostgreSQL Backend Engineer](../roles/prisma-postgresql-backend-engineer.md)
-
-Database schema, migrations, query performance, data integrity, and backend data
-layer responsibilities.
-
-### [Quality & Automation Engineer](../roles/quality-automation-engineer.md)
-
-Testing strategies, CI/CD pipelines, test coverage, quality gates, and quality
-assurance responsibilities.
-
-### [Senior UI/UX Expert](../roles/senior-ui-ux-expert.md)
-
-UX principles, design systems, accessibility standards, information
-architecture, and user experience design responsibilities.
-
-### [TypeScript Domain Engineer](../roles/typescript-domain-engineer.md)
-
-Domain modeling, business logic, type safety, framework-agnostic design, and
-domain layer responsibilities.
+- [User Guides Index](../user-guides/README.md)
+- [Getting Started](../user-guides/getting-started.md)
+- [Navigation](../user-guides/navigation.md)
+- [Account Management](../user-guides/account-management.md)
+- [Event Search (`/search`)](../user-guides/event-search.md)
+- [Event Analysis](../user-guides/event-analysis.md)
+- [My Event Analysis (Dashboard)](../user-guides/dashboard.md)
+- [Car Type Mapping](../user-guides/car-type-mapping.md)
+- [Driver Features](../user-guides/driver-features.md)
+- [Troubleshooting](../user-guides/troubleshooting.md)
+- [User Guide Images](../user-guides/images/README.md)
 
 ---
 
-## Standards
+## User Stories (`docs/user-stories/`)
 
-Coding standards and documentation guidelines.
-
-### [Standards Index](../standards/README.md)
-
-Central index for all style guides and coding standards. Provides a single entry
-point to all style guides, coding standards, and formatting rules for the MRE
-project.
-
-### [File Headers and Code Commenting Guidelines](../standards/file-headers-and-commenting-guidelines.md)
-
-Mandatory standards for file headers and code commenting across all files in the
-MRE project. Defines header format by file type, code commenting standards,
-maintenance guidelines, and LLM behavior requirements.
-
-### [TypeScript & React Style Guide](../standards/typescript-react-style-guide.md)
-
-Comprehensive coding standards for TypeScript and React development. Defines
-naming conventions, code patterns, component structure, and best practices.
+- [User Stories Index](../user-stories/README.md)
+- [Authentication Epic](../user-stories/authentication.md)
+- [User Management Epic](../user-stories/user-management.md)
+- [Administrator Epic](../user-stories/admin.md)
+- [LiveRC Integration Epic](../user-stories/liverc-integration.md)
+- [System Epic](../user-stories/system.md)
+- [User Journeys](../user-stories/user-journeys.md)
+- [Future Features](../user-stories/future-features.md)
+- [Non-Functional Requirements](../user-stories/non-functional-requirements.md)
 
 ---
 
-## Frontend
+## Architecture Decision Records (`docs/adr/`)
 
-Frontend-specific workflows and user experience documentation.
-
-### [LiveRC User Workflow](../frontend/liverc/user-workflow.md)
-
-User workflow documentation for LiveRC integration features. Defines the
-end-to-end user experience for discovering tracks, selecting events, and viewing
-race data.
-
-### [LiveRC Event Search and Analysis User Stories](../frontend/liverc/event-search-and-analysis-user-stories.md)
-
-User stories for event search and analysis features in the LiveRC integration.
-Defines search patterns, filtering, and data analysis workflows.
+- [ADR Index and Guidelines](../adr/README.md)
+- [ADR-20250127 — Adopt Mobile-Safe Architecture](../adr/ADR-20250127-adopt-mobile-safe-architecture.md)
+- [ADR-20251228 — Allow Sidebar Navigation](../adr/ADR-20251228-allow-sidebar-navigation.md)
+- [ADR-20260131 — Telemetry Identifier Strategy](../adr/ADR-20260131-telemetry-identifier-strategy.md)
+- [ADR-20260131 — Telemetry Storage and Raw Retention](../adr/ADR-20260131-telemetry-storage-and-raw-retention.md)
+- [ADR-20260203 — Time-Series Parquet Canonical + ClickHouse Cache](../adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md)
+- [ADR-20260404 — Bump-ups Inferred from Results](../adr/ADR-20260404-bump-ups-inferred-from-results.md)
+- [ADR-20260405 — Bump-ups LiveRC Heat Sheet Ladder Strategy](../adr/ADR-20260405-bump-ups-liveRC-heat-sheet-ladder-strategy.md)
+- [ADR-20260531 — Scheduled Recent Events Auto-Ingest](../adr/ADR-20260531-scheduled-recent-events-auto-ingest.md)
+- [ADR-20260601 — Event Search Omnibox (Database-Only)](../adr/ADR-20260601-event-search-omnibox-db-only.md)
 
 ---
 
-## Implementation Plans
+## Roles (`docs/roles/`)
 
-Implementation plans for major architectural changes and improvements.
-
-### [Bump-ups — LiveRC Main Events solution](../plans/bump-ups-liverc-main-events-solution.md)
-
-Technical specification for robust bump-up inference aligned with LiveRC heat
-sheet order, multi-strategy ladder parsing (lettered mains, bracket finals, LCQ
-merge), `EventAnalysisData` changes (multi-main `driverId`), phased
-implementation, testing, and references to ADRs and ingestion.
-
-### [Application Performance Remediation (March 2026)](../implimentation_plans/application-performance-remediation-2026-03.md)
-
-Detailed implementation plan for P0–P7 backlog from the March 2026 application
-performance review: dependencies, acceptance criteria, Docker verification, PR
-sequencing, and documentation updates.
-
-### [Top qualifiers (April 2026)](../implimentation_plans/top-qualifiers-2026-04.md)
-
-Phased plan for top qualifier (TQ) derivation, event analysis payload, UI, and
-documentation handoff; pairs with
-[architecture/top-qualifiers.md](../architecture/top-qualifiers.md).
-
-### [Codex Deep Review Remediation Plan](../implimentation_plans/codex-deep-review-remediation-plan.md)
-
-Comprehensive remediation plan based on codex deep review findings. Defines
-action items, priorities, and implementation strategies for addressing
-identified issues.
-
-### [Redux State Management Migration Plan](../implimentation_plans/redux-state-management-migration-plan.md)
-
-Migration plan for implementing Redux state management. Defines migration
-strategy, implementation steps, and transition plan.
-
-### [Practice Day Full Ingestion Implementation Plan](../implimentation_plans/practice-day-full-ingestion-implementation-plan.md)
-
-Phased implementation plan for full practice day ingestion: list +
-drivers/results from list + session detail fetch with concurrency +
-race_metadata, result stats, and laps. References design doc and covers schema,
-pipeline, API, docs, and tests.
-
-### [Telemetry MVP Implementation Decisions](../telemetry/Design/Telemetry_MVP_Implementation_Decisions.md)
-
-Authoritative MVP decisions for telemetry: job table (single-table queue),
-upload/artifact lifecycle, raw file storage path, session time placeholders,
-fixture files, pyarrow dependency, failure response when session failed, naming
-convention, and deferral of teams/sharing to v1. Reference when implementing
-Phase 2–3.
-
-### [Telemetry Implementation Plan](../implimentation_plans/telemetry-implementation-plan.md)
-
-Phased implementation plan for telemetry: prerequisites, phase dependencies,
-infrastructure (object storage, job queue, worker), config, MVP task breakdown
-(schema, API, parsers, Parquet, session list UI), testing, documentation, and
-operations. References Telemetry Implementation Design; v1/v2 scoped in design.
-
-### [Pitstop Detection Implementation Plan](../plans/pitstop-detection-implementation-plan.md)
-
-Phased implementation plan for nitro-only pit detection, new persistence models
-(`pit_stop_events`, `driver_pit_strategies`), sequence inference, rollout, and
-quality gates.
+- [DevOps & Platform Engineer](../roles/devops-platform-engineer.md)
+- [Documentation & Knowledge Steward](../roles/documentation-knowledge-steward.md)
+- [Next.js Front-End Engineer](../roles/nextjs-front-end-engineer.md)
+- [Observability & Incident Response Lead](../roles/observability-incident-response-lead.md)
+- [Prisma/PostgreSQL Backend Engineer](../roles/prisma-postgresql-backend-engineer.md)
+- [Quality & Automation Engineer](../roles/quality-automation-engineer.md)
+- [Senior UI/UX Expert](../roles/senior-ui-ux-expert.md)
+- [TypeScript Domain Engineer](../roles/typescript-domain-engineer.md)
 
 ---
 
-## Reviews
+## Plans (`docs/plans/`)
 
-Code and architecture review documentation.
-
-### [Application Performance Review (March 2026)](../reviews/application-performance-review-2026-03.md)
-
-Evidence-based performance review: locked user journeys, criteria from
-performance-requirements.md, baseline samples (health, tracks), build/bundle
-status, static findings for event analysis core, API routes, dashboard Redux/UI,
-and Python ingestion, plus ranked remediation backlog.
-
-### [Dashboard Performance Review](../reviews/dashboard-performance-review.md)
-
-Performance review of the authenticated dashboard page (February 2025).
-Identifies performance risks for large LiveRC events, including hero carousel
-reprocessing, uncontrolled weather requests, session data recalculation, and
-driver membership checks. Provides specific recommendations for memoization,
-caching, and optimization.
-
-### [Codex Deep Review](../reviews/Old/codex-deep-review.md)
-
-Comprehensive code review and analysis. Provides detailed assessment of codebase
-quality, architecture, and implementation patterns.
-
-### [Implementation Status Analysis](../reviews/Old/implementation-status-analysis.md)
-
-Analysis of implementation status and progress tracking. Documents current
-implementation state and identifies gaps.
-
-### [Redux Implementation Deep Review](../reviews/Old/redux-implementation-deep-review.md)
-
-Deep review of Redux implementation patterns and architecture. Analyzes Redux
-usage, patterns, and recommendations.
+- [Bump-ups Feature Spec](../plans/bump-ups-feature-spec.md)
+- [Bump-ups LiveRC Main Events Solution](../plans/bump-ups-liverc-main-events-solution.md)
+- [Bump-ups Test Plan](../plans/bump-ups-test-plan.md)
+- [Bump-ups UX Surfacing](../plans/bump-ups-ux-surfacing.md)
+- [Event Analysis UI Implementation Plan](../plans/event-analysis-ui-implementation-plan.md)
+- [Pitstop Detection Implementation Plan](../plans/pitstop-detection-implementation-plan.md)
 
 ---
 
-## Reports
+## Implementation Plans (`docs/implimentation_plans/`)
 
-Operational reports and system status documentation.
+> The folder name retains its historical spelling (`implimentation_plans`).
 
-### Track Sync Reports
-
-Automated reports generated by the track synchronization process:
-
-- [Track Sync Report - 2025-12-17 07:55:56](../reports/track-sync-2025-12-17-07-55-56.md)
-- [Track Sync Report - 2025-12-23 13:55:43](../reports/track-sync-2025-12-23-13-55-43.md)
-- [Track Sync Report - 2025-12-23 13:57:13](../reports/track-sync-2025-12-23-13-57-13.md)
-- [Track Sync Report - 2025-12-23 13:58:55](../reports/track-sync-2025-12-23-13-58-55.md)
-- [Track Sync Report - 2025-12-24 10:50:00](../reports/track-sync-2025-12-24-10-50-00.md)
-- [Track Sync Report - 2026-01-02 01:33:00](../reports/track-sync-2026-01-02-01-33-00.md)
-- [Track Sync Report - 2026-01-04 23:52:56](../reports/track-sync-2026-01-04-23-52-56.md)
-
-These reports document track synchronization operations, including tracks
-discovered, updated, and any errors encountered during the sync process.
+- [Implementation Plans Index](../implimentation_plans/README.md)
+- [Analysis Card Collapse + Mini Chart (2026-05)](../implimentation_plans/analysis-card-collapse-mini-chart-2026-05.md)
+- [Application Performance Remediation (2026-03)](../implimentation_plans/application-performance-remediation-2026-03.md)
+- [Event Host/Track Override (2026-04)](../implimentation_plans/event-host-track-override-2026-04.md)
+- [Recent Events Auto-Ingest (2026-05)](../implimentation_plans/recent-events-auto-ingest-2026-05.md)
+- [Event Search Omnibox (2026-06)](../implimentation_plans/event-search-omnibox-2026-06.md)
+- [Telemetry Implementation Plan](../implimentation_plans/telemetry-implementation-plan.md)
+- [Top Qualifiers (2026-04)](../implimentation_plans/top-qualifiers-2026-04.md)
 
 ---
 
-## Reference Material
+## Future Ideas & Feature Ideas
 
-Reference HTML files and external documentation samples.
-
-### LiveRC Reference Files
-
-HTML reference files from LiveRC used for parsing and testing:
-
-- [Event Detail Page](../reference_material/Event.detail.page.html)
-- [Track Catalogue Page](../reference_material/liverc/Track.catalogue.page.html)
-- [Track Events Listing Page](../reference_material/liverc/Track.events.listing.page.html)
-- [BBRCC Off-Road's Dashboard](../reference_material/liverc/BBRCC Off-Road's
-  Dashboard.html)
-- [Thornhill Home Page](../reference_material/liverc/thornhill.home.page.liverc.html)
-- [Thunder Alley RC Speedway's Dashboard](../reference_material/liverc/Thunder
-  Alley RC Speedway's Dashboard.html)
-- [1.8 Nitro Buggy B-Main Results](../reference_material/liverc/1.8 Nitro Buggy
-  B-Main Results.html)
-- [1.8 Electric Buggy A3-Main
-  Results](../reference_material/liverc/1.8.Electric.Buggy.A3-Main Results.html)
-- [1.8 Nitro Buggy A-Main Results](../reference_material/liverc/1.8.Nitro.Buggy.A-Main.Results.html)
-
-These HTML files are used as reference material for understanding LiveRC page
-structure and for testing parsers.
+- [Future Ideas Index](../future-ideas/README.md)
+- [Event Series Linking](../future-ideas/event-series-linking.md)
+- [Graph-Based Race Replay](../future-ideas/graph-based-race-replay.md)
+- [Top Qualifiers and Seeding Rounds](../future-ideas/top-qualifiers-and-seeding-rounds.md)
+- [Feature Ideas (scratchpad)](../feature_ideas/feature_ideas.md)
 
 ---
 
-## Prompts
+## Reviews (`docs/reviews/`)
 
-Prompt templates and instructions for AI tools.
-
-### [Prompts Template](../prompts/prompts.txt)
-
-Prompt templates and instructions for AI code generation and documentation
-tasks. Defines standard prompts for file output, code generation, and
-documentation formatting.
+- [Reviews Working Notes](../reviews/review.md)
+- [Application Performance Review (2026-03, archived)](../reviews/Old/application-performance-review-2026-03.md)
 
 ---
 
-## Document Statistics
+## Reports (`docs/reports/`)
 
-**Total Documents:** 110+ markdown files  
-**Document Categories:** 21+ logical sections  
-**Last Updated:** 2026-05-12
+Automated track-synchronisation reports produced by the ingestion cron job (one
+per run). The directory currently holds daily reports for **May 2026**
+(`track-sync-2026-05-01-*` … `track-sync-2026-05-30-*`). Retention is governed
+by `TRACK_SYNC_REPORT_RETENTION_DAYS` (default 30). These are generated
+artefacts — do not edit by hand.
+
+---
+
+## Reference Material (`docs/reference_material/`)
+
+Captured upstream HTML samples and external rule references used for parser
+development and testing.
+
+- [1/8 Nitro Off-Road Bump-Up Rules](../reference_material/Racing%20Rules%20and%20Regulations/1-8-nitro-off-road-bump-up-rules.md)
+- LiveRC HTML samples under `docs/reference_material/liverc/` (event detail,
+  track catalogue/listing, dashboards, A/B-main results, practice sessions,
+  entry lists). Used as fixtures/reference for parser maintenance.
+- Everlaps full event dump under `docs/reference_material/Everlaps/`.
+- Track photos under `docs/reference_material/Canberra Track Photos/`.
+
+---
+
+## Debug & Refactor Notes
+
+- [Vehicle Type Save Debug Report](../debug/vehicle-type-save-debug-report.md)
+- [Event Details UI/UX Refactor Notes](../eventDetailsUIUXRefactor/README.md)
+  (with reference mockup images).
+
+---
+
+## Package-Local Docs (next to code)
+
+These operational READMEs live next to code and link back to `docs/` for full
+specifications.
+
+- [Ingestion Service README](../../ingestion/README.md)
+- [Parser Implementation Status](../../ingestion/PARSER_IMPLEMENTATION_STATUS.md)
+- [LiveRC Parser CSS Selector Reference](../../ingestion/connectors/liverc/PARSER_SELECTORS.md)
+- [SSL Certificates README](../../certs/README.md)
 
 ---
 
 ## Maintenance
 
-This document index is maintained by the **Documentation & Knowledge Steward**
-role. See
-[Documentation & Knowledge Steward](../roles/documentation-knowledge-steward.md)
-for responsibilities.
+This index is maintained by the **Documentation & Knowledge Steward** role. When
+adding, renaming, or removing documentation:
 
-When adding new documentation:
-
-1. Add entry to appropriate section above
-2. Include brief description
-3. Update this index's `lastModified` date
-4. Ensure the document follows file header standards
-
----
-
-## Related Documentation
-
-- [Main Documentation Index](../README.md) - Curated documentation index with
-  detailed descriptions
-- [Standards Index](../standards/README.md) - Coding standards and style guides
-- [ADR Index](../adr/README.md) - Architecture Decision Records
-- [User Stories Index](../user-stories/README.md) - User stories documentation
+1. Add/adjust the entry in the appropriate directory section above.
+2. Keep the listing aligned with the actual `docs/` tree (the code/file tree is
+   the source of truth).
+3. Update this index's `lastModified` date.
+4. Ensure the document follows the file-header standards.
 
 ---
 

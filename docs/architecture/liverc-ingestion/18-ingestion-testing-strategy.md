@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Complete testing strategy for LiveRC ingestion subsystem
 purpose:
   Defines the complete testing strategy including test categories, fixture
@@ -361,6 +361,51 @@ To ship ingestion, the following are required:
 - baseline ingestion duration test
 
 Further tests may be added incrementally.
+
+---
+
+## 9.1 Recent Events Auto-Ingest
+
+The [31-recent-events-auto-ingest.md](31-recent-events-auto-ingest.md) feature
+is implemented; the date-filter unit tests below ship with it.
+
+### Unit tests — date filter module (implemented)
+
+File: `ingestion/tests/unit/test_recent_events_filter.py` (covers
+`ingestion/ingestion/recent_events.py`)
+
+| Scenario               | Assert                                                 |
+| ---------------------- | ------------------------------------------------------ |
+| 7-day inclusive window | Boundary dates inside/outside window                   |
+| Multi-day event range  | Overlap when any day intersects window                 |
+| Future-dated events    | Excluded from auto-ingest                              |
+| Min event age          | Same-day event skipped when age < threshold            |
+| Eligibility            | New + `none` depth in window → eligible                |
+| Skip complete          | `laps_full` without `--re-ingest-stale` → not eligible |
+
+Run in Docker:
+
+```bash
+docker exec mre-liverc-ingestion-service pytest ingestion/tests/unit/test_recent_events_filter.py -q
+```
+
+### Integration tests (recommended — not yet present)
+
+Suggested file: `ingestion/tests/integration/test_refresh_recent_events_cli.py`
+
+- Mock connector `list_events_for_track` with fixture HTML summaries (dates
+  inside/outside window).
+- Assert pipeline `ingest_event` call count respects caps and filter.
+- **No live network** in CI.
+
+### Manual E2E (Docker)
+
+Canonical fixture: Hot Rod Hobbies — source event ID **`506979`** — date
+**2026-05-30**. Procedure:
+[recent-events-auto-ingest-runbook.md](../../operations/recent-events-auto-ingest-runbook.md)
+§6.
+
+Acceptance: `ingest_depth = laps_full`, non-zero race and lap counts in DB.
 
 ---
 

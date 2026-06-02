@@ -2,6 +2,7 @@
 
 **Author:** MRE Team  
 **Date:** 2026-02-16  
+**lastModified:** 2026-05-31  
 **Purpose:** A single implementation-ready design document that references
 existing telemetry docs, fills gaps, provides an implementation roadmap, and
 includes in-depth treatment of data models, architecture, data source examples,
@@ -9,6 +10,30 @@ data quality options, Kalman filter pathways, and IMU capability tiers with
 concrete data examples.  
 **Audience:** Implementers (engineers building the system)  
 **License:** Proprietary, internal to MRE
+
+---
+
+## Implementation status (as of 2026-05-31)
+
+This is the most up-to-date doc in the tree and its §9.6 milestone checklist is
+broadly accurate. Two corrections after verifying against the code
+(`ingestion/telemetry/**`, `src/app/api/v1/telemetry/**`):
+
+- **Fusion is GNSS-only in practice.** The EKF (`fusion_ekf.py`) is implemented
+  and unit-tested, but the worker does not yet parse IMU samples (`imu_samples`
+  is always empty in `pipeline_v1.py`), so fused pose is a GNSS-only
+  pass-through (`pose_source = "gnss_only"`). Treat the 6-axis/9-axis EKF
+  milestones as "code present, not wired end-to-end".
+- **No signed URLs.** `POST /uploads` returns an app `PUT` target
+  (`/uploads/{id}/bytes`), and `GET /export` **streams** canonical GNSS Parquet
+  bytes (it does not mint a signed object-storage URL). The §3.5 "signed URL"
+  wording is aspirational.
+
+Other contract details (time base `t_ns`, canonical GNSS columns
+`t_ns, lat_deg, lon_deg, alt_m, speed_mps`, ClickHouse `telemetry_gnss_v1` only)
+are covered in the [API Contract](API_Contract_Telemetry.md) §0 and
+[Concrete Data Model](Telemetry%20-%20Concrete%20Data%20Model%20And%20Contracts.md)
+status notes.
 
 ---
 
@@ -345,14 +370,14 @@ handling, time semantics).
 
 | Endpoint                                       | Purpose                                       |
 | ---------------------------------------------- | --------------------------------------------- |
-| POST /api/v1/telemetry/uploads                 | Create upload, return signed URL              |
+| POST /api/v1/telemetry/uploads                 | Create upload; return app `PUT` bytes target  |
 | POST /api/v1/telemetry/uploads/{id}/finalise   | Create session, trigger ingestion             |
 | GET /api/v1/telemetry/sessions                 | List sessions (filter by track, date, status) |
 | GET /api/v1/telemetry/sessions/{id}            | Session detail, overview summary              |
 | GET /api/v1/telemetry/sessions/{id}/timeseries | Windowed time series (resolution hint)        |
 | GET /api/v1/telemetry/sessions/{id}/laps       | Lap list with metrics                         |
 | GET /api/v1/telemetry/sessions/{id}/quality    | Quality explain (scores, reason codes)        |
-| GET /api/v1/telemetry/sessions/{id}/export     | Signed Parquet URL (canonical export)         |
+| GET /api/v1/telemetry/sessions/{id}/export     | Streams canonical GNSS Parquet bytes          |
 
 All responses include `processing_run_id`, `schema_version`,
 `materialisation_status` where applicable.
@@ -943,8 +968,9 @@ API, then pipeline and parsers.
       formats — **not** via Garmin FIT)
 - [x] Downsample GNSS variants + API `stride` / `ds_rate` hints (not full
       L0/L1/L2 product naming everywhere)
-- [x] Server-side GNSS+IMU fusion (EKF) for 6-axis+; optional mag blend when
-      stable
+- [~] Server-side GNSS+IMU fusion (EKF) for 6-axis+; optional mag blend when
+  stable — **EKF + mag-gate code present and unit-tested, but IMU is not yet
+  parsed by the worker, so this runs GNSS-only today**
 - [x] Lap detection (user line, track catalogue line, auto loop)
 - [x] ClickHouse materialisation (optional `telemetry_gnss_v1`; pose cache table
       deferred)
@@ -960,7 +986,8 @@ API, then pipeline and parsers.
 - [ ] Additional binary parsers (vendor-specific) as needed
 - [x] Track catalogue SFL (consumes `Track.startFinishLineGeoJson`; admin PATCH)
 - [x] User-defined SFL (GeoJSON + UI draw + reprocess)
-- [x] 9-axis fusion with mag gating (heuristic stability + blend)
+- [~] 9-axis fusion with mag gating (heuristic stability + blend) — **code
+  present (`fusion_ekf.py`), gated on IMU parsing which is not yet wired**
 - [x] Segment and corner detection (heuristic from GNSS heading rate)
 - [x] Comparison API + coaching hints; full product “coaching” UX TBD
 

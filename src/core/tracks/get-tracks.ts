@@ -19,17 +19,21 @@ import { getTracks as getTracksFromRepo, type GetTracksFilters, type TrackListIt
 /**
  * Get tracks with default filtering
  *
- * Defaults to followed=true and active=true if not specified.
- * Returns minimal fields for list/dropdown use.
+ * Defaults to followed=true and active=true when `catalogue` is not set.
+ * Pass `{ catalogue: true }` to omit the isFollowed filter (track pickers).
  *
  * @param filters - Optional filters (followed defaults to true, active defaults to true)
- * @returns Array of track list items (id, trackName, sourceTrackSlug)
+ * @returns Array of track list items (id, trackName, sourceTrackSlug, country)
  */
 export async function getTracks(filters: GetTracksFilters = {}): Promise<TrackListItem[]> {
-  // Default to followed=true and active=true if not specified
   const finalFilters: GetTracksFilters = {
-    followed: filters.followed !== undefined ? filters.followed : true,
     active: filters.active !== undefined ? filters.active : true,
+  }
+
+  if (filters.catalogue) {
+    finalFilters.catalogue = true
+  } else {
+    finalFilters.followed = filters.followed !== undefined ? filters.followed : true
   }
 
   return getTracksFromRepo(finalFilters)

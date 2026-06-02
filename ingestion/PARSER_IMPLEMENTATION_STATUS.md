@@ -29,22 +29,45 @@ sync operations, CLI commands, API endpoints, and parsers are fully functional.
 - ✅ URL building utilities
 - ✅ All parsers fully implemented with CSS selectors
 
-### API Endpoints (100%)
+### API Endpoints (FastAPI, prefix `/api/v1`)
 
-- ✅ Track sync endpoint (`POST /api/v1/tracks/sync`)
-- ✅ Event sync endpoint (`POST /api/v1/events/sync`)
-- ✅ Event ingestion endpoint (`POST /api/v1/events/{event_id}/ingest`)
-- ✅ Ingestion status endpoint (`GET /api/v1/ingestion/status/{event_id}`)
+Defined in `ingestion/api/routes.py` (source of truth):
 
-### CLI Commands (100%)
+- ✅ `POST /tracks/sync`, `GET /tracks/sync/{job_id}` (async track sync job)
+- ✅ `POST /events/sync` (sync events for a track)
+- ✅ `POST /events/discover` (connector-only event discovery)
+- ✅ `POST /events/{event_id}/ingest`, `POST /events/ingest` (by source id +
+  track) — return **202 + job_id** when `INGESTION_USE_QUEUE=true` (default)
+- ✅ `GET /ingestion/jobs/{job_id}` (queued job status)
+- ✅ `GET /ingestion/status/{event_id}` (event ingestion status)
+- ✅ `POST /events/entry-list` (parsed entry list)
+- ✅ `POST /practice-days/discover`, `GET /practice-days/search`,
+  `POST /practice-days/ingest`
+- ✅ `GET /health`
+
+### CLI Commands (Click, `python -m ingestion.cli`)
+
+Under `ingest liverc`:
 
 - ✅ `list-tracks` - List all tracks
-- ✅ `refresh-tracks` - Sync track catalogue
+- ✅ `refresh-tracks` - Sync track catalogue (`--metadata/--no-metadata`)
+- ✅ `backfill-track-countries` - Backfill `country` from city/state
+  (`--dry-run`)
 - ✅ `list-events` - List events for track
-- ✅ `refresh-events` - Sync events for track
-- ✅ `ingest-event` - Ingest event data
+- ✅ `refresh-events` - Sync events for track (`--depth`, `--ingest-new-only`,
+  `--ingest-all`)
+- ✅ `refresh-followed-events` - Refresh all followed tracks
+- ✅ `refresh-recent-events` - Discover + full-ingest recent events
+  (auto-ingest)
+- ✅ `ingest-event` - Ingest event data (`--depth`, `--force`)
+- ✅ `reingest-section-headers` - Repair null `section_header` events
 - ✅ `status` - Show ingestion statistics
 - ✅ `verify-integrity` - Check data integrity
+
+Top-level (not under `liverc`):
+
+- ✅ `auto-confirm-links` - Confirm user–driver links
+- ✅ `drivers deduplicate` - Merge duplicate drivers (`--execute`, `--source`)
 
 ### Minor Completions (100%)
 
@@ -110,17 +133,23 @@ functionality:
 - **CSS Selectors**: `table.race_result tbody tr`, `td:first-child`,
   `td:nth-child(2) span.driver_name`,
   `td:nth-child(2) a.driver_laps[data-driver-id]`, `td:nth-child(3)` (Qual),
-  `td:nth-child(4)` (Laps/Time), `td:nth-child(5)` (Behind),
-  `td:nth-child(6)`, `td:nth-child(7) div.hidden`, `td:nth-child(8)`–`td:nth-child(12)` (Avg Top 5/10/15, Top 3 Consec., Std. Deviation), `td:nth-child(13)` (Consistency)
+  `td:nth-child(4)` (Laps/Time), `td:nth-child(5)` (Behind), `td:nth-child(6)`,
+  `td:nth-child(7) div.hidden`, `td:nth-child(8)`–`td:nth-child(12)` (Avg Top
+  5/10/15, Top 3 Consec., Std. Deviation), `td:nth-child(13)` (Consistency)
 - **Features**:
   - Extracts driver ID from `data-driver-id` attribute (primary)
   - Falls back to matching driver name to `racerLaps` keys
-  - Parses Laps/Time ("47/30:31.382" or "0"): laps count, `total_time_raw`, and `total_time_seconds` (MM:SS.mmm → seconds)
-  - Extracts Qual (column 3) → `qualifying_position`, Behind (column 5) → `seconds_behind`
-  - Extracts Avg Top 5, Avg Top 10, Avg Top 15, Top 3 Consecutive, Std. Deviation into `raw_fields_json`
+  - Parses Laps/Time ("47/30:31.382" or "0"): laps count, `total_time_raw`, and
+    `total_time_seconds` (MM:SS.mmm → seconds)
+  - Extracts Qual (column 3) → `qualifying_position`, Behind (column 5) →
+    `seconds_behind`
+  - Extracts Avg Top 5, Avg Top 10, Avg Top 15, Top 3 Consecutive, Std.
+    Deviation into `raw_fields_json`
   - Handles non-starting drivers (RILEY LANDER case)
   - Extracts fastest lap, avg lap, consistency
-- **Race duration**: `parse_race_duration_seconds(html)` parses "Length: MM:SS Timed" from the race result page and is used by the connector to set `race_summary.duration_seconds`.
+- **Race duration**: `parse_race_duration_seconds(html)` parses "Length: MM:SS
+  Timed" from the race result page and is used by the connector to set
+  `race_summary.duration_seconds`.
 
 ### RaceLapParser (`ingestion/connectors/liverc/parsers/race_lap_parser.py`)
 
@@ -133,6 +162,34 @@ functionality:
   - Skips lap 0 (start line)
   - Handles empty laps arrays (non-starting drivers)
   - Parses JavaScript object literals (not JSON-compatible)
+
+### Additional parsers (present in `ingestion/connectors/liverc/parsers/`)
+
+The connector also ships these parser modules. Selector-level detail lives in
+the Python modules (and `PARSER_SELECTORS.md` for shared selectors):
+
+- ✅ `entry_list_parser.py` — entry lists grouped by class (test:
+  `test_entry_list_parser.py`)
+- ✅ `qual_points_parser.py` — qualifying points (test:
+  `test_qual_points_parser.py`)
+- ✅ `rankings_list_parser.py` — rankings list (test:
+  `test_rankings_list_parser.py`)
+- ✅ `round_ranking_parser.py` — per-round rankings
+- ✅ `overall_final_ranking_parser.py` — overall final ranking (test:
+  `test_overall_final_ranking_parser.py`)
+- ✅ `multi_main_list_parser.py` / `multi_main_result_parser.py` — multi-main
+  (A1/A2/A3) lists and results
+- ✅ `track_dashboard_parser.py` — track dashboard metadata enrichment (test:
+  `test_track_dashboard_parser.py`)
+- ✅ `practice_day_parser.py` — practice day sessions (test:
+  `test_practice_day_parser.py`)
+- ✅ `entry_list_nav_clusters.py` — entry-list navigation cluster helper (test:
+  `test_entry_list_nav_clusters.py`)
+
+Related normalisation helpers (not parsers, but exercised by tests): session
+type inference (`test_session_type_inference.py`), vehicle-type inference
+(`ingestion/ingestion/infer_vehicle_type.py`), and race-vehicle normalization
+(`ingestion/common/race_vehicle_normalization.py`).
 
 ## CSS Selectors Used
 
@@ -170,13 +227,16 @@ functionality:
 - `td:nth-child(2) span.driver_name` - Driver name
 - `td:nth-child(2) a.driver_laps[data-driver-id]` - Driver ID (primary)
 - `td:nth-child(3)` - Qual (qualifying position)
-- `td:nth-child(4)` - Laps/Time (laps count + total time string; time parsed to seconds)
+- `td:nth-child(4)` - Laps/Time (laps count + total time string; time parsed to
+  seconds)
 - `td:nth-child(5)` - Behind (seconds behind winner)
 - `td:nth-child(6)` - Fastest lap
 - `td:nth-child(7) div.hidden` - Avg lap
-- `td:nth-child(8)`–`(12)` - Avg Top 5, Avg Top 10, Avg Top 15, Top 3 Consecutive, Std. Deviation (into raw_fields_json)
+- `td:nth-child(8)`–`(12)` - Avg Top 5, Avg Top 10, Avg Top 15, Top 3
+  Consecutive, Std. Deviation (into raw_fields_json)
 - `td:nth-child(13)` - Consistency
-- Race page: `span.class_sub_header` containing "Length: MM:SS Timed" - race duration (via `parse_race_duration_seconds`)
+- Race page: `span.class_sub_header` containing "Length: MM:SS Timed" - race
+  duration (via `parse_race_duration_seconds`)
 
 ### RaceLapParser
 
@@ -198,7 +258,7 @@ Fixtures are located in `tests/fixtures/liverc/`:
 
 ## Unit Tests
 
-All parsers have comprehensive unit tests:
+Core parsers have comprehensive unit tests (under `tests/unit/`):
 
 - ✅ `test_track_list_parser.py`
 - ✅ `test_event_list_parser.py`
@@ -206,6 +266,13 @@ All parsers have comprehensive unit tests:
 - ✅ `test_race_list_parser.py`
 - ✅ `test_race_results_parser.py`
 - ✅ `test_race_lap_parser.py`
+- ✅ `test_entry_list_parser.py` (under `tests/`)
+- ✅ `test_qual_points_parser.py`
+- ✅ `test_rankings_list_parser.py`
+- ✅ `test_overall_final_ranking_parser.py`
+- ✅ `test_track_dashboard_parser.py`
+- ✅ `test_session_type_inference.py`
+- ✅ `test_recent_events_filter.py` (recent-events auto-ingest filter)
 
 Run tests:
 

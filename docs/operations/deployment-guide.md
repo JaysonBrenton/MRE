@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Deployment and DevOps runbook for MRE application
 purpose:
   Provides comprehensive deployment procedures, including pre-deployment
@@ -19,7 +19,7 @@ relatedFiles:
 
 # Deployment and DevOps Runbook
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2026-05-31  
 **Scope:** Production deployment procedures
 
 This document provides comprehensive deployment procedures for the MRE
@@ -46,16 +46,24 @@ migrations, rollback procedures, and health checks.
 
 ### Container Architecture
 
-**Services:**
+**Services** (full default Compose stack — see
+[`build-runtime-reference.md`](./build-runtime-reference.md)):
 
-- `mre-app` - Next.js application (port 3001)
-- `mre-liverc-ingestion-service` - Python ingestion service (port 8000)
-- `mre-postgres` - PostgreSQL database (port 5432)
+- `mre-app` - Next.js application (port 3001, healthcheck `/api/v1/health`)
+- `mre-postgres` - PostgreSQL 16 database (port 5432)
+- `mre-liverc-ingestion-service` - Python ingestion service (port 8000,
+  healthcheck `/health`)
+- `mre-clickhouse` - ClickHouse 24.8 optional telemetry query cache (HTTP 8123)
+- `mre-telemetry-worker` - telemetry pipeline worker (same image as ingestion;
+  entrypoint `python -m ingestion.telemetry.worker`; no published host port)
 
 **Network:**
 
-- Docker network: `my-race-engineer_mre-network`
+- Docker network: `my-race-engineer_mre-network` (Compose key `mre-network`)
 - Bridge network for service communication
+
+**Named volumes:** `mre-postgres-data`, `mre-telemetry-uploads`,
+`mre-clickhouse-data`
 
 ### Deployment Environments
 

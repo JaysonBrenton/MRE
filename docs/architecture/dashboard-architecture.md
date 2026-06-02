@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Documentation Update
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Dashboard architecture and widget system for MRE version 0.1.1
 purpose:
   Defines dashboard types, widget system, customization architecture, and
@@ -20,7 +20,17 @@ relatedFiles:
 **Purpose:** Defines dashboard types, widget system architecture, customization
 system, and implementation guidelines.
 
-**Implementation Status:** Fully in-scope and required for version 0.1.1
+**Implementation Status:** Aspirational specification. **The customizable,
+multi-type widget dashboard described below (user/driver/team/track dashboards,
+drag-and-drop widget rearrangement, resize, per-user saved layouts) is not yet
+implemented.** What ships today is the **Event Analysis dashboard** at
+`/eventAnalysis`, backed by `src/store/slices/dashboardSlice.ts` (event
+selection plus event/session analysis data fetching) and rendered by
+`src/components/organisms/dashboard/`. The only drag-and-drop reordering in the
+shipped app is the Event/Session Level Analysis panel grid
+(`AnalysisPanelSortableGrid.tsx`, order persisted via `analysis-panel-order.ts`)
+built on **`@dnd-kit`**, not a generic widget grid. Treat the sections below as
+forward-looking design intent until the widget system is built.
 
 ---
 
@@ -307,8 +317,9 @@ interface WidgetConfig {
 
 **Libraries:**
 
-- Consider `react-grid-layout` or similar
-- Or custom implementation with drag API
+- The shipped app uses **`@dnd-kit`** (`@dnd-kit/core`, `@dnd-kit/sortable`) for
+  drag-and-drop (see `AnalysisPanelSortableGrid.tsx`). Any future widget grid
+  should reuse `@dnd-kit` rather than introducing `react-grid-layout`.
 - Touch support for mobile
 
 ### Resize Implementation

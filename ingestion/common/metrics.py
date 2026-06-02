@@ -167,6 +167,50 @@ _TELEMETRY_JOBS = Counter(
     registry=REGISTRY,
 )
 
+_RECENT_EVENTS_AUTO_INGEST_RUNS = Counter(
+    "recent_events_auto_ingest_runs_total",
+    "Recent events auto-ingest cron/CLI runs",
+    labelnames=("status",),
+    registry=REGISTRY,
+)
+
+_RECENT_EVENTS_AUTO_INGEST_EVENTS = Counter(
+    "recent_events_auto_ingest_events_ingested_total",
+    "Events fully ingested by recent events auto-ingest",
+    registry=REGISTRY,
+)
+
+_RECENT_EVENTS_AUTO_INGEST_EVENTS_FAILED = Counter(
+    "recent_events_auto_ingest_events_failed_total",
+    "Events that failed ingestion during recent events auto-ingest",
+    registry=REGISTRY,
+)
+
+_RECENT_EVENTS_AUTO_INGEST_DURATION = Histogram(
+    "recent_events_auto_ingest_duration_seconds",
+    "Duration of refresh-recent-events runs",
+    registry=REGISTRY,
+)
+
+
+def record_recent_events_auto_ingest_run(status: str) -> None:
+    """Record completion of a refresh-recent-events run."""
+    _RECENT_EVENTS_AUTO_INGEST_RUNS.labels(status=status).inc()
+
+
+def record_recent_events_auto_ingest_events(*, ingested: int, failed: int) -> None:
+    """Record ingested and failed event counts for recent auto-ingest."""
+    if ingested > 0:
+        _RECENT_EVENTS_AUTO_INGEST_EVENTS.inc(ingested)
+    if failed > 0:
+        _RECENT_EVENTS_AUTO_INGEST_EVENTS_FAILED.inc(failed)
+
+
+def record_recent_events_auto_ingest_duration(seconds: float) -> None:
+    """Record total duration of a refresh-recent-events run."""
+    if seconds >= 0:
+        _RECENT_EVENTS_AUTO_INGEST_DURATION.observe(seconds)
+
 
 def record_telemetry_job(job_type: str, outcome: str) -> None:
     """Record telemetry worker job success or failure."""

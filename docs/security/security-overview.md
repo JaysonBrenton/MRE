@@ -115,7 +115,7 @@ authentication.
 
 - Trigger event ingestion
 - Access admin console
-- Manage tracks (follow/unfollow)
+- Manage tracks (follow/unfollow global `isFollowed` ingestion scope)
 - View all user data (future)
 
 **Admin Account Creation:**

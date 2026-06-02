@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description:
   Comprehensive error handling and error codes catalog for MRE application
 purpose:
@@ -18,7 +18,10 @@ relatedFiles:
 
 # Error Handling and Error Codes Catalog
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2026-05-31 — Added the auth/rate-limit/conflict status codes
+that the API actually returns (`UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_READY`
+409, `UNPROCESSABLE_ENTITY` 422, `RATE_LIMIT_EXCEEDED` 429,
+`INVALID_REQUEST` 400) to the catalog and HTTP status mappings.  
 **Scope:** All API endpoints and application error handling
 
 This document provides comprehensive documentation of error handling patterns,
@@ -89,10 +92,16 @@ All API errors follow a standardized format defined in `src/lib/api-utils.ts`:
 | ------------------------ | ----------- | ---------------------------------- | -------------------------------------------------------- |
 | `VALIDATION_ERROR`       | 400         | Invalid request parameters or body | Missing required fields, invalid format, type mismatches |
 | `INVALID_INPUT`          | 400         | Invalid input data                 | Input validation failures in business logic              |
+| `INVALID_REQUEST`        | 400         | Malformed request                  | Invalid JSON body (see `parseRequestBody`)               |
+| `UNAUTHORIZED`           | 401         | Authentication required            | Request without a valid session/credentials              |
 | `INVALID_CREDENTIALS`    | 401         | Invalid email or password          | Authentication failures (prevents user enumeration)      |
-| `EMAIL_ALREADY_EXISTS`   | 409         | Email is already registered        | Duplicate email during registration                      |
+| `FORBIDDEN`              | 403         | Insufficient privileges            | Non-admin accessing admin route; accessing others' data  |
 | `NOT_FOUND`              | 404         | Requested resource does not exist  | Resource not found by ID or identifier                   |
+| `EMAIL_ALREADY_EXISTS`   | 409         | Email is already registered        | Duplicate email during registration                      |
 | `INGESTION_IN_PROGRESS`  | 409         | Ingestion already running          | Concurrent ingestion attempts                            |
+| `NOT_READY`              | 409         | Resource not in a ready state      | Telemetry session not yet `READY`                        |
+| `UNPROCESSABLE_ENTITY`   | 422         | Unprocessable request body         | Body parsed but semantically invalid (some endpoints)    |
+| `RATE_LIMIT_EXCEEDED`    | 429         | Too many requests                  | Rate-limited endpoints (auth, ingestion, discover)       |
 | `INGESTION_FAILED`       | 500         | Ingestion process failed           | Ingestion service errors                                 |
 | `EXTERNAL_SERVICE_ERROR` | 502         | External service error             | Errors from LiveRC ingestion service                     |
 | `SERVICE_UNAVAILABLE`    | 503         | External service unavailable       | Connection errors to ingestion service                   |
@@ -122,10 +131,16 @@ detailed ingestion error codes:
 | ------------------------ | ------------------------- | --------------------------------- |
 | `VALIDATION_ERROR`       | 400 Bad Request           | Client error - invalid input      |
 | `INVALID_INPUT`          | 400 Bad Request           | Client error - invalid input      |
+| `INVALID_REQUEST`        | 400 Bad Request           | Malformed request (invalid JSON)  |
+| `UNAUTHORIZED`           | 401 Unauthorized          | No valid session/credentials      |
 | `INVALID_CREDENTIALS`    | 401 Unauthorized          | Authentication failure            |
+| `FORBIDDEN`              | 403 Forbidden             | Insufficient privileges           |
 | `NOT_FOUND`              | 404 Not Found             | Resource doesn't exist            |
 | `EMAIL_ALREADY_EXISTS`   | 409 Conflict              | Resource conflict                 |
 | `INGESTION_IN_PROGRESS`  | 409 Conflict              | Operation conflict                |
+| `NOT_READY`              | 409 Conflict              | Resource not in a ready state     |
+| `UNPROCESSABLE_ENTITY`   | 422 Unprocessable Entity  | Semantically invalid request body |
+| `RATE_LIMIT_EXCEEDED`    | 429 Too Many Requests     | Rate limit exceeded               |
 | `INGESTION_FAILED`       | 500 Internal Server Error | Server-side processing error      |
 | `EXTERNAL_SERVICE_ERROR` | 502 Bad Gateway           | External service error            |
 | `SERVICE_UNAVAILABLE`    | 503 Service Unavailable   | External service connection error |

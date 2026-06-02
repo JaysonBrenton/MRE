@@ -7,10 +7,11 @@ modules present in the tree (in addition to those with dedicated sections below)
 include:
 
 `entry_list_parser.py`, `qual_points_parser.py`, `rankings_list_parser.py`,
-`round_ranking_parser.py`, `multi_main_list_parser.py`,
-`multi_main_result_parser.py`, `track_dashboard_parser.py`,
-`practice_day_parser.py` — update this doc when selectors are shared across
-multiple call sites; otherwise the Python file is authoritative.
+`round_ranking_parser.py`, `overall_final_ranking_parser.py`,
+`multi_main_list_parser.py`, `multi_main_result_parser.py`,
+`track_dashboard_parser.py`, `practice_day_parser.py`, and the
+`entry_list_nav_clusters.py` helper — update this doc when selectors are shared
+across multiple call sites; otherwise the Python file is authoritative.
 
 ## Table of Contents
 

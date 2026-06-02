@@ -4,6 +4,50 @@ Telemetry design and implementation documentation for MRE. Covers ingestion,
 processing, storage, API, and end-user experience for GNSS and IMU telemetry
 import and analysis.
 
+## Implementation status (as of 2026-05-31)
+
+Telemetry is **substantially implemented and shipping**. Many docs in this tree
+were written forward-looking ("planned / MVP / Phase X"); each now carries an
+**Implementation status** note describing what is built today versus still
+aspirational. Verify against the code, which is the source of truth:
+`src/app/api/v1/telemetry/**`, `src/core/telemetry/**`,
+`ingestion/telemetry/**`, and the `Telemetry*` models in `prisma/schema.prisma`.
+
+**Built today (verified against code):**
+
+- Upload → worker → **canonical Parquet** (system of record) under
+  `TELEMETRY_UPLOAD_ROOT` (`/data/telemetry`), with an **optional ClickHouse
+  GNSS cache** (`telemetry_gnss_v1`, enabled only when `CLICKHOUSE_HOST` is set;
+  Parquet + API work without it).
+- `telemetry-worker` service (`python -m ingestion.telemetry.worker`) polling
+  the Postgres `telemetry_jobs` queue with `FOR UPDATE SKIP LOCKED`. Two job
+  stages are wired: **`artifact_validate` → `parse_raw`** (parse_raw also runs
+  downsample, fusion pass-through, lap/segment/quality post-processing).
+- GNSS parsers implemented: **CSV, GPX, JSON, NMEA, UBX**. Garmin FIT is
+  rejected.
+- IMU parsing (`parsers/imu_sample.py`) and the **EKF fusion** module
+  (`fusion_ekf.py`) exist and are unit-tested, but are **not wired into the live
+  worker** yet (`imu_samples` is always empty in `pipeline_v1.py`, so fused pose
+  is GNSS-only pass-through, `pose_source = "gnss_only"`).
+- Lap detection (user SFL / track-catalogue SFL / auto loop), heuristic
+  segment/corner detection, quality scoring v1, GNSS downsample variants.
+- Sessions API (list/detail/PATCH/DELETE), plus `laps`, `timeseries`, `map`,
+  `quality`, `coaching`, `export`, `reprocess`, `retry`, `share`, `compare`, and
+  public `share/[token]` (+ `/map`) endpoints. Viewer pages at
+  `/eventAnalysis/my-telemetry[/[sessionId]]`.
+- **Read-only sharing is implemented** (share-token mint/revoke + public read
+  endpoints), so the "MVP private only" statement in
+  [Telemetry MVP Implementation Decisions](Design/Telemetry_MVP_Implementation_Decisions.md)
+  §9 is now out of date.
+
+**Still aspirational / not built:** signed-URL uploads (the app uses a direct
+`PUT .../bytes`), `channels`, `laps/{lapId}`, `laps/compare`, `segments`, and
+`processing-runs` HTTP endpoints, Arrow IPC export (`format=arrow` returns 501),
+the `teams` / share-grant / `telemetry_segments` / `telemetry_edits` tables, and
+ClickHouse accel/gyro/mag/pose tables. The richer GNSS PVT field set
+(`course_deg`, `hacc_m`, `sat_count`, `fix_type`, `quality_flags`) is documented
+but not yet written to canonical Parquet.
+
 ## Document Map
 
 ### Start Here

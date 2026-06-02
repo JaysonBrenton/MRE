@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Recovery procedures for LiveRC ingestion subsystem failures
 purpose:
   Defines end-to-end recovery processes for the LiveRC ingestion subsystem when
@@ -386,6 +386,39 @@ Future enhancements:
 - rollbackable ingestion migrations
 
 These measures ensure the ingestion system remains resilient for years.
+
+---
+
+## 15. Recent Events Auto-Ingest incidents
+
+The nightly `refresh-recent-events` job is implemented. When it misbehaves
+(LiveRC block, parser regression, runaway duration):
+
+### 15.1 Immediate containment
+
+1. Set `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED=false` (feature-only stop), or
+   `MRE_SCRAPE_ENABLED=false` (stop all scraping).
+2. `docker compose restart liverc-ingestion-service`.
+3. Confirm next cron cycle logs skip message (no HTTP).
+
+### 15.2 Partial ingest recovery
+
+- Per-event failures do not corrupt completed events; advisory locks prevent
+  duplicate concurrent ingest.
+- Re-run single event: `ingest-event --event-id <UUID> --depth laps_full`.
+- Re-run filtered batch: `refresh-recent-events --days N --max-ingests 1` for
+  isolated debugging.
+
+### 15.3 Validation
+
+- Grep `refresh_recent_events_complete` for `totals.events_failed`.
+- Spot-check canonical fixture event `506979` lap counts (runbook §6).
+- Run `verify-integrity` if systemic parser failure suspected.
+
+Full procedures:
+[recent-events-auto-ingest-runbook.md](../../operations/recent-events-auto-ingest-runbook.md)
+§8–9,
+[21-ingestion-recovery-procedures.md](21-ingestion-recovery-procedures.md).
 
 ---
 

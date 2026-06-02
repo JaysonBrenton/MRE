@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description:
   Complete reference for all environment variables used in MRE application
 purpose:
@@ -20,8 +20,9 @@ relatedFiles:
 
 # Environment Variables Reference
 
-**Last Updated:** 2025-01-27 (Added missing ingestion and performance
-variables)  
+**Last Updated:** 2026-05-31 (Synced with `docker-compose.yml`: added telemetry
+worker, ClickHouse, app feature-flag, and Uvicorn variables; confirmed
+recent-events auto-ingest variables are live)  
 **Environment File:** `.env.docker` (for Docker Compose)
 
 This document provides a complete reference for all environment variables used
@@ -51,6 +52,8 @@ Environment variables are organized into the following groups:
 - **Application** - Next.js application configuration
 - **Authentication** - NextAuth session and security
 - **Ingestion Service** - Python ingestion service configuration
+- **Telemetry Worker & ClickHouse** - `telemetry-worker` and `clickhouse`
+  service configuration
 - **System** - Timezone and system-level settings
 
 ---
@@ -156,6 +159,83 @@ HOST=0.0.0.0
 
 ---
 
+### NODE_OPTIONS
+
+**Type:** String  
+**Required:** No  
+**Default:** `--dns-result-order=ipv4first`  
+**Environment:** Docker Compose (`app`)
+
+Node.js runtime options. The compose default forces IPv4-first DNS resolution to
+avoid Alpine Linux IPv6 timeout issues.
+
+**Example:**
+
+```bash
+NODE_OPTIONS=--dns-result-order=ipv4first
+```
+
+---
+
+### NEXT_PUBLIC_ENABLE_PRACTICE_DAYS
+
+**Type:** Boolean (string)  
+**Required:** No  
+**Default:** `true`  
+**Environment:** Docker Compose (`app`)
+
+Client-visible feature flag (read in `src/lib/feature-flags.ts`) that toggles
+the Practice Days UI. The `NEXT_PUBLIC_` prefix is required so the value is
+available in the browser bundle.
+
+**Example:**
+
+```bash
+NEXT_PUBLIC_ENABLE_PRACTICE_DAYS=true
+```
+
+---
+
+### CLICKHOUSE_URL
+
+**Type:** URL String  
+**Required:** No  
+**Default:** `http://mre-clickhouse:8123`  
+**Environment:** Docker Compose (`app`)
+
+Optional ClickHouse HTTP URL used by the Next.js app
+(`src/core/telemetry/telemetry-clickhouse.ts`) to read materialised GNSS samples
+and to clean up the telemetry query cache on session delete. When unset, the app
+falls back to Parquet-backed telemetry only.
+
+**Example:**
+
+```bash
+CLICKHOUSE_URL=http://mre-clickhouse:8123
+```
+
+---
+
+### TELEMETRY_UPLOAD_ROOT
+
+**Type:** Path String  
+**Required:** No  
+**Default:** `/data/telemetry`  
+**Environment:** Docker Compose (`app`, `liverc-ingestion-service`,
+`telemetry-worker`)
+
+Shared filesystem root for raw telemetry uploads. Backed by the
+`mre-telemetry-uploads` named volume mounted into all three services so the app
+can stage uploads and the worker can process them.
+
+**Example:**
+
+```bash
+TELEMETRY_UPLOAD_ROOT=/data/telemetry
+```
+
+---
+
 ## Database Variables
 
 ### DATABASE_URL
@@ -245,6 +325,24 @@ PostgreSQL database name. Used in DATABASE_URL construction.
 
 ```bash
 POSTGRES_DB=pacetracer
+```
+
+---
+
+### POSTGRES_PORT
+
+**Type:** Number  
+**Required:** No  
+**Default:** `5432`  
+**Environment:** Docker Compose (host port mapping for `postgres`)
+
+Host port published for the `mre-postgres` container (maps to container port
+5432).
+
+**Example:**
+
+```bash
+POSTGRES_PORT=5432
 ```
 
 ---
@@ -406,6 +504,102 @@ PYTHONUNBUFFERED=1
 
 ---
 
+### UVICORN_RELOAD
+
+**Type:** Boolean (string)  
+**Required:** No  
+**Default:** `false`  
+**Environment:** Python ingestion service (`liverc-ingestion-service`)
+
+Enables Uvicorn hot reload (single worker). When `true`, the entrypoint starts
+`uvicorn ... --reload`. Leave `false` for production-like behaviour with
+workers.
+
+**Example:**
+
+```bash
+UVICORN_RELOAD=false
+```
+
+---
+
+### INGESTION_USE_QUEUE
+
+**Type:** Boolean (string)  
+**Required:** No  
+**Default:** `true`  
+**Environment:** Python ingestion service
+
+Queue mode for ingestion. When enabled (`true`/`1`/`yes`), ingest requests
+return `202` and process in the background. Because the job store is in-process,
+the entrypoint forces a single Uvicorn worker so status polling hits the same
+process.
+
+**Example:**
+
+```bash
+INGESTION_USE_QUEUE=true
+```
+
+---
+
+### UVICORN_WORKERS
+
+**Type:** Number  
+**Required:** No  
+**Default:** `1`  
+**Environment:** Python ingestion service
+
+Number of Uvicorn workers when `UVICORN_RELOAD=false`. Only honoured when
+`INGESTION_USE_QUEUE=false`; with the queue enabled the entrypoint forces `1`
+worker. Set `INGESTION_USE_QUEUE=false` and `UVICORN_WORKERS=4` for synchronous
+ingest with multiple workers.
+
+**Example:**
+
+```bash
+UVICORN_WORKERS=1
+```
+
+---
+
+### SITE_POLICY_PATH
+
+**Type:** Path String  
+**Required:** No  
+**Default:** `/app/policies/site_policy/policy.json`  
+**Environment:** Python ingestion service
+
+Path to the shared site-policy configuration (throttling, robots, scrape kill
+switch). Mounted read-only from `./policies` so Python and TypeScript honour the
+same rules.
+
+**Example:**
+
+```bash
+SITE_POLICY_PATH=/app/policies/site_policy/policy.json
+```
+
+---
+
+### TRACK_SYNC_METADATA_CONCURRENCY
+
+**Type:** Number  
+**Required:** No  
+**Default:** `6` (in code)  
+**Environment:** Python ingestion service (`refresh-tracks`)
+
+Maximum concurrent track dashboard-metadata fetches during `refresh-tracks`.
+Read directly from the environment in `ingestion/cli/commands.py`.
+
+**Example:**
+
+```bash
+TRACK_SYNC_METADATA_CONCURRENCY=6
+```
+
+---
+
 ### TRACK_SYNC_REPORT_RETENTION_DAYS
 
 **Type:** Number  
@@ -420,6 +614,131 @@ older than this value are automatically deleted.
 
 ```bash
 TRACK_SYNC_REPORT_RETENTION_DAYS=30
+```
+
+---
+
+### MRE_SCRAPE_ENABLED
+
+**Type:** Boolean (string)  
+**Required:** No  
+**Default:** `true`  
+**Environment:** Python ingestion service (cron + CLI)
+
+Global kill switch for all LiveRC HTTP scraping. When `false`:
+
+- Cron wrappers (`run-track-sync.sh`, `run-followed-event-sync.sh`,
+  `run-recent-events-auto-ingest.sh`) exit before HTTP calls.
+- CLI commands fail fast via `_ensure_scraping_enabled`.
+
+Documented in
+[27-web-scraping-best-practices.md](../architecture/liverc-ingestion/27-web-scraping-best-practices.md)
+and [liverc-operations-guide.md](./liverc-operations-guide.md).
+
+**Example:**
+
+```bash
+MRE_SCRAPE_ENABLED=true
+```
+
+---
+
+### MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED
+
+**Type:** Boolean (string)  
+**Required:** No  
+**Default:** `false`  
+**Environment:** Python ingestion service (cron wrapper)
+
+Feature gate for the **Recent Events Auto-Ingest** nightly job. When `false`,
+`run-recent-events-auto-ingest.sh` logs a skip message and exits 0. Requires
+`MRE_SCRAPE_ENABLED=true` for any scraping to occur.
+
+**Status:** Implemented but **disabled by default** (`false`). The CLI command
+`ingest liverc refresh-recent-events`, the module
+`ingestion/ingestion/recent_events.py`, and the cron wrapper
+`run-recent-events-auto-ingest.sh` (02:00 UTC) all exist; set this to `true` to
+activate the nightly job.
+
+**Example:**
+
+```bash
+MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED=false
+```
+
+**Related:**
+[recent-events-auto-ingest-runbook.md](./recent-events-auto-ingest-runbook.md)
+
+---
+
+### MRE_RECENT_EVENTS_DAYS
+
+**Type:** Number  
+**Required:** No  
+**Default:** `7`  
+**Environment:** Python ingestion service (cron wrapper → CLI `--days`)
+
+Recency window length in calendar days for `refresh-recent-events`.
+
+**Example:**
+
+```bash
+MRE_RECENT_EVENTS_DAYS=7
+```
+
+---
+
+### MRE_RECENT_EVENTS_TRACKS
+
+**Type:** String (enum)  
+**Required:** No  
+**Default:** `followed`  
+**Environment:** Python ingestion service (cron wrapper → CLI `--tracks`)
+
+Track scope for recent-events auto-ingest: `followed` | `active` | `all`.
+Production should use `followed` unless explicitly approved.
+
+**Example:**
+
+```bash
+MRE_RECENT_EVENTS_TRACKS=followed
+```
+
+---
+
+### MRE_RECENT_EVENTS_MAX_INGESTS
+
+**Type:** Number  
+**Required:** No  
+**Default:** `50`  
+**Environment:** Python ingestion service (cron wrapper → CLI `--max-ingests`)
+
+Maximum full (`laps_full`) ingests per nightly run. Use `0` only in development
+(unlimited).
+
+**Example:**
+
+```bash
+MRE_RECENT_EVENTS_MAX_INGESTS=50
+```
+
+---
+
+### MRE_RECENT_EVENTS_MIN_AGE_HOURS
+
+**Type:** Number  
+**Required:** No  
+**Default:** `12`  
+**Environment:** Python ingestion service (cron wrapper → CLI
+`--min-event-age-hours`)
+
+Skip auto-ingest for events newer than this many hours (avoids in-progress
+meetings).
+
+**Example:**
+
+```bash
+MRE_RECENT_EVENTS_MIN_AGE_HOURS=12
 ```
 
 ---
@@ -511,6 +830,137 @@ day from dominating latency.
 
 ```bash
 PRACTICE_DISCOVER_DAY_OVERVIEW_TIMEOUT_SECONDS=25
+```
+
+---
+
+## Telemetry Worker & ClickHouse Variables
+
+These variables configure the `telemetry-worker` service (same image as the
+ingestion service, started with entrypoint
+`python -m ingestion.telemetry.worker`) and the optional `clickhouse` service.
+
+### CLICKHOUSE_PORT
+
+**Type:** Number  
+**Required:** No  
+**Default:** `8123`  
+**Environment:** Docker Compose (host port mapping for `clickhouse`)
+
+Host port published for the `mre-clickhouse` container HTTP interface (maps to
+container port 8123).
+
+**Example:**
+
+```bash
+CLICKHOUSE_PORT=8123
+```
+
+---
+
+### TELEMETRY_WORKER_ID
+
+**Type:** String  
+**Required:** No  
+**Default:** `telemetry-worker-1`  
+**Environment:** Docker Compose (`telemetry-worker`)
+
+Identifier for the telemetry worker instance (used in logs / job ownership).
+
+**Example:**
+
+```bash
+TELEMETRY_WORKER_ID=telemetry-worker-1
+```
+
+---
+
+### TELEMETRY_WORKER_POLL_INTERVAL_SEC
+
+**Type:** Number (seconds)  
+**Required:** No  
+**Default:** `2`  
+**Environment:** Docker Compose (`telemetry-worker`)
+
+How often the worker polls for staged telemetry uploads to process.
+
+**Example:**
+
+```bash
+TELEMETRY_WORKER_POLL_INTERVAL_SEC=2
+```
+
+---
+
+### TELEMETRY_WORKER_CLICKHOUSE_HOST
+
+**Type:** String (hostname)  
+**Required:** No  
+**Default:** _empty_ (GNSS materialisation skipped)  
+**Environment:** Docker Compose (`telemetry-worker`; mapped to `CLICKHOUSE_HOST`
+inside the container)
+
+Optional ClickHouse host for GNSS materialisation. Leave empty to skip
+ClickHouse writes (Parquet + API still work). Set to `mre-clickhouse` when
+credentials match your ClickHouse server.
+
+**Example:**
+
+```bash
+TELEMETRY_WORKER_CLICKHOUSE_HOST=mre-clickhouse
+```
+
+---
+
+### CLICKHOUSE_HTTP_PORT
+
+**Type:** Number  
+**Required:** No  
+**Default:** `8123`  
+**Environment:** Docker Compose (`telemetry-worker`)
+
+ClickHouse HTTP port the worker uses when materialising GNSS data.
+
+**Example:**
+
+```bash
+CLICKHOUSE_HTTP_PORT=8123
+```
+
+---
+
+### CLICKHOUSE_USER
+
+**Type:** String  
+**Required:** No  
+**Default:** `default`  
+**Environment:** Docker Compose (`telemetry-worker`)
+
+ClickHouse username for the worker's HTTP connection.
+
+**Example:**
+
+```bash
+CLICKHOUSE_USER=default
+```
+
+---
+
+### CLICKHOUSE_PASSWORD
+
+**Type:** String  
+**Required:** No  
+**Default:** _empty_  
+**Environment:** Docker Compose (`telemetry-worker`)
+
+ClickHouse password for the worker's HTTP connection.
+
+**Security:** Treat as sensitive when set in production.
+
+**Example:**
+
+```bash
+CLICKHOUSE_PASSWORD=
 ```
 
 ---
@@ -827,29 +1277,60 @@ See [Development](#development) section above for complete example.
 
 ## Variable Reference Table
 
-| Variable                           | Required | Default                                | Group          | Security Sensitive |
-| ---------------------------------- | -------- | -------------------------------------- | -------------- | ------------------ |
-| `DATABASE_URL`                     | Yes      | None                                   | Database       | Yes                |
-| `POSTGRES_USER`                    | No       | `pacetracer`                           | Database       | No                 |
-| `POSTGRES_PASSWORD`                | No       | `change-me`                            | Database       | Yes                |
-| `POSTGRES_DB`                      | No       | `pacetracer`                           | Database       | No                 |
-| `NODE_ENV`                         | Yes      | `development`                          | Application    | No                 |
-| `PORT`                             | No       | `3001`                                 | Application    | No                 |
-| `APP_PORT`                         | No       | `3001`                                 | Application    | No                 |
-| `APP_URL`                          | No       | `http://localhost:3001`                | Application    | No                 |
-| `HOST`                             | No       | `0.0.0.0`                              | Application    | No                 |
-| `AUTH_SECRET`                      | Yes      | None (min 32 chars)                    | Authentication | Yes                |
-| `NEXTAUTH_SECRET`                  | No       | Falls back to `AUTH_SECRET`            | Authentication | Yes                |
-| `INGESTION_SERVICE_URL`            | No       | `http://liverc-ingestion-service:8000` | Ingestion      | No                 |
-| `INGESTION_PORT`                   | No       | `8000`                                 | Ingestion      | No                 |
-| `LOG_LEVEL`                        | No       | `INFO`                                 | Ingestion      | No                 |
-| `TRACK_SYNC_REPORT_RETENTION_DAYS` | No       | `30`                                   | Ingestion      | No                 |
-| `INGESTION_BUILD_TARGET`           | No       | `development`                          | Docker         | No                 |
-| `PERF_THRESHOLD_API`               | No       | `300`                                  | Performance    | No                 |
-| `PERF_THRESHOLD_DB`                | No       | `100`                                  | Performance    | No                 |
-| `PERF_THRESHOLD_EXTERNAL`          | No       | `500`                                  | Performance    | No                 |
-| `PYTHONUNBUFFERED`                 | No       | `1`                                    | Ingestion      | No                 |
-| `TZ`                               | No       | `Australia/Sydney`                     | System         | No                 |
+| Variable                                | Required | Default                                 | Group          | Security Sensitive |
+| --------------------------------------- | -------- | --------------------------------------- | -------------- | ------------------ |
+| `DATABASE_URL`                          | Yes      | None                                    | Database       | Yes                |
+| `POSTGRES_USER`                         | No       | `pacetracer`                            | Database       | No                 |
+| `POSTGRES_PASSWORD`                     | No       | `change-me`                             | Database       | Yes                |
+| `POSTGRES_DB`                           | No       | `pacetracer`                            | Database       | No                 |
+| `POSTGRES_PORT`                         | No       | `5432`                                  | Database       | No                 |
+| `NODE_ENV`                              | Yes      | `development`                           | Application    | No                 |
+| `PORT`                                  | No       | `3001`                                  | Application    | No                 |
+| `APP_PORT`                              | No       | `3001`                                  | Application    | No                 |
+| `APP_URL`                               | No       | `http://localhost:3001`                 | Application    | No                 |
+| `HOST`                                  | No       | `0.0.0.0`                               | Application    | No                 |
+| `NODE_OPTIONS`                          | No       | `--dns-result-order=ipv4first`          | Application    | No                 |
+| `NEXT_PUBLIC_ENABLE_PRACTICE_DAYS`      | No       | `true`                                  | Application    | No                 |
+| `CLICKHOUSE_URL`                        | No       | `http://mre-clickhouse:8123`            | Application    | No                 |
+| `TELEMETRY_UPLOAD_ROOT`                 | No       | `/data/telemetry`                       | Shared         | No                 |
+| `AUTH_SECRET`                           | Yes      | None (min 32 chars)                     | Authentication | Yes                |
+| `NEXTAUTH_SECRET`                       | No       | Falls back to `AUTH_SECRET`             | Authentication | Yes                |
+| `INGESTION_SERVICE_URL`                 | No       | `http://liverc-ingestion-service:8000`  | Ingestion      | No                 |
+| `INGESTION_PORT`                        | No       | `8000`                                  | Ingestion      | No                 |
+| `LOG_LEVEL`                             | No       | `INFO`                                  | Ingestion      | No                 |
+| `UVICORN_RELOAD`                        | No       | `false`                                 | Ingestion      | No                 |
+| `INGESTION_USE_QUEUE`                   | No       | `true`                                  | Ingestion      | No                 |
+| `UVICORN_WORKERS`                       | No       | `1`                                     | Ingestion      | No                 |
+| `SITE_POLICY_PATH`                      | No       | `/app/policies/site_policy/policy.json` | Ingestion      | No                 |
+| `TRACK_SYNC_METADATA_CONCURRENCY`       | No       | `6`                                     | Ingestion      | No                 |
+| `TRACK_SYNC_REPORT_RETENTION_DAYS`      | No       | `30`                                    | Ingestion      | No                 |
+| `MRE_SCRAPE_ENABLED`                    | No       | `true`                                  | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED` | No       | `false`                                 | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_DAYS`                | No       | `7`                                     | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_TRACKS`              | No       | `followed`                              | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_MAX_INGESTS`         | No       | `50`                                    | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_MIN_AGE_HOURS`       | No       | `12`                                    | Ingestion      | No                 |
+| `INGESTION_BUILD_TARGET`                | No       | `development`                           | Docker         | No                 |
+| `PERF_THRESHOLD_API`                    | No       | `300`                                   | Performance    | No                 |
+| `PERF_THRESHOLD_DB`                     | No       | `100`                                   | Performance    | No                 |
+| `PERF_THRESHOLD_EXTERNAL`               | No       | `500`                                   | Performance    | No                 |
+| `PYTHONUNBUFFERED`                      | No       | `1`                                     | Ingestion      | No                 |
+| `CLICKHOUSE_PORT`                       | No       | `8123`                                  | ClickHouse     | No                 |
+| `TELEMETRY_WORKER_ID`                   | No       | `telemetry-worker-1`                    | Telemetry      | No                 |
+| `TELEMETRY_WORKER_POLL_INTERVAL_SEC`    | No       | `2`                                     | Telemetry      | No                 |
+| `TELEMETRY_WORKER_CLICKHOUSE_HOST`      | No       | _empty_                                 | Telemetry      | No                 |
+| `CLICKHOUSE_HTTP_PORT`                  | No       | `8123`                                  | Telemetry      | No                 |
+| `CLICKHOUSE_USER`                       | No       | `default`                               | Telemetry      | No                 |
+| `CLICKHOUSE_PASSWORD`                   | No       | _empty_                                 | Telemetry      | Yes                |
+| `TZ`                                    | No       | `Australia/Sydney`                      | System         | No                 |
+
+---
+
+## Unused / Legacy Variables
+
+- **`OPENWEATHERMAP_API_KEY`** — Present in the example `.env.docker` but **not
+  referenced anywhere in the current codebase** (no `process.env` lookup in
+  `src/`). Treat as legacy/placeholder; it has no runtime effect today.
 
 ---
 

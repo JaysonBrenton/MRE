@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Comprehensive observability guide for MRE application
 purpose:
   Provides detailed guidance for logging, metrics, tracing, alerting, dashboard
@@ -16,7 +16,7 @@ relatedFiles:
 
 # Monitoring and Observability Guide
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2026-05-31  
 **Scope:** All observability aspects of the MRE application
 
 This document provides comprehensive guidance for logging, metrics, tracing,
@@ -153,23 +153,53 @@ detailed ingestion logging.
 
 ### Ingestion Metrics
 
+**Implemented:** The Python ingestion service defines Prometheus metrics via
+`prometheus_client` in `ingestion/common/metrics.py`. They are registered to a
+**dedicated `CollectorRegistry`** (`metrics.REGISTRY`) and recorded throughout
+the pipeline and CLI.
+
+**⚠️ Not yet scraped:** there is **no HTTP `/metrics` endpoint** exposed by the
+service today (the registry is in-process). Metric values are produced but must
+be exposed (e.g. via a future ASGI `make_asgi_app` mount) before Prometheus can
+scrape them. If `prometheus_client` is not installed, the module falls back to
+no-op stubs.
+
 **See:** `docs/architecture/liverc-ingestion/15-ingestion-observability.md` for
 ingestion metrics.
 
-**Key Metrics:**
+**Key Metrics (registered in `metrics.py`):**
 
-- Ingestion duration
-- Race page fetch duration
-- Lap extraction count
-- Database write operations
-- Error rates
-- **Practice day full ingestion:** duration, success/failure, sessions_ingested, sessions_with_laps, laps_ingested, sessions_detail_failed (see ingestion observability doc)
+- `ingestion_duration_seconds` — per-event ingestion time
+- `race_fetch_duration_seconds`, `lap_extraction_duration_seconds`
+- `db_rows_inserted_total`, `db_rows_updated_total`
+- `connector_errors_total`, `ingestion_lock_timeouts_total`,
+  `site_policy_events_total`
+- `event_entry_cache_hits_total`, `event_entry_cache_lookups_total`
+- **Practice day full ingestion:** `practice_day_discovery_duration_seconds`,
+  `practice_day_ingestion_duration_seconds`,
+  `practice_day_sessions_ingested_total`,
+  `practice_day_sessions_with_laps_total`, `practice_day_laps_ingested_total`,
+  `practice_day_sessions_detail_failed_total`
+- **Telemetry worker:** `telemetry_jobs_total` (labelled by `job_type`,
+  `outcome`)
+- **Recent events auto-ingest:** `recent_events_auto_ingest_runs_total`,
+  `recent_events_auto_ingest_events_ingested_total`,
+  `recent_events_auto_ingest_events_failed_total`,
+  `recent_events_auto_ingest_duration_seconds`
 
 ---
 
 ## Tracing Setup
 
-**Placeholder:** Distributed tracing will be implemented
+**Current (ingestion service):** A lightweight, log-based tracing helper exists
+in `ingestion/common/tracing.py`. `TraceSpan` / `start_span(...)` emit
+structured `trace_span_start` and `trace_span_end` JSON log events (with
+`span_id`, `span_name`, `duration_seconds`, and `status`). This is **not** a
+full distributed-tracing system (no OpenTelemetry exporter or trace propagation
+yet) — spans surface as structlog entries in the ingestion logs.
+
+**Placeholder:** Full distributed tracing (cross-service propagation, exporter)
+will be implemented.
 
 ### Tracing Requirements
 

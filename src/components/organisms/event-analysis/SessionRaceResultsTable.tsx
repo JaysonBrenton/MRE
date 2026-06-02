@@ -34,6 +34,7 @@ import {
 } from "@/lib/format-session-race-display-label"
 import { typography } from "@/lib/typography"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
+import { FULL_RACE_RESULTS_MODAL_RESIZABLE_DEFAULT } from "@/lib/modal-styles"
 import {
   OVERVIEW_GLASS_SURFACE_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
@@ -798,6 +799,9 @@ export default function SessionRaceResultsTable({
           title="Full session results"
           subtitle={detailSubtitle}
           maxWidth="4xl"
+          resizable
+          resizableDefaultSize={FULL_RACE_RESULTS_MODAL_RESIZABLE_DEFAULT}
+          doubleClickHeaderFullscreen
           footer={
             detailRace.raceUrl ? (
               <a

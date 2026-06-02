@@ -1,7 +1,7 @@
 ---
 created: 2026-01-31
 creator: Implementation
-lastModified: 2026-04-19
+lastModified: 2026-05-31
 description: Atomic design system for MRE UI components
 purpose:
   Defines the component tier structure, import rules, and folder map for the MRE
@@ -53,10 +53,12 @@ Machine-generated inventory with one line per file:
 src/components/
   atoms/           Breadcrumbs, Button, ChartIcon, ListRow, LoadingState,
                    StandardButton, StandardInput, StatusBadge, Switch
-  molecules/       ContentWrapper, ErrorDisplay, EventStatusBadge, LabeledSwitch,
-                   Modal, PageContainer, StandardTable, Stepper, Tooltip
+  molecules/       ContentWrapper, ErrorDisplay, EventStatusBadge,
+                   GoogleMapsVenueEmbed, LabeledSwitch, MapSearchAddressLink,
+                   Modal, PageContainer, StandardTable, Stepper, TabPanelIntro,
+                   Tooltip
   organisms/       admin/, dashboard/, event-analysis/, event-search/, events/,
-                   practice-days/, search/, track-maps/, users/
+                   practice-days/, search/, telemetry/, track-maps/, users/
   templates/       DashboardLayout
   (root)           AdminNav, AuthenticatedNav, AuthenticatedNavLinks,
                    ConditionalNav, ErrorBoundary, Footer, GlobalErrorHandler,

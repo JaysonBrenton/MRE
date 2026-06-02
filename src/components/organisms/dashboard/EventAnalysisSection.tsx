@@ -480,11 +480,9 @@ export default function EventAnalysisSection() {
                 {activeTab === "analysis" && (
                   <>
                     {analysisPrimaryDispatch === null ? (
-                      <div className="flex min-w-0 w-full flex-col gap-3">
-                        <EventAnalysisToolbarAboveEventDetailsStrip
-                          {...eventAnalysisToolbarCommonProps}
-                        />
-                      </div>
+                      <EventAnalysisToolbarAboveEventDetailsStrip
+                        {...eventAnalysisToolbarCommonProps}
+                      />
                     ) : analysisPrimaryDispatch === "event-level" ? (
                       <OverviewTab
                         data={transformedData}

@@ -34,6 +34,8 @@ export interface Event {
   lastIngestedAt?: string | null
   sourceEventId?: string // Optional: for unimported events from LiveRC
   eventUrl?: string // Optional: LiveRC event page URL for linking
+  /** Set for cross-track browse results. */
+  trackName?: string
 }
 
 /** Progress bar fill when GET /ingestion/jobs returns pipeline_stage (queued ingest). */
@@ -250,6 +252,11 @@ export default function EventRow({
           >
             <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
             You participated
+          </span>
+        )}
+        {event.trackName && (
+          <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
+            {event.trackName}
           </span>
         )}
         {/* Optional metadata subtitle (similar to practice days) */}

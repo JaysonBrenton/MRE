@@ -111,6 +111,22 @@ describe("GET /api/v1/tracks", () => {
         active: false,
       })
     })
+
+    it("should request full catalogue when followed=all", async () => {
+      const mockTracks: Awaited<ReturnType<typeof getTracks>> = []
+
+      vi.mocked(getTracks).mockResolvedValue(mockTracks)
+
+      const request = new NextRequest(
+        "http://localhost:3001/api/v1/tracks?followed=all&active=true"
+      )
+      await GET(request)
+
+      expect(getTracks).toHaveBeenCalledWith({
+        active: true,
+        catalogue: true,
+      })
+    })
   })
 
   describe("error handling", () => {

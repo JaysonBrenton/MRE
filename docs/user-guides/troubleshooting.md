@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-31
 description: Common failure modes aligned with Alpha v0.1.0 behaviours
 purpose:
   Provides deterministic triage sequences for ingestion-backed dashboards, Redux

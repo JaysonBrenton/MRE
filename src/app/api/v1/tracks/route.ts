@@ -35,19 +35,24 @@ export async function GET(request: NextRequest) {
     const followedParam = searchParams.get("followed")
     const activeParam = searchParams.get("active")
 
-    // Parse query parameters (default to true if not specified)
-    const followed = followedParam !== "false"
     const active = activeParam !== "false"
+    const catalogue = followedParam === "all"
+    const followed =
+      followedParam === "false" ? false : followedParam === "true" || followedParam === null
 
     requestLogger.debug("Tracks request", {
-      followed,
+      followed: catalogue ? "all" : followed,
       active,
     })
 
-    const tracks = await getTracks({
-      followed,
-      active,
-    })
+    const tracks = await getTracks(
+      catalogue
+        ? { active, catalogue: true }
+        : {
+            followed,
+            active,
+          }
+    )
 
     requestLogger.info("Tracks fetched successfully", {
       trackCount: tracks.length,

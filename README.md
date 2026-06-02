@@ -290,51 +290,77 @@ Key roles include:
 See individual role documents in `docs/roles/` for detailed responsibilities,
 handoffs, and success metrics.
 
-10. Directory Structure . ├── README.md ├── docs/ │ ├── specs/ │ │ ├──
-    mre-v0.1-feature-scope.md │ │ └── mre-under-development-page.md │ ├──
-    architecture/ │ │ ├── mobile-safe-architecture-guidelines.md │ │ └──
-    liverc-ingestion/ # LiveRC ingestion architecture (30 documents) │ ├──
-    design/ │ │ ├── mre-dark-theme-guidelines.md │ │ ├──
-    mre-hero-image-generation.md │ │ └── mre-ux-principles.md │ ├── adr/ │ │ ├──
-    README.md │ │ └── ADR-\*.md (Architecture Decision Records) │ ├──
-    operations/ # Docker, deployment, environment, build-runtime-reference │ ├──
-    reviews/Old/
+10. Directory Structure
 
-    # Archived review documents │ ├── reports/ # Operational reports (track
-
-    sync, UI reviews, etc.) │ ├── AGENTS.md # MRE Agents Handbook │ ├── roles/ │
-    │ ├── devops-platform-engineer.md │ │ ├── documentation-knowledge-steward.md
-    │ │ ├── nextjs-front-end-engineer.md │ │ ├──
-    observability-incident-response-lead.md │ │ ├──
-    prisma-postgresql-backend-engineer.md │ │ ├── quality-automation-engineer.md
-    │ │ ├── senior-ui-ux-expert.md │ │ └── typescript-domain-engineer.md │ └──
-    standards/ │ └── file-headers-and-commenting-guidelines.md ├── src/ │ ├──
-    core/ │ │ ├── auth/ # Authentication business logic │ │ ├── users/ # User
-    domain logic │ │ └── common/ # Shared utilities │ ├── app/ # Next.js App
-    Router │ │ ├── api/ # API routes │ │ │ └── v1/ # Versioned API endpoints │ │
-    ├── admin/ # Admin pages │ │ ├── login/ # Login page │ │ ├── register/ #
-    Registration page │ │ ├── welcome/ # User welcome page │ │ └──
-    under-development/ # Placeholder page │ ├── components/ # React components
-    (shared) │ └── lib/ # Shared libraries and utilities ├── ingestion/ # Python
-    ingestion service │ ├── api/ # FastAPI application │ ├── connectors/ # Data
-    source connectors (LiveRC) │ ├── db/ # Database models and repository │ └──
-    ingestion/ # Ingestion pipeline logic ├── prisma/ # Database schema and
-    migrations ├── scripts/ # Utility scripts for database operations and setup
-    │ ├── setup-database.sh # Initial database setup script (Docker network,
-    PostgreSQL, migrations, seed) │ ├── check-db-data.ts # Display database
-    contents overview │ ├── cleanup-events.ts # Remove all events and related
-    data │ ├── diagnose-auth.ts # Diagnostic tool for authentication issues │
-    ├── list-events.ts # List events for a specific track │ ├── list-tracks.ts #
-    List all tracks in the database │ ├── list-users.ts # List all users in the
-    database │ ├── migrate-password.ts # Migrate passwords from bcryptjs to
-    Argon2id │ └── normalize-emails.ts # Normalize all email addresses to
-    lowercase └── public/ # Static assets
+```
+.
+├── README.md                      # This file (primary entry point)
+├── docker-compose.yml             # app + ingestion + telemetry-worker + postgres + clickhouse
+├── Dockerfile                     # Next.js app image
+├── middleware.ts                  # Auth/route middleware
+├── docs/                          # ALL product documentation (see docs/README.md)
+│   ├── AGENTS.md                  # MRE Agents Handbook (guardrails)
+│   ├── README.md                  # Curated documentation index
+│   ├── index/document-index.md    # Full document listing
+│   ├── specs/                     # Feature scope + under-development page spec
+│   ├── architecture/              # Architecture standards
+│   │   ├── mobile-safe-architecture-guidelines.md
+│   │   └── liverc-ingestion/      # LiveRC ingestion architecture (31 documents)
+│   ├── api/                       # API reference + versioning strategy
+│   ├── database/                  # Human-readable schema docs
+│   ├── domain/                    # Domain models (racing classes, bump-ups, etc.)
+│   ├── design/                    # UX principles, dark theme, charts, tables
+│   ├── development/               # Quick start, testing, contributing, checklists
+│   ├── operations/                # Docker, deployment, env vars, runbooks
+│   ├── telemetry/                 # Telemetry design + API contract + data model
+│   ├── reference/generated/       # Machine-generated API/component manifests
+│   ├── adr/                       # Architecture Decision Records
+│   ├── roles/                     # Engineering role definitions
+│   ├── standards/                 # File headers + TypeScript/React style guide
+│   ├── user-guides/               # End-user guides (mirror /guides/* routes)
+│   ├── user-stories/              # User stories by epic
+│   ├── reviews/                   # Code/architecture reviews
+│   └── reports/                   # Operational reports (track sync, etc.)
+├── src/                           # Next.js application (TypeScript)
+│   ├── app/                       # Next.js App Router
+│   │   ├── (authenticated)/       # Authenticated route group (admin, eventAnalysis, guides, ...)
+│   │   ├── api/v1/                # Versioned REST API routes
+│   │   ├── login/                 # Login page
+│   │   └── register/              # Registration page
+│   ├── core/                      # Domain logic (auth, users, events, races, telemetry,
+│   │                              #   tracks, track-maps, drivers, car-taxonomy, personas, ...)
+│   ├── components/                # React components (atoms/molecules/organisms/templates)
+│   ├── store/                     # Redux Toolkit store + slices + hooks
+│   ├── hooks/                     # Shared React hooks
+│   ├── lib/                       # Shared libraries and utilities
+│   ├── types/                     # Shared TypeScript types
+│   └── __tests__/                 # Vitest unit/integration tests
+├── ingestion/                     # Python ingestion + telemetry service
+│   ├── api/                       # FastAPI application + job queue
+│   ├── cli/                       # Click-based admin CLI
+│   ├── connectors/liverc/         # LiveRC connector + HTML parsers
+│   ├── ingestion/                 # Ingestion pipeline, state machine, derived laps
+│   ├── telemetry/                 # Telemetry pipeline + worker + parsers
+│   ├── services/                  # Track sync + practice-day discovery
+│   ├── db/                        # SQLAlchemy models + repository
+│   ├── common/                    # Logging, metrics, tracing, site policy
+│   ├── scripts/                   # Cron entrypoints + sync scripts
+│   ├── crontab                    # Scheduled jobs (track sync, followed/recent events)
+│   └── tests/                     # pytest unit + integration tests
+├── prisma/                        # Database schema (schema.prisma) + migrations + seed
+├── scripts/                       # TypeScript/shell utility scripts (run in Docker)
+├── policies/                      # Shared site-policy (scraping throttle) config
+├── certs/                         # Self-signed SSL certs (development only)
+└── public/                        # Static assets
+```
 
 11. Utility Scripts
 
-The `scripts/` directory contains TypeScript utility scripts for database
-operations and maintenance. All scripts must be executed inside the Docker
-container.
+The `scripts/` directory contains 70+ TypeScript/shell/Python utility scripts
+for database operations, diagnostics, and maintenance. All scripts must be
+executed inside the Docker container. The list below highlights the most
+commonly used scripts; browse `scripts/` for the full set (driver/event
+diagnostics, speed tests, changelog/doc generators, Colima helpers, etc.).
 
 **Running Scripts:**
 
@@ -628,6 +654,19 @@ The MRE application exposes the following API endpoints:
 **Health Check:**
 
 - GET /api/v1/health - Application health check
+
+**Additional endpoint families:** The API also exposes telemetry
+(`/api/v1/telemetry/sessions`, uploads, sharing, export, timeseries, map,
+quality), track maps (`/api/v1/track-maps`, sharing), car/driver profiles
+(`/api/v1/car-profiles`, `/api/v1/driver-profiles`), car taxonomy
+(`/api/v1/car-taxonomy`, `/api/v1/user/car-taxonomy-rules`), leaderboards
+(`/api/v1/leaderboards/...`), practice-day discovery
+(`/api/v1/practice-days/...`), user driver-links and host-track overrides, and
+async job status (`/api/v1/ingestion/jobs/[jobId]`,
+`/api/v1/admin/track-sync/jobs/[jobId]`). The above list is a curated subset;
+the canonical, machine-generated route inventory is
+`docs/reference/generated/api-routes.manifest.json` and full documentation is in
+`docs/api/api-reference.md`.
 
 **Note:** All data endpoints require authentication. Admin endpoints require
 admin privileges (`isAdmin: true`). Rate limiting is applied to authentication

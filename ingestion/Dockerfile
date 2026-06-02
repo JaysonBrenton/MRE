@@ -81,22 +81,25 @@ USER root
 COPY crontab /tmp/track-sync-crontab
 COPY scripts/run-track-sync.sh /usr/local/bin/run-track-sync.sh
 COPY scripts/run-followed-event-sync.sh /usr/local/bin/run-followed-event-sync.sh
+COPY scripts/run-recent-events-auto-ingest.sh /usr/local/bin/run-recent-events-auto-ingest.sh
 COPY scripts/cron-entrypoint.sh /usr/local/bin/cron-entrypoint.sh
 
 # Set up cron permissions and install crontab for ingestion user
 RUN chmod +x /usr/local/bin/run-track-sync.sh && \
     chmod +x /usr/local/bin/run-followed-event-sync.sh && \
+    chmod +x /usr/local/bin/run-recent-events-auto-ingest.sh && \
     chmod +x /usr/local/bin/cron-entrypoint.sh && \
     chown ingestion:ingestion /usr/local/bin/run-track-sync.sh && \
     chown ingestion:ingestion /usr/local/bin/run-followed-event-sync.sh && \
+    chown ingestion:ingestion /usr/local/bin/run-recent-events-auto-ingest.sh && \
     chown ingestion:ingestion /usr/local/bin/cron-entrypoint.sh && \
     chown ingestion:ingestion /tmp/track-sync-crontab && \
     su - ingestion -c "crontab /tmp/track-sync-crontab" || true && \
     rm /tmp/track-sync-crontab && \
     # Ensure cron can write to log directory
-    touch /var/log/track-sync.log /var/log/event-refresh.log && \
-    chown ingestion:ingestion /var/log/track-sync.log /var/log/event-refresh.log && \
-    chmod 644 /var/log/track-sync.log /var/log/event-refresh.log && \
+    touch /var/log/track-sync.log /var/log/event-refresh.log /var/log/recent-events-auto-ingest.log && \
+    chown ingestion:ingestion /var/log/track-sync.log /var/log/event-refresh.log /var/log/recent-events-auto-ingest.log && \
+    chmod 644 /var/log/track-sync.log /var/log/event-refresh.log /var/log/recent-events-auto-ingest.log && \
     # Ensure Playwright browsers are installed for ingestion user
     su - ingestion -c "playwright install chromium" || true
 
@@ -117,22 +120,25 @@ USER root
 COPY crontab /tmp/track-sync-crontab
 COPY scripts/run-track-sync.sh /usr/local/bin/run-track-sync.sh
 COPY scripts/run-followed-event-sync.sh /usr/local/bin/run-followed-event-sync.sh
+COPY scripts/run-recent-events-auto-ingest.sh /usr/local/bin/run-recent-events-auto-ingest.sh
 COPY scripts/cron-entrypoint.sh /usr/local/bin/cron-entrypoint.sh
 
 # Set up cron permissions and install crontab for ingestion user
 RUN chmod +x /usr/local/bin/run-track-sync.sh && \
     chmod +x /usr/local/bin/run-followed-event-sync.sh && \
+    chmod +x /usr/local/bin/run-recent-events-auto-ingest.sh && \
     chmod +x /usr/local/bin/cron-entrypoint.sh && \
     chown ingestion:ingestion /usr/local/bin/run-track-sync.sh && \
     chown ingestion:ingestion /usr/local/bin/run-followed-event-sync.sh && \
+    chown ingestion:ingestion /usr/local/bin/run-recent-events-auto-ingest.sh && \
     chown ingestion:ingestion /usr/local/bin/cron-entrypoint.sh && \
     chown ingestion:ingestion /tmp/track-sync-crontab && \
     su - ingestion -c "crontab /tmp/track-sync-crontab" || true && \
     rm /tmp/track-sync-crontab && \
     # Ensure cron can write to log directory
-    touch /var/log/track-sync.log /var/log/event-refresh.log && \
-    chown ingestion:ingestion /var/log/track-sync.log /var/log/event-refresh.log && \
-    chmod 644 /var/log/track-sync.log /var/log/event-refresh.log && \
+    touch /var/log/track-sync.log /var/log/event-refresh.log /var/log/recent-events-auto-ingest.log && \
+    chown ingestion:ingestion /var/log/track-sync.log /var/log/event-refresh.log /var/log/recent-events-auto-ingest.log && \
+    chmod 644 /var/log/track-sync.log /var/log/event-refresh.log /var/log/recent-events-auto-ingest.log && \
     # Ensure Playwright browsers are installed for ingestion user
     su - ingestion -c "playwright install chromium" || true
 

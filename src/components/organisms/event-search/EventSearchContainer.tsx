@@ -340,6 +340,12 @@ export default function EventSearchContainer({
   const [, setIsCheckingEntryLists] = useState(false) // Track if we're checking entry lists
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  /** True when showing cross-track DB browse (no track selected). */
+  const [isGlobalBrowse, setIsGlobalBrowse] = useState(false)
+  const [browseTotal, setBrowseTotal] = useState(0)
+  const browseAbortControllerRef = useRef<AbortController | null>(null)
+  /** Mirrors EventSearchOmnibox input; empty (< 2 chars) triggers cross-track browse. */
+  const [omniboxQuery, setOmniboxQuery] = useState("")
   const [errors, setErrors] = useState<{
     track?: string
     startDate?: string
@@ -900,7 +906,7 @@ export default function EventSearchContainer({
   const loadTracks = async () => {
     try {
       setInternalIsLoadingTracks(true)
-      const response = await fetch("/api/v1/tracks?followed=false&active=true", {
+      const response = await fetch("/api/v1/tracks?followed=all&active=true", {
         cache: "no-store",
       })
       const result = await parseApiResponse<{ tracks: ApiTrack[] }>(response)
@@ -959,11 +965,12 @@ export default function EventSearchContainer({
     }
   }
 
-  const validateForm = (trackOverride?: Track): boolean => {
+  const validateForm = (trackOverride?: Track, options?: { requireTrack?: boolean }): boolean => {
     const newErrors: typeof errors = {}
     const effectiveTrack = trackOverride ?? selectedTrack
+    const requireTrack = options?.requireTrack ?? true
 
-    if (!effectiveTrack) {
+    if (requireTrack && !effectiveTrack) {
       newErrors.track = "Please select a track"
     }
 
@@ -1030,6 +1037,159 @@ export default function EventSearchContainer({
     return Object.keys(newErrors).length === 0
   }
 
+  const fetchGlobalBrowse = async (page: number, pageSizeOverride?: number) => {
+    const pageSize = pageSizeOverride ?? itemsPerPage
+
+    try {
+      browseAbortControllerRef.current?.abort()
+      const abortController = new AbortController()
+      browseAbortControllerRef.current = abortController
+
+      stopAllPolling()
+      liveRCSearchRunIdRef.current = (liveRCSearchRunIdRef.current + 1) | 0
+
+      setIsGlobalBrowse(true)
+      setIsStartingSearch(true)
+      setHasSearched(false)
+      setEvents([])
+      dbEventsRef.current = []
+      setDriverInEvents({})
+      setCurrentPage(page)
+      setSearchKey((prev) => prev + 1)
+      setIsLoadingEvents(true)
+      setErrors({})
+      setIsCheckingLiveRC(false)
+      setIsCheckingPracticeDays(false)
+      setPracticeDaysFromDb([])
+      setDiscoveredPracticeDays([])
+
+      const params = new URLSearchParams({
+        page: String(page),
+        page_size: String(pageSize),
+        database_only: "true",
+      })
+
+      if (useDateFilter) {
+        if (startDate && startDate.trim() !== "") {
+          params.append("start_date", startDate)
+        }
+        if (endDate && endDate.trim() !== "") {
+          params.append("end_date", endDate)
+        }
+      }
+
+      clientLogger.debug("EventSearchContainer: Starting global browse", {
+        page,
+        pageSize,
+        useDateFilter,
+      })
+
+      const response = await fetch(`/api/v1/events/browse?${params.toString()}`, {
+        signal: abortController.signal,
+        cache: "no-store",
+      })
+
+      const result = await parseApiResponse<{
+        events: Array<
+          ApiEvent & {
+            trackName?: string
+            track_name?: string
+            trackId?: string
+            track_id?: string
+          }
+        >
+        total: number
+        page: number
+        page_size: number
+      }>(response)
+
+      if (!result.success) {
+        const errorId = generateErrorId()
+        if (result.error.code === "VALIDATION_ERROR") {
+          const field = (result.error.details as { field?: string })?.field
+          if (field === "start_date") {
+            setErrors({ startDate: result.error.message })
+          } else if (field === "end_date") {
+            setErrors({ endDate: result.error.message })
+          } else {
+            setErrors({ track: result.error.message })
+          }
+          setApiError(null)
+        } else {
+          setErrors({ track: result.error.message })
+          setApiError({
+            message:
+              result.error.message ||
+              "Unable to browse events. Please check your connection and try again.",
+            errorId,
+            details: result.error.details || { code: result.error.code, status: response.status },
+            onRetry: () => fetchGlobalBrowse(page, pageSize),
+          })
+        }
+        setHasSearched(true)
+        setIsLoadingEvents(false)
+        setIsStartingSearch(false)
+        return
+      }
+
+      setApiError(null)
+      setBrowseTotal(result.data.total)
+
+      const dbEvents: Event[] = result.data.events.map((event) => ({
+        id: event.id,
+        eventName: event.eventName,
+        eventDate: event.eventDate || event.event_date || "",
+        ingestDepth: (event.ingestDepth || event.ingest_depth || "").trim(),
+        lastIngestedAt: apiEventLastIngestedAt(event),
+        sourceEventId: event.sourceEventId || event.source_event_id,
+        eventUrl: event.eventUrl || event.event_url,
+        trackName: event.trackName || event.track_name,
+      }))
+
+      dbEventsRef.current = dbEvents
+      setEvents(dbEvents)
+      setHasSearched(true)
+
+      checkImportStatusForEvents(
+        dbEvents.map((event) => ({
+          id: event.id,
+          eventName: event.eventName,
+          eventDate: event.eventDate,
+          ingestDepth: event.ingestDepth,
+          sourceEventId: event.sourceEventId,
+        }))
+      ).catch((error) => {
+        clientLogger.debug("Error checking import status for browse events", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      })
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return
+      }
+      const errorId = generateErrorId()
+      clientLogger.error("Error browsing events", {
+        error:
+          error instanceof Error ? { name: error.name, message: error.message } : String(error),
+        errorId,
+      })
+      const errorMessage =
+        error instanceof Error
+          ? `Network error: ${error.message}. Please check your connection and try again.`
+          : "Unable to browse events. Please try again."
+      setErrors({ track: errorMessage })
+      setApiError({
+        message: errorMessage,
+        errorId,
+        onRetry: () => fetchGlobalBrowse(page, pageSizeOverride ?? itemsPerPage),
+      })
+      setHasSearched(true)
+    } finally {
+      setIsLoadingEvents(false)
+      setIsStartingSearch(false)
+    }
+  }
+
   const handleSearch = async (trackOverride?: Track) => {
     const trackToUse = trackOverride || selectedTrack
     // Update state if track override is provided to ensure consistency
@@ -1065,6 +1225,30 @@ export default function EventSearchContainer({
       return
     }
 
+    // Empty omnibox + Search → cross-track DB browse (ignores Filters track selection).
+    const omniboxEmpty = omniboxQuery.trim().length < 2
+    const shouldBrowseAll =
+      searchMode === "events" && omniboxEmpty && !includeLiveRC && !includePracticeDays
+
+    if (shouldBrowseAll) {
+      const browseFormValid = validateForm(trackOverride, { requireTrack: false })
+      if (!browseFormValid) {
+        return
+      }
+      await fetchGlobalBrowse(1)
+      return
+    }
+
+    if (includeLiveRC && omniboxEmpty && !trackToUse) {
+      setErrors({ track: "Select a track in Filters to search LiveRC." })
+      return
+    }
+
+    if (includeLiveRC && !trackToUse) {
+      setErrors({ track: "Select a track in Filters to search LiveRC." })
+      return
+    }
+
     const formValid = validateForm(trackOverride)
     if (!formValid || !trackToUse) {
       clientLogger.debug("EventSearchContainer: Validation failed or no track selected", {
@@ -1073,6 +1257,9 @@ export default function EventSearchContainer({
       })
       return
     }
+
+    setIsGlobalBrowse(false)
+    setBrowseTotal(0)
 
     // Validate that the track still exists in the loaded tracks list
     // This prevents searching with stale track IDs from localStorage
@@ -1631,6 +1818,12 @@ export default function EventSearchContainer({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
+    }
+
+    // Cancel any in-flight global browse request
+    if (browseAbortControllerRef.current) {
+      browseAbortControllerRef.current.abort()
+      browseAbortControllerRef.current = null
     }
 
     // Cancel any in-flight practice days discover-range request
@@ -3292,14 +3485,17 @@ export default function EventSearchContainer({
           ? combinedListItems.filter((i) => i.kind === "event")
           : combinedListItems.filter((i) => i.kind === "practice")
       : combinedListItems
-  const totalItems =
-    includePracticeDays && searchMode === "events"
+  const totalItems = isGlobalBrowse
+    ? browseTotal
+    : includePracticeDays && searchMode === "events"
       ? filteredCombinedList.length
       : displayedEvents.length
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage))
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedEvents = displayedEvents.slice(startIndex, endIndex)
+  const paginatedEvents = isGlobalBrowse
+    ? displayedEvents
+    : displayedEvents.slice(startIndex, endIndex)
   const paginatedCombinedItems =
     includePracticeDays && searchMode === "events"
       ? filteredCombinedList.slice(startIndex, endIndex)
@@ -3308,6 +3504,10 @@ export default function EventSearchContainer({
   // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
+    if (isGlobalBrowse) {
+      void fetchGlobalBrowse(page)
+      return
+    }
     // Persist to localStorage
     try {
       localStorage.setItem(
@@ -3326,6 +3526,10 @@ export default function EventSearchContainer({
     setItemsPerPage(newItemsPerPage)
     // Reset to first page when changing items per page
     setCurrentPage(1)
+    if (isGlobalBrowse) {
+      void fetchGlobalBrowse(1, newItemsPerPage)
+      return
+    }
     // Persist to localStorage
     try {
       localStorage.setItem(
@@ -3341,8 +3545,9 @@ export default function EventSearchContainer({
 
   // Reset pagination when list length changes (but keep itemsPerPage)
   useEffect(() => {
-    const len =
-      includePracticeDays && searchMode === "events"
+    const len = isGlobalBrowse
+      ? browseTotal
+      : includePracticeDays && searchMode === "events"
         ? combinedListItems.length
         : displayedEvents.length
     if (len > 0) {
@@ -3352,6 +3557,8 @@ export default function EventSearchContainer({
       }
     }
   }, [
+    isGlobalBrowse,
+    browseTotal,
     includePracticeDays,
     searchMode,
     combinedListItems.length,
@@ -3378,7 +3585,7 @@ export default function EventSearchContainer({
       {/* Form section: fixed, does not scroll */}
       <section
         className="flex-shrink-0 pb-6 border-b border-[var(--token-border-accent-soft)]"
-        aria-labelledby="event-search-filters-heading"
+        aria-label="Event search"
       >
         {apiError && (
           <div className="mb-4">
@@ -3420,6 +3627,7 @@ export default function EventSearchContainer({
           onDateRangePresetChange={handleDateRangePresetChange}
           onToggleFavourite={handleToggleFavourite}
           onSearch={handleSearch}
+          onSelectEvent={onSelectForDashboard}
           onStop={handleStopSearch}
           practiceYear={practiceYear}
           practiceMonth={practiceMonth}
@@ -3431,6 +3639,9 @@ export default function EventSearchContainer({
           onIncludeLiveRCChange={setIncludeLiveRC}
           includeEverlaps={includeEverlaps}
           onIncludeEverlapsChange={setIncludeEverlaps}
+          canSearchWithoutTrack={searchMode === "events" && !includeLiveRC && !includePracticeDays}
+          isGlobalBrowse={isGlobalBrowse}
+          onOmniboxQueryChange={setOmniboxQuery}
         />
       </section>
 
@@ -3533,16 +3744,18 @@ export default function EventSearchContainer({
                   }}
                 >
                   <p className="text-[var(--token-text-primary)] font-medium">
-                    {selectedTrack ? "Ready to search" : "Select a track to get started"}
+                    {selectedTrack ? "Ready to search" : "Search all events or pick a track"}
                   </p>
                   <p className="text-sm text-[var(--token-text-secondary)]">
                     {selectedTrack
                       ? searchMode === "events" && practiceDaysEnabled
-                        ? "Select a track and click Search to find events, or adjust the date range and include practice days first."
-                        : "Select a track and click Search to find events, or adjust the date range first."
-                      : searchMode === "events" && practiceDaysEnabled
-                        ? "Pick a track, optionally set a date range and include practice days, then click Search."
-                        : "Pick a track, optionally set a date range, then click Search."}
+                        ? "Click Search to find events for this track, or adjust the date range and include practice days first."
+                        : "Click Search to find events for this track, or adjust the date range first."
+                      : searchMode === "events" && !includeLiveRC && !includePracticeDays
+                        ? "Leave the search box empty and click Search to list ingested events across all tracks (Filters track is ignored). Type 2+ characters or pick a suggestion to search one track."
+                        : searchMode === "events" && practiceDaysEnabled
+                          ? "Pick a track in Filters (required for LiveRC or practice days), optionally set a date range, then click Search."
+                          : "Pick a track in Filters (required for LiveRC), optionally set a date range, then click Search."}
                   </p>
                 </div>
               </div>
@@ -3560,7 +3773,9 @@ export default function EventSearchContainer({
                       found
                     </p>
                     <p className="text-sm text-[var(--token-text-secondary)]">
-                      Try a different track or date range.
+                      {isGlobalBrowse
+                        ? "Try a different date range in Filters."
+                        : "Try a different track or date range."}
                     </p>
                   </div>
                 )}

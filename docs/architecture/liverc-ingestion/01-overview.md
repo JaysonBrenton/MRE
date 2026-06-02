@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Overview and goals for the LiveRC ingestion subsystem
 purpose:
   Provides the conceptual foundation for the LiveRC ingestion subsystem,
@@ -60,13 +60,21 @@ The ingestion system exists to support a very specific user flow:
      (`laps_full` depth).
    - Event discovery (`none` depth) is metadata-only for browsing/searching.
    - When the ingestion service queue is enabled (default), the client receives
-     a job id and polls until ingestion completes; see [28. Async Ingestion
-     Queue](28-async-ingestion-queue.md).
+     a job id and polls until ingestion completes; see
+     [28. Async Ingestion Queue](28-async-ingestion-queue.md).
 7. Once ingestion completes, the user can visualise race results and lap data in
    novel, meaningful ways.
 
-Important: **Events are never scraped automatically.** Only Tracks are
-proactively synced. Events and their detailed data are retrieved on demand.
+Important: **User-initiated ingestion remains the primary path** for historical
+events and on-demand analysis. **Track catalogue** sync runs proactively on a
+schedule. **Event metadata** for followed tracks is refreshed nightly
+(`--depth none`). **Full lap ingest for recent events** on followed tracks is
+**implemented** as an opt-in nightly job with date windows and caps
+(`refresh-recent-events`, 02:00 UTC) — see
+[31. Recent Events Auto-Ingest](31-recent-events-auto-ingest.md) and
+[ADR-20260531](../adr/ADR-20260531-scheduled-recent-events-auto-ingest.md). It
+is gated by `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED` (default `false`); when
+disabled, events and lap data are retrieved on admin or user demand only.
 
 ---
 
@@ -94,10 +102,17 @@ isolated** from business logic or persistence.
 
 The system must avoid aggressive scraping. Therefore:
 
-- Only the **Track catalogue** is fetched proactively.
-- Events are discovered only when an admin requests it.
-- **Full event ingestion (laps, results) occurs only when a user selects an
-  event.**
+- The **Track catalogue** is fetched proactively (nightly cron).
+- **Event metadata** for followed tracks is refreshed nightly without lap
+  ingest.
+- **Scheduled full ingest of recent events** (implemented, doc 31) is limited to
+  a short date window, followed tracks by default, and hard per-run caps; it is
+  off by default and enabled via `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED`.
+- **Historical** event data and non-recent meetings remain **on-demand** (admin
+  or user selection).
+- **Full event ingestion (laps, results)** for arbitrary events occurs when an
+  admin or user explicitly requests it, or when the recent-events auto-ingest
+  job (when enabled) matches eligibility rules.
 
 This minimises requests to LiveRC and mirrors natural user behaviour.
 
@@ -108,8 +123,10 @@ switch mechanism, and browser automation best practices.**
 
 ### On-Demand Ingestion
 
-MRE never downloads event data unless a user explicitly expresses interest in an
-event. This ensures scalability and avoids storing large volumes of unused data.
+MRE prioritises on-demand ingestion for events a user explicitly selects.
+Scheduled jobs may ingest **recent** events on **followed** tracks when the
+auto-ingest feature is enabled (doc 31). The system avoids downloading large
+volumes of unused **historical** data.
 
 ### Multi-Connector Support
 

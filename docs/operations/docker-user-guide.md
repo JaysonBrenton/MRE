@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-16
+lastModified: 2026-05-31
 description:
   Comprehensive Docker user guide for MRE application architecture and usage
 purpose:
@@ -345,36 +345,30 @@ git clone <repository-url>
 cd mre
 ```
 
-### Step 2: Create Docker Network
+### Step 2: Docker Network (created by Compose)
 
-The application requires a Docker network. Create it if it doesn't exist:
+The network is declared in `docker-compose.yml` with the explicit name
+`my-race-engineer_mre-network`, so `docker compose up` creates it automatically.
+You do **not** normally need to create it by hand. To inspect or (rarely)
+pre-create it:
 
 ```bash
 # Check if network exists
 docker network ls | grep my-race-engineer_mre-network
 
-# Create network if it doesn't exist
+# Optional: pre-create network (Compose will otherwise create it for you)
 docker network create my-race-engineer_mre-network
 ```
 
-### Step 3: Set Up PostgreSQL Container
+### Step 3: PostgreSQL (defined as a Compose service)
 
-The application connects to an existing PostgreSQL container. Set it up if it
-doesn't exist:
+PostgreSQL is defined **in** `docker-compose.yml` as the `postgres` service
+(container `mre-postgres`, image `postgres:16`) with data persisted in the named
+volume `mre-postgres-data`. `docker compose up` starts it automatically — there
+is no separate manual `docker run` step in the standard workflow.
 
-```bash
-docker run -d \
-  --name mre-postgres \
-  --network my-race-engineer_mre-network \
-  -e POSTGRES_USER=pacetracer \
-  -e POSTGRES_PASSWORD=change-me \
-  -e POSTGRES_DB=pacetracer \
-  -p 5432:5432 \
-  postgres:16
-```
-
-**Note:** The PostgreSQL container is managed separately from the compose file
-to allow persistence across rebuilds.
+**Note:** Data persists across container rebuilds because it lives in the
+`mre-postgres-data` named volume, not the container layer.
 
 ### Step 4: Configure Environment Variables
 
@@ -427,10 +421,13 @@ Check that all services are running:
 docker compose ps
 ```
 
-You should see:
+You should see (the default stack starts five services):
 
 - `mre-app` - Status: Up, Ports: 0.0.0.0:3001->3001/tcp
+- `mre-postgres` - Status: Up (healthy), Ports: 0.0.0.0:5432->5432/tcp
 - `mre-liverc-ingestion-service` - Status: Up, Ports: 0.0.0.0:8000->8000/tcp
+- `mre-clickhouse` - Status: Up, Ports: 0.0.0.0:8123->8123/tcp
+- `mre-telemetry-worker` - Status: Up (no published host port)
 
 ### Step 8: Run Database Migrations
 
@@ -853,11 +850,12 @@ healthcheck:
 
 **Image:** `postgres:16`  
 **Container Name:** `mre-postgres`  
-**Port:** 5432 (mapped to host)  
+**Port:** 5432 (mapped to host, override via `POSTGRES_PORT`)  
 **Technology:** PostgreSQL 16
 
-**Note:** This container is managed separately from docker-compose.yml to allow
-persistence across rebuilds.
+**Note:** This container is defined as the `postgres` service **in**
+`docker-compose.yml`. Data persists across rebuilds via the named volume
+`mre-postgres-data`.
 
 **Connection Details:**
 
@@ -1051,15 +1049,8 @@ docker network create my-race-engineer_mre-network
 # Check if container exists
 docker ps -a | grep mre-postgres
 
-# Create container if missing
-docker run -d \
-  --name mre-postgres \
-  --network my-race-engineer_mre-network \
-  -e POSTGRES_USER=pacetracer \
-  -e POSTGRES_PASSWORD=change-me \
-  -e POSTGRES_DB=pacetracer \
-  -p 5432:5432 \
-  postgres:16
+# Start the postgres service (it is defined in docker-compose.yml)
+docker compose up -d postgres
 ```
 
 #### Issue: Port Already in Use

@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: User stories for system-level features (under development page)
 purpose:
   Defines user stories for system-level features and placeholders with detailed
@@ -16,6 +16,17 @@ relatedFiles:
 
 This epic contains user stories for system-level features: the under development
 placeholder page.
+
+> **Note (Alpha v0.1.0) — shipped behaviour.** The `/under-development` page is
+> live and shows the exact required message. Two acceptance criteria below are
+> superseded by the shipped app: (1) it lives inside the **authenticated** shell
+> (`src/app/(authenticated)/under-development`), so it is reached while signed
+> in rather than "without authentication"; and (2) the shell now has a full
+> adaptive navigation rail, so the "only minimal authentication navigation"
+> assumption no longer holds — placeholder rail entries such as **My Club** and
+> **My Team** route here via `?from=` (e.g.
+> `/under-development?from=/eventAnalysis/my-team`), and the page renders a
+> feature-specific description for that route.
 
 ---
 

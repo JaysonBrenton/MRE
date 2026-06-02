@@ -92,8 +92,7 @@ describe("FullRaceResultsTable", () => {
 
     const detailEl = document.getElementById("mre-lap-detail-rr-test-1")!
     expect(within(detailEl).getAllByText("0:17.250").length).toBeGreaterThanOrEqual(1)
-    expect(within(detailEl).getAllByText("0:16.500")).toHaveLength(2)
-    expect(within(detailEl).getByText("View JSON")).toBeInTheDocument()
+    expect(within(detailEl).getAllByText("0:16.500")).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/race-results/rr-test-1/laps")
     )

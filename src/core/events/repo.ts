@@ -139,6 +139,290 @@ export async function searchEvents(params: SearchEventsParams): Promise<SearchEv
   }
 }
 
+export interface BrowseEventsInDatabaseParams {
+  startDate?: Date
+  endDate?: Date
+  page: number
+  pageSize: number
+  /** When true, only return events with full lap data (laps_full). */
+  databaseOnly: boolean
+}
+
+export interface BrowsedEventRow {
+  id: string
+  source: string
+  sourceEventId: string
+  eventName: string
+  eventDate: string | null
+  eventEntries: number
+  eventDrivers: number
+  eventUrl: string
+  ingestDepth: string
+  lastIngestedAt: string | null
+  trackId: string
+  trackName: string
+}
+
+export interface BrowseEventsInDatabaseResult {
+  events: BrowsedEventRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/**
+ * Paginated cross-track event browse for Event Search (database-only).
+ *
+ * Excludes synthetic practice-day rows. Optionally restricts to laps_full when
+ * the UI is in database-only mode (Search LiveRC off).
+ */
+export async function browseEventsInDatabase(
+  params: BrowseEventsInDatabaseParams
+): Promise<BrowseEventsInDatabaseResult> {
+  const { startDate, endDate, page, pageSize, databaseOnly } = params
+
+  const whereClause: Prisma.EventWhereInput = {
+    sourceEventId: {
+      not: {
+        contains: "-practice-",
+      },
+    },
+    ...(databaseOnly ? { ingestDepth: "laps_full" } : {}),
+    ...(startDate && endDate
+      ? {
+          eventDate: {
+            gte: startDate,
+            lte: endDate,
+          },
+        }
+      : {}),
+  }
+
+  const skip = (page - 1) * pageSize
+
+  const [events, total] = await Promise.all([
+    prisma.event.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        source: true,
+        sourceEventId: true,
+        eventName: true,
+        eventDate: true,
+        eventEntries: true,
+        eventDrivers: true,
+        eventUrl: true,
+        ingestDepth: true,
+        lastIngestedAt: true,
+        trackId: true,
+        track: {
+          select: {
+            trackName: true,
+          },
+        },
+      },
+      orderBy: [{ eventDate: "desc" }, { id: "desc" }],
+      skip,
+      take: pageSize,
+    }),
+    prisma.event.count({ where: whereClause }),
+  ])
+
+  return {
+    events: events.map((event) => ({
+      id: event.id,
+      source: event.source,
+      sourceEventId: event.sourceEventId,
+      eventName: event.eventName,
+      eventDate: event.eventDate ? event.eventDate.toISOString() : null,
+      eventEntries: event.eventEntries,
+      eventDrivers: event.eventDrivers,
+      eventUrl: event.eventUrl,
+      ingestDepth: event.ingestDepth,
+      lastIngestedAt: event.lastIngestedAt?.toISOString() || null,
+      trackId: event.trackId,
+      trackName: event.track.trackName,
+    })),
+    total,
+    page,
+    pageSize,
+  }
+}
+
+export interface TrackSuggestion {
+  id: string
+  trackName: string
+  sourceTrackSlug: string
+  city: string | null
+  state: string | null
+  country: string | null
+}
+
+export interface EventSuggestion {
+  id: string
+  eventName: string
+  eventDate: string | null
+  trackId: string
+  trackName: string
+  ingestDepth: string
+}
+
+/** Candidate row shape for {@link rankTrackSuggestions}. */
+export type TrackSuggestionCandidate = TrackSuggestion
+
+/**
+ * Relevance score for omnibox track ranking (higher = better match).
+ * Exact / prefix track names beat substring slug matches (e.g. "rcra" → RCRA).
+ */
+export function scoreTrackSuggestionMatch(
+  track: Pick<TrackSuggestionCandidate, "trackName" | "sourceTrackSlug" | "city">,
+  query: string
+): number {
+  const q = query.trim().toLowerCase()
+  if (!q) return 0
+
+  const name = track.trackName.toLowerCase()
+  const slug = track.sourceTrackSlug.toLowerCase()
+  const city = (track.city ?? "").toLowerCase()
+
+  if (name === q) return 1000
+  if (name.startsWith(q)) return 500
+  if (name.includes(q)) return 300
+  if (city.includes(q)) return 200
+  if (slug.includes(q)) return 50
+  return 0
+}
+
+/**
+ * Rank track candidates for type-ahead: best matches first, then name A–Z.
+ */
+export function rankTrackSuggestions<T extends TrackSuggestionCandidate>(
+  tracks: T[],
+  query: string,
+  limit: number
+): T[] {
+  return [...tracks]
+    .map((track) => ({ track, score: scoreTrackSuggestionMatch(track, query) }))
+    .filter(({ score }) => score > 0)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.track.trackName.localeCompare(b.track.trackName, undefined, { sensitivity: "base" })
+    )
+    .slice(0, limit)
+    .map(({ track }) => track)
+}
+
+/**
+ * Type-ahead track suggestions for Event Search (database-only).
+ *
+ * Matches active tracks by name, city, or source slug (case-insensitive), then
+ * ranks by relevance so exact name matches (e.g. RCRA) are not crowded out by
+ * slug substring hits (e.g. *rcra* in grcraceway).
+ */
+export async function suggestTracksByText(
+  query: string,
+  limit: number
+): Promise<TrackSuggestion[]> {
+  const q = query.trim()
+  const poolSize = Math.min(100, Math.max(limit * 15, 40))
+
+  const select = {
+    id: true,
+    trackName: true,
+    sourceTrackSlug: true,
+    city: true,
+    state: true,
+    country: true,
+  } as const
+
+  // Fetch name matches separately from city/slug-only matches. Otherwise a query
+  // like "rcra" (which appears inside many slugs, e.g. *rcra* in "grcraceway")
+  // can flood an unordered pool and push out the exact-name match ("RCRA").
+  const [nameMatches, otherMatches] = await Promise.all([
+    prisma.track.findMany({
+      where: {
+        isActive: true,
+        trackName: { contains: q, mode: "insensitive" },
+      },
+      select,
+      orderBy: [{ trackName: "asc" }],
+      take: poolSize,
+    }),
+    prisma.track.findMany({
+      where: {
+        isActive: true,
+        NOT: { trackName: { contains: q, mode: "insensitive" } },
+        OR: [
+          { city: { contains: q, mode: "insensitive" } },
+          { sourceTrackSlug: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      select,
+      orderBy: [{ trackName: "asc" }],
+      take: poolSize,
+    }),
+  ])
+
+  const ranked = rankTrackSuggestions(
+    [...nameMatches, ...otherMatches].map((track) => ({
+      id: track.id,
+      trackName: track.trackName,
+      sourceTrackSlug: track.sourceTrackSlug,
+      city: track.city ?? null,
+      state: track.state ?? null,
+      country: track.country ?? null,
+    })),
+    q,
+    limit
+  )
+
+  return ranked
+}
+
+/**
+ * Type-ahead event suggestions for Event Search (database-only).
+ *
+ * Matches events by name (case-insensitive). Excludes synthetic practice-day
+ * rows (sourceEventId containing "-practice-") and non-ingested placeholders
+ * (ingest_depth = none) so every suggestion is actionable.
+ */
+export async function suggestEventsByText(
+  query: string,
+  limit: number
+): Promise<EventSuggestion[]> {
+  const events = await prisma.event.findMany({
+    where: {
+      eventName: { contains: query, mode: "insensitive" },
+      sourceEventId: { not: { contains: "-practice-" } },
+      ingestDepth: { not: "none" },
+    },
+    select: {
+      id: true,
+      eventName: true,
+      eventDate: true,
+      trackId: true,
+      ingestDepth: true,
+      track: {
+        select: {
+          trackName: true,
+        },
+      },
+    },
+    orderBy: [{ eventDate: "desc" }],
+    take: limit,
+  })
+
+  return events.map((event) => ({
+    id: event.id,
+    eventName: event.eventName,
+    eventDate: event.eventDate ? event.eventDate.toISOString() : null,
+    trackId: event.trackId,
+    trackName: event.track.trackName,
+    ingestDepth: event.ingestDepth,
+  }))
+}
+
 export interface SearchPracticeDayEventsParams {
   trackId: string
   startDate?: Date

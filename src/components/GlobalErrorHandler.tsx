@@ -49,6 +49,11 @@ function isAsyncParamsWarning(message: string): boolean {
   )
 }
 
+/** Benign browser noise when ResizeObserver callbacks cause nested layout in the same frame. */
+function isResizeObserverLoopError(message: string): boolean {
+  return message.includes("ResizeObserver loop completed with undelivered notifications")
+}
+
 /**
  * Override console.error to filter out Next.js performance measurement errors
  * This needs to run early, before Next.js error overlay intercepts the errors
@@ -68,6 +73,10 @@ if (typeof window !== "undefined") {
       // Silently ignore React DevTools warnings about async params/searchParams
       // These occur when DevTools tries to serialize component props.
       // The code correctly uses await, so these warnings are harmless.
+      return
+    }
+
+    if (isResizeObserverLoopError(message)) {
       return
     }
 
@@ -109,6 +118,13 @@ export default function GlobalErrorHandler() {
         event.stopPropagation()
         event.stopImmediatePropagation()
         // Silently ignore these warnings - they're not actual application errors
+        return false
+      }
+
+      if (isResizeObserverLoopError(errorMessage)) {
+        event.preventDefault()
+        event.stopPropagation()
+        event.stopImmediatePropagation()
         return false
       }
 

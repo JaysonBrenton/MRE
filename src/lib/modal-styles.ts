@@ -199,6 +199,15 @@ export const TRACK_SELECTION_MODAL_DEFAULT_HEIGHT_REM = "51.1875rem"
 export const CLASS_WINNER_STANDINGS_MODAL_DEFAULT_WIDTH_REM = "53.625rem"
 export const CLASS_WINNER_STANDINGS_MODAL_DEFAULT_HEIGHT_REM = "41.3125rem"
 
+/** Full race results (session + bracket modals): open at max viewport minus backdrop padding (p-4). */
+export const FULL_RACE_RESULTS_MODAL_DEFAULT_WIDTH = "min(96vw, 100vw - 2rem)"
+export const FULL_RACE_RESULTS_MODAL_DEFAULT_HEIGHT = "calc(100vh - 2rem)"
+
+export const FULL_RACE_RESULTS_MODAL_RESIZABLE_DEFAULT = {
+  width: FULL_RACE_RESULTS_MODAL_DEFAULT_WIDTH,
+  height: FULL_RACE_RESULTS_MODAL_DEFAULT_HEIGHT,
+} as const
+
 /** Shared with `Modal` backdrop (`z-[200]`). */
 export const MODAL_PORTAL_Z_INDEX = 200
 

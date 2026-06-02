@@ -56,6 +56,24 @@ Users must always understand:
 
 There must be no surprises.
 
+### 1.1 Copy and punctuation
+
+**Em dashes are forbidden in all user-facing UI copy.**
+
+- Do **not** use the Unicode em dash (U+2014, `—`) anywhere users read it: card
+  summaries, table cells, buttons, tooltips, modals, empty states, or chart
+  annotations.
+- To join two related fragments on one line (lap time + driver, class + count,
+  event + track), use a **middle dot** with spaces: `·` (U+00B7). Example:
+  `0:34.586 · DARREN CAINS`, not `0:34.586 — DARREN CAINS`.
+- For missing or unavailable values, use hyphen-minus (`-`), explicit words
+  (`N/A`), or a dedicated empty state; never an em dash.
+- LLM contributors: when editing UI strings, replace any em dash with `·` or the
+  alternatives above before shipping.
+
+Internal architecture docs may use em dashes in headings; that convention does
+not apply to product UI.
+
 ---
 
 # 2. Laws of UX (Required)

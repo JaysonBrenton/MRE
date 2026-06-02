@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-19
+lastModified: 2026-05-31
 description:
   Complete end-to-end user workflow for Event Search and Event Analysis features
 purpose:
@@ -24,10 +24,31 @@ relatedFiles:
 
 # LiveRC Event Search and Event Analysis User Workflow
 
-**Status:** Complete  
+**Status:** Design specification (partially superseded by shipped UI)  
 **Note:** This feature is in scope for version 0.1.1 release. See
 [MRE Version 0.1.1 Feature Scope](../specs/mre-v0.1-feature-scope.md) for
 version 0.1.1 feature specifications.
+
+> **⚠️ Shipped reality (Alpha v0.1.0) vs. this spec.** This document captures
+> the original UX design for a track-first Event Search and a separate Event
+> Analysis page. The **shipped** experience differs and is the source of truth:
+>
+> - Search ships as **Global Search** at **`/search`** (free-text plus optional
+>   Driver Name, Session Type, and date filters; Events + Sessions result
+>   tables). The legacy **`/event-search`** route now **redirects to
+>   `/search`**. The searchable track modal, favourite-track chips, multi-select
+>   import checkboxes, and per-row "Analyse event" buttons described below are
+>   **not** the shipped Global Search UI — treat them as planned/aspirational.
+> - Importing ships via **Actions → Find and Import Events** inside **My Event
+>   Analysis** (`/eventAnalysis`), not from the search results table.
+> - Event analysis ships embedded in **`/eventAnalysis`** (Redux event
+>   selection, `?eventId=` deep links), **not** at `/events/analyse/{slug}`, and
+>   uses Overview / Event Analysis / Session Analysis / Entry List tabs rather
+>   than the Overview / Drivers / Sessions / Comparisons tabs sketched in §4.
+> - Canonical shipped behaviour:
+>   [`docs/user-guides/event-search.md`](../../user-guides/event-search.md),
+>   [`docs/user-guides/dashboard.md`](../../user-guides/dashboard.md), and
+>   [`docs/user-guides/event-analysis.md`](../../user-guides/event-analysis.md).
 
 ## Purpose
 
@@ -149,6 +170,12 @@ For detailed technical implementation, see
 
 **Favourite Tracks:**
 
+Favourite tracks are **personal UI shortcuts** stored in browser `localStorage`
+(`mre_favourite_tracks`). They are **not** the same as `tracks.is_followed`
+(global admin ingestion scope). Starring a track in the modal does not change
+database follow status or ingestion jobs. See
+[Track catalogue flags and follow model](../../architecture/liverc-ingestion/04-data-model.md#track-catalogue-flags-and-follow-model).
+
 - **Favourite Tracks Section:** Pinned at top of modal track list
   - Section header: "Favourite Tracks" (if user has favourites)
   - Each track row has a **star icon** (unfilled = not favourite, filled =
@@ -207,9 +234,13 @@ For detailed technical implementation, see
 
 **API Integration:**
 
-- Call `GET /api/v1/tracks` to retrieve track list
-- Default: fetch all active tracks (`active=true`, `followed` parameter
-  optional)
+- Call `GET /api/v1/tracks?followed=all&active=true` to load the **full active
+  catalogue** for the track picker (dashboard prefetch uses the same query via
+  `fetchActiveTracksCatalog`)
+- Do **not** use `followed=false` expecting the full catalogue — that returns
+  **unfollowed tracks only** (`is_followed = false`)
+- Default API (`followed` omitted or `true`) returns followed active tracks only
+- Response fields: `id`, `trackName`, `sourceTrackSlug`, `country`
 - Handle empty results gracefully
 - Cache track list in memory for modal performance (refresh on page reload)
 

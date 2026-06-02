@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-19
+lastModified: 2026-05-31
 description: Guide to analyzing race event data in My Race Engineer (current UI)
 purpose:
   Documents the Event Analysis experience as embedded on My Event Analysis

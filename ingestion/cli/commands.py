@@ -33,6 +33,12 @@ from ingestion.ingestion.errors import (
 from ingestion.ingestion.pipeline import IngestionPipeline
 from ingestion.ingestion.auto_confirm import check_and_confirm_links
 from ingestion.ingestion.driver_deduplication import run_deduplication
+from ingestion.ingestion.recent_events import (
+    RecentEventsFilterConfig,
+    apply_ingest_caps,
+    build_recent_ingest_candidates,
+)
+from ingestion.common import metrics
 from ingestion.common.site_policy import SitePolicy, ScrapingDisabledError
 from ingestion.common.country_lookup import is_known_country, normalize_country
 from ingestion.services.track_sync_service import TrackSyncService
@@ -50,6 +56,54 @@ def _ensure_scraping_enabled(command: str) -> None:
         raise click.ClickException(str(exc))
 
 
+def _empty_event_stats() -> Dict[str, Any]:
+    return {
+        "events_total": 0,
+        "events_added": 0,
+        "events_updated": 0,
+        "events_ingested": 0,
+        "events_failed": 0,
+        "races_ingested": 0,
+        "results_ingested": 0,
+        "laps_ingested": 0,
+        "events_in_window": 0,
+        "events_eligible": 0,
+        "events_skipped_cap": 0,
+        "events_skipped_in_progress": 0,
+        "events_skipped_age": 0,
+        "events_skipped_already_full": 0,
+    }
+
+
+def _query_track_scope_rows(session, scope: str) -> List[tuple]:
+    """Return (track_id, source_track_slug) rows for a track scope."""
+    query = session.query(Track.id, Track.source_track_slug).order_by(Track.track_name, Track.id)
+    if scope == "followed":
+        return query.filter(
+            Track.is_active.is_(True),
+            Track.is_followed.is_(True),
+        ).all()
+    if scope == "active":
+        return query.filter(Track.is_active.is_(True)).all()
+    if scope == "all":
+        return query.all()
+    raise ValueError(f"Unknown track scope: {scope}")
+
+
+def _load_tracks_for_scope(session, scope: str) -> List[Track]:
+    query = session.query(Track).order_by(Track.track_name, Track.id)
+    if scope == "followed":
+        return query.filter(
+            Track.is_active.is_(True),
+            Track.is_followed.is_(True),
+        ).all()
+    if scope == "active":
+        return query.filter(Track.is_active.is_(True)).all()
+    if scope == "all":
+        return query.all()
+    raise ValueError(f"Unknown track scope: {scope}")
+
+
 def _refresh_events_for_track(
     session,
     connector: LiveRCConnector,
@@ -58,59 +112,68 @@ def _refresh_events_for_track(
     ingest_new_only: bool,
     ingest_all: bool,
     echo: Optional[Callable[[str], None]] = None,
+    events_to_ingest_ids: Optional[List[UUID]] = None,
+    dry_run: bool = False,
+    skip_discovery: bool = False,
+    discovery_stats: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Core logic shared by multiple commands for event refresh."""
-    repository = Repository(session)
-    events = asyncio.run(connector.list_events_for_track(track.source_track_slug))
-
     events_added = 0
     events_updated = 0
     new_event_ids: List[UUID] = []
+    events_total = 0
 
-    for event_summary in events:
-        existing = session.query(Event).filter(
-            Event.source == event_summary.source,
-            Event.source_event_id == event_summary.source_event_id
-        ).first()
+    if skip_discovery:
+        stats = _empty_event_stats()
+        if discovery_stats:
+            stats.update(discovery_stats)
+        events_total = stats.get("events_total", 0)
+    else:
+        repository = Repository(session)
+        events = asyncio.run(connector.list_events_for_track(track.source_track_slug))
+        events_total = len(events)
 
-        event_date = event_summary.event_date
-        if not isinstance(event_date, datetime):
-            if isinstance(event_date, date):
-                event_date = datetime.combine(event_date, datetime.min.time())
+        for event_summary in events:
+            existing = session.query(Event).filter(
+                Event.source == event_summary.source,
+                Event.source_event_id == event_summary.source_event_id
+            ).first()
 
-        event = repository.upsert_event(
-            source=event_summary.source,
-            source_event_id=event_summary.source_event_id,
-            track_id=track.id,
-            event_name=event_summary.event_name,
-            event_date=event_date,
-            event_entries=event_summary.event_entries,
-            event_drivers=event_summary.event_drivers,
-            event_url=event_summary.event_url,
-        )
+            event_date = event_summary.event_date
+            if not isinstance(event_date, datetime):
+                if isinstance(event_date, date):
+                    event_date = datetime.combine(event_date, datetime.min.time())
 
-        if existing:
-            events_updated += 1
-        else:
-            events_added += 1
-            new_event_ids.append(event.id)
+            event = repository.upsert_event(
+                source=event_summary.source,
+                source_event_id=event_summary.source_event_id,
+                track_id=track.id,
+                event_name=event_summary.event_name,
+                event_date=event_date,
+                event_entries=event_summary.event_entries,
+                event_drivers=event_summary.event_drivers,
+                event_url=event_summary.event_url,
+            )
 
-    session.commit()
+            if existing:
+                events_updated += 1
+            else:
+                events_added += 1
+                new_event_ids.append(event.id)
 
-    stats = {
-        "events_total": len(events),
-        "events_added": events_added,
-        "events_updated": events_updated,
-        "events_ingested": 0,
-        "events_failed": 0,
-        "races_ingested": 0,
-        "results_ingested": 0,
-        "laps_ingested": 0,
-    }
+        session.commit()
+
+        stats = _empty_event_stats()
+        stats["events_total"] = events_total
+        stats["events_added"] = events_added
+        stats["events_updated"] = events_updated
 
     if depth == "laps_full":
         pipeline = IngestionPipeline()
-        if ingest_all:
+        if events_to_ingest_ids is not None:
+            events_to_ingest = events_to_ingest_ids
+            ingest_new_only = False
+        elif ingest_all:
             track_events = session.query(Event).filter(Event.track_id == track.id).all()
             events_to_ingest = [e.id for e in track_events]
             ingest_new_only = False
@@ -127,18 +190,45 @@ def _refresh_events_for_track(
                     logger.warning("event_not_found_for_ingestion", event_id=str(event_id))
                     continue
 
-                if ingest_new_only and event.ingest_depth == IngestDepth.LAPS_FULL:
+                if (
+                    events_to_ingest_ids is None
+                    and ingest_new_only
+                    and event.ingest_depth == IngestDepth.LAPS_FULL
+                ):
                     logger.debug("event_already_ingested", event_id=str(event_id))
                     continue
 
                 if echo:
                     echo(f"  Ingesting event: {event.event_name} ({event.source_event_id})...")
 
+                if dry_run:
+                    logger.info(
+                        "refresh_recent_events_event_ingest",
+                        event_id=str(event_id),
+                        source_event_id=event.source_event_id,
+                        event_name=event.event_name,
+                        event_date=event.event_date.isoformat() if event.event_date else None,
+                        dry_run=True,
+                    )
+                    stats["events_ingested"] += 1
+                    continue
+
                 result = asyncio.run(pipeline.ingest_event(event_id, depth="laps_full"))
                 stats["events_ingested"] += 1
                 stats["races_ingested"] += result.get("races_ingested", 0)
                 stats["results_ingested"] += result.get("results_ingested", 0)
                 stats["laps_ingested"] += result.get("laps_ingested", 0)
+                logger.info(
+                    "refresh_recent_events_event_ingest",
+                    event_id=str(event_id),
+                    source_event_id=event.source_event_id,
+                    event_name=event.event_name,
+                    event_date=event.event_date.isoformat() if event.event_date else None,
+                    dry_run=False,
+                    races=result.get("races_ingested", 0),
+                    results=result.get("results_ingested", 0),
+                    laps=result.get("laps_ingested", 0),
+                )
                 logger.info(
                     "event_ingestion_success",
                     event_id=str(event_id),
@@ -147,8 +237,19 @@ def _refresh_events_for_track(
                     laps=result.get("laps_ingested", 0)
                 )
             except IngestionInProgressError:
-                logger.warning("event_ingestion_in_progress", event_id=str(event_id))
-                stats["events_failed"] += 1
+                logger.warning(
+                    "event_ingestion_in_progress",
+                    event_id=str(event_id),
+                )
+                if events_to_ingest_ids is not None:
+                    stats["events_skipped_in_progress"] += 1
+                    logger.info(
+                        "refresh_recent_events_event_skipped",
+                        reason="in_progress",
+                        event_id=str(event_id),
+                    )
+                else:
+                    stats["events_failed"] += 1
                 if echo:
                     echo("    ⚠ Skipped (ingestion already in progress)")
             except (StateMachineError, ValidationError) as err:
@@ -562,6 +663,256 @@ def refresh_followed_events(depth: str, ingest_new_only: bool, ingest_all: bool,
         click.echo(f"  Races ingested: {totals['races_ingested']}")
         click.echo(f"  Results ingested: {totals['results_ingested']}")
         click.echo(f"  Laps ingested: {totals['laps_ingested']}")
+
+    sys.exit(0)
+
+
+@liverc.command("refresh-recent-events")
+@click.option("--days", default=7, show_default=True, help="Recency window in calendar days")
+@click.option(
+    "--tracks",
+    default="followed",
+    show_default=True,
+    type=click.Choice(["followed", "active", "all"]),
+    help="Track scope",
+)
+@click.option("--min-event-age-hours", default=12, show_default=True, help="Skip events newer than this")
+@click.option(
+    "--max-ingests",
+    default=50,
+    show_default=True,
+    help="Max full ingests per run (0 = unlimited)",
+)
+@click.option(
+    "--max-ingests-per-track",
+    default=5,
+    show_default=True,
+    help="Max full ingests per track per run",
+)
+@click.option("--re-ingest-stale", is_flag=True, default=False, help="Re-ingest events already at laps_full")
+@click.option("--dry-run", is_flag=True, default=False, help="Discover and log eligible events; skip pipeline ingest")
+@click.option("--quiet", is_flag=True, default=False, help="Suppress per-event console output")
+def refresh_recent_events(
+    days: int,
+    tracks: str,
+    min_event_age_hours: int,
+    max_ingests: int,
+    max_ingests_per_track: int,
+    re_ingest_stale: bool,
+    dry_run: bool,
+    quiet: bool,
+):
+    """Discover and full-ingest recent LiveRC events for a track scope."""
+    _ensure_scraping_enabled("refresh-recent-events")
+    start_time = datetime.utcnow()
+    filter_config = RecentEventsFilterConfig(
+        days=days,
+        min_event_age_hours=min_event_age_hours,
+        run_at_utc=start_time,
+    )
+
+    logger.info(
+        "refresh_recent_events_start",
+        days=days,
+        tracks=tracks,
+        min_event_age_hours=min_event_age_hours,
+        max_ingests=max_ingests,
+        max_ingests_per_track=max_ingests_per_track,
+        re_ingest_stale=re_ingest_stale,
+        dry_run=dry_run,
+        quiet=quiet,
+        timestamp=start_time.isoformat(),
+    )
+
+    connector = LiveRCConnector()
+    unlimited = max_ingests == 0
+    ingests_remaining = float("inf") if unlimited else max_ingests
+
+    with db_session() as session:
+        track_rows = _query_track_scope_rows(session, tracks)
+
+    if not track_rows:
+        click.echo(f"No tracks found for scope '{tracks}'. Nothing to refresh.")
+        metrics.record_recent_events_auto_ingest_run("empty")
+        sys.exit(0)
+
+    totals = _empty_event_stats()
+    totals["tracks"] = len(track_rows)
+
+    for track_id, track_slug in track_rows:
+        if not unlimited and ingests_remaining <= 0:
+            logger.info(
+                "refresh_recent_events_global_cap_reached",
+                tracks_remaining=0,
+            )
+            break
+
+        logger.info(
+            "refresh_recent_events_track_start",
+            track_id=str(track_id),
+            source_track_slug=track_slug,
+        )
+
+        echo_fn = None
+        if not quiet:
+            def echo_with_slug(message: str, slug: str = track_slug) -> None:
+                click.echo(f"[{slug}] {message}")
+
+            echo_fn = echo_with_slug
+
+        summary = _empty_event_stats()
+        try:
+            with db_session() as session:
+                db_track = session.get(Track, str(track_id))
+                if not db_track:
+                    logger.warning("recent_events_track_missing", track_id=str(track_id))
+                    continue
+
+                events = asyncio.run(connector.list_events_for_track(db_track.source_track_slug))
+                new_event_ids: List[UUID] = []
+                events_added = 0
+                events_updated = 0
+                repository = Repository(session)
+
+                for event_summary in events:
+                    existing = session.query(Event).filter(
+                        Event.source == event_summary.source,
+                        Event.source_event_id == event_summary.source_event_id,
+                    ).first()
+
+                    event_date = event_summary.event_date
+                    if not isinstance(event_date, datetime):
+                        if isinstance(event_date, date):
+                            event_date = datetime.combine(event_date, datetime.min.time())
+
+                    event = repository.upsert_event(
+                        source=event_summary.source,
+                        source_event_id=event_summary.source_event_id,
+                        track_id=db_track.id,
+                        event_name=event_summary.event_name,
+                        event_date=event_date,
+                        event_entries=event_summary.event_entries,
+                        event_drivers=event_summary.event_drivers,
+                        event_url=event_summary.event_url,
+                    )
+
+                    if existing:
+                        events_updated += 1
+                    else:
+                        events_added += 1
+                        new_event_ids.append(event.id)
+
+                session.commit()
+
+                track_events = session.query(Event).filter(Event.track_id == db_track.id).all()
+                candidate_result = build_recent_ingest_candidates(
+                    track_events,
+                    filter_config,
+                    re_ingest_stale=re_ingest_stale,
+                )
+
+                remaining = float("inf") if unlimited else int(ingests_remaining)
+                selected, skipped_cap = apply_ingest_caps(
+                    candidate_result.candidates,
+                    max_ingests_remaining=remaining,
+                    max_per_track=max_ingests_per_track,
+                )
+
+                selected_ids = {str(e.id) for e in selected}
+                for event in candidate_result.candidates:
+                    if str(event.id) not in selected_ids:
+                        logger.info(
+                            "refresh_recent_events_event_skipped",
+                            reason="cap",
+                            event_id=str(event.id),
+                            source_event_id=event.source_event_id,
+                        )
+
+                discovery_stats = {
+                    "events_total": len(events),
+                    "events_added": events_added,
+                    "events_updated": events_updated,
+                }
+                summary = _refresh_events_for_track(
+                    session=session,
+                    connector=connector,
+                    track=db_track,
+                    depth="laps_full",
+                    ingest_new_only=True,
+                    ingest_all=False,
+                    echo=echo_fn,
+                    events_to_ingest_ids=[UUID(str(e.id)) for e in selected],
+                    dry_run=dry_run,
+                    skip_discovery=True,
+                    discovery_stats=discovery_stats,
+                )
+                summary["events_in_window"] = candidate_result.events_in_window
+                summary["events_eligible"] = candidate_result.events_eligible
+                summary["events_skipped_age"] = candidate_result.events_skipped_age
+                summary["events_skipped_already_full"] = candidate_result.events_skipped_already_full
+                summary["events_skipped_cap"] = skipped_cap
+
+        except Exception as err:
+            logger.error(
+                "refresh_recent_events_track_error",
+                track_id=str(track_id),
+                source_track_slug=track_slug,
+                error=str(err),
+                exc_info=True,
+            )
+            continue
+
+        logger.info(
+            "refresh_recent_events_track_done",
+            track_id=str(track_id),
+            source_track_slug=track_slug,
+            events_added=summary.get("events_added", 0),
+            events_updated=summary.get("events_updated", 0),
+            events_ingested=summary.get("events_ingested", 0),
+            events_failed=summary.get("events_failed", 0),
+        )
+
+        for key in totals:
+            if key == "tracks":
+                continue
+            totals[key] += summary.get(key, 0)
+
+        if not unlimited:
+            ingests_remaining -= summary.get("events_ingested", 0)
+
+    duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+    status = "success" if totals["events_failed"] == 0 else "partial"
+    logger.info(
+        "refresh_recent_events_complete",
+        totals=totals,
+        duration_ms=duration_ms,
+        dry_run=dry_run,
+    )
+    metrics.record_recent_events_auto_ingest_run(status)
+    metrics.record_recent_events_auto_ingest_events(
+        ingested=totals["events_ingested"],
+        failed=totals["events_failed"],
+    )
+    metrics.record_recent_events_auto_ingest_duration(duration_ms / 1000.0)
+
+    click.echo("Recent events auto-ingest complete:")
+    click.echo(f"  Tracks scanned: {totals['tracks']}")
+    click.echo(
+        f"  Events listed from LiveRC: {totals['events_total']}"
+    )
+    click.echo(
+        f"  Events upserted (new / updated): {totals['events_added']} / {totals['events_updated']}"
+    )
+    click.echo(f"  In window + eligible: {totals['events_eligible']}")
+    click.echo(
+        "  Full ingests: "
+        f"{totals['events_ingested']} ok, "
+        f"{totals['events_failed']} failed, "
+        f"{totals['events_skipped_cap']} skipped (cap), "
+        f"{totals['events_skipped_in_progress']} in-progress"
+    )
+    click.echo(f"  Laps ingested: {totals['laps_ingested']}")
+    click.echo(f"  Duration: {duration_ms // 1000 // 60}m {duration_ms // 1000 % 60}s")
 
     sys.exit(0)
 

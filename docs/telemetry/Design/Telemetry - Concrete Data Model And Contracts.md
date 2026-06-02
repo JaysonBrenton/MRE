@@ -1,13 +1,47 @@
 # MRE Telemetry: Concrete Data Model and Contracts
 
-created: 2026-01-30 creator: Jayson Brenton purpose: Define an
-implementation-ready data model and integration contracts for telemetry ingest,
-storage, processing, and query. This spec is designed to fit the existing MRE
-Postgres plus Prisma schema, and introduce a dedicated high-performance
-time-series store. status: Draft v1
+created: 2026-01-30 lastModified: 2026-05-31 creator: Jayson Brenton purpose:
+Define an implementation-ready data model and integration contracts for
+telemetry ingest, storage, processing, and query. This spec is designed to fit
+the existing MRE Postgres plus Prisma schema, and introduce a dedicated
+high-performance time-series store. status: Partially implemented
 
 **Storage authority:** Parquet is canonical; ClickHouse is a derived cache. See
 `docs/adr/ADR-20260203-time-series-parquet-canonical-clickhouse-cache.md`.
+
+## Implementation status (as of 2026-05-31)
+
+Verify against `prisma/schema.prisma` (`Telemetry*` models) and
+`ingestion/telemetry/**`.
+
+**Built and matches code (Postgres):** `telemetry_sessions`,
+`telemetry_devices`, `telemetry_artifacts`, `telemetry_jobs`,
+`telemetry_processing_runs`, `telemetry_datasets`, `telemetry_laps`. Enums match
+this doc: `TelemetrySessionStatus`
+(`UPLOADING | PROCESSING | READY | FAILED | DELETED`),
+`TelemetrySessionPrivacy`, `TelemetryArtifactRole`/`Status`,
+`TelemetryDeviceType`, `TelemetryProcessingRunStatus`, `TelemetryJobStatus`,
+`TelemetryDatasetType`, `TelemetryDatasetSensorType` (`GNSS | IMU | FUSION`),
+`TelemetryLapValidity` (`VALID | INVALID | OUTLAP | INLAP`).
+
+**Schema additions in code not yet described below:** `telemetry_sessions` also
+has `livercEventId`, `livercRaceId`, `userSflLineGeoJson`, `lastReprocessAt`,
+`shareToken`, `shareTokenCreatedAt` (read-only sharing **is** implemented).
+`telemetry_laps` has `qualityScore`.
+
+**Not implemented (still design-only):** `telemetry_segments`,
+`telemetry_edits`, and the §7.8 sharing tables (`teams`, `team_members`,
+`telemetry_share_grants`, `telemetry_public_shares`). Segments are persisted
+inside `telemetry_processing_runs.qualitySummary.segments` (JSON), not a table.
+
+**ClickHouse (§8):** only **`telemetry_gnss_v1`** is created/materialised, and
+only when `CLICKHOUSE_HOST` is set. Its columns are
+`session_id, run_id, dataset_id, t_ns Int64, lat_deg, lon_deg, alt_m, speed_mps`
+(note **`t_ns` Int64**, not `ts DateTime64`), `ORDER BY (session_id, t_ns)`. The
+accel/gyro/mag/ pose and downsample ClickHouse tables in §8.4–§8.9 are not
+created; downsample and IMU/pose data live only as Parquet today. Canonical GNSS
+Parquet (`gnss_pvt.parquet`) columns are
+`t_ns, lat_deg, lon_deg, alt_m, speed_mps`.
 
 ## 1. Scope
 
@@ -210,9 +244,15 @@ Canonical frames:
 
 All new tables use UUID PKs, plus `createdAt`, `updatedAt`.
 
-**Naming:** Column names in this document use camelCase (Prisma convention). Migrations define the actual database column names; Python workers must use the same names as the database.
+**Naming:** Column names in this document use camelCase (Prisma convention).
+Migrations define the actual database column names; Python workers must use the
+same names as the database.
 
-**MVP scope:** For MVP, tables `teams`, `team_members`, `telemetry_share_grants`, `telemetry_public_shares` are deferred (all sessions private). See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §9.
+**MVP scope:** For MVP, tables `teams`, `team_members`,
+`telemetry_share_grants`, `telemetry_public_shares` are deferred (all sessions
+private). See
+[Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md)
+§9.
 
 ### 7.1 TelemetrySession
 
@@ -238,7 +278,11 @@ Columns:
   `UPLOADING`)
 - `deletedAt` timestamptz (optional)
 
-**MVP session time:** At creation, set `startTimeUtc` and `endTimeUtc` to the session creation time. When the first processing run succeeds, update both from the canonical data time range (min/max timestamp from parsed streams). See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §4.
+**MVP session time:** At creation, set `startTimeUtc` and `endTimeUtc` to the
+session creation time. When the first processing run succeeds, update both from
+the canonical data time range (min/max timestamp from parsed streams). See
+[Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md)
+§4.
 
 Constraints:
 
@@ -305,12 +349,17 @@ Indexes:
 
 Purpose: uploaded inputs, retained as metadata only after canonicalisation.
 
-**Upload lifecycle (MVP):** The artifact row is created on POST /uploads (upload) with `sessionId` null and `status` UPLOADED. On POST finalise, the session is created, `artifact.sessionId` is set, and processing is enqueued. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §2.
+**Upload lifecycle (MVP):** The artifact row is created on POST /uploads
+(upload) with `sessionId` null and `status` UPLOADED. On POST finalise, the
+session is created, `artifact.sessionId` is set, and processing is enqueued. See
+[Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md)
+§2.
 
 Columns:
 
 - `id` UUID PK
-- `sessionId` UUID FK to `telemetry_sessions.id` (optional until finalise; required after)
+- `sessionId` UUID FK to `telemetry_sessions.id` (optional until finalise;
+  required after)
 - `ownerUserId` UUID FK to `users.id` (required)
 - `deviceId` UUID FK to `telemetry_devices.id` (optional)
 - `artifactRole` enum `GNSS | IMU | FUSED | MIXED | UNKNOWN` (default `UNKNOWN`)
@@ -319,7 +368,9 @@ Columns:
 - `byteSize` bigint (required)
 - `sha256` text (required)
 - `uploadedAt` timestamptz (required)
-- `storagePath` text (required when status = UPLOADED) — object-storage key or local path for raw bytes; worker reads from here before canonicalisation. Cleared or null after raw bytes discarded.
+- `storagePath` text (required when status = UPLOADED) — object-storage key or
+  local path for raw bytes; worker reads from here before canonicalisation.
+  Cleared or null after raw bytes discarded.
 - `formatDetected` text (optional), for example `racebox_csv_v2`
 - `status` enum `UPLOADED | CANONICALISED | REJECTED | DELETED` (default
   `UPLOADED`)
@@ -340,13 +391,18 @@ Indexes:
 
 **Table:** `telemetry_jobs`
 
-Purpose: Postgres-backed job queue for processing pipeline. Single table for MVP; no separate attempt table. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §1 and [Processing Pipeline](Telemetry%20Processing%20Pipeline%20Job%20Orchestration%20and%20State%20Machine.md).
+Purpose: Postgres-backed job queue for processing pipeline. Single table for
+MVP; no separate attempt table. See
+[Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md)
+§1 and
+[Processing Pipeline](Telemetry%20Processing%20Pipeline%20Job%20Orchestration%20and%20State%20Machine.md).
 
 Columns:
 
 - `id` UUID PK
 - `runId` UUID FK to `telemetry_processing_runs.id` (required)
-- `jobType` text (required), e.g. artifact_validate, artifact_classify, parse_raw
+- `jobType` text (required), e.g. artifact_validate, artifact_classify,
+  parse_raw
 - `status` text (required): QUEUED | RUNNING | SUCCEEDED | FAILED | CANCELLED
 - `payload` jsonb (optional), job-specific arguments
 - `attemptCount` int (default 0)
@@ -361,7 +417,8 @@ Columns:
 
 Indexes:
 
-- `(status, nextRetryAt, createdAt)` for claim query (QUEUED, nextRetryAt null or past)
+- `(status, nextRetryAt, createdAt)` for claim query (QUEUED, nextRetryAt null
+  or past)
 
 ### 7.5 TelemetryProcessingRun
 
@@ -501,7 +558,10 @@ Indexes:
 
 ### 7.8 Team and share grants (v1; deferred in MVP)
 
-**MVP:** Tables in this section are not created in MVP; all sessions are private. See [Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md) §9.
+**MVP:** Tables in this section are not created in MVP; all sessions are
+private. See
+[Telemetry MVP Implementation Decisions](Telemetry_MVP_Implementation_Decisions.md)
+§9.
 
 #### 7.8.1 Team
 

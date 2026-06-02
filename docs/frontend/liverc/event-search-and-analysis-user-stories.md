@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-19
+lastModified: 2026-05-31
 description:
   User stories and acceptance criteria for Event Search and Event Analysis
   features
@@ -21,9 +21,24 @@ relatedFiles:
 
 # Event Search and Event Analysis User Stories
 
-**Status:** Complete  
-**Note:** These user stories define the Driver experience for Event Search and
-Event Analysis features in the MRE Alpha release.
+**Status:** Design specification (partially superseded by shipped UI)  
+**Note:** These user stories define the originally designed Driver experience
+for Event Search and Event Analysis.
+
+> **⚠️ Shipped reality (Alpha v0.1.0).** Several stories below describe a
+> track-first search flow (searchable track modal, favourite-track chips,
+> multi-select import checkboxes, per-row "Analyse event" buttons) and an Event
+> Analysis page with Overview / Drivers / Sessions / Comparisons tabs plus CSV
+> export. The **shipped** app instead provides **Global Search** at
+> **`/search`** (free-text + Driver Name + Session Type + date filters;
+> `/event-search` redirects here), triggers imports via **Actions → Find and
+> Import Events** on **`/eventAnalysis`**, and renders analysis embedded in
+> `/eventAnalysis` (Overview / Event Analysis / Session Analysis / Entry List
+> tabs; no headline CSV export). Treat unshipped specifics here as **planned**.
+> Source of truth:
+> [`docs/user-guides/event-search.md`](../../user-guides/event-search.md) and
+> [`docs/user-guides/event-analysis.md`](../../user-guides/event-analysis.md).
+> The shipped mains-ladder scaffold is documented in the final user story below.
 
 ## Purpose
 
@@ -59,10 +74,12 @@ perspective and define the expected behavior and outcomes for each feature.
 ### Acceptance Criteria
 
 - [ ] Clicking track input field opens searchable track modal
-- [ ] Modal displays all available tracks (~1100 tracks)
+- [ ] Modal displays all **active** tracks from the catalogue (~1,100+; loaded
+      via `GET /api/v1/tracks?followed=all&active=true`)
 - [ ] Search input filters tracks in real-time as user types (typeahead)
 - [ ] Favourite tracks appear in "Favourite Tracks" section at top of modal
-- [ ] Each track row has star icon that toggles favourite status
+- [ ] Each track row has star icon that toggles favourite status (**client
+      localStorage only** — not `tracks.is_followed` / admin ingestion scope)
 - [ ] Toggling star adds/removes track from favourites (persisted in
       localStorage)
 - [ ] Selecting a track closes modal and populates track field

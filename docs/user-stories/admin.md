@@ -367,7 +367,7 @@ Medium
 
 **As an** Administrator  
 **I want** to manage tracks (view, follow/unfollow)  
-**So that** I can control which tracks are monitored for events
+**So that** I can control which tracks are monitored for automated ingestion
 
 ### Priority
 
@@ -376,10 +376,14 @@ Medium
 ### Acceptance Criteria
 
 - View all tracks with details and event counts
-- Follow/unfollow tracks (toggle isFollowed flag)
+- Follow/unfollow tracks (toggle global `isFollowed` flag on the track row —
+  **not** per-user; distinct from Event Search favourite stars in localStorage)
 - View events for specific tracks
 - Filter and sort by name, source, follow status
 - All actions logged to audit log
+
+See
+[Track catalogue flags and follow model](../architecture/liverc-ingestion/04-data-model.md#track-catalogue-flags-and-follow-model).
 
 ---
 

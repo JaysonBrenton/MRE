@@ -3,8 +3,13 @@
 **Purpose:** Operational guide for validating, troubleshooting, and tuning the
 nitro pit stop detection pipeline in MRE.
 
-**Status:** Future operational runbook. Applies after pit stop detection v2
-schema, pipeline, and APIs are merged.
+**Status:** Implemented. The pit stop detection schema (`lap_annotations`,
+`pit_stop_events`, plus driver pit strategy output), the detector
+(`ingestion/ingestion/pit_stop_detection.py`, `detect_pit_stops_for_race(...)`),
+and its pipeline integration are present in the codebase
+(`ingestion/db/models.py`, `ingestion/ingestion/pipeline.py`,
+`ingestion/db/repository.py`) with unit coverage in
+`ingestion/tests/unit/test_pit_stop_detection.py`.
 
 **Design Reference:**
 `docs/architecture/liverc-ingestion/29-pitstop-detection-system.md`

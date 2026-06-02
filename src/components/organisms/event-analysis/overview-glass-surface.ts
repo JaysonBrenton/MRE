@@ -2,6 +2,15 @@
 export const OVERVIEW_GLASS_SURFACE_CLASS =
   "rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)]/95 shadow-md"
 
+/**
+ * Uniform collapsed height (px) for Event/Session Level Analysis tiles.
+ * See docs/implimentation_plans/analysis-card-collapse-mini-chart-2026-05.md (D1).
+ */
+export const ANALYSIS_TILE_COLLAPSED_HEIGHT_PX = 180
+
+/** Collapsed mini-chart canvas height (px) inside an analysis tile (D2). */
+export const ANALYSIS_MINI_CHART_HEIGHT_PX = 112
+
 export const OVERVIEW_GLASS_SURFACE_STYLE = {
   backgroundColor: "var(--glass-bg)",
   backdropFilter: "var(--glass-blur)",

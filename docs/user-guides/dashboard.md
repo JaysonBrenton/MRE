@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-19
+lastModified: 2026-05-31
 description:
   Guide to the My Event Analysis dashboard shell (event selector + embedded
   analysis)
@@ -77,6 +77,26 @@ powered by `/api/v1/personas/driver/events`. Practice-day regimes hide the
 latch.
 
 ![Typical empty My Events latch panel](./images/my-events-panel.png)
+
+## Event Search (omnibox + Filters)
+
+Press `⌘` + `E` (or **Actions → Find Events**) to open **Event Search**.
+
+- **Omnibox:** Start typing a **track name** or **event name**. A fast
+  look-ahead list (from your database) shows matching tracks and events.
+  - Pick a **track** to run a search for that track.
+  - Pick an **event** to open it for analysis straight away.
+- **Filters button:** The secondary controls live behind the **Filters** button
+  — **Track Selection**, **Date Filter**, **Search LiveRC**, **Search
+  Everlaps**, and (when enabled) **Include practice days**. A badge shows how
+  many non-default filters are active.
+- **Searching LiveRC still works exactly as before:** open **Filters**, turn
+  **Search LiveRC** on, pick a track and Search — results include both database
+  **and** LiveRC events. (The omnibox look-ahead itself only suggests events
+  already in your database.)
+
+See [Event Search omnibox architecture](../architecture/event-search-omnibox.md)
+for the full specification.
 
 ## Actions & ingestion affordances
 

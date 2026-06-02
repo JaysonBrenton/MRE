@@ -2,7 +2,7 @@
  * @fileoverview Lap-by-lap trend chart – every single lap time for selected drivers
  *
  * @description Line chart with X = global lap index (1, 2, 3, …), Y = lap time.
- * One line per driver; tooltip shows race, lap number, deltas, and optional position.
+ * One line per driver; unified crosshair tooltip compares all drivers at the snapped lap index.
  * Supports **bands** vs **divider** session cues, optional dual **position** axis, and
  * **rolling-mean smoothing** (Display menu) for tight dashboard cards.
  *
@@ -15,7 +15,16 @@
 
 "use client"
 
-import { useMemo, useId, useState, useRef, useEffect, useCallback, type ReactNode } from "react"
+import {
+  useMemo,
+  useId,
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  type ReactNode,
+} from "react"
 import { createPortal } from "react-dom"
 import { Group } from "@visx/group"
 import { LinePath } from "@visx/shape"
@@ -29,15 +38,19 @@ import ChartContainer from "./ChartContainer"
 import ChartColorPicker from "./ChartColorPicker"
 import { formatDateTimeUTC, formatDuration } from "@/lib/format-session-data"
 import { useChartColor, useDriverLineColors } from "@/hooks/useChartColors"
-import { typography } from "@/lib/typography"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
 import type { DriverLapTrendSeries, LapTrendPoint } from "@/core/events/get-lap-data"
 import {
-  buildAggregateTooltipPayload,
-  computeSessionBands,
+  buildCrosshairTooltipPayload,
   computeSessionDividers,
+  computeSessionLayout,
   countPlottableLaps,
   defaultDriverLineColor,
+  lapChartXValue,
+  sessionBandsFromLayout,
+  type ChartXDimension,
+  type CrosshairTooltipPayload,
+  type SessionLayout,
 } from "@/core/events/lap-by-lap-trend-chart-model"
 import {
   buildSessionDisplayLabelLookup,
@@ -50,43 +63,25 @@ function formatDeltaSeconds(delta: number): string {
   return `${sign}${Math.abs(delta).toFixed(3)}s`
 }
 
-function computeTooltipLapExtras(
-  driver: DriverLapTrendSeries,
-  nearest: LapTrendPoint,
-  allDrivers: DriverLapTrendSeries[],
-  outlierKeysForDriver: Set<string>
-): {
-  deltaToDriverBestSeconds: number
-  deltaToChartBestSeconds: number
-  isOutlierLap: boolean
-} {
-  const laps = driver.laps as LapTrendPoint[]
-  const times = laps.map((l) => l.lapTimeSeconds).filter((t) => t > 0 && Number.isFinite(t))
-  const driverBest = times.length > 0 ? Math.min(...times) : nearest.lapTimeSeconds
-
-  const allTimes = allDrivers.flatMap((d) =>
-    (d.laps as LapTrendPoint[])
-      .map((l) => l.lapTimeSeconds)
-      .filter((t) => t > 0 && Number.isFinite(t))
-  )
-  const chartBest = allTimes.length > 0 ? Math.min(...allTimes) : nearest.lapTimeSeconds
-
-  const lapKey = `${nearest.lapIndex}-${nearest.raceId}`
-  return {
-    deltaToDriverBestSeconds: nearest.lapTimeSeconds - driverBest,
-    deltaToChartBestSeconds: nearest.lapTimeSeconds - chartBest,
-    isOutlierLap: outlierKeysForDriver.has(lapKey),
-  }
-}
-
 const DEFAULT_AXIS_COLOR = "var(--token-text-primary)"
 const PLOT_MARGIN = { top: 20, bottom: 60, left: 70, rightDefault: 20, rightWithPositionAxis: 54 }
+/** Plot-only preview: no axis label gutters in collapsed analysis tiles. */
+const COMPACT_PLOT_MARGIN = {
+  top: 4,
+  bottom: 4,
+  left: 4,
+  rightDefault: 4,
+  rightWithPositionAxis: 4,
+}
 const SESSION_BAND_DEFAULTS = [
   "var(--token-chart-session-band-1)",
   "var(--token-chart-session-band-2)",
 ] as const
 const borderColor = "var(--token-border-default)"
 const DIM_OPACITY = 0.2
+
+const TOOLTIP_CURSOR_OFFSET = 12
+const TOOLTIP_VIEWPORT_PADDING = 8
 
 function PortaledChartTooltip({
   open,
@@ -103,15 +98,46 @@ function PortaledChartTooltip({
   padding: string
   children: ReactNode
 }) {
+  const tooltipRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!open || top == null || left == null || typeof window === "undefined") return
+
+    const el = tooltipRef.current
+    if (!el) return
+
+    let nextTop = top + TOOLTIP_CURSOR_OFFSET
+    let nextLeft = left + TOOLTIP_CURSOR_OFFSET
+    const rect = el.getBoundingClientRect()
+    const maxLeft = window.innerWidth - TOOLTIP_VIEWPORT_PADDING - rect.width
+    const maxTop = window.innerHeight - TOOLTIP_VIEWPORT_PADDING - rect.height
+    nextLeft = Math.min(
+      Math.max(TOOLTIP_VIEWPORT_PADDING, nextLeft),
+      Math.max(TOOLTIP_VIEWPORT_PADDING, maxLeft)
+    )
+    if (nextTop > maxTop) {
+      nextTop = Math.max(TOOLTIP_VIEWPORT_PADDING, top - rect.height - TOOLTIP_CURSOR_OFFSET)
+    }
+    nextTop = Math.min(
+      Math.max(TOOLTIP_VIEWPORT_PADDING, nextTop),
+      Math.max(TOOLTIP_VIEWPORT_PADDING, maxTop)
+    )
+
+    el.style.top = `${nextTop}px`
+    el.style.left = `${nextLeft}px`
+  }, [open, top, left, maxWidth, padding, children])
+
   if (!open || top == null || left == null || typeof document === "undefined") return null
+
   return createPortal(
     <div
+      ref={tooltipRef}
       style={{
         ...defaultStyles,
         position: "fixed",
         pointerEvents: "none",
-        top: top + 12,
-        left: left + 12,
+        top: top + TOOLTIP_CURSOR_OFFSET,
+        left: left + TOOLTIP_CURSOR_OFFSET,
         zIndex: 10000,
         backgroundColor: "var(--token-surface-elevated)",
         border: `1px solid ${borderColor}`,
@@ -124,6 +150,187 @@ function PortaledChartTooltip({
       {children}
     </div>,
     document.body
+  )
+}
+
+function LapCrosshairTooltipTable({
+  payload,
+  xAxisLabel,
+  xDimension,
+  focusedDriverId,
+}: {
+  payload: CrosshairTooltipPayload
+  xAxisLabel: string
+  xDimension: ChartXDimension
+  focusedDriverId: string | null
+}) {
+  const { sessionHeading, lapIndex, lapInSessionNumber, columns, sessionMeta } = payload
+  // In event-aligned scope the snapped x is a synthetic position; the session lap is the meaningful
+  // number and is shared across drivers, so surface that instead of the raw aligned index.
+  const headingLapLabel =
+    xDimension === "sessionLapNumber"
+      ? `${xAxisLabel}: ${lapIndex}`
+      : lapInSessionNumber != null
+        ? `Session lap ${lapInSessionNumber}`
+        : `${xAxisLabel}: ${lapIndex}`
+  const columnHeaderClass = (driverId: string) =>
+    `border border-[var(--token-border-muted)] px-2 py-1 text-left font-medium text-[var(--token-text-primary)] ${
+      focusedDriverId === driverId
+        ? "bg-[var(--token-accent-soft-bg)] ring-1 ring-inset ring-[var(--token-accent)]"
+        : ""
+    }`
+  const columnCellClass = (driverId: string) =>
+    `border border-[var(--token-border-muted)] px-2 py-1 font-mono tabular-nums text-[var(--token-text-primary)] ${
+      focusedDriverId === driverId ? "bg-[var(--token-accent-soft-bg)]/40" : ""
+    }`
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <div className="text-sm font-semibold leading-tight text-[var(--token-text-primary)]">
+          {sessionHeading}
+        </div>
+        <div className="mt-0.5 text-xs text-[var(--token-text-secondary)]">
+          {headingLapLabel}
+          {columns.some((c) => c.lapTimeSeconds != null) ? (
+            <span className="text-[var(--token-text-muted)]"> · all drivers at this lap</span>
+          ) : null}
+        </div>
+      </div>
+
+      {sessionHeading === "Multiple sessions" ? (
+        <p className="text-[0.65rem] text-[var(--token-text-muted)]">
+          Drivers are in different sessions here.
+        </p>
+      ) : null}
+
+      {sessionMeta?.raceStartTime ? (
+        <div className="text-xs text-[var(--token-text-secondary)]">
+          {formatDateTimeUTC(new Date(sessionMeta.raceStartTime))}
+          {sessionMeta.sessionDurationSeconds != null
+            ? ` · Session length: ${formatDuration(sessionMeta.sessionDurationSeconds)}`
+            : null}
+        </div>
+      ) : sessionMeta?.sessionDurationSeconds != null ? (
+        <div className="text-xs text-[var(--token-text-secondary)]">
+          Session length: {formatDuration(sessionMeta.sessionDurationSeconds)}
+        </div>
+      ) : null}
+
+      <div className="overflow-x-auto">
+        <table className="min-w-max table-auto border-collapse text-xs text-[var(--token-text-secondary)]">
+          <thead>
+            <tr>
+              <th className="border border-[var(--token-border-muted)] px-2 py-1 text-left text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
+                Metric
+              </th>
+              {columns.map((column) => (
+                <th key={column.driverId} className={columnHeaderClass(column.driverId)}>
+                  <div className="leading-tight">{column.driverName}</div>
+                  {column.className && column.sessionName ? (
+                    <div className="mt-0.5 text-[0.65rem] font-normal text-[var(--token-text-muted)]">
+                      {column.className}
+                      <span> · </span>
+                      {column.sessionName}
+                    </div>
+                  ) : null}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
+                Lap time
+              </th>
+              {columns.map((column) => (
+                <td
+                  key={`lap-time-${column.driverId}`}
+                  className={columnCellClass(column.driverId)}
+                >
+                  {column.lapTimeSeconds != null ? formatLapTime(column.lapTimeSeconds) : "—"}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
+                vs driver&apos;s best
+              </th>
+              {columns.map((column) => (
+                <td key={`vs-best-${column.driverId}`} className={columnCellClass(column.driverId)}>
+                  {column.deltaToDriverBestSeconds != null
+                    ? formatDeltaSeconds(column.deltaToDriverBestSeconds)
+                    : "—"}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
+                vs fastest in view
+              </th>
+              {columns.map((column) => (
+                <td
+                  key={`vs-chart-${column.driverId}`}
+                  className={columnCellClass(column.driverId)}
+                >
+                  {column.deltaToChartBestSeconds != null
+                    ? column.deltaToChartBestSeconds <= 0.0005
+                      ? "—"
+                      : formatDeltaSeconds(column.deltaToChartBestSeconds)
+                    : "—"}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
+                Position
+              </th>
+              {columns.map((column) => (
+                <td
+                  key={`position-${column.driverId}`}
+                  className={columnCellClass(column.driverId)}
+                >
+                  {column.positionOnLap != null ? `P${column.positionOnLap}` : "—"}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
+                Session lap
+              </th>
+              {columns.map((column) => (
+                <td
+                  key={`session-lap-${column.driverId}`}
+                  className={`${columnCellClass(column.driverId)} font-sans`}
+                >
+                  {column.lapInSession ??
+                    (column.currentLapNumber != null ? column.currentLapNumber : "—")}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
+                Outlier
+              </th>
+              {columns.map((column) => (
+                <td
+                  key={`outlier-${column.driverId}`}
+                  className={`${columnCellClass(column.driverId)} font-sans`}
+                >
+                  {column.isOutlierLap ? (
+                    <span className="text-amber-400/95">Slow</span>
+                  ) : column.lapTimeSeconds != null ? (
+                    "—"
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   )
 }
 
@@ -265,9 +472,10 @@ function getTrendDirection(slope: number): "improving" | "degrading" | "flat" {
 
 /** Rolling mean with ±1 lap window (partial at edges); ignores non-positive lap times in the window. */
 function rollingMeanLapTimes(
-  sorted: LapTrendPoint[]
-): Array<{ lapIndex: number; lapTimeSeconds: number }> {
-  const out: Array<{ lapIndex: number; lapTimeSeconds: number }> = []
+  sorted: LapTrendPoint[],
+  getX: (lap: LapTrendPoint) => number | null
+): Array<{ chartX: number; lapTimeSeconds: number }> {
+  const out: Array<{ chartX: number; lapTimeSeconds: number }> = []
   for (let i = 0; i < sorted.length; i += 1) {
     let sum = 0
     let n = 0
@@ -279,7 +487,10 @@ function rollingMeanLapTimes(
       }
     }
     if (n > 0) {
-      out.push({ lapIndex: sorted[i].lapIndex, lapTimeSeconds: sum / n })
+      const chartX = getX(sorted[i])
+      if (chartX != null) {
+        out.push({ chartX, lapTimeSeconds: sum / n })
+      }
     }
   }
   return out
@@ -287,32 +498,6 @@ function rollingMeanLapTimes(
 
 function isPlottableLapTime(value: number): boolean {
   return Number.isFinite(value) && value > 0
-}
-
-function buildSessionLapMeta(
-  driver: DriverLapTrendSeries,
-  lap: LapTrendPoint
-): {
-  sessionLapRange?: string
-  lapInSession?: string
-} {
-  const sameSessionLaps = (driver.laps as LapTrendPoint[])
-    .filter((l) => l.raceId === lap.raceId)
-    .filter(
-      (l) => typeof l.lapNumber === "number" && Number.isFinite(l.lapNumber) && l.lapNumber >= 1
-    )
-  if (sameSessionLaps.length === 0) return {}
-  const lapNumbers = sameSessionLaps.map((l) => Math.round(l.lapNumber))
-  const minLapNumber = Math.min(...lapNumbers)
-  const maxLapNumber = Math.max(...lapNumbers)
-  const sessionLapRange =
-    minLapNumber === maxLapNumber
-      ? `Session lap ${minLapNumber}`
-      : `Session laps ${minLapNumber}-${maxLapNumber}`
-  return {
-    sessionLapRange,
-    lapInSession: `Session Lap: ${Math.round(lap.lapNumber)} of ${maxLapNumber}`,
-  }
 }
 
 export interface LapByLapTrendChartProps {
@@ -363,8 +548,16 @@ export interface LapByLapTrendChartProps {
   }
   /** X-axis label (default: event lap index). */
   xAxisLabel?: string
+  /** Whether X uses global event lap index or session lap number (single-session views only). */
+  xDimension?: ChartXDimension
   /** Overrides default chart group aria-label for scoped views. */
   chartAriaLabel?: string
+  /**
+   * Mini-preview mode for collapsed analysis tiles: hides the title, header
+   * controls, Display menu, footer, and axis labels; uses near-zero margins so
+   * only the plot (lines/grid) fills the tile.
+   */
+  compact?: boolean
 }
 
 export default function LapByLapTrendChart({
@@ -388,7 +581,9 @@ export default function LapByLapTrendChart({
   raceLabelContextRaces,
   displayChartHeightPreset,
   xAxisLabel = "Event lap index",
+  xDimension = "eventLapIndex",
   chartAriaLabel,
+  compact = false,
 }: LapByLapTrendChartProps) {
   const resolvedHeight =
     displayChartHeightPreset != null
@@ -468,55 +663,7 @@ export default function LapByLapTrendChart({
   }, [sessionVisualization])
 
   const { tooltipData, tooltipLeft, tooltipTop, tooltipOpen, showTooltip, hideTooltip } =
-    useTooltip<{
-      driverName: string
-      className: string
-      /** Session name (e.g. "A1-Main", "Heat 2/3") - derived from raceLabel */
-      sessionName: string
-      lapNumber: number
-      lapTimeSeconds: number
-      /** Lap range in this session (e.g. "Laps 1–11") */
-      sessionLapRange?: string
-      /** Lap position in session (e.g. "Lap 3 of 11") */
-      lapInSession?: string
-      /** Global lap index across event */
-      overallLapIndex?: number
-      /** Driver position at this lap within the session */
-      positionOnLap?: number
-      /** Session start time (ISO string) when available */
-      raceStartTime?: string | null
-      /** Session duration in seconds when available */
-      sessionDurationSeconds?: number | null
-      /** Trend direction: improving (faster), degrading (slower), flat */
-      trendDirection?: "improving" | "degrading" | "flat"
-      /** Formatted slope string (e.g. "−0.05s per lap") */
-      trendSlope?: string
-      /** This lap minus that driver's best lap in the chart (seconds). */
-      deltaToDriverBestSeconds: number
-      /** This lap minus best lap among all drivers shown (seconds). */
-      deltaToChartBestSeconds: number
-      /** Matches client-side outlier heuristic for this driver. */
-      isOutlierLap: boolean
-    }>()
-
-  const {
-    tooltipData: aggregateTooltipData,
-    tooltipLeft: aggregateTooltipLeft,
-    tooltipTop: aggregateTooltipTop,
-    tooltipOpen: aggregateTooltipOpen,
-    showTooltip: showAggregateTooltip,
-    hideTooltip: hideAggregateTooltip,
-  } = useTooltip<{
-    sessionHeading: string
-    lapIndex: number
-    columns: Array<{
-      driverId: string
-      driverName: string
-      currentLapNumber: number | null
-      positionOnLap: number | null
-      lapTimeSeconds: number | null
-    }>
-  }>()
+    useTooltip<CrosshairTooltipPayload>()
 
   const validLapPoints = useMemo(() => {
     const points: LapTrendPoint[] = []
@@ -530,18 +677,38 @@ export default function LapByLapTrendChart({
     return points
   }, [drivers])
 
-  const [minLapIndex, maxLapIndex] = useMemo((): [number, number] => {
+  /**
+   * Shared session-aligned x-axis (event scope only). Concatenates sessions chronologically and
+   * sizes each by its widest driver, so a given x = one session + one session-lap for all drivers.
+   */
+  const sessionLayout = useMemo<SessionLayout | undefined>(
+    () => (xDimension === "eventLapIndex" ? computeSessionLayout(drivers) : undefined),
+    [drivers, xDimension]
+  )
+
+  const getLapX = useCallback(
+    (lap: LapTrendPoint) => lapChartXValue(lap, xDimension, sessionLayout),
+    [xDimension, sessionLayout]
+  )
+
+  const [minChartX, maxChartX] = useMemo((): [number, number] => {
     if (validLapPoints.length === 0) return [1, 2]
     let min = Number.POSITIVE_INFINITY
     let max = 0
     validLapPoints.forEach((lap) => {
-      if (lap.lapIndex < min) min = lap.lapIndex
-      if (lap.lapIndex > max) max = lap.lapIndex
+      const x = getLapX(lap)
+      if (x == null) return
+      if (x < min) min = x
+      if (x > max) max = x
     })
+    if (!Number.isFinite(min)) return [1, 2]
     return [Math.max(1, min), Math.max(max, 2)]
-  }, [validLapPoints])
+  }, [validLapPoints, getLapX])
 
-  const sessionBands = useMemo(() => computeSessionBands(drivers), [drivers])
+  const sessionBands = useMemo(
+    () => (sessionLayout ? sessionBandsFromLayout(sessionLayout) : []),
+    [sessionLayout]
+  )
 
   const raceDisplayLabelById = useMemo(() => {
     if (!raceLabelContextRaces || raceLabelContextRaces.length === 0) {
@@ -574,18 +741,20 @@ export default function LapByLapTrendChart({
       )
       if (laps.length < 2) continue
       const sorted = [...laps].sort((a, b) => {
-        if (a.lapIndex !== b.lapIndex) return a.lapIndex - b.lapIndex
+        const ax = getLapX(a) ?? 0
+        const bx = getLapX(b) ?? 0
+        if (ax !== bx) return ax - bx
         return a.raceId.localeCompare(b.raceId)
       })
       const seen = new Set<number>()
-      const deduped: LapTrendPoint[] = []
+      const points: { x: number; y: number }[] = []
       for (const lap of sorted) {
-        if (seen.has(lap.lapIndex)) continue
-        seen.add(lap.lapIndex)
-        deduped.push(lap)
+        const x = getLapX(lap)
+        if (x == null || seen.has(x)) continue
+        seen.add(x)
+        points.push({ x, y: lap.lapTimeSeconds })
       }
-      if (deduped.length < 2) continue
-      const points = deduped.map((lap) => ({ x: lap.lapIndex, y: lap.lapTimeSeconds }))
+      if (points.length < 2) continue
       const { slope, intercept } = linearRegression(points)
       const minX = Math.min(...points.map((p) => p.x))
       const maxX = Math.max(...points.map((p) => p.x))
@@ -596,7 +765,7 @@ export default function LapByLapTrendChart({
       map.set(driver.driverId, { slope, intercept, data })
     }
     return map
-  }, [drivers])
+  }, [drivers, getLapX])
 
   /** Slow-lap markers (median + MAD heuristic); see `outlierLapKeysForDriver`. */
   const outlierLapKeysByDriverId = useMemo(() => {
@@ -779,6 +948,13 @@ export default function LapByLapTrendChart({
     </div>
   )
 
+  // Compact (mini-preview) overrides: drop chrome, tighten margins.
+  const effectiveTitle = compact ? undefined : chartTitle
+  const effectiveHeaderControls = compact ? undefined : headerControlsGrouped
+  const showFooterSummary = !compact && footerSummary != null
+  const plotMargin = compact ? COMPACT_PLOT_MARGIN : PLOT_MARGIN
+  const chartInteractive = !compact
+
   const noDriversSelected = drivers.length === 0 && pendingDriverCount === 0
   const noPlottableLaps = !noDriversSelected && validLapPoints.length === 0
   const showLoadingState =
@@ -789,9 +965,9 @@ export default function LapByLapTrendChart({
     return (
       <>
         <ChartContainer
-          title={chartTitle}
+          title={effectiveTitle}
           description={`${TREND_LINE_DESCRIPTION} ${OUTLIER_LAP_MARKER_DESCRIPTION}`}
-          headerControls={headerControlsGrouped}
+          headerControls={effectiveHeaderControls}
           height={loadingHeight}
           className={className}
           aria-label="Lap-by-lap trend chart - loading"
@@ -807,7 +983,7 @@ export default function LapByLapTrendChart({
             </p>
           </div>
         </ChartContainer>
-        {footerSummary != null ? (
+        {showFooterSummary ? (
           <div
             className="mt-2 px-1 text-xs leading-relaxed text-[var(--token-text-secondary)]"
             aria-live="polite"
@@ -834,9 +1010,9 @@ export default function LapByLapTrendChart({
     return (
       <>
         <ChartContainer
-          title={chartTitle}
+          title={effectiveTitle}
           description={`${TREND_LINE_DESCRIPTION} ${OUTLIER_LAP_MARKER_DESCRIPTION}`}
-          headerControls={headerControlsGrouped}
+          headerControls={effectiveHeaderControls}
           height={compactEmptyHeight}
           className={className}
           aria-label="Lap-by-lap trend chart - no data"
@@ -879,7 +1055,7 @@ export default function LapByLapTrendChart({
             </div>
           </div>
         </ChartContainer>
-        {footerSummary != null ? (
+        {showFooterSummary ? (
           <div
             className="mt-2 px-1 text-xs leading-relaxed text-[var(--token-text-secondary)]"
             aria-live="polite"
@@ -896,20 +1072,25 @@ export default function LapByLapTrendChart({
   const maxLap = Math.max(...allLapTimes)
   const padding = (maxLap - minLap) * 0.1 || 1
   const yDomain = [Math.max(0, minLap - padding), maxLap + padding] as [number, number]
-  const xDomain = [minLapIndex, Math.max(maxLapIndex, minLapIndex + 1)] as [number, number]
+  const xDomain = [minChartX, Math.max(maxChartX, minChartX + 1)] as [number, number]
+  const showEventSessionOverlays = xDimension === "eventLapIndex"
 
   return (
     <>
       <ChartContainer
-        title={chartTitle}
+        title={effectiveTitle}
         description={`${TREND_LINE_DESCRIPTION} ${OUTLIER_LAP_MARKER_DESCRIPTION}`}
-        headerControls={headerControlsGrouped}
+        headerControls={effectiveHeaderControls}
         height={resolvedHeight}
         className={className}
         aria-label={chartAriaLabel ?? "Lap-by-lap trend chart - every lap time across the event"}
         chartInstanceId={chartInstanceId}
         axisColorPicker={
-          enablePositionAxisToggle && showPositionOnLap ? (["x", "y", "yRight"] as const) : true
+          compact
+            ? false
+            : enablePositionAxisToggle && showPositionOnLap
+              ? (["x", "y", "yRight"] as const)
+              : true
         }
         defaultAxisColors={{
           x: DEFAULT_AXIS_COLOR,
@@ -932,11 +1113,11 @@ export default function LapByLapTrendChart({
 
                   const mr =
                     enablePositionAxisToggle && showPositionOnLap
-                      ? PLOT_MARGIN.rightWithPositionAxis
-                      : PLOT_MARGIN.rightDefault
-                  const ml = PLOT_MARGIN.left
-                  const mt = PLOT_MARGIN.top
-                  const mb = PLOT_MARGIN.bottom
+                      ? plotMargin.rightWithPositionAxis
+                      : plotMargin.rightDefault
+                  const ml = plotMargin.left
+                  const mt = plotMargin.top
+                  const mb = plotMargin.bottom
 
                   const innerWidth = width - ml - mr
                   const innerHeight = resolvedHeight - mt - mb
@@ -986,35 +1167,38 @@ export default function LapByLapTrendChart({
                     return ticks
                   })()
 
-                  const showAggregateTooltipAt = (
+                  const showCrosshairTooltipAt = (
                     clientX: number,
                     clientY: number,
                     lapIndexValue: number
                   ) => {
-                    const payload = buildAggregateTooltipPayload({
+                    const payload = buildCrosshairTooltipPayload({
                       drivers,
                       lapIndexValue,
-                      minLapIndex,
-                      maxLapIndex,
+                      minLapIndex: minChartX,
+                      maxLapIndex: maxChartX,
                       raceDisplayLabelById,
+                      xDimension,
+                      sessionLayout,
+                      outlierLapKeysByDriverId,
                     })
                     if (!payload) return
 
-                    showAggregateTooltip({
+                    showTooltip({
                       tooltipLeft: clientX,
                       tooltipTop: clientY,
-                      tooltipData: {
-                        sessionHeading: payload.sessionHeading,
-                        lapIndex: payload.lapIndex,
-                        columns: payload.columns.map((column) => ({
-                          driverId: column.driverId,
-                          driverName: column.driverName,
-                          currentLapNumber: column.currentLapNumber,
-                          positionOnLap: column.positionOnLap,
-                          lapTimeSeconds: column.lapTimeSeconds,
-                        })),
-                      },
+                      tooltipData: payload,
                     })
+                  }
+
+                  const snapChartXFromEvent = (event: React.MouseEvent<SVGElement>) => {
+                    const svgEl = (event.target as SVGElement).ownerSVGElement
+                    if (!svgEl) return null
+                    const coords = localPoint(svgEl, event)
+                    if (!coords) return null
+                    const innerX = coords.x - ml
+                    const raw = xScale.invert(innerX)
+                    return Math.max(minChartX, Math.min(maxChartX, Math.round(raw)))
                   }
 
                   return (
@@ -1040,19 +1224,21 @@ export default function LapByLapTrendChart({
                               width={innerWidth}
                               height={innerHeight}
                               fill="transparent"
-                              pointerEvents="all"
-                              onMouseMove={(e) => {
-                                const svgEl = (e.target as SVGElement).ownerSVGElement
-                                if (!svgEl) return
-                                const coords = localPoint(svgEl, e)
-                                if (!coords) return
-                                const innerX = coords.x - ml
-                                const lapIndexValue = xScale.invert(innerX)
-                                showAggregateTooltipAt(e.clientX, e.clientY, lapIndexValue)
-                              }}
-                              onMouseLeave={() => hideAggregateTooltip()}
+                              pointerEvents={compact ? "none" : "all"}
+                              onMouseMove={
+                                compact
+                                  ? undefined
+                                  : (e) => {
+                                      setHoveredDriverId(null)
+                                      const snappedX = snapChartXFromEvent(e)
+                                      if (snappedX == null) return
+                                      showCrosshairTooltipAt(e.clientX, e.clientY, snappedX)
+                                    }
+                              }
+                              onMouseLeave={compact ? undefined : () => hideTooltip()}
                             />
-                            {sessionVisualization === "dividers" &&
+                            {showEventSessionOverlays &&
+                              sessionVisualization === "dividers" &&
                               sessionDividers.map((band) => (
                                 <line
                                   key={`divider-${band.raceId}`}
@@ -1083,7 +1269,8 @@ export default function LapByLapTrendChart({
                             ))}
 
                             {/* Session bands under lines so lap traces stay hoverable */}
-                            {showSessionBands &&
+                            {showEventSessionOverlays &&
+                              showSessionBands &&
                               sessionBands.map((band, bandIndex) => {
                                 const colorIndex = bandIndex % 2
                                 const bandColor =
@@ -1131,19 +1318,22 @@ export default function LapByLapTrendChart({
                               // so segments never run backward on the x-axis.
                               const lapPointsSorted = (() => {
                                 const sorted = [...data].sort((a, b) => {
-                                  if (a.lapIndex !== b.lapIndex) return a.lapIndex - b.lapIndex
+                                  const ax = getLapX(a) ?? 0
+                                  const bx = getLapX(b) ?? 0
+                                  if (ax !== bx) return ax - bx
                                   return a.raceId.localeCompare(b.raceId)
                                 })
-                                // One point per global lap index (duplicate index → same x, vertical segment)
                                 const out: LapTrendPoint[] = []
                                 const seen = new Set<number>()
                                 for (const lap of sorted) {
-                                  if (seen.has(lap.lapIndex)) continue
-                                  seen.add(lap.lapIndex)
+                                  const x = getLapX(lap)
+                                  if (x == null || seen.has(x)) continue
+                                  seen.add(x)
                                   out.push(lap)
                                 }
                                 return out
                               })()
+                              if (lapPointsSorted.length === 0) return null
                               const isHighlighted =
                                 hoveredDriverId == null || driver.driverId === hoveredDriverId
                               const lineOpacity = isHighlighted ? 1 : DIM_OPACITY
@@ -1151,86 +1341,43 @@ export default function LapByLapTrendChart({
                               return (
                                 <Group
                                   key={driver.driverId}
-                                  onMouseEnter={() => setHoveredDriverId(driver.driverId)}
-                                  onMouseLeave={() => {
-                                    setHoveredDriverId(null)
-                                    hideTooltip()
-                                  }}
-                                  style={{ cursor: "pointer" }}
+                                  onMouseEnter={
+                                    chartInteractive
+                                      ? () => setHoveredDriverId(driver.driverId)
+                                      : undefined
+                                  }
+                                  onMouseLeave={
+                                    chartInteractive
+                                      ? () => {
+                                          setHoveredDriverId(null)
+                                        }
+                                      : undefined
+                                  }
+                                  style={{ cursor: chartInteractive ? "pointer" : "default" }}
                                 >
                                   {/* Invisible wide path for easier line hover + tooltip */}
                                   <LinePath
                                     data={lapPointsSorted}
-                                    x={(d) => xScale(d.lapIndex)}
+                                    x={(d) => xScale(getLapX(d)!)}
                                     y={(d) => yScale(d.lapTimeSeconds)}
                                     stroke="transparent"
                                     strokeWidth={16}
                                     curve={curveMonotoneX}
-                                    pointerEvents="stroke"
-                                    onMouseMove={(event) => {
-                                      setHoveredDriverId(driver.driverId)
-                                      hideAggregateTooltip()
-                                      const svgEl = (event.target as SVGElement).ownerSVGElement
-                                      if (!svgEl) return
-                                      const coords = localPoint(svgEl, event)
-                                      if (!coords) return
-                                      const innerX = coords.x - ml
-                                      const lapIndexValue = xScale.invert(innerX)
-                                      let nearest = lapPointsSorted[0]
-                                      let minDist = Math.abs(
-                                        lapPointsSorted[0].lapIndex - lapIndexValue
-                                      )
-                                      for (let i = 1; i < lapPointsSorted.length; i++) {
-                                        const d = Math.abs(
-                                          lapPointsSorted[i].lapIndex - lapIndexValue
-                                        )
-                                        if (d < minDist) {
-                                          minDist = d
-                                          nearest = lapPointsSorted[i]
-                                        }
-                                      }
-                                      const { sessionLapRange, lapInSession } = buildSessionLapMeta(
-                                        driver,
-                                        nearest
-                                      )
-                                      const className = nearest.className ?? nearest.raceLabel
-                                      const sessionName = nearest.raceLabel.startsWith(className)
-                                        ? nearest.raceLabel.slice(className.length).trim()
-                                        : nearest.raceLabel
-                                      const trend = driverTrendMap.get(driver.driverId)
-                                      const trendDirection = trend
-                                        ? getTrendDirection(trend.slope)
+                                    pointerEvents={chartInteractive ? "stroke" : "none"}
+                                    onMouseMove={
+                                      chartInteractive
+                                        ? (event) => {
+                                            setHoveredDriverId(driver.driverId)
+                                            const snappedX = snapChartXFromEvent(event)
+                                            if (snappedX == null) return
+                                            showCrosshairTooltipAt(
+                                              event.clientX,
+                                              event.clientY,
+                                              snappedX
+                                            )
+                                          }
                                         : undefined
-                                      const trendSlope = trend
-                                        ? formatTrendSlope(trend.slope)
-                                        : undefined
-                                      const extras = computeTooltipLapExtras(
-                                        driver,
-                                        nearest,
-                                        drivers,
-                                        outlierLapKeysByDriverId.get(driver.driverId) ?? new Set()
-                                      )
-                                      showTooltip({
-                                        tooltipLeft: event.clientX,
-                                        tooltipTop: event.clientY,
-                                        tooltipData: {
-                                          driverName: driver.driverName,
-                                          className,
-                                          sessionName: sessionName || nearest.raceLabel,
-                                          lapNumber: nearest.lapNumber,
-                                          lapTimeSeconds: nearest.lapTimeSeconds,
-                                          sessionLapRange,
-                                          lapInSession,
-                                          overallLapIndex: nearest.lapIndex,
-                                          positionOnLap: nearest.positionOnLap,
-                                          raceStartTime: nearest.raceStartTime ?? null,
-                                          sessionDurationSeconds: nearest.durationSeconds ?? null,
-                                          trendDirection,
-                                          trendSlope,
-                                          ...extras,
-                                        },
-                                      })
-                                    }}
+                                    }
                                   />
                                   {showTrendLine &&
                                     (() => {
@@ -1251,7 +1398,7 @@ export default function LapByLapTrendChart({
                                     })()}
                                   <LinePath
                                     data={lapPointsSorted}
-                                    x={(d) => xScale(d.lapIndex)}
+                                    x={(d) => xScale(getLapX(d)!)}
                                     y={(d) => yScale(d.lapTimeSeconds)}
                                     stroke={color}
                                     strokeWidth={2.5}
@@ -1270,7 +1417,7 @@ export default function LapByLapTrendChart({
                                       return (
                                         <circle
                                           key={`outlier-${driver.driverId}-${k}`}
-                                          cx={xScale(lap.lapIndex)}
+                                          cx={xScale(getLapX(lap)!)}
                                           cy={yScale(lap.lapTimeSeconds)}
                                           r={3.5}
                                           fill="var(--token-status-warning-text)"
@@ -1287,8 +1434,8 @@ export default function LapByLapTrendChart({
                                     enableSmoothingToggle &&
                                     lapPointsSorted.length > 1 && (
                                       <LinePath
-                                        data={rollingMeanLapTimes(lapPointsSorted)}
-                                        x={(d) => xScale(d.lapIndex)}
+                                        data={rollingMeanLapTimes(lapPointsSorted, getLapX)}
+                                        x={(d) => xScale(d.chartX)}
                                         y={(d) => yScale(d.lapTimeSeconds)}
                                         stroke={color}
                                         strokeWidth={2}
@@ -1312,7 +1459,7 @@ export default function LapByLapTrendChart({
                                       return (
                                         <LinePath
                                           data={posPts}
-                                          x={(d) => xScale(d.lapIndex)}
+                                          x={(d) => xScale(getLapX(d)!)}
                                           y={(d) => yScalePosition(d.positionOnLap!)}
                                           stroke={color}
                                           strokeWidth={1.5}
@@ -1327,99 +1474,103 @@ export default function LapByLapTrendChart({
                               )
                             })}
 
-                            <Group
-                              style={{ cursor: "pointer" }}
-                              onClick={(e) => onAxisColorPickerRequest("y", e)}
-                              aria-label="Y-axis - Click to change color"
-                            >
-                              <AxisLeft
-                                scale={yScale}
-                                tickFormat={(v) => formatLapTime(Number(v))}
-                                stroke={yAxisColor}
-                                tickStroke={yAxisColor}
-                                tickLabelProps={() => ({
-                                  fill: yAxisColor,
-                                  fontSize: 12,
-                                  textAnchor: "end",
-                                  dx: -8,
-                                })}
-                              />
-                              {/* Hit area in margin only so it doesn't block tooltips on the plot */}
-                              <rect
-                                x={-ml}
-                                y={0}
-                                width={ml}
-                                height={innerHeight}
-                                fill="transparent"
-                                pointerEvents="all"
-                              />
-                            </Group>
-
-                            {enablePositionAxisToggle &&
-                              showPositionOnLap &&
-                              yScalePosition != null && (
+                            {!compact ? (
+                              <>
                                 <Group
                                   style={{ cursor: "pointer" }}
-                                  onClick={(e) => onAxisColorPickerRequest("yRight", e)}
-                                  aria-label="Position axis - Click to change color"
+                                  onClick={(e) => onAxisColorPickerRequest("y", e)}
+                                  aria-label="Y-axis - Click to change color"
                                 >
-                                  <AxisRight
-                                    left={innerWidth}
-                                    scale={yScalePosition}
-                                    tickValues={positionTickValues}
-                                    tickFormat={(v) => `P${Math.round(Number(v))}`}
-                                    stroke={yAxisRightColor}
-                                    tickStroke={yAxisRightColor}
+                                  <AxisLeft
+                                    scale={yScale}
+                                    tickFormat={(v) => formatLapTime(Number(v))}
+                                    stroke={yAxisColor}
+                                    tickStroke={yAxisColor}
                                     tickLabelProps={() => ({
-                                      fill: yAxisRightColor,
-                                      fontSize: 11,
-                                      textAnchor: "start",
-                                      dx: 8,
+                                      fill: yAxisColor,
+                                      fontSize: 12,
+                                      textAnchor: "end",
+                                      dx: -8,
                                     })}
                                   />
+                                  {/* Hit area in margin only so it doesn't block tooltips on the plot */}
                                   <rect
-                                    x={innerWidth}
+                                    x={-ml}
                                     y={0}
-                                    width={Math.max(mr - 8, 12)}
+                                    width={ml}
                                     height={innerHeight}
                                     fill="transparent"
                                     pointerEvents="all"
                                   />
                                 </Group>
-                              )}
 
-                            <Group
-                              style={{ cursor: "pointer" }}
-                              onClick={(e) => onAxisColorPickerRequest("x", e)}
-                              aria-label="X-axis - Click to change color"
-                            >
-                              <AxisBottom
-                                top={innerHeight}
-                                scale={xScale}
-                                stroke={xAxisColor}
-                                tickStroke={xAxisColor}
-                                tickLabelProps={() => ({
-                                  fill: xAxisColor,
-                                  fontSize: 11,
-                                  textAnchor: "middle",
-                                })}
-                                label={xAxisLabel}
-                                labelProps={{
-                                  fill: xAxisColor,
-                                  fontSize: 12,
-                                  textAnchor: "middle",
-                                  dy: 10,
-                                }}
-                              />
-                              <rect
-                                x={0}
-                                y={innerHeight}
-                                width={innerWidth}
-                                height={40}
-                                fill="transparent"
-                                pointerEvents="all"
-                              />
-                            </Group>
+                                {enablePositionAxisToggle &&
+                                  showPositionOnLap &&
+                                  yScalePosition != null && (
+                                    <Group
+                                      style={{ cursor: "pointer" }}
+                                      onClick={(e) => onAxisColorPickerRequest("yRight", e)}
+                                      aria-label="Position axis - Click to change color"
+                                    >
+                                      <AxisRight
+                                        left={innerWidth}
+                                        scale={yScalePosition}
+                                        tickValues={positionTickValues}
+                                        tickFormat={(v) => `P${Math.round(Number(v))}`}
+                                        stroke={yAxisRightColor}
+                                        tickStroke={yAxisRightColor}
+                                        tickLabelProps={() => ({
+                                          fill: yAxisRightColor,
+                                          fontSize: 11,
+                                          textAnchor: "start",
+                                          dx: 8,
+                                        })}
+                                      />
+                                      <rect
+                                        x={innerWidth}
+                                        y={0}
+                                        width={Math.max(mr - 8, 12)}
+                                        height={innerHeight}
+                                        fill="transparent"
+                                        pointerEvents="all"
+                                      />
+                                    </Group>
+                                  )}
+
+                                <Group
+                                  style={{ cursor: "pointer" }}
+                                  onClick={(e) => onAxisColorPickerRequest("x", e)}
+                                  aria-label="X-axis - Click to change color"
+                                >
+                                  <AxisBottom
+                                    top={innerHeight}
+                                    scale={xScale}
+                                    stroke={xAxisColor}
+                                    tickStroke={xAxisColor}
+                                    tickLabelProps={() => ({
+                                      fill: xAxisColor,
+                                      fontSize: 11,
+                                      textAnchor: "middle",
+                                    })}
+                                    label={xAxisLabel}
+                                    labelProps={{
+                                      fill: xAxisColor,
+                                      fontSize: 12,
+                                      textAnchor: "middle",
+                                      dy: 10,
+                                    }}
+                                  />
+                                  <rect
+                                    x={0}
+                                    y={innerHeight}
+                                    width={innerWidth}
+                                    height={40}
+                                    fill="transparent"
+                                    pointerEvents="all"
+                                  />
+                                </Group>
+                              </>
+                            ) : null}
                           </Group>
                         </Group>
                       </svg>
@@ -1429,177 +1580,20 @@ export default function LapByLapTrendChart({
               </ParentSize>
             </div>
 
-            {tooltipOpen && tooltipData && (
+            {chartInteractive && tooltipOpen && tooltipData && (
               <PortaledChartTooltip
                 open
                 top={tooltipTop}
                 left={tooltipLeft}
-                maxWidth="min(22rem, calc(100vw - 1rem))"
-                padding="10px 14px"
-              >
-                <div className="space-y-2">
-                  <div>
-                    <div className="font-semibold leading-tight text-[var(--token-text-primary)]">
-                      {tooltipData.driverName}
-                    </div>
-                    <div className="mt-0.5 text-xs text-[var(--token-text-secondary)]">
-                      {tooltipData.className}
-                      <span className="text-[var(--token-text-muted)]"> · </span>
-                      {tooltipData.sessionName}
-                    </div>
-                  </div>
-
-                  <div className="rounded-md border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2.5 py-2">
-                    <div className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                      Lap time
-                    </div>
-                    <div className={`font-mono tabular-nums leading-tight ${typography.h4}`}>
-                      {formatLapTime(tooltipData.lapTimeSeconds)}
-                    </div>
-                    <div className="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs text-[var(--token-text-secondary)]">
-                      <span>vs driver best</span>
-                      <span className="font-mono tabular-nums text-[var(--token-text-primary)]">
-                        {formatDeltaSeconds(tooltipData.deltaToDriverBestSeconds)}
-                      </span>
-                      <span>vs chart best</span>
-                      <span className="font-mono tabular-nums text-[var(--token-text-primary)]">
-                        {formatDeltaSeconds(tooltipData.deltaToChartBestSeconds)}
-                      </span>
-                    </div>
-                    {tooltipData.isOutlierLap && (
-                      <div className="mt-2 text-[0.65rem] text-amber-400/95">
-                        Unusually slow vs this driver median
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-0.5 text-xs text-[var(--token-text-secondary)]">
-                    {tooltipData.lapInSession && <div>{tooltipData.lapInSession}</div>}
-                    {tooltipData.sessionLapRange && (
-                      <div className="text-[var(--token-text-muted)]">
-                        {tooltipData.sessionLapRange}
-                      </div>
-                    )}
-                    {tooltipData.overallLapIndex != null && (
-                      <div>Event lap index: {tooltipData.overallLapIndex}</div>
-                    )}
-                    {tooltipData.positionOnLap != null && (
-                      <div>Position: P{tooltipData.positionOnLap}</div>
-                    )}
-                  </div>
-
-                  {tooltipData.raceStartTime && (
-                    <div className="text-xs text-[var(--token-text-secondary)]">
-                      {formatDateTimeUTC(new Date(tooltipData.raceStartTime))}
-                    </div>
-                  )}
-                  {tooltipData.sessionDurationSeconds != null && (
-                    <div className="text-xs text-[var(--token-text-secondary)]">
-                      Session length: {formatDuration(tooltipData.sessionDurationSeconds)}
-                    </div>
-                  )}
-                  {tooltipData.trendDirection && tooltipData.trendDirection !== "flat" && (
-                    <div className="text-xs text-[var(--token-text-secondary)]">
-                      Regression trend:{" "}
-                      <span
-                        className={
-                          tooltipData.trendDirection === "improving"
-                            ? "text-green-400"
-                            : "text-amber-400"
-                        }
-                      >
-                        {tooltipData.trendDirection === "improving" ? "Improving" : "Degrading"}
-                      </span>
-                      {tooltipData.trendSlope && ` (${tooltipData.trendSlope})`}
-                    </div>
-                  )}
-                </div>
-              </PortaledChartTooltip>
-            )}
-
-            {aggregateTooltipOpen && aggregateTooltipData && (
-              <PortaledChartTooltip
-                open
-                top={aggregateTooltipTop}
-                left={aggregateTooltipLeft}
                 maxWidth="min(44rem, calc(100vw - 1rem))"
                 padding="10px 12px"
               >
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold leading-tight text-[var(--token-text-primary)]">
-                    {aggregateTooltipData.sessionHeading}
-                  </div>
-                  <div className="text-xs text-[var(--token-text-secondary)]">
-                    {xAxisLabel}: {aggregateTooltipData.lapIndex}
-                  </div>
-                  {aggregateTooltipData.sessionHeading === "Multiple sessions" ? (
-                    <p className="text-[0.65rem] text-[var(--token-text-muted)]">
-                      Drivers may be in different sessions at this lap index.
-                    </p>
-                  ) : null}
-                  <div className="overflow-x-auto">
-                    <table className="min-w-max table-auto border-collapse text-xs text-[var(--token-text-secondary)]">
-                      <thead>
-                        <tr>
-                          <th className="border border-[var(--token-border-muted)] px-2 py-1 text-left text-[0.65rem] font-medium uppercase tracking-wide text-[var(--token-text-muted)]">
-                            Metric
-                          </th>
-                          {aggregateTooltipData.columns.map((column) => (
-                            <th
-                              key={column.driverId}
-                              className="border border-[var(--token-border-muted)] px-2 py-1 text-left font-medium text-[var(--token-text-primary)]"
-                            >
-                              {column.driverName}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
-                            Current Lap
-                          </th>
-                          {aggregateTooltipData.columns.map((column) => (
-                            <td
-                              key={`current-lap-${column.driverId}`}
-                              className="border border-[var(--token-border-muted)] px-2 py-1 font-mono tabular-nums text-[var(--token-text-primary)]"
-                            >
-                              {column.currentLapNumber != null ? column.currentLapNumber : "—"}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
-                            Position
-                          </th>
-                          {aggregateTooltipData.columns.map((column) => (
-                            <td
-                              key={`position-${column.driverId}`}
-                              className="border border-[var(--token-border-muted)] px-2 py-1 font-mono tabular-nums text-[var(--token-text-primary)]"
-                            >
-                              {column.positionOnLap != null ? `P${column.positionOnLap}` : "—"}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <th className="border border-[var(--token-border-muted)] bg-[var(--token-surface)]/50 px-2 py-1 text-left font-medium text-[var(--token-text-muted)]">
-                            Lap time
-                          </th>
-                          {aggregateTooltipData.columns.map((column) => (
-                            <td
-                              key={`lap-time-${column.driverId}`}
-                              className="border border-[var(--token-border-muted)] px-2 py-1 font-mono tabular-nums text-[var(--token-text-primary)]"
-                            >
-                              {column.lapTimeSeconds != null
-                                ? formatLapTime(column.lapTimeSeconds)
-                                : "—"}
-                            </td>
-                          ))}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <LapCrosshairTooltipTable
+                  payload={tooltipData}
+                  xAxisLabel={xAxisLabel}
+                  xDimension={xDimension}
+                  focusedDriverId={hoveredDriverId}
+                />
               </PortaledChartTooltip>
             )}
 
@@ -1644,87 +1638,92 @@ export default function LapByLapTrendChart({
                 />
               )}
 
-            <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
-              {drivers.map((driver) => {
-                const color =
-                  colorByDriverId[driver.driverId] ??
-                  defaultDriverLineColor(driver.driverId, driverIdsForColors)
-                const isHighlighted = hoveredDriverId == null || driver.driverId === hoveredDriverId
-                return (
-                  <div
-                    key={driver.driverId}
-                    className="flex items-center gap-2 rounded px-1.5 py-0.5 transition-opacity"
-                    style={{ opacity: isHighlighted ? 1 : DIM_OPACITY }}
-                    onMouseEnter={() => setHoveredDriverId(driver.driverId)}
-                    onMouseLeave={() => setHoveredDriverId(null)}
-                  >
-                    <button
-                      type="button"
-                      className="flex items-center gap-2 cursor-pointer rounded px-0 py-0 text-left hover:ring-2 hover:ring-[var(--token-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
-                      aria-label={`Change line color for ${driver.driverName}`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDriverPickerPosition({
-                          top: e.clientY + 12,
-                          left: e.clientX,
-                        })
-                        setDriverPickerOpenId(driver.driverId)
-                      }}
+            {!compact ? (
+              <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
+                {drivers.map((driver) => {
+                  const color =
+                    colorByDriverId[driver.driverId] ??
+                    defaultDriverLineColor(driver.driverId, driverIdsForColors)
+                  const isHighlighted =
+                    hoveredDriverId == null || driver.driverId === hoveredDriverId
+                  return (
+                    <div
+                      key={driver.driverId}
+                      className="flex items-center gap-2 rounded px-1.5 py-0.5 transition-opacity"
+                      style={{ opacity: isHighlighted ? 1 : DIM_OPACITY }}
+                      onMouseEnter={() => setHoveredDriverId(driver.driverId)}
+                      onMouseLeave={() => setHoveredDriverId(null)}
                     >
-                      <div
-                        className="w-4 h-4 shrink-0 rounded-full border-2 border-[var(--token-border-default)]"
-                        style={{ backgroundColor: color }}
-                      />
-                      <span className="text-[var(--token-text-secondary)]">
-                        {driver.driverName}
-                        {(() => {
-                          const plottableCount = countPlottableLaps(driver.laps as LapTrendPoint[])
-                          return plottableCount > 0 ? (
-                            <span className="ml-1 text-[var(--token-text-tertiary)]">
-                              ({plottableCount} lap{plottableCount === 1 ? "" : "s"})
-                            </span>
-                          ) : null
-                        })()}
-                        {showTrendLine &&
-                          (() => {
-                            const trend = driverTrendMap.get(driver.driverId)
-                            if (!trend) return null
-                            const dir = getTrendDirection(trend.slope)
-                            if (dir === "flat") return null
-                            return (
-                              <span
-                                className={`ml-1.5 text-xs ${
-                                  dir === "improving" ? "text-green-400" : "text-amber-400"
-                                }`}
-                                title={formatTrendSlope(trend.slope)}
-                              >
-                                ({dir === "improving" ? "↘ Improving" : "↗ Degrading"})
-                              </span>
-                            )
-                          })()}
-                      </span>
-                    </button>
-                    {onDriverDeselect && (
                       <button
                         type="button"
-                        className="shrink-0 rounded p-0.5 text-[var(--token-text-tertiary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
-                        aria-label={`Remove ${driver.driverName} from chart`}
+                        className="flex items-center gap-2 cursor-pointer rounded px-0 py-0 text-left hover:ring-2 hover:ring-[var(--token-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                        aria-label={`Change line color for ${driver.driverName}`}
                         onClick={(e) => {
                           e.stopPropagation()
-                          onDriverDeselect(driver.driverId)
+                          setDriverPickerPosition({
+                            top: e.clientY + 12,
+                            left: e.clientX,
+                          })
+                          setDriverPickerOpenId(driver.driverId)
                         }}
                       >
-                        ×
+                        <div
+                          className="w-4 h-4 shrink-0 rounded-full border-2 border-[var(--token-border-default)]"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="text-[var(--token-text-secondary)]">
+                          {driver.driverName}
+                          {(() => {
+                            const plottableCount = countPlottableLaps(
+                              driver.laps as LapTrendPoint[]
+                            )
+                            return plottableCount > 0 ? (
+                              <span className="ml-1 text-[var(--token-text-tertiary)]">
+                                ({plottableCount} lap{plottableCount === 1 ? "" : "s"})
+                              </span>
+                            ) : null
+                          })()}
+                          {showTrendLine &&
+                            (() => {
+                              const trend = driverTrendMap.get(driver.driverId)
+                              if (!trend) return null
+                              const dir = getTrendDirection(trend.slope)
+                              if (dir === "flat") return null
+                              return (
+                                <span
+                                  className={`ml-1.5 text-xs ${
+                                    dir === "improving" ? "text-green-400" : "text-amber-400"
+                                  }`}
+                                  title={formatTrendSlope(trend.slope)}
+                                >
+                                  ({dir === "improving" ? "↘ Improving" : "↗ Degrading"})
+                                </span>
+                              )
+                            })()}
+                        </span>
                       </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                      {onDriverDeselect && (
+                        <button
+                          type="button"
+                          className="shrink-0 rounded p-0.5 text-[var(--token-text-tertiary)] hover:text-[var(--token-text-primary)] hover:bg-[var(--token-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                          aria-label={`Remove ${driver.driverName} from chart`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDriverDeselect(driver.driverId)
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
           </>
         )}
       />
-      {footerSummary != null ? (
+      {showFooterSummary ? (
         <div
           className="mt-2 px-1 text-xs leading-relaxed text-[var(--token-text-secondary)]"
           aria-live="polite"

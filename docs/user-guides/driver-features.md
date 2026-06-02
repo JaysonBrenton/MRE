@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-31
 description: Driver discovery, personas, fuzzy matches, participation controls
 purpose:
   Explains fuzzy pipeline outputs, statuses, rails entry points in May 2026 UI,
@@ -79,9 +79,11 @@ Selecting multiple fuzzy rows for batch confirm/reject is **not shipped** yet;
 treat UI as iterative table even if architecture discussions mention bulk
 ergonomics downstream.
 
-Separate telemetry ingestion (`/eventAnalysis/my-telemetry`) merges traces once
-hardware exports exist — outside fuzzy matching doc scope but linked for
-holistic driver storytelling.
+Separate telemetry ingestion (`/eventAnalysis/my-telemetry`, with a per-session
+viewer at `/eventAnalysis/my-telemetry/{sessionId}`) merges traces once hardware
+exports exist — outside fuzzy matching doc scope but linked for holistic driver
+storytelling. Driver personas themselves are managed under **My Driver
+Profiles** (`/eventAnalysis/driver-profiles`).
 
 ## Best practices recap
 

@@ -2,12 +2,48 @@
 
 Author: Jayson Brenton  
 Date: 2026-01-30  
+Last reviewed against code: 2026-05-31  
 Purpose: Define the file formats MRE will support, how parsers are structured,
 how device capabilities are detected, and how raw sensors versus on-board fused
 telemetry are normalised into MRE canonical streams. This includes support for
 devices that require server-side Kalman filtering and devices that already
 perform fusion on-board.  
 License: Proprietary, internal to MRE
+
+---
+
+## Implementation status (as of 2026-05-31)
+
+Source of truth: `ingestion/telemetry/parsers/**` and the `_detect_format` /
+`_parse_raw` logic in `ingestion/telemetry/worker.py`.
+
+**Formats implemented (all GNSS):** **CSV** (`csv_gnss`), **GPX** (`gpx_gnss`),
+**JSON** (`json_gnss`), **NMEA 0183** (`nmea_gnss`), and **UBX** (`ubx_gnss`).
+Garmin FIT is detected and **rejected** (`GARMIN_FIT_NOT_SUPPORTED`), consistent
+with the product exclusion above.
+
+**Architecture differs from §8:** there is **no plugin registry with
+`detect()`/`parse()` and detection scores**. Format selection is a single
+heuristic function (`_detect_format`: extension + content sniffing for
+GPX/NMEA/UBX/JSON, CSV fallback) that dispatches to a parser function
+(`parse_csv_gnss`, `parse_gpx_gnss`, …). Each parser returns
+`(samples, parser_meta)`, not a full `ParseResult` with capability maps, device
+family, or per-field provenance.
+
+**IMU / fusion (§7.3.2, §10–§11):** an IMU sample parser
+(`parsers/imu_sample.py`) and an EKF (`fusion_ekf.py`) exist and are
+unit-tested, but the worker **does not parse IMU yet** — `imu_samples` is always
+empty, so the fused-pose output is GNSS-only pass-through with
+`pose_source = "gnss_only"`. The 3/6/9-axis capability model,
+`server_fused`/`onboard_fused` provenance, and the Kalman pathway are therefore
+**design-only** at present.
+
+**Canonical GNSS fields actually produced:** `t_ns` (Int64 ns), `lat_deg`,
+`lon_deg`, `alt_m`, `speed_mps`. The optional quality fields in §7.3.1
+(`fix_type`, `sat_count`, `hdop`, `h_acc_m`, `course_rad`, …) are **not**
+carried through to canonical Parquet yet. Real, implemented parser error codes
+include `CSV_NO_TIME_COLUMN`, `CSV_UNSUPPORTED_ENCODING`,
+`JSON_UNSUPPORTED_ENCODING`, and `GARMIN_FIT_NOT_SUPPORTED`.
 
 ---
 

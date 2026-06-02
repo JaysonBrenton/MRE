@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-13
+lastModified: 2026-05-31
 description: Guide to navigating My Race Engineer (Adaptive shell, May 2026)
 purpose:
   Summarizes navigation rail taxonomy, breadcrumbs, command palette behaviours,
@@ -31,17 +31,17 @@ Screenshots illustrating combined chrome:
 
 Listed top → bottom (`navigationRailConfig.tsx` canonical order):
 
-| Label                  | Route / Target                                   | Notes                                                      |
-| ---------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
-| **My Event Analysis**  | `/eventAnalysis`                                 | Resets stacked tab Redux slice to Overview when reused.    |
-| **Global Search**      | `/search`                                        | Previously `/event-search`.                                |
-| **My Telemetry**       | `/eventAnalysis/my-telemetry`                    | Telemetry datasets + imports.                              |
-| **My Car Profiles**    | `/eventAnalysis/car-profiles`                    | Car metadata / setups.                                     |
-| **My Driver Profiles** | `/eventAnalysis/driver-profiles`                 | Persona overlays.                                          |
-| **My Engineer**        | `/eventAnalysis/my-engineer`                     | Intelligence cockpit (still evolving).                     |
-| **My Club**            | `/under-development?from=/eventAnalysis/my-club` | Ships placeholder UX until club dashboards GA.             |
-| **My Team**            | `/under-development?from=/eventAnalysis/my-team` | Same treatment.                                            |
-| **MRE Administration** | `/admin`                                         | Visible for admins — console metrics + ingestion triggers. |
+| Label                  | Route / Target                                   | Notes                                                                                                                                   |
+| ---------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **My Event Analysis**  | `/eventAnalysis`                                 | Resets stacked tab Redux slice to Overview when reused.                                                                                 |
+| **Global Search**      | `/search`                                        | Previously `/event-search`.                                                                                                             |
+| **My Telemetry**       | `/eventAnalysis/my-telemetry`                    | Telemetry datasets + imports.                                                                                                           |
+| **My Car Profiles**    | `/eventAnalysis/car-profiles`                    | Car metadata / setups.                                                                                                                  |
+| **My Driver Profiles** | `/eventAnalysis/driver-profiles`                 | Persona overlays.                                                                                                                       |
+| **My Engineer**        | `/eventAnalysis/my-engineer`                     | Intelligence cockpit (still evolving).                                                                                                  |
+| **My Club**            | `/under-development?from=/eventAnalysis/my-club` | Top-level link still placeholder; expandable submenu ships **Track Maps** (live) plus Track Leaderboard / Club Highlights placeholders. |
+| **My Team**            | `/under-development?from=/eventAnalysis/my-team` | Placeholder until team dashboards GA.                                                                                                   |
+| **MRE Administration** | `/admin`                                         | Visible for admins — console metrics + ingestion triggers.                                                                              |
 
 **Guides** near the footer toggles the stack linking to `/guides/*` SPA pages
 mirroring Markdown user docs.
@@ -67,11 +67,20 @@ if nothing fuzzy-linked yet (`./images/my-events-panel.png`).
 - On mobile breakpoints the rail overlays as drawer; ESC + outside tap close per
   focus-trap helpers.
 
-### My Club submenu (future placeholders)
+### My Club submenu (Track Maps + placeholders)
 
-Collapsed **My Club** icon can expand nested shortcuts (Track leaderboard + Club
-highlights placeholders in code paths). Until `/under-development` pages
-graduate, clicking still routes informational stub.
+The **My Club** row carries a chevron that expands a nested submenu
+(`MyClubNavSection`):
+
+- **Track Maps** — a **shipped** feature at `/eventAnalysis/my-club/track-maps`.
+  Draw/edit club track layouts, open individual maps
+  (`/eventAnalysis/my-club/track-maps/{mapId}`), and share read-only links
+  (`/eventAnalysis/my-club/track-maps/shared/{shareToken}`).
+- **Track Leaderboard** and **Club Highlights** — placeholder tabs that swap the
+  `/eventAnalysis` analysis surface; full club dashboards are still planned.
+
+Clicking the **My Club** label itself (not the submenu) still routes to the
+`/under-development` stub until club dashboards graduate.
 
 ## Breadcrumbs conventions
 

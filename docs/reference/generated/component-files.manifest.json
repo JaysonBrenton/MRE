@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-05-19T01:54:27.389Z",
+  "generatedAt": "2026-05-31T11:36:34.172Z",
   "source": "src/components",
   "exclusions": "Excludes: *.test.ts, *.test.tsx, __tests__/**, organisms/**/overview-testing/**",
-  "count": 196,
+  "count": 203,
   "components": [
     {
       "file": "src/components/AdminNav.tsx",
@@ -330,6 +330,16 @@
       "featureArea": "dashboard"
     },
     {
+      "file": "src/components/organisms/event-analysis/AnalysisCardMiniSummary.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/AnalysisPanelSortableGrid.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/AvgVsFastestChart.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -376,6 +386,11 @@
     },
     {
       "file": "src/components/organisms/event-analysis/ChartSection.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ChartSessionPicker.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -640,6 +655,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/OverviewCollapsibleGlassCard.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/OverviewEventDetailsSectionHeading.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -675,11 +695,6 @@
       "featureArea": "event-analysis"
     },
     {
-      "file": "src/components/organisms/event-analysis/ProgramOverviewPanel.tsx",
-      "tier": "organism:event-analysis",
-      "featureArea": "event-analysis"
-    },
-    {
       "file": "src/components/organisms/event-analysis/PracticeClassLeaderboard.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -696,6 +711,11 @@
     },
     {
       "file": "src/components/organisms/event-analysis/PracticeMySessionsTab.tsx",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/ProgramOverviewPanel.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },
@@ -745,6 +765,11 @@
       "featureArea": "event-analysis"
     },
     {
+      "file": "src/components/organisms/event-analysis/analysis-panel-order.ts",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
       "file": "src/components/organisms/event-analysis/car-taxonomy-modal/carTaxonomyModalStyles.ts",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
@@ -756,6 +781,11 @@
     },
     {
       "file": "src/components/organisms/event-analysis/event-analysis-sub-tabs.ts",
+      "tier": "organism:event-analysis",
+      "featureArea": "event-analysis"
+    },
+    {
+      "file": "src/components/organisms/event-analysis/event-analysis-ui-state.tsx",
       "tier": "organism:event-analysis",
       "featureArea": "event-analysis"
     },

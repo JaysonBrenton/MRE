@@ -38,6 +38,7 @@ import {
 } from "@/core/events/main-bracket-overall"
 import { formatTimeUTC } from "@/lib/format-session-data"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
+import { FULL_RACE_RESULTS_MODAL_RESIZABLE_DEFAULT } from "@/lib/modal-styles"
 import {
   OVERVIEW_GLASS_SURFACE_CLASS,
   OVERVIEW_GLASS_SURFACE_STYLE,
@@ -633,6 +634,9 @@ export default function MainBracketResultsTable({
             </span>
           }
           maxWidth="4xl"
+          resizable
+          resizableDefaultSize={FULL_RACE_RESULTS_MODAL_RESIZABLE_DEFAULT}
+          doubleClickHeaderFullscreen
           footer={
             detailRow.raceUrl ? (
               <a

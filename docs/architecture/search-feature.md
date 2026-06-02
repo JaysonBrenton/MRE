@@ -1,7 +1,7 @@
 ---
 created: 2026-01-16
 creator: Documentation & Knowledge Steward
-lastModified: 2026-01-16
+lastModified: 2026-05-31
 description: Architecture documentation for unified search feature
 purpose:
   Defines the architecture, components, and implementation patterns for the
@@ -11,7 +11,7 @@ relatedFiles:
   - src/core/search/ (core business logic)
   - src/app/api/v1/search/route.ts (API endpoint)
   - src/store/slices/searchSlice.ts (Redux state management)
-  - src/components/search/ (UI components)
+  - src/components/organisms/search/ (UI components)
   - src/app/(authenticated)/search/page.tsx (search page)
   - docs/api/api-reference.md (API documentation)
 ---
@@ -206,7 +206,7 @@ State management for search UI:
 
 ---
 
-### 4. UI Components (`src/components/search/`)
+### 4. UI Components (`src/components/organisms/search/`)
 
 #### `SearchForm.tsx`
 

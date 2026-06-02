@@ -1,7 +1,7 @@
 ---
 created: 2026-05-16
 creator: Jayson Brenton
-lastModified: 2026-05-16
+lastModified: 2026-05-31
 description:
   Factual inventory of Docker Compose services, containers, ports, and images
   aligned with docker-compose.yml

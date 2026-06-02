@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: API versioning strategy and deprecation policy for MRE application
 purpose:
   Defines API versioning approach, deprecation timeline, breaking change policy,
@@ -16,7 +16,7 @@ relatedFiles:
 
 # API Versioning Strategy
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2026-05-31  
 **Current Version:** v1  
 **Base Path:** `/api/v1/`
 
@@ -174,7 +174,11 @@ Link: <https://docs.mre.example.com/api/v2/migration>; rel="deprecation"
 - Improving error messages
 - Performance improvements
 
-**Example (v1 additive change):** The response for `POST /api/v1/practice-days/ingest` was extended with optional fields `sessions_with_laps`, `laps_ingested`, and `sessions_detail_failed` (and equivalent camelCase when consumed via the Next.js API). Existing fields were unchanged; new fields are additive and non-breaking.
+**Example (v1 additive change):** The response for
+`POST /api/v1/practice-days/ingest` was extended with optional fields
+`sessions_with_laps`, `laps_ingested`, and `sessions_detail_failed` (and
+equivalent camelCase when consumed via the Next.js API). Existing fields were
+unchanged; new fields are additive and non-breaking.
 
 ### Breaking Change Process
 

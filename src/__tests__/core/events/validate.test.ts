@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "vitest"
 import { getEventSearchEarliestSelectableDate, toLocalDateString } from "@/lib/date-utils"
-import { validateEventSearchParams } from "@/core/events/validate"
+import { validateBrowseEventsParams, validateEventSearchParams } from "@/core/events/validate"
 
 const VALID_TRACK_ID = "a1b2c3d4-e5f6-4789-a012-345678901234"
 
@@ -233,5 +233,16 @@ describe("validateEventSearchParams", () => {
 
       expect(result).toBeNull()
     })
+  })
+})
+
+describe("validateBrowseEventsParams", () => {
+  it("returns null when no dates are provided", () => {
+    expect(validateBrowseEventsParams(null, null)).toBeNull()
+  })
+
+  it("requires end_date when start_date is provided", () => {
+    const result = validateBrowseEventsParams("2025-01-01", null)
+    expect(result?.field).toBe("end_date")
   })
 })

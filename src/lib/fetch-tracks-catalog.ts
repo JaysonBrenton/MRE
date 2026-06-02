@@ -22,7 +22,7 @@ export async function fetchActiveTracksCatalog(): Promise<
   { success: true; tracks: TracksCatalogTrack[] } | { success: false; errorMessage: string }
 > {
   try {
-    const response = await fetch("/api/v1/tracks?followed=false&active=true", {
+    const response = await fetch("/api/v1/tracks?followed=all&active=true", {
       cache: "no-store",
     })
     const result = await parseApiResponse<{ tracks: ApiTrack[] }>(response)

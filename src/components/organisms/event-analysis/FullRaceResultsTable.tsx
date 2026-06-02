@@ -34,7 +34,6 @@ export type RaceResultLapDetail = {
   lapTimeRaw: string
   paceString: string | null
   elapsedRaceTime: number
-  segmentsJson: unknown
 }
 
 async function fetchRaceResultLaps(raceResultId: string): Promise<RaceResultLapDetail[]> {
@@ -64,7 +63,6 @@ async function fetchRaceResultLaps(raceResultId: string): Promise<RaceResultLapD
       lap_time_raw: string
       pace_string: string | null
       elapsed_race_time: number
-      segments_json: unknown
     }>
   }
   const laps = data.laps
@@ -78,7 +76,6 @@ async function fetchRaceResultLaps(raceResultId: string): Promise<RaceResultLapD
     lapTimeRaw: lap.lap_time_raw,
     paceString: lap.pace_string,
     elapsedRaceTime: lap.elapsed_race_time,
-    segmentsJson: lap.segments_json,
   }))
 }
 
@@ -94,17 +91,6 @@ function fmtQual(n: number | null): string {
     return "—"
   }
   return String(n)
-}
-
-function segmentsSummary(segments: unknown): string {
-  if (segments == null) {
-    return "—"
-  }
-  try {
-    return JSON.stringify(segments, null, 2)
-  } catch {
-    return String(segments)
-  }
 }
 
 export interface FullRaceResultsTableProps {
@@ -391,14 +377,14 @@ export default function FullRaceResultsTable({ rows }: FullRaceResultsTableProps
                         </div>
                       ) : (
                         <div className="max-w-full overflow-x-auto">
-                          <table className="w-full min-w-[720px] border-collapse text-sm">
+                          <table className="w-full min-w-[400px] border-collapse text-sm">
                             <thead>
                               <tr className="border-b border-[var(--token-border-default)] text-left text-[var(--token-text-secondary)]">
                                 <th className={`px-2 py-2 font-medium ${typography.tableHeader}`}>
                                   Lap
                                 </th>
                                 <th className={`px-2 py-2 font-medium ${typography.tableHeader}`}>
-                                  Time
+                                  Lap Time
                                 </th>
                                 <th className={`px-2 py-2 font-medium ${typography.tableHeader}`}>
                                   Pos
@@ -409,19 +395,13 @@ export default function FullRaceResultsTable({ rows }: FullRaceResultsTableProps
                                 <th className={`px-2 py-2 font-medium ${typography.tableHeader}`}>
                                   Pace
                                 </th>
-                                <th className={`px-2 py-2 font-medium ${typography.tableHeader}`}>
-                                  Raw
-                                </th>
-                                <th className={`px-2 py-2 font-medium ${typography.tableHeader}`}>
-                                  Segments
-                                </th>
                               </tr>
                             </thead>
                             <tbody>
                               {laps.length === 0 ? (
                                 <tr>
                                   <td
-                                    colSpan={7}
+                                    colSpan={5}
                                     className="px-2 py-2 text-[var(--token-text-secondary)]"
                                   >
                                     No lap rows stored for this result.
@@ -434,8 +414,6 @@ export default function FullRaceResultsTable({ rows }: FullRaceResultsTableProps
                                   const rowClass = isFastLap
                                     ? "bg-[var(--token-surface-raised)]"
                                     : ""
-                                  const segText = segmentsSummary(lap.segmentsJson)
-                                  const hasSegments = lap.segmentsJson != null
 
                                   return (
                                     <tr
@@ -445,8 +423,8 @@ export default function FullRaceResultsTable({ rows }: FullRaceResultsTableProps
                                       <td className="px-2 py-1.5 tabular-nums text-[var(--token-text-primary)]">
                                         {lap.lapNumber}
                                       </td>
-                                      <td className="whitespace-nowrap px-2 py-1.5 tabular-nums text-[var(--token-text-primary)]">
-                                        {formatLapTime(lap.lapTimeSeconds)}
+                                      <td className="whitespace-nowrap px-2 py-1.5 font-mono tabular-nums text-[var(--token-text-primary)]">
+                                        {lap.lapTimeRaw || "—"}
                                       </td>
                                       <td className="px-2 py-1.5 tabular-nums text-[var(--token-text-secondary)]">
                                         {lap.positionOnLap}
@@ -456,23 +434,6 @@ export default function FullRaceResultsTable({ rows }: FullRaceResultsTableProps
                                       </td>
                                       <td className="whitespace-nowrap px-2 py-1.5 text-[var(--token-text-secondary)]">
                                         {lap.paceString?.trim() ? lap.paceString : "—"}
-                                      </td>
-                                      <td className="max-w-[140px] truncate px-2 py-1.5 font-mono text-xs text-[var(--token-text-secondary)]">
-                                        {lap.lapTimeRaw || "—"}
-                                      </td>
-                                      <td className="max-w-[min(28rem,90vw)] px-2 py-1.5 align-top text-[var(--token-text-secondary)]">
-                                        {hasSegments ? (
-                                          <details className="text-xs">
-                                            <summary className="cursor-pointer text-[var(--token-accent)]">
-                                              View JSON
-                                            </summary>
-                                            <pre className="mt-2 max-h-32 overflow-auto rounded border border-[var(--token-border-default)] bg-[var(--token-surface-raised)] p-2 font-mono text-[var(--token-text-primary)]">
-                                              {segText}
-                                            </pre>
-                                          </details>
-                                        ) : (
-                                          "—"
-                                        )}
                                       </td>
                                     </tr>
                                   )

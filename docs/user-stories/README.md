@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Overview and navigation for MRE user stories documentation
 purpose:
   Provides overview, navigation, and guidance for reading and using user stories
@@ -24,6 +24,15 @@ This directory contains comprehensive user stories for the My Race Engineer
 (MRE) application, organized by feature epics. Each user story follows a
 standard format and includes detailed acceptance criteria, dependencies,
 priority levels, and Definition of Done checklists.
+
+> **Note (Alpha v0.1.0):** These stories were authored as design intent and some
+> predate the shipped UI. Where a story conflicts with the running app, the
+> end-user guides under [`docs/user-guides/`](../user-guides/) are the source of
+> truth. In particular: there is **no standalone welcome page** (login lands
+> directly on `/eventAnalysis`, or `/admin` for admins), search ships as
+> **Global Search** at `/search`, and the authenticated shell now exposes a full
+> adaptive navigation rail rather than the "minimal navigation" some stories
+> assume.
 
 ---
 

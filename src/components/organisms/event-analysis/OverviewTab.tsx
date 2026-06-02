@@ -58,7 +58,12 @@ import EventAnalysisScopeFilters from "./EventAnalysisScopeFilters"
 import LapByLapTrendChart from "./LapByLapTrendChart"
 import type { DriverPerformanceData } from "./UnifiedPerformanceChart"
 import type { EventAnalysisData } from "@/core/events/get-event-analysis-data"
-import type { EventLapTrendResponse, DriverLapTrendSeries } from "@/core/events/get-lap-data"
+import type {
+  EventLapTrendResponse,
+  DriverLapTrendSeries,
+  LapTrendPoint,
+} from "@/core/events/get-lap-data"
+import { countPlottableLaps } from "@/core/events/lap-by-lap-trend-chart-model"
 import { useEventWeather } from "@/hooks/useEventWeather"
 import { normalizeDriverName } from "@/core/users/name-normalizer"
 import ChartDataNotice from "./ChartDataNotice"
@@ -69,6 +74,8 @@ import DriverBumpUpsTable, { type BumpUpRowWithClass } from "./sessions/DriverBu
 import DriverMainLadderProgressionPanel from "./DriverMainLadderProgressionPanel"
 import MainBracketLadderPanel from "./MainBracketLadderPanel"
 import OverviewCollapsibleGlassCard from "./OverviewCollapsibleGlassCard"
+import AnalysisCardMiniSummary from "./AnalysisCardMiniSummary"
+import AnalysisPanelSortableGrid, { SortableAnalysisPanel } from "./AnalysisPanelSortableGrid"
 import { useEventAnalysisUiState } from "@/components/organisms/event-analysis/event-analysis-ui-state"
 import { getSessionsForBumpUpInference } from "@/core/events/get-sessions-data"
 import { inferBumpUpsFromSessions } from "@/core/events/infer-bump-ups"
@@ -97,6 +104,7 @@ import {
   EVENT_DETAILS_EMPTY_STATE_CLASS,
   EVENT_DETAILS_SECTION_SURFACE_CLASS,
   EVENT_DETAILS_STATS_GRID_CLASS,
+  ANALYSIS_MINI_CHART_HEIGHT_PX,
   EVENT_DETAILS_STATS_STRIP_WELL_CLASS,
   EVENT_DETAILS_TAB_PANEL_WELL_CLASS,
   EVENT_DETAILS_WEATHER_INFO_CALLOUT_CLASS,
@@ -335,6 +343,13 @@ export default function OverviewTab({
     setChartViewState,
     isPanelExpanded,
     setPanelExpanded,
+    setAllPanelsExpanded,
+    getPanelDisplayOrder,
+    eventLevelPanelOrder,
+    sessionLevelPanelOrder,
+    reorderEventLevelPanels,
+    reorderSessionLevelPanels,
+    resetPanelOrder,
     prevEventLevelLapSeedKeyRef,
   } = useEventAnalysisUiState()
 
@@ -2702,9 +2717,7 @@ export default function OverviewTab({
       id={tabPanelId}
       aria-labelledby={tabAriaLabelledBy}
     >
-      {toolbarAboveEventDetails ? (
-        <div className="flex min-w-0 w-full flex-col gap-3">{toolbarAboveEventDetails}</div>
-      ) : null}
+      {toolbarAboveEventDetails}
       {showOtherSections && overviewPrimarySectionTabsVisible.length > 0 && (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)]/80 px-3 py-2 shadow-sm">
           <div className="min-w-0 flex-1 overflow-x-hidden">
@@ -3105,7 +3118,7 @@ export default function OverviewTab({
             <tbody>
               <tr>
                 <th scope="row">Panel 1</th>
-                <td>Mains ladder region</td>
+                <td>Ladder region</td>
               </tr>
               <tr>
                 <th scope="row">Panel 2</th>
@@ -3139,338 +3152,593 @@ export default function OverviewTab({
             aria-labelledby={eventAnalysisSectionToolbarTabId}
             className="space-y-5"
           >
-            <h2 id="event-analysis-subview-heading" className={typography.h4}>
-              Event Level Analysis
-            </h2>
-            <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
-              <OverviewCollapsibleGlassCard
-                panelId="event-level-analysis-col-1"
-                headingId="event-level-analysis-col-1-heading"
-                title="Mains Ladder"
-                layout="stretch"
-                expanded={isPanelExpanded("event-level-analysis-col-1")}
-                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-1", open)}
-              >
-                <div className="w-full min-w-0">
-                  <MainBracketLadderPanel
-                    data={data}
-                    classOptions={mainsLadderBracketClassOptions}
-                    resolvedClassName={resolvedEventLevelDriverProgressionClass}
-                    onClassNameChange={setEventLevelDriverProgressionClass}
-                  />
-                </div>
-              </OverviewCollapsibleGlassCard>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="event-analysis-subview-heading" className={typography.h4}>
+                Event Level Analysis
+              </h2>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setAllPanelsExpanded(true, "event")}
+                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllPanelsExpanded(false, "event")}
+                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Collapse all
+                </button>
+                <button
+                  type="button"
+                  onClick={resetPanelOrder}
+                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Reset layout
+                </button>
+              </div>
             </div>
-            <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
-              <OverviewCollapsibleGlassCard
-                panelId="event-level-analysis-col-3"
-                headingId="event-level-analysis-col-3-heading"
-                title="Driver Analysis"
-                layout="stretch"
-                expanded={isPanelExpanded("event-level-analysis-col-3")}
-                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-3", open)}
+            <AnalysisPanelSortableGrid
+              panelIds={eventLevelPanelOrder}
+              onReorder={reorderEventLevelPanels}
+              columns={3}
+            >
+              <SortableAnalysisPanel
+                id="event-level-analysis-col-1"
+                order={getPanelDisplayOrder("event-level-analysis-col-1")}
+                disabled={isPanelExpanded("event-level-analysis-col-1")}
+                expanded={isPanelExpanded("event-level-analysis-col-1")}
               >
-                {eventLevelDriverLapChartClass == null ? (
-                  <p className="text-center text-sm text-[var(--token-text-secondary)]" role="note">
-                    No racing classes appear in results for this event, so lap data cannot be
-                    plotted here yet.
-                  </p>
-                ) : (
-                  <div className="flex min-w-0 flex-col gap-3">
-                    {eventLevelLapDriverCapNotice ? (
-                      <p className="text-xs text-[var(--token-text-secondary)]" role="status">
-                        {eventLevelLapDriverCapNotice}
-                      </p>
-                    ) : null}
-                    <div className="w-full min-w-0">
-                      <ChartSection>
-                        <LapByLapTrendChart
-                          drivers={sortedEventLevelLapTrendDrivers}
-                          isLoading={eventLevelLapTrendLoading}
-                          pendingDriverCount={eventLevelLapChartDriverIds.length}
-                          height={EVENT_LEVEL_DRIVER_LAP_HEIGHT_COLLAPSED}
-                          raceLabelContextRaces={sessionAnalysisRaceLabelContextRaces}
-                          xAxisLabel={eventLevelLapChartXAxisLabel}
-                          chartAriaLabel={eventLevelLapChartAriaLabel}
-                          onDriverDeselect={(driverId) =>
-                            setEventLevelLapChartDriverIds((prev) =>
-                              prev.filter((id) => id !== driverId)
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="event-level-analysis-col-1"
+                    headingId="event-level-analysis-col-1-heading"
+                    title="Ladder"
+                    animatedHeight
+                    expanded={isPanelExpanded("event-level-analysis-col-1")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("event-level-analysis-col-1", open)
+                    }
+                  >
+                    {({ tier }) => (
+                      <div className="w-full min-w-0">
+                        <MainBracketLadderPanel
+                          data={data}
+                          classOptions={mainsLadderBracketClassOptions}
+                          resolvedClassName={resolvedEventLevelDriverProgressionClass}
+                          onClassNameChange={setEventLevelDriverProgressionClass}
+                          compact={tier === "mini"}
+                          previewHeight={ANALYSIS_MINI_CHART_HEIGHT_PX}
+                        />
+                      </div>
+                    )}
+                  </OverviewCollapsibleGlassCard>
+                )}
+              </SortableAnalysisPanel>
+              <SortableAnalysisPanel
+                id="event-level-analysis-col-3"
+                order={getPanelDisplayOrder("event-level-analysis-col-3")}
+                disabled={isPanelExpanded("event-level-analysis-col-3")}
+                expanded={isPanelExpanded("event-level-analysis-col-3")}
+              >
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="event-level-analysis-col-3"
+                    headingId="event-level-analysis-col-3-heading"
+                    title="Driver Analysis"
+                    animatedHeight
+                    expandedHeightPx={620}
+                    expanded={isPanelExpanded("event-level-analysis-col-3")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("event-level-analysis-col-3", open)
+                    }
+                  >
+                    {({ tier }) =>
+                      eventLevelDriverLapChartClass == null ? (
+                        <p
+                          className="text-center text-sm text-[var(--token-text-secondary)]"
+                          role="note"
+                        >
+                          No racing classes appear in results for this event, so lap data cannot be
+                          plotted here yet.
+                        </p>
+                      ) : tier === "mini" ? (
+                        (() => {
+                          const miniDrivers = sortedEventLevelLapTrendDrivers
+                          if (eventLevelLapTrendLoading) {
+                            return (
+                              <AnalysisCardMiniSummary
+                                eyebrow={eventLevelDriverLapChartClass}
+                                metric="…"
+                                metricLabel="Loading"
+                                primary={{ label: "Status", value: "Fetching lap data…" }}
+                                hint="Tap to open lap-by-lap"
+                              />
                             )
                           }
-                          displayChartHeightPreset={{
-                            collapsedHeight: EVENT_LEVEL_DRIVER_LAP_HEIGHT_COLLAPSED,
-                            expandedHeight: EVENT_LEVEL_DRIVER_LAP_HEIGHT_EXPANDED,
-                            expanded: eventLevelDriverLapChartExpanded,
-                            onExpandedChange: setEventLevelDriverLapChartExpanded,
-                          }}
-                          chartTitle={`Driver laps (${eventLevelDriverLapChartClass})`}
-                          chartInstanceId={`event-level-driver-laps-${data.event.id}`}
-                          sessionVisualization="dividers"
-                          enablePositionAxisToggle
-                          enableSmoothingToggle
-                          enableClosestOnlyToggle
-                          closestOnly={eventLevelLapChartClosestOnly}
-                          onClosestOnlyChange={setEventLevelLapChartClosestOnly}
-                          headerControls={
-                            validClasses.length > 0 ||
-                            eventLevelDriverPickListForLapChart.length > 0 ||
-                            eventLevelLapChartSessionOptions.length > 0 ||
-                            eventLevelLapChartSessionTypeOptions.length > 0 ? (
-                              <div className="flex min-w-0 w-full flex-wrap items-center gap-4 gap-y-2">
-                                {validClasses.length > 0 ? (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm text-[var(--token-text-secondary)]">
-                                      Choose a Class:
+                          if (miniDrivers.length === 0) {
+                            return (
+                              <AnalysisCardMiniSummary
+                                eyebrow={eventLevelDriverLapChartClass}
+                                metric="—"
+                                metricLabel="drivers selected"
+                                primary={{
+                                  label: "Next",
+                                  value: "Choose drivers to plot lap trends",
+                                }}
+                                facts={[
+                                  { id: "drivers", label: "Drivers", value: 0 },
+                                  { id: "laps", label: "Laps", value: "—" },
+                                ]}
+                                hint="Tap to open lap-by-lap"
+                              />
+                            )
+                          }
+                          const totalLaps = miniDrivers.reduce(
+                            (sum, d) => sum + countPlottableLaps(d.laps as LapTrendPoint[]),
+                            0
+                          )
+                          const primaryDriver = miniDrivers[0]
+                          const primaryDriverLapCount = primaryDriver
+                            ? countPlottableLaps(primaryDriver.laps as LapTrendPoint[])
+                            : 0
+                          return (
+                            <AnalysisCardMiniSummary
+                              eyebrow={eventLevelDriverLapChartClass}
+                              metric={miniDrivers.length}
+                              metricLabel={`driver${miniDrivers.length === 1 ? "" : "s"} selected`}
+                              primary={
+                                miniDrivers.length === 1 && primaryDriver
+                                  ? { label: "Driver", value: primaryDriver.driverName }
+                                  : { label: "Top", value: primaryDriver?.driverName ?? "—" }
+                              }
+                              facts={[
+                                { id: "laps", label: "Laps", value: totalLaps },
+                                ...(primaryDriver
+                                  ? [
+                                      {
+                                        id: "driver-laps",
+                                        label: "Top laps",
+                                        value: primaryDriverLapCount,
+                                      },
+                                    ]
+                                  : []),
+                                ...(miniDrivers.length > 1
+                                  ? [
+                                      {
+                                        id: "more",
+                                        label: "More",
+                                        value: `+${miniDrivers.length - 1}`,
+                                      },
+                                    ]
+                                  : []),
+                              ]}
+                              hint="Tap to open lap-by-lap"
+                            />
+                          )
+                        })()
+                      ) : (
+                        <div className="flex min-w-0 flex-col gap-3">
+                          {eventLevelLapDriverCapNotice ? (
+                            <p className="text-xs text-[var(--token-text-secondary)]" role="status">
+                              {eventLevelLapDriverCapNotice}
+                            </p>
+                          ) : null}
+                          <div className="w-full min-w-0">
+                            <ChartSection>
+                              <LapByLapTrendChart
+                                drivers={sortedEventLevelLapTrendDrivers}
+                                isLoading={eventLevelLapTrendLoading}
+                                pendingDriverCount={eventLevelLapChartDriverIds.length}
+                                height={EVENT_LEVEL_DRIVER_LAP_HEIGHT_COLLAPSED}
+                                raceLabelContextRaces={sessionAnalysisRaceLabelContextRaces}
+                                xAxisLabel={eventLevelLapChartXAxisLabel}
+                                xDimension={
+                                  eventLevelLapChartRaceId != null
+                                    ? "sessionLapNumber"
+                                    : "eventLapIndex"
+                                }
+                                chartAriaLabel={eventLevelLapChartAriaLabel}
+                                onDriverDeselect={(driverId) =>
+                                  setEventLevelLapChartDriverIds((prev) =>
+                                    prev.filter((id) => id !== driverId)
+                                  )
+                                }
+                                displayChartHeightPreset={{
+                                  collapsedHeight: EVENT_LEVEL_DRIVER_LAP_HEIGHT_COLLAPSED,
+                                  expandedHeight: EVENT_LEVEL_DRIVER_LAP_HEIGHT_EXPANDED,
+                                  expanded: eventLevelDriverLapChartExpanded,
+                                  onExpandedChange: setEventLevelDriverLapChartExpanded,
+                                }}
+                                chartTitle={`Driver laps (${eventLevelDriverLapChartClass})`}
+                                chartInstanceId={`event-level-driver-laps-${data.event.id}`}
+                                sessionVisualization="dividers"
+                                enablePositionAxisToggle
+                                enableSmoothingToggle
+                                enableClosestOnlyToggle
+                                closestOnly={eventLevelLapChartClosestOnly}
+                                onClosestOnlyChange={setEventLevelLapChartClosestOnly}
+                                headerControls={
+                                  validClasses.length > 0 ||
+                                  eventLevelDriverPickListForLapChart.length > 0 ||
+                                  eventLevelLapChartSessionOptions.length > 0 ||
+                                  eventLevelLapChartSessionTypeOptions.length > 0 ? (
+                                    <div className="flex min-w-0 w-full flex-wrap items-center gap-4 gap-y-2">
+                                      {validClasses.length > 0 ? (
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm text-[var(--token-text-secondary)]">
+                                            Choose a Class:
+                                          </span>
+                                          <select
+                                            value={eventLevelDriverLapChartClass ?? ""}
+                                            onChange={(e) =>
+                                              setEventLevelDriverLapChartClassOverride(
+                                                e.target.value
+                                              )
+                                            }
+                                            className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                                            aria-label="Driver laps chart class scope"
+                                          >
+                                            {validClasses.map((cls) => (
+                                              <option key={cls} value={cls}>
+                                                {cls}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      ) : null}
+                                      {eventLevelLapChartSessionTypeOptions.length > 0 &&
+                                      eventLevelLapChartRaceId == null ? (
+                                        <div className="flex items-center gap-2">
+                                          <label
+                                            htmlFor={eventLevelLapChartSessionTypeFilterId}
+                                            className="text-sm text-[var(--token-text-secondary)]"
+                                          >
+                                            Session type
+                                          </label>
+                                          <select
+                                            id={eventLevelLapChartSessionTypeFilterId}
+                                            value={effectiveEventLevelLapChartSessionTypeFilter}
+                                            onChange={(e) =>
+                                              setEventLevelLapChartSessionTypeFilter(e.target.value)
+                                            }
+                                            className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
+                                          >
+                                            <option value="">All session types</option>
+                                            {eventLevelLapChartSessionTypeOptions.map((key) => (
+                                              <option key={key} value={key}>
+                                                {sessionTypeFilterChipLabel(key)}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      ) : null}
+                                      {eventLevelLapChartSessionOptions.length > 0 ? (
+                                        <ChartSessionPicker
+                                          sessions={eventLevelLapChartSessionOptions}
+                                          selectedRaceId={eventLevelLapChartRaceId}
+                                          onSessionChange={setEventLevelLapChartRaceId}
+                                          label="Session"
+                                        />
+                                      ) : null}
+                                      {eventLevelDriverPickListForLapChart.length > 0 ? (
+                                        <ChartDriverPicker
+                                          drivers={eventLevelDriverPickListForLapChart}
+                                          selectedDriverIds={eventLevelLapChartDriverIds}
+                                          closestDriverIdsByAnchor={
+                                            eventLevelLapChartClosestIdsByAnchor
+                                          }
+                                          showClosestOnlyToggle
+                                          closestOnlyToggleInPopover={false}
+                                          closestOnly={eventLevelLapChartClosestOnly}
+                                          onClosestOnlyChange={setEventLevelLapChartClosestOnly}
+                                          label="Select Drivers"
+                                          onSelectionChange={(ids) => {
+                                            if (ids.length > MAX_EVENT_LEVEL_LAP_DRIVERS) {
+                                              setEventLevelLapDriverCapNotice(
+                                                `Showing ${MAX_EVENT_LEVEL_LAP_DRIVERS} of ${ids.length} selected drivers (maximum ${MAX_EVENT_LEVEL_LAP_DRIVERS}).`
+                                              )
+                                            } else {
+                                              setEventLevelLapDriverCapNotice(null)
+                                            }
+                                            setEventLevelLapChartDriverIds(
+                                              ids.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+                                            )
+                                          }}
+                                        />
+                                      ) : null}
+                                    </div>
+                                  ) : undefined
+                                }
+                                footerSummary={
+                                  eventLevelLapSummaryFooterNode != null ? (
+                                    <span className="whitespace-pre-line">
+                                      {eventLevelLapSummaryFooterNode}
                                     </span>
-                                    <select
-                                      value={eventLevelDriverLapChartClass ?? ""}
-                                      onChange={(e) =>
-                                        setEventLevelDriverLapChartClassOverride(e.target.value)
-                                      }
-                                      className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
-                                      aria-label="Driver laps chart class scope"
-                                    >
-                                      {validClasses.map((cls) => (
-                                        <option key={cls} value={cls}>
-                                          {cls}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                ) : null}
-                                {eventLevelLapChartSessionTypeOptions.length > 0 &&
-                                eventLevelLapChartRaceId == null ? (
-                                  <div className="flex items-center gap-2">
-                                    <label
-                                      htmlFor={eventLevelLapChartSessionTypeFilterId}
-                                      className="text-sm text-[var(--token-text-secondary)]"
-                                    >
-                                      Session type
-                                    </label>
-                                    <select
-                                      id={eventLevelLapChartSessionTypeFilterId}
-                                      value={effectiveEventLevelLapChartSessionTypeFilter}
-                                      onChange={(e) =>
-                                        setEventLevelLapChartSessionTypeFilter(e.target.value)
-                                      }
-                                      className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-3 py-1.5 text-sm text-[var(--token-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-accent)]"
-                                    >
-                                      <option value="">All session types</option>
-                                      {eventLevelLapChartSessionTypeOptions.map((key) => (
-                                        <option key={key} value={key}>
-                                          {sessionTypeFilterChipLabel(key)}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                ) : null}
-                                {eventLevelLapChartSessionOptions.length > 0 ? (
-                                  <ChartSessionPicker
-                                    sessions={eventLevelLapChartSessionOptions}
-                                    selectedRaceId={eventLevelLapChartRaceId}
-                                    onSessionChange={setEventLevelLapChartRaceId}
-                                    label="Session"
-                                  />
-                                ) : null}
-                                {eventLevelDriverPickListForLapChart.length > 0 ? (
-                                  <ChartDriverPicker
-                                    drivers={eventLevelDriverPickListForLapChart}
-                                    selectedDriverIds={eventLevelLapChartDriverIds}
-                                    closestDriverIdsByAnchor={eventLevelLapChartClosestIdsByAnchor}
-                                    showClosestOnlyToggle
-                                    closestOnlyToggleInPopover={false}
-                                    closestOnly={eventLevelLapChartClosestOnly}
-                                    onClosestOnlyChange={setEventLevelLapChartClosestOnly}
-                                    label="Select Drivers"
-                                    onSelectionChange={(ids) => {
-                                      if (ids.length > MAX_EVENT_LEVEL_LAP_DRIVERS) {
-                                        setEventLevelLapDriverCapNotice(
-                                          `Showing ${MAX_EVENT_LEVEL_LAP_DRIVERS} of ${ids.length} selected drivers (maximum ${MAX_EVENT_LEVEL_LAP_DRIVERS}).`
-                                        )
-                                      } else {
-                                        setEventLevelLapDriverCapNotice(null)
-                                      }
-                                      setEventLevelLapChartDriverIds(
-                                        ids.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
-                                      )
-                                    }}
-                                  />
-                                ) : null}
-                              </div>
-                            ) : undefined
-                          }
-                          footerSummary={
-                            eventLevelLapSummaryFooterNode != null ? (
-                              <span className="whitespace-pre-line">
-                                {eventLevelLapSummaryFooterNode}
-                              </span>
-                            ) : undefined
-                          }
-                          emptyMessage={
-                            eventLevelLapTrendLoading
-                              ? "Loading lap data…"
-                              : eventLevelDriverLapChartClass == null
-                                ? "No class scope — add race results."
-                                : eventLevelLapChartDriverIds.length === 0
-                                  ? "No driver selected yet."
-                                  : (eventLevelLapTrendError ??
-                                    (eventLevelLapChartSessionOptions.length === 0 &&
-                                    effectiveEventLevelLapChartSessionTypeFilter
-                                      ? "No sessions match the selected session type."
-                                      : eventLevelLapChartRaceId != null
-                                        ? "No lap data for selected drivers in this session."
-                                        : "No lap data for selected drivers in this class scope."))
-                          }
-                        />
-                      </ChartSection>
-                    </div>
-                  </div>
+                                  ) : undefined
+                                }
+                                emptyMessage={
+                                  eventLevelLapTrendLoading
+                                    ? "Loading lap data…"
+                                    : eventLevelDriverLapChartClass == null
+                                      ? "No class scope — add race results."
+                                      : eventLevelLapChartDriverIds.length === 0
+                                        ? "No driver selected yet."
+                                        : (eventLevelLapTrendError ??
+                                          (eventLevelLapChartSessionOptions.length === 0 &&
+                                          effectiveEventLevelLapChartSessionTypeFilter
+                                            ? "No sessions match the selected session type."
+                                            : eventLevelLapChartRaceId != null
+                                              ? "No lap data for selected drivers in this session."
+                                              : "No lap data for selected drivers in this class scope."))
+                                }
+                              />
+                            </ChartSection>
+                          </div>
+                        </div>
+                      )
+                    }
+                  </OverviewCollapsibleGlassCard>
                 )}
-              </OverviewCollapsibleGlassCard>
-            </div>
-            <div className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4" role="presentation">
-              <OverviewCollapsibleGlassCard
-                panelId="event-level-analysis-col-4"
-                headingId="event-level-analysis-col-4-heading"
-                title="Compare driver performance"
-                layout="stretch"
+              </SortableAnalysisPanel>
+              <SortableAnalysisPanel
+                id="event-level-analysis-col-4"
+                order={getPanelDisplayOrder("event-level-analysis-col-4")}
+                disabled={isPanelExpanded("event-level-analysis-col-4")}
                 expanded={isPanelExpanded("event-level-analysis-col-4")}
-                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-4", open)}
               >
-                <div className="space-y-4">
-                  <ChartControls
-                    drivers={driverOptions}
-                    races={data.races}
-                    selectedDriverIds={selectedDriverIds}
-                    onDriverSelectionChange={handleSelectionChange}
-                    onClassChange={handleClassChange}
-                    selectedClass={selectedClass}
-                    eventId={data.event.id}
-                    raceClasses={data.raceClasses}
-                    onSelectAllClick={handleSelectAllClick}
-                  />
-                </div>
-                <div className="flex min-w-0 flex-col gap-4">
-                  {missingBestLapDriverNames.length > 0 && (
-                    <ChartDataNotice
-                      title="Some selected drivers have no recorded best lap"
-                      description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
-                      driverNames={missingBestLapDriverNames}
-                      eventId={data.event.id}
-                      noticeType="best-lap"
-                    />
-                  )}
-                  {missingAvgVsFastestDriverNames.length > 0 && (
-                    <ChartDataNotice
-                      title="Missing average lap telemetry"
-                      description="These drivers were selected, but the data feed does not include both best and average lap times for them."
-                      driverNames={missingAvgVsFastestDriverNames}
-                      eventId={data.event.id}
-                      noticeType="avg-vs-fastest"
-                    />
-                  )}
-                  <div className="w-full min-w-0">
-                    <ChartSection>
-                      <UnifiedPerformanceChart
-                        data={unifiedChartData}
-                        selectedDriverIds={expandedUnifiedChartDriverIds}
-                        currentPage={currentPage}
-                        driversPerPage={driversPerPage}
-                        onPageChange={handlePageChange}
-                        onDriverToggle={handleUnifiedChartDriverToggle}
-                        chartInstanceId={`overview-${data.event.id}-event-level-unified`}
-                        selectedClass={driverCompareEventClassFilter ?? selectedClass}
-                        availableClasses={validClasses}
-                        onClassChange={setDriverCompareEventClassFilter}
-                        classScopeSelectPlaceholderLabel="Same as Actions"
-                        allDriversInClassSelected={
-                          driverCompareEventClassFilter == null &&
-                          allDriversInClassSelected &&
-                          selectAllClickedForCurrentClass
-                        }
-                        chartView={chartViewState}
-                        onChartViewChange={setChartViewState}
-                        chartDriverOptions={driverCompareDriverStatsByClass.map((d) => ({
-                          driverId: d.driverId,
-                          driverName: d.driverName,
-                        }))}
-                        chartSelectedDriverIds={unifiedChartDriverIds}
-                        onChartDriverSelectionChange={setUnifiedChartDriverIds}
-                        headerAfterClassSelect={
-                          driverCompareScopeFilterToolbar ? (
-                            <div className="flex flex-wrap items-center gap-3">
-                              {driverCompareScopeFilterToolbar}
-                            </div>
-                          ) : null
-                        }
-                      />
-                    </ChartSection>
-                  </div>
-                </div>
-              </OverviewCollapsibleGlassCard>
-            </div>
-            <div
-              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
-              role="presentation"
-            >
-              <OverviewCollapsibleGlassCard
-                panelId="event-level-analysis-col-5"
-                headingId="event-level-analysis-col-5-heading"
-                title="Pace trends"
-                layout="center"
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="event-level-analysis-col-4"
+                    headingId="event-level-analysis-col-4-heading"
+                    title="Compare driver performance"
+                    animatedHeight
+                    expandedHeightPx={640}
+                    expanded={isPanelExpanded("event-level-analysis-col-4")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("event-level-analysis-col-4", open)
+                    }
+                  >
+                    {({ tier }) =>
+                      tier === "mini" ? (
+                        (() => {
+                          const classLabel = driverCompareEventClassFilter ?? selectedClass
+                          const selectedIds = new Set(expandedUnifiedChartDriverIds)
+                          const miniSelected = unifiedChartData.filter((d) =>
+                            selectedIds.has(d.driverId)
+                          )
+                          if (miniSelected.length === 0) {
+                            return (
+                              <AnalysisCardMiniSummary
+                                eyebrow={classLabel ?? undefined}
+                                metric="—"
+                                metricLabel="drivers compared"
+                                primary={{ label: "Next", value: "Use Select Drivers to compare" }}
+                                facts={[
+                                  { id: "selected", label: "Selected", value: 0 },
+                                  { id: "fastest", label: "Fastest", value: "—" },
+                                ]}
+                                hint="Tap to compare performance"
+                              />
+                            )
+                          }
+                          const fastest = miniSelected.reduce<DriverPerformanceData | null>(
+                            (best, d) =>
+                              d.bestLapTime != null &&
+                              (best == null ||
+                                best.bestLapTime == null ||
+                                d.bestLapTime < best.bestLapTime)
+                                ? d
+                                : best,
+                            null
+                          )
+                          const fastestLabel =
+                            fastest && fastest.bestLapTime != null
+                              ? `${formatLapTime(fastest.bestLapTime)} · ${fastest.driverName}`
+                              : "—"
+                          return (
+                            <AnalysisCardMiniSummary
+                              eyebrow={classLabel ?? undefined}
+                              metric={miniSelected.length}
+                              metricLabel={`driver${miniSelected.length === 1 ? "" : "s"} compared`}
+                              primary={{ label: "Fastest", value: fastestLabel }}
+                              facts={[
+                                { id: "selected", label: "Selected", value: miniSelected.length },
+                                ...(missingBestLapDriverNames.length > 0
+                                  ? [
+                                      {
+                                        id: "missing-best",
+                                        label: "Missing best",
+                                        value: missingBestLapDriverNames.length,
+                                        tone: "warning",
+                                      },
+                                    ]
+                                  : []),
+                                ...(missingAvgVsFastestDriverNames.length > 0
+                                  ? [
+                                      {
+                                        id: "missing-avg",
+                                        label: "Missing avg",
+                                        value: missingAvgVsFastestDriverNames.length,
+                                        tone: "warning",
+                                      },
+                                    ]
+                                  : []),
+                              ]}
+                              hint="Tap to compare performance"
+                            />
+                          )
+                        })()
+                      ) : (
+                        <div className="flex min-w-0 flex-col gap-4">
+                          {missingBestLapDriverNames.length > 0 && (
+                            <ChartDataNotice
+                              title="Some selected drivers have no recorded best lap"
+                              description="LiveRC did not publish a best lap time for these drivers in the selected class, so they are hidden from the chart."
+                              driverNames={missingBestLapDriverNames}
+                              eventId={data.event.id}
+                              noticeType="best-lap"
+                            />
+                          )}
+                          {missingAvgVsFastestDriverNames.length > 0 && (
+                            <ChartDataNotice
+                              title="Missing average lap telemetry"
+                              description="These drivers were selected, but the data feed does not include both best and average lap times for them."
+                              driverNames={missingAvgVsFastestDriverNames}
+                              eventId={data.event.id}
+                              noticeType="avg-vs-fastest"
+                            />
+                          )}
+                          <div className="w-full min-w-0">
+                            <ChartSection>
+                              <UnifiedPerformanceChart
+                                data={unifiedChartData}
+                                selectedDriverIds={expandedUnifiedChartDriverIds}
+                                currentPage={currentPage}
+                                driversPerPage={driversPerPage}
+                                onPageChange={handlePageChange}
+                                onDriverToggle={handleUnifiedChartDriverToggle}
+                                height={400}
+                                chartInstanceId={`overview-${data.event.id}-event-level-unified`}
+                                selectedClass={driverCompareEventClassFilter ?? selectedClass}
+                                availableClasses={validClasses}
+                                onClassChange={setDriverCompareEventClassFilter}
+                                classScopeSelectPlaceholderLabel="Same as Actions"
+                                allDriversInClassSelected={
+                                  driverCompareEventClassFilter == null &&
+                                  allDriversInClassSelected &&
+                                  selectAllClickedForCurrentClass
+                                }
+                                chartView={chartViewState}
+                                onChartViewChange={setChartViewState}
+                                chartDriverOptions={driverCompareDriverStatsByClass.map((d) => ({
+                                  driverId: d.driverId,
+                                  driverName: d.driverName,
+                                }))}
+                                chartSelectedDriverIds={unifiedChartDriverIds}
+                                onChartDriverSelectionChange={setUnifiedChartDriverIds}
+                                headerAfterClassSelect={
+                                  driverCompareScopeFilterToolbar ? (
+                                    <div className="flex flex-wrap items-center gap-3">
+                                      {driverCompareScopeFilterToolbar}
+                                    </div>
+                                  ) : null
+                                }
+                              />
+                            </ChartSection>
+                          </div>
+                        </div>
+                      )
+                    }
+                  </OverviewCollapsibleGlassCard>
+                )}
+              </SortableAnalysisPanel>
+              <SortableAnalysisPanel
+                id="event-level-analysis-col-5"
+                order={getPanelDisplayOrder("event-level-analysis-col-5")}
+                disabled={isPanelExpanded("event-level-analysis-col-5")}
                 expanded={isPanelExpanded("event-level-analysis-col-5")}
-                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-5", open)}
               >
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for lap-time progression, consistency bands, and segment
-                  deltas. Content will be added here.
-                </p>
-              </OverviewCollapsibleGlassCard>
-              <OverviewCollapsibleGlassCard
-                panelId="event-level-analysis-col-6"
-                headingId="event-level-analysis-col-6-heading"
-                title="Strategy overview"
-                layout="center"
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="event-level-analysis-col-5"
+                    headingId="event-level-analysis-col-5-heading"
+                    title="Pace trends"
+                    animatedHeight
+                    expanded={isPanelExpanded("event-level-analysis-col-5")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("event-level-analysis-col-5", open)
+                    }
+                  >
+                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                      Placeholder container for lap-time progression, consistency bands, and segment
+                      deltas. Content will be added here.
+                    </p>
+                  </OverviewCollapsibleGlassCard>
+                )}
+              </SortableAnalysisPanel>
+              <SortableAnalysisPanel
+                id="event-level-analysis-col-6"
+                order={getPanelDisplayOrder("event-level-analysis-col-6")}
+                disabled={isPanelExpanded("event-level-analysis-col-6")}
                 expanded={isPanelExpanded("event-level-analysis-col-6")}
-                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-6", open)}
               >
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for pit timing, stint lengths, and position-trade context.
-                  Content will be added here.
-                </p>
-              </OverviewCollapsibleGlassCard>
-            </div>
-            <div
-              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
-              role="presentation"
-            >
-              <OverviewCollapsibleGlassCard
-                panelId="event-level-analysis-col-7"
-                headingId="event-level-analysis-col-7-heading"
-                title="Weather and track"
-                layout="center"
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="event-level-analysis-col-6"
+                    headingId="event-level-analysis-col-6-heading"
+                    title="Strategy overview"
+                    animatedHeight
+                    expanded={isPanelExpanded("event-level-analysis-col-6")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("event-level-analysis-col-6", open)
+                    }
+                  >
+                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                      Placeholder container for pit timing, stint lengths, and position-trade
+                      context. Content will be added here.
+                    </p>
+                  </OverviewCollapsibleGlassCard>
+                )}
+              </SortableAnalysisPanel>
+              <SortableAnalysisPanel
+                id="event-level-analysis-col-7"
+                order={getPanelDisplayOrder("event-level-analysis-col-7")}
+                disabled={isPanelExpanded("event-level-analysis-col-7")}
                 expanded={isPanelExpanded("event-level-analysis-col-7")}
-                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-7", open)}
               >
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for ambient conditions, track evolution, and rubber-in
-                  context. Content will be added here.
-                </p>
-              </OverviewCollapsibleGlassCard>
-              <OverviewCollapsibleGlassCard
-                panelId="event-level-analysis-col-8"
-                headingId="event-level-analysis-col-8-heading"
-                title="Incidents and penalties"
-                layout="center"
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="event-level-analysis-col-7"
+                    headingId="event-level-analysis-col-7-heading"
+                    title="Weather and track"
+                    animatedHeight
+                    expanded={isPanelExpanded("event-level-analysis-col-7")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("event-level-analysis-col-7", open)
+                    }
+                  >
+                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                      Placeholder container for ambient conditions, track evolution, and rubber-in
+                      context. Content will be added here.
+                    </p>
+                  </OverviewCollapsibleGlassCard>
+                )}
+              </SortableAnalysisPanel>
+              <SortableAnalysisPanel
+                id="event-level-analysis-col-8"
+                order={getPanelDisplayOrder("event-level-analysis-col-8")}
+                disabled={isPanelExpanded("event-level-analysis-col-8")}
                 expanded={isPanelExpanded("event-level-analysis-col-8")}
-                onExpandedChange={(open) => setPanelExpanded("event-level-analysis-col-8", open)}
               >
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for on-track incidents, race-control actions, and penalty
-                  summaries. Content will be added here.
-                </p>
-              </OverviewCollapsibleGlassCard>
-            </div>
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="event-level-analysis-col-8"
+                    headingId="event-level-analysis-col-8-heading"
+                    title="Incidents and penalties"
+                    animatedHeight
+                    expanded={isPanelExpanded("event-level-analysis-col-8")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("event-level-analysis-col-8", open)
+                    }
+                  >
+                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                      Placeholder container for on-track incidents, race-control actions, and
+                      penalty summaries. Content will be added here.
+                    </p>
+                  </OverviewCollapsibleGlassCard>
+                )}
+              </SortableAnalysisPanel>
+            </AnalysisPanelSortableGrid>
           </div>
         </section>
       )}
@@ -3496,40 +3764,89 @@ export default function OverviewTab({
             aria-labelledby={sessionAnalysisSectionToolbarTabId}
             className="space-y-5"
           >
-            <h2 id="session-analysis-subview-heading" className={typography.h4}>
-              Session Level Analysis
-            </h2>
-            <div
-              className="grid min-h-0 w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-4"
-              role="presentation"
-            >
-              <OverviewCollapsibleGlassCard
-                panelId="session-level-analysis-col-1"
-                headingId="session-level-analysis-col-1-heading"
-                title="Session metrics"
-                layout="center"
-                expanded={isPanelExpanded("session-level-analysis-col-1")}
-                onExpandedChange={(open) => setPanelExpanded("session-level-analysis-col-1", open)}
-              >
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for session-level timing, pace, and consistency. Content
-                  will be added here.
-                </p>
-              </OverviewCollapsibleGlassCard>
-              <OverviewCollapsibleGlassCard
-                panelId="session-level-analysis-col-2"
-                headingId="session-level-analysis-col-2-heading"
-                title="Session scope"
-                layout="center"
-                expanded={isPanelExpanded("session-level-analysis-col-2")}
-                onExpandedChange={(open) => setPanelExpanded("session-level-analysis-col-2", open)}
-              >
-                <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                  Placeholder container for class/program context and results for the selected
-                  session. Content will be added here.
-                </p>
-              </OverviewCollapsibleGlassCard>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="session-analysis-subview-heading" className={typography.h4}>
+                Session Level Analysis
+              </h2>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setAllPanelsExpanded(true, "session")}
+                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllPanelsExpanded(false, "session")}
+                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Collapse all
+                </button>
+                <button
+                  type="button"
+                  onClick={resetPanelOrder}
+                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
+                >
+                  Reset layout
+                </button>
+              </div>
             </div>
+            <AnalysisPanelSortableGrid
+              panelIds={sessionLevelPanelOrder}
+              onReorder={reorderSessionLevelPanels}
+            >
+              <SortableAnalysisPanel
+                id="session-level-analysis-col-1"
+                order={getPanelDisplayOrder("session-level-analysis-col-1")}
+                disabled={isPanelExpanded("session-level-analysis-col-1")}
+                expanded={isPanelExpanded("session-level-analysis-col-1")}
+              >
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="session-level-analysis-col-1"
+                    headingId="session-level-analysis-col-1-heading"
+                    title="Session metrics"
+                    animatedHeight
+                    expanded={isPanelExpanded("session-level-analysis-col-1")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("session-level-analysis-col-1", open)
+                    }
+                  >
+                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                      Placeholder container for session-level timing, pace, and consistency. Content
+                      will be added here.
+                    </p>
+                  </OverviewCollapsibleGlassCard>
+                )}
+              </SortableAnalysisPanel>
+              <SortableAnalysisPanel
+                id="session-level-analysis-col-2"
+                order={getPanelDisplayOrder("session-level-analysis-col-2")}
+                disabled={isPanelExpanded("session-level-analysis-col-2")}
+                expanded={isPanelExpanded("session-level-analysis-col-2")}
+              >
+                {(dragHandle) => (
+                  <OverviewCollapsibleGlassCard
+                    dragHandle={dragHandle}
+                    panelId="session-level-analysis-col-2"
+                    headingId="session-level-analysis-col-2-heading"
+                    title="Session scope"
+                    animatedHeight
+                    expanded={isPanelExpanded("session-level-analysis-col-2")}
+                    onExpandedChange={(open) =>
+                      setPanelExpanded("session-level-analysis-col-2", open)
+                    }
+                  >
+                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
+                      Placeholder container for class/program context and results for the selected
+                      session. Content will be added here.
+                    </p>
+                  </OverviewCollapsibleGlassCard>
+                )}
+              </SortableAnalysisPanel>
+            </AnalysisPanelSortableGrid>
           </div>
         </section>
       )}
@@ -4115,6 +4432,8 @@ export default function OverviewTab({
                               height={450}
                               chartInstanceId={`overview-${data.event.id}-session-lap-trend`}
                               raceLabelContextRaces={sessionAnalysisRaceLabelContextRaces}
+                              xAxisLabel="Lap number (this session)"
+                              xDimension="sessionLapNumber"
                               chartTitle=""
                               headerControls={
                                 <>

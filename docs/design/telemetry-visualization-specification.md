@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Documentation Update
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Telemetry visualization specification for MRE version 0.1.1
 purpose:
   Defines telemetry visualization types, data sources, real-time and historical
@@ -20,6 +20,21 @@ relatedFiles:
 real-time and historical patterns, and implementation guidelines.
 
 **Implementation Status:** Fully in-scope and required for version 0.1.1
+
+> **Telemetry data source update (2026-05-31).** This spec predates the
+> telemetry ingestion build and frames GPS/speed/sensor data as "future". GNSS
+> telemetry is **now ingested and served**: upload → worker → canonical Parquet
+> (optional ClickHouse cache), exposed via
+> `GET /api/v1/telemetry/sessions/{id}/timeseries` (columns
+> `t_ns, lat_deg, lon_deg, alt_m, speed_mps`), `/map`, `/laps`, `/quality`, and
+> `/compare`, with viewer pages at `/eventAnalysis/my-telemetry`. The
+> placeholder endpoints in "Future Sensor Data Integration"
+> (`/api/v1/telemetry/stream`, `/api/v1/telemetry/[sessionId]`,
+> `/api/v1/telemetry/sensors`) are **not** the shipped paths — use the
+> `/api/v1/telemetry/sessions/**` contract instead (see
+> [Telemetry API Contract](../telemetry/Design/API_Contract_Telemetry.md) §0).
+> Throttle/brake/steering/RPM sensor channels remain genuinely future work
+> (GNSS-only today; IMU parsing not yet wired into the worker).
 
 ---
 
@@ -57,9 +72,8 @@ mobile-specific layouts or touch optimizations in the web app.
 
 **Note:** Telemetry visualization is fully in-scope for version 0.1.1. All
 visualization types listed in Section 2 are required features. Telemetry data
-ingestion is also in scope (see `docs/telemetry/`). Visualization components
-use lap data from LiveRC ingestion and will support telemetry data when
-available.
+ingestion is also in scope (see `docs/telemetry/`). Visualization components use
+lap data from LiveRC ingestion and will support telemetry data when available.
 
 ---
 
@@ -518,10 +532,10 @@ const chartData = laps.map(lap => ({
 
 **Status:** Out of scope for version 0.1.1.
 
-A separate native mobile app is planned for a future release. The web application
-is desktop-only. When the mobile app is developed, it will consume the same
-`/api/v1/telemetry/*` endpoints and may reuse visualization concepts documented
-here, but implementation will be tailored to mobile viewports, touch
+A separate native mobile app is planned for a future release. The web
+application is desktop-only. When the mobile app is developed, it will consume
+the same `/api/v1/telemetry/*` endpoints and may reuse visualization concepts
+documented here, but implementation will be tailored to mobile viewports, touch
 interactions, and native performance characteristics.
 
 Do not implement mobile-specific layouts, responsive breakpoints for small

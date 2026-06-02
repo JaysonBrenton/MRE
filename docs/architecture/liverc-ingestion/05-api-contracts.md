@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-03-22
+lastModified: 2026-05-31
 description: API contracts for LiveRC ingestion subsystem HTTP endpoints
 purpose:
   Defines the backend HTTP API contracts used by MRE to interact with ingested
@@ -104,28 +104,48 @@ architecture, configuration, and behaviour.
 
 ### 2.1 GET /tracks
 
-Returns the list of known tracks.  
-By default, this returns followed and active tracks suitable for user selection.
+Returns a minimal track list from the Track table for dropdowns and pickers.  
+Does **not** call LiveRC.
+
+**Default:** followed and active tracks only (`is_followed = true` and
+`is_active = true`).
 
 Query parameters:
 
-- followed (boolean, optional): If true (default), return only tracks where
-  is_followed = true AND is_active = true
-- active (boolean, optional): If false, include inactive tracks as well
+- `followed` (optional, default `true`):
+  - `true` or omitted: filter to `is_followed = true` (plus `active` filter)
+  - `false`: filter to `is_followed = false` only (**not** the full catalogue)
+  - `all`: **no** `is_followed` filter — return all tracks matching `active`
+    (**required for Event Search / track pickers**)
+- `active` (boolean, optional, default `true`): when `false`, include inactive
+  tracks
 
-Example response:
+Response shape (minimal list fields only):
 
-{ "tracks": [ { "id": 42, "source": "liverc", "source_track_slug":
-"canberraoffroad", "track_name": "Canberra Off Road Model Car Club",
-"track_url": "https://canberraoffroad.liverc.com/", "events_url":
-"https://canberraoffroad.liverc.com/events", "liverc_track_last_updated": "1
-minute ago", "is_active": true, "is_followed": true } ] }
+```json
+{
+  "success": true,
+  "data": {
+    "tracks": [
+      {
+        "id": "uuid",
+        "trackName": "Canberra Off Road Model Car Club",
+        "sourceTrackSlug": "canberraoffroad",
+        "country": "Australia"
+      }
+    ]
+  }
+}
+```
 
 Backend behaviour:
 
 - MUST operate purely on the Track table.
 - MUST NOT call LiveRC.
 - MUST return an empty list when no rows match.
+
+See
+[Track catalogue flags and follow model](./04-data-model.md#track-catalogue-flags-and-follow-model).
 
 ---
 

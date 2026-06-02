@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-05-31
 description: Observability model for LiveRC ingestion subsystem monitoring
 purpose:
   Specifies the full observability model including logging, metrics, tracing,
@@ -110,10 +110,10 @@ Metrics MUST be emitted from ingestion in a consistent, connector-agnostic way.
 
 #### 2.1.4 DB Write Metrics
 
-- metric: `db_rows_inserted`
+- metric: `db_rows_inserted_total`
 - labels: table_name
 
-- metric: `db_rows_updated`
+- metric: `db_rows_updated_total`
 - labels: table_name
 
 #### 2.1.5 Connector Error Metrics
@@ -123,12 +123,15 @@ Metrics MUST be emitted from ingestion in a consistent, connector-agnostic way.
 
 #### 2.1.6 Practice day full ingestion
 
-- metric: `practice_day_ingestion_duration_seconds` — labels: track_slug, date, result
+- metric: `practice_day_ingestion_duration_seconds` — labels: track_slug, date,
+  result
 - metric: `practice_day_ingestion_requests_total` — labels: track_slug, result
 - metric: `practice_day_sessions_ingested_total` — labels: track_slug
-- metric: `practice_day_sessions_with_laps_total` — sessions for which at least one lap was written
+- metric: `practice_day_sessions_with_laps_total` — sessions for which at least
+  one lap was written
 - metric: `practice_day_laps_ingested_total` — total laps ingested
-- metric: `practice_day_sessions_detail_failed_total` — sessions whose detail fetch failed
+- metric: `practice_day_sessions_detail_failed_total` — sessions whose detail
+  fetch failed
 
 Log events: `ingest_practice_day_start`, `ingest_practice_day_success` (with
 sessions_ingested, sessions_with_laps, laps_ingested, sessions_detail_failed),
@@ -355,7 +358,49 @@ MRE ingestion aims for the following levels:
 
 ---
 
-## 9. Observability Guarantees
+## 9. Scheduled auto-ingest observability
+
+The [31-recent-events-auto-ingest.md](31-recent-events-auto-ingest.md) job is
+implemented; operators must be able to answer “did last night’s job work?”
+without SSH guesswork.
+
+### 9.1 Structured log events
+
+The `refresh-recent-events` CLI MUST emit structlog events including:
+
+- `refresh_recent_events_start`
+- `refresh_recent_events_track_start` / `_track_done`
+- `refresh_recent_events_event_ingest` / `_event_skipped`
+- `refresh_recent_events_complete` (with `totals`, `duration_ms`)
+
+Cron stdout: `/var/log/recent-events-auto-ingest.log` in the ingestion
+container.
+
+### 9.2 Prometheus metrics
+
+Implemented in `ingestion/common/metrics.py`:
+
+| Metric                                                                       | Type      |
+| ---------------------------------------------------------------------------- | --------- |
+| `recent_events_auto_ingest_runs_total{status}` (`success`/`partial`/`empty`) | Counter   |
+| `recent_events_auto_ingest_events_ingested_total`                            | Counter   |
+| `recent_events_auto_ingest_events_failed_total`                              | Counter   |
+| `recent_events_auto_ingest_duration_seconds`                                 | Histogram |
+
+### 9.3 Recommended alerts
+
+| Alert             | Condition                                            |
+| ----------------- | ---------------------------------------------------- |
+| Job missing       | No `refresh_recent_events_complete` in 26 h          |
+| High failure rate | `events_failed / events_attempted > 0.5` over 3 runs |
+| Long run          | `duration_ms > 7_200_000` (2 h)                      |
+
+Runbook:
+[recent-events-auto-ingest-runbook.md](../../operations/recent-events-auto-ingest-runbook.md).
+
+---
+
+## 10. Observability Guarantees
 
 The ingestion subsystem MUST guarantee:
 

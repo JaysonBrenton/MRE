@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-16
+lastModified: 2026-05-31
 description: API reference for implemented endpoints and planned contracts
 purpose:
   Provides a comprehensive catalog of all API endpoints, including
@@ -11,7 +11,7 @@ purpose:
 relatedFiles:
   - docs/architecture/mobile-safe-architecture-guidelines.md (API standards)
   - docs/architecture/venue-correction-deprecation.md (venue correction APIs
-    deprecated)
+    removed; replaced by per-user host track)
   - docs/architecture/car-taxonomy-user-mapping.md (car taxonomy APIs)
   - docs/architecture/liverc-ingestion/05-api-contracts.md (LiveRC ingestion
     APIs)
@@ -23,8 +23,19 @@ relatedFiles:
 
 # API Reference Documentation
 
-**Last Updated:** 2026-05-16 — **Health check:** documented successful envelope
-for `GET /api/v1/health` (matches `successResponse` and
+**Last Updated:** 2026-05-31 — Re-aligned the endpoint catalog with the 88
+routes in
+[`docs/reference/generated/api-routes.manifest.json`](../reference/generated/api-routes.manifest.json)
+and `src/app/api/**/route.ts`. Added the telemetry session sub-resources
+(`/laps`, `/quality`, `/coaching`, `/retry`, plus `PATCH`/`DELETE` on the
+session itself), `GET /api/v1/tracks/catalogue-sync-state`,
+`GET /api/v1/tracks/search`, and the per-user host-track endpoints
+(`GET/PUT/DELETE /api/v1/user/events/[eventId]/host-track`). **Removed** the
+venue-correction endpoints (`/api/v1/events/[eventId]/venue-correction` and
+`/api/v1/admin/venue-correction-requests*`) — those routes and their backing
+models no longer exist.  
+**2026-05-16** — **Health check:** documented successful envelope for
+`GET /api/v1/health` (matches `successResponse` and
 `src/__tests__/api/health.test.ts`).  
 **2026-05-12** — Added ready-to-merge **planned placeholders** for nitro pit
 stop detection API contracts (not implemented yet): pit stop event listing,
@@ -246,16 +257,25 @@ curl -X POST http://localhost:3001/api/v1/auth/login \
 
 ### GET /api/v1/tracks
 
-Returns the list of known tracks from the database.
+Returns a minimal track list from the database for dropdowns and track pickers.
+Does **not** call LiveRC.
 
 **Authentication:** Required
 
 **Query Parameters:**
 
-- `followed` (boolean, optional, default: `true`) - If true, return only tracks
-  where `is_followed = true` AND `is_active = true`
-- `active` (boolean, optional, default: `true`) - If false, include inactive
-  tracks
+- `followed` (optional, default: `true`) — Controls the `is_followed` filter:
+  - Omitted or `true`: return tracks where `is_followed = true` (and honour
+    `active`)
+  - `false`: return tracks where `is_followed = false` only (**not** the full
+    catalogue)
+  - `all`: return all tracks matching the `active` filter; **omit** the
+    `is_followed` filter. **Use this for Event Search and other track pickers.**
+- `active` (boolean, optional, default: `true`) — When `true`, return only
+  `is_active = true`. When `false`, include inactive tracks.
+
+**Response fields:** Each track includes only list/picker fields: `id`,
+`trackName`, `sourceTrackSlug`, `country` (nullable).
 
 **Response (200 OK):**
 
@@ -266,17 +286,9 @@ Returns the list of known tracks from the database.
     "tracks": [
       {
         "id": "uuid",
-        "source": "liverc",
-        "source_track_slug": "track-slug",
-        "track_name": "Track Name",
-        "track_url": "https://liverc.com/track/...",
-        "events_url": "https://liverc.com/track/.../events",
-        "liverc_track_last_updated": "2025-01-27",
-        "last_seen_at": "2025-01-27T00:00:00.000Z",
-        "is_active": true,
-        "is_followed": true,
-        "created_at": "2025-01-27T00:00:00.000Z",
-        "updated_at": "2025-01-27T00:00:00.000Z"
+        "trackName": "Canberra Off Road Model Car Club",
+        "sourceTrackSlug": "canberraoffroad",
+        "country": "Australia"
       }
     ]
   }
@@ -285,13 +297,50 @@ Returns the list of known tracks from the database.
 
 **Error Codes:**
 
+- `UNAUTHORIZED` (401) - Authentication required
 - `INTERNAL_ERROR` (500) - Server error
 
-**Example:**
+**Examples:**
 
 ```bash
-curl "http://localhost:3001/api/v1/tracks?followed=true&active=true"
+# Default: followed + active tracks only
+curl -H "Cookie: next-auth.session-token=..." \
+  "http://localhost:3001/api/v1/tracks?followed=true&active=true"
+
+# Full active catalogue (Event Search track picker)
+curl -H "Cookie: next-auth.session-token=..." \
+  "http://localhost:3001/api/v1/tracks?followed=all&active=true"
 ```
+
+See
+[Track catalogue flags and follow model](../architecture/liverc-ingestion/04-data-model.md#track-catalogue-flags-and-follow-model).
+
+---
+
+### GET /api/v1/tracks/search
+
+Authenticated catalogue search used by the host-track picker.
+
+**Authentication:** Required
+
+**Query Parameters:**
+
+- `q` (string, optional) - Search query (defaults to empty)
+- `limit` (number, optional, default: `20`) - Max results
+
+**Success `data`:** `{ tracks: [...] }`
+
+---
+
+### GET /api/v1/tracks/catalogue-sync-state
+
+Returns the completion timestamp of the last successful full track catalogue
+sync (used for the UI refresh countdown).
+
+**Authentication:** Required
+
+**Success `data`:** `{ completedAt: string | null }` (ISO timestamp, or `null`
+if never synced)
 
 ---
 
@@ -1242,46 +1291,11 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/even
 
 ---
 
-### GET /api/v1/events/[eventId]/venue-correction
-
-> **Deprecated.** Full venue correction is deprecated; do not integrate new
-> clients. See
-> [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md).
-> Replacement: per-user **host track**
-> ([`event-host-track-user-override.md`](../architecture/event-host-track-user-override.md)).
-
-Gets approved venue correction (if any) and the current user’s pending request
-for this event, plus whether the user may submit.
-
-**Authentication:** Required
-
----
-
-### POST /api/v1/events/[eventId]/venue-correction
-
-> **Deprecated.** See GET note above.
-
-Submits a venue correction request for admin review.
-
-**Authentication:** Required
-
-**Request Body:**
-
-```json
-{
-  "venueTrackId": "uuid-or-null"
-}
-```
-
----
-
-### DELETE /api/v1/events/[eventId]/venue-correction
-
-> **Deprecated.** See GET note above.
-
-Deletes the current user’s **pending** venue correction request for this event.
-
-**Authentication:** Required
+> **Removed:** The `/api/v1/events/[eventId]/venue-correction` endpoints
+> (`GET`/`POST`/`DELETE`) have been **removed** along with their backing models.
+> The replacement is the per-user host-track endpoints under
+> [`/api/v1/user/events/[eventId]/host-track`](#user-event-host-track). See
+> [`venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md).
 
 ---
 
@@ -3366,6 +3380,40 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/user
 
 ---
 
+### User Event Host Track
+
+Per-user designation of which catalogue track physically hosted an event (the
+LiveRC venue may differ from the racing facility). This is the replacement for
+the removed venue-correction endpoints. Backed by the `UserEventHostTrack`
+model.
+
+#### GET /api/v1/user/events/[eventId]/host-track
+
+Returns the current user's host-track designation for the event, or
+`{ hostTrack: null }` when none is set. The `hostTrack` object includes
+`trackId`, `trackName`, `trackDashboardUrl`, `website`, `facebookUrl`,
+`address`, `phone`, and `email`.
+
+**Authentication:** Required
+
+#### PUT /api/v1/user/events/[eventId]/host-track
+
+Sets (upserts) the host track for the event. Request body
+`{ "hostTrackId": "uuid" }`. Returns the serialized `hostTrack`.
+
+**Authentication:** Required
+
+**Errors:** `400` (`VALIDATION_ERROR`, missing `hostTrackId`), `404`
+(`NOT_FOUND`, event or track not found/inactive), `422` (invalid JSON body).
+
+#### DELETE /api/v1/user/events/[eventId]/host-track
+
+Clears the user's host-track designation for the event. Returns `{ ok: true }`.
+
+**Authentication:** Required
+
+---
+
 ## Admin Endpoints
 
 All admin endpoints require authentication and admin privileges
@@ -3993,7 +4041,9 @@ curl -X DELETE -H "Cookie: next-auth.session-token=..." "http://localhost:3001/a
 
 ### PATCH /api/v1/admin/tracks/[trackId]
 
-Updates track follow status (admin-only endpoint).
+Updates track follow status for **automated ingestion scope** (admin-only). Sets
+the global `isFollowed` column on the track row; this is **not** the same as
+Event Search favourite stars (`localStorage`).
 
 **Authentication:** Required (Admin only)
 
@@ -4179,39 +4229,10 @@ curl -H "Cookie: next-auth.session-token=..." "http://localhost:3001/api/v1/admi
 
 ---
 
-### GET /api/v1/admin/venue-correction-requests
-
-> **Deprecated.** Admin venue correction is deprecated end-to-end. See
-> [`docs/architecture/venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md).
-
-Lists venue correction requests (admin only).
-
-**Authentication:** Required (Admin only)
-
-**Query Parameters:**
-
-- `status` (string, optional) - `pending` | `approved` | `rejected`
-
----
-
-### PATCH /api/v1/admin/venue-correction-requests/[id]
-
-> **Deprecated.** See GET admin venue-correction-requests note above.
-
-Approves or rejects a venue correction request (admin only).
-
-**Authentication:** Required (Admin only)
-
-**Request Body:**
-
-```json
-{
-  "action": "approve",
-  "adminNotes": "optional"
-}
-```
-
-`action` must be `approve` or `reject`.
+> **Removed:** The admin venue-correction-request endpoints
+> (`GET`/`PATCH /api/v1/admin/venue-correction-requests*`) have been **removed**
+> end-to-end. See
+> [`venue-correction-deprecation.md`](../architecture/venue-correction-deprecation.md).
 
 ---
 
@@ -4398,11 +4419,29 @@ Each item includes `id`, `name`, `status`, `startTimeUtc`, `endTimeUtc`,
 ### GET /api/v1/telemetry/sessions/[sessionId]
 
 Returns session metadata, `datasets[]` (type, `parquetRelativePath` when the run
-succeeded), `currentRun` summary, and `failure` `{ code, message }` when
-`status` is `failed`. User-facing `message` is derived from stable worker codes
-(see `src/core/telemetry/telemetry-failure-messages.ts`).
+succeeded), `laps[]`, `segments[]`, `currentRun` summary, and `failure`
+`{ code, message }` when `status` is `failed`. User-facing `message` is derived
+from stable worker codes (see
+`src/core/telemetry/telemetry-failure-messages.ts`).
 
 **Authentication:** Required
+
+### PATCH /api/v1/telemetry/sessions/[sessionId]
+
+Updates editable session fields. Accepts any of `name`, `livercEventId`,
+`livercRaceId`, `trackId`, `userSflLineGeoJson` (any may be set to `null` to
+clear). Returns the updated serialized session.
+
+**Authentication:** Required (owner)
+
+**Errors:** `404` (not found), `400` (`VALIDATION_ERROR` for unknown track or
+invalid LiveRC reference), `422` (invalid JSON body).
+
+### DELETE /api/v1/telemetry/sessions/[sessionId]
+
+Deletes the session (owner only). Returns `{ deleted: true }`.
+
+**Authentication:** Required (owner)
 
 ### GET /api/v1/telemetry/sessions/[sessionId]/map
 
@@ -4453,6 +4492,42 @@ valid.
 
 Full re-ingest for **READY** sessions. **429** when
 `TELEMETRY_REPROCESS_COOLDOWN_SEC` is violated.
+
+### POST /api/v1/telemetry/sessions/[sessionId]/retry
+
+Re-queues processing for a **FAILED** session (creates a new processing run).
+Returns `{ runId, sessionId }`.
+
+**Authentication:** Required (owner)
+
+**Errors:** `404` (not found), `400` (`VALIDATION_ERROR` when the session is not
+failed or has no upload artifact).
+
+### GET /api/v1/telemetry/sessions/[sessionId]/laps
+
+Lists detected laps (from Postgres) for the session's current run. Requires the
+session to be **READY** (`409 NOT_READY` otherwise). Each lap includes
+`lapNumber`, `startTimeUtc`, `endTimeUtc`, `durationMs`, `validity`, and
+`qualityScore`. Supports `ETag`/`If-None-Match` (`304`).
+
+**Authentication:** Required
+
+### GET /api/v1/telemetry/sessions/[sessionId]/quality
+
+Returns quality scores and reason codes from the last successful run
+(`pipelineVersion`, `fusionVersion`, `lapDetectorVersion`, `quality`,
+`rawQualitySummary`). Requires **READY** (`409 NOT_READY` otherwise). Supports
+`ETag`.
+
+**Authentication:** Required
+
+### GET /api/v1/telemetry/sessions/[sessionId]/coaching
+
+Returns heuristic coaching tips derived from the run quality summary and corner
+segments (`{ coaching: { tips, cornerSegmentCount, ... } }`). Requires **READY**
+(`409 NOT_READY` otherwise). Supports `ETag`.
+
+**Authentication:** Required
 
 ### PATCH /api/v1/admin/tracks/[trackId]
 
