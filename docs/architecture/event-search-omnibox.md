@@ -45,25 +45,28 @@ record is [ADR-20260601](../adr/ADR-20260601-event-search-omnibox-db-only.md).
    **track names** and **event names** simultaneously.
 2. **DB-only type-ahead.** The omnibox **suggestions** read exclusively from the
    MRE database (no LiveRC), so the dropdown stays fast.
-3. **Full search is unchanged.** Running a search (Search button, or selecting a
-   track) keeps all prior behaviour — including **LiveRC discovery when Search
-   LiveRC is on** (track + toggle on → DB **and** LiveRC events). LiveRC import
-   still lives in **Actions → Find and Import Events**.
+3. **Full search is explicit.** Only the **Search** button runs a full search
+   (including **LiveRC discovery when Search LiveRC is on**). Filter changes are
+   staged in the Filters popover until **Apply**; neither Apply nor track
+   selection triggers a search. LiveRC import still lives in **Actions → Find
+   and Import Events**.
 4. **Progressive disclosure.** Track Selection, Date Filter, Search LiveRC,
    Search Everlaps, and Include practice days collapse into a **Filters**
    popover, surfaced as a small icon + "Filters" label with an active-filter
    badge.
-5. **Reuse the pipeline.** Selecting a track from the omnibox runs the existing
-   `GET /api/v1/events/search` track-scoped query. No parallel search engine is
-   introduced for the results list.
+5. **Reuse the pipeline.** The Search button runs the existing
+   `GET /api/v1/events/search` track-scoped query (or browse when applicable).
+   No parallel search engine is introduced for the results list.
 6. **Browse with an empty omnibox (DB-only).** When the omnibox has fewer than 2
    characters and Search LiveRC / Include practice days are **off**, Search runs
    `GET /api/v1/events/browse` across **all tracks** (paginated, optional date
-   range, `laps_full` only). The track shown in Filters is **ignored** in this
-   mode; pick a track suggestion or type 2+ characters to scope by track
-   instead. **LiveRC discovery and practice discover never run without a
-   track.** Search LiveRC / practice toggles are disabled until a track is
-   selected.
+   range, **all catalogue rows** in the database — any `ingest_depth`). The
+   track shown in Filters is **ignored** in this mode; pick a track suggestion
+   or type 2+ characters to scope by track instead. **LiveRC discovery and
+   practice discover never run without a track.** Search LiveRC / practice
+   toggles are disabled until a track is selected. Track-scoped search with
+   Search LiveRC off still surfaces only `laps_full` events in the results
+   table.
 
 ---
 
@@ -144,6 +147,9 @@ GET /api/v1/events/browse?start_date=&end_date=&page=&page_size=&database_only=t
 - **Auth:** required.
 - **Pagination:** `page` (default 1), `page_size` (default 50, max 100).
 - **Dates:** optional; same validation rules as track search when provided.
+- **`database_only`:** when `true`, only `laps_full` rows are returned (legacy).
+  Empty-omnibox browse from the UI sends `database_only=false` so the paginated
+  list includes the full catalogue (`ingest_depth` `none` and `laps_full`).
 - **Response:** `{ events, total, page, page_size }` — each event includes
   `trackId` and `trackName`.
 - **Never calls LiveRC.**
@@ -166,9 +172,10 @@ GET /api/v1/events/browse?start_date=&end_date=&page=&page_size=&database_only=t
 - **Grouping:** Tracks first, then Events; each group labelled; keyboard arrow
   navigation crosses groups; `Enter` activates the highlighted item; `Escape`
   closes the dropdown.
-- **Selecting a track** → `onSelectTrack(track)`: the form sets the selected
-  track and immediately runs the search, honouring the current Filters toggles
-  (including LiveRC discovery when Search LiveRC is on).
+- **Selecting a track** → `onSelectTrack(track)`: the form sets the committed
+  selected track (summary updates). The user runs search with the **Search**
+  button, honouring committed Filters (including LiveRC when Search LiveRC is
+  on).
 - **Selecting an event** → `onSelectEvent(eventId)`: the container selects the
   event for the dashboard (same as the results-list "view" action) and the modal
   closes.

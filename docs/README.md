@@ -146,6 +146,27 @@ for performance rules. See
 [Ingestion Performance and Scaling](architecture/liverc-ingestion/13-ingestion-performance-and-scaling.md)
 for ingestion performance.
 
+### [Observability Platform Architecture](architecture/observability-platform.md)
+
+**Status:** Normative (proposed)  
+**Last Updated:** 2026-06-07
+
+Target observability stack for final release: OpenTelemetry instrumentation,
+third-party SaaS (Datadog default), Docker agent model, correlation, and
+migration from Alpha console/DB logging.
+
+**Related:** [Logging Architecture](architecture/logging.md),
+[ADR-20260607](adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md),
+[Implementation Plan](implimentation_plans/observability-platform-remediation-2026-06.md).
+
+### [Logging Architecture](architecture/logging.md)
+
+**Status:** Alpha (migrating)  
+**Last Updated:** 2026-06-07
+
+Next.js structured logging, client logger, request context, ApplicationLog
+persistence, and cross-service guidelines.
+
 ### [Car taxonomy and user car-type mapping](architecture/car-taxonomy-user-mapping.md)
 
 **Status:** Complete  
@@ -533,6 +554,23 @@ Guidelines as the authoritative standard for the MRE codebase.
 **Key Topics:** Context for mobile-safe architecture, decision rationale,
 consequences, alternatives considered.
 
+### [ADR-20260607: Adopt OpenTelemetry and observability platform](adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md)
+
+**Status:** Complete (ADR Status: Proposed)  
+**Last Updated:** 2026-06-07
+
+Documents the decision to adopt OpenTelemetry instrumentation and a third-party
+SaaS observability platform (Datadog recommended) for final release, while
+retaining Postgres `AuditLog` and demoting `ApplicationLog` volume in
+production.
+
+**Key Topics:** OTel, log shipping, error tracking, correlation, sampling,
+implementation phases.
+
+**Related:**
+[Observability Platform Architecture](architecture/observability-platform.md),
+[Implementation Plan](implimentation_plans/observability-platform-remediation-2026-06.md).
+
 ---
 
 ## Role Documentation
@@ -697,22 +735,41 @@ configuration.
 
 ### [Monitoring and Observability Guide](operations/observability-guide.md)
 
-**Status:** Complete  
-**Last Updated:** 2025-01-27
+**Status:** Complete (platform migration in progress)  
+**Last Updated:** 2026-06-07
 
 Comprehensive observability guide covering logging, metrics, tracing, alerting,
-dashboard setup, troubleshooting, and performance monitoring. Ensures consistent
-observability practices across the application.
+dashboard setup, troubleshooting, and performance monitoring.
 
-**Key Topics:** Logging standards, structured logging, metrics collection,
-tracing setup, alerting configuration, dashboard setup, troubleshooting
-workflows, performance monitoring.
+**Key Topics:** Current vs target observability stack, OpenTelemetry, SaaS
+platform (Datadog default), correlation IDs, implementation phase status.
 
-**Related:** See
-[Observability & Incident Response Lead Role](roles/observability-incident-response-lead.md)
-for role responsibilities. See
-[Ingestion Observability](architecture/liverc-ingestion/15-ingestion-observability.md)
-for ingestion-specific observability.
+**Related:**
+
+- [Observability Platform Architecture](architecture/observability-platform.md)
+- [Logging Architecture](architecture/logging.md)
+- [Observability Platform Setup Runbook](operations/observability-platform-setup-runbook.md)
+- [Observability Alerting Runbook](operations/observability-alerting-runbook.md)
+- [Implementation Plan](implimentation_plans/observability-platform-remediation-2026-06.md)
+- [ADR-20260607](adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md)
+- [Observability & Incident Response Lead Role](roles/observability-incident-response-lead.md)
+- [Ingestion Observability](architecture/liverc-ingestion/15-ingestion-observability.md)
+
+### [Observability Platform Setup Runbook](operations/observability-platform-setup-runbook.md)
+
+**Status:** Complete  
+**Last Updated:** 2026-06-07
+
+Step-by-step Datadog (default) or Grafana Cloud + Sentry setup for Docker
+Compose, including agent configuration, log pipelines, APM, and verification.
+
+### [Observability Alerting Runbook](operations/observability-alerting-runbook.md)
+
+**Status:** Complete  
+**Last Updated:** 2026-06-07
+
+Monitor definitions (P1–P4), Log Explorer queries, incident workflow, and SLO
+targets for production.
 
 ### [LiveRC Operations Guide](operations/liverc-operations-guide.md)
 

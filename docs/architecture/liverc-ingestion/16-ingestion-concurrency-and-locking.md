@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2025-01-27
+lastModified: 2026-06-02
 description: Concurrency control and locking mechanisms for ingestion operations
 purpose:
   Defines concurrency, locking, and mutual-exclusion guarantees for the LiveRC
@@ -17,6 +17,17 @@ relatedFiles:
 ---
 
 # 16. Ingestion Concurrency and Locking
+
+> **Remediation in progress (2026-06-02):** False `INGESTION_IN_PROGRESS` from
+> **leaked PostgreSQL advisory locks** on pooled connections is documented in
+> [ingestion-advisory-lock-investigation-2026-06-02.md](../../reviews/ingestion-advisory-lock-investigation-2026-06-02.md).
+> Target behaviour after fix:
+> [32-ingestion-advisory-lock-lifecycle.md](./32-ingestion-advisory-lock-lifecycle.md).
+> Implementation plan:
+> [ingestion-advisory-lock-remediation-2026-06.md](../../implimentation_plans/ingestion-advisory-lock-remediation-2026-06.md).
+> Ops recovery:
+> [ingestion-lock-recovery-runbook.md](../../operations/ingestion-lock-recovery-runbook.md).
+> **§5.2 below is outdated** until that plan Phase 5 is complete.
 
 This document defines the concurrency, locking, and mutual-exclusion guarantees
 required for the LiveRC ingestion subsystem in My Race Engineer (MRE).
@@ -100,16 +111,17 @@ pool** via `asyncio.to_thread()` to overlap with I/O. SQLAlchemy sessions are
 concurrent operations are not permitted" and silent race skips:
 
 - The pipeline builds a **plain-dict** cache of event entries (by class name)
-  with only the fields needed for matching: `id`, `driver_id`, `source_driver_id`,
-  `display_name`. This cache is passed into the thread pool.
-- Driver matching in worker threads uses `DriverMatcher.match_race_result_to_event_entry_plain()`
-  and only touches these plain dicts—no ORM objects or session access in workers.
+  with only the fields needed for matching: `id`, `driver_id`,
+  `source_driver_id`, `display_name`. This cache is passed into the thread pool.
+- Driver matching in worker threads uses
+  `DriverMatcher.match_race_result_to_event_entry_plain()` and only touches
+  these plain dicts—no ORM objects or session access in workers.
 - The main thread keeps an `event_entry_by_id` map (id → `EventEntry`). After
   CPU work returns, the pipeline resolves the matched plain dict back to the
   `EventEntry` in the main thread before any DB writes.
 
-ORM objects must not be passed into worker threads; only plain data may be
-used there.
+ORM objects must not be passed into worker threads; only plain data may be used
+there.
 
 ---
 

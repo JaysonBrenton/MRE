@@ -20,6 +20,7 @@
 
 import { useState } from "react"
 import EventRow, { type Event } from "./EventRow"
+import EventSearchResultsTable from "./EventSearchResultsTable"
 import EventSearchTableHeader, {
   type SortField,
   type SortDirection,
@@ -47,6 +48,7 @@ export interface EventTableProps {
   importDisabled?: boolean
   /** Persisted set of event ids we've seen as fully imported; used so after reopen we show "Ready" if API returns stale/empty ingest_depth */
   knownImportedIds?: Set<string>
+  onViewImportError?: (event: Event) => void
 }
 
 export default function EventTable({
@@ -62,6 +64,7 @@ export default function EventTable({
   eventImportProgress = {},
   onSelectForDashboard,
   importDisabled = false,
+  onViewImportError,
 }: EventTableProps) {
   const [sortField, setSortField] = useState<SortField>("date")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
@@ -223,15 +226,16 @@ export default function EventTable({
   }
 
   return (
-    <div className="w-full min-w-0">
-      <EventSearchTableHeader
-        sortField={sortField}
-        sortDirection={sortDirection}
-        onSort={handleSort}
-      />
-
-      {/* Event List */}
-      <div className="divide-y divide-[var(--token-border-default)]">
+    <EventSearchResultsTable
+      header={
+        <EventSearchTableHeader
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+        />
+      }
+    >
+      <>
         {sortedEvents.map((event) => {
           // Check driver participation: for LiveRC events use sourceEventId, for DB events use eventId
           const containsDriver = event.id.startsWith("liverc-")
@@ -250,10 +254,11 @@ export default function EventTable({
               importProgress={getImportProgressForEvent(event)}
               onSelectForDashboard={onSelectForDashboard}
               importDisabled={importDisabled}
+              onViewImportError={onViewImportError ? () => onViewImportError(event) : undefined}
             />
           )
         })}
-      </div>
-    </div>
+      </>
+    </EventSearchResultsTable>
   )
 }

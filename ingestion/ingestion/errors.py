@@ -180,14 +180,29 @@ class StateMachineError(IngestionError):
 
 class IngestionInProgressError(StateMachineError):
     """Ingestion is already running for this event."""
-    
-    def __init__(self, event_id: str):
+
+    def __init__(
+        self,
+        event_id: str,
+        *,
+        hint: Optional[str] = None,
+        active_job_id: Optional[str] = None,
+        source_event_id: Optional[str] = None,
+    ):
+        details: Dict[str, Any] = {}
+        if hint:
+            details["hint"] = hint
+        if active_job_id:
+            details["active_job_id"] = active_job_id
+        if source_event_id:
+            details["source_event_id"] = source_event_id
         super().__init__(
             f"Ingestion already in progress for event {event_id}",
             requested_state="laps_full",
-            event_id=event_id
+            event_id=event_id,
         )
         self.code = "INGESTION_IN_PROGRESS"
+        self.details.update(details)
 
 
 class IngestionTimeoutError(IngestionError):

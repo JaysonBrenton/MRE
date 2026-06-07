@@ -138,6 +138,25 @@ def test_parse_lap_data_invalid_html(parser):
         parser.parse("<html><body>No racerLaps here</body></html>", url, driver_id)
 
 
+def test_parse_lap_data_apostrophe_driver_name(parser):
+    """JS-escaped apostrophe in driverName must not break lap extraction."""
+    html = """
+    <html><body>
+    racerLaps[768048] = {
+        'driverName' : 'MATTHEW O\\'LOUGHLIN',
+        'laps': [
+            { 'lapNum': '0', 'pos': '1', 'time': '0', 'pace': '0', 'segments': [] },
+            { 'lapNum': '1', 'pos': '1', 'time': '40.5', 'pace': '0', 'segments': [] },
+        ]
+    };
+    </body></html>
+    """
+    url = "https://canberraoffroad.liverc.com/results/?p=view_race_result&id=6304825"
+    laps = parser.parse(html, url, "768048")
+    assert len(laps) == 1
+    assert laps[0].lap_number == 1
+
+
 def test_extract_racer_laps_extra_stats_top2_consecutive(parser):
     """Top 2 consecutive from racerLaps JS is merged into raw_fields_json at ingest."""
     html = """

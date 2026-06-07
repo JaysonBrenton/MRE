@@ -83,6 +83,24 @@ _INGESTION_LOCK_TIMEOUTS = Counter(
     registry=REGISTRY,
 )
 
+_ADVISORY_LOCK_ACQUIRE_CONFLICTS = Counter(
+    "ingestion_advisory_lock_acquire_conflicts_total",
+    "pg_try_advisory_lock returned false (lock held elsewhere)",
+    registry=REGISTRY,
+)
+
+_ADVISORY_LOCK_RELEASE_FAILURES = Counter(
+    "ingestion_advisory_lock_release_failures_total",
+    "pg_advisory_unlock did not release or release path failed",
+    registry=REGISTRY,
+)
+
+_ADVISORY_LOCK_LEAKED_SUSPECTED = Counter(
+    "ingestion_advisory_lock_leaked_suspected_total",
+    "Lock conflict with no active queue job (stale pooled lock suspected)",
+    registry=REGISTRY,
+)
+
 _SITE_POLICY_EVENTS = Counter(
     "site_policy_events_total",
     "Counts site policy decisions (cache hits, robots blocks, disabled, etc.)",
@@ -255,6 +273,21 @@ def record_lock_timeout(event_id: str, stage: str) -> None:
     _INGESTION_LOCK_TIMEOUTS.labels(event_id=event_id, stage=stage).inc()
 
 
+def record_advisory_lock_acquire_conflict() -> None:
+    """Record pg_try_advisory_lock returning false."""
+    _ADVISORY_LOCK_ACQUIRE_CONFLICTS.inc()
+
+
+def record_advisory_lock_release_failure() -> None:
+    """Record verified advisory lock release failure."""
+    _ADVISORY_LOCK_RELEASE_FAILURES.inc()
+
+
+def record_advisory_lock_leaked_suspected() -> None:
+    """Record lock conflict with no active ingestion job."""
+    _ADVISORY_LOCK_LEAKED_SUSPECTED.inc()
+
+
 class _DurationTracker:
     """Helper that records elapsed time when finished."""
 
@@ -358,6 +391,9 @@ __all__ = [
     "record_event_entry_cache_hit",
     "record_event_entry_cache_lookup",
     "record_lock_timeout",
+    "record_advisory_lock_acquire_conflict",
+    "record_advisory_lock_release_failure",
+    "record_advisory_lock_leaked_suspected",
     "record_practice_day_discovery",
     "record_practice_day_ingestion",
     "start_race_fetch_timer",

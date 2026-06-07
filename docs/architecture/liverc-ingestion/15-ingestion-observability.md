@@ -1,16 +1,22 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-31
+lastModified: 2026-06-07
 description: Observability model for LiveRC ingestion subsystem monitoring
 purpose:
   Specifies the full observability model including logging, metrics, tracing,
   and alerting for the LiveRC ingestion subsystem. Ensures predictability,
   debuggability, and long-term operational stability.
 relatedFiles:
+  - docs/adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md
+  - docs/architecture/observability-platform.md
+  - docs/architecture/observability-log-schema.md
+  - docs/architecture/observability-correlation-and-tracing.md
+  - docs/architecture/observability-sampling-retention-and-privacy.md
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/03-ingestion-pipeline.md
   - docs/architecture/liverc-ingestion/20-ingestion-replay-and-debugging.md
+  - docs/operations/observability-alerting-runbook.md
   - docs/roles/observability-incident-response-lead.md
   - docs/specs/mre-v0.1-feature-scope.md
 ---
@@ -39,6 +45,14 @@ Observability covers four pillars:
 3. Tracing
 4. Artefacts and diagnostics (fixtures, snapshots, error dumps)
 
+**Platform-wide observability (SaaS, OTel, correlation):** See
+[observability-platform.md](../observability-platform.md) and
+[ADR-20260607](../../adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md).
+Canonical JSON field names:
+[observability-log-schema.md](../observability-log-schema.md). Production
+sampling:
+[observability-sampling-retention-and-privacy.md](../observability-sampling-retention-and-privacy.md).
+
 ---
 
 ## 1. Structured Logging
@@ -46,19 +60,28 @@ Observability covers four pillars:
 Ingestion MUST use structured, machine-parseable JSON logs.  
 No plain text logging is permitted in production ingestion.
 
+Implementation: `ingestion/common/logging.py` (structlog).
+
 ### 1.1 Log Shape
 
-Each ingestion log entry MUST include:
+Each ingestion log entry MUST conform to
+[observability-log-schema.md](../observability-log-schema.md). Minimum ingestion
+fields:
 
-- timestamp (UTC)
-- subsystem: "liverc_ingestion"
-- event_id (or null)
-- track_id (or null)
-- ingestion_stage (fetch_event_page, parse_event, fetch_race_page, parse_laps,
-  persist_race, etc)
-- severity (info, warn, error)
-- message (short reason)
-- details (object containing diagnostic values)
+- `timestamp` (UTC ISO 8601)
+- `level` (`info`, `warn`, `error`)
+- `message` (stable event name — see §1.2)
+- `service`: `liverc-ingestion` or `telemetry-worker`
+- `ingestion.subsystem`: `liverc_ingestion`
+- `ingestion.event_id` (or null)
+- `ingestion.track_id` (or null)
+- `ingestion.stage` (see schema doc enum)
+- `request_id`, `trace_id`, `span_id` when in HTTP or job context (target —
+  Phase 1)
+- `error.code`, `error.message`, `error.stack` on failures
+
+Legacy structlog keys (`event_id`, `ingestion_stage`) MUST be normalised to
+schema names during observability Phase 2.
 
 ### 1.2 Lifecycle Events
 
@@ -145,17 +168,28 @@ Metrics MUST be:
 - deterministic in naming
 - stable across ingestion runs
 
+Metrics are recorded in-process via `ingestion/common/metrics.py` (Prometheus
+client). **Target:** expose `GET /metrics` on the FastAPI app and scrape via the
+observability agent (Datadog OpenMetrics or Grafana Alloy). High-cardinality
+labels (`event_id`, `race_id`) MUST be removed from exported metric labels per
+[observability-sampling-retention-and-privacy.md](../observability-sampling-retention-and-privacy.md).
+
 Metrics MAY be aggregated or exported to:
 
-- Prometheus
+- Prometheus (via `/metrics` — target Phase 3)
 - OpenTelemetry Metrics
-- or simple in-process counters for V1
+- Datadog / Grafana Cloud via agent scrape
 
 ---
 
 ## 3. Tracing (Cause-Effect Observability)
 
-Distributed tracing is optional but recommended.
+**Current:** Log-based spans in `ingestion/common/tracing.py`
+(`trace_span_start`, `trace_span_end`).
+
+**Target (required for final release):** OpenTelemetry spans with W3C Trace
+Context propagation from `mre-app`. Spec:
+[observability-correlation-and-tracing.md](../observability-correlation-and-tracing.md).
 
 If tracing is enabled:
 
@@ -338,12 +372,12 @@ MRE ingestion aims for the following levels:
 - clear error logs
 - ingestion status fields
 
-### Level 2 (Recommended Soon)
+### Level 2 (Recommended Soon — observability platform Phase 2–3)
 
-- Grafana dashboards for ingestion performance
+- SaaS dashboards for ingestion performance (Datadog or Grafana Cloud)
 - connector error heatmaps
-- ingestion trace timelines
-- per-race latency histograms
+- ingestion trace timelines (OTel APM)
+- per-race latency in traces/logs (not high-cardinality metric labels)
 
 ### Level 3 (Future)
 

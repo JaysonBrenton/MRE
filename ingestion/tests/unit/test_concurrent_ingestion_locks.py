@@ -73,8 +73,8 @@ async def test_ingest_by_source_id_raises_when_source_event_lock_not_acquired():
 
     # Simulate "lock already held" by another process/request
     with patch(
-        "ingestion.ingestion.pipeline.Repository.acquire_source_event_lock",
-        return_value=False,
+        "ingestion.ingestion.pipeline.advisory_lock.try_acquire",
+        return_value=None,
     ):
         with pytest.raises(IngestionInProgressError) as exc_info:
             await pipeline.ingest_event_by_source_id(
@@ -87,35 +87,25 @@ async def test_ingest_by_source_id_raises_when_source_event_lock_not_acquired():
     assert exc_info.value.code == "INGESTION_IN_PROGRESS"
 
 
-def test_release_event_lock_safely_rolls_back_and_retries():
+def test_release_event_lock_safely_delegates_to_advisory_lock_release():
     pipeline = IngestionPipeline()
-    fake_session = _FakeSession()
     repo = MagicMock()
-    repo.session = fake_session
-    repo.release_event_lock.side_effect = [Exception("tx aborted"), None]
+    event_id = UUID("00000000-0000-0000-0000-000000000001")
+    handle = MagicMock()
 
-    pipeline._release_event_lock_safely(
-        repo=repo,
-        event_id=UUID("00000000-0000-0000-0000-000000000001"),
-    )
+    with patch("ingestion.ingestion.pipeline.advisory_lock.release", return_value=True) as release:
+        pipeline._release_event_lock_safely(repo=repo, event_id=event_id, handle=handle)
 
-    assert fake_session.rollback_calls == 1
-    assert fake_session.invalidate_calls == 0
-    assert repo.release_event_lock.call_count == 2
+    release.assert_called_once_with(repo.session, handle)
 
 
-def test_release_event_lock_safely_invalidates_if_retry_fails():
+def test_release_event_lock_safely_builds_handle_when_missing():
     pipeline = IngestionPipeline()
-    fake_session = _FakeSession()
     repo = MagicMock()
-    repo.session = fake_session
-    repo.release_event_lock.side_effect = [Exception("tx aborted"), Exception("still aborted")]
+    event_id = UUID("00000000-0000-0000-0000-000000000002")
 
-    with pytest.raises(Exception):
-        pipeline._release_event_lock_safely(
-            repo=repo,
-            event_id=UUID("00000000-0000-0000-0000-000000000002"),
-        )
+    with patch("ingestion.ingestion.pipeline.advisory_lock.release", return_value=True) as release:
+        pipeline._release_event_lock_safely(repo=repo, event_id=event_id)
 
-    assert fake_session.rollback_calls == 1
-    assert fake_session.invalidate_calls == 1
+    handle = release.call_args[0][1]
+    assert handle.key == f"event:{event_id}"

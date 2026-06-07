@@ -101,10 +101,14 @@ export default function DateRangePresetPicker({
 
   const handlePresetClick = (value: DateRangePreset) => {
     onPresetChange(value)
-    if (value === "custom") {
+    if (value === "none") {
+      onStartDateChange("")
+      onEndDateChange("")
+      setLocalStart("")
+      setLocalEnd("")
       return
     }
-    if (value !== "none") {
+    if (value !== "custom") {
       const range = getRangeForPreset(value)
       onStartDateChange(range.startDate)
       onEndDateChange(range.endDate)

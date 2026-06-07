@@ -18,14 +18,19 @@
 
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import TrackSelectionModal from "./TrackSelectionModal"
 import { type Track } from "./TrackRow"
 import { type DateRangePreset, PRESETS as DATE_RANGE_PRESETS } from "./DateRangePresetPicker"
 import DateRangeModal from "./DateRangeModal"
 import MonthYearPicker from "../practice-days/MonthYearPicker"
 import EventSearchOmnibox from "./EventSearchOmnibox"
-import EventSearchFilters from "./EventSearchFilters"
+import EventSearchFilters, { type EventSearchFilterDraft } from "./EventSearchFilters"
+import {
+  applyDatePresetToDraft,
+  buildCommittedFilterDraft,
+  dateFilterSummaryFromDraft,
+} from "./event-search-filter-draft"
 import { Search } from "lucide-react"
 import Button from "@/components/atoms/Button"
 import { clientLogger } from "@/lib/client-logger"
@@ -67,13 +72,14 @@ export interface EventSearchFormProps {
   onPracticeMonthChange?: (month: number) => void
   /** When true, event search also includes practice days in the same list (events mode only) */
   includePracticeDays?: boolean
-  onIncludePracticeDaysChange?: (checked: boolean) => void
   /** When true, the full search queries LiveRC as well as the database */
   includeLiveRC?: boolean
-  onIncludeLiveRCChange?: (checked: boolean) => void
   /** When true, the full search will include Everlaps (pipeline not yet implemented) */
   includeEverlaps?: boolean
-  onIncludeEverlapsChange?: (checked: boolean) => void
+  /** Commits staged source toggles from the Filters popover. */
+  onApplyFilters: (draft: EventSearchFilterDraft) => void
+  /** Resets committed filters to defaults (toggles + date range). */
+  onClearFilters: () => void
   /** When true, Search is allowed without a selected track (database browse only). */
   canSearchWithoutTrack?: boolean
   /** True after a cross-track browse (omnibox empty); used for summary copy. */
@@ -106,11 +112,10 @@ export default function EventSearchForm({
   onPracticeYearChange,
   onPracticeMonthChange,
   includePracticeDays = false,
-  onIncludePracticeDaysChange,
   includeLiveRC = false,
-  onIncludeLiveRCChange,
   includeEverlaps = false,
-  onIncludeEverlapsChange,
+  onApplyFilters,
+  onClearFilters,
   canSearchWithoutTrack = false,
   isGlobalBrowse = false,
   onOmniboxQueryChange,
@@ -125,9 +130,37 @@ export default function EventSearchForm({
   const [isDateRangeModalOpen, setIsDateRangeModalOpen] = useState(false)
   const trackErrorId = errors?.track ? "track-selector-error" : undefined
 
+  const committedFilterDraft = useMemo(
+    () =>
+      buildCommittedFilterDraft({
+        selectedTrack,
+        dateRangePreset,
+        startDate,
+        endDate,
+        includeLiveRC,
+        includeEverlaps,
+        includePracticeDays,
+      }),
+    [
+      selectedTrack,
+      dateRangePreset,
+      startDate,
+      endDate,
+      includeLiveRC,
+      includeEverlaps,
+      includePracticeDays,
+    ]
+  )
+
+  const [filterDraft, setFilterDraft] = useState<EventSearchFilterDraft>(committedFilterDraft)
+
   const handleTrackPicked = (track: Track) => {
-    onTrackSelect(track)
+    setFilterDraft((prev) => ({ ...prev, selectedTrack: track }))
     setIsTrackModalOpen(false)
+  }
+
+  const syncFilterDraftFromCommitted = () => {
+    setFilterDraft(committedFilterDraft)
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -169,20 +202,20 @@ export default function EventSearchForm({
           month: "long",
           year: "numeric",
         })
-      : (() => {
-          const baseLabel =
-            DATE_RANGE_PRESETS.find((p) => p.value === dateRangePreset)?.label ?? "—"
-          if (dateRangePreset === "custom" && startDate && endDate) {
-            const range = formatCustomRangeSummary(startDate, endDate)
-            return range ? `${baseLabel} (${range})` : baseLabel
-          }
-          return baseLabel
-        })()
+      : dateFilterSummaryFromDraft(
+          committedFilterDraft,
+          formatCustomRangeSummary,
+          DATE_RANGE_PRESETS
+        )
 
-  const trackSummary = isGlobalBrowse
-    ? "all tracks (database)"
-    : (selectedTrack?.trackName ??
-      (canSearchWithoutTrack ? "all tracks (database)" : "none selected"))
+  const draftDateFilterSummary =
+    searchMode === "events"
+      ? dateFilterSummaryFromDraft(filterDraft, formatCustomRangeSummary, DATE_RANGE_PRESETS)
+      : dateFilterSummary
+
+  const trackSummary =
+    selectedTrack?.trackName ??
+    (isGlobalBrowse || canSearchWithoutTrack ? "all tracks (database)" : "none selected")
   const compactSummary =
     searchMode === "events"
       ? `Track: ${trackSummary} · ${dateFilterSummary}`
@@ -190,7 +223,7 @@ export default function EventSearchForm({
 
   /** Non-default filters surfaced as a badge on the Filters button. */
   const activeFilterCount =
-    (searchMode === "events" && dateRangePreset !== "last12" ? 1 : 0) +
+    (searchMode === "events" && dateRangePreset !== "none" ? 1 : 0) +
     (searchMode === "events" && includePracticeDays ? 1 : 0) +
     (searchMode === "events" && includeLiveRC ? 1 : 0) +
     (searchMode === "events" && includeEverlaps ? 1 : 0)
@@ -223,7 +256,6 @@ export default function EventSearchForm({
               <EventSearchOmnibox
                 onSelectTrack={(track) => {
                   onTrackSelect(track)
-                  onSearch(track)
                 }}
                 onSelectEvent={(eventId) => onSelectEvent?.(eventId)}
                 onQueryChange={onOmniboxQueryChange}
@@ -233,25 +265,23 @@ export default function EventSearchForm({
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <EventSearchFilters
-                selectedTrack={selectedTrack}
-                dateFilterSummary={dateFilterSummary}
+                draft={filterDraft}
+                committedDraft={committedFilterDraft}
+                onDraftChange={setFilterDraft}
+                draftDateFilterSummary={draftDateFilterSummary}
                 showDateFilter={searchMode === "events" && !!onDateRangePresetChange}
                 onOpenTrackModal={() => setIsTrackModalOpen(true)}
                 onOpenDateModal={() => setIsDateRangeModalOpen(true)}
-                includePracticeDays={includePracticeDays}
-                onIncludePracticeDaysChange={onIncludePracticeDaysChange}
-                showPracticeToggle={
-                  searchMode === "events" && practiceDaysEnabled && !!onIncludePracticeDaysChange
-                }
-                includeLiveRC={includeLiveRC}
-                onIncludeLiveRCChange={onIncludeLiveRCChange}
-                showLiveRCToggle={searchMode === "events" && !!onIncludeLiveRCChange}
-                includeEverlaps={includeEverlaps}
-                onIncludeEverlapsChange={onIncludeEverlapsChange}
-                showEverlapsToggle={searchMode === "events" && !!onIncludeEverlapsChange}
+                showPracticeToggle={searchMode === "events" && practiceDaysEnabled}
+                showLiveRCToggle={searchMode === "events"}
+                showEverlapsToggle={searchMode === "events"}
+                onApplyFilters={onApplyFilters}
+                onClearFilters={onClearFilters}
                 activeFilterCount={activeFilterCount}
                 disabled={isLoading}
                 trackErrorId={trackErrorId}
+                suppressOutsideClose={isTrackModalOpen || isDateRangeModalOpen}
+                onPopoverOpen={syncFilterDraftFromCommitted}
               />
 
               <div className="inline-flex shrink-0 items-center gap-3">
@@ -298,12 +328,11 @@ export default function EventSearchForm({
         </div>
 
         {/* When: Month-Year (practice days mode) */}
-        <div className="space-y-4" role="group">
-          {/* Month/Year Picker - For practice days */}
-          {searchMode === "practice-days" &&
-            practiceDaysEnabled &&
-            onPracticeYearChange &&
-            onPracticeMonthChange && (
+        {searchMode === "practice-days" &&
+          practiceDaysEnabled &&
+          onPracticeYearChange &&
+          onPracticeMonthChange && (
+            <div className="space-y-4" role="group">
               <div className="transition-all duration-200">
                 <MonthYearPicker
                   year={defaultYear}
@@ -317,8 +346,8 @@ export default function EventSearchForm({
                   required={true}
                 />
               </div>
-            )}
-        </div>
+            </div>
+          )}
       </form>
 
       <TrackSelectionModal
@@ -328,7 +357,7 @@ export default function EventSearchForm({
         onClose={() => setIsTrackModalOpen(false)}
         onSelect={handleTrackPicked}
         onToggleFavourite={onToggleFavourite}
-        selectedTrack={selectedTrack}
+        selectedTrack={filterDraft.selectedTrack ?? selectedTrack}
       />
 
       {/* Date range modal (Events mode) */}
@@ -336,12 +365,18 @@ export default function EventSearchForm({
         <DateRangeModal
           isOpen={isDateRangeModalOpen}
           onClose={() => setIsDateRangeModalOpen(false)}
-          preset={dateRangePreset}
-          startDate={startDate}
-          endDate={endDate}
-          onPresetChange={onDateRangePresetChange}
-          onStartDateChange={onStartDateChange}
-          onEndDateChange={onEndDateChange}
+          preset={filterDraft.dateRangePreset}
+          startDate={filterDraft.startDate}
+          endDate={filterDraft.endDate}
+          onPresetChange={(preset) => {
+            setFilterDraft((prev) => applyDatePresetToDraft(prev, preset))
+          }}
+          onStartDateChange={(date) => {
+            setFilterDraft((prev) => ({ ...prev, startDate: date }))
+          }}
+          onEndDateChange={(date) => {
+            setFilterDraft((prev) => ({ ...prev, endDate: date }))
+          }}
           errors={errors}
           disabled={isLoading}
         />

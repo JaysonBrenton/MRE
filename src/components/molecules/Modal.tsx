@@ -66,6 +66,8 @@ export interface ModalProps {
    * layout and filling the viewport. Opt-in so most modals keep the default behavior.
    */
   doubleClickHeaderFullscreen?: boolean
+  /** Backdrop stacking order; use {@link NESTED_MODAL_OVERLAY_Z_INDEX} above another open dialog. */
+  overlayZIndex?: number
 }
 
 // Use shared modal styles utility to ensure consistency
@@ -109,6 +111,7 @@ export default function Modal({
   resizable = true,
   doubleClickHeaderFullscreen = false,
   resizableDefaultSize,
+  overlayZIndex = MODAL_PORTAL_Z_INDEX,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -258,7 +261,7 @@ export default function Modal({
       role="dialog"
       aria-modal="true"
       aria-labelledby={ariaLabel || "modal-title"}
-      style={{ minWidth: 0, zIndex: MODAL_PORTAL_Z_INDEX }}
+      style={{ minWidth: 0, zIndex: overlayZIndex }}
     >
       <div
         ref={modalRef}

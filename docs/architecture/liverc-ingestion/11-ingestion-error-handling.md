@@ -286,6 +286,18 @@ Required behaviour:
 - Caller receives state_machine or INGESTION_IN_PROGRESS error.
 - Logs contain event_id and requested depth.
 
+#### 5.7.1 `INGESTION_IN_PROGRESS` (409) — overlap vs stale lock
+
+| Cause                   | How to tell                                                                        | User action                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Live overlap**        | In-process job `queued`/`running`; logs show `ingestion_start` for same `event_id` | Wait; poll job status                                                                          |
+| **Stale advisory lock** | No active job; `pg_locks` shows advisory locks on **idle** backends                | Ops: [ingestion-lock-recovery-runbook.md](../../operations/ingestion-lock-recovery-runbook.md) |
+
+Target handling after remediation:
+[32-ingestion-advisory-lock-lifecycle.md](./32-ingestion-advisory-lock-lifecycle.md).
+Investigation:
+[ingestion-advisory-lock-investigation-2026-06-02.md](../../reviews/ingestion-advisory-lock-investigation-2026-06-02.md).
+
 ---
 
 ## 6. Logging Standards

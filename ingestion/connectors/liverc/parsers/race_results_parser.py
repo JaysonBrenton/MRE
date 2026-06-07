@@ -200,12 +200,16 @@ class RaceResultsParser:
         driver_name_to_id = {}
         
         # Extract racerLaps JavaScript variable
-        pattern = r'racerLaps\[(\d+)\]\s*=\s*\{[^}]*\'driverName\'\s*:\s*\'([^\']+)\''
+        pattern = (
+            r"racerLaps\[(\d+)\]\s*=\s*\{[^}]*"
+            r"'driverName'\s*:\s*'((?:[^'\\]|\\.)+)'"
+        )
         matches = re.finditer(pattern, html, re.MULTILINE | re.DOTALL)
         
         for match in matches:
             driver_id = match.group(1)
-            driver_name = match.group(2).strip().upper()
+            raw_name = match.group(2).replace("\\'", "'").replace("\\\\", "\\")
+            driver_name = raw_name.strip().upper()
             if driver_name:
                 driver_name_to_id[driver_name] = driver_id
         

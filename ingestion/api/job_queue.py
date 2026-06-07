@@ -150,6 +150,16 @@ _job_retention_seconds = int(os.getenv("INGESTION_QUEUE_JOB_TTL_SECONDS", "3600"
 _workers_started = False
 
 
+def get_active_job_for_source(source_event_id: str, track_id: str) -> Job | None:
+    """Return queued/running by-source job for the same LiveRC event + track, if any."""
+    return _active_job_for_source(source_event_id, track_id)
+
+
+def get_active_job_for_event_id(event_id: str) -> Job | None:
+    """Return queued/running by-event-id job for the same DB event, if any."""
+    return _active_job_for_event_id(event_id)
+
+
 def _active_job_for_source(source_event_id: str, track_id: str) -> Job | None:
     """Return queued/running by-source job for the same LiveRC event + track, if any."""
     for job in _job_store.values():

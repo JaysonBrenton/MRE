@@ -2511,38 +2511,48 @@ class Repository:
     
     def _compute_lock_id(self, key: str) -> int:
         """Compute a deterministic advisory lock ID from a string key."""
-        hash_bytes = hashlib.sha256(key.encode('utf-8')).digest()
-        return int.from_bytes(hash_bytes[:8], byteorder='big') % (2**31)
+        from ingestion.db import advisory_lock
+
+        return advisory_lock.compute_lock_id(key)
 
     def acquire_event_lock(self, event_id: UUID) -> bool:
         """Acquire advisory lock scoped to a specific event."""
-        lock_id = self._compute_lock_id(f"event:{event_id}")
-        result = self.session.execute(
-            text("SELECT pg_try_advisory_lock(:lock_id)").bindparams(lock_id=lock_id)
-        ).scalar()
-        return bool(result)
+        from ingestion.db import advisory_lock
+
+        return advisory_lock.try_acquire(self.session, f"event:{event_id}") is not None
 
     def release_event_lock(self, event_id: UUID) -> None:
-        """Release the event-scoped advisory lock."""
-        lock_id = self._compute_lock_id(f"event:{event_id}")
-        self.session.execute(
-            text("SELECT pg_advisory_unlock(:lock_id)").bindparams(lock_id=lock_id)
+        """Release the event-scoped advisory lock (legacy; prefer advisory_lock.release)."""
+        from ingestion.db import advisory_lock
+
+        key = f"event:{event_id}"
+        handle = advisory_lock.AdvisoryLockHandle(
+            lock_id=advisory_lock.compute_lock_id(key),
+            backend_pid=0,
+            key=key,
         )
+        advisory_lock.release(self.session, handle)
 
     def acquire_source_event_lock(self, source_event_id: str) -> bool:
         """Acquire advisory lock scoped to a source_event_id (pre-event creation)."""
-        lock_id = self._compute_lock_id(f"source_event:{source_event_id}")
-        result = self.session.execute(
-            text("SELECT pg_try_advisory_lock(:lock_id)").bindparams(lock_id=lock_id)
-        ).scalar()
-        return bool(result)
+        from ingestion.db import advisory_lock
+
+        return (
+            advisory_lock.try_acquire(self.session, f"source_event:{source_event_id}")
+            is not None
+        )
 
     def release_source_event_lock(self, source_event_id: str) -> None:
-        """Release the advisory lock for a source_event_id."""
-        lock_id = self._compute_lock_id(f"source_event:{source_event_id}")
-        self.session.execute(
-            text("SELECT pg_advisory_unlock(:lock_id)").bindparams(lock_id=lock_id)
+        """Release the advisory lock for a source_event_id (legacy)."""
+        from ingestion.db import advisory_lock
+
+        key = f"source_event:{source_event_id}"
+        handle = advisory_lock.AdvisoryLockHandle(
+            lock_id=advisory_lock.compute_lock_id(key),
+            backend_pid=0,
+            key=key,
         )
+        advisory_lock.release(self.session, handle)
     
     def get_all_users(self) -> List[User]:
         """

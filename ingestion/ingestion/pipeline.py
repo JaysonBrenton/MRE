@@ -22,7 +22,6 @@ import asyncio
 import math
 import os
 import re
-import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, date
@@ -56,8 +55,13 @@ from ingestion.db.models import (
     Track,
 )
 from ingestion.ingestion.practice_driver_identity import get_practice_source_driver_id
+from ingestion.db import advisory_lock
 from ingestion.db.repository import Repository
 from ingestion.db.session import db_session
+from ingestion.ingestion.lock_conflict import (
+    raise_event_lock_conflict,
+    raise_source_lock_conflict,
+)
 from sqlalchemy import select, and_, func
 from ingestion.ingestion.errors import (
     IngestionInProgressError,
@@ -205,114 +209,37 @@ class IngestionPipeline:
         # The activity_lock in monitor_activity() ensures safe concurrent access
         self._last_activity_time = time.time()
 
-    def _release_event_lock_safely(self, repo: Repository, event_id: UUID) -> None:
-        """
-        Release event-scoped advisory lock with recovery when transaction state is aborted.
-
-        Advisory locks are connection-scoped. If unlock is attempted while the session is in
-        an aborted transaction, Postgres rejects the command and the lock can remain attached
-        to the pooled connection. We recover by rollback + retry, then invalidate the
-        connection as a final safety valve to force backend disconnect (which drops locks).
-        """
-        pending_exception = sys.exc_info()[0] is not None
-        try:
-            repo.release_event_lock(event_id)
-            return
-        except Exception as exc:
-            logger.error(
-                "lock_release_failed",
-                event_id=str(event_id),
-                error=str(exc),
-                exc_info=True,
+    def _release_event_lock_safely(
+        self,
+        repo: Repository,
+        event_id: UUID,
+        handle: Optional[advisory_lock.AdvisoryLockHandle] = None,
+    ) -> None:
+        """Release event lock via verified advisory_lock.release."""
+        if handle is None:
+            key = f"event:{event_id}"
+            handle = advisory_lock.AdvisoryLockHandle(
+                lock_id=advisory_lock.compute_lock_id(key),
+                backend_pid=0,
+                key=key,
             )
+        advisory_lock.release(repo.session, handle)
 
-        try:
-            repo.session.rollback()
-        except Exception as rollback_exc:
-            logger.error(
-                "lock_release_rollback_failed",
-                event_id=str(event_id),
-                error=str(rollback_exc),
-                exc_info=True,
+    def _release_source_event_lock_safely(
+        self,
+        repo: Repository,
+        source_event_id: str,
+        handle: Optional[advisory_lock.AdvisoryLockHandle] = None,
+    ) -> None:
+        """Release source-event lock via verified advisory_lock.release."""
+        if handle is None:
+            key = f"source_event:{source_event_id}"
+            handle = advisory_lock.AdvisoryLockHandle(
+                lock_id=advisory_lock.compute_lock_id(key),
+                backend_pid=0,
+                key=key,
             )
-
-        try:
-            repo.release_event_lock(event_id)
-            logger.warning("lock_release_recovered_after_rollback", event_id=str(event_id))
-            return
-        except Exception as retry_exc:
-            logger.critical(
-                "lock_release_retry_failed_connection_invalidated",
-                event_id=str(event_id),
-                error=str(retry_exc),
-                exc_info=True,
-            )
-            try:
-                repo.session.invalidate()
-            except Exception as invalidate_exc:
-                logger.critical(
-                    "lock_release_invalidate_failed",
-                    event_id=str(event_id),
-                    error=str(invalidate_exc),
-                    exc_info=True,
-                )
-
-            # Avoid masking the original ingestion exception during unwind.
-            if not pending_exception:
-                raise
-
-    def _release_source_event_lock_safely(self, repo: Repository, source_event_id: str) -> None:
-        """
-        Release source-event advisory lock with same recovery semantics as event lock release.
-        """
-        pending_exception = sys.exc_info()[0] is not None
-        try:
-            repo.release_source_event_lock(source_event_id)
-            return
-        except Exception as exc:
-            logger.error(
-                "source_lock_release_failed",
-                source_event_id=source_event_id,
-                error=str(exc),
-                exc_info=True,
-            )
-
-        try:
-            repo.session.rollback()
-        except Exception as rollback_exc:
-            logger.error(
-                "source_lock_release_rollback_failed",
-                source_event_id=source_event_id,
-                error=str(rollback_exc),
-                exc_info=True,
-            )
-
-        try:
-            repo.release_source_event_lock(source_event_id)
-            logger.warning(
-                "source_lock_release_recovered_after_rollback",
-                source_event_id=source_event_id,
-            )
-            return
-        except Exception as retry_exc:
-            logger.critical(
-                "source_lock_release_retry_failed_connection_invalidated",
-                source_event_id=source_event_id,
-                error=str(retry_exc),
-                exc_info=True,
-            )
-            try:
-                repo.session.invalidate()
-            except Exception as invalidate_exc:
-                logger.critical(
-                    "source_lock_release_invalidate_failed",
-                    source_event_id=source_event_id,
-                    error=str(invalidate_exc),
-                    exc_info=True,
-                )
-
-            if not pending_exception:
-                raise
+        advisory_lock.release(repo.session, handle)
 
     async def _run_with_inactivity_timeout(
         self,
@@ -460,8 +387,10 @@ class IngestionPipeline:
         """Ensure an Event row exists for a source_event_id, guarded by a source-level lock."""
         with db_session() as session:
             repo = Repository(session)
-            if not repo.acquire_source_event_lock(source_event_id):
-                raise IngestionInProgressError(source_event_id)
+            lock_key = f"source_event:{source_event_id}"
+            handle = advisory_lock.try_acquire(session, lock_key)
+            if handle is None:
+                raise_source_lock_conflict(source_event_id, track_id=track_id)
             lock_held = True
 
             try:
@@ -490,8 +419,10 @@ class IngestionPipeline:
                 return UUID(event.id)
             finally:
                 if lock_held:
-                    self._release_source_event_lock_safely(repo, source_event_id)
-    
+                    self._release_source_event_lock_safely(
+                        repo, source_event_id, handle=handle
+                    )
+
     async def _fetch_race_page_with_validation(
         self,
         race_summary: ConnectorRaceSummary,
@@ -1951,8 +1882,10 @@ class IngestionPipeline:
         
         with db_session() as session:
             repo = Repository(session)
-            if not repo.acquire_event_lock(event_context.event_id):
-                raise IngestionInProgressError(str(event_context.event_id))
+            lock_key = f"event:{event_context.event_id}"
+            handle = advisory_lock.try_acquire(session, lock_key)
+            if handle is None:
+                raise_event_lock_conflict(event_context.event_id)
             lock_held = True
 
             ingestion_timer = metrics.IngestionDurationTracker(
@@ -1989,8 +1922,10 @@ class IngestionPipeline:
                             error=str(exc),
                             message="Retrying ingestion once due to constraint violation",
                         )
-                        repo.release_event_lock(event_context.event_id)
-                        lock_held = False
+                        if advisory_lock.release(session, handle):
+                            lock_held = False
+                        else:
+                            lock_held = False
                         await asyncio.sleep(1.0)
                         try:
                             result = await self.ingest_event(
@@ -2005,7 +1940,9 @@ class IngestionPipeline:
                 raise
             finally:
                 if lock_held:
-                    self._release_event_lock_safely(repo, event_context.event_id)
+                    self._release_event_lock_safely(
+                        repo, event_context.event_id, handle=handle
+                    )
 
     async def _persist_event_data(
         self,
@@ -2424,14 +2361,12 @@ class IngestionPipeline:
         with db_session() as session:
             repo = Repository(session)
             
-            # Acquire advisory lock using source_event_id
-            lock_acquired = repo.acquire_source_event_lock(source_event_id)
-            if not lock_acquired:
-                raise IngestionInProgressError(
-                    f"Practice day ingestion already in progress: {source_event_id}",
-                    source_event_id=source_event_id,
-                )
-            
+            lock_key = f"source_event:{source_event_id}"
+            handle = advisory_lock.try_acquire(session, lock_key)
+            if handle is None:
+                raise_source_lock_conflict(source_event_id, track_id=track_id)
+            lock_held = True
+
             try:
                 # Resolve event (use repo to get a single Event entity; avoid Row vs entity confusion)
                 existing_event = repo.get_event_by_source_event_id("liverc", source_event_id)
@@ -2746,5 +2681,7 @@ class IngestionPipeline:
                 raise
             
             finally:
-                # Release advisory lock
-                self._release_source_event_lock_safely(repo, source_event_id)
+                if lock_held:
+                    self._release_source_event_lock_safely(
+                        repo, source_event_id, handle=handle
+                    )

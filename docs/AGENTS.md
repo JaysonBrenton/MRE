@@ -107,7 +107,9 @@ ENVIRONMENT.**
 - **Structured Logging + Metrics** – The ingestion service must emit structlog
   JSON plus Prometheus metrics (`ingestion/common/logging.py`,
   `ingestion/common/metrics.py`). Never add plain `print` debugging in
-  production code.
+  production code. Platform-wide observability standards (OTel, SaaS,
+  correlation) are defined in `docs/architecture/observability-platform.md` and
+  `docs/adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md`.
 - **CI Expectations** – Tests live under `src/__tests__` and `ingestion/tests`.
   Prefer fixture-backed, deterministic tests per
   `docs/architecture/liverc-ingestion/18-ingestion-testing-strategy.md`.
@@ -167,7 +169,8 @@ ENVIRONMENT.**
     implementation of advisory locks.
   - Observability: log via structlog, emit Prometheus metrics
     (`ingestion/common/metrics.py`), and keep tracing breadcrumbs
-    (`ingestion/common/tracing.py`).
+    (`ingestion/common/tracing.py` → migrating to OTel per
+    `docs/architecture/observability-correlation-and-tracing.md`).
   - Ops: automated cron workflows include track sync, followed-track event
     refresh, and (when implemented) recent-events auto-ingest
     (`ingestion/scripts/run-track-sync.sh`,

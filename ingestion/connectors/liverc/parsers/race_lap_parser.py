@@ -8,12 +8,12 @@
 # 
 # @purpose Extracts lap time series from embedded JavaScript data blocks
 
-import json
 import re
 from typing import Any, Dict, List, Optional
 from selectolax.parser import HTMLParser
 
 from ingestion.common.logging import get_logger
+from ingestion.connectors.liverc.parsers.js_object_literal import parse_liverc_js_object
 from ingestion.connectors.liverc.models import ConnectorLap
 from ingestion.ingestion.errors import LapTableMissingError, RacePageFormatError
 
@@ -133,26 +133,10 @@ class RaceLapParser:
             return None
         
         js_block = html[start_pos:end_pos]
-        
-        # Convert JavaScript object to Python dict
-        # Replace single quotes with double quotes for JSON compatibility
-        # But be careful - we need to handle nested quotes
-        js_block_clean = js_block.replace("'", '"')
-        
-        try:
-            # Try JSON parsing first
-            driver_data = json.loads(js_block_clean)
-        except json.JSONDecodeError:
-            # Fallback: use ast.literal_eval with single quotes
-            import ast
-            try:
-                # Convert back to single quotes for ast.literal_eval
-                js_block_single = js_block.replace('"', "'")
-                driver_data = ast.literal_eval(js_block_single)
-            except (ValueError, SyntaxError) as e:
-                logger.warning("lap_data_parse_error", driver_id=source_driver_id, error=str(e))
-                return None
-        
+        driver_data = parse_liverc_js_object(js_block)
+        if driver_data is None:
+            logger.warning("lap_data_parse_error", driver_id=source_driver_id)
+            return None
         return driver_data
     
     def parse(self, html: str, url: str, source_driver_id: str) -> List[ConnectorLap]:
@@ -356,15 +340,9 @@ class RaceLapParser:
                 js_block = html[start_pos:end_pos]
                 
                 try:
-                    # Parse JavaScript object
-                    js_block_clean = js_block.replace("'", '"')
-                    
-                    try:
-                        driver_data = json.loads(js_block_clean)
-                    except json.JSONDecodeError:
-                        import ast
-                        js_block_single = js_block.replace('"', "'")
-                        driver_data = ast.literal_eval(js_block_single)
+                    driver_data = parse_liverc_js_object(js_block)
+                    if driver_data is None:
+                        raise ValueError("malformed racerLaps object")
                     
                     # Extract laps array
                     laps_array = driver_data.get("laps", [])
@@ -498,14 +476,9 @@ class RaceLapParser:
 
             js_block = html[start_pos:end_pos]
             try:
-                js_block_clean = js_block.replace("'", '"')
-                try:
-                    driver_data = json.loads(js_block_clean)
-                except json.JSONDecodeError:
-                    import ast
-
-                    js_block_single = js_block.replace('"', "'")
-                    driver_data = ast.literal_eval(js_block_single)
+                driver_data = parse_liverc_js_object(js_block)
+                if driver_data is None:
+                    raise ValueError("malformed racerLaps object")
             except Exception as e:
                 logger.warning(
                     "racer_laps_extra_parse_block_error",

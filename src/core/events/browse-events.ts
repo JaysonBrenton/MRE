@@ -16,7 +16,7 @@ export interface BrowseEventsInput {
   endDate?: string
   page?: number
   pageSize?: number
-  /** When true (Search LiveRC off), only laps_full events are returned. */
+  /** When true, only laps_full events are returned. UI empty-omnibox browse passes false. */
   databaseOnly?: boolean
 }
 

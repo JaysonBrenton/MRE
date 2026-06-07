@@ -13,12 +13,14 @@
 import { Loader2 } from "lucide-react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { type Track } from "../event-search/TrackRow"
+import EventSearchResultsTable from "../event-search/EventSearchResultsTable"
 import EventSearchTableHeader from "../event-search/EventSearchTableHeader"
 import PracticeDayRow from "./PracticeDayRow"
 import { parseApiResponse } from "@/lib/api-response-helper"
 import { clientLogger } from "@/lib/client-logger"
 import { DEFAULT_TABLE_ROWS_PER_PAGE } from "@/lib/table-pagination"
 import ListPagination from "../event-analysis/ListPagination"
+import EventSearchPaginationFooter from "../event-search/EventSearchPaginationFooter"
 import ErrorDisplay from "@/components/molecules/ErrorDisplay"
 
 interface PracticeDaySummary {
@@ -426,7 +428,7 @@ export default function PracticeDaySearchContainer({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col space-y-4 w-full min-w-0">
       {error && error.trim() && <ErrorDisplay message={error} />}
 
       {isLoading && practiceDays.length === 0 ? (
@@ -446,54 +448,52 @@ export default function PracticeDaySearchContainer({
           </p>
         </div>
       ) : (
-        <>
-          <div className="mt-8 w-full min-w-0">
-            <EventSearchTableHeader />
-            <div className="divide-y divide-[var(--token-border-default)]">
-              {paginatedPracticeDays.map((practiceDay) => {
-                const ingested = ingestedPracticeDays.get(practiceDay.date)
-                return (
-                  <PracticeDayRow
-                    key={practiceDay.date}
-                    date={practiceDay.date}
-                    trackName={selectedTrack.trackName}
-                    sessionCount={
-                      typeof practiceDay.sessionCount === "number" ? practiceDay.sessionCount : 0
-                    }
-                    totalLaps={
-                      typeof practiceDay.totalLaps === "number" ? practiceDay.totalLaps : 0
-                    }
-                    uniqueDrivers={
-                      typeof practiceDay.uniqueDrivers === "number" ? practiceDay.uniqueDrivers : 0
-                    }
-                    uniqueClasses={
-                      typeof practiceDay.uniqueClasses === "number" ? practiceDay.uniqueClasses : 0
-                    }
-                    timeRangeStart={practiceDay.timeRangeStart}
-                    timeRangeEnd={practiceDay.timeRangeEnd}
-                    isIngested={!!ingested}
-                    eventId={ingested?.id}
-                    onIngest={() => handleIngest(practiceDay.date)}
-                    onView={ingested ? () => handleView(ingested.id) : undefined}
-                    isIngesting={ingestingDate === practiceDay.date.split("T")[0]}
-                    importDisabled={!!ingestingDate}
-                  />
-                )
-              })}
-            </div>
-          </div>
+        <div className="mt-8 flex min-h-0 flex-1 flex-col w-full min-w-0">
+          <EventSearchResultsTable header={<EventSearchTableHeader />}>
+            {paginatedPracticeDays.map((practiceDay) => {
+              const ingested = ingestedPracticeDays.get(practiceDay.date)
+              return (
+                <PracticeDayRow
+                  key={practiceDay.date}
+                  date={practiceDay.date}
+                  trackName={selectedTrack.trackName}
+                  sessionCount={
+                    typeof practiceDay.sessionCount === "number" ? practiceDay.sessionCount : 0
+                  }
+                  totalLaps={typeof practiceDay.totalLaps === "number" ? practiceDay.totalLaps : 0}
+                  uniqueDrivers={
+                    typeof practiceDay.uniqueDrivers === "number" ? practiceDay.uniqueDrivers : 0
+                  }
+                  uniqueClasses={
+                    typeof practiceDay.uniqueClasses === "number" ? practiceDay.uniqueClasses : 0
+                  }
+                  timeRangeStart={practiceDay.timeRangeStart}
+                  timeRangeEnd={practiceDay.timeRangeEnd}
+                  isIngested={!!ingested}
+                  eventId={ingested?.id}
+                  onIngest={() => handleIngest(practiceDay.date)}
+                  onView={ingested ? () => handleView(ingested.id) : undefined}
+                  isIngesting={ingestingDate === practiceDay.date.split("T")[0]}
+                  importDisabled={!!ingestingDate}
+                />
+              )
+            })}
+          </EventSearchResultsTable>
 
           {practiceDays.length > 0 && (
-            <ListPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              itemsPerPage={itemsPerPage}
-              totalItems={practiceDays.length}
-              onRowsPerPageChange={handleRowsPerPageChange}
-            />
+            <EventSearchPaginationFooter>
+              <ListPagination
+                embedded
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={practiceDays.length}
+                onRowsPerPageChange={handleRowsPerPageChange}
+              />
+            </EventSearchPaginationFooter>
           )}
-        </>
+        </div>
       )}
     </div>
   )

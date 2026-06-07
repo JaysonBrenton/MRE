@@ -1,7 +1,7 @@
 ---
 created: 2025-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-31
+lastModified: 2026-06-07
 description: Comprehensive observability guide for MRE application
 purpose:
   Provides detailed guidance for logging, metrics, tracing, alerting, dashboard
@@ -9,419 +9,345 @@ purpose:
   observability practices and helps with troubleshooting and performance
   optimization.
 relatedFiles:
-  - docs/roles/observability-incident-response-lead.md (role responsibilities)
-  - docs/architecture/liverc-ingestion/15-ingestion-observability.md (ingestion
-    observability)
+  - docs/adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md
+  - docs/architecture/observability-platform.md
+  - docs/architecture/logging.md
+  - docs/roles/observability-incident-response-lead.md
+  - docs/architecture/liverc-ingestion/15-ingestion-observability.md
+  - docs/operations/observability-platform-setup-runbook.md
+  - docs/operations/observability-alerting-runbook.md
+  - docs/implimentation_plans/observability-platform-remediation-2026-06.md
 ---
 
 # Monitoring and Observability Guide
 
-**Last Updated:** 2026-05-31  
+**Last Updated:** 2026-06-07  
 **Scope:** All observability aspects of the MRE application
 
-This document provides comprehensive guidance for logging, metrics, tracing,
-alerting, and troubleshooting in the MRE application.
+This guide describes **current behaviour**, **target architecture** for final
+release, and **operator procedures**. For step-by-step SaaS setup see the
+[setup runbook](./observability-platform-setup-runbook.md). For alert
+definitions see the [alerting runbook](./observability-alerting-runbook.md).
+
+**Authoritative architecture:**
+[observability-platform.md](../architecture/observability-platform.md)  
+**ADR:** [ADR-20260607](../adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md)
 
 ---
 
 ## Table of Contents
 
-1. [Logging Standards and Practices](#logging-standards-and-practices)
-2. [Metrics Collection](#metrics-collection)
-3. [Tracing Setup](#tracing-setup)
-4. [Alerting Configuration](#alerting-configuration)
-5. [Dashboard Setup](#dashboard-setup)
-6. [Troubleshooting with Observability Tools](#troubleshooting-with-observability-tools)
-7. [Performance Monitoring](#performance-monitoring)
+1. [Executive summary](#1-executive-summary)
+2. [Logging](#2-logging)
+3. [Metrics](#3-metrics)
+4. [Tracing](#4-tracing)
+5. [Error tracking](#5-error-tracking)
+6. [Alerting](#6-alerting)
+7. [Dashboards](#7-dashboards)
+8. [Troubleshooting](#8-troubleshooting)
+9. [Performance monitoring](#9-performance-monitoring)
+10. [Implementation status](#10-implementation-status)
 
 ---
 
-## Logging Standards and Practices
+## 1. Executive summary
 
-### Structured Logging
+MRE runs in Docker with three primary application containers:
 
-**Format:** JSON structured logs
+| Container                      | Service name         | Observability today                                   |
+| ------------------------------ | -------------------- | ----------------------------------------------------- |
+| `mre-app`                      | `mre-app` / `nextjs` | Structured console + `ApplicationLog` DB              |
+| `mre-liverc-ingestion-service` | `liverc-ingestion`   | structlog JSON stdout + in-process Prometheus metrics |
+| `mre-telemetry-worker`         | `telemetry-worker`   | Same Python stack as ingestion                        |
 
-**Required Fields:**
+**Target:** OpenTelemetry instrumentation exporting to a **third-party SaaS**
+(Datadog recommended; Grafana Cloud + Sentry documented as alternative).
+Postgres `AuditLog` always retained; `ApplicationLog` demoted to warn/error in
+production.
 
-- `timestamp` - UTC timestamp
-- `level` - Log level (info, warn, error)
-- `message` - Human-readable message
-- `service` - Service name (mre-app, liverc-ingestion-service)
-- `context` - Additional context object
-
-### Log Levels
-
-**INFO:**
-
-- Normal operation events
-- Successful operations
-- State changes
-
-**WARN:**
-
-- Recoverable errors
-- Deprecated feature usage
-- Performance concerns
-
-**ERROR:**
-
-- Errors that require attention
-- Failed operations
-- Exceptions
-
-**DEBUG:**
-
-- Detailed debugging information
-- Development-only logs
-
-### Logging Best Practices
-
-1. **Use Structured Logs**
-   - JSON format for machine parsing
-   - Consistent field names
-   - Include context
-
-2. **Include Correlation IDs**
-   - Track requests across services
-   - Include in all log entries
-   - Use for request tracing
-
-3. **Avoid Sensitive Data**
-   - Don't log passwords
-   - Don't log full request bodies
-   - Don't log PII unnecessarily
-
-4. **Log at Appropriate Levels**
-   - Use INFO for normal operations
-   - Use WARN for recoverable issues
-   - Use ERROR for failures
-
-### Python Ingestion Service Logging
-
-**Current Implementation:**
-
-- Structured JSON logging
-- Log levels: DEBUG, INFO, WARNING, ERROR
-- Configuration via `LOG_LEVEL` environment variable
-
-**See:** `docs/architecture/liverc-ingestion/15-ingestion-observability.md` for
-detailed ingestion logging.
-
-### Next.js Application Logging
-
-**Current Implementation:**
-
-- Console logging (development)
-- Error logging in API routes
-- **Placeholder:** Structured logging will be implemented
-
-**Future Implementation:**
-
-- Structured JSON logging
-- Log aggregation service
-- Correlation IDs
+**Local development:** `OBSERVABILITY_ENABLED=false` — no SaaS keys required.
 
 ---
 
-## Metrics Collection
+## 2. Logging
 
-### Application Metrics
+### 2.1 Standards
 
-**Placeholder:** Metrics collection will be implemented
+- **Schema:**
+  [observability-log-schema.md](../architecture/observability-log-schema.md)
+- **PII / sampling:**
+  [observability-sampling-retention-and-privacy.md](../architecture/observability-sampling-retention-and-privacy.md)
+- **Next.js usage:** [logging.md](../architecture/logging.md)
+- **Ingestion lifecycle events:**
+  [15-ingestion-observability.md](../architecture/liverc-ingestion/15-ingestion-observability.md)
+  §1
 
-**Recommended Metrics:**
+### 2.2 Next.js application (current)
 
-- Request count (by endpoint)
-- Response time (p50, p95, p99)
-- Error rate (by endpoint)
-- Active connections
-- Memory usage
-- CPU usage
+**Implemented:**
 
-### Database Metrics
+- `src/lib/logger.ts` — levels DEBUG/INFO/WARN/ERROR
+- Request context via `createRequestLogger()` — `requestId`, Prisma query
+  telemetry
+- `src/lib/client-logger.ts` — browser-safe API
+- Batched persistence to `ApplicationLog` (all levels in dev; target warn+error
+  in prod SaaS)
+- Admin viewer at `/admin/logs`
 
-**Placeholder:** Database metrics will be collected
+**Not yet implemented (Phase 1–2):**
 
-**Recommended Metrics:**
+- JSON stdout in production
+- W3C trace context in logs
+- Propagation of `X-Request-ID` to ingestion service
+- SaaS log shipping
 
-- Query performance
-- Connection pool usage
-- Slow queries
-- Database size
-- Transaction rate
+### 2.3 Python ingestion and telemetry worker (current)
 
-### Ingestion Metrics
+**Implemented:**
 
-**Implemented:** The Python ingestion service defines Prometheus metrics via
-`prometheus_client` in `ingestion/common/metrics.py`. They are registered to a
-**dedicated `CollectorRegistry`** (`metrics.REGISTRY`) and recorded throughout
-the pipeline and CLI.
+- structlog JSON via `ingestion/common/logging.py`
+- `LOG_LEVEL` environment variable
+- Log-based spans in `ingestion/common/tracing.py`
 
-**⚠️ Not yet scraped:** there is **no HTTP `/metrics` endpoint** exposed by the
-service today (the registry is in-process). Metric values are produced but must
-be exposed (e.g. via a future ASGI `make_asgi_app` mount) before Prometheus can
-scrape them. If `prometheus_client` is not installed, the module falls back to
-no-op stubs.
+**Not yet implemented:**
 
-**See:** `docs/architecture/liverc-ingestion/15-ingestion-observability.md` for
-ingestion metrics.
+- OTel trace context in structlog
+- Log sampling processor (production)
+- FastAPI middleware for incoming trace headers
 
-**Key Metrics (registered in `metrics.py`):**
+### 2.4 Correlation
 
-- `ingestion_duration_seconds` — per-event ingestion time
-- `race_fetch_duration_seconds`, `lap_extraction_duration_seconds`
-- `db_rows_inserted_total`, `db_rows_updated_total`
-- `connector_errors_total`, `ingestion_lock_timeouts_total`,
-  `site_policy_events_total`
-- `event_entry_cache_hits_total`, `event_entry_cache_lookups_total`
-- **Practice day full ingestion:** `practice_day_discovery_duration_seconds`,
-  `practice_day_ingestion_duration_seconds`,
-  `practice_day_sessions_ingested_total`,
-  `practice_day_sessions_with_laps_total`, `practice_day_laps_ingested_total`,
-  `practice_day_sessions_detail_failed_total`
-- **Telemetry worker:** `telemetry_jobs_total` (labelled by `job_type`,
-  `outcome`)
-- **Recent events auto-ingest:** `recent_events_auto_ingest_runs_total`,
-  `recent_events_auto_ingest_events_ingested_total`,
-  `recent_events_auto_ingest_events_failed_total`,
-  `recent_events_auto_ingest_duration_seconds`
+| ID                     | Status             | Spec                                                                        |
+| ---------------------- | ------------------ | --------------------------------------------------------------------------- |
+| `request_id`           | Partial — API only | [correlation doc](../architecture/observability-correlation-and-tracing.md) |
+| `trace_id` / `span_id` | Not cross-service  | Same                                                                        |
 
----
+### 2.5 Where logs live
 
-## Tracing Setup
-
-**Current (ingestion service):** A lightweight, log-based tracing helper exists
-in `ingestion/common/tracing.py`. `TraceSpan` / `start_span(...)` emit
-structured `trace_span_start` and `trace_span_end` JSON log events (with
-`span_id`, `span_name`, `duration_seconds`, and `status`). This is **not** a
-full distributed-tracing system (no OpenTelemetry exporter or trace propagation
-yet) — spans surface as structlog entries in the ingestion logs.
-
-**Placeholder:** Full distributed tracing (cross-service propagation, exporter)
-will be implemented.
-
-### Tracing Requirements
-
-**Recommended:**
-
-- Distributed tracing across services
-- Request correlation
-- Span creation for operations
-- Trace sampling
-
-### Tracing Tools
-
-**Placeholder:** Tracing tool will be selected
-
-**Recommended Tools:**
-
-- OpenTelemetry - Standard tracing
-- Jaeger - Trace visualization
-- Zipkin - Distributed tracing
+| Store            | Role               | Retention (target)          |
+| ---------------- | ------------------ | --------------------------- |
+| SaaS log index   | Primary operations | 30 days                     |
+| `ApplicationLog` | Admin convenience  | 30 days; warn+error in prod |
+| `AuditLog`       | Admin audit trail  | 1+ years                    |
+| Docker stdout    | Collection source  | Ephemeral until shipped     |
 
 ---
 
-## Alerting Configuration
+## 3. Metrics
 
-**Placeholder:** Alerting configuration will be documented
+### 3.1 Next.js (current)
 
-### Alert Categories
+- Slow request warnings via `performance-logger.ts` and
+  `api-performance-wrapper.ts`
+- Thresholds: `PERF_THRESHOLD_API`, `PERF_THRESHOLD_DB`,
+  `PERF_THRESHOLD_EXTERNAL`
+- Prisma query count on request INFO logs
 
-1. **Critical Alerts**
-   - Service down
-   - Database unavailable
-   - High error rate
+**Target:** OTel HTTP server metrics exported to SaaS.
 
-2. **Warning Alerts**
-   - High response time
-   - High memory usage
-   - Slow queries
+### 3.2 Ingestion (current)
 
-3. **Info Alerts**
-   - Deployment notifications
-   - Scheduled maintenance
+Prometheus metrics defined in `ingestion/common/metrics.py` on dedicated
+`REGISTRY`. Key families:
 
-### Alert Thresholds
+| Metric                                             | Type      | Notes                |
+| -------------------------------------------------- | --------- | -------------------- |
+| `ingestion_duration_seconds`                       | Histogram | Per-event timing     |
+| `race_fetch_duration_seconds`                      | Histogram | HTTPX vs Playwright  |
+| `lap_extraction_duration_seconds`                  | Histogram | Parser timing        |
+| `db_rows_inserted_total` / `db_rows_updated_total` | Counter   | By table             |
+| `connector_errors_total`                           | Counter   | By stage, error_code |
+| `ingestion_lock_timeouts_total`                    | Counter   | Lock contention      |
+| `site_policy_events_total`                         | Counter   | Throttling           |
+| Practice day + recent events auto-ingest families  | Various   | See metrics.py       |
+| `telemetry_jobs_total`                             | Counter   | Telemetry worker     |
 
-**Placeholder:** Alert thresholds will be configured
+**Gap:** No HTTP **`GET /metrics`** endpoint yet — metrics are in-process only.
 
-**Recommended Thresholds:**
+**Target (Phase 3):** Mount Prometheus ASGI app; scrape via Datadog agent or
+Alloy. Refactor high-cardinality labels (`event_id`, `race_id`) per privacy doc.
 
-- Error rate > 1% for 5 minutes
-- Response time p95 > 2 seconds
-- Memory usage > 90%
-- CPU usage > 80% for 5 minutes
-- Database connection pool > 80%
+### 3.3 Infrastructure
 
-### Alert Channels
-
-**Placeholder:** Alert channels will be configured
-
-**Recommended Channels:**
-
-- Email notifications
-- Slack/Teams integration
-- PagerDuty (for critical)
-- SMS (for critical)
+**Target:** Container CPU, memory, network via Datadog agent or cAdvisor →
+Grafana.
 
 ---
 
-## Dashboard Setup
+## 4. Tracing
 
-**Placeholder:** Dashboard configuration will be documented
+### 4.1 Current
 
-### Recommended Dashboards
+- **Ingestion:** Log-only `TraceSpan` in `ingestion/common/tracing.py` emits
+  `trace_span_start` / `trace_span_end` JSON events
+- **Next.js:** No distributed tracing
 
-1. **Application Dashboard**
-   - Request rates
-   - Response times
-   - Error rates
-   - Active users
+### 4.2 Target
 
-2. **Database Dashboard**
-   - Query performance
-   - Connection pool
-   - Database size
-   - Slow queries
+OpenTelemetry spans with W3C `traceparent` propagation:
 
-3. **Infrastructure Dashboard**
-   - CPU usage
-   - Memory usage
-   - Network traffic
-   - Disk usage
+```
+Browser → mre-app HTTP span → IngestionClient span → ingestion HTTP span → pipeline spans
+```
 
-4. **Ingestion Dashboard**
-   - Ingestion success rate
-   - Ingestion duration
-   - Events ingested
-   - Error rates
+Required ingestion spans: `event_ingestion`, `event_page_fetch`,
+`race_page_fetch`, `lap_extraction`, `db_persistence`.
 
-### Dashboard Tools
+Sampling: 100% errors; 10% successful API traces; 25% successful ingestion
+(configurable).
 
-**Placeholder:** Dashboard tool will be selected
-
-**Recommended Tools:**
-
-- Grafana - Visualization
-- Datadog - Monitoring platform
-- New Relic - APM platform
+Spec:
+[observability-correlation-and-tracing.md](../architecture/observability-correlation-and-tracing.md)
 
 ---
 
-## Troubleshooting with Observability Tools
+## 5. Error tracking
 
-### Common Issues
+### 5.1 Current
 
-**High Error Rate:**
+- Server: `logger.error()` + console + ApplicationLog
+- Client: `GlobalErrorHandler` + `clientLogger`
+- TODO in `logger.ts` for SaaS integration
 
-1. Check error logs for patterns
-2. Review error messages
-3. Check recent deployments
-4. Review database logs
+### 5.2 Target (Phase 1)
 
-**Slow Response Times:**
+| Path                | Tool                         |
+| ------------------- | ---------------------------- |
+| Datadog default     | Datadog Error Tracking + RUM |
+| Grafana alternative | Sentry (`@sentry/nextjs`)    |
 
-1. Check slow query logs
-2. Review database metrics
-3. Check application metrics
-4. Review network latency
-
-**Service Unavailable:**
-
-1. Check health endpoints
-2. Review container logs
-3. Check infrastructure metrics
-4. Review recent changes
-
-### Troubleshooting Workflow
-
-1. **Identify Issue**
-   - Check dashboards
-   - Review alerts
-   - Check logs
-
-2. **Gather Context**
-   - Collect relevant logs
-   - Review metrics
-   - Check traces
-
-3. **Investigate**
-   - Analyze logs
-   - Review code changes
-   - Check dependencies
-
-4. **Resolve**
-   - Fix issue
-   - Deploy fix
-   - Verify resolution
-
-5. **Document**
-   - Update runbooks
-   - Document root cause
-   - Update alerts if needed
+Gated by `OBSERVABILITY_ENABLED=true`.
 
 ---
 
-## Performance Monitoring
+## 6. Alerting
 
-### Key Performance Indicators
+Monitor definitions, severities, and response steps:
+[observability-alerting-runbook.md](./observability-alerting-runbook.md)
 
-**Application:**
+Summary:
 
-- Response time (p50, p95, p99)
-- Throughput (requests/second)
-- Error rate
-- Availability
+| Severity | Examples                                                         |
+| -------- | ---------------------------------------------------------------- |
+| P1       | App/ingestion health down, API error rate >5%                    |
+| P2       | Ingestion failure spike, advisory lock leak, auto-ingest missing |
+| P3       | Elevated p95 latency, container memory high                      |
 
-**Database:**
-
-- Query performance
-- Connection pool usage
-- Slow query count
-- Database size
-
-**Infrastructure:**
-
-- CPU usage
-- Memory usage
-- Network latency
-- Disk I/O
-
-### Performance Baselines
-
-**Placeholder:** Performance baselines will be established
-
-**Recommended Baselines:**
-
-- API response time p95 < 1 second
-- Error rate < 0.1%
-- Database query time < 200ms (p95)
-- CPU usage < 70%
-- Memory usage < 80%
-
-### Performance Monitoring Tools
-
-**Placeholder:** Performance monitoring tools will be selected
-
-**Recommended:**
-
-- Application Performance Monitoring (APM)
-- Database performance monitoring
-- Infrastructure monitoring
-- Real User Monitoring (RUM)
+**Status:** Monitors to be created in SaaS after Phase 3 metrics/traces ship.
 
 ---
 
-## Related Documentation
+## 7. Dashboards
 
-- [Observability & Incident Response Lead Role](../roles/observability-incident-response-lead.md) -
-  Role responsibilities
-- [Ingestion Observability](../architecture/liverc-ingestion/15-ingestion-observability.md) -
-  Ingestion-specific observability
-- [Performance Requirements](../architecture/performance-requirements.md) -
-  Performance targets
-- [Deployment Guide](./deployment-guide.md) - Deployment monitoring
+### 7.1 Recommended dashboards (create in SaaS)
+
+1. **MRE API** — request rate, p95 latency, error rate by route
+2. **LiveRC ingestion** — ingest success/fail, duration p95, connector errors,
+   lock timeouts
+3. **Infrastructure** — per-container CPU/memory
+4. **Telemetry worker** — `telemetry_jobs_total` by outcome
+
+### 7.2 In-app surfaces
+
+| UI              | Data                    |
+| --------------- | ----------------------- |
+| `/admin/logs`   | `ApplicationLog` (slim) |
+| `/admin/audit`  | `AuditLog`              |
+| `/admin/health` | Service health checks   |
+
+**Target:** Link from admin logs to SaaS explorer with pre-filled query.
+
+---
+
+## 8. Troubleshooting
+
+### 8.1 Workflow
+
+1. **Identify** — alert, user report, or admin UI
+2. **Correlate** — obtain `request_id` from API response header or admin logs
+3. **Search SaaS** — `request_id:` or `trace_id:` across services
+4. **Fallback** — `docker compose logs app liverc-ingestion-service`
+5. **Mitigate** — runbooks for locks, ingestion, deployment
+6. **Document** — post-incident update
+
+### 8.2 Common issues
+
+| Symptom                     | First checks                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| High API error rate         | SaaS: group by `@http.route`; recent deploy                                       |
+| Slow API                    | APM flame graph; `prismaQueryCount` in logs                                       |
+| Ingestion failed            | `@message:ingestion_failed`, `@error.code`, `@ingestion.stage`                    |
+| INGESTION_IN_PROGRESS stuck | [ingestion-lock-recovery-runbook.md](./ingestion-lock-recovery-runbook.md)        |
+| No logs in SaaS             | [setup runbook §10](./observability-platform-setup-runbook.md#10-troubleshooting) |
+
+### 8.3 Useful Docker commands
+
+```bash
+docker logs mre-app --tail 200
+docker logs mre-liverc-ingestion-service --tail 200
+docker exec mre-app wget -qO- http://localhost:3001/api/v1/health
+docker exec mre-liverc-ingestion-service curl -sf http://localhost:8000/health
+# After Phase 3:
+docker exec mre-liverc-ingestion-service curl -s http://localhost:8000/metrics | head
+```
+
+---
+
+## 9. Performance monitoring
+
+### 9.1 KPIs (final release SLOs)
+
+| SLI                    | Target                  |
+| ---------------------- | ----------------------- |
+| API availability       | 99.5% / 30d             |
+| API p95 latency        | <1s                     |
+| Ingestion success rate | 95% (excl. user-caused) |
+| Time to detect P1      | <5 min                  |
+
+### 9.2 Baselines (engineering targets)
+
+| Metric              | Target                            |
+| ------------------- | --------------------------------- |
+| API p95             | <1s                               |
+| Error rate          | <0.1% steady state                |
+| DB query p95        | <200ms                            |
+| Ingestion event p95 | Environment-specific; alert >600s |
+
+### 9.3 Tools
+
+| Signal  | Current               | Target                |
+| ------- | --------------------- | --------------------- |
+| Logs    | Console, DB, Docker   | SaaS                  |
+| Metrics | In-process Prometheus | Scraped / OTel        |
+| Traces  | Log spans (ingestion) | OTel APM              |
+| RUM     | None                  | Datadog RUM or Sentry |
+
+---
+
+## 10. Implementation status
+
+Tracked in
+[observability-platform-remediation-2026-06.md](../implimentation_plans/observability-platform-remediation-2026-06.md):
+
+| Phase | Focus                        | Status          |
+| ----- | ---------------------------- | --------------- |
+| 0     | Documentation + ADR          | **In progress** |
+| 1     | Correlation + error tracking | Planned         |
+| 2     | Log platform + sampling      | Planned         |
+| 3     | Metrics + OTel traces        | Planned         |
+| 4     | Alerts + hardening           | Planned         |
+
+---
+
+## Related documentation
+
+- [Observability Platform Architecture](../architecture/observability-platform.md)
+- [Logging Architecture](../architecture/logging.md)
+- [Observability Platform Setup Runbook](./observability-platform-setup-runbook.md)
+- [Observability Alerting Runbook](./observability-alerting-runbook.md)
+- [Observability & Incident Response Lead Role](../roles/observability-incident-response-lead.md)
+- [Ingestion Observability](../architecture/liverc-ingestion/15-ingestion-observability.md)
+- [Performance Requirements](../architecture/performance-requirements.md)
 
 ---
 

@@ -40,6 +40,9 @@
 
 ### Lap Data Structure
 
+- Race result fixtures (`race.*.html`) are raw HTTP captures from LiveRC
+  (single-quoted `racerLaps` keys/values, e.g.
+  `'driverName' : 'FELIX KOEGLER'`). Re-captured 2026-06-02.
 - `racerLaps` JavaScript object contains lap data for all drivers
 - Empty `laps` arrays indicate non-starting drivers
 - Lap times are stored as strings (e.g., "37.234")

@@ -21,6 +21,14 @@ import { CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import EventStatusBadge, { type EventStatus } from "@/components/molecules/EventStatusBadge"
 import { formatDateDisplay, formatDateTimeDisplay, isEventInFuture } from "@/lib/date-utils"
+import {
+  EVENT_SEARCH_TABLE_BODY_CELL_CLASS,
+  EVENT_SEARCH_TABLE_BODY_ROW_CLASS,
+  EVENT_SEARCH_TABLE_EVENT_NAME_TEXT_CLASS,
+  EVENT_SEARCH_TABLE_NAME_CELL_CLASS,
+  EVENT_SEARCH_TABLE_NAME_SCROLL_CLASS,
+  EVENT_SEARCH_TABLE_NAME_TEXT_CLASS,
+} from "./event-search-table-layout"
 
 /** Matches primary action button width (Download / Open) in the event search table (~104px). */
 const EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS = "w-[6.5rem] min-w-[6.5rem] shrink-0"
@@ -70,6 +78,8 @@ export interface EventRowProps {
   onSelectForDashboard?: (eventId: string) => void // Callback for selecting an event for dashboard context
   /** When true, Import/Retry buttons are disabled (e.g. another import is in progress) */
   importDisabled?: boolean
+  /** Opens the import-failed details dialog (failed status badge) */
+  onViewImportError?: () => void
 }
 
 function getStatusFromIngestDepth(
@@ -117,6 +127,7 @@ export default function EventRow({
   importProgress,
   onSelectForDashboard,
   importDisabled = false,
+  onViewImportError,
 }: EventRowProps) {
   const router = useRouter()
   const derivedStatus = getStatusFromIngestDepth(event.ingestDepth, event.id, event.eventDate)
@@ -127,10 +138,10 @@ export default function EventRow({
   const status = isScheduledEvent ? "scheduled" : (statusOverride ?? derivedStatus)
 
   const formattedDate = formatDateDisplay(event.eventDate)
+  const importedAtLabel = formatDateTimeDisplay(event.lastIngestedAt)
   const isLiveRCOnly = event.id.startsWith("liverc-")
   const isImported = status === "imported" || status === "stored"
   const isScheduled = status === "scheduled"
-  const needsImport = status === "new" && !isLiveRCOnly
   const isImporting = status === "importing"
   const hasFailed = status === "failed"
   const isImportable = status === "new" && !isScheduled // Future events are not importable
@@ -222,122 +233,130 @@ export default function EventRow({
       : Math.max(importProgressPeak, rawImportProgress)
 
   return (
-    <div className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr] items-center gap-4 px-4 py-4 border-b transition-colors duration-200 border-[var(--token-border-default)] hover:bg-[var(--token-surface-raised)]">
+    <tr className={EVENT_SEARCH_TABLE_BODY_ROW_CLASS}>
       {/* Column 1 - Event Name */}
-      <div className="flex min-w-0 items-center gap-2 flex-wrap">
-        {event.eventUrl ? (
-          <div className="min-w-0 max-w-full overflow-hidden">
-            <a
-              href={event.eventUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block min-w-0 text-sm text-[var(--token-text-primary)] font-normal underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]"
-              aria-label={`View event on LiveRC (opens in new tab)`}
-            >
-              {event.eventName}
-            </a>
-          </div>
-        ) : (
-          <div className="min-w-0 max-w-full overflow-hidden">
-            <h3 className="text-sm font-normal text-[var(--token-text-primary)]">
-              {event.eventName}
-            </h3>
-          </div>
-        )}
-        {containsDriver && (
-          <span
-            className="inline-flex items-center gap-1 rounded-full bg-[var(--token-status-success-bg)] px-2 py-1 text-xs font-medium text-[var(--token-status-success-text)]"
-            title="You participated in this event"
-            aria-label="You participated in this event"
+      <td className={`${EVENT_SEARCH_TABLE_BODY_CELL_CLASS} ${EVENT_SEARCH_TABLE_NAME_CELL_CLASS}`}>
+        <div className="flex min-w-0 flex-col gap-1">
+          <div
+            className={`${EVENT_SEARCH_TABLE_NAME_SCROLL_CLASS} flex min-w-0 items-center gap-2`}
           >
-            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-            You participated
-          </span>
-        )}
-        {event.trackName && (
-          <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
-            {event.trackName}
-          </span>
-        )}
-        {/* Optional metadata subtitle (similar to practice days) */}
-        {(() => {
-          if (isImported) {
-            const ingestedAtLabel = formatDateTimeDisplay(event.lastIngestedAt)
-            return (
-              <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
-                {ingestedAtLabel ? `Event imported on ${ingestedAtLabel}.` : "Event imported."}
+            {event.eventUrl ? (
+              <a
+                href={event.eventUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${EVENT_SEARCH_TABLE_EVENT_NAME_TEXT_CLASS} font-normal underline decoration-[var(--token-accent)]/50 underline-offset-2 transition-colors hover:text-[var(--token-accent)] hover:decoration-[var(--token-accent)]`}
+                aria-label={`View event on LiveRC (opens in new tab)`}
+                title={event.eventName}
+              >
+                {event.eventName}
+              </a>
+            ) : (
+              <h3
+                className={`${EVENT_SEARCH_TABLE_EVENT_NAME_TEXT_CLASS} font-normal`}
+                title={event.eventName}
+              >
+                {event.eventName}
+              </h3>
+            )}
+            {containsDriver && (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--token-status-success-bg)] px-2 py-1 text-xs font-medium text-[var(--token-status-success-text)]"
+                title="You participated in this event"
+                aria-label="You participated in this event"
+              >
+                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                You participated
               </span>
-            )
-          }
-          if (needsImport) {
-            return (
-              <span className="text-xs text-[var(--token-text-secondary)] block w-full mt-0.5">
-                Not yet imported — import to analyse laps.
-              </span>
-            )
-          }
-          return null
-        })()}
-      </div>
-
-      {/* Column 2 - Event Status */}
-      <div className="flex flex-col items-center gap-1">
-        <EventStatusBadge
-          status={status}
-          progress={progress}
-          stage={importProgress?.stage}
-          importErrorHint={hasFailed ? errorMessage : undefined}
-        />
-      </div>
-
-      {/* Column 3 - Event Date */}
-      <p className="text-sm text-[var(--token-text-secondary)] text-center">{formattedDate}</p>
-
-      {/* Column 4 - Actions */}
-      <div className="flex items-center justify-center gap-4">
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          {/* Download — fetches event data into MRE (same action as import pipeline) */}
-          {isImportable && onImport && (
-            <button
-              type="button"
-              onClick={handleImport}
-              disabled={importButtonDisabled}
-              title={importDisabled && !isImporting ? "Finish the current import first" : undefined}
-              className={`flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
-              aria-label={`Download ${event.eventName}`}
-            >
-              Download
-            </button>
-          )}
-
-          {/* Retry Button - shown for failed imports */}
-          {hasFailed && onImport && (
-            <button
-              type="button"
-              onClick={handleRetry}
-              disabled={importButtonDisabled}
-              title={importDisabled && !isImporting ? "Finish the current import first" : undefined}
-              className="flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-5 text-sm font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11"
-              aria-label={`Retry import for ${event.eventName}`}
-            >
-              Retry import
-            </button>
-          )}
-
-          {/* Open — open event in analysis / dashboard context */}
-          {canSelect && (
-            <button
-              type="button"
-              onClick={handleSelect}
-              className={`flex items-center justify-center rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-text)]/10 px-5 text-sm font-medium text-[var(--token-status-success-text)] transition-colors hover:bg-[var(--token-status-success-text)]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
-              aria-label={`Open ${event.eventName}`}
-            >
-              Open
-            </button>
+            )}
+          </div>
+          {isImported && (
+            <span className="text-xs text-[var(--token-text-secondary)]">
+              {importedAtLabel ? `Event imported on ${importedAtLabel}.` : "Event imported."}
+            </span>
           )}
         </div>
-      </div>
-    </div>
+      </td>
+
+      {/* Column 2 - Track Name */}
+      <td className={`${EVENT_SEARCH_TABLE_BODY_CELL_CLASS} ${EVENT_SEARCH_TABLE_NAME_CELL_CLASS}`}>
+        <div className={EVENT_SEARCH_TABLE_NAME_SCROLL_CLASS}>
+          <p className={EVENT_SEARCH_TABLE_NAME_TEXT_CLASS} title={event.trackName ?? undefined}>
+            {event.trackName ?? "—"}
+          </p>
+        </div>
+      </td>
+
+      {/* Column 3 - Event Status */}
+      <td className={`${EVENT_SEARCH_TABLE_BODY_CELL_CLASS} text-center`}>
+        <div className="inline-flex flex-col items-center gap-1">
+          <EventStatusBadge
+            status={status}
+            progress={progress}
+            stage={importProgress?.stage}
+            importErrorHint={hasFailed ? errorMessage : undefined}
+            onFailedClick={
+              hasFailed && errorMessage && onViewImportError ? onViewImportError : undefined
+            }
+          />
+        </div>
+      </td>
+
+      {/* Column 4 - Event Date */}
+      <td className={`${EVENT_SEARCH_TABLE_BODY_CELL_CLASS} text-center`}>
+        <p className={`${EVENT_SEARCH_TABLE_NAME_TEXT_CLASS} text-center`}>{formattedDate}</p>
+      </td>
+
+      {/* Column 5 - Actions */}
+      <td className={EVENT_SEARCH_TABLE_BODY_CELL_CLASS}>
+        <div className="flex justify-start">
+          <div className="flex gap-2">
+            {/* Download — fetches event data into MRE (same action as import pipeline) */}
+            {isImportable && onImport && (
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={importButtonDisabled}
+                title={
+                  importDisabled && !isImporting ? "Finish the current import first" : undefined
+                }
+                className={`flex items-center justify-center rounded-md border border-[var(--token-accent)] bg-[var(--token-accent)]/10 px-5 text-sm font-medium text-[var(--token-accent)] transition-colors hover:bg-[var(--token-accent)]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
+                aria-label={`Download ${event.eventName}`}
+              >
+                Download
+              </button>
+            )}
+
+            {/* Retry Button - shown for failed imports */}
+            {hasFailed && onImport && (
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={importButtonDisabled}
+                title={
+                  importDisabled && !isImporting ? "Finish the current import first" : undefined
+                }
+                className={`flex items-center justify-center rounded-md border border-[var(--token-status-error-text)] bg-[var(--token-status-error-bg)] px-2 text-xs font-medium text-[var(--token-status-error-text)] transition-colors hover:bg-[var(--token-status-error-bg)] hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
+                aria-label={`Retry import for ${event.eventName}`}
+              >
+                Retry import
+              </button>
+            )}
+
+            {/* Open — open event in analysis / dashboard context */}
+            {canSelect && (
+              <button
+                type="button"
+                onClick={handleSelect}
+                className={`flex items-center justify-center rounded-md border border-[var(--token-status-success-text)] bg-[var(--token-status-success-text)]/10 px-5 text-sm font-medium text-[var(--token-status-success-text)] transition-colors hover:bg-[var(--token-status-success-text)]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)] h-11 ${EVENT_ROW_ACTION_BUTTON_WIDTH_CLASS}`}
+                aria-label={`Open ${event.eventName}`}
+              >
+                Open
+              </button>
+            )}
+          </div>
+        </div>
+      </td>
+    </tr>
   )
 }

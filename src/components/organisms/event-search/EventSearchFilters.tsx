@@ -3,8 +3,8 @@
  *
  * @description Renders a single "Filters" button that opens a popover hosting
  *              the secondary Event Search controls (Track Selection, Date
- *              Filter, and — when enabled — Include practice days). Replaces the
- *              always-on inline control row to lower cognitive load.
+ *              Filter, and — when enabled — Include practice days). All fields
+ *              use staged draft state; Apply commits without running search.
  *
  * @relatedFiles
  * - src/components/organisms/event-search/EventSearchForm.tsx (consumer)
@@ -13,74 +13,115 @@
 
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { SlidersHorizontal } from "lucide-react"
 import Button from "@/components/atoms/Button"
 import Switch from "@/components/atoms/Switch"
 import Tooltip from "@/components/molecules/Tooltip"
-import { type Track } from "./TrackRow"
+import {
+  DEFAULT_EVENT_SEARCH_FILTER_DRAFT,
+  type EventSearchFilterDraft,
+  isFilterDraftEqual,
+} from "./event-search-filter-draft"
+
+export type { EventSearchFilterDraft } from "./event-search-filter-draft"
+export { DEFAULT_EVENT_SEARCH_FILTER_DRAFT } from "./event-search-filter-draft"
 
 export interface EventSearchFiltersProps {
-  selectedTrack: Track | null
-  /** Human-readable summary of the active date filter (events mode). */
-  dateFilterSummary: string
+  draft: EventSearchFilterDraft
+  committedDraft: EventSearchFilterDraft
+  onDraftChange: (draft: EventSearchFilterDraft) => void
+  /** Human-readable summary of the draft date filter (events mode). */
+  draftDateFilterSummary: string
   /** Whether the Date Filter control should be offered (events mode). */
   showDateFilter: boolean
   onOpenTrackModal: () => void
   onOpenDateModal: () => void
-  includePracticeDays: boolean
-  onIncludePracticeDaysChange?: (checked: boolean) => void
   /** Whether the Include practice days toggle should be offered. */
   showPracticeToggle: boolean
-  /** When true, full search includes LiveRC discovery alongside the database. */
-  includeLiveRC: boolean
-  onIncludeLiveRCChange?: (checked: boolean) => void
   /** Whether the Search LiveRC toggle should be offered (events mode). */
   showLiveRCToggle: boolean
-  /** Reserved future source; UI-only toggle. */
-  includeEverlaps: boolean
-  onIncludeEverlapsChange?: (checked: boolean) => void
   /** Whether the Search Everlaps toggle should be offered (events mode). */
   showEverlapsToggle: boolean
-  /** Count of non-default filters; renders a badge when > 0. */
+  /** Commits staged draft to the container (does not run search). */
+  onApplyFilters: (draft: EventSearchFilterDraft) => void
+  /** Resets committed filters to defaults (does not run search). */
+  onClearFilters: () => void
+  /** Count of non-default committed filters; renders a badge when > 0. */
   activeFilterCount: number
   disabled?: boolean
   trackErrorId?: string
+  /** When true, outside click does not close the popover (nested modal open). */
+  suppressOutsideClose?: boolean
+  /** Fired when the popover opens so the parent can sync draft from committed state. */
+  onPopoverOpen?: () => void
 }
 
 export default function EventSearchFilters({
-  selectedTrack,
-  dateFilterSummary,
+  draft,
+  committedDraft,
+  onDraftChange,
+  draftDateFilterSummary,
   showDateFilter,
   onOpenTrackModal,
   onOpenDateModal,
-  includePracticeDays,
-  onIncludePracticeDaysChange,
   showPracticeToggle,
-  includeLiveRC,
-  onIncludeLiveRCChange,
   showLiveRCToggle,
-  includeEverlaps,
-  onIncludeEverlapsChange,
   showEverlapsToggle,
+  onApplyFilters,
+  onClearFilters,
   activeFilterCount,
   disabled = false,
   trackErrorId,
+  suppressOutsideClose = false,
+  onPopoverOpen,
 }: EventSearchFiltersProps) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const isDraftDirty = !isFilterDraftEqual(draft, committedDraft)
+  const canClearFilters =
+    activeFilterCount > 0 ||
+    !!committedDraft.selectedTrack ||
+    committedDraft.dateRangePreset !== "none" ||
+    !isFilterDraftEqual(draft, DEFAULT_EVENT_SEARCH_FILTER_DRAFT) ||
+    !isFilterDraftEqual(committedDraft, DEFAULT_EVENT_SEARCH_FILTER_DRAFT)
+
+  const closeWithoutApply = useCallback(() => {
+    setIsOpen(false)
+  }, [])
+
+  const handleToggleOpen = () => {
+    if (!isOpen) {
+      onPopoverOpen?.()
+      setIsOpen(true)
+      return
+    }
+    closeWithoutApply()
+  }
+
+  const handleApply = () => {
+    onApplyFilters(draft)
+    setIsOpen(false)
+  }
+
+  const handleClearFilters = () => {
+    onDraftChange({ ...DEFAULT_EVENT_SEARCH_FILTER_DRAFT })
+    onClearFilters()
+  }
 
   useEffect(() => {
     if (!isOpen) return
 
     const handlePointerDown = (e: MouseEvent) => {
+      if (suppressOutsideClose) return
       if (!containerRef.current?.contains(e.target as Node)) {
-        setIsOpen(false)
+        closeWithoutApply()
       }
     }
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setIsOpen(false)
+        closeWithoutApply()
       }
     }
 
@@ -90,7 +131,10 @@ export default function EventSearchFilters({
       document.removeEventListener("mousedown", handlePointerDown)
       document.removeEventListener("keydown", handleKeyDown)
     }
-  }, [isOpen])
+  }, [isOpen, suppressOutsideClose, closeWithoutApply])
+
+  const showToggleSection = showLiveRCToggle || showEverlapsToggle || showPracticeToggle
+  const showFooter = showToggleSection || showDateFilter
 
   return (
     <div ref={containerRef} className="relative inline-flex">
@@ -99,7 +143,7 @@ export default function EventSearchFilters({
         id="event-search-filters-trigger"
         variant="default"
         disabled={disabled}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={handleToggleOpen}
         className="h-11 shrink-0 justify-center gap-2 px-3"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
@@ -137,12 +181,14 @@ export default function EventSearchFilters({
                 className="h-11 w-full justify-between px-3"
                 aria-haspopup="dialog"
                 aria-label={
-                  selectedTrack
-                    ? `Open track list, current track: ${selectedTrack.trackName}`
+                  draft.selectedTrack
+                    ? `Open track list, current track: ${draft.selectedTrack.trackName}`
                     : "Open track list"
                 }
               >
-                <span className="truncate">{selectedTrack?.trackName ?? "Track Selection"}</span>
+                <span className="truncate">
+                  {draft.selectedTrack?.trackName ?? "Track Selection"}
+                </span>
               </Button>
             </div>
 
@@ -158,99 +204,134 @@ export default function EventSearchFilters({
                   onClick={onOpenDateModal}
                   className="h-11 w-full justify-between px-3"
                   aria-haspopup="dialog"
-                  aria-label={`Open date filter, current: ${dateFilterSummary}`}
+                  aria-label={`Open date filter, current: ${draftDateFilterSummary}`}
                 >
-                  <span className="truncate">{dateFilterSummary}</span>
+                  <span className="truncate">{draftDateFilterSummary}</span>
                 </Button>
               </div>
             )}
 
-            {(showLiveRCToggle || showEverlapsToggle) && (
-              <div className="space-y-3">
-                <span className="block text-xs font-semibold uppercase tracking-wide text-[var(--token-text-tertiary)]">
-                  Sources
-                </span>
-                {showLiveRCToggle && onIncludeLiveRCChange && (
+            {showToggleSection && (
+              <>
+                {(showLiveRCToggle || showEverlapsToggle) && (
+                  <div className="space-y-3">
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-[var(--token-text-tertiary)]">
+                      Sources
+                    </span>
+                    {showLiveRCToggle && (
+                      <div className="flex items-center justify-between gap-3">
+                        <Tooltip
+                          text={
+                            draft.selectedTrack
+                              ? "On: include LiveRC discovery with database results. Off: database only (no LiveRC); the list shows events with full lap data (laps_full) when applicable."
+                              : "Select a track first. LiveRC discovery only runs for a specific track."
+                          }
+                          position="top"
+                        >
+                          <label
+                            htmlFor="search-live-rc-trigger"
+                            className="text-sm font-medium text-[var(--token-text-primary)]"
+                          >
+                            Search LiveRC
+                          </label>
+                        </Tooltip>
+                        <Switch
+                          id="search-live-rc-trigger"
+                          checked={draft.includeLiveRC}
+                          onChange={(checked) =>
+                            onDraftChange({ ...draft, includeLiveRC: checked })
+                          }
+                          disabled={disabled || !draft.selectedTrack}
+                          aria-label="Search LiveRC: toggle on to include LiveRC with database, off for database only"
+                          className="shrink-0"
+                        />
+                      </div>
+                    )}
+                    {showEverlapsToggle && (
+                      <div className="flex items-center justify-between gap-3">
+                        <Tooltip
+                          text="Reserved for a future Everlaps search path; the toggle is saved in the UI but does not change results yet."
+                          position="top"
+                        >
+                          <label
+                            htmlFor="search-everlaps-trigger"
+                            className="text-sm font-medium text-[var(--token-text-primary)]"
+                          >
+                            Search Everlaps
+                          </label>
+                        </Tooltip>
+                        <Switch
+                          id="search-everlaps-trigger"
+                          checked={draft.includeEverlaps}
+                          onChange={(checked) =>
+                            onDraftChange({ ...draft, includeEverlaps: checked })
+                          }
+                          disabled={disabled}
+                          aria-label="Include Everlaps when searching (not yet connected)"
+                          className="shrink-0"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {showPracticeToggle && (
                   <div className="flex items-center justify-between gap-3">
                     <Tooltip
                       text={
-                        selectedTrack
-                          ? "On: include LiveRC discovery with database results. Off: database only (no LiveRC); the list shows events with full lap data (laps_full) when applicable."
-                          : "Select a track first. LiveRC discovery only runs for a specific track."
+                        draft.selectedTrack
+                          ? "Include practice days in the results list for the selected track."
+                          : "Select a track first. Practice days are scoped to a track."
                       }
                       position="top"
                     >
                       <label
-                        htmlFor="search-live-rc-trigger"
+                        htmlFor="include-practice-days-trigger"
                         className="text-sm font-medium text-[var(--token-text-primary)]"
                       >
-                        Search LiveRC
+                        Include practice days
                       </label>
                     </Tooltip>
                     <Switch
-                      id="search-live-rc-trigger"
-                      checked={includeLiveRC}
-                      onChange={onIncludeLiveRCChange}
-                      disabled={disabled || !selectedTrack}
-                      aria-label="Search LiveRC: toggle on to include LiveRC with database, off for database only"
+                      id="include-practice-days-trigger"
+                      checked={draft.includePracticeDays}
+                      onChange={(checked) =>
+                        onDraftChange({ ...draft, includePracticeDays: checked })
+                      }
+                      disabled={disabled || !draft.selectedTrack}
+                      aria-label="Include practice days in event list results"
                       className="shrink-0"
                     />
                   </div>
                 )}
-                {showEverlapsToggle && onIncludeEverlapsChange && (
-                  <div className="flex items-center justify-between gap-3">
-                    <Tooltip
-                      text="Reserved for a future Everlaps search path; the toggle is saved in the UI but does not change results yet."
-                      position="top"
-                    >
-                      <label
-                        htmlFor="search-everlaps-trigger"
-                        className="text-sm font-medium text-[var(--token-text-primary)]"
-                      >
-                        Search Everlaps
-                      </label>
-                    </Tooltip>
-                    <Switch
-                      id="search-everlaps-trigger"
-                      checked={includeEverlaps}
-                      onChange={onIncludeEverlapsChange}
-                      disabled={disabled}
-                      aria-label="Include Everlaps when searching (not yet connected)"
-                      className="shrink-0"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {showPracticeToggle && onIncludePracticeDaysChange && (
-              <div className="flex items-center justify-between gap-3">
-                <Tooltip
-                  text={
-                    selectedTrack
-                      ? "Include practice days in the results list for the selected track."
-                      : "Select a track first. Practice days are scoped to a track."
-                  }
-                  position="top"
-                >
-                  <label
-                    htmlFor="include-practice-days-trigger"
-                    className="text-sm font-medium text-[var(--token-text-primary)]"
-                  >
-                    Include practice days
-                  </label>
-                </Tooltip>
-                <Switch
-                  id="include-practice-days-trigger"
-                  checked={includePracticeDays}
-                  onChange={onIncludePracticeDaysChange}
-                  disabled={disabled || !selectedTrack}
-                  aria-label="Include practice days in event list results"
-                  className="shrink-0"
-                />
-              </div>
+              </>
             )}
           </div>
+
+          {showFooter && (
+            <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--token-border-default)] pt-3">
+              <button
+                type="button"
+                id="event-search-filters-clear"
+                onClick={handleClearFilters}
+                disabled={disabled || !canClearFilters}
+                className="text-sm font-medium text-[var(--token-text-secondary)] hover:text-[var(--token-text-primary)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)] rounded disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+              >
+                Clear filters
+              </button>
+              <Button
+                type="button"
+                id="event-search-filters-apply"
+                variant="primary"
+                disabled={disabled}
+                onClick={handleApply}
+                className="h-9 shrink-0 px-4"
+                aria-label={isDraftDirty ? "Apply filter changes" : "Close filters without changes"}
+              >
+                Apply
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

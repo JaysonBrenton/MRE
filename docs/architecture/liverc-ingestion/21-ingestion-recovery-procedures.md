@@ -14,6 +14,8 @@ relatedFiles:
   - docs/architecture/liverc-ingestion/11-ingestion-error-handling.md
   - docs/architecture/liverc-ingestion/14-ingestion-idempotency-design.md
   - docs/architecture/liverc-ingestion/20-ingestion-replay-and-debugging.md
+  - docs/architecture/liverc-ingestion/32-ingestion-advisory-lock-lifecycle.md
+  - docs/operations/ingestion-lock-recovery-runbook.md
   - docs/specs/mre-v0.1-feature-scope.md
 ---
 
@@ -419,6 +421,37 @@ Full procedures:
 [recent-events-auto-ingest-runbook.md](../../operations/recent-events-auto-ingest-runbook.md)
 §8–9,
 [21-ingestion-recovery-procedures.md](21-ingestion-recovery-procedures.md).
+
+---
+
+## 16. Stuck per-event advisory locks (`INGESTION_IN_PROGRESS`)
+
+When API or CLI returns **`INGESTION_IN_PROGRESS`** but no ingestion job is
+active, the failure may be a **stale PostgreSQL advisory lock** on a pooled
+connection (not a live concurrent import).
+
+**Detection**
+
+- `GET` queue / logs: no `running` job for the `event_id`.
+- Postgres: `SELECT * FROM pg_locks WHERE locktype = 'advisory';` shows locks on
+  **idle** backends.
+
+**Recovery (operational)**
+
+Follow
+[ingestion-lock-recovery-runbook.md](../../operations/ingestion-lock-recovery-runbook.md):
+
+1. Preferred: `docker compose restart mre-liverc-ingestion-service`
+2. Surgical: `pg_terminate_backend(<pid>)` for the idle holder
+
+**Code remediation (in progress)**
+
+[ingestion-advisory-lock-remediation-2026-06.md](../../implimentation_plans/ingestion-advisory-lock-remediation-2026-06.md)
+implements verified unlock and connection pinning per
+[32-ingestion-advisory-lock-lifecycle.md](./32-ingestion-advisory-lock-lifecycle.md).
+
+Do **not** treat repeated 409 as successful idempotent completion; retry after
+recovery.
 
 ---
 

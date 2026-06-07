@@ -27,6 +27,9 @@ relatedArchitecture:
   - docs/architecture/liverc-ingestion/01-overview.md
   - docs/architecture/liverc-ingestion/18-ingestion-testing-strategy.md
   - docs/architecture/liverc-ingestion/15-ingestion-observability.md
+relatedRemediation:
+  - docs/reviews/ingestion-advisory-lock-investigation-2026-06-02.md
+  - docs/implimentation_plans/ingestion-advisory-lock-remediation-2026-06.md
 ---
 
 # Bug Review: LiveRC Ingestion Service

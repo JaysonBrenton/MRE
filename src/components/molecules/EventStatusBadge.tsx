@@ -52,6 +52,8 @@ export interface EventStatusBadgeProps {
   stage?: string // Optional import stage text to display beneath the badge
   /** Shown as tooltip on failed imports only; kept short for end users */
   importErrorHint?: string
+  /** Opens a details dialog when the failed badge is clicked */
+  onFailedClick?: () => void
 }
 
 /** First sentence or trimmed text so tooltips stay readable */
@@ -103,8 +105,8 @@ const statusConfig: Record<
     label: "Scheduled",
     description:
       "This event is scheduled for a future date. Import will be available after the event occurs.",
-    bgColor: "bg-[var(--token-status-info-bg)]",
-    textColor: "text-[var(--token-status-info-text)]",
+    bgColor: "bg-[var(--token-status-warning-bg)]",
+    textColor: "text-[var(--token-status-warning-text)]",
   },
 }
 
@@ -173,6 +175,7 @@ export default function EventStatusBadge({
   progress,
   stage,
   importErrorHint,
+  onFailedClick,
 }: EventStatusBadgeProps) {
   const config = statusConfig[status]
   const [dynamicColors, setDynamicColors] = React.useState<{
@@ -180,7 +183,7 @@ export default function EventStatusBadge({
     text: string
     progressBarBg: string
   } | null>(null)
-  const badgeRef = React.useRef<HTMLSpanElement>(null)
+  const badgeRef = React.useRef<HTMLSpanElement | HTMLButtonElement>(null)
 
   // Calculate color progression for importing status
   React.useEffect(() => {
@@ -306,26 +309,43 @@ export default function EventStatusBadge({
       : `${config.description}${progressText}`
   }`
 
-  const badgeEl = (
-    <span
-      ref={badgeRef}
-      className={className}
-      style={badgeElStyle}
-      aria-label={badgeAriaLabel}
-      title={badgeTitle}
-    >
-      {/* Progress bar fill element */}
+  const badgeInner = (
+    <>
       <span style={progressBarStyle} aria-hidden="true" />
-      {/* Label text */}
       <span className="relative z-10 min-w-0 flex-1 basis-0 text-center truncate">
         {displayLabel}
       </span>
-    </span>
+    </>
   )
+
+  const badgeEl =
+    status === "failed" && onFailedClick ? (
+      <button
+        type="button"
+        ref={badgeRef}
+        onClick={onFailedClick}
+        className={`${className} cursor-pointer hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--token-interactive-focus-ring)]`}
+        style={badgeElStyle}
+        aria-label={`${badgeAriaLabel} View details.`}
+        title={failedHintTooltip ? `${failedHintTooltip} Click for details.` : badgeTitle}
+      >
+        {badgeInner}
+      </button>
+    ) : (
+      <span
+        ref={badgeRef}
+        className={className}
+        style={badgeElStyle}
+        aria-label={badgeAriaLabel}
+        title={badgeTitle}
+      >
+        {badgeInner}
+      </span>
+    )
 
   return (
     <div className="flex flex-col items-stretch gap-1" style={BADGE_TRACK_STYLE}>
-      {status === "failed" && failedHintTooltip ? (
+      {status === "failed" && failedHintTooltip && !onFailedClick ? (
         <Tooltip text={failedHintTooltip} position="top">
           {badgeEl}
         </Tooltip>
